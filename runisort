@@ -1,0 +1,3 @@
+#!/bin/bash
+set -e
+isort --check-only --recursive --diff || exit 1

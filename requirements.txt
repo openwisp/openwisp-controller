@@ -1,0 +1,1 @@
+django-netjsonconfig<5.0

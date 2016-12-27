@@ -1,0 +1,4 @@
+coverage
+coveralls
+isort
+flake8
