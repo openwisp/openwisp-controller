@@ -4,7 +4,7 @@ import sys
 
 from setuptools import find_packages, setup
 
-from django_netjsonconfig import get_version
+from openwisp2 import get_version
 
 
 def get_install_requires():
