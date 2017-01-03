@@ -1,0 +1,366 @@
+<!DOCTYPE html>{% load i18n static %}
+<html>
+<head>
+    <title>{{ SITE_NAME }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+    <link href="{% static 'ui/lib/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'ui/openwisp/css/layout.css' %}" rel="stylesheet">
+    <link href="{% static 'ui/openwisp/css/colors.css' %}" rel="stylesheet">
+    <link href="{% static 'ui/openwisp/css/typography.css' %}" rel="stylesheet">
+    <link href="{% static 'ui/fontello/css/openwisp.css' %}" rel="stylesheet">
+    <link href="{% static 'ui/fontello/css/animation.css' %}" rel="stylesheet">
+    <link rel="icon" href="{% static 'ui/openwisp/images/favicon.png' %}" type="image/x-icon" />
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="//oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="//oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+    {% if LOGO and LOGO.URL %}
+    <style type="text/css">
+        #top-bar h1 a {
+            background-image: url({{ LOGO.URL }}) !important;
+            {% if LOGO.SIZE %}
+            background-size: {{ LOGO.SIZE }} !important;
+            width: {{ LOGO.SIZE }} !important;
+            {% endif %}
+        }
+    </style>
+    {% endif %}
+    {% if GOOGLE_ANALYTICS_UA %}
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+        ga('create', '{{ GOOGLE_ANALYTICS_UA }}', {{ GOOGLE_ANALYTICS_OPTIONS|safe }});
+    </script>
+    {% endif %}
+    {% if PIWIK_ANALYTICS_BASE_URL and PIWIK_ANALYTICS_SITE_ID %}
+    <script type="text/javascript">
+        var _paq = _paq || [];
+        _paq.push(['trackPageView']);
+        _paq.push(['enableLinkTracking']);
+        (function() {
+            var u="{{ PIWIK_ANALYTICS_BASE_URL }}/";
+            _paq.push(['setTrackerUrl', u+'piwik.php']);
+            _paq.push(['setSiteId', {{ PIWIK_ANALYTICS_SITE_ID }}]);
+            var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+            g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+        })();
+    </script>
+    {% endif %}
+    {% block extrahead %}{% endblock %}
+</head>
+<body style="overflow:hidden">
+    {% block preloader %}
+    <div id="preloader">
+        <p class="inner">
+            <script>document.write('<span class="icon-loading animate-spin"></span> {% trans "Loading" %} &hellip;');</script>
+            <noscript>{% trans 'Warning: javascript disabled!' %}<br>{% trans 'This website needs javascript in order to work.' %}</noscript>
+        </p>
+    </div>
+    {% endblock %}
+    <header>
+        <nav id="top-bar">
+            <h1><a href="#">{{ SITE_NAME }}</a></h1>
+            {% block topbar %}
+            <div id="general-search">
+                <input type="text" id="general-search-input" placeholder="{% trans 'Search for data' %}">
+                <span class="icon-search cursor-pointer">&nbsp;</span>
+                <span class="icon-spinner animate-spin"></span>
+                <ul class="dropdown-menu" id="js-search-results"></ul>
+            </div>
+            <div id="main-actions">
+                <ul>
+                    <li>
+                        <a href="#" class="icon-search">&nbsp;</a>
+                    </li>
+                    {% if request.user.is_authenticated %}
+                    <!-- <li>
+                        <a href="#" class="notifications">
+                            <span class="icon-globe">&nbsp;</span>
+                            &nbsp;
+                            <span class="bg" id="js-notifications-count">0</span>
+                        </a>
+                    </li> -->
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            <span class="icon-user"></span>
+                            <span class="text">{{ request.user.username|slice:"0:13" }}</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <!-- <li>
+                                <a href="#users/<%= username %>" id="js-profile">
+                                    <span class="icon-user"></span>{% trans 'My profile' %}
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#account" id="js-account">
+                                    <span class="icon-config"></span>{% trans 'My account' %}
+                                </a>
+                            </li> -->
+                            {% if request.user.is_staff %}
+                            <li>
+                                <a href="{% url 'admin:index' %}">
+                                    <span class="icon-lock"></span>{% trans 'Admin site' %}
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li>
+                                <a href="#logout" id="js-logout">
+                                    <span class="icon-off"></span>{% trans 'Logout' %}
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    {# not authenticated #}
+                    {% if REGISTRATION_OPEN %}
+                    <li>
+                        <a href="#" data-toggle="modal" data-target="#signup-modal">
+                            <span class="icon-user-add"></span>
+                            <span class="text">{% trans 'Sign up' %}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="#" data-toggle="modal" data-target="#signin-modal">
+                            <span class="icon-user"></span>
+                            <span class="text">{% trans 'Sign in' %}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="#" id="mobile-nav" class="icon-menu"
+                           data-toggle="collapse"
+                           data-target="#ns-top-nav-links">&nbsp;</a>
+                    </li>
+                </ul>
+            </div>
+            <div id="notifications"></div>
+            {% endblock %}
+        </nav>
+        {% block menu %}
+        <nav id="nav-bar" class="navbar navbar-inverse" role="navigation">
+            <div class="collapse navbar-collapse" id="ns-top-nav-links">
+                <ul class="nav navbar-nav">
+                    <li class="active"><a href="#pages/home"><span class="icon-squares"></span>Home</a></li>
+                    <li><a href="#map"><span class="icon-globe"></span>Map</a></li>
+                    <li><a href="#nodes"><span class="icon-nodes"></span>Nodes</a></li>
+                    <li><a href="#layers"><span class="icon-layer"></span>Layers</a></li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            <span class="icon-info-circle"></span>About
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="#pages/about">About this site</a></li>
+                            <li><a href="#pages/terms-of-service">Terms of service</a></li>
+                            <li><a href="#pages/privacy-policy">Privacy Policy</a></li>
+                            <li><a href="#pages/credits">Software Credits</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        {% endblock %}
+    </header>
+
+    {% block breadcrumb %}
+    <ol class="breadcrumb center-stage" id="breadcrumb">
+        <li><a href="#">Home</a></li>
+        <li><a href="#">About</a></li>
+        <li class="active">Something</li>
+    </ol>
+    {% endblock %}
+
+    {% if messages %}
+    <article class="center-stage" id="alerts-container">
+        {% for message in messages %}
+        <div {% if message.tags %}
+                class="alert {% if 'error' in message.tags %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
+             {% else %}
+                class="alert alert-info"
+             {% endif %}
+             id="ns-alert-{{ forloop.counter }}">
+            {{ message }}
+            <a href="javascript:$('#ns-alert-{{ forloop.counter }}').fadeOut(250, function(){ if(!$('.alert:visible').length){ $('#alerts-container').hide() }});" class="icon-close"></a>
+        </div>
+        {% endfor %}
+    </article>
+    {% endif %}
+
+    <div id="body">
+        {% block body %}{% endblock %}
+    </div>
+
+    {% if REGISTRATION_OPEN %}
+    <!-- Sign up -->
+    <div class="modal fade narrow autocenter enlarge-on-mobile" id="signup-modal"
+         tabindex="-1"
+         role="dialog"
+         aria-labelledby="signup-modal-label"
+         aria-hidden="true"
+         data-autocenter-coefficient="2.6">
+        <div class="modal-dialog modal-content modal-body inverse user-dialog">
+
+            <p class="text">
+                {% blocktrans %}By signing up you declare to have accepted our <a href="{{ PRIVACY_POLICY_LINK }}" class="js-dismiss">privacy&nbsp;policy</a><br />and <a href="{{ TERMS_OF_SERVICE_LINK }}" class="js-dismiss">terms&nbsp;of&nbsp;service</a>.{% endblocktrans %}
+            </p>
+
+            {% if SOCIAL_AUTH_ENABLED %}
+                <p class="social-buttons">
+                    {% if FACEBOOK_ENABLED %}
+                        <a href="{% url 'social:begin' 'facebook' %}" class="btn btn-social btn-facebook">
+                            <span class="icon icon-facebook"></span>
+                            <span class="text">{% trans 'Sign up with Facebook' %}</span>
+                            <span class="hover">&nbsp;</span>
+                        </a>
+                    {% endif %}
+
+                    {% if GOOGLE_ENABLED %}
+                        <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-social btn-google">
+                            <span class="icon icon-google"></span>
+                            <span class="text">{% trans 'Sign up with Google' %}</span>
+                            <span class="hover">&nbsp;</span>
+                        </a>
+                    {% endif %}
+
+                    {% if GITHUB_ENABLED %}
+                        <a href="{% url 'social:begin' 'github' %}" class="btn btn-social btn-github">
+                            <span class="icon icon-github"></span>
+                            <span class="text">{% trans 'Sign up with Github' %}</span>
+                            <span class="hover">&nbsp;</span>
+                        </a>
+                    {% endif %}
+                </p>
+
+                <p class="separator">
+                    <span class="line"></span>
+                    <span class="text">{% trans 'or' %}</span>
+                </p>
+            {% endif %}
+
+            <form action="" method="post" id="js-signup-form">
+                <p class="input-group hastip" data-placement="right" data-trigger="manual">
+                    <input required class="form-control" type="text" name="username" id="js-signup-username" placeholder="Username">
+                    <span class="input-group-addon icon-user"></span>
+                </p>
+
+                <p class="input-group hastip" data-placement="right" data-trigger="manual">
+                    <input required class="form-control " type="email" name="email" id="js-signup-email" placeholder="Email">
+                    <span class="input-group-addon icon-mail"></span>
+                </p>
+
+                <p class="input-group hastip" data-placement="right" data-trigger="manual">
+                    <input required class="form-control" type="password" name="password" id="js-signup-password" placeholder="Password">
+                    <span class="input-group-addon icon-lock"></span>
+                </p>
+
+                <p class="input-group hastip" data-placement="right" data-trigger="manual">
+                    <input required class="form-control" type="password" name="password_confirmation" id="js-signup-password_confirmation" placeholder="Confirm password">
+                    <span class="input-group-addon icon-lock"></span>
+                </p>
+
+                <p class="input-group text" id="js-password-strength-message">
+                    <span class="pwstrength_viewport_progress"></span>
+                    <span class="pwstrength_viewport_verdict"></span>
+                </p>
+
+                <button class="btn btn-default">{% trans 'Sign up' %}</button>
+            </form>
+
+            <p class="text">{% trans 'Already have an account?' %} <a href="#" id="js-signin-link">{% trans 'Sign in' %}</a></p>
+
+            <a class="icon-close" data-dismiss="modal" href="#"></a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sign in -->
+    <div class="modal fade narrow autocenter enlarge-on-mobile" id="signin-modal"
+         tabindex="-1"
+         role="dialog"
+         aria-labelledby="signin-modal-label"
+         aria-hidden="true">
+        <div class="modal-dialog modal-content modal-body inverse user-dialog">
+
+            {% if SOCIAL_AUTH_ENABLED %}
+                <p class="social-buttons">
+                    {% if FACEBOOK_ENABLED %}
+                        <a href="{% url 'social:begin' 'facebook' %}" class="btn btn-social btn-facebook">
+                            <span class="icon icon-facebook"></span>
+                            <span class="text">{% trans 'Sign in with Facebook' %}</span>
+                            <span class="hover">&nbsp;</span>
+                        </a>
+                    {% endif %}
+
+                    {% if GOOGLE_ENABLED %}
+                        <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-social btn-google">
+                            <span class="icon icon-google"></span>
+                            <span class="text">{% trans 'Sign in with Google' %}</span>
+                            <span class="hover">&nbsp;</span>
+                        </a>
+                    {% endif %}
+
+                    {% if GITHUB_ENABLED %}
+                        <a href="{% url 'social:begin' 'github' %}"  class="btn btn-social btn-github">
+                            <span class="icon icon-github"></span>
+                            <span class="text">{% trans 'Sign in with Github' %}</span>
+                            <span class="hover">&nbsp;</span>
+                        </a>
+                    {% endif %}
+                </p>
+
+                <p class="separator">
+                    <span class="line"></span>
+                    <span class="text">{% trans 'or' %}</span>
+                </p>
+            {% endif %}
+
+            <form action="" method="post" id="js-signin-form">
+                <p class="input-group">
+                    <input class="form-control" type="text" name="username" placeholder="Username or Email" required>
+                    <span class="input-group-addon icon-user"></span>
+                </p>
+
+                <p class="input-group">
+                    <input class="form-control" type="password" name="password" placeholder="Password" required>
+                    <span class="input-group-addon icon-lock"></span>
+                </p>
+
+                <p class="text text-left">
+                    <span class="custom-checkbox hastip"
+                          data-placement="top"
+                          title="For your protection, keep this checked only on devices you use regularly">
+                        <input type="checkbox" id="remember-signup" name="remember" />
+                        <label for="remember-signup"></label>
+                    </span>
+
+                    <label for="remember-signup">{% trans 'Stay signed in' %}</label>
+                </p>
+
+                <p><button class="btn btn-default">{% trans 'Sign in' %}</button></p>
+            </form>
+
+            <p class="text"><a href="#account/password/reset">{% trans 'Forgot your password?' %}</a></p>
+            {% if REGISTRATION_OPEN %}
+            <p class="text">{% trans "Don't have an account yet?" %} <a href="#" id="js-signup-link">{% trans 'Sign up' %}</a></p>
+            {% endif %}
+
+            <a class="icon-close" data-dismiss="modal" href="#"></a>
+        </div>
+    </div>
+
+    {% block jstemplates %}{% endblock %}
+    {% block jslibs %}
+        <script src="{% static 'ui/lib/js/jquery.js' %}"></script>
+        <script src="{% static 'ui/lib/js/bootstrap.min.js' %}"></script>
+    {% endblock %}
+    {% block jssettings %}{% endblock %}
+    {% block jsopenwisp %}{% endblock %}
+</body>
+</html>

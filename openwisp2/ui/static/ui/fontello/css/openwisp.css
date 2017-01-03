@@ -1,0 +1,109 @@
+@font-face {
+  font-family: 'openwisp';
+  src: url('../fonts/openwisp.eot?24942220');
+  src: url('../fonts/openwisp.eot?24942220#iefix') format('embedded-opentype'),
+       url('../fonts/openwisp.woff?24942220') format('woff'),
+       url('../fonts/openwisp.ttf?24942220') format('truetype'),
+       url('../fonts/openwisp.svg?24942220#openwisp') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+/* Chrome hack: SVG is rendered more smooth in Windozze. 100% magic, uncomment if you need it. */
+/* Note, that will break hinting! In other OS-es font will be not as sharp as it could be */
+
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+  @font-face {
+    font-family: 'openwisp';
+    src: url('../fonts/openwisp.svg?24942220#openwisp') format('svg');
+  }
+}
+
+[class^="icon-"]:before, [class*=" icon-"]:before {
+    font-family: "openwisp";
+    font-style: normal;
+    font-weight: normal;
+    speak: none;
+
+    display: inline-block;
+    text-decoration: inherit;
+    width: 1em;
+    margin-right: .4em;
+    text-align: center;
+    /* opacity: .8; */
+
+    /* For safety - reset parent styles, that can break glyph codes*/
+    font-variant: normal;
+    text-transform: none;
+
+    /* fix buttons height, for twitter bootstrap */
+    line-height: 1em;
+
+    /* Animation center compensation - margins should be symmetric */
+    /* remove if not needed */
+    margin-left: .2em;
+
+    /* you can be more comfortable with increased icons size */
+    /* font-size: 120%; */
+
+    /* Uncomment for 3D effect */
+    /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */
+}
+.btn[class^="icon-"]:before, .btn[class*=" icon-"]:before{
+    margin-left: 0;
+}
+
+.icon-nodes:before { content: '\e801'; } /* '' */
+.icon-plus:before { content: '\e800'; } /* '' */
+.icon-search:before { content: '\e803'; } /* '' */
+.icon-user:before { content: '\e804'; } /* '' */
+.icon-user-add:before { content: '\e805'; } /* '' */
+.icon-layer-2:before { content: '\e806'; } /* '' */
+.icon-pin:before { content: '\e807'; } /* '' */
+.icon-pin-add:before { content: '\e808'; } /* '' */
+.icon-2d:before { content: '\e809'; } /* '' */
+.icon-3d:before { content: '\e80a'; } /* '' */
+.icon-loading:before { content: '\e80b'; } /* '' */
+.icon-plus-squared:before { content: '\e80c'; } /* '' */
+.icon-layer:before { content: '\e80d'; } /* '' */
+.icon-config:before { content: '\e80e'; } /* '' */
+.icon-globe:before { content: '\e80f'; } /* '' */
+.icon-off:before { content: '\e810'; } /* '' */
+.icon-menu:before { content: '\e817'; } /* '' */
+.icon-chart-pie:before { content: '\e818'; } /* '' */
+.icon-list:before { content: '\e819'; } /* '' */
+.icon-tools:before { content: '\e81a'; } /* '' */
+.icon-chart-bar:before { content: '\e81b'; } /* '' */
+.icon-squares:before { content: '\e81c'; } /* '' */
+.icon-info-circle:before { content: '\e81d'; } /* '' */
+.icon-comments:before { content: '\e802'; } /* '' */
+.icon-spinner:before { content: '\e81f'; } /* '' */
+.icon-wrench:before { content: '\e820'; } /* '' */
+.icon-elevation-profile:before { content: '\e821'; } /* '' */
+.icon-ruler:before { content: '\e822'; } /* '' */
+.icon-select-area:before { content: '\e811'; } /* '' */
+.icon-star-full:before { content: '\e812'; } /* '' */
+.icon-star-empty:before { content: '\e813'; } /* '' */
+.icon-star-half:before { content: '\e814'; } /* '' */
+.icon-thumbs-up:before { content: '\e823'; } /* '' */
+.icon-thumbs-down:before { content: '\e824'; } /* '' */
+.icon-github:before { content: '\e825'; } /* '' */
+.icon-google:before { content: '\e826'; } /* '' */
+.icon-down:before { content: '\e827'; } /* '' */
+.icon-link:before { content: '\e828'; } /* '' */
+.icon-facebook:before { content: '\e829'; } /* '' */
+.icon-mail:before { content: '\e82a'; } /* '' */
+.icon-ok:before { content: '\e82b'; } /* '' */
+.icon-cancel:before { content: '\e82c'; } /* '' */
+.icon-lock:before { content: '\e82d'; } /* '' */
+.icon-lock-open:before { content: '\e82e'; } /* '' */
+.icon-edit:before { content: '\e815'; } /* '' */
+.icon-placeholder:before { content: '\e816'; } /* '' */
+.icon-close:before { content: '\e81e'; } /* '' */
+
+/* notification icons */
+#notifications .icon-node:before { content: '\e807' }
+#notifications .icon-custom:before { content: '\e81d' }
+
+.cursor-pointer{
+  cursor: pointer;
+}

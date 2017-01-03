@@ -1,0 +1,1502 @@
+﻿/*
+ * openwisp layout
+ * Keep here all instructions to style the layout
+ */
+
+.center-stage,
+#top-bar,
+#nav-bar{ padding-left: 4.5%; padding-right: 4.5% }
+
+body{ min-width: 300px }
+
+.responsive-padding{ padding: 25px 40px !important }
+
+#top-bar{
+    height: 70px;
+    /* align search box to right */
+    text-align: right;
+    position: relative;
+}
+/* align all the other things to left */
+#top-bar li, #top-bar a{ text-align: left }
+
+#nav-bar{
+    margin: 0;
+    border-radius: 0;
+    border: 0 none;
+}
+
+#top-bar h1{ float: left; margin: 0 }
+#top-bar h1 a{
+    float: left;
+    margin: 0;
+    height: 70px;
+    font-size: 30px;
+    text-indent: -300px;
+    min-width: 170px;
+    background-size: 127px !important;
+    overflow: hidden;
+}
+
+#general-search{
+    position: relative;
+    display: inline-block;
+    line-height: 30px;
+    border-radius: 4px;
+    border: 0 none;
+    background-color: #fff;
+}
+
+#general-search-input{
+    border: 0 none;
+    float: left;
+    height: 100%;
+    width: 100%;
+    line-height: 30px;
+    border-radius: 4px;
+    background-color: transparent;
+}
+
+#general-search span{
+    position: absolute;
+    right: 8px;
+    bottom: 4px;
+    width: 22px;
+    height: 22px;
+    overflow: hidden;
+    color: #8f8f8f;
+    font-size: 22px;
+    line-height: 0px !important;
+}
+#general-search span:before{
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+#general-search .animate-spin{
+    display: none;
+    -webkit-transform-origin: 54% 51%;
+    transform-origin: 54% 51%;
+    -ms-transform-origin: 54% 51%; /* IE 9 */
+    -webkit-animation: spin 1.7s infinite linear;
+    -moz-animation: spin 1.7s infinite linear;
+    -o-animation: spin 1.7s infinite linear;
+    animation: spin 1.7s infinite linear;
+    color: #424141;
+}
+
+#general-search .dropdown-menu{
+    margin-top: -1px;
+    font-size: 14px;
+    border-right: 0 none;
+    border-left: 0 none;
+    overflow-y: auto;
+    max-height: 500px;  /* javascript will tweak this */
+}
+
+#top-bar #general-search a{
+    padding: 8px 13px;
+    color: #4d4d4d;
+}
+
+#general-search a:hover,
+#general-search a:focus,
+#general-search a.focus,
+.btn-group.bootstrap-select ul.dropdown-menu .selected a{
+    background-color: #0a246a;
+    color: #fff !important;
+}
+
+#general-search a:before{
+    margin-right: 9px;
+}
+
+#main-actions{
+    float: right;
+    margin: 0;
+    padding: 0;
+}
+
+#main-actions ul,
+#main-actions li{ list-style: none outside }
+
+#main-actions li,
+#main-actions li a{
+    float: left;
+    margin: 0;
+}
+#main-actions li li,
+#main-actions li li a{ float: none }
+
+#main-actions li a{
+    display: block;
+    position: relative;
+}
+
+#main-actions .icon-user,
+#main-actions .icon-user-add,
+#main-actions .icon-menu,
+#main-actions .dropdown-menu span{ font-size: 22px }
+#main-actions .dropdown-menu span{ position: relative; bottom: -2px }
+#main-actions .dropdown .text,
+#main-actions .caret{ position: relative; top: -2px }
+#main-actions .icon-search,
+#main-actions .icon-menu{ display: none }
+
+#top-bar .notifications{ width: 89px }
+#top-bar .notifications .bg{
+    display: none;
+    position: absolute;
+    top: 13px;
+    right: 18px;
+    padding-top: 3px;
+    width: 22px;
+    height: 22px;
+    line-height: normal;
+    border-radius: 50%;
+    text-align: center;
+}
+
+/* account drop down */
+#top-bar .dropdown-menu{
+    left: 0;
+    z-index: 9999;
+}
+
+#top-bar .dropdown-menu a{ width: 100% }
+#top-bar .dropdown-menu span{ margin-right: 5px }
+/* hide long links */
+#top-bar .dropdown-menu li{ overflow: hidden }
+
+#nav-bar .collapse{ padding: 0 3px }
+
+/* main links */
+#ns-top-nav-links{
+    position: relative;
+    z-index: 1002;  /* for mobile menu */
+}
+
+#ns-top-nav-links > ul > li > a{
+    border-radius: 6px;
+    margin-top: 7px;
+    line-height: 0;
+    padding: 10px 12px;
+}
+#ns-top-nav-links > ul > li{
+    height: 50px;
+}
+
+#ns-top-nav-links > ul > li.active > a{ cursor: default }
+
+#ns-top-nav-links ul.dropdown-menu{
+    padding: 0;
+    margin: 0;
+}
+
+#toggle-toolbar{ display: none !important }
+
+#notifications{
+    display: none;
+    position: absolute;
+    z-index: 1004;
+    top: 70px;
+    left: 0;
+    width: 415px;
+    min-height: 200px;
+    height: 391px;
+    font-size: 12px;
+}
+
+#notifications .arrow{
+    position: absolute;
+    top: -12px;
+    left: 48.3%;
+    width: 0;
+    height: 0;
+}
+
+#notifications .header{
+    padding: 12px 19px;
+    overflow: hidden;
+}
+
+#notifications .header span{ margin: 0 5px }
+
+#notifications .left{
+    width: 50%;
+    float: left;
+    text-align: left;
+}
+
+#notifications .right{
+    width: 50%;
+    float: right;
+    text-align: right
+}
+
+#notifications .scroller{
+    height: 348px;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+}
+
+#notifications ul{
+    padding: 0;
+    margin: 0;
+    list-style: none outside;
+    width: 100%;
+}
+
+#notifications li{
+    position: relative;
+    min-height: 68px;
+    padding: 10px 28px 10px 0;
+    cursor: pointer;
+}
+
+#notifications li:last-child{ border-bottom: 0 none }
+
+#notifications .scroller-content{ padding: 0 }
+
+#notifications .scroller-bar,
+#notifications .scroller-track{
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+#notifications .scroller-track { right: 4px }
+#notifications .scroller-bar {
+    background-color: #f2f2f2;
+}
+#notifications .scroller-track,
+#notifications .scroller-handle { width: 7px !important }
+
+#notifications li span{
+    position: absolute;
+    top: 9px;
+    left: 14px;
+    font-size: 19px;
+}
+#notifications p{ margin: 0 0 0 48px }
+#notifications .time{ margin-top: 3px }
+
+/* --- Content --- */
+
+body .breadcrumb{
+    margin: 0;
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
+
+article.center-stage{
+    position: relative;
+    padding: 0;
+    margin: 25px 4.5%;
+}
+
+article.center-stage .row { margin-left: 0; margin-right: 0 }
+article.center-stage .row > div { padding-left: 0; padding-right: 0 }
+
+.content{
+    padding: 25px 35px;
+}
+
+#map-toolbar{ display: none }
+#map-toolbar.enabled{ display: block }
+
+/* --- TABLETS AND DESKTOPS --- */
+
+@media screen and (min-width: 767px){
+    #general-search{
+        width: 278px;
+        height: 30px;
+        margin: 19px 3.5% 0 0;
+    }
+    #general-search-input{ padding: 0px 15px; }
+
+    #main-actions li a{
+        height: 70px;
+        padding: 18px 25px;
+    }
+
+    #main-actions a.dropdown-toggle{ min-width: 170px }
+
+    #main-actions .icon-globe{
+        position: absolute;
+        top: 19px;
+        left: 23px;
+        font-size: 30px;
+        line-height: 0;
+    }
+
+    #top-bar .dropdown-menu{
+        min-width: 100%;
+    }
+
+    article.narrow{
+        width: 60%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+/* --- adjustments for medium sizes  --- */
+
+@media screen and (min-width: 767px) and (max-width: 1050px){
+    #general-search{
+        width: 210px;
+        margin-right: 1.8%;
+    }
+}
+
+@media screen and (min-width: 767px) and (max-width: 920px) {
+    .center-stage,
+    #top-bar,
+    #nav-bar{ padding-left: 2%; padding-right: 2% }
+    article.center-stage{
+        padding: 0;
+        margin: 15px 2%
+    }
+
+    .responsive-padding{
+        padding: 20px 3.2% !important;
+    }
+
+    #main-actions a.dropdown-toggle{ min-width: 0 }
+
+    .actions a{
+        margin-right: 18px;
+    }
+}
+
+/* --- adjustments for small sizes  --- */
+
+@media screen and (max-width: 900px) {
+    /* hide text from top bar icons */
+    #top-bar .text{ display: none }
+    /* compensate menu */
+    #main-actions ul.dropdown-menu{ width: 190px; left: auto; right: 0 }
+
+    #notifications{
+        width: 100% !important;
+        left: 0 !important;
+    }
+    #notifications .arrow{ display: none }
+}
+
+/* --- SMALL: TABLETS AND MOBILE PHONES --- */
+
+@media screen and (min-width: 0px) and (max-width: 767px){
+    .center-stage,
+    #top-bar,
+    #nav-bar{ padding-left: 2.5%; padding-right: 2.5% }
+    article.center-stage{
+        padding: 0;
+        margin: 10px 2.5%;
+    }
+
+    #notifications { top: 50px }
+
+    #main-actions ul.dropdown-menu{
+        left: auto;
+        right: -60px;
+        width: 180px;
+    }
+
+    .responsive-padding{
+        padding: 20px 2.9% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border-right: 0 none !important;
+        border-left: 0 none !important;
+    }
+
+    #top-bar{
+        height: 50px;
+        padding-right: 0;
+        background: #da4a2d !important;
+    }
+
+    #top-bar h1 a{
+        min-width: 130px;
+        background-size: 123px !important;
+        margin: 2px 0 0 0;
+    }
+
+    .modal.enlarge-on-mobile{
+        background-color: rgba(255,255,255,0.90);
+    }
+
+    .modal.enlarge-on-mobile .modal-dialog{
+        box-shadow: none;
+        border-color: rgba(0,0,0,0.1);
+    }
+
+    #general-search{
+        display: none;
+        position: absolute;
+        top: 0;
+        left: auto;
+        right: 183px;
+        left: 11px;
+        z-index: auto;
+        margin: 10px 1.5% 0 0;
+    }
+    #general-search.searching{ display: block }
+    #general-search-input{ padding: 0px 15px }
+    #general-search .dropdown-menu{ min-width: 100% }
+    #top-bar h1.searching{ display: none }
+    #main-actions .icon-search.searching{ display: none }
+
+    #main-actions li a{
+        height: 50px;
+        width: 61px;
+        padding: 8px 15px;
+    }
+
+    #top-bar .text,
+    #top-bar .caret{ display: none }
+
+    #main-actions .icon-globe{
+        font-size: 27px;
+        position: relative;
+        top: -3px;
+        height:30px;
+
+    }
+    #top-bar .notifications{ width: 61px }
+    #top-bar .notifications .bg{
+        position: absolute;
+        top: 21px;
+        right: 9px;
+        font-size: 13px;
+    }
+
+    #main-actions .icon-search{ display: block; font-size: 25px }
+    #main-actions .icon-menu{ display: block }
+
+    #top-bar .icon-search:before,
+    #main-actions .icon-globe:before{ margin: 0 !important }
+
+    #nav-bar{
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0;
+    }
+
+    #nav-bar .navbar-collapse{ max-height: none; padding: 0 }
+    #nav-bar .navbar-nav{ margin: 10px 0 0; padding: 0; width: 100% !important }
+
+    #nav-bar > div{
+        border: 0 none;
+        background: #383838;
+    }
+
+    #nav-bar ul.navbar-nav > li{
+        width: 100%;
+        padding-left: 2.5%; padding-right: 2.5%;
+    }
+
+    #nav-bar .dropdown.open{ z-index: 1 }
+
+    #map-toolbar.enabled{ display: none }
+    #toggle-toolbar{ display: block !important }
+    .user-dialog .icon-close{ font-size: 18px }
+
+    #body > article > h1,
+    #body > article h2{ letter-spacing: -1px; word-spacing: -1px }
+
+    #body article{ text-align: left }
+    #body article,
+    #body article blockquote{ font-size: 16px }
+
+    .avatar200{ float: none !important }
+}
+
+/* Extra small adjustments */
+@media screen and (min-width: 0px) and (max-width: 580px){
+    .modal.enlarge-on-mobile{
+        background-color: #fff !important;
+    }
+
+    .modal.enlarge-on-mobile .modal-dialog{
+        padding: 25px 25px !important;
+        top: 0 !important;
+        box-shadow: none;
+        border: 0 none;
+    }
+
+    .modal.enlarge-on-mobile .form-control,
+    .modal.enlarge-on-mobile .btn  { font-size: 15px }
+
+    .modal.enlarge-on-mobile p.text,
+    #ns-top-nav-links a{ font-size: 16px !important }
+    #ns-top-nav-links a span{ margin-right: 0.55em }
+
+    .table.left-labels .left, .table.left-labels .right {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    .icon-thumbs-up, .icon-thumbs-down { margin-left: 3px !important }
+    #map-overlay-container .row { margin-left: 0; margin-right: 0 }
+    #map-overlay-container .col-sm-12{ padding: 0 }
+    article.responsive-padding { padding-bottom: 1px !important }
+
+    /* hide map contributions */
+    .leaflet-control-attribution,
+    .leaflet-control-scale-line{ display: none !important }
+
+    #top-bar h1,
+    .hidden-xxs{ display: none }
+
+    #node-list .input-group{ width: 100%; margin: 0 0 10px; float: none }
+    #node-list .icon-plus{
+        display: block;
+        margin: 0 auto;
+        float: none !important;
+    }
+    #node-list h2.pull-left{ float: none !important }
+    #node-list .status.pull-left{ margin-left: 0; margin-right: 2.4% }
+    #node-list table th{ padding: 10px 15px }
+    #node-list table td{ padding: 0 }
+    #node-list td a{ display: block; padding: 10px 15px; text-decoration: none }
+    #node-list td a:hover,
+    #node-list td a:focus{ background: #0a246a; color: #fff }
+}
+
+.overlay{
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 10;
+    padding: 15px;
+    border-radius: 7px;
+}
+
+.mask{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+#fn-map-tools-mask {
+    left: auto;
+    right: 0;
+    width: 60px;
+}
+
+.icon-close{
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+
+.loading{
+    top: 145px;
+    padding: 7px 14px;
+    cursor: default;
+    display: none;
+    z-index: 9999;
+    min-width: 152px;
+}
+.loading .icon-loading{
+    font-size: 17px;
+    margin-right: 5px
+}
+.icon-loading:before,
+.icon-close:before{ margin: 0 !important }
+.loading .text{
+    position: relative;
+    top: -1px;
+}
+
+.loading .icon-close{ top: 9px }
+
+#map-container{
+    position: relative;
+    min-height: 100px
+}
+
+#map, #map-js{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+#map-js,
+.short-map #map{ width: 100% }
+/* base layer control is handled by our UI */
+#map-js .leaflet-control-layers.leaflet-control{ display: none }
+
+#cesiumContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    font-family: sans-serif;
+}
+
+#map-toolbar,
+#toggle-toolbar{
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 99;
+    width: 60px;
+    height: 80%;
+}
+
+#toggle-toolbar{
+    top: auto;
+    bottom: 0;
+    z-index: 1001;
+}
+
+#map-toolbar a,
+#toggle-toolbar{
+    display: block;
+    height: 54px;
+    text-decoration: none;
+    text-align: center;
+    font-size: 23px;
+    line-height: 53px;
+}
+
+#map-toolbar a.smaller{ font-size: 15px }
+
+#map-toolbar a:before,
+#toggle-toolbar:before{
+    margin: 0;
+    width: auto;
+}
+
+.tooltip-inner{
+    padding: 10px 12px !important;
+    max-width: 250px !important;
+    font: normal 13px/18px "Arial", sans-serif;
+}
+
+#map-toolbar .tooltip{
+    margin-top: -1px;
+    left: auto !important;
+    right: 57px !important;
+}
+#map-toolbar .tooltip-inner,
+.side-panel .tooltip-inner{
+    padding: 5px 12px !important;
+    font-weight: bold;
+    white-space: nowrap;
+}
+/* adapt for user dialog */
+.user-dialog .tooltip-inner{
+    padding: 7px 12px !important;
+    max-width: 237px !important;
+    text-align: left;
+    font-size: 12px;
+}
+
+#signup-modal .tooltip-inner{
+    max-width: 400px !important;
+    white-space: nowrap;
+}
+
+#map-legend{
+    top: auto;
+    right: auto;
+    left: 14px;
+    bottom: 14px;
+    padding: 12px 15px 10px;
+    min-width: 120px;
+}
+
+#map-legend a{ float: left }
+#map-legend li{ clear: both }
+#map-legend .circle{ margin-right: 5px }
+
+#map-legend.right{
+    left: auto;
+    right: 14px;
+}
+
+.cesium #map-legend.right{
+    right: 16px;
+}
+
+#map-legend h5{
+    margin: 0 0 6px;
+}
+
+#map-legend .icon-close{
+    width: 20px;
+    height: 20px;
+    top: 8px;
+    right: 10px;
+    text-align: center;
+}
+
+#map-legend ul{
+    list-style: none outside;
+    margin: 0;
+    padding: 0;
+    line-height: 24px;
+
+}
+
+.circle{
+    position: relative;
+    bottom: -2.5px;
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background: #333;
+    border-radius: 50%;
+    margin-right: 7px;
+}
+
+#map-legend .stats{
+    float: right;
+    margin-left: 7px
+}
+
+#map .tooltip-inner{
+    padding: 4px 10px !important;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modal{ overflow-y: auto }
+.modal-dialog button{ margin: 0 0 0 12px }
+
+.modal-dialog .btn{
+    min-width: 55px;
+    padding: 2px 16px;
+    vertical-align: baseline;
+}
+
+.modal-slim{ padding: 16px 25px }
+.modal-x-slim{ padding: 11px 20px }
+
+/* automatically set width and center dialog */
+.modal.autocenter .modal-dialog{
+    position: absolute;
+    left: 0;
+    width: auto;
+    margin: 0 auto;
+}
+
+.modal-dialog.autocenter{
+    display: none;
+    width: auto;
+    margin: 0 auto;
+    left: 0;
+}
+
+.modal-dialog.bottom{
+    position: absolute;
+    bottom: 30px
+}
+
+.modal.narrow .modal-dialog{
+    width: 328px;
+    padding: 25px 44px;
+}
+
+.user-dialog{
+    text-align: center;
+}
+
+.user-dialog form{
+    margin: 20px auto
+}
+
+.user-dialog form button{
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 6px 0 !important;
+}
+
+.user-dialog .icon-close{
+    top: 0;
+    right: 0;
+    padding: 7px 12px
+}
+
+.social-buttons,
+.separator{
+    margin: 20px 0;
+}
+
+.social-buttons a{
+    margin: 15px 0
+}
+
+.btn-social{
+    display: block;
+    position: relative;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.btn-social .icon{
+    width: 16%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    padding: 2% 0 0;
+    display: table-cell;
+    vertical-align: middle;
+}
+.btn-social .icon:before{
+    margin: 0;
+    padding: 0;
+    font-size: 31px;
+}
+.btn-social .text{
+    float: right;
+    width: 84%;
+    padding: 10px 0 !important;
+    text-align: center;
+}
+
+.btn-facebook .icon:before{
+    position: absolute;
+    top: auto;
+    bottom: 0;
+    right: 0.1%;
+}
+
+.btn-social .hover{
+    float: none;
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.separator{
+    position: relative;
+}
+.separator .line{
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    border-top: 1px solid #dedede;
+}
+
+.separator .text{
+    position: relative;
+    padding: 0 15px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+#preloader{
+    position: fixed;
+    left:0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    font-size: 18px;
+}
+#preloader .inner{
+    position: absolute;
+    left: 0;
+    top: 44%;
+    width: 100%;
+    text-align: center;
+}
+#preloader .icon-loading{
+    position: relative;
+    top: -1px
+}
+
+.side-panel{
+    display: none;
+    position: absolute;
+    top: 0;
+    z-index: 1000; /* cover map */
+    right: 0px;
+    padding: 8px;
+    min-width: 150px;
+    max-width: 420px;
+    min-height: 54px;
+}
+
+.side-panel:before{
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -1px;
+    width: 2px;
+    height: 53px;
+    background-color: #e4e4e4;
+}
+
+.side-panel .tool{
+    font-size: 24px;
+    padding: 4px 9px 5px;
+    border-radius: 3px;
+}
+
+.side-panel .tool:before{
+    margin: 0;
+    padding: 0
+}
+
+.panel-inner{
+    width: 270px;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+}
+
+.panel-inner .scroller-content{
+    padding: 13px 20px 5px !important;
+}
+
+.side-panel .has-switch{
+    float: left;
+    margin-right: 8px;
+}
+
+.side-panel p{
+    overflow: hidden;
+    clear: both;
+    margin-bottom: 10px;
+    line-height: 20px;
+}
+
+.side-panel label.inline{
+    vertical-align: top;
+    line-height: 25px;
+}
+.side-panel label.inline.h18{
+    line-height: 18px;
+}
+
+.side-panel .line,
+.side-panel .btn-group{ margin-bottom: 15px !important }
+.side-panel .line { margin-top: 15px !important }
+
+#fn-map-tools{
+    min-width: 100px;
+    min-height: 50px;
+    padding: 15px;
+    overflow: visible;  /*do not hide tooltips*/
+}
+#fn-map-tools p{ margin: 0 }
+#fn-map-tools p:first-child{ margin: 0 0 8px }
+
+#fn-map-tools p button:first-child{
+    margin-right: 5px
+}
+
+#js-password-strength-message{
+    width: 100%;
+    display: none;
+}
+
+#js-password-strength-message .progress{
+    margin: 0 0 5px;
+}
+
+.doublemargin > p,
+.doublemargin > div,
+.doublemargin .btn-group.dropdown,
+.doublemargin .btn-group.bootstrap-select{
+    margin-bottom: 20px
+}
+
+.map-overlay{
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999;
+    overflow: auto;
+}
+
+.animate-width{
+    width: 0%;
+}
+
+.error-msg{
+    display: none;
+    margin-left: 10px;
+}
+
+/*  --- Node Details --- */
+
+#map-overlay-container{
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+    top: 195px;
+    left: 0;
+}
+
+#node-details{
+    margin-top: 0;
+    margin-bottom: 0;
+    background-color: #f2f2f2;
+    border-radius: 5px 5px 0 0;
+    border: 1px solid #9b948e;
+    border-bottom: 0;
+}
+
+.short-map #map-js{
+    height: 377px !important;
+    border-bottom: 1px solid #666;
+}
+
+.actions{
+    margin: 30px 0;
+    clear: both;
+}
+
+.actions a{
+    margin-right: 30px;
+    white-space: nowrap;
+}
+
+.actions a:before{
+    color: #000;
+    text-decoration: none;
+    font-size: 18px;
+    position: relative;
+    bottom: -2px;
+    margin-right: 6px;
+}
+
+.actions img{
+    width: 19px;
+    margin-right: 6px
+}
+
+@media screen and (max-width: 500px){
+    .actions a:before,
+    .actions img{
+        margin: 0 4px 0 0 !important;
+    }
+    .actions a{
+        margin-right: 10px;
+    }
+}
+
+article .nav-tabs,
+article .nav-pills{
+    border-color: #ccc;
+    margin-bottom: 25px;
+}
+
+article .nav-tabs a,
+article .nav-pills a{
+    text-decoration: none
+}
+
+article .nav-tabs > li > a,
+article .nav-tabs > li.dropdown > a.dropdown-toggle{
+    margin-right: 3px;
+}
+
+article .nav-tabs > li > a,
+article .nav-tabs > li.dropdown > a.dropdown-toggle,
+article .nav-pills > li > a{
+    background-color: #979490;
+    color: #fff;
+}
+
+article .nav-tabs > li > a:hover,
+article .nav-tabs > li > a:focus,
+article .nav-tabs > li.dropdown.open > a.dropdown-toggle,
+article .nav-pills > li > a:hover,
+article .nav-pills > li > a:focus,
+article .nav-pills > li.dropdown.open > a.dropdown-toggle{
+    background-color: #4d4d4d !important;
+    color: #fff !important;
+}
+
+article .nav-tabs > .active > a,
+article .nav-tabs > .active > a:hover,
+article .nav-tabs > .active > a:focus{
+    color: #555 !important;
+    background-color: #f2f2f2 !important;
+    border: 1px solid #979490;
+    border-bottom-color: transparent;
+}
+
+article .nav-pills li li a,
+article .nav-tabs li li a{
+    padding-top: 10px;
+    padding-bottom: 10px
+}
+
+.table{
+    border: 1px solid #e2e2e2;
+}
+
+.table td{
+    border: 1px solid #e2e2e2;
+    border-bottom: 0 none !important;
+    border-top: 0 none !important;
+    text-align: left;
+}
+
+.table.left-labels .left,
+.table.left-labels .right{
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.table.left-labels .left{
+    width: 24%;
+    min-width: 110px;
+    text-align: right;
+    font-weight: bold;
+    color: #303030;
+}
+
+img.avatar{
+    width: 50px;
+    height: 50px;
+    border-radius: 5px;
+}
+img.avatar200{ border-radius: 15% }
+
+#comments h3{
+    margin-bottom: 20px;
+}
+
+#comments .input-group-addon{
+    background: none !important;
+    border: 0 none !important;
+    padding: 0 14px 0 0 !important;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    box-shadow: none;
+    vertical-align: top;
+}
+
+#comments .form-control{
+    height: 50px;
+    border-radius: 5px;
+    padding: 0;
+    color: #7c7c7c;
+}
+
+.new-comment textarea{
+    overflow: hidden;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 5px 12px;
+    min-height: 50px;
+    background-color: transparent;
+}
+
+.new-comment textarea{
+    border: 0 none;
+    outline: 0 none;
+}
+
+.new-comment .initial{
+    font-size: 18px;
+    line-height: 38px;
+}
+
+.new-comment, .comment{
+    margin-bottom: 30px;
+}
+
+.new-comment .submit-row{
+    display: none;
+    margin-top: 10px;
+    text-align: right
+}
+
+.new-comment .btn{
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.comment{
+    position: relative;
+}
+
+.comment .avatar{
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.comment .meta-data,
+.comment .text{
+    margin-left: 64px;
+}
+
+.comment .meta-data{
+    margin-bottom: 5px;
+    color: #676767;
+    font-size: 13px;
+}
+
+.comment .separator{
+    margin: 0 3px;
+}
+
+.comment .text{
+    font-size: 14px
+}
+
+.vote{
+    white-space: nowrap;
+}
+
+.vote a:before{ margin-right: 3px !important }
+
+.rating span{
+    margin-right: -4px;
+    padding-right: 3px;
+}
+
+.rating-count{ margin-left: 5px }
+.rating-count a{ text-decoration: none; cursor: default; }
+
+#map .leaflet-popup-content{
+    line-height: 1.5;
+    min-width: 120px;
+    max-width: 350px;
+}
+#map .leaflet-popup-content p{ margin: 10px 0 }
+#map .leaflet-popup-content a.btn{ color: #fff }
+#map .leaflet-popup-content .details{ margin: 15px 0; text-align: center }
+
+.displaynone{ display: none }
+
+.avatar200{
+    float: left;
+    width: 200px;
+    height: 200px;
+    margin: 0 28px 10px 0;
+}
+
+.nomargin{ margin: 0 !important }
+.nopadding{ padding: 0 !important }
+
+#notifications .empty{
+    margin: 0;
+    padding: 139px 0 0 0;
+    font-size: 15px;
+    text-align: center;
+}
+
+/* --- Begin Node List --- */
+
+#node-list .name-column a{
+    color: #252525;
+    font-weight: normal;
+}
+
+#node-list .status-column{
+    text-align: center
+}
+
+.padding-bottom {
+    padding-bottom: 25px;
+}
+
+.table th{
+    color: #fff;
+    background: #363636; /* Old browsers */
+    background: -moz-linear-gradient(top, #595959 0%, #343434 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#595959), color-stop(100%,#343434)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top, #595959 0%,#343434 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top, #595959 0%,#343434 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top, #595959 0%,#343434 100%); /* IE10+ */
+    background: linear-gradient(to bottom, #595959 0%,#343434 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#595959', endColorstr='#343434',GradientType=0 ); /* IE6-9 */
+}
+
+.table.columns{
+    border: 0 none;
+    border-bottom: 1px solid #e3e3e3;
+}
+
+.table.columns th,
+.table.columns td{
+    padding-left: 1.7%;
+    padding-right: 1.7%;
+    border-collapse: collapse;
+    border-left: 1px solid #e3e3e3;
+    border-right: 1px solid #e3e3e3;
+}
+.table.columns td{
+    border-bottom: 1px solid rgba(0, 0, 0, 0.02) !important;
+}
+
+.table.columns th{
+    font-weight: normal;
+    border-left: 1px solid rgba(255, 255, 255, 0.13);
+    border-right: 1px solid rgba(255, 255, 255, 0.13);
+    border-bottom: 0 none;
+}
+.table.columns th:first-child{ border-left: 0 none }
+.table.columns th:last-child{ border-right: 0 none }
+.table.columns tbody tr:last-child td{ border-bottom: 1px solid #e3e3e3 !important }
+
+.row-ns{
+    margin-bottom: 20px;
+    clear: both;
+}
+
+#node-list .title{ margin-right: 2.4% }
+#node-list .marginright{ margin-right: 2.4% }
+
+.input-group.width30{
+    width: 30%;
+    float: left;
+}
+
+.input-group.dropdown,
+.input-group.dropdown button{
+    height: 34px;
+}
+
+.input-group.dropdown span.caret{
+    height: 32px;
+    width: 34px;
+}
+.filter-panel{
+    width: 100%;
+    padding: 5% 7%;
+    margin-top: -1px
+}
+
+.filter-panel > div > label{
+    display: block;
+    margin-bottom: 5px;
+}
+
+.filter-panel .group{
+    margin-bottom: 10px;
+    float: left;
+    width: 100%;
+    clear: both;
+}
+
+.fixedbottom{
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+.dark{
+    color: #fff;
+    background: #4e4e4e; /* Old browsers */
+    background: -moz-linear-gradient(top, #4e4e4e 0%, #303030 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#4e4e4e), color-stop(100%,#303030)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top, #4e4e4e 0%,#303030 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top, #4e4e4e 0%,#303030 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top, #4e4e4e 0%,#303030 100%); /* IE10+ */
+    background: linear-gradient(to bottom, #4e4e4e 0%,#303030 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#4e4e4e', endColorstr='#303030',GradientType=0 ); /* IE6-9 */
+}
+
+footer.fixedbottom{
+    padding: 8px 0
+}
+
+footer .btn{
+    padding-top: 3px;
+    padding-bottom: 4px;
+    margin-right: 4px;
+}
+
+footer .btn-group{ margin-bottom: 0 !important }
+
+#node-list footer .selectpicker .caret{ padding-top: 2px !important }
+
+.pagination-links{
+    line-height: 28px
+}
+
+.pagination-select{
+    width: 80px;
+    margin-left: 15px;
+}
+
+.select-all{
+    margin-right: 25px;
+    padding-top: 4px;
+}
+
+.list-actions{ width: 170px }
+.custom-checkbox{ margin-top: 1px }
+
+.static{
+    position: static
+}
+
+.slimtip .tooltip-inner{
+    padding: 7px 10px 7px !important;
+    line-height: 11px;
+}
+.boldtip .tooltip-inner{ font-weight: bold }
+
+.filter-status{
+    height: 34px;
+    line-height: 34px;
+    color: #5d5d5d;
+}
+
+.icon-close.static:before {
+    font-size: 20px;
+    position: relative;
+    bottom: -2px !important;
+}
+
+td.empty{
+    padding: 30px 0 !important;
+    text-align: center;
+    font-size: 15px;
+}
+
+/* --- End Node List --- */
+
+#map-add-node-js > article{ min-width: 300px }
+#body form .form-group{ margin: 0 0 10px !important }
+#body form input[type=checkbox].form-control{ width: auto !important; }
+#body .input-sm .selectpicker{ font-size: 14px; padding-top: 3px; padding-bottom: 3px }
+#body .input-sm .selectpicker .caret{ line-height: 14px }
+#node-details .description{ margin-bottom: 20px }
+
+#map-js.static-map{
+    position: relative;
+    height: 400px;
+    border: 1px solid #ccc;
+}
+#map-js.static-map a{ font-weight: normal }
+
+.btn .glyphicon { margin-right: .4em }
+td.text-center{ text-align: center }
+table.middle tbody td{ vertical-align: middle }
+table td input.form-control { width: 98% }
+
+.alert .icon-close{ top: auto }
