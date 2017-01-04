@@ -1,7 +1,5 @@
-from django.apps import AppConfig as BaseConfig
+from django.apps import AppConfig
 
 
-class OpenWisp2UiConfig(BaseConfig):
+class UiConfig(AppConfig):
     name = 'openwisp2.ui'
-    label = 'openwisp2-ui'
-    verbose_name = 'OpenWISP User Interface'
