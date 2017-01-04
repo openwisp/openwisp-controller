@@ -22,7 +22,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.admin',
-    'openwisp2.ui'
+    'django_extensions',
+    'organizations',
+    'openwisp2.ui',
 ]
 
 MIDDLEWARE_CLASSES = [
