@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django_extensions',
     'organizations',
+    'openwisp2.pki',
     'openwisp2.ui',
 ]
 
