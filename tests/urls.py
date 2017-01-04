@@ -8,7 +8,7 @@ admin.autodiscover()
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
-    url(r'', include('openwisp2.ui.urls', namespace='ui', app_name='ui')),
+    url(r'', include('openwisp2.urls')),
 ]
 
 urlpatterns += staticfiles_urlpatterns()
