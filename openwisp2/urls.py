@@ -7,4 +7,6 @@ urlpatterns = [
     url(r'^invitations/', include(invitation_backend().get_urls())),
     # openwisp2.ui
     url(r'', include('openwisp2.ui.urls', namespace='ui', app_name='ui')),
+    # django-netjsonconfig
+    url(r'^', include('django_netjsonconfig.urls', namespace='netjsonconfig')),
 ]

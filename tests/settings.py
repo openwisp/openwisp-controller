@@ -24,7 +24,10 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django_extensions',
     'organizations',
+    'sortedm2m',
+    'reversion',
     'openwisp2.pki',
+    'openwisp2.config',
     'openwisp2.ui',
 ]
 
