@@ -27,6 +27,7 @@ class CaAdmin(BaseCaAdmin):
               'modified']
 
 
+CaAdmin.list_filter.insert(0, 'organization')
 CaAdmin.list_display.insert(1, 'organization')
 
 
@@ -52,6 +53,10 @@ class CertAdmin(BaseCertAdmin):
               'private_key',
               'created',
               'modified']
+
+
+CertAdmin.list_filter.insert(0, 'organization')
+CertAdmin.list_display.insert(1, 'organization')
 
 
 admin.site.register(Ca, CaAdmin)

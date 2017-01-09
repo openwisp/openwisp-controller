@@ -14,8 +14,8 @@ class Ca(AbstractCa):
                                      blank=True,
                                      null=True)
 
-
-Ca.Meta.abstract = False
+    class Meta(AbstractCa.Meta):
+        abstract = False
 
 
 class Cert(AbstractCert):
@@ -25,6 +25,9 @@ class Cert(AbstractCert):
     ca = models.ForeignKey(Ca, verbose_name=_('CA'))
     organization = models.ForeignKey('organizations.Organization',
                                      verbose_name=_('organization'))
+
+    class Meta(AbstractCert.Meta):
+        abstract = False
 
     def clean(self):
         # if CA is owned by a specific organizations, certificates
