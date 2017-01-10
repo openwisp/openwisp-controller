@@ -6,6 +6,8 @@ from django_netjsonconfig.base.config import AbstractConfig, TemplatesVpnMixin
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 
+from ..models import ValidateOrgMixin
+
 
 class Config(TemplatesVpnMixin, AbstractConfig):
     """
@@ -45,7 +47,7 @@ class Template(AbstractTemplate):
         abstract = False
 
 
-class Vpn(AbstractVpn):
+class Vpn(ValidateOrgMixin, AbstractVpn):
     """
     OpenWISP2 VPN model
     """
@@ -59,6 +61,10 @@ class Vpn(AbstractVpn):
                              help_text=_('leave blank to create automatically'),
                              blank=True,
                              null=True)
+
+    def clean(self):
+        self._validate_org_relation('ca')
+        self._validate_org_relation('cert')
 
     class Meta(AbstractVpn.Meta):
         abstract = False
