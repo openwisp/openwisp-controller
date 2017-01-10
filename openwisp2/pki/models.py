@@ -3,31 +3,22 @@ from django.utils.translation import ugettext_lazy as _
 
 from django_x509.base.models import AbstractCa, AbstractCert
 
-from ..models import ValidateOrgMixin
+from ..models import ShareableOrgMixin
 
 
-class Ca(AbstractCa):
+class Ca(ShareableOrgMixin, AbstractCa):
     """
     OpenWISP2 CA model
     """
-    organization = models.ForeignKey('organizations.Organization',
-                                     verbose_name=_('organization'),
-                                     blank=True,
-                                     null=True)
-
     class Meta(AbstractCa.Meta):
         abstract = False
 
 
-class Cert(ValidateOrgMixin, AbstractCert):
+class Cert(ShareableOrgMixin, AbstractCert):
     """
     OpenWISP2 cert model
     """
     ca = models.ForeignKey(Ca, verbose_name=_('CA'))
-    organization = models.ForeignKey('organizations.Organization',
-                                     verbose_name=_('organization'),
-                                     blank=True,
-                                     null=True)
 
     class Meta(AbstractCert.Meta):
         abstract = False

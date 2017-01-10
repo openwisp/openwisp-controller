@@ -3,6 +3,7 @@ model utilities shared across modules
 """
 
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 
@@ -25,3 +26,31 @@ class ValidateOrgMixin(object):
             message = message.format(object_label=self._meta.verbose_name,
                                      related_object_label=rel._meta.verbose_name)
             raise ValidationError({'organization': message})
+
+
+class ShareableOrgMixin(ValidateOrgMixin, models.Model):
+    """
+    extends ``ValidateOrgMixin``
+    adds a ``ForeignKey`` field to the ``Organization`` model
+    the relation can be NULL, in that case it means that
+    the object can be shared between multiple organizations
+    """
+    organization = models.ForeignKey('organizations.Organization',
+                                     verbose_name=_('organization'),
+                                     blank=True,
+                                     null=True)
+
+    class Meta:
+        abstract = True
+
+
+class OrgMixin(ValidateOrgMixin, models.Model):
+    """
+    adds a ``ForeignKey`` field to the ``Organization`` model
+    the relation cannot be NULL
+    """
+    organization = models.ForeignKey('organizations.Organization',
+                                     verbose_name=_('organization'))
+
+    class Meta:
+        abstract = True

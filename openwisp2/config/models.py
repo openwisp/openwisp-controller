@@ -6,15 +6,13 @@ from django_netjsonconfig.base.config import AbstractConfig, TemplatesVpnMixin
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 
-from ..models import ValidateOrgMixin
+from ..models import OrgMixin, ShareableOrgMixin
 
 
-class Config(TemplatesVpnMixin, AbstractConfig):
+class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
     """
     Concrete Config model
     """
-    organization = models.ForeignKey('organizations.Organization',
-                                     verbose_name=_('organization'))
     templates = SortedManyToManyField('config.Template',
                                       related_name='config_relations',
                                       verbose_name=_('templates'),
@@ -30,14 +28,10 @@ class Config(TemplatesVpnMixin, AbstractConfig):
         abstract = False
 
 
-class Template(AbstractTemplate):
+class Template(ShareableOrgMixin, AbstractTemplate):
     """
     OpenWISP2 Template model
     """
-    organization = models.ForeignKey('organizations.Organization',
-                                     verbose_name=_('organization'),
-                                     blank=True,
-                                     null=True)
     vpn = models.ForeignKey('config.Vpn',
                             verbose_name=_('VPN'),
                             blank=True,
@@ -47,14 +41,10 @@ class Template(AbstractTemplate):
         abstract = False
 
 
-class Vpn(ValidateOrgMixin, AbstractVpn):
+class Vpn(ShareableOrgMixin, AbstractVpn):
     """
     OpenWISP2 VPN model
     """
-    organization = models.ForeignKey('organizations.Organization',
-                                     verbose_name=_('organization'),
-                                     blank=True,
-                                     null=True)
     ca = models.ForeignKey('pki.Ca', verbose_name=_('Certification Authority'))
     cert = models.ForeignKey('pki.Cert',
                              verbose_name=_('x509 Certificate'),
