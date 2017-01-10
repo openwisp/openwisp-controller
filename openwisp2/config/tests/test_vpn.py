@@ -1,54 +1,16 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from openwisp2.pki.tests import TestPkiMixin
-from openwisp2.tests import TestOrganizationMixin
+from . import TestVpnX509Mixin
+from ...pki.models import Ca, Cert
+from ...tests import TestOrganizationMixin
+from ..models import Vpn
 
-from ..pki.models import Ca, Cert
-from .models import Vpn
 
-
-class TestConfig(TestCase, TestOrganizationMixin, TestPkiMixin):
+class TestVpn(TestOrganizationMixin, TestVpnX509Mixin, TestCase):
     ca_model = Ca
     cert_model = Cert
-
-    _dh = """-----BEGIN DH PARAMETERS-----
-MIGHAoGBAMkiqC2kAkjhysnuBORxJgDMdq3JrvaNh1kZW0IkFiyLRyhtYf92atP4
-ycYELVoRZoRZ8zp2Y2L71vHRNx5okiXZ1xRWDfEVp7TFVc+oCTTRwJqyq21/DJpe
-Qt01H2yL7CvdEUi/gCUJNS9Jm40248nwKgyrwyoS3SjY49CAcEYLAgEC
------END DH PARAMETERS-----"""
-    _vpn_config = {
-        "openvpn": [
-            {
-                "ca": "ca.pem",
-                "cert": "cert.pem",
-                "dev": "tap0",
-                "dev_type": "tap",
-                "dh": "dh.pem",
-                "key": "key.pem",
-                "mode": "server",
-                "name": "example-vpn",
-                "proto": "udp",
-                "tls_server": True
-            }
-        ]
-    }
-
-    def _create_vpn(self, ca_options={}, **kwargs):
-        options = dict(name='test',
-                       host='vpn1.test.com',
-                       ca=None,
-                       organization=None,
-                       backend='django_netjsonconfig.vpn_backends.OpenVpn',
-                       config=self._vpn_config,
-                       dh=self._dh)
-        options.update(**kwargs)
-        if not options['ca']:
-            options['ca'] = self._create_ca(**ca_options)
-        vpn = Vpn(**options)
-        vpn.full_clean()
-        vpn.save()
-        return vpn
+    vpn_model = Vpn
 
     def test_vpn_with_org(self):
         org = self._create_org()
