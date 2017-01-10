@@ -1,46 +1,22 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from django_x509.tests import TestX509Mixin
 from openwisp2.tests import TestOrganizationMixin
 
 from .models import Ca, Cert
 
 
-class TestPkiMixin(object):
+class TestPkiMixin(TestX509Mixin):
     def _create_ca(self, **kwargs):
-        options = dict(name='Test CA',
-                       organization=None,
-                       key_length='2048',
-                       digest='sha256',
-                       country_code='IT',
-                       state='RM',
-                       city='Rome',
-                       email='test@test.com',
-                       common_name='openwisp.org',
-                       extensions=[])
-        options.update(kwargs)
-        ca = self.ca_model(**options)
-        ca.full_clean()
-        ca.save()
-        return ca
+        if 'organization' not in kwargs:
+            kwargs['organization'] = None
+        return super(TestPkiMixin, self)._create_ca(**kwargs)
 
     def _create_cert(self, **kwargs):
-        options = dict(name='TestCert',
-                       organization=None,
-                       ca=None,
-                       key_length='2048',
-                       digest='sha256',
-                       country_code='IT',
-                       state='RM',
-                       city='Rome',
-                       email='test@test.com',
-                       common_name='openwisp.org',
-                       extensions=[])
-        options.update(kwargs)
-        cert = self.cert_model(**options)
-        cert.full_clean()
-        cert.save()
-        return cert
+        if 'organization' not in kwargs:
+            kwargs['organization'] = None
+        return super(TestPkiMixin, self)._create_cert(**kwargs)
 
 
 class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
