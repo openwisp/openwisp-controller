@@ -6,7 +6,7 @@ from openwisp2.tests import TestOrganizationMixin
 from .models import Ca, Cert
 
 
-class TestPki(TestCase, TestOrganizationMixin):
+class TestPkiMixin(object):
     def _create_ca(self, **kwargs):
         options = dict(name='Test CA',
                        organization=None,
@@ -19,7 +19,7 @@ class TestPki(TestCase, TestOrganizationMixin):
                        common_name='openwisp.org',
                        extensions=[])
         options.update(kwargs)
-        ca = Ca(**options)
+        ca = self.ca_model(**options)
         ca.full_clean()
         ca.save()
         return ca
@@ -37,10 +37,15 @@ class TestPki(TestCase, TestOrganizationMixin):
                        common_name='openwisp.org',
                        extensions=[])
         options.update(kwargs)
-        cert = Cert(**options)
+        cert = self.cert_model(**options)
         cert.full_clean()
         cert.save()
         return cert
+
+
+class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
+    ca_model = Ca
+    cert_model = Cert
 
     def test_ca_creation_with_org(self):
         org = self._create_org()

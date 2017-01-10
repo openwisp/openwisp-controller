@@ -1,8 +1,9 @@
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 from django_x509.base.models import AbstractCa, AbstractCert
+
+from ..models import ValidateOrgMixin
 
 
 class Ca(AbstractCa):
@@ -18,24 +19,21 @@ class Ca(AbstractCa):
         abstract = False
 
 
-class Cert(AbstractCert):
+class Cert(ValidateOrgMixin, AbstractCert):
     """
     OpenWISP2 cert model
     """
     ca = models.ForeignKey(Ca, verbose_name=_('CA'))
     organization = models.ForeignKey('organizations.Organization',
-                                     verbose_name=_('organization'))
+                                     verbose_name=_('organization'),
+                                     blank=True,
+                                     null=True)
 
     class Meta(AbstractCert.Meta):
         abstract = False
 
     def clean(self):
-        # if CA is owned by a specific organizations, certificates
-        # signed with it must also be owned by the same organization
-        if self.ca.organization_id and self.organization_id != self.ca.organization_id:
-            message = _('Please ensure that the organization of this certificate '
-                        'and the organization of the related CA match.')
-            raise ValidationError({'organization': message})
+        self._validate_org_relation('ca')
 
 
 Ca.Meta.abstract = False
