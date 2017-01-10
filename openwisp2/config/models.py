@@ -37,6 +37,9 @@ class Template(ShareableOrgMixin, AbstractTemplate):
                             blank=True,
                             null=True)
 
+    def clean(self):
+        self._validate_org_relation('vpn')
+
     class Meta(AbstractTemplate.Meta):
         abstract = False
 
