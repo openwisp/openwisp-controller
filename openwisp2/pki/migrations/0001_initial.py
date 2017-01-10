@@ -72,7 +72,7 @@ class Migration(migrations.Migration):
                 ('revoked', models.BooleanField(default=False, verbose_name='revoked')),
                 ('revoked_at', models.DateTimeField(blank=True, default=None, null=True, verbose_name='revoked at')),
                 ('ca', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pki.Ca', verbose_name='CA')),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='organizations.Organization', verbose_name='organization')),
+                ('organization', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='organizations.Organization', verbose_name='organization')),
             ],
             options={
                 'verbose_name_plural': 'certificates',
