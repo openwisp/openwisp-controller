@@ -2,7 +2,9 @@ import unittest
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 from django_x509.tests import TestX509Mixin
+from OpenSSL import crypto
 
 from ..tests import TestOrganizationMixin
 from .models import Ca, Cert
@@ -55,6 +57,14 @@ class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
         cert = Cert()
         with self.assertRaises(ValidationError):
             cert.full_clean()
+
+    def test_crl_view(self):
+        ca = self._create_ca()
+        response = self.client.get(reverse('x509:crl', args=[ca.pk]))
+        self.assertEqual(response.status_code, 200)
+        crl = crypto.load_crl(crypto.FILETYPE_PEM, response.content)
+        revoked_list = crl.get_revoked()
+        self.assertIsNone(revoked_list)
 
 
 class TestStaticFinders(unittest.TestCase):
