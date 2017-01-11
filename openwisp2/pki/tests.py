@@ -52,6 +52,11 @@ class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
         cert = self._create_cert(ca=ca, organization=org)
         self.assertEqual(ca.organization.pk, cert.organization.pk)
 
+    def test_cert_validate_org_relation_no_rel(self):
+        cert = Cert()
+        with self.assertRaises(ValidationError):
+            cert.full_clean()
+
 
 class TestStaticFinders(unittest.TestCase):
     def test_dependency_finder(self):
