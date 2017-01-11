@@ -45,7 +45,6 @@ class TestConfig(CreateConfigMixin, CreateTemplateMixin,
         try:
             config.templates.add(template)
         except ValidationError as e:
-            self.assertIn('templates', e.message_dict)
-            self.assertIn('do not match the organization', e.message_dict['templates'][0])
+            self.assertIn('do not match the organization', e.messages[0])
         else:
             self.fail('ValidationError not raised')

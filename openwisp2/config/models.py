@@ -3,8 +3,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from sortedm2m.fields import SortedManyToManyField
 
-from django_netjsonconfig.base.config import \
-    TemplatesVpnMixin as BaseTemplatesVpnMixin
+from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
 from django_netjsonconfig.base.config import AbstractConfig
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
@@ -12,7 +11,7 @@ from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from ..models import OrgMixin, ShareableOrgMixin
 
 
-class TemplatesVpnMixin(BaseTemplatesVpnMixin):
+class TemplatesVpnMixin(BaseMixin):
     class Meta:
         abstract = True
 
@@ -20,7 +19,13 @@ class TemplatesVpnMixin(BaseTemplatesVpnMixin):
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
         templates = cls.get_templates_from_pk_set(action, pk_set)
         if not templates:
-            return
+            return templates
+        # when using the admin, templates will be a list
+        # we need to get the queryset from this list in order to proceed
+        if not isinstance(templates, models.QuerySet):
+            template_model = cls.templates.rel.model
+            pk_list = [template.pk for template in templates]
+            templates = template_model.objects.filter(pk__in=pk_list)
         # lookg for invalid templates
         invalids = templates.exclude(organization=instance.organization)\
                             .exclude(organization=None)\
@@ -30,10 +35,10 @@ class TemplatesVpnMixin(BaseTemplatesVpnMixin):
             for invalid in invalids:
                 names = '{0}, {1}'.format(names, invalid['name'])
             names = names[2:]
-            message = 'The following templates are owned by different '\
-                      'which do not match the organization of this '\
-                      'configuration: {0}'.format(names)
-            raise ValidationError({'templates': message})
+            message = _('The following templates are owned by different '
+                        'which do not match the organization of this '
+                        'configuration: {0}').format(names)
+            raise ValidationError(message)
         # return valid templates in order to save computation
         # in the following operations
         return templates
