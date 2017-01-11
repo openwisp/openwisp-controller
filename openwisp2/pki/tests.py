@@ -1,3 +1,5 @@
+import unittest
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -49,3 +51,10 @@ class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
         ca = self._create_ca(organization=org)
         cert = self._create_cert(ca=ca, organization=org)
         self.assertEqual(ca.organization.pk, cert.organization.pk)
+
+
+class TestStaticFinders(unittest.TestCase):
+    def test_dependency_finder(self):
+        from openwisp2.staticfiles import DependencyFinder
+        finder = DependencyFinder()
+        self.assertIsInstance(finder.locations, list)

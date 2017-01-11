@@ -79,6 +79,16 @@ Setup (integrate in an existing django project)
 
 TODO
 
+Add ``openwisp2.staticfiles.DependencyFinder`` to your ``STATICFILES_FINDERS`` in ``settings.py``
+
+.. code-block:: python
+
+    STATICFILES_FINDERS = [
+        'django.contrib.staticfiles.finders.FileSystemFinder',
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+        'openwisp2.staticfiles.DependencyFinder',
+    ]
+
 Deploy it in production
 -----------------------
 
