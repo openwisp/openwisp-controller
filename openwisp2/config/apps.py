@@ -1,7 +1,14 @@
-from django.apps import AppConfig
-from django.utils.translation import ugettext_lazy as _
+from django_netjsonconfig.apps import DjangoNetjsonconfigApp
 
 
-class ConfigConfig(AppConfig):
+class ConfigConfig(DjangoNetjsonconfigApp):
     name = 'openwisp2.config'
-    verbose_name = _('Configurations')
+    label = 'config'
+
+    def __setmodels__(self):
+        from .models import Config, VpnClient
+        self.config_model = Config
+        self.vpnclient_model = VpnClient
+
+    def check_settings(self):
+        pass

@@ -1,12 +1,51 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from sortedm2m.fields import SortedManyToManyField
 
-from django_netjsonconfig.base.config import AbstractConfig, TemplatesVpnMixin
+from django_netjsonconfig.base.config import \
+    TemplatesVpnMixin as BaseTemplatesVpnMixin
+from django_netjsonconfig.base.config import AbstractConfig
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 
 from ..models import OrgMixin, ShareableOrgMixin
+
+
+class TemplatesVpnMixin(BaseTemplatesVpnMixin):
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def clean_templates_org(cls, action, instance, pk_set, **kwargs):
+        templates = cls.get_templates_from_pk_set(action, pk_set)
+        if not templates:
+            return
+        # lookg for invalid templates
+        invalids = templates.exclude(organization=instance.organization)\
+                            .exclude(organization=None)\
+                            .values('name')
+        if templates and invalids:
+            names = ''
+            for invalid in invalids:
+                names = '{0}, {1}'.format(names, invalid['name'])
+            names = names[2:]
+            message = 'The following templates are owned by different '\
+                      'which do not match the organization of this '\
+                      'configuration: {0}'.format(names)
+            raise ValidationError({'templates': message})
+        # return valid templates in order to save computation
+        # in the following operations
+        return templates
+
+    @classmethod
+    def clean_templates(cls, action, instance, pk_set, **kwargs):
+        """
+        adds organization validation
+        """
+        templates = cls.clean_templates_org(action, instance, pk_set, **kwargs)
+        # perform validation of configuration (local config + templates)
+        super(TemplatesVpnMixin, cls).clean_templates(action, instance, templates, **kwargs)
 
 
 class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
