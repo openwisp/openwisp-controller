@@ -2,15 +2,12 @@ from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 from django.test import TestCase
 
-from django_netjsonconfig.tests import CreateTemplateMixin
-
-from . import CreateConfigMixin
+from . import CreateConfigTemplateMixin
 from ...tests import TestOrganizationMixin
 from ..models import Config, Template
 
 
-class TestAdmin(CreateConfigMixin, CreateTemplateMixin,
-                TestOrganizationMixin, TestCase):
+class TestAdmin(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     """
     tests for Config model
     """

@@ -1,15 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from django_netjsonconfig.tests import CreateTemplateMixin
-
-from . import CreateConfigMixin, TestVpnX509Mixin
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...tests import TestOrganizationMixin
 from ..models import Config, Template
 
 
-class TestConfig(CreateConfigMixin, CreateTemplateMixin,
-                 TestVpnX509Mixin, TestOrganizationMixin, TestCase):
+class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
+                 TestOrganizationMixin, TestCase):
     config_model = Config
     template_model = Template
 

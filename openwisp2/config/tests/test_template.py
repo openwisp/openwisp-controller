@@ -1,6 +1,5 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-
 from django_netjsonconfig.tests import CreateTemplateMixin
 
 from . import TestVpnX509Mixin
