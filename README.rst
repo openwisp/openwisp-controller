@@ -89,6 +89,31 @@ Add ``openwisp2.staticfiles.DependencyFinder`` to your ``STATICFILES_FINDERS`` i
         'openwisp2.staticfiles.DependencyFinder',
     ]
 
+Add ``openwisp2.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``settings.py``
+
+.. code-block:: python
+
+    TEMPLATES = [
+        {
+            'BACKEND': 'django.template.backends.django.DjangoTemplates',
+            'DIRS': [],
+            'OPTIONS': {
+                'loaders': [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                    # add the following line
+                    'openwisp2.loaders.DependencyLoader'
+                ],
+                'context_processors': [
+                    'django.template.context_processors.debug',
+                    'django.template.context_processors.request',
+                    'django.contrib.auth.context_processors.auth',
+                    'django.contrib.messages.context_processors.messages',
+                ],
+            },
+        }
+    ]
+
 Deploy it in production
 -----------------------
 

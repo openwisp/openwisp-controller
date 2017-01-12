@@ -20,6 +20,7 @@ default_app_config = 'openwisp2.apps.OpenWisp2App'
 # cannot be listed in ``settings.INSTALLED_APPS``
 # this variable is used by:
 #   - openwisp2.staticfiles.DependencyFinder
+#   - openwisp2.loaders.DependencyLoader
 __dependencies__ = (
     'django_x509',
     'django_netjsonconfig'
