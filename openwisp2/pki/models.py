@@ -25,6 +25,3 @@ class Cert(ShareableOrgMixin, AbstractCert):
 
     def clean(self):
         self._validate_org_relation('ca')
-
-
-Ca.Meta.abstract = False

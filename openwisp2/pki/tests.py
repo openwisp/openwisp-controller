@@ -3,8 +3,9 @@ import unittest
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
-from django_x509.tests import TestX509Mixin
 from OpenSSL import crypto
+
+from django_x509.tests import TestX509Mixin
 
 from ..tests import TestOrganizationMixin
 from .models import Ca, Cert
