@@ -79,7 +79,7 @@ Setup (integrate in an existing django project)
 
 TODO
 
-Add ``openwisp2.staticfiles.DependencyFinder`` to your ``STATICFILES_FINDERS`` in ``settings.py``
+Add ``openwisp2.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your ``settings.py``
 
 .. code-block:: python
 
