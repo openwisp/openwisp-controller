@@ -21,7 +21,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.admin',
     'django_extensions',
     'organizations',
     'sortedm2m',
@@ -29,6 +28,7 @@ INSTALLED_APPS = [
     'openwisp2.pki',
     'openwisp2.config',
     'openwisp2.ui',
+    'django.contrib.admin'
 ]
 
 STATICFILES_FINDERS = [

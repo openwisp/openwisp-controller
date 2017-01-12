@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+import json
+
 from . import CreateConfigTemplateMixin
 from ...tests import TestOrganizationMixin
 from ..models import Config, Template
@@ -33,3 +35,36 @@ class TestAdmin(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         # remove conflicting template and ensure doesn't error
         response = self.client.post(path, {'templates': '', 'key': self.TEST_KEY})
         self.assertNotIn('errors field-templates', str(response.content))
+
+    def test_preview_config(self):
+        org = self._create_org()
+        self._create_template(organization=org)
+        templates = Template.objects.all()
+        path = reverse('admin:config_config_preview')
+        config = json.dumps({
+            'interfaces': [
+                {
+                    'name': 'eth0',
+                    'type': 'ethernet',
+                    'addresses': [
+                        {
+                            'family': 'ipv4',
+                            'proto': 'dhcp'
+                        }
+                    ]
+                }
+            ]
+        })
+        data = {
+            'name': 'test-config',
+            'organization': org.pk,
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': config,
+            'csrfmiddlewaretoken': 'test',
+            'templates': ','.join([str(t.pk) for t in templates])
+        }
+        response = self.client.post(path, data)
+        self.assertContains(response, '<pre class="djnjc-preformatted')
+        self.assertContains(response, 'eth0')
+        self.assertContains(response, 'dhcp')
