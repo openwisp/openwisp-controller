@@ -4,17 +4,15 @@ import os
 from django.contrib.staticfiles.finders import FileSystemFinder
 from django.core.files.storage import FileSystemStorage
 
+from . import __dependencies__
+
 
 class DependencyFinder(FileSystemFinder):
     """
-    A static files finder that finds static files of django-apps
-    which cannot be listed ``settings.INSTALLED_APPS`` but are
-    relied upon by internal components of OpenWISP2
+    A static files finder that finds static files of
+    django-apps listed in openwisp2.__dependencies__
     """
-    dependencies = (
-        'django_x509',
-        'django_netjsonconfig'
-    )
+    dependencies = __dependencies__
 
     def __init__(self, app_names=None, *args, **kwargs):
         self.locations = []

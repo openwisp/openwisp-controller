@@ -15,3 +15,12 @@ def get_version():
 
 
 default_app_config = 'openwisp2.apps.OpenWisp2App'
+
+# OpenWISP2 extends and depends on these apps which
+# cannot be listed in ``settings.INSTALLED_APPS``
+# this variable is used by:
+#   - openwisp2.staticfiles.DependencyFinder
+__dependencies__ = (
+    'django_x509',
+    'django_netjsonconfig'
+)
