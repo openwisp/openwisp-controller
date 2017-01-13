@@ -1,14 +1,14 @@
 openwisp2
 =========
 
-.. image:: https://travis-ci.org/openwisp/openwisp2.svg
-   :target: https://travis-ci.org/openwisp/openwisp2
+.. image:: https://travis-ci.org/nemesisdesign/openwisp2.svg
+   :target: https://travis-ci.org/nemesisdesign/openwisp2
 
-.. image:: https://coveralls.io/repos/openwisp/openwisp2/badge.svg
-  :target: https://coveralls.io/r/openwisp/openwisp2
+.. image:: https://coveralls.io/repos/nemesisdesign/openwisp2/badge.svg
+  :target: https://coveralls.io/r/nemesisdesign/openwisp2
 
-.. image:: https://requires.io/github/openwisp/openwisp2/requirements.svg?branch=master
-   :target: https://requires.io/github/openwisp/openwisp2/requirements/?branch=master
+.. image:: https://requires.io/github/nemesisdesign/openwisp2/requirements.svg?branch=master
+   :target: https://requires.io/github/nemesisdesign/openwisp2/requirements/?branch=master
    :alt: Requirements Status
 
 .. image:: https://badge.fury.io/py/openwisp2.svg
