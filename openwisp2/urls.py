@@ -1,4 +1,5 @@
 from django.conf.urls import include, url
+from django.conf import settings
 from organizations.backends import invitation_backend
 
 urlpatterns = [
@@ -14,3 +15,6 @@ urlpatterns = [
     # openwisp2.ui
     url(r'', include('openwisp2.ui.urls', namespace='ui', app_name='ui')),
 ]
+
+if 'owm_legacy' in settings.INSTALLED_APPS:
+    urlpatterns.append(url(r'^', include('owm_legacy.urls', namespace='owm')))
