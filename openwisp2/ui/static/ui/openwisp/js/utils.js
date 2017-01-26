@@ -84,4 +84,93 @@
             div.hide().remove();
         }
     };
+
+    // extend jquery to be able to retrieve a cookie
+    $.getCookie = function (name) {
+        var cookieValue = null,
+            cookies,
+            cookie,
+            i;
+
+        if (document.cookie && document.cookie !== '') {
+            cookies = document.cookie.split(';');
+
+            for (i = 0; i < cookies.length; i += 1) {
+                cookie = $.trim(cookies[i]);
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    };
+
+    $.csrfSafeMethod = function (method) {
+        // these HTTP methods do not require CSRF protection
+        return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+    };
+
+    $.sameOrigin = function (url) {
+        // test that a given url is a same-origin URL
+        // url could be relative or scheme relative or absolute
+        var host = document.location.host, // host + port
+        protocol = document.location.protocol,
+        srOrigin = '//' + host,
+        origin = protocol + srOrigin;
+        // Allow absolute or scheme relative URLs to same origin
+        return (url === origin || url.slice(0, origin.length + 1) === origin + '/') ||
+        (url === srOrigin || url.slice(0, srOrigin.length + 1) === srOrigin + '/') ||
+        // or any other URL that isn't scheme relative or absolute i.e relative.
+        !(/^(\/\/|http:|https:).*/.test(url));
+    };
+
+    $.ajaxSetup({
+        beforeSend: function (xhr, settings) {
+            if (!$.csrfSafeMethod(settings.type) && $.sameOrigin(settings.url)) {
+                // Send the token to same-origin, relative URLs only.
+                // Send the token only if the method warrants CSRF protection
+                // Using the CSRFToken value acquired earlier
+                xhr.setRequestHeader("X-CSRFToken", $.getCookie('csrftoken'));
+            }
+        }
+    });
+
+    /*
+    * Toggle Loading Div
+    * @param operation: string "show" or "hide"
+    */
+    $.toggleLoading = function (operation) {
+        var loading = $('#loading'),
+            text_dimensions;
+        // create loading div if not already present
+        if (!loading.length) {
+            $('body').append(_.template($('#loading-template').html()));
+            loading = $('#loading');
+            // get dimensions of "loading" text
+            // might be of different length depending on the language
+            text_dimensions = loading.find('.text').getHiddenDimensions();
+            loading.width(text_dimensions.width + 54);  // manually fine-tuned
+            loading.css({
+                left: 0,
+                margin: '0 auto'
+            });
+            // close loading
+            $('#loading .icon-close').click(function (e) {
+                $.toggleLoading();
+                if (Ns.state.currentAjaxRequest) {
+                    Ns.state.currentAjaxRequest.abort();
+                }
+            });
+        }
+        // show, hide or toggle
+        if (operation === 'show') {
+            loading.fadeIn(255);
+        } else if (operation === 'hide') {
+            loading.fadeOut(255);
+        } else {
+            loading.fadeToggle(255);
+        }
+    };
 }());

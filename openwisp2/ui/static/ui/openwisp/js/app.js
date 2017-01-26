@@ -24,6 +24,14 @@
             // set new height
             dialog.css('top', new_height);
         });
+
+        $('#js-logout').click(function(e){
+            var url = $(this).attr('href');
+            e.preventDefault();
+            $.post(url).done(function(){
+                window.location = url;
+            });
+        });
     });
 
     $(window).load(function (e) {
@@ -32,7 +40,9 @@
         });
     });
 
-    $(document).ajaxStop(function () {
+    $(document).ajaxStart(function () {
+        $.toggleLoading('show');
+    }).ajaxStop(function () {
         $.toggleLoading('hide');
     });
 }());

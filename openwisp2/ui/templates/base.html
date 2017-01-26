@@ -110,7 +110,7 @@
                             </li>
                             {% endif %}
                             <li>
-                                <a href="#logout" id="js-logout">
+                                <a href="{% url 'account_logout' %}" id="js-logout">
                                     <span class="icon-off"></span>{% trans 'Logout' %}
                                 </a>
                             </li>
@@ -361,11 +361,19 @@
     {% block jslibs %}
         <script src="{% static 'ui/lib/js/jquery.js' %}"></script>
         <script src="{% static 'ui/lib/js/bootstrap.min.js' %}"></script>
+        <script src="{% static 'ui/lib/js/underscore.min.js' %}"></script>
     {% endblock %}
     {% block jssettings %}{% endblock %}
     {% block jsopenwisp %}
     <script src="{% static 'ui/openwisp/js/utils.js' %}"></script>
     <script src="{% static 'ui/openwisp/js/app.js' %}"></script>
     {% endblock %}
+    <script id="loading-template" type="text/template">
+        <div id="loading" class="overlay loading">
+            <span class="icon-loading animate-spin"></span>
+            <span class="text">{% trans 'Loading' %} &hellip;</span>
+            <a class="icon-close hastip" title="{% trans 'cancel&nbsp;operation' %}"></a>
+        </div>
+    </script>
 </body>
 </html>
