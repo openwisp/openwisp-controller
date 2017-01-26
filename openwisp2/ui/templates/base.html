@@ -194,7 +194,9 @@
     {% endif %}
 
     <div id="body">
-        {% block body %}{% endblock %}
+        <article class="center-stage">
+            {% block content %}{% endblock %}
+        </article>
     </div>
 
     {% if REGISTRATION_OPEN %}
@@ -361,6 +363,9 @@
         <script src="{% static 'ui/lib/js/bootstrap.min.js' %}"></script>
     {% endblock %}
     {% block jssettings %}{% endblock %}
-    {% block jsopenwisp %}{% endblock %}
+    {% block jsopenwisp %}
+    <script src="{% static 'ui/openwisp/js/utils.js' %}"></script>
+    <script src="{% static 'ui/openwisp/js/app.js' %}"></script>
+    {% endblock %}
 </body>
 </html>
