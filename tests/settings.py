@@ -28,8 +28,15 @@ INSTALLED_APPS = [
     'openwisp2.pki',
     'openwisp2.config',
     'openwisp2.ui',
-    'django.contrib.admin'
+    'django.contrib.admin',
+    # all-auth
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
 ]
+
+SITE_ID = '1'
 
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
@@ -46,6 +53,11 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+)
 
 ROOT_URLCONF = 'urls'
 
@@ -76,6 +88,12 @@ TEMPLATES = [
         },
     }
 ]
+
+EMAIL_PORT = '1025'  # for testing purposes
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+LOGIN_REDIRECT_URL = 'ui:index'
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:

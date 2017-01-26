@@ -114,6 +114,15 @@ Add ``openwisp2.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``settings.p
         }
     ]
 
+Add ``allauth.account.auth_backends.AuthenticationBackend`` to ``AUTHENTICATION_BACKENDS`` in your ``settings.py``
+
+.. code-block:: python
+
+    AUTHENTICATION_BACKENDS = (
+        'django.contrib.auth.backends.ModelBackend',
+        'allauth.account.auth_backends.AuthenticationBackend',
+    )
+
 Deploy it in production
 -----------------------
 

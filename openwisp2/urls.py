@@ -1,8 +1,10 @@
-from django.conf.urls import include, url
 from django.conf import settings
+from django.conf.urls import include, url
 from organizations.backends import invitation_backend
 
 urlpatterns = [
+    # allauth
+    url(r'^accounts/', include('allauth.urls')),
     # organizations
     url(r'^accounts/', include('organizations.urls')),
     url(r'^invitations/', include(invitation_backend().get_urls())),
