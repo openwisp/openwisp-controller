@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'organizations',
     'sortedm2m',
     'reversion',
+    'openwisp2.orgs',
     'openwisp2.pki',
     'openwisp2.config',
     'openwisp2.ui',
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
 ]
 
+AUTH_USER_MODEL = 'orgs.User'
 SITE_ID = '1'
 
 STATICFILES_FINDERS = [
