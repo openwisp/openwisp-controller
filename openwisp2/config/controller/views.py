@@ -1,9 +1,8 @@
+from django_netjsonconfig.controller.generics import (BaseChecksumView,
+                                                      BaseDownloadConfigView,
+                                                      BaseReportStatusView)
+
 from ..models import Config
-from django_netjsonconfig.controller.generics import (
-    BaseChecksumView,
-    BaseDownloadConfigView,
-    BaseReportStatusView
-)
 
 
 class ChecksumView(BaseChecksumView):
