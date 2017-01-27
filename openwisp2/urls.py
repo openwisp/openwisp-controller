@@ -1,22 +1,68 @@
 from django.conf import settings
 from django.conf.urls import include, url
-from organizations.backends import invitation_backend
 
-urlpatterns = [
+url_metadata = [
     # allauth
-    url(r'^accounts/', include('allauth.urls')),
-    # organizations
-    url(r'^accounts/', include('organizations.urls')),
-    url(r'^invitations/', include(invitation_backend().get_urls())),
+    {
+        'regexp': r'^accounts/',
+        'app': 'allauth',
+        'include': {'module': '{app}.urls'}
+    },
     # django-netjsonconfig schemas
-    url(r'^', include('django_netjsonconfig.urls', namespace='netjsonconfig')),
+    {
+        'regexp': r'^',
+        'include': {
+            'module': 'django_netjsonconfig.urls',
+            'namespace': 'netjsonconfig'
+        }
+    },
     # openwisp2.pki (CRL view)
-    url(r'^', include('openwisp2.pki.urls', namespace='x509')),
-    # controller
-    url(r'^', include('openwisp2.config.controller.urls', namespace='controller')),
+    {
+        'regexp': r'^',
+        'app': 'openwisp2.pki',
+        'include': {
+            'module': '{app}.urls',
+            'namespace': 'x509'
+        }
+    },
+    # openwisp2 controller
+    {
+        'regexp': r'^',
+        'app': 'openwisp2.config',
+        'include': {
+            'module': '{app}.controller.urls',
+            'namespace': 'controller'
+        }
+    },
     # openwisp2.ui
-    url(r'', include('openwisp2.ui.urls', namespace='ui', app_name='ui')),
+    {
+        'regexp': r'',
+        'app': 'openwisp2.ui',
+        'include': {
+            'module': '{app}.urls',
+            'namespace': 'ui',
+        }
+    },
+    # owm_legacy
+    {
+        'regexp': r'^',
+        'app': 'owm_legacy',
+        'include': {
+            'module': '{app}.urls',
+            'namespace': 'owm',
+        }
+    },
 ]
 
-if 'owm_legacy' in settings.INSTALLED_APPS:
-    urlpatterns.append(url(r'^', include('owm_legacy.urls', namespace='owm')))
+urlpatterns = []
+
+for meta in url_metadata:
+    module = meta['include'].pop('module')
+    if 'app' in meta:
+        # if app attribute is specified, ensure the app is installed, or skip otherwise
+        # this allows some flexibility during development or when trying custom setups
+        if meta['app'] not in settings.INSTALLED_APPS:
+            continue
+        # DRY python module path
+        module = module.format(**meta)
+    urlpatterns.append(url(meta['regexp'], include(module, **meta['include'])))
