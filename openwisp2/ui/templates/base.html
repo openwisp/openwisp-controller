@@ -64,7 +64,7 @@
     {% endblock %}
     <header>
         <nav id="top-bar">
-            <h1><a href="#">{{ SITE_NAME }}</a></h1>
+            <h1><a href="{% url 'ui:index' %}">{{ SITE_NAME }}</a></h1>
             {% block topbar %}
             <div id="general-search">
                 <input type="text" id="general-search-input" placeholder="{% trans 'Search for data' %}">
