@@ -14,19 +14,18 @@ class EmailAddressInline(admin.StackedInline):
     readonly_fields = ['email']
 
     def has_add_permission(self, *args, **kwargs):
+        """
+        Do not let admins add new email objects via inlines
+        in order to not mess the coherence of the database.
+        Admins can still change the main email field of the User model,
+        that will automatically add a new email address object and
+        send a confirmation email, see ``UserAdmin.save_model``
+        """
         return False
 
 
 class UserCreationForm(BaseUserCreationForm):
     email = forms.EmailField(label=_('Email'), max_length=254, required=True)
-
-    def save(self, commit=True):
-        """
-        automatically creates new email for new users
-        added via the django-admin interface
-        """
-        user = super(UserCreationForm, self).save(commit)
-        return user
 
 
 class UserAdmin(BaseUserAdmin):
@@ -35,13 +34,16 @@ class UserAdmin(BaseUserAdmin):
     inlines = [EmailAddressInline]
 
     def get_inline_instances(self, request, obj=None):
+        """
+        Avoid displaying inline objects when adding a new user
+        """
         if obj:
             return super(UserAdmin, self).get_inline_instances(request, obj)
         return []
 
     def save_model(self, request, obj, form, change):
         """
-        automatically creates email addresses for users
+        Automatically creates email addresses for users
         added/changed via the django-admin interface
         """
         super(UserAdmin, self).save_model(request, obj, form, change)
