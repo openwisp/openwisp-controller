@@ -68,9 +68,6 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
                                  related_name='vpn_relations',
                                  blank=True)
 
-    class Meta(AbstractConfig.Meta):
-        abstract = False
-
 
 class Template(ShareableOrgMixin, AbstractTemplate):
     """
@@ -83,9 +80,6 @@ class Template(ShareableOrgMixin, AbstractTemplate):
 
     def clean(self):
         self._validate_org_relation('vpn')
-
-    class Meta(AbstractTemplate.Meta):
-        abstract = False
 
 
 class Vpn(ShareableOrgMixin, AbstractVpn):
@@ -103,9 +97,6 @@ class Vpn(ShareableOrgMixin, AbstractVpn):
         self._validate_org_relation('ca')
         self._validate_org_relation('cert')
 
-    class Meta(AbstractVpn.Meta):
-        abstract = False
-
 
 class VpnClient(AbstractVpnClient):
     """
@@ -119,6 +110,3 @@ class VpnClient(AbstractVpnClient):
                                 on_delete=models.CASCADE,
                                 blank=True,
                                 null=True)
-
-    class Meta(AbstractVpnClient.Meta):
-        abstract = False

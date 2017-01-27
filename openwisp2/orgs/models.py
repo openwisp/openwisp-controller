@@ -39,6 +39,3 @@ class User(AbstractUser):
     location = models.CharField(_('location'), max_length=128, blank=True)
 
     objects = UserManager()
-
-    class Meta(AbstractUser.Meta):
-        abstract = False

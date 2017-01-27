@@ -10,8 +10,6 @@ class Ca(ShareableOrgMixin, AbstractCa):
     """
     OpenWISP2 CA model
     """
-    class Meta(AbstractCa.Meta):
-        abstract = False
 
 
 class Cert(ShareableOrgMixin, AbstractCert):
@@ -19,9 +17,6 @@ class Cert(ShareableOrgMixin, AbstractCert):
     OpenWISP2 cert model
     """
     ca = models.ForeignKey(Ca, verbose_name=_('CA'))
-
-    class Meta(AbstractCert.Meta):
-        abstract = False
 
     def clean(self):
         self._validate_org_relation('ca')
