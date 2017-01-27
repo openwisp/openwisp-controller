@@ -32,6 +32,42 @@
                 window.location = url;
             });
         });
+
+        $('#signin-modal, #signup-modal').on('shown.bs.modal', function(){
+            $('input', this).eq(0).focus();
+        });
+
+        // password strength
+        $('#js-signup-password').pwstrength({
+            common: {
+                minChar: 1
+            },
+            ui: {
+                container: '#js-password-strength-message',
+                viewports: {
+                    progress: '.pwstrength_viewport_progress',
+                    verdict: '.pwstrength_viewport_verdict'
+                },
+                verdicts: ['Very weak', 'Weak', 'Normal', 'Medium', 'Strong'],
+                scores: [10, 17, 26, 40, 50]
+            }
+        }).focus(function (e) {
+            $('#js-password-strength-message').fadeIn(255);
+        });
+
+        // signup link in sign in overlay
+        $('#js-signup-link').click(function (e) {
+            e.preventDefault();
+            $('#signin-modal').modal('hide');
+            $('#signup-modal').modal('show');
+        });
+
+        // signin link in signup overlay
+        $('#js-signin-link').click(function (e) {
+            e.preventDefault();
+            $('#signup-modal').modal('hide');
+            $('#signin-modal').modal('show');
+        });
     });
 
     $(window).load(function (e) {

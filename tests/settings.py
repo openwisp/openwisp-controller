@@ -93,8 +93,10 @@ TEMPLATES = [
 
 EMAIL_PORT = '1025'  # for testing purposes
 
+ACCOUNT_SIGNUP_ENABLED = True
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 LOGIN_REDIRECT_URL = 'ui:index'
 
 # local settings must be imported before test runner otherwise they'll be ignored

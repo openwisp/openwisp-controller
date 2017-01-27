@@ -118,7 +118,7 @@
                     </li>
                     {% else %}
                     {# not authenticated #}
-                    {% if REGISTRATION_OPEN %}
+                    {% if ACCOUNT_SIGNUP_ENABLED %}
                     <li>
                         <a href="#" data-toggle="modal" data-target="#signup-modal">
                             <span class="icon-user-add"></span>
@@ -199,7 +199,7 @@
         </article>
     </div>
 
-    {% if REGISTRATION_OPEN %}
+    {% if ACCOUNT_SIGNUP_ENABLED %}
     <!-- Sign up -->
     <div class="modal fade narrow autocenter enlarge-on-mobile" id="signup-modal"
          tabindex="-1"
@@ -246,7 +246,7 @@
                 </p>
             {% endif %}
 
-            <form action="" method="post" id="js-signup-form">
+            <form action="{% url 'account_signup' %}" method="post" id="js-signup-form">
                 <p class="input-group hastip" data-placement="right" data-trigger="manual">
                     <input required class="form-control" type="text" name="username" id="js-signup-username" placeholder="Username">
                     <span class="input-group-addon icon-user"></span>
@@ -258,12 +258,12 @@
                 </p>
 
                 <p class="input-group hastip" data-placement="right" data-trigger="manual">
-                    <input required class="form-control" type="password" name="password" id="js-signup-password" placeholder="Password">
+                    <input required class="form-control" type="password" name="password1" id="js-signup-password" placeholder="Password">
                     <span class="input-group-addon icon-lock"></span>
                 </p>
 
                 <p class="input-group hastip" data-placement="right" data-trigger="manual">
-                    <input required class="form-control" type="password" name="password_confirmation" id="js-signup-password_confirmation" placeholder="Confirm password">
+                    <input required class="form-control" type="password" name="password2" id="js-signup-password_confirmation" placeholder="Confirm password">
                     <span class="input-group-addon icon-lock"></span>
                 </p>
 
@@ -271,11 +271,11 @@
                     <span class="pwstrength_viewport_progress"></span>
                     <span class="pwstrength_viewport_verdict"></span>
                 </p>
-
+                {% csrf_token %}
                 <button class="btn btn-default">{% trans 'Sign up' %}</button>
             </form>
 
-            <p class="text">{% trans 'Already have an account?' %} <a href="#" id="js-signin-link">{% trans 'Sign in' %}</a></p>
+            <p class="text">{% trans 'Already have an account?' %} <a href="{% url 'account_login' %}" id="js-signin-link">{% trans 'Sign in' %}</a></p>
 
             <a class="icon-close" data-dismiss="modal" href="#"></a>
         </div>
@@ -323,9 +323,9 @@
                 </p>
             {% endif %}
 
-            <form action="" method="post" id="js-signin-form">
+            <form action="{% url 'account_login' %}" method="post" id="js-signin-form">
                 <p class="input-group">
-                    <input class="form-control" type="text" name="username" placeholder="Username or Email" required>
+                    <input class="form-control" type="text" name="login" placeholder="Username or Email" required>
                     <span class="input-group-addon icon-user"></span>
                 </p>
 
@@ -338,19 +338,19 @@
                     <span class="custom-checkbox hastip"
                           data-placement="top"
                           title="For your protection, keep this checked only on devices you use regularly">
-                        <input type="checkbox" id="remember-signup" name="remember" />
-                        <label for="remember-signup"></label>
+                        <input type="checkbox" id="remember-signin" name="remember" />
+                        <label for="remember-signin"></label>
                     </span>
 
-                    <label for="remember-signup">{% trans 'Stay signed in' %}</label>
+                    <label for="remember-signin">{% trans 'Stay signed in' %}</label>
                 </p>
-
+                {% csrf_token %}
                 <p><button class="btn btn-default">{% trans 'Sign in' %}</button></p>
             </form>
 
-            <p class="text"><a href="#account/password/reset">{% trans 'Forgot your password?' %}</a></p>
-            {% if REGISTRATION_OPEN %}
-            <p class="text">{% trans "Don't have an account yet?" %} <a href="#" id="js-signup-link">{% trans 'Sign up' %}</a></p>
+            <p class="text"><a href="{% url 'account_reset_password' %}">{% trans 'Forgot your password?' %}</a></p>
+            {% if ACCOUNT_SIGNUP_ENABLED %}
+            <p class="text">{% trans "Don't have an account yet?" %} <a href="{% url 'account_signup' %}" id="js-signup-link">{% trans 'Sign up' %}</a></p>
             {% endif %}
 
             <a class="icon-close" data-dismiss="modal" href="#"></a>
@@ -362,6 +362,7 @@
         <script src="{% static 'ui/lib/js/jquery.js' %}"></script>
         <script src="{% static 'ui/lib/js/bootstrap.min.js' %}"></script>
         <script src="{% static 'ui/lib/js/underscore.min.js' %}"></script>
+        <script src="{% static 'ui/lib/js/pwstrength.js' %}"></script>
     {% endblock %}
     {% block jssettings %}{% endblock %}
     {% block jsopenwisp %}
