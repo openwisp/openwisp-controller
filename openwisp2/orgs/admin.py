@@ -1,11 +1,17 @@
+from allauth.account.models import EmailAddress
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserCreationForm as BaseUserCreationForm
 from django.utils.translation import ugettext_lazy as _
-from allauth.account.models import EmailAddress
-
-from .models import User
+from organizations.base_admin import (BaseOwnerInline,
+                                      BaseOrganizationAdmin,
+                                      BaseOrganizationUserAdmin,
+                                      BaseOrganizationOwnerAdmin)
+from .models import (User,
+                     Organization,
+                     OrganizationUser,
+                     OrganizationOwner)
 
 
 class EmailAddressInline(admin.StackedInline):
@@ -60,4 +66,26 @@ UserAdmin.fieldsets[1][1]['fields'] = base_fields + additional_fields
 UserAdmin.add_fieldsets[0][1]['fields'] = ('username', 'email', 'password1', 'password2')
 
 
+class OwnerInline(BaseOwnerInline):
+    model = OrganizationOwner
+
+
+class OrganizationAdmin(BaseOrganizationAdmin):
+    inlines = [OwnerInline]
+
+
+class OrganizationUserAdmin(BaseOrganizationUserAdmin):
+    pass
+
+
+class OrganizationOwnerAdmin(BaseOrganizationOwnerAdmin):
+    list_display = ('get_user', 'organization')
+
+    def get_user(self, obj):
+        return obj.organization_user.user
+
+
 admin.site.register(User, UserAdmin)
+admin.site.register(Organization, OrganizationAdmin)
+admin.site.register(OrganizationUser, OrganizationUserAdmin)
+admin.site.register(OrganizationOwner, OrganizationOwnerAdmin)
