@@ -21,13 +21,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
-    'organizations',
     'sortedm2m',
     'reversion',
+    # organizations
     'openwisp2.orgs',
-    'openwisp2.pki',
-    'openwisp2.config',
+    'django_extensions',
+    # 'organizations',
+    # openwisp2
+    # 'openwisp2.pki',
+    # 'openwisp2.config',
     'openwisp2.ui',
     'django.contrib.admin',
     # all-auth

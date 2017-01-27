@@ -12,6 +12,7 @@ branches:
 
 # command to install requirements
 install:
+  - pip install https://github.com/nemesisdesign/django-organizations/tarball/master  # temporary
   - pip install https://github.com/openwisp/django-x509/tarball/master  # temporary
   - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master  # temporary
   - python setup.py -q develop

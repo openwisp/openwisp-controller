@@ -6,6 +6,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
+from organizations.abstract import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
+
 
 class UserManager(BaseUserManager):
     def _create_user(self, *args, **kwargs):
@@ -39,3 +41,24 @@ class User(AbstractUser):
     location = models.CharField(_('location'), max_length=128, blank=True)
 
     objects = UserManager()
+
+
+class Organization(OrganizationBase):
+    """
+    OpenWISP2 Organization model
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+
+class OrganizationUser(OrganizationUserBase):
+    """
+    OpenWISP2 OrganizationUser model
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+
+class OrganizationOwner(OrganizationOwnerBase):
+    """
+    OpenWISP2 OrganizationOwner model
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
