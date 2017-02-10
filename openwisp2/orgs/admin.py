@@ -4,14 +4,12 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserCreationForm as BaseUserCreationForm
 from django.utils.translation import ugettext_lazy as _
-from organizations.base_admin import (BaseOwnerInline,
-                                      BaseOrganizationAdmin,
+from organizations.base_admin import (BaseOrganizationAdmin,
+                                      BaseOrganizationOwnerAdmin,
                                       BaseOrganizationUserAdmin,
-                                      BaseOrganizationOwnerAdmin)
-from .models import (User,
-                     Organization,
-                     OrganizationUser,
-                     OrganizationOwner)
+                                      BaseOwnerInline)
+
+from .models import Organization, OrganizationOwner, OrganizationUser, User
 
 
 class EmailAddressInline(admin.StackedInline):

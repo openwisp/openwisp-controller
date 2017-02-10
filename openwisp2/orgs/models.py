@@ -5,8 +5,9 @@ from django.contrib.auth.models import UserManager as BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-
-from organizations.abstract import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
+from organizations.abstract import (AbstractOrganization,
+                                    AbstractOrganizationOwner,
+                                    AbstractOrganizationUser)
 
 
 class UserManager(BaseUserManager):
@@ -43,21 +44,24 @@ class User(AbstractUser):
     objects = UserManager()
 
 
-class Organization(OrganizationBase):
+class Organization(AbstractOrganization):
     """
     OpenWISP2 Organization model
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    description = models.TextField(_('description'), blank=True)
+    email = models.EmailField(_('email'), blank=True)
+    url = models.URLField(_('URL'), blank=True)
 
 
-class OrganizationUser(OrganizationUserBase):
+class OrganizationUser(AbstractOrganizationUser):
     """
     OpenWISP2 OrganizationUser model
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
 
-class OrganizationOwner(OrganizationOwnerBase):
+class OrganizationOwner(AbstractOrganizationOwner):
     """
     OpenWISP2 OrganizationOwner model
     """

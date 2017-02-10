@@ -28,9 +28,10 @@ INSTALLED_APPS = [
     'django_extensions',
     # 'organizations',
     # openwisp2
-    # 'openwisp2.pki',
-    # 'openwisp2.config',
+    'openwisp2.pki',
+    'openwisp2.config',
     'openwisp2.ui',
+    'django_netjsonconfig.admin_theme',
     'django.contrib.admin',
     # all-auth
     'django.contrib.sites',

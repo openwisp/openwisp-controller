@@ -1,6 +1,6 @@
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
-from django.core import mail
 
 from .models import User
 
@@ -22,11 +22,6 @@ class TestUserModel(TestCase):
                            is_superuser=True,
                            is_staff=True))
         return self._create_user(**kwargs)
-
-    # def test_auto_email(self):
-    #     user = self._create_user(email='test@auto.com')
-    #     self.assertEqual(user.emailaddress_set.count(), 1)
-    #     self.assertEqual(user.emailaddress_set.first().email, 'test@auto.com')
 
     def test_create_superuser_email(self):
         user = User.objects.create_superuser(username='tester',

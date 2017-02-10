@@ -5,8 +5,10 @@ from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractTemplateAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
+from openwisp2.orgs.admin import OrganizationAdmin as BaseOrganizationAdmin
+from openwisp2.orgs.models import Organization
 
-from .models import Config, Template, Vpn
+from .models import Config, OrganizationConfigSettings, Template, Vpn
 
 
 class ConfigForm(AbstractConfigForm):
@@ -49,6 +51,21 @@ class VpnAdmin(AbstractVpnAdmin):
 VpnAdmin.list_display.insert(1, 'organization')
 VpnAdmin.list_filter.insert(0, 'organization')
 VpnAdmin.fields.insert(2, 'organization')
+
+
+class ConfigSettingsInline(admin.StackedInline):
+    model = OrganizationConfigSettings
+
+
+class OrganizationAdmin(BaseOrganizationAdmin):
+    pass
+
+
+OrganizationAdmin.inlines = [ConfigSettingsInline] + OrganizationAdmin.inlines[:]
+
+# add OrganizationConfigSettings inline to Organization admin
+admin.site.unregister(Organization)
+admin.site.register(Organization, OrganizationAdmin)
 
 
 admin.site.register(Config, ConfigAdmin)

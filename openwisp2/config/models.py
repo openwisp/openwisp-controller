@@ -4,11 +4,11 @@ from django.utils.translation import ugettext_lazy as _
 from sortedm2m.fields import SortedManyToManyField
 
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
-from django_netjsonconfig.base.config import AbstractConfig
+from django_netjsonconfig.base.config import (AbstractConfig, get_random_key,
+                                              key_validator)
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
-
-from ..models import OrgMixin, ShareableOrgMixin
+from openwisp2.orgs.mixins import OrgMixin, ShareableOrgMixin
 
 
 class TemplatesVpnMixin(BaseMixin):
@@ -68,6 +68,9 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
                                  related_name='vpn_relations',
                                  blank=True)
 
+    class Meta(AbstractConfig.Meta):
+        abstract = False
+
 
 class Template(ShareableOrgMixin, AbstractTemplate):
     """
@@ -77,6 +80,9 @@ class Template(ShareableOrgMixin, AbstractTemplate):
                             verbose_name=_('VPN'),
                             blank=True,
                             null=True)
+
+    class Meta(AbstractTemplate.Meta):
+        abstract = False
 
     def clean(self):
         self._validate_org_relation('vpn')
@@ -92,6 +98,9 @@ class Vpn(ShareableOrgMixin, AbstractVpn):
                              help_text=_('leave blank to create automatically'),
                              blank=True,
                              null=True)
+
+    class Meta(AbstractVpn.Meta):
+        abstract = False
 
     def clean(self):
         self._validate_org_relation('ca')
@@ -110,3 +119,25 @@ class VpnClient(AbstractVpnClient):
                                 on_delete=models.CASCADE,
                                 blank=True,
                                 null=True)
+
+    class Meta(AbstractVpnClient.Meta):
+        abstract = False
+
+
+class OrganizationConfigSettings(models.Model):
+    """
+    Configuration management settings
+    specific to each organization
+    """
+    organization = models.OneToOneField('orgs.Organization',
+                                        verbose_name=_('organization'))
+    auto_registration = models.BooleanField(_('auto-registration enabled'),
+                                            default=True,
+                                            help_text=_('Enable automatic registration of devices'))
+    shared_secret = models.CharField(_('shared secret'),
+                                     max_length=32,
+                                     unique=True,
+                                     db_index=True,
+                                     default=get_random_key,
+                                     validators=[key_validator],
+                                     help_text=_('used for automatic registration of devices'))
