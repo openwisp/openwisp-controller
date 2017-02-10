@@ -1,9 +1,14 @@
-from django.contrib import admin
+import json
 
-from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
+from django.contrib import admin
+from django.urls import reverse
+
+from django_netjsonconfig.base.admin import (BaseConfigAdmin,
+                                             AbstractConfigAdmin,
                                              AbstractConfigForm,
                                              AbstractTemplateAdmin,
-                                             AbstractVpnAdmin, AbstractVpnForm,
+                                             AbstractVpnAdmin,
+                                             AbstractVpnForm,
                                              BaseForm)
 from openwisp2.orgs.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp2.orgs.models import Organization
@@ -18,6 +23,28 @@ class ConfigForm(AbstractConfigForm):
 
 class ConfigAdmin(AbstractConfigAdmin):
     form = ConfigForm
+    model = Config
+    select_default_templates = False
+
+    def _get_default_template_urls(self):
+        """
+        returns URLs to get default templates
+        used in change_form.html template
+        """
+        organizations = self.model.organization.get_queryset()
+        urls = {}
+        for org in organizations:
+            urls[str(org.pk)] = reverse('config:get_default_templates', args=[org.pk])
+        return json.dumps(urls)
+
+    def get_extra_context(self, pk=None):
+        ctx = super(ConfigAdmin, self).get_extra_context(pk)
+        ctx.update({'default_template_urls': self._get_default_template_urls()})
+        return ctx
+
+    def add_view(self, request, form_url='', extra_context={}):
+        extra_context.update(self.get_extra_context())
+        return super(BaseConfigAdmin, self).add_view(request, form_url, extra_context)
 
 
 ConfigAdmin.list_display.insert(1, 'organization')

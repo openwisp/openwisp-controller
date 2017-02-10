@@ -1,15 +1,15 @@
 import json
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from . import CreateConfigTemplateMixin
+from . import CreateAdminMixin, CreateConfigTemplateMixin
 from ...tests import TestOrganizationMixin
 from ..models import Config, Template
 
 
-class TestAdmin(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
+class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
+                TestOrganizationMixin, TestCase):
     """
     tests for Config model
     """
@@ -17,11 +17,8 @@ class TestAdmin(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     template_model = Template
 
     def setUp(self):
-        user_model = get_user_model()
-        user_model.objects.create_superuser(username='admin',
-                                            password='tester',
-                                            email='admin@admin.com')
-        self.client.login(username='admin', password='tester')
+        super(TestAdmin, self).setUp()
+        self._login()
 
     def test_config_and_template_different_organization(self):
         org1 = self._create_org()
