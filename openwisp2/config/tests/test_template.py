@@ -1,20 +1,19 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from django_netjsonconfig.tests import CreateTemplateMixin
-
-from . import TestVpnX509Mixin
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ...tests import TestOrganizationMixin
-from ..models import Template, Vpn
+from ..models import Config, Template, Vpn
 
 
-class TestTemplate(CreateTemplateMixin, TestVpnX509Mixin,
+class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
                    TestOrganizationMixin, TestCase):
     ca_model = Ca
     cert_model = Cert
-    vpn_model = Vpn
+    config_model = Config
     template_model = Template
+    vpn_model = Vpn
 
     def test_template_with_org(self):
         org = self._create_org()
@@ -43,3 +42,18 @@ class TestTemplate(CreateTemplateMixin, TestVpnX509Mixin,
             self.assertIn('related VPN server match', e.message_dict['organization'][0])
         else:
             self.fail('ValidationError not raised')
+
+    def test_org_default_template(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        self._create_template(organization=org1, name='t1', default=True)
+        self._create_template(organization=org2, name='t2', default=True)
+        c1 = self._create_config(organization=org1, name='c1')
+        self.assertEqual(c1.templates.count(), 1)
+        self.assertEqual(c1.templates.filter(name='t1').count(), 1)
+        c2 = self._create_config(organization=org2,
+                                 name='c2',
+                                 mac_address='00:00:00:11:22:33',
+                                 key='1234567890')
+        self.assertEqual(c2.templates.count(), 1)
+        self.assertEqual(c2.templates.filter(name='t2').count(), 1)

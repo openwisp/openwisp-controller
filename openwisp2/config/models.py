@@ -15,6 +15,13 @@ class TemplatesVpnMixin(BaseMixin):
     class Meta:
         abstract = True
 
+    def get_default_templates(self):
+        """
+        retrieves default templates of current org
+        """
+        return self.templates.model.objects.filter(organization=self.organization,
+                                                   default=True)
+
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
         templates = cls.get_templates_from_pk_set(action, pk_set)
