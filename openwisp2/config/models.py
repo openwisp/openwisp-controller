@@ -35,7 +35,7 @@ class TemplatesVpnMixin(BaseMixin):
             for invalid in invalids:
                 names = '{0}, {1}'.format(names, invalid['name'])
             names = names[2:]
-            message = _('The following templates are owned by different '
+            message = _('The following templates are owned by organizations '
                         'which do not match the organization of this '
                         'configuration: {0}').format(names)
             raise ValidationError(message)
