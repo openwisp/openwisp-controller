@@ -1,5 +1,6 @@
 import json
 
+from django import forms
 from django.contrib import admin
 from django.urls import reverse
 
@@ -80,8 +81,22 @@ VpnAdmin.list_filter.insert(0, 'organization')
 VpnAdmin.fields.insert(2, 'organization')
 
 
+class ConfigSettingsForm(forms.ModelForm):
+    def has_changed(self):
+        """
+        This django-admin trick ensures the settings
+        are saved even if default values are unchanged
+        (without this trick new setting objects won't be
+        created unless users change the default values)
+        """
+        if self.instance._state.adding:
+            return True
+        return super(ConfigSettingsForm, self).has_changed()
+
+
 class ConfigSettingsInline(admin.StackedInline):
     model = OrganizationConfigSettings
+    form = ConfigSettingsForm
 
 
 class OrganizationAdmin(BaseOrganizationAdmin):
