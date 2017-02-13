@@ -4,13 +4,12 @@ from django import forms
 from django.contrib import admin
 from django.urls import reverse
 
-from django_netjsonconfig.base.admin import (BaseConfigAdmin,
-                                             AbstractConfigAdmin,
+from django_netjsonconfig import settings as django_netjsonconfig_settings
+from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractConfigForm,
                                              AbstractTemplateAdmin,
-                                             AbstractVpnAdmin,
-                                             AbstractVpnForm,
-                                             BaseForm)
+                                             AbstractVpnAdmin, AbstractVpnForm,
+                                             BaseConfigAdmin, BaseForm)
 from openwisp2.orgs.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp2.orgs.models import Organization
 
@@ -100,16 +99,16 @@ class ConfigSettingsInline(admin.StackedInline):
 
 
 class OrganizationAdmin(BaseOrganizationAdmin):
-    pass
-
-
-OrganizationAdmin.inlines = [ConfigSettingsInline] + OrganizationAdmin.inlines[:]
-
-# add OrganizationConfigSettings inline to Organization admin
-admin.site.unregister(Organization)
-admin.site.register(Organization, OrganizationAdmin)
+    save_on_top = True
+    inlines = [ConfigSettingsInline] + BaseOrganizationAdmin.inlines
 
 
 admin.site.register(Config, ConfigAdmin)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
+
+
+if getattr(django_netjsonconfig_settings, 'REGISTRATION_ENABLED', True):
+    # add OrganizationConfigSettings inline to Organization admin
+    admin.site.unregister(Organization)
+    admin.site.register(Organization, OrganizationAdmin)
