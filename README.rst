@@ -18,6 +18,10 @@ openwisp2
 
 OpenWISP2 prototype. Work in progress. Do not use in production.
 
+OpenWISP2 is a simple web app composed of several reusable python libraries and django apps. Having learnt from the experience with OpenWISP1, the new version of the controller has been redesigned to be more flexible, reusable, modularly built and easier to deploy.
+
+Its goal is to make it easier to maintain a network of devices based on OpenWRT/LEDE.
+
 ------------
 
 .. contents:: **Table of Contents**:
@@ -29,12 +33,26 @@ OpenWISP2 prototype. Work in progress. Do not use in production.
 Current features
 ----------------
 
-TODO
+- Configuration management for embedded devices supporting different firmwares: OpenWRT/LEDE and OpenWISP Firmware
+- Support for additional firmware can be added by specifying custom backends
+- Configuration editor based on JSON-Schema editor
+- Advanced edit mode: edit NetJSON DeviceConfiguration objects for maximum flexibility
+- Configuration templates: reduce repetition to the minimum
+- Configuration context: reference ansible-like variables in the configuration
+- Simple HTTP resources: allow devices to automatically download configuration updates
+- VPN management: easily create VPN servers and clients
 
 Project goals
 -------------
 
-TODO
+- Automate configuration management for embedded devices
+- Allow to minimize repetition by using templates
+- Make it easy to integrate in larger django projects to improve reusability
+- Make it easy to extend its models by providing abstract models
+- Provide ways to support more firmwares by adding custom backends
+- Keep the core as simple as possible
+- Provide ways to extend the default behaviour
+- Encourage new features to be published as extensions
 
 Dependencies
 ------------
@@ -142,6 +160,11 @@ Screenshots
 -----------
 
 TODO
+
+Talks
+-----
+
+- `OpenWISP2 - a self hosted solution to control OpenWRT/LEDE devices <https://fosdem.org/2017/schedule/event/openwisp2/>`_ (FOSDEM 2017)
 
 Contributing
 ------------
