@@ -45,4 +45,4 @@ class TestTemplate(CreateConfigTemplateMixin, CreateAdminMixin,
         self._login()
         response = self.client.get(reverse('config:get_default_templates',
                                            args=['wrong']))
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
