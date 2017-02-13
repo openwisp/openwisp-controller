@@ -17,10 +17,11 @@ class TemplatesVpnMixin(BaseMixin):
 
     def get_default_templates(self):
         """
-        retrieves default templates of current org
+        Adds organization filtering to default template queryset
         """
-        return self.templates.model.objects.filter(organization=self.organization,
-                                                   default=True)
+        queryset = super(TemplatesVpnMixin, self).get_default_templates()
+        queryset = queryset.filter(organization_id=self.organization_id)
+        return queryset
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
