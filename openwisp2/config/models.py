@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from sortedm2m.fields import SortedManyToManyField
 
@@ -132,6 +133,7 @@ class VpnClient(AbstractVpnClient):
         abstract = False
 
 
+@python_2_unicode_compatible
 class OrganizationConfigSettings(models.Model):
     """
     Configuration management settings
@@ -151,3 +153,10 @@ class OrganizationConfigSettings(models.Model):
                                      default=get_random_key,
                                      validators=[key_validator],
                                      help_text=_('used for automatic registration of devices'))
+
+    class Meta:
+        verbose_name = _('Configuration management settings')
+        verbose_name_plural = _('Configuration management settings')
+
+    def __str__(self):
+        return self.organization.name
