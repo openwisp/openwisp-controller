@@ -12,4 +12,7 @@ urlpatterns = [
     url(r'^controller/report-status/(?P<pk>[^/]+)/$',
         views.report_status,
         name='report_status'),
+    url(r'^controller/register/$',
+        views.register,
+        name='register'),
 ]
