@@ -138,10 +138,12 @@ class OrganizationConfigSettings(models.Model):
     specific to each organization
     """
     organization = models.OneToOneField('orgs.Organization',
-                                        verbose_name=_('organization'))
-    auto_registration = models.BooleanField(_('auto-registration enabled'),
-                                            default=True,
-                                            help_text=_('Enable automatic registration of devices'))
+                                        verbose_name=_('organization'),
+                                        related_name='config_settings')
+    registration_enabled = models.BooleanField(_('auto-registration enabled'),
+                                               default=True,
+                                               help_text=_('Whether automatic registration of '
+                                                           'devices is enabled or not'))
     shared_secret = models.CharField(_('shared secret'),
                                      max_length=32,
                                      unique=True,
