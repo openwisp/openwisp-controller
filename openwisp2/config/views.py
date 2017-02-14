@@ -1,7 +1,7 @@
 from django.http import HttpResponse, JsonResponse
 
 from django_netjsonconfig.utils import get_object_or_404
-from openwisp2.orgs.models import Organization
+from openwisp2.users.models import Organization
 
 from .models import Template
 

@@ -43,7 +43,7 @@ class TestUserModel(TestCase):
                       email='test@testadd.com',
                       password1='tester',
                       password2='tester')
-        self.client.post(reverse('admin:orgs_user_add'), params)
+        self.client.post(reverse('admin:users_user_add'), params)
         queryset = User.objects.filter(username='testadd')
         self.assertEqual(queryset.count(), 1)
         user = queryset.first()
@@ -69,7 +69,7 @@ class TestUserModel(TestCase):
             'emailaddress_set-0-id': user.emailaddress_set.first().id,
             'emailaddress_set-0-user': user.id
         })
-        response = self.client.post(reverse('admin:orgs_user_change', args=[user.pk]), params)
+        response = self.client.post(reverse('admin:users_user_change', args=[user.pk]), params)
         self.assertNotIn('error', str(response.content))
         user = User.objects.get(username='changemailtest')
         email_set = user.emailaddress_set

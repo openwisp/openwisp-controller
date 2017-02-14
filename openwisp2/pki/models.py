@@ -2,7 +2,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 from django_x509.base.models import AbstractCa, AbstractCert
-from openwisp2.orgs.mixins import ShareableOrgMixin
+from openwisp2.users.mixins import ShareableOrgMixin
 
 
 class Ca(ShareableOrgMixin, AbstractCa):

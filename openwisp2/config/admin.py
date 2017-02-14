@@ -10,8 +10,8 @@ from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractTemplateAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseConfigAdmin, BaseForm)
-from openwisp2.orgs.admin import OrganizationAdmin as BaseOrganizationAdmin
-from openwisp2.orgs.models import Organization
+from openwisp2.users.admin import OrganizationAdmin as BaseOrganizationAdmin
+from openwisp2.users.models import Organization
 
 from .models import Config, OrganizationConfigSettings, Template, Vpn
 

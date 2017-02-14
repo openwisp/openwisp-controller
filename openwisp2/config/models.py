@@ -9,7 +9,7 @@ from django_netjsonconfig.base.config import (AbstractConfig, get_random_key,
                                               key_validator)
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
-from openwisp2.orgs.mixins import OrgMixin, ShareableOrgMixin
+from openwisp2.users.mixins import OrgMixin, ShareableOrgMixin
 
 
 class TemplatesVpnMixin(BaseMixin):
@@ -139,7 +139,7 @@ class OrganizationConfigSettings(models.Model):
     Configuration management settings
     specific to each organization
     """
-    organization = models.OneToOneField('orgs.Organization',
+    organization = models.OneToOneField('users.Organization',
                                         verbose_name=_('organization'),
                                         related_name='config_settings')
     registration_enabled = models.BooleanField(_('auto-registration enabled'),

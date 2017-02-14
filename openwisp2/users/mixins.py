@@ -13,7 +13,7 @@ class OrgMixin(models.Model):
       (the relation cannot be NULL)
     - implements ``_validate_org_relation`` method
     """
-    organization = models.ForeignKey('orgs.Organization',
+    organization = models.ForeignKey('users.Organization',
                                      verbose_name=_('organization'))
 
     def _validate_org_relation(self, rel):

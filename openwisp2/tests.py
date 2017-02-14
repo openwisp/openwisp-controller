@@ -1,4 +1,4 @@
-from openwisp2.orgs.models import Organization
+from openwisp2.users.models import Organization
 
 
 class TestOrganizationMixin(object):

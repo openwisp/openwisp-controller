@@ -23,11 +23,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'sortedm2m',
     'reversion',
-    # organizations
-    'openwisp2.orgs',
     'django_extensions',
-    # 'organizations',
-    # openwisp2
+    'openwisp2.users',
     'openwisp2.pki',
     'openwisp2.config',
     'openwisp2.ui',
@@ -40,7 +37,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
 ]
 
-AUTH_USER_MODEL = 'orgs.User'
+AUTH_USER_MODEL = 'users.User'
 SITE_ID = '1'
 
 STATICFILES_FINDERS = [
