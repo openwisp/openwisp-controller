@@ -24,6 +24,7 @@ def get_install_requires():
 if sys.argv[-1] == 'publish':
     # delete any *.pyc, *.pyo and __pycache__
     os.system('find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf')
+    os.system('rm -rf build/')
     os.system("python setup.py sdist bdist_wheel upload -s")
     args = {'version': get_version()}
     print("You probably want to also tag the version now:")
