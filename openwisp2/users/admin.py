@@ -28,6 +28,11 @@ class EmailAddressInline(admin.StackedInline):
         return False
 
 
+class OrganizationUserInline(admin.StackedInline):
+    model = OrganizationUser
+    extra = 0
+
+
 class UserCreationForm(BaseUserCreationForm):
     email = forms.EmailField(label=_('Email'), max_length=254, required=True)
 
@@ -35,7 +40,7 @@ class UserCreationForm(BaseUserCreationForm):
 class UserAdmin(BaseUserAdmin):
     add_form = UserCreationForm
     readonly_fields = ['last_login', 'date_joined']
-    inlines = [EmailAddressInline]
+    inlines = [EmailAddressInline, OrganizationUserInline]
 
     def get_inline_instances(self, request, obj=None):
         """

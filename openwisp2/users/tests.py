@@ -67,7 +67,11 @@ class TestUserModel(TestCase):
             'emailaddress_set-0-verified': True,
             'emailaddress_set-0-primary': True,
             'emailaddress_set-0-id': user.emailaddress_set.first().id,
-            'emailaddress_set-0-user': user.id
+            'emailaddress_set-0-user': user.id,
+            'users_organizationuser-TOTAL_FORMS': 0,
+            'users_organizationuser-INITIAL_FORMS': 0,
+            'users_organizationuser-MIN_NUM_FORMS': 0,
+            'users_organizationuser-MAX_NUM_FORMS': 0
         })
         response = self.client.post(reverse('admin:users_user_change', args=[user.pk]), params)
         self.assertNotIn('error', str(response.content))
