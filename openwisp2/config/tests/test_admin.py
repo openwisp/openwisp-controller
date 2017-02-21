@@ -91,68 +91,85 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         self.client.logout()
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')
-        self._create_operator(organizations=[org1])
+        inactive = self._create_org(name='inactive-org', is_active=False)
+        operator = self._create_operator(organizations=[org1, inactive])
         self.client.login(username='operator', password='tester')
         t1 = self._create_template(name='template1org', organization=org1)
         t2 = self._create_template(name='template2org', organization=org2)
+        t3 = self._create_template(name='t3-inactive', organization=inactive)
         c1 = self._create_config(name='org1-config', organization=org1)
         c2 = self._create_config(name='org2-config',
-                                      organization=org2,
-                                      key=None,
-                                      mac_address='00:11:22:33:44:56')
+                                 organization=org2,
+                                 key=None,
+                                 mac_address='00:11:22:33:44:56')
+        c3 = self._create_config(name='config-inactive',
+                                 organization=inactive,
+                                 key=None,
+                                 mac_address='00:11:22:33:44:57')
         c1.templates.add(t1)
         c2.templates.add(t2)
-        return c1, c2, t1, t2
+        return dict(c1=c1, c2=c2, c3_inactive=c3,
+                    t1=t1, t2=t2, t3_inactive=t3,
+                    org1=org1, org2=org2,
+                    inactive=inactive,
+                    operator=operator)
 
     def test_config_queryset(self):
-        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        data = self._create_multitenancy_test_env()
         path = reverse('admin:config_config_changelist')
         response = self.client.get(path)
-        self.assertContains(response, c1.name)
-        self.assertNotContains(response, c2.name)
+        self.assertContains(response, data['c1'].name)
+        self.assertNotContains(response, data['c2'].name)
+        self.assertNotContains(response, data['c3_inactive'].name)
 
     def test_config_organization_fk_queryset(self):
-        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        data = self._create_multitenancy_test_env()
         path = reverse('admin:config_config_add')
         response = self.client.get(path)
-        self.assertContains(response, '{0}</option>'.format(c1.organization.name))
-        self.assertNotContains(response, '{0}</option>'.format(c2.organization.name))
+        self.assertContains(response, '{0}</option>'.format(data['org1'].name))
+        self.assertNotContains(response, '{0}</option>'.format(data['org2'].name))
+        self.assertNotContains(response, '{0}</option>'.format(data['inactive'].name))
 
     def test_config_templates_m2m_queryset(self):
-        c1, c2, t1, t2 = self._create_multitenancy_test_env()
-        t3 = self._create_template(name='t3-shared', organization=None)
+        data = self._create_multitenancy_test_env()
+        t_shared = self._create_template(name='t-shared', organization=None)
         path = reverse('admin:config_config_add')
         response = self.client.get(path)
-        self.assertContains(response, str(t1))
-        self.assertNotContains(response, str(t2))
+        self.assertContains(response, str(data['t1']))
+        self.assertNotContains(response, str(data['t2']))
+        self.assertNotContains(response, str(data['t3_inactive']))
         # contains shared template
-        self.assertContains(response, str(t3))
+        self.assertContains(response, str(t_shared))
 
     def test_template_queryset(self):
-        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        data = self._create_multitenancy_test_env()
         path = reverse('admin:config_template_changelist')
         response = self.client.get(path)
-        self.assertContains(response, t1.name)
-        self.assertNotContains(response, t2.name)
+        self.assertContains(response, data['t1'].name)
+        self.assertNotContains(response, data['t2'].name)
+        self.assertNotContains(response, data['t3_inactive'].name)
 
     def test_template_organization_fk_queryset(self):
-        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        data = self._create_multitenancy_test_env()
         path = reverse('admin:config_template_add')
         response = self.client.get(path)
-        self.assertContains(response, '{0}</option>'.format(t1.organization.name))
-        self.assertNotContains(response, '{0}</option>'.format(t2.organization.name))
+        self.assertContains(response, '{0}</option>'.format(data['org1'].name))
+        self.assertNotContains(response, '{0}</option>'.format(data['org2'].name))
+        self.assertNotContains(response, '{0}</option>'.format(data['inactive'].name))
 
     def test_template_vpn_fk_queryset(self):
-        c1, c2, t1, t2 = self._create_multitenancy_test_env()
-        vpn1 = self._create_vpn(name='vpn1org', organization=t1.organization)
-        vpn2 = self._create_vpn(name='vpn2org', organization=t2.organization)
+        data = self._create_multitenancy_test_env()
+        vpn1 = self._create_vpn(name='vpn1org', organization=data['org1'])
+        vpn2 = self._create_vpn(name='vpn2org', organization=data['org2'])
         vpn3 = self._create_vpn(name='vpn3shared', organization=None)
-        t1.type = 'vpn-client'
-        t1.vpn = vpn1
-        t1.save()
+        vpn4 = self._create_vpn(name='vpn4inactive', organization=data['inactive'])
+        data['t1'].type = 'vpn-client'
+        data['t1'].vpn = vpn1
+        data['t1'].save()
         path = reverse('admin:config_template_add')
         response = self.client.get(path)
         self.assertContains(response, '{0}</option>'.format(vpn1.name))
         self.assertNotContains(response, '{0}</option>'.format(vpn2.name))
+        self.assertNotContains(response, '{0}</option>'.format(vpn4.name))
         # containes shared VPN
         self.assertContains(response, '{0}</option>'.format(vpn3.name))

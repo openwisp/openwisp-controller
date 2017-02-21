@@ -7,15 +7,24 @@ from django_netjsonconfig.utils import invalid_response
 from ..models import Config, OrganizationConfigSettings
 
 
-class ChecksumView(BaseChecksumView):
+class ActiveOrgMixin(object):
+    """
+    adds check to organization.is_active to ``get_object`` method
+    """
+    def get_object(self, *args, **kwargs):
+        kwargs['organization__is_active'] = True
+        super(ActiveOrgMixin, self).get_object(*args, **kwargs)
+
+
+class ChecksumView(ActiveOrgMixin, BaseChecksumView):
     model = Config
 
 
-class DownloadConfigView(BaseDownloadConfigView):
+class DownloadConfigView(ActiveOrgMixin, BaseDownloadConfigView):
     model = Config
 
 
-class ReportStatusView(BaseReportStatusView):
+class ReportStatusView(ActiveOrgMixin, BaseReportStatusView):
     model = Config
 
 
@@ -30,7 +39,10 @@ class RegisterView(BaseRegisterView):
         """
         try:
             secret = request.POST.get('secret')
-            org_settings = OrganizationConfigSettings.objects.get(shared_secret=secret)
+            org_settings = OrganizationConfigSettings.objects \
+                                                     .select_related('organization') \
+                                                     .get(shared_secret=secret,
+                                                          organization__is_active=True)
         except OrganizationConfigSettings.DoesNotExist:
             return invalid_response(request, 'unrecognized secret', status=403)
         if not org_settings.registration_enabled:

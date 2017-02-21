@@ -17,10 +17,15 @@ class TestTemplate(CreateConfigTemplateMixin, CreateAdminMixin,
         t2 = self._create_template(organization=org2, name='t2', default=True)
         # shared template
         t3 = self._create_template(organization=None, name='t3', default=True)
-        return org1, org2, t1, t2, t3
+        # inactive org and template
+        inactive_org = self._create_org(name='inactive-org', is_active=False)
+        inactive_t = self._create_template(organization=inactive_org,
+                                           name='inactive-t',
+                                           default=True)
+        return org1, org2, t1, t2, t3, inactive_org, inactive_t
 
     def test_get_default_templates(self):
-        org1, org2, t1, t2, t3 = self._create_template_test_data()
+        org1, org2, t1, t2, t3, inactive_org, inactive_t = self._create_template_test_data()
         self._login()
         response = self.client.get(reverse('config:get_default_templates',
                                            args=[org1.pk]))
@@ -45,6 +50,13 @@ class TestTemplate(CreateConfigTemplateMixin, CreateAdminMixin,
         self._login()
         response = self.client.get(reverse('config:get_default_templates',
                                            args=['d80a60a1415e4836b8f4bc588b084c29']))
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_default_templates_404_inactive(self):
+        org1, org2, t1, t2, t3, inactive_org, inactive_t = self._create_template_test_data()
+        self._login()
+        response = self.client.get(reverse('config:get_default_templates',
+                                           args=[inactive_org.pk]))
         self.assertEqual(response.status_code, 404)
 
     def test_get_default_templates_400(self):

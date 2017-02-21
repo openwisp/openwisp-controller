@@ -22,13 +22,18 @@ class ConfigForm(AbstractConfigForm):
         model = Config
 
 
-class ConfigAdmin(AbstractConfigAdmin):
+class OrgQuerysetMixin(object):
+    def get_organizations_for_user(self, user):
+        return OrganizationUser.objects.filter(user=user, organization__is_active=True)\
+                               .select_related() \
+                               .only('organization_id') \
+                               .values_list('organization_id')
+
+
+class ConfigAdmin(OrgQuerysetMixin, AbstractConfigAdmin):
     form = ConfigForm
     model = Config
     select_default_templates = False
-
-    def get_organizations_for_user(self, user):
-        return OrganizationUser.objects.filter(user=user).only('organization').values_list('organization')
 
     def get_queryset(self, request):
         """
@@ -64,7 +69,7 @@ class ConfigAdmin(AbstractConfigAdmin):
         returns URLs to get default templates
         used in change_form.html template
         """
-        organizations = self.model.organization.get_queryset()
+        organizations = Organization.active.all()
         urls = {}
         for org in organizations:
             urls[str(org.pk)] = reverse('config:get_default_templates', args=[org.pk])
@@ -90,11 +95,8 @@ class TemplateForm(BaseForm):
         model = Template
 
 
-class TemplateAdmin(AbstractTemplateAdmin):
+class TemplateAdmin(OrgQuerysetMixin, AbstractTemplateAdmin):
     form = TemplateForm
-
-    def get_organizations_for_user(self, user):
-        return OrganizationUser.objects.filter(user=user).only('organization').values_list('organization')
 
     def get_queryset(self, request):
         """
