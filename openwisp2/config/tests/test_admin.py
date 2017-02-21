@@ -1,24 +1,30 @@
 import json
 
 from django.contrib.auth.models import Permission
+from django.db.models import Q
 from django.test import TestCase
 from django.urls import reverse
 
-from openwisp2.users.models import User, OrganizationUser
+from openwisp2.users.models import OrganizationUser, User
 
-from . import CreateAdminMixin, CreateConfigTemplateMixin
+from . import CreateAdminMixin, CreateConfigTemplateMixin, TestVpnX509Mixin
+from ...pki.models import Ca, Cert
 from ...tests import TestOrganizationMixin
-from ..models import Config, Template
+from ..models import Config, Template, Vpn
 
 
 class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
-                TestOrganizationMixin, TestCase):
+                TestVpnX509Mixin, TestOrganizationMixin, TestCase):
     """
     tests for Config model
     """
+    ca_model = Ca
+    cert_model = Cert
     config_model = Config
     template_model = Template
-    operator_permissions = Permission.objects.filter(codename__endswith='config')
+    vpn_model = Vpn
+    operator_permissions = Permission.objects.filter(Q(codename__endswith='config') |
+                                                     Q(codename__endswith='template'))
 
     def setUp(self):
         super(TestAdmin, self).setUp()
@@ -87,32 +93,66 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         org2 = self._create_org(name='test2org')
         self._create_operator(organizations=[org1])
         self.client.login(username='operator', password='tester')
-        config1 = self._create_config(name='org1-config', organization=org1)
-        config2 = self._create_config(name='org2-config',
+        t1 = self._create_template(name='template1org', organization=org1)
+        t2 = self._create_template(name='template2org', organization=org2)
+        c1 = self._create_config(name='org1-config', organization=org1)
+        c2 = self._create_config(name='org2-config',
                                       organization=org2,
                                       key=None,
                                       mac_address='00:11:22:33:44:56')
-        return config1, config2
+        c1.templates.add(t1)
+        c2.templates.add(t2)
+        return c1, c2, t1, t2
 
     def test_config_queryset(self):
-        config1, config2 = self._create_multitenancy_test_env()
+        c1, c2, t1, t2 = self._create_multitenancy_test_env()
         path = reverse('admin:config_config_changelist')
         response = self.client.get(path)
-        self.assertContains(response, config1.name)
-        self.assertNotContains(response, config2.name)
+        self.assertContains(response, c1.name)
+        self.assertNotContains(response, c2.name)
 
     def test_config_organization_fk_queryset(self):
-        config1, config2 = self._create_multitenancy_test_env()
+        c1, c2, t1, t2 = self._create_multitenancy_test_env()
         path = reverse('admin:config_config_add')
         response = self.client.get(path)
-        self.assertContains(response, '{0}</option>'.format(config1.organization.name))
-        self.assertNotContains(response, '{0}</option>'.format(config2.organization.name))
+        self.assertContains(response, '{0}</option>'.format(c1.organization.name))
+        self.assertNotContains(response, '{0}</option>'.format(c2.organization.name))
 
     def test_config_templates_m2m_queryset(self):
-        config1, config2 = self._create_multitenancy_test_env()
-        t1 = self._create_template(name='template1org', organization=config1.organization)
-        t2 = self._create_template(name='template2org', organization=config2.organization)
+        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        t3 = self._create_template(name='t3-shared', organization=None)
         path = reverse('admin:config_config_add')
         response = self.client.get(path)
         self.assertContains(response, str(t1))
         self.assertNotContains(response, str(t2))
+        # contains shared template
+        self.assertContains(response, str(t3))
+
+    def test_template_queryset(self):
+        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        path = reverse('admin:config_template_changelist')
+        response = self.client.get(path)
+        self.assertContains(response, t1.name)
+        self.assertNotContains(response, t2.name)
+
+    def test_template_organization_fk_queryset(self):
+        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        path = reverse('admin:config_template_add')
+        response = self.client.get(path)
+        self.assertContains(response, '{0}</option>'.format(t1.organization.name))
+        self.assertNotContains(response, '{0}</option>'.format(t2.organization.name))
+
+    def test_template_vpn_fk_queryset(self):
+        c1, c2, t1, t2 = self._create_multitenancy_test_env()
+        vpn1 = self._create_vpn(name='vpn1org', organization=t1.organization)
+        vpn2 = self._create_vpn(name='vpn2org', organization=t2.organization)
+        vpn3 = self._create_vpn(name='vpn3shared', organization=None)
+        t1.type = 'vpn-client'
+        t1.vpn = vpn1
+        t1.save()
+        path = reverse('admin:config_template_add')
+        response = self.client.get(path)
+        self.assertContains(response, '{0}</option>'.format(vpn1.name))
+        self.assertNotContains(response, '{0}</option>'.format(vpn2.name))
+        # containes shared VPN
+        self.assertContains(response, '{0}</option>'.format(vpn3.name))

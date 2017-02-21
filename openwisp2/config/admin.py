@@ -93,6 +93,38 @@ class TemplateForm(BaseForm):
 class TemplateAdmin(AbstractTemplateAdmin):
     form = TemplateForm
 
+    def get_organizations_for_user(self, user):
+        return OrganizationUser.objects.filter(user=user).only('organization').values_list('organization')
+
+    def get_queryset(self, request):
+        """
+        if current user is not superuser, show only the
+        templates of relevant organizations
+        """
+        qs = super(TemplateAdmin, self).get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        organizations = self.get_organizations_for_user(request.user)
+        return qs.filter(organization__in=organizations)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        if current user is not superuser:
+            * show only relevant organizations
+            * show only VPN of relevant organizations
+              and shared VPNs
+        """
+        form = super(TemplateAdmin, self).get_form(request, obj, **kwargs)
+        if request.user.is_superuser is False:
+            organizations = self.get_organizations_for_user(request.user)
+            # organizations
+            field = form.base_fields['organization']
+            field.queryset = field.queryset.filter(pk__in=organizations)
+            # templates
+            field = form.base_fields['vpn']
+            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
+        return form
+
 
 TemplateAdmin.list_display.insert(1, 'organization')
 TemplateAdmin.list_filter.insert(0, 'organization')
