@@ -57,3 +57,12 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
                                  key='1234567890')
         self.assertEqual(c2.templates.count(), 1)
         self.assertEqual(c2.templates.filter(name='t2').count(), 1)
+
+    def test_org_default_shared_template(self):
+        org1 = self._create_org(name='org1')
+        self._create_template(organization=org1, name='t1', default=True)
+        self._create_template(organization=None, name='t2', default=True)
+        c1 = self._create_config(organization=org1, name='c1')
+        self.assertEqual(c1.templates.count(), 2)
+        self.assertEqual(c1.templates.filter(name='t1').count(), 1)
+        self.assertEqual(c1.templates.filter(name='t2').count(), 1)

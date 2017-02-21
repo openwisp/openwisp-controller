@@ -15,19 +15,25 @@ class TestTemplate(CreateConfigTemplateMixin, CreateAdminMixin,
         org2 = self._create_org(name='org2')
         t1 = self._create_template(organization=org1, name='t1', default=True)
         t2 = self._create_template(organization=org2, name='t2', default=True)
-        return org1, org2, t1, t2
+        # shared template
+        t3 = self._create_template(organization=None, name='t3', default=True)
+        return org1, org2, t1, t2, t3
 
     def test_get_default_templates(self):
-        org1, org2, t1, t2 = self._create_template_test_data()
+        org1, org2, t1, t2, t3 = self._create_template_test_data()
         self._login()
         response = self.client.get(reverse('config:get_default_templates',
                                            args=[org1.pk]))
-        self.assertEqual(response.json()['default_templates'],
-                         [str(t1.pk)])
+        templates = response.json()['default_templates']
+        self.assertEqual(len(templates), 2)
+        self.assertIn(str(t1.pk), templates)
+        self.assertIn(str(t3.pk), templates)
         response = self.client.get(reverse('config:get_default_templates',
                                            args=[org2.pk]))
-        self.assertEqual(response.json()['default_templates'],
-                         [str(t2.pk)])
+        templates = response.json()['default_templates']
+        self.assertEqual(len(templates), 2)
+        self.assertIn(str(t2.pk), templates)
+        self.assertIn(str(t3.pk), templates)
 
     def test_get_default_templates_403(self):
         org1 = self._create_org(name='org1')

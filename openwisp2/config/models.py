@@ -11,18 +11,17 @@ from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from openwisp2.users.mixins import OrgMixin, ShareableOrgMixin
 
+from .utils import get_default_templates_queryset
+
 
 class TemplatesVpnMixin(BaseMixin):
     class Meta:
         abstract = True
 
     def get_default_templates(self):
-        """
-        Adds organization filtering to default template queryset
-        """
+        """ see ``openwisp2.config.utils.get_default_templates_queryset`` """
         queryset = super(TemplatesVpnMixin, self).get_default_templates()
-        queryset = queryset.filter(organization_id=self.organization_id)
-        return queryset
+        return get_default_templates_queryset(self.organization_id, queryset=queryset)
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
