@@ -2,6 +2,7 @@ import json
 
 from django import forms
 from django.contrib import admin
+from django.db.models import Q
 from django.urls import reverse
 
 from django_netjsonconfig import settings as django_netjsonconfig_settings
@@ -11,7 +12,7 @@ from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseConfigAdmin, BaseForm)
 from openwisp2.users.admin import OrganizationAdmin as BaseOrganizationAdmin
-from openwisp2.users.models import Organization
+from openwisp2.users.models import Organization, OrganizationUser
 
 from .models import Config, OrganizationConfigSettings, Template, Vpn
 
@@ -25,6 +26,38 @@ class ConfigAdmin(AbstractConfigAdmin):
     form = ConfigForm
     model = Config
     select_default_templates = False
+
+    def get_organizations_for_user(self, user):
+        return OrganizationUser.objects.filter(user=user).only('organization').values_list('organization')
+
+    def get_queryset(self, request):
+        """
+        if current user is not superuser, show only the
+        configurations of relevant organizations
+        """
+        qs = super(ConfigAdmin, self).get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        organizations = self.get_organizations_for_user(request.user)
+        return qs.filter(organization__in=organizations)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        if current user is not superuser:
+            * show only relevant organizations
+            * show only templates of relevant organizations
+              and shared templates
+        """
+        form = super(ConfigAdmin, self).get_form(request, obj, **kwargs)
+        if request.user.is_superuser is False:
+            organizations = self.get_organizations_for_user(request.user)
+            # organizations
+            field = form.base_fields['organization']
+            field.queryset = field.queryset.filter(pk__in=organizations)
+            # templates
+            field = form.base_fields['templates']
+            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
+        return form
 
     def _get_default_template_urls(self):
         """
