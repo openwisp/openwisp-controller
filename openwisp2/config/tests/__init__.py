@@ -22,3 +22,6 @@ class CreateAdminMixin(object):
 
     def _login(self, username='admin', password='tester'):
         self.client.login(username=username, password=password)
+
+    def _logout(self):
+        self.client.logout()

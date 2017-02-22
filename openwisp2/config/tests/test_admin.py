@@ -114,21 +114,41 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
 
     def _test_multitenant_admin(self, url, visible, hidden,
                                 select_widget=False):
-        """ TODO """
-        self.client.logout()
-        self.client.login(username='operator', password='tester')
+        """
+        reusable test function that ensures different users
+        can see the right objects.
+        an operator with limited permissions will not be able
+        to see the elements contained in ``hidden``, while
+        a superuser can see everything.
+        """
+        self._logout()
+        self._login(username='operator', password='tester')
         response = self.client.get(url)
+
         # utility format function
         def _f(el, select_widget=False):
             if select_widget:
                 return '{0}</option>'.format(el)
             return el
-        # ensure elements in visible list are visible to operator
+
+        # ensure elements in visible list are visible to operator
         for el in visible:
-            self.assertContains(response, _f(el, select_widget))
+            self.assertContains(response, _f(el, select_widget),
+                                msg_prefix='[operator contains]')
         # ensure elements in hidden list are not visible to operator
         for el in hidden:
-            self.assertNotContains(response, _f(el, select_widget))
+            self.assertNotContains(response, _f(el, select_widget),
+                                   msg_prefix='[operator not-contains]')
+
+        # now become superuser
+        self._logout()
+        self._login(username='admin', password='tester')
+        response = self.client.get(url)
+        # ensure all elements are visible to superuser
+        all_elements = visible + hidden
+        for el in all_elements:
+            self.assertContains(response, _f(el, select_widget),
+                                msg_prefix='[superuser contains]')
 
     def test_config_queryset(self):
         data = self._create_multitenancy_test_env()
