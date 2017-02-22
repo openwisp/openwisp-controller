@@ -138,8 +138,40 @@ class VpnForm(AbstractVpnForm):
         model = Vpn
 
 
-class VpnAdmin(AbstractVpnAdmin):
+class VpnAdmin(OrgQuerysetMixin, AbstractVpnAdmin):
     form = VpnForm
+
+    def get_queryset(self, request):
+        """
+        if current user is not superuser, show only the
+        VPNs of relevant organizations
+        """
+        qs = super(VpnAdmin, self).get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        organizations = self.get_organizations_for_user(request.user)
+        return qs.filter(organization__in=organizations)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        if current user is not superuser:
+            * show only relevant organizations
+            * show only CAs of relevant organizations and shared CAs
+            * show only Cert of relevant organizations and shared Certs
+        """
+        form = super(VpnAdmin, self).get_form(request, obj, **kwargs)
+        if request.user.is_superuser is False:
+            organizations = self.get_organizations_for_user(request.user)
+            # organizations
+            field = form.base_fields['organization']
+            field.queryset = field.queryset.filter(pk__in=organizations)
+            # CAs
+            field = form.base_fields['ca']
+            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
+            # Certs
+            field = form.base_fields['cert']
+            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
+        return form
 
 
 VpnAdmin.list_display.insert(1, 'organization')

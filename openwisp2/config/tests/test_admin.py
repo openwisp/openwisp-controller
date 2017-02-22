@@ -24,7 +24,8 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
     template_model = Template
     vpn_model = Vpn
     operator_permissions = Permission.objects.filter(Q(codename__endswith='config') |
-                                                     Q(codename__endswith='template'))
+                                                     Q(codename__endswith='template') |
+                                                     Q(codename__endswith='vpn'))
 
     def setUp(self):
         super(TestAdmin, self).setUp()
@@ -68,7 +69,7 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
             'config': '{}',
             'templates': ','.join([str(t1.pk), str(t2.pk)]),
         }
-        response = self.client.post(path, data)
+        self.client.post(path, data)
         queryset = Config.objects.filter(name='testadd')
         self.assertEqual(queryset.count(), 1)
         config = queryset.first()
@@ -108,7 +109,7 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         self.assertContains(response, 'eth0')
         self.assertContains(response, 'dhcp')
 
-    def _create_multitenancy_test_env(self):
+    def _create_multitenancy_test_env(self, vpn=False):
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')
         inactive = self._create_org(name='inactive-org', is_active=False)
@@ -127,11 +128,25 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
                                  mac_address='00:11:22:33:44:57')
         c1.templates.add(t1)
         c2.templates.add(t2)
-        return dict(c1=c1, c2=c2, c3_inactive=c3,
+        data = dict(c1=c1, c2=c2, c3_inactive=c3,
                     t1=t1, t2=t2, t3_inactive=t3,
                     org1=org1, org2=org2,
                     inactive=inactive,
                     operator=operator)
+        if vpn:
+            v1 = self._create_vpn(name='vpn1org', organization=org1)
+            v2 = self._create_vpn(name='vpn2org', organization=org2)
+            v3 = self._create_vpn(name='vpn3shared', organization=None)
+            v4 = self._create_vpn(name='vpn4inactive', organization=inactive)
+            t4 = self._create_template(name='vpn-template1org',
+                                       organization=org1,
+                                       type='vpn',
+                                       vpn=v1)
+            data.update(dict(vpn1=v1, vpn2=v2,
+                             vpn_shared=v3,
+                             vpn_inactive=v4,
+                             t1_vpn=t4))
+        return data
 
     def _test_multitenant_admin(self, url, visible, hidden,
                                 select_widget=False):
@@ -216,17 +231,46 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         )
 
     def test_template_vpn_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        vpn1 = self._create_vpn(name='vpn1org', organization=data['org1'])
-        vpn2 = self._create_vpn(name='vpn2org', organization=data['org2'])
-        vpn3 = self._create_vpn(name='vpn3shared', organization=None)
-        vpn4 = self._create_vpn(name='vpn4inactive', organization=data['inactive'])
-        data['t1'].type = 'vpn-client'
-        data['t1'].vpn = vpn1
-        data['t1'].save()
+        data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
             url=reverse('admin:config_template_add'),
-            visible=[vpn1.name, vpn3.name],
-            hidden=[vpn2.name, vpn4.name],
+            visible=[data['vpn1'].name, data['vpn_shared'].name],
+            hidden=[data['vpn2'].name, data['vpn_inactive'].name],
+            select_widget=True
+        )
+
+    def test_vpn_queryset(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self._test_multitenant_admin(
+            url=reverse('admin:config_vpn_changelist'),
+            visible=[data['vpn1'].name],
+            hidden=[data['vpn2'].name, data['vpn_inactive'].name]
+        )
+
+    def test_vpn_organization_fk_queryset(self):
+        data = self._create_multitenancy_test_env()
+        self._test_multitenant_admin(
+            url=reverse('admin:config_vpn_add'),
+            visible=[data['org1'].name],
+            hidden=[data['org2'].name, data['inactive'].name],
+            select_widget=True
+        )
+
+    def test_vpn_ca_fk_queryset(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        # import pdb; pdb.set_trace()
+        self._test_multitenant_admin(
+            url=reverse('admin:config_vpn_add'),
+            visible=[data['vpn1'].ca.name, data['vpn_shared'].ca.name],
+            hidden=[data['vpn2'].ca.name, data['vpn_inactive'].ca.name],
+            select_widget=True
+        )
+
+    def test_vpn_cert_fk_queryset(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self._test_multitenant_admin(
+            url=reverse('admin:config_vpn_add'),
+            visible=[data['vpn1'].cert.name, data['vpn_shared'].cert.name],
+            hidden=[data['vpn2'].cert.name, data['vpn_inactive'].cert.name],
             select_widget=True
         )
