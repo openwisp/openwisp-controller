@@ -54,6 +54,27 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         response = self.client.post(path, {'templates': '', 'key': self.TEST_KEY})
         self.assertNotIn('errors field-templates', str(response.content))
 
+    def test_add_config(self):
+        org1 = self._create_org()
+        t1 = self._create_template(name='t1', organization=org1)
+        t2 = self._create_template(name='t2', organization=None)
+        path = reverse('admin:config_config_add')
+        data = {
+            'name': 'testadd',
+            'organization': str(org1.pk),
+            'backend': 'netjsonconfig.OpenWrt',
+            'key': self.TEST_KEY,
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'config': '{}',
+            'templates': ','.join([str(t1.pk), str(t2.pk)]),
+        }
+        response = self.client.post(path, data)
+        queryset = Config.objects.filter(name='testadd')
+        self.assertEqual(queryset.count(), 1)
+        config = queryset.first()
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(config.templates.filter(name__in=['t1', 't2']).count(), 2)
+
     def test_preview_config(self):
         org = self._create_org()
         self._create_template(organization=org)
