@@ -88,12 +88,10 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         self.assertContains(response, 'dhcp')
 
     def _create_multitenancy_test_env(self):
-        self.client.logout()
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')
         inactive = self._create_org(name='inactive-org', is_active=False)
         operator = self._create_operator(organizations=[org1, inactive])
-        self.client.login(username='operator', password='tester')
         t1 = self._create_template(name='template1org', organization=org1)
         t2 = self._create_template(name='template2org', organization=org2)
         t3 = self._create_template(name='t3-inactive', organization=inactive)
@@ -114,48 +112,67 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
                     inactive=inactive,
                     operator=operator)
 
+    def _test_multitenant_admin(self, url, visible, hidden,
+                                select_widget=False):
+        """ TODO """
+        self.client.logout()
+        self.client.login(username='operator', password='tester')
+        response = self.client.get(url)
+        # utility format function
+        def _f(el, select_widget=False):
+            if select_widget:
+                return '{0}</option>'.format(el)
+            return el
+        # ensure elements in visible list are visible to operator
+        for el in visible:
+            self.assertContains(response, _f(el, select_widget))
+        # ensure elements in hidden list are not visible to operator
+        for el in hidden:
+            self.assertNotContains(response, _f(el, select_widget))
+
     def test_config_queryset(self):
         data = self._create_multitenancy_test_env()
-        path = reverse('admin:config_config_changelist')
-        response = self.client.get(path)
-        self.assertContains(response, data['c1'].name)
-        self.assertNotContains(response, data['c2'].name)
-        self.assertNotContains(response, data['c3_inactive'].name)
+        self._test_multitenant_admin(
+            url=reverse('admin:config_config_changelist'),
+            visible=[data['c1'].name],
+            hidden=[data['c2'].name, data['c3_inactive'].name]
+        )
 
     def test_config_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
-        path = reverse('admin:config_config_add')
-        response = self.client.get(path)
-        self.assertContains(response, '{0}</option>'.format(data['org1'].name))
-        self.assertNotContains(response, '{0}</option>'.format(data['org2'].name))
-        self.assertNotContains(response, '{0}</option>'.format(data['inactive'].name))
+        self._test_multitenant_admin(
+            url=reverse('admin:config_config_add'),
+            visible=[data['org1'].name],
+            hidden=[data['org2'].name, data['inactive'].name],
+            select_widget=True
+        )
 
     def test_config_templates_m2m_queryset(self):
         data = self._create_multitenancy_test_env()
-        t_shared = self._create_template(name='t-shared', organization=None)
-        path = reverse('admin:config_config_add')
-        response = self.client.get(path)
-        self.assertContains(response, str(data['t1']))
-        self.assertNotContains(response, str(data['t2']))
-        self.assertNotContains(response, str(data['t3_inactive']))
-        # contains shared template
-        self.assertContains(response, str(t_shared))
+        t_shared = self._create_template(name='t-shared',
+                                         organization=None)
+        self._test_multitenant_admin(
+            url=reverse('admin:config_config_add'),
+            visible=[str(data['t1']), str(t_shared)],
+            hidden=[str(data['t2']), str(data['t3_inactive'])],
+        )
 
     def test_template_queryset(self):
         data = self._create_multitenancy_test_env()
-        path = reverse('admin:config_template_changelist')
-        response = self.client.get(path)
-        self.assertContains(response, data['t1'].name)
-        self.assertNotContains(response, data['t2'].name)
-        self.assertNotContains(response, data['t3_inactive'].name)
+        self._test_multitenant_admin(
+            url=reverse('admin:config_template_changelist'),
+            visible=[data['t1'].name],
+            hidden=[data['t2'].name, data['t3_inactive'].name],
+        )
 
     def test_template_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
-        path = reverse('admin:config_template_add')
-        response = self.client.get(path)
-        self.assertContains(response, '{0}</option>'.format(data['org1'].name))
-        self.assertNotContains(response, '{0}</option>'.format(data['org2'].name))
-        self.assertNotContains(response, '{0}</option>'.format(data['inactive'].name))
+        self._test_multitenant_admin(
+            url=reverse('admin:config_template_add'),
+            visible=[data['org1'].name],
+            hidden=[data['org2'].name, data['inactive'].name],
+            select_widget=True
+        )
 
     def test_template_vpn_fk_queryset(self):
         data = self._create_multitenancy_test_env()
@@ -166,10 +183,9 @@ class TestAdmin(CreateConfigTemplateMixin, CreateAdminMixin,
         data['t1'].type = 'vpn-client'
         data['t1'].vpn = vpn1
         data['t1'].save()
-        path = reverse('admin:config_template_add')
-        response = self.client.get(path)
-        self.assertContains(response, '{0}</option>'.format(vpn1.name))
-        self.assertNotContains(response, '{0}</option>'.format(vpn2.name))
-        self.assertNotContains(response, '{0}</option>'.format(vpn4.name))
-        # containes shared VPN
-        self.assertContains(response, '{0}</option>'.format(vpn3.name))
+        self._test_multitenant_admin(
+            url=reverse('admin:config_template_add'),
+            visible=[vpn1.name, vpn3.name],
+            hidden=[vpn2.name, vpn4.name],
+            select_widget=True
+        )
