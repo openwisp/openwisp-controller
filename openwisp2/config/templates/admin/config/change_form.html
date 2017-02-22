@@ -18,7 +18,7 @@
         $.get(url).done(function(data){
             $('input.sortedm2m').prop('checked', false);
             $.each(data['default_templates'], function(i, uuid){
-                $('input.sortedm2m[value='+ uuid +']').prop('checked', true);
+                $('input.sortedm2m[value='+ uuid +']').trigger('click');
             });
         })
     });
