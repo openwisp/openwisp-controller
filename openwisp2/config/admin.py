@@ -17,17 +17,28 @@ from openwisp2.users.models import Organization, OrganizationUser
 from .models import Config, OrganizationConfigSettings, Template, Vpn
 
 
-class ConfigForm(AbstractConfigForm):
-    class Meta(AbstractConfigForm.Meta):
-        model = Config
-
-
 class OrgQuerysetMixin(object):
     def get_organizations_for_user(self, user):
         return OrganizationUser.objects.filter(user=user, organization__is_active=True)\
                                .select_related() \
                                .only('organization_id') \
                                .values_list('organization_id')
+
+
+class OrgFilter(OrgQuerysetMixin, admin.RelatedFieldListFilter):
+    """
+    Filter that shows only relevant organizations
+    """
+    def field_choices(self, field, request, model_admin):
+        if request.user.is_superuser:
+            return super(OrgFilter, self).field_choices(field, request, model_admin)
+        organizations = self.get_organizations_for_user(request.user)
+        return field.get_choices(include_blank=False, limit_choices_to={'pk__in': organizations})
+
+
+class ConfigForm(AbstractConfigForm):
+    class Meta(AbstractConfigForm.Meta):
+        model = Config
 
 
 class ConfigAdmin(OrgQuerysetMixin, AbstractConfigAdmin):
@@ -86,7 +97,7 @@ class ConfigAdmin(OrgQuerysetMixin, AbstractConfigAdmin):
 
 
 ConfigAdmin.list_display.insert(1, 'organization')
-ConfigAdmin.list_filter.insert(0, 'organization')
+ConfigAdmin.list_filter.insert(0, ('organization', OrgFilter))
 ConfigAdmin.fields.insert(1, 'organization')
 
 
@@ -129,7 +140,7 @@ class TemplateAdmin(OrgQuerysetMixin, AbstractTemplateAdmin):
 
 
 TemplateAdmin.list_display.insert(1, 'organization')
-TemplateAdmin.list_filter.insert(0, 'organization')
+TemplateAdmin.list_filter.insert(0, ('organization', OrgFilter))
 TemplateAdmin.fields.insert(1, 'organization')
 
 
@@ -175,7 +186,8 @@ class VpnAdmin(OrgQuerysetMixin, AbstractVpnAdmin):
 
 
 VpnAdmin.list_display.insert(1, 'organization')
-VpnAdmin.list_filter.insert(0, 'organization')
+VpnAdmin.list_filter.insert(0, ('organization', OrgFilter))
+VpnAdmin.list_filter.remove('ca')
 VpnAdmin.fields.insert(2, 'organization')
 
 
