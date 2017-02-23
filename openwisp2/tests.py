@@ -1,3 +1,6 @@
+import unittest
+
+from openwisp2.staticfiles import DependencyFinder
 from openwisp2.users.models import Organization
 
 
@@ -11,3 +14,9 @@ class TestOrganizationMixin(object):
         options.update(kwargs)
         org = Organization.objects.create(**options)
         return org
+
+
+class TestStaticFinders(unittest.TestCase):
+    def test_dependency_finder(self):
+        finder = DependencyFinder()
+        self.assertIsInstance(finder.locations, list)

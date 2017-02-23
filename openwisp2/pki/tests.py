@@ -1,5 +1,3 @@
-import unittest
-
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -66,10 +64,3 @@ class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
         crl = crypto.load_crl(crypto.FILETYPE_PEM, response.content)
         revoked_list = crl.get_revoked()
         self.assertIsNone(revoked_list)
-
-
-class TestStaticFinders(unittest.TestCase):
-    def test_dependency_finder(self):
-        from openwisp2.staticfiles import DependencyFinder
-        finder = DependencyFinder()
-        self.assertIsInstance(finder.locations, list)
