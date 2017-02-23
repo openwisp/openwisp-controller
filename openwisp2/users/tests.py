@@ -2,10 +2,11 @@ from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import User
+from ..tests import TestOrganizationMixin
+from .models import OrganizationUser, User
 
 
-class TestUserModel(TestCase):
+class TestUserModel(TestOrganizationMixin, TestCase):
     def _create_user(self, **kwargs):
         opts = dict(username='tester',
                     password='tester',
@@ -80,3 +81,17 @@ class TestUserModel(TestCase):
         self.assertEqual(email_set.count(), 2)
         self.assertEqual(email_set.filter(email='new@mail.com').count(), 1)
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_organizations_pk(self):
+        user = self._create_user(username='organizations_pk')
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        self._create_org(name='org3')
+        OrganizationUser.objects.create(user=user, organization=org1)
+        OrganizationUser.objects.create(user=user, organization=org2)
+        self.assertIn((org1.pk,), user.organizations_pk)
+        self.assertEqual(len(user.organizations_pk), 2)
+
+    def test_organizations_pk_empty(self):
+        user = self._create_user(username='organizations_pk')
+        self.assertEqual(len(user.organizations_pk), 0)

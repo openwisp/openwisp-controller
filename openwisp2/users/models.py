@@ -4,6 +4,7 @@ from allauth.account.models import EmailAddress
 from django.contrib.auth.models import UserManager as BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from organizations.abstract import (AbstractOrganization,
                                     AbstractOrganizationOwner,
@@ -42,6 +43,18 @@ class User(AbstractUser):
     location = models.CharField(_('location'), max_length=128, blank=True)
 
     objects = UserManager()
+
+    @cached_property
+    def organizations_pk(self):
+        """
+        returns primary keys of organizations the user is associated to
+        """
+        manager = OrganizationUser.objects
+        qs = manager.filter(user=self, organization__is_active=True) \
+                    .select_related() \
+                    .only('organization_id') \
+                    .values_list('organization_id')
+        return qs
 
 
 class Organization(AbstractOrganization):
