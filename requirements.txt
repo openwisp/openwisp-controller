@@ -1,6 +1,6 @@
 # config & pki
 django-netjsonconfig>=0.4.2,<0.6.0
-# openwisp2.accounts
+# openwisp2.users
 django-organizations>=0.9.0,<0.10.0
 django-extensions>=1.7.5
 django-allauth>=0.30.0,<0.31.0
