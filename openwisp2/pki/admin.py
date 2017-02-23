@@ -2,11 +2,12 @@ from django.contrib import admin
 
 from django_x509.base.admin import CaAdmin as BaseCaAdmin
 from django_x509.base.admin import CertAdmin as BaseCertAdmin
+from openwisp2.admin import MultitenantAdminMixin, MultitenantOrgFilter
 
 from .models import Ca, Cert
 
 
-class CaAdmin(BaseCaAdmin):
+class CaAdmin(MultitenantAdminMixin, BaseCaAdmin):
     fields = ['name',
               'organization',
               'notes',
@@ -27,11 +28,12 @@ class CaAdmin(BaseCaAdmin):
               'modified']
 
 
-CaAdmin.list_filter.insert(0, 'organization')
+CaAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 CaAdmin.list_display.insert(1, 'organization')
 
 
-class CertAdmin(BaseCertAdmin):
+class CertAdmin(MultitenantAdminMixin, BaseCertAdmin):
+    multitenant_shared_relations = ('ca',)
     fields = ['name',
               'organization',
               'ca',
@@ -55,7 +57,8 @@ class CertAdmin(BaseCertAdmin):
               'modified']
 
 
-CertAdmin.list_filter.insert(0, 'organization')
+CertAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
+CertAdmin.list_filter.remove('ca')
 CertAdmin.list_display.insert(1, 'organization')
 
 

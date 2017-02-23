@@ -32,15 +32,22 @@ class MultitenantAdminMixin(object):
               or shared relations
         """
         form = super(MultitenantAdminMixin, self).get_form(request, obj, **kwargs)
+        fields = form.base_fields
         if not request.user.is_superuser:
             orgs_pk = request.user.organizations_pk
-            # organizations
-            org_field = form.base_fields['organization']
-            org_field.queryset = org_field.queryset.filter(pk__in=orgs_pk)
+            # organizations relation;
+            # may be readonly and not present in field list
+            if 'organization' in fields:
+                org_field = fields['organization']
+                org_field.queryset = org_field.queryset.filter(pk__in=orgs_pk)
             # other relations
             q = Q(organization__in=orgs_pk) | Q(organization=None)
             for field_name in self.multitenant_shared_relations:
-                field = form.base_fields[field_name]
+                # each relation may be readonly
+                # and not present in field list
+                if field_name not in fields:
+                    continue
+                field = fields[field_name]
                 field.queryset = field.queryset.filter(q)
         return form
 
