@@ -6,7 +6,7 @@ from ..tests import TestOrganizationMixin
 from .models import OrganizationUser, User
 
 
-class TestUserModel(TestOrganizationMixin, TestCase):
+class TestUsers(TestOrganizationMixin, TestCase):
     def _create_user(self, **kwargs):
         opts = dict(username='tester',
                     password='tester',
