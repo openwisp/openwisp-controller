@@ -1,12 +1,12 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from . import CreateAdminMixin, CreateConfigTemplateMixin
-from ...tests import TestOrganizationMixin
+from . import CreateConfigTemplateMixin
+from ...tests import TestAdminMixin, TestOrganizationMixin
 from ..models import Template
 
 
-class TestTemplate(CreateConfigTemplateMixin, CreateAdminMixin,
+class TestTemplate(CreateConfigTemplateMixin, TestAdminMixin,
                    TestOrganizationMixin, TestCase):
     template_model = Template
 
