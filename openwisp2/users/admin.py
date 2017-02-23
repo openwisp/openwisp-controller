@@ -2,14 +2,15 @@ from allauth.account.models import EmailAddress
 from django import forms
 from django.apps import apps
 from django.contrib import admin
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.admin import GroupAdmin
 from django.contrib.auth.forms import UserCreationForm as BaseUserCreationForm
 from django.utils.translation import ugettext_lazy as _
 from organizations.base_admin import (BaseOrganizationAdmin,
                                       BaseOrganizationOwnerAdmin,
                                       BaseOrganizationUserAdmin,
                                       BaseOwnerInline)
+from reversion.admin import VersionAdmin
 
 from .models import (Group, Organization, OrganizationOwner, OrganizationUser,
                      User)
@@ -40,7 +41,7 @@ class UserCreationForm(BaseUserCreationForm):
     email = forms.EmailField(label=_('Email'), max_length=254, required=True)
 
 
-class UserAdmin(BaseUserAdmin):
+class UserAdmin(VersionAdmin, BaseUserAdmin):
     add_form = UserCreationForm
     readonly_fields = ['last_login', 'date_joined']
     list_display = ('username', 'email', 'is_superuser', 'date_joined', 'last_login')
@@ -75,19 +76,23 @@ UserAdmin.fieldsets[1][1]['fields'] = base_fields + additional_fields
 UserAdmin.add_fieldsets[0][1]['fields'] = ('username', 'email', 'password1', 'password2')
 
 
+class GroupAdmin(VersionAdmin, BaseGroupAdmin):
+    pass
+
+
 class OwnerInline(BaseOwnerInline):
     model = OrganizationOwner
 
 
-class OrganizationAdmin(BaseOrganizationAdmin):
+class OrganizationAdmin(VersionAdmin, BaseOrganizationAdmin):
     inlines = [OwnerInline]
 
 
-class OrganizationUserAdmin(BaseOrganizationUserAdmin):
+class OrganizationUserAdmin(VersionAdmin, BaseOrganizationUserAdmin):
     pass
 
 
-class OrganizationOwnerAdmin(BaseOrganizationOwnerAdmin):
+class OrganizationOwnerAdmin(VersionAdmin, BaseOrganizationOwnerAdmin):
     list_display = ('get_user', 'organization')
 
     def get_user(self, obj):
