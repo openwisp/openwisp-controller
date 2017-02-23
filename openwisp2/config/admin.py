@@ -25,7 +25,6 @@ class ConfigForm(AbstractConfigForm):
 class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
     form = ConfigForm
     model = Config
-    select_default_templates = False
     multitenant_shared_relations = ('templates',)
 
     def _get_default_template_urls(self):
