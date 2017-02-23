@@ -60,11 +60,12 @@ class UserAdmin(BaseUserAdmin):
         added/changed via the django-admin interface
         """
         super(UserAdmin, self).save_model(request, obj, form, change)
-        EmailAddress.objects.add_email(request,
-                                       user=obj,
-                                       email=obj.email,
-                                       confirm=True,
-                                       signup=True)
+        if obj.email:
+            EmailAddress.objects.add_email(request,
+                                           user=obj,
+                                           email=obj.email,
+                                           confirm=True,
+                                           signup=True)
 
 
 base_fields = list(UserAdmin.fieldsets[1][1]['fields'])

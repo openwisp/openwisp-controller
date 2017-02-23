@@ -18,11 +18,12 @@ class TestUsers(TestOrganizationMixin, TestCase):
         return user
 
     def _create_admin(self, **kwargs):
-        kwargs.update(dict(username='admin',
-                           email='admin@admin.com',
-                           is_superuser=True,
-                           is_staff=True))
-        return self._create_user(**kwargs)
+        opts = dict(username='admin',
+                    email='admin@admin.com',
+                    is_superuser=True,
+                    is_staff=True)
+        opts.update(kwargs)
+        return self._create_user(**opts)
 
     def test_create_superuser_email(self):
         user = User.objects.create_superuser(username='tester',
@@ -81,6 +82,36 @@ class TestUsers(TestOrganizationMixin, TestCase):
         self.assertEqual(email_set.count(), 2)
         self.assertEqual(email_set.filter(email='new@mail.com').count(), 1)
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_admin_change_user_email_empty(self):
+        admin = self._create_admin(email='')
+        self.client.force_login(admin)
+        params = dict(username='testchange',
+                      email='',
+                      first_name='',
+                      last_name='',
+                      bio='',
+                      url='',
+                      company='',
+                      location='')
+        params.update({
+            'emailaddress_set-TOTAL_FORMS': 0,
+            'emailaddress_set-INITIAL_FORMS': 0,
+            'emailaddress_set-MIN_NUM_FORMS': 0,
+            'emailaddress_set-MAX_NUM_FORMS': 0,
+            'users_organizationuser-TOTAL_FORMS': 0,
+            'users_organizationuser-INITIAL_FORMS': 0,
+            'users_organizationuser-MIN_NUM_FORMS': 0,
+            'users_organizationuser-MAX_NUM_FORMS': 0
+        })
+        self.client.post(reverse('admin:users_user_change', args=[admin.pk]), params)
+        queryset = User.objects.filter(username='testchange')
+        self.assertEqual(queryset.count(), 1)
+        user = queryset.first()
+        self.assertEqual(user.email, '')
+        # import pdb; pdb.set_trace()
+        self.assertEqual(user.emailaddress_set.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_organizations_pk(self):
         user = self._create_user(username='organizations_pk')
