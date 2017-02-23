@@ -11,9 +11,6 @@ from ..models import Config, Template, Vpn
 
 class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
                 TestVpnX509Mixin, TestOrganizationMixin, TestCase):
-    """
-    tests for Config model
-    """
     ca_model = Ca
     cert_model = Cert
     config_model = Config

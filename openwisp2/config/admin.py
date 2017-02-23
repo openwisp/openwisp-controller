@@ -2,7 +2,6 @@ import json
 
 from django import forms
 from django.contrib import admin
-from django.db.models import Q
 from django.urls import reverse
 
 from django_netjsonconfig import settings as django_netjsonconfig_settings
@@ -11,29 +10,11 @@ from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractTemplateAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseConfigAdmin, BaseForm)
+from openwisp2.admin import MultitenantAdminMixin, MultitenantOrgFilter
 from openwisp2.users.admin import OrganizationAdmin as BaseOrganizationAdmin
-from openwisp2.users.models import Organization, OrganizationUser
+from openwisp2.users.models import Organization
 
 from .models import Config, OrganizationConfigSettings, Template, Vpn
-
-
-class OrgQuerysetMixin(object):
-    def get_organizations_for_user(self, user):
-        return OrganizationUser.objects.filter(user=user, organization__is_active=True)\
-                               .select_related() \
-                               .only('organization_id') \
-                               .values_list('organization_id')
-
-
-class OrgFilter(OrgQuerysetMixin, admin.RelatedFieldListFilter):
-    """
-    Filter that shows only relevant organizations
-    """
-    def field_choices(self, field, request, model_admin):
-        if request.user.is_superuser:
-            return super(OrgFilter, self).field_choices(field, request, model_admin)
-        organizations = self.get_organizations_for_user(request.user)
-        return field.get_choices(include_blank=False, limit_choices_to={'pk__in': organizations})
 
 
 class ConfigForm(AbstractConfigForm):
@@ -41,39 +22,11 @@ class ConfigForm(AbstractConfigForm):
         model = Config
 
 
-class ConfigAdmin(OrgQuerysetMixin, AbstractConfigAdmin):
+class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
     form = ConfigForm
     model = Config
     select_default_templates = False
-
-    def get_queryset(self, request):
-        """
-        if current user is not superuser, show only the
-        configurations of relevant organizations
-        """
-        qs = super(ConfigAdmin, self).get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        organizations = self.get_organizations_for_user(request.user)
-        return qs.filter(organization__in=organizations)
-
-    def get_form(self, request, obj=None, **kwargs):
-        """
-        if current user is not superuser:
-            * show only relevant organizations
-            * show only templates of relevant organizations
-              and shared templates
-        """
-        form = super(ConfigAdmin, self).get_form(request, obj, **kwargs)
-        if request.user.is_superuser is False:
-            organizations = self.get_organizations_for_user(request.user)
-            # organizations
-            field = form.base_fields['organization']
-            field.queryset = field.queryset.filter(pk__in=organizations)
-            # templates
-            field = form.base_fields['templates']
-            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
-        return form
+    multitenant_shared_relations = ('templates',)
 
     def _get_default_template_urls(self):
         """
@@ -97,7 +50,7 @@ class ConfigAdmin(OrgQuerysetMixin, AbstractConfigAdmin):
 
 
 ConfigAdmin.list_display.insert(1, 'organization')
-ConfigAdmin.list_filter.insert(0, ('organization', OrgFilter))
+ConfigAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 ConfigAdmin.fields.insert(1, 'organization')
 
 
@@ -106,41 +59,13 @@ class TemplateForm(BaseForm):
         model = Template
 
 
-class TemplateAdmin(OrgQuerysetMixin, AbstractTemplateAdmin):
+class TemplateAdmin(MultitenantAdminMixin, AbstractTemplateAdmin):
     form = TemplateForm
-
-    def get_queryset(self, request):
-        """
-        if current user is not superuser, show only the
-        templates of relevant organizations
-        """
-        qs = super(TemplateAdmin, self).get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        organizations = self.get_organizations_for_user(request.user)
-        return qs.filter(organization__in=organizations)
-
-    def get_form(self, request, obj=None, **kwargs):
-        """
-        if current user is not superuser:
-            * show only relevant organizations
-            * show only VPN of relevant organizations
-              and shared VPNs
-        """
-        form = super(TemplateAdmin, self).get_form(request, obj, **kwargs)
-        if request.user.is_superuser is False:
-            organizations = self.get_organizations_for_user(request.user)
-            # organizations
-            field = form.base_fields['organization']
-            field.queryset = field.queryset.filter(pk__in=organizations)
-            # templates
-            field = form.base_fields['vpn']
-            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
-        return form
+    multitenant_shared_relations = ('vpn',)
 
 
 TemplateAdmin.list_display.insert(1, 'organization')
-TemplateAdmin.list_filter.insert(0, ('organization', OrgFilter))
+TemplateAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 TemplateAdmin.fields.insert(1, 'organization')
 
 
@@ -149,44 +74,13 @@ class VpnForm(AbstractVpnForm):
         model = Vpn
 
 
-class VpnAdmin(OrgQuerysetMixin, AbstractVpnAdmin):
+class VpnAdmin(MultitenantAdminMixin, AbstractVpnAdmin):
     form = VpnForm
-
-    def get_queryset(self, request):
-        """
-        if current user is not superuser, show only the
-        VPNs of relevant organizations
-        """
-        qs = super(VpnAdmin, self).get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        organizations = self.get_organizations_for_user(request.user)
-        return qs.filter(organization__in=organizations)
-
-    def get_form(self, request, obj=None, **kwargs):
-        """
-        if current user is not superuser:
-            * show only relevant organizations
-            * show only CAs of relevant organizations and shared CAs
-            * show only Cert of relevant organizations and shared Certs
-        """
-        form = super(VpnAdmin, self).get_form(request, obj, **kwargs)
-        if request.user.is_superuser is False:
-            organizations = self.get_organizations_for_user(request.user)
-            # organizations
-            field = form.base_fields['organization']
-            field.queryset = field.queryset.filter(pk__in=organizations)
-            # CAs
-            field = form.base_fields['ca']
-            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
-            # Certs
-            field = form.base_fields['cert']
-            field.queryset = field.queryset.filter(Q(organization__in=organizations) | Q(organization=None))
-        return form
+    multitenant_shared_relations = ('ca', 'cert')
 
 
 VpnAdmin.list_display.insert(1, 'organization')
-VpnAdmin.list_filter.insert(0, ('organization', OrgFilter))
+VpnAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 VpnAdmin.list_filter.remove('ca')
 VpnAdmin.fields.insert(2, 'organization')
 
