@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=64, unique=True)),
-                ('backend', models.CharField(choices=[('netjsonconfig.OpenWrt', 'OpenWRT'), ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x')], help_text='Select netjsonconfig backend', max_length=128, verbose_name='backend')),
+                ('backend', models.CharField(choices=[('netjsonconfig.OpenWrt', 'OpenWRT'), ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x')], help_text='Select <a href="http://netjsonconfig.openwisp.org/en/stable/" target="_blank">netjsonconfig</a> backend', max_length=128, verbose_name='backend')),
                 ('config', jsonfield.fields.JSONField(blank=True, default=dict, help_text='configuration in NetJSON DeviceConfiguration format', verbose_name='configuration')),
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=64, unique=True)),
-                ('backend', models.CharField(choices=[('netjsonconfig.OpenWrt', 'OpenWRT'), ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x')], help_text='Select netjsonconfig backend', max_length=128, verbose_name='backend')),
+                ('backend', models.CharField(choices=[('netjsonconfig.OpenWrt', 'OpenWRT'), ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x')], help_text='Select <a href="http://netjsonconfig.openwisp.org/en/stable/" target="_blank">netjsonconfig</a> backend', max_length=128, verbose_name='backend')),
                 ('config', jsonfield.fields.JSONField(blank=True, default=dict, help_text='configuration in NetJSON DeviceConfiguration format', verbose_name='configuration')),
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
