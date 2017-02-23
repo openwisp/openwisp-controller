@@ -3,25 +3,12 @@ from django.test import TestCase
 from django.urls import reverse
 from OpenSSL import crypto
 
-from django_x509.tests import TestX509Mixin
-
-from ..tests import TestOrganizationMixin
-from .models import Ca, Cert
-
-
-class TestPkiMixin(TestX509Mixin):
-    def _create_ca(self, **kwargs):
-        if 'organization' not in kwargs:
-            kwargs['organization'] = None
-        return super(TestPkiMixin, self)._create_ca(**kwargs)
-
-    def _create_cert(self, **kwargs):
-        if 'organization' not in kwargs:
-            kwargs['organization'] = None
-        return super(TestPkiMixin, self)._create_cert(**kwargs)
+from . import TestPkiMixin
+from ...tests import TestOrganizationMixin
+from ..models import Ca, Cert
 
 
-class TestPki(TestCase, TestPkiMixin, TestOrganizationMixin):
+class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
     ca_model = Ca
     cert_model = Cert
 
