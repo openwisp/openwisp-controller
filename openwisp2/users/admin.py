@@ -101,3 +101,12 @@ base_group_model = apps.get_model('auth', 'Group')
 admin.site.unregister(base_group_model)
 # register openwisp2.users.Group (proxy model)
 admin.site.register(Group, GroupAdmin)
+
+# unregister allauth admin to keep the admin interface simple
+# we can re-enable these models later when they will be really needed
+for model in [('sites', 'Site'),
+              ('account', 'EmailAddress'),
+              ('socialaccount', 'SocialApp'),
+              ('socialaccount', 'SocialToken'),
+              ('socialaccount', 'SocialAccount')]:
+    admin.site.unregister(apps.get_model(*model))
