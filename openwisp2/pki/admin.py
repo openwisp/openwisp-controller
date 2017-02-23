@@ -1,4 +1,5 @@
 from django.contrib import admin
+from reversion.admin import VersionAdmin
 
 from django_x509.base.admin import CaAdmin as BaseCaAdmin
 from django_x509.base.admin import CertAdmin as BaseCertAdmin
@@ -7,7 +8,7 @@ from openwisp2.admin import MultitenantAdminMixin, MultitenantOrgFilter
 from .models import Ca, Cert
 
 
-class CaAdmin(MultitenantAdminMixin, BaseCaAdmin):
+class CaAdmin(MultitenantAdminMixin, VersionAdmin, BaseCaAdmin):
     fields = ['name',
               'organization',
               'notes',
@@ -32,7 +33,7 @@ CaAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 CaAdmin.list_display.insert(1, 'organization')
 
 
-class CertAdmin(MultitenantAdminMixin, BaseCertAdmin):
+class CertAdmin(MultitenantAdminMixin, VersionAdmin, BaseCertAdmin):
     multitenant_shared_relations = ('ca',)
     fields = ['name',
               'organization',
