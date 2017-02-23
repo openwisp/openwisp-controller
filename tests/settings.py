@@ -24,17 +24,18 @@ INSTALLED_APPS = [
     'sortedm2m',
     'reversion',
     'django_extensions',
+    # all-auth
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    # openwisp2
     'openwisp2.users',
     'openwisp2.pki',
     'openwisp2.config',
     'openwisp2.ui',
     'django_netjsonconfig.admin_theme',
     'django.contrib.admin',
-    # all-auth
-    'django.contrib.sites',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
 ]
 
 AUTH_USER_MODEL = 'users.User'
