@@ -1,6 +1,7 @@
 import uuid
 
 from allauth.account.models import EmailAddress
+from django.contrib.auth.models import Group as BaseGroup
 from django.contrib.auth.models import UserManager as BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -55,6 +56,17 @@ class User(AbstractUser):
                     .only('organization_id') \
                     .values_list('organization_id')
         return qs
+
+
+class Group(BaseGroup):
+    """
+    Proxy model used to move ``GroupAdmin``
+    under the same app label as the other models
+    """
+    class Meta:
+        proxy = True
+        verbose_name = _('group')
+        verbose_name_plural = _('groups')
 
 
 class Organization(AbstractOrganization):

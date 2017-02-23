@@ -1,7 +1,9 @@
 from allauth.account.models import EmailAddress
 from django import forms
+from django.apps import apps
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.admin import GroupAdmin
 from django.contrib.auth.forms import UserCreationForm as BaseUserCreationForm
 from django.utils.translation import ugettext_lazy as _
 from organizations.base_admin import (BaseOrganizationAdmin,
@@ -9,7 +11,8 @@ from organizations.base_admin import (BaseOrganizationAdmin,
                                       BaseOrganizationUserAdmin,
                                       BaseOwnerInline)
 
-from .models import Organization, OrganizationOwner, OrganizationUser, User
+from .models import (Group, Organization, OrganizationOwner, OrganizationUser,
+                     User)
 
 
 class EmailAddressInline(admin.StackedInline):
@@ -41,6 +44,7 @@ class UserAdmin(BaseUserAdmin):
     add_form = UserCreationForm
     readonly_fields = ['last_login', 'date_joined']
     inlines = [EmailAddressInline, OrganizationUserInline]
+    save_on_top = True
 
     def get_inline_instances(self, request, obj=None):
         """
@@ -92,3 +96,8 @@ admin.site.register(User, UserAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(OrganizationUser, OrganizationUserAdmin)
 admin.site.register(OrganizationOwner, OrganizationOwnerAdmin)
+# unregister auth.Group
+base_group_model = apps.get_model('auth', 'Group')
+admin.site.unregister(base_group_model)
+# register openwisp2.users.Group (proxy model)
+admin.site.register(Group, GroupAdmin)
