@@ -145,7 +145,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_config_add'),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive'].name],
+            hidden=[data['org2'].name, data['inactive']],
             select_widget=True
         )
 
@@ -173,7 +173,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_template_add'),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive'].name],
+            hidden=[data['org2'].name, data['inactive']],
             select_widget=True
         )
 
@@ -191,7 +191,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_vpn_changelist'),
             visible=[data['org1'].name, data['vpn1'].name],
-            hidden=[data['org2'].name, data['inactive'].name,
+            hidden=[data['org2'].name, data['inactive'],
                     data['vpn2'].name, data['vpn_shared'].name,
                     data['vpn_inactive'].name]
         )
@@ -201,13 +201,12 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_vpn_add'),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive'].name],
+            hidden=[data['org2'].name, data['inactive']],
             select_widget=True
         )
 
     def test_vpn_ca_fk_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
-        # import pdb; pdb.set_trace()
         self._test_multitenant_admin(
             url=reverse('admin:config_vpn_add'),
             visible=[data['vpn1'].ca.name, data['vpn_shared'].ca.name],

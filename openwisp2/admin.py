@@ -4,6 +4,7 @@ Base admin classes and mixins
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.utils.translation import ugettext_lazy as _
 
 
 class OrgVersionMixin(object):
@@ -24,6 +25,11 @@ class MultitenantAdminMixin(OrgVersionMixin):
     they are associated with.
     """
     multitenant_shared_relations = []
+
+    def get_repr(self, obj):
+        return str(obj)
+
+    get_repr.short_description = _('name')
 
     def get_queryset(self, request):
         """

@@ -55,7 +55,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:pki_ca_add'),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive'].name],
+            hidden=[data['org2'].name, data['inactive']],
             select_widget=True
         )
 
@@ -76,7 +76,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:pki_cert_add'),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive'].name],
+            hidden=[data['org2'].name, data['inactive']],
             select_widget=True
         )
 

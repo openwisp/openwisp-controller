@@ -78,6 +78,12 @@ class Organization(AbstractOrganization):
     email = models.EmailField(_('email'), blank=True)
     url = models.URLField(_('URL'), blank=True)
 
+    def __str__(self):
+        value = super(Organization, self).__str__()
+        if not self.is_active:
+            value = '{0} ({1})'.format(value, _('disabled'))
+        return value
+
 
 class OrganizationUser(AbstractOrganizationUser):
     """
