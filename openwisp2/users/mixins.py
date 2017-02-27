@@ -16,6 +16,9 @@ class OrgMixin(models.Model):
     organization = models.ForeignKey('users.Organization',
                                      verbose_name=_('organization'))
 
+    class Meta:
+        abstract = True
+
     def _validate_org_relation(self, rel):
         """
         if the relation is owned by a specific organization
@@ -31,9 +34,6 @@ class OrgMixin(models.Model):
             message = message.format(object_label=self._meta.verbose_name,
                                      related_object_label=rel._meta.verbose_name)
             raise ValidationError({'organization': message})
-
-    class Meta:
-        abstract = True
 
 
 class ShareableOrgMixin(OrgMixin):

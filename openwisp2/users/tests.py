@@ -109,7 +109,6 @@ class TestUsers(TestOrganizationMixin, TestCase):
         self.assertEqual(queryset.count(), 1)
         user = queryset.first()
         self.assertEqual(user.email, '')
-        # import pdb; pdb.set_trace()
         self.assertEqual(user.emailaddress_set.count(), 0)
         self.assertEqual(len(mail.outbox), 0)
 
