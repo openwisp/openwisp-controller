@@ -2,10 +2,22 @@
 Base admin classes and mixins
 """
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 
 
-class MultitenantAdminMixin(object):
+class OrgVersionMixin(object):
+    """
+    Base VersionAdmin for openwisp2
+    """
+    def recoverlist_view(self, request, extra_context=None):
+        """ only superusers are allowed to recover deleted objects """
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        return super(OrgVersionMixin, self).recoverlist_view(request, extra_context)
+
+
+class MultitenantAdminMixin(OrgVersionMixin):
     """
     Mixin that makes a ModelAdmin class multitenant:
     users will see only the objects related to the organizations

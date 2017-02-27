@@ -3,6 +3,7 @@ import unittest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.db.models import Q
+from django.urls import reverse
 
 from openwisp2.staticfiles import DependencyFinder
 from openwisp2.users.models import Organization, OrganizationUser
@@ -87,6 +88,18 @@ class TestAdminMixin(object):
         for el in all_elements:
             self.assertContains(response, _f(el, select_widget),
                                 msg_prefix='[superuser contains]')
+
+    def _test_changelist_recover_deleted(self, app_label, model_label):
+        self._test_multitenant_admin(
+            url=reverse('admin:{0}_{1}_changelist'.format(app_label, model_label)),
+            visible=[],
+            hidden=['Recover deleted']
+        )
+
+    def _test_recoverlist_operator_403(self, app_label, model_label):
+        self._login(username='operator', password='tester')
+        response = self.client.get(reverse('admin:{0}_{1}_recoverlist'.format(app_label, model_label)))
+        self.assertEqual(response.status_code, 403)
 
 
 class TestStaticFinders(unittest.TestCase):

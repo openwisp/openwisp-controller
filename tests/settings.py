@@ -21,8 +21,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'sortedm2m',
-    'reversion',
     'django_extensions',
     # openwisp2 ui
     'openwisp2.ui',
@@ -37,6 +35,9 @@ INSTALLED_APPS = [
     'openwisp2.config',
     'django_netjsonconfig.admin_theme',
     'django.contrib.admin',
+    # other dependencies
+    'sortedm2m',
+    'reversion',
 ]
 
 AUTH_USER_MODEL = 'users.User'

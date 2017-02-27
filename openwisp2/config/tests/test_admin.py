@@ -223,3 +223,15 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             hidden=[data['vpn2'].cert.name, data['vpn_inactive'].cert.name],
             select_widget=True
         )
+
+    def test_changelist_recover_deleted_button(self):
+        self._create_multitenancy_test_env()
+        self._test_changelist_recover_deleted('config', 'config')
+        self._test_changelist_recover_deleted('config', 'template')
+        self._test_changelist_recover_deleted('config', 'vpn')
+
+    def test_recoverlist_operator_403(self):
+        self._create_multitenancy_test_env()
+        self._test_recoverlist_operator_403('config', 'config')
+        self._test_recoverlist_operator_403('config', 'template')
+        self._test_recoverlist_operator_403('config', 'vpn')

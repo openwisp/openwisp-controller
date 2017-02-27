@@ -98,3 +98,13 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
         url = reverse('admin:pki_cert_change', args=[cert.pk])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    def test_changelist_recover_deleted_button(self):
+        self._create_multitenancy_test_env()
+        self._test_changelist_recover_deleted('pki', 'ca')
+        self._test_changelist_recover_deleted('pki', 'cert')
+
+    def test_recoverlist_operator_403(self):
+        self._create_multitenancy_test_env()
+        self._test_recoverlist_operator_403('pki', 'ca')
+        self._test_recoverlist_operator_403('pki', 'cert')
