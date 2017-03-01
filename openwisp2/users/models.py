@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group as BaseGroup
 from django.contrib.auth.models import UserManager as BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from organizations.abstract import (AbstractOrganization,
@@ -69,6 +70,7 @@ class Group(BaseGroup):
         verbose_name_plural = _('groups')
 
 
+@python_2_unicode_compatible
 class Organization(AbstractOrganization):
     """
     OpenWISP2 Organization model
@@ -79,7 +81,7 @@ class Organization(AbstractOrganization):
     url = models.URLField(_('URL'), blank=True)
 
     def __str__(self):
-        value = super(Organization, self).__str__()
+        value = self.name
         if not self.is_active:
             value = '{0} ({1})'.format(value, _('disabled'))
         return value
