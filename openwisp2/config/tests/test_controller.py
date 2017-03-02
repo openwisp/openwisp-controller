@@ -104,6 +104,12 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
                                     {'key': c.key, 'status': 'running'})
         self.assertEqual(response.status_code, 404)
 
+    def test_checksum_200(self):
+        org = self._create_org()
+        c = self._create_config(organization=org)
+        response = self.client.get(reverse('controller:checksum', args=[c.pk]), {'key': c.key})
+        self.assertEqual(response.status_code, 200)
+
 
 class TestRegistrationDisabled(TestOrganizationMixin, TestCase):
     @classmethod

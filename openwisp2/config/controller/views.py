@@ -13,7 +13,7 @@ class ActiveOrgMixin(object):
     """
     def get_object(self, *args, **kwargs):
         kwargs['organization__is_active'] = True
-        super(ActiveOrgMixin, self).get_object(*args, **kwargs)
+        return super(ActiveOrgMixin, self).get_object(*args, **kwargs)
 
 
 class ChecksumView(ActiveOrgMixin, BaseChecksumView):
