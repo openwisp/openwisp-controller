@@ -69,7 +69,7 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
                                       related_name='config_relations',
                                       verbose_name=_('templates'),
                                       blank=True,
-                                      help_text=_('configuration templates, applied from'
+                                      help_text=_('configuration templates, applied from '
                                                   'first to last'))
     vpn = models.ManyToManyField('config.Vpn',
                                  through='config.VpnClient',
@@ -78,6 +78,16 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
+
+
+def sortedm2m__str__(self):
+    """
+    Improves string representation of m2m relationship objects
+    """
+    return self.template.name
+
+
+Config.templates.through.__str__ = sortedm2m__str__
 
 
 class Template(ShareableOrgMixin, AbstractTemplate):
