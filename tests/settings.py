@@ -9,7 +9,7 @@ ALLOWED_HOSTS = []
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'openwisp2.db',
+        'NAME': 'openwisp-controller.db',
     }
 }
 
@@ -21,32 +21,32 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
-    # openwisp2 ui
-    'openwisp2.ui',
+    # admin
+    'django_netjsonconfig.admin_theme',
+    'django.contrib.admin',
     # all-auth
     'django.contrib.sites',
     'allauth',
     'allauth.account',
-    'allauth.socialaccount',
+    'django_extensions',
     # openwisp2 modules
-    'openwisp2.users',
-    'openwisp2.pki',
-    'openwisp2.config',
-    'django_netjsonconfig.admin_theme',
-    'django.contrib.admin',
+    'openwisp_users',
+    'openwisp_controller.pki',
+    'openwisp_controller.config',
+    # openwisp_controller ui
+    'openwisp_controller.ui',
     # other dependencies
     'sortedm2m',
     'reversion',
 ]
 
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = 'openwisp_users.User'
 SITE_ID = '1'
 
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'openwisp2.staticfiles.DependencyFinder',
+    'openwisp_controller.staticfiles.DependencyFinder',
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -82,7 +82,7 @@ TEMPLATES = [
             'loaders': [
                 'django.template.loaders.filesystem.Loader',
                 'django.template.loaders.app_directories.Loader',
-                'openwisp2.loaders.DependencyLoader'
+                'openwisp_controller.loaders.DependencyLoader'
             ],
             'context_processors': [
                 'django.template.context_processors.debug',

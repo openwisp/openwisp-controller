@@ -2,7 +2,7 @@ include LICENSE
 include README.rst
 include CHANGES.rst
 include requirements.txt
-recursive-include openwisp2 *
+recursive-include openwisp_controller *
 recursive-exclude * *.pyc
 recursive-exclude * *.swp
 recursive-exclude * __pycache__

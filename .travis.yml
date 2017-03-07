@@ -12,7 +12,6 @@ branches:
 
 # command to install requirements
 install:
-  - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master
   - python setup.py -q develop
   - pip install -r requirements-test.txt
 
@@ -21,7 +20,7 @@ before_script:
 
 # command to run tests, e.g. python setup.py test
 script:
-  - coverage run --source=openwisp2 runtests.py
+  - coverage run --source=openwisp_controller runtests.py
 
 after_success:
   coveralls

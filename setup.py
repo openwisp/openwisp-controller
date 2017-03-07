@@ -4,7 +4,7 @@ import sys
 
 from setuptools import find_packages, setup
 
-from openwisp2 import get_version
+from openwisp_controller import get_version
 
 
 def get_install_requires():
@@ -34,15 +34,15 @@ if sys.argv[-1] == 'publish':
 
 
 setup(
-    name='openwisp2',
+    name='openwisp-controller',
     version=get_version(),
     license='GPL3',
     author='Federico Capoano',
     author_email='nemesis@ninux.org',
-    description='OpenWISP2 django app',
+    description='OpenWISP 2 Controller',
     long_description=open('README.rst').read(),
     url='http://openwisp.org',
-    download_url='https://github.com/openwisp/openwisp2/releases',
+    download_url='https://github.com/openwisp/openwisp-controller/releases',
     platforms=['Platform Indipendent'],
     keywords=['django', 'netjson', 'openwrt', 'networking', 'openwisp'],
     packages=find_packages(exclude=['tests', 'docs']),
@@ -53,11 +53,11 @@ setup(
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
         'Topic :: Internet :: WWW/HTTP',
+        'Topic :: System :: Networking',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: OS Independent',
         'Framework :: Django',
-        'Topic :: System :: Networking',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
     ]
