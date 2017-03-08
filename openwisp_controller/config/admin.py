@@ -10,7 +10,8 @@ from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractTemplateAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseConfigAdmin, BaseForm)
-from openwisp_controller.admin import MultitenantAdminMixin, MultitenantOrgFilter
+from openwisp_controller.admin import (MultitenantAdminMixin,
+                                       MultitenantOrgFilter)
 from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
 

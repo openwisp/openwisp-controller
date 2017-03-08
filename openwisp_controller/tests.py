@@ -5,10 +5,9 @@ from django.contrib.auth.models import Permission
 from django.db.models import Q
 from django.urls import reverse
 
-from openwisp_users.tests.utils import TestOrganizationMixin
-
 from openwisp_controller.staticfiles import DependencyFinder
 from openwisp_users.models import OrganizationUser
+from openwisp_users.tests.utils import TestOrganizationMixin
 
 user_model = get_user_model()
 
