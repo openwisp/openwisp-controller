@@ -16,11 +16,7 @@ openwisp-controller
 
 ------------
 
-OpenWISP2 prototype. Work in progress. Do not use in production.
-
-OpenWISP2 is a simple web app composed of several reusable python libraries and django apps. Having learnt from the experience with OpenWISP1, the new version of the controller has been redesigned to be more flexible, reusable, modularly built and easier to deploy.
-
-Its goal is to make it easier to maintain a network of devices based on OpenWRT/LEDE.
+OpenWISP 2 controller module (built using Python and the Django web-framework).
 
 ------------
 
@@ -30,15 +26,10 @@ Its goal is to make it easier to maintain a network of devices based on OpenWRT/
 
 ------------
 
-Current features
-----------------
+Deploy it in production
+-----------------------
 
-TODO
-
-Project goals
--------------
-
-TODO
+An automated installer is available at `ansible-openwisp2 <https://github.com/openwisp/ansible-openwisp2>`_.
 
 Dependencies
 ------------
@@ -81,7 +72,32 @@ If you want to contribute, install your cloned fork:
 Setup (integrate in an existing django project)
 -----------------------------------------------
 
-TODO
+``INSTALLED_APPS`` in ``settings.py`` should look like the following:
+
+.. code-block:: python
+
+    INSTALLED_APPS = [
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        # admin
+        'django_netjsonconfig.admin_theme',
+        'django.contrib.admin',
+        # all-auth
+        'django.contrib.sites',
+        'allauth',
+        'allauth.account',
+        'django_extensions',
+        # openwisp2 modules
+        'openwisp_users',
+        'openwisp_controller.pki',
+        'openwisp_controller.config',
+        # other dependencies
+        'sortedm2m',
+        'reversion',
+    ]
 
 Add ``openwisp_controller.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your ``settings.py``
 
@@ -118,34 +134,30 @@ Add ``openwisp_controller.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``
         }
     ]
 
+``urls.py``:
 
 .. code-block:: python
 
+    from django.conf import settings
+    from django.conf.urls import include, url
+    from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
-Deploy it in production
------------------------
+    from django_netjsonconfig.admin_theme.admin import admin, openwisp_admin
 
-TODO
+    openwisp_admin()
 
-Installing for development
---------------------------
+    urlpatterns = [
+        url(r'^admin/', include(admin.site.urls)),
+        url(r'', include('openwisp_controller.urls')),
+    ]
 
-TODO
-
-Settings
---------
-
-TODO
-
-Screenshots
------------
-
-TODO
+    urlpatterns += staticfiles_urlpatterns()
 
 Talks
 -----
 
-- `OpenWISP2 - a self hosted solution to control OpenWRT/LEDE devices <https://fosdem.org/2017/schedule/event/openwisp2/>`_ (FOSDEM 2017)
+- `OpenWISP2 - a self hosted solution to control OpenWRT/LEDE devices
+  <https://fosdem.org/2017/schedule/event/openwisp2/>`_ (FOSDEM 2017)
 
 Contributing
 ------------
