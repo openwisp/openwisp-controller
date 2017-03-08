@@ -2,12 +2,6 @@ from django.conf import settings
 from django.conf.urls import include, url
 
 url_metadata = [
-    # allauth
-    {
-        'regexp': r'^accounts/',
-        'app': 'allauth',
-        'include': {'module': '{app}.urls'}
-    },
     # django-netjsonconfig schemas
     {
         'regexp': r'^',
@@ -41,15 +35,6 @@ url_metadata = [
         'include': {
             'module': '{app}.controller.urls',
             'namespace': 'controller'
-        }
-    },
-    # openwisp_controller.ui
-    {
-        'regexp': r'',
-        'app': 'openwisp_controller.ui',
-        'include': {
-            'module': '{app}.urls',
-            'namespace': 'ui',
         }
     },
     # owm_legacy
