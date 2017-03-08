@@ -11,8 +11,8 @@ openwisp-controller
    :target: https://requires.io/github/openwisp/openwisp-controller/requirements/?branch=master
    :alt: Requirements Status
 
-.. image:: https://badge.fury.io/py/openwisp_controller.svg
-   :target: http://badge.fury.io/py/openwisp_controller
+.. image:: https://badge.fury.io/py/openwisp-controller.svg
+   :target: http://badge.fury.io/py/openwisp-controller
 
 ------------
 
