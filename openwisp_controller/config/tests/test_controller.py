@@ -2,9 +2,9 @@ from django.test import TestCase
 from django.urls import reverse
 
 from django_netjsonconfig import settings as django_netjsonconfig_settings
+from openwisp_users.tests.utils import TestOrganizationMixin
 
 from . import CreateConfigTemplateMixin
-from ...tests import TestOrganizationMixin
 from ..models import Config, OrganizationConfigSettings
 
 TEST_MACADDR = '00:11:22:33:44:55'

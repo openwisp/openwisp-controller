@@ -3,8 +3,9 @@ from django.test import TestCase
 from django.urls import reverse
 from OpenSSL import crypto
 
+from openwisp_users.tests.utils import TestOrganizationMixin
+
 from . import TestPkiMixin
-from ...tests import TestOrganizationMixin
 from ..models import Ca, Cert
 
 

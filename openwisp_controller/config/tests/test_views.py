@@ -1,8 +1,10 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from openwisp_users.tests.utils import TestOrganizationMixin
+
 from . import CreateConfigTemplateMixin
-from ...tests import TestAdminMixin, TestOrganizationMixin
+from ...tests.utils import TestAdminMixin
 from ..models import Template
 
 

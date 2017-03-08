@@ -3,9 +3,11 @@ import json
 from django.test import TestCase
 from django.urls import reverse
 
+from openwisp_users.tests.utils import TestOrganizationMixin
+
 from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
-from ...tests import TestAdminMixin, TestOrganizationMixin
+from ...tests.utils import TestAdminMixin
 from ..models import Config, Template, Vpn
 
 

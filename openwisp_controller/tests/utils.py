@@ -1,19 +1,11 @@
-import unittest
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.db.models import Q
 from django.urls import reverse
 
-from openwisp_controller.staticfiles import DependencyFinder
 from openwisp_users.models import OrganizationUser
-from openwisp_users.tests.utils import TestOrganizationMixin
 
 user_model = get_user_model()
-
-
-class TestOrganizationMixin(TestOrganizationMixin):
-    pass
 
 
 class TestAdminMixin(object):
@@ -93,9 +85,3 @@ class TestAdminMixin(object):
         self._login(username='operator', password='tester')
         response = self.client.get(reverse('admin:{0}_{1}_recoverlist'.format(app_label, model_label)))
         self.assertEqual(response.status_code, 403)
-
-
-class TestStaticFinders(unittest.TestCase):
-    def test_dependency_finder(self):
-        finder = DependencyFinder()
-        self.assertIsInstance(finder.locations, list)
