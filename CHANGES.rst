@@ -1,10 +1,11 @@
 Changelog
 =========
 
-Version 0.1.1 [unreleased]
+Version 0.1.1 [2017-03-10]
 --------------------------
 
-WIP
+- `cbca4e1 <https://github.com/openwisp/openwisp-controller/commit/cbca4e1>`_:
+  [users] Fixed integration with `openwisp-users <https://github.com/openwisp/openwisp-users>`_
 
 Version 0.1.0 [2017-03-08]
 --------------------------
