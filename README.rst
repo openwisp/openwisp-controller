@@ -134,6 +134,13 @@ Add ``openwisp_controller.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``
         }
     ]
 
+Add the following settings to ``settings.py``:
+
+.. code-block:: python
+
+    LOGIN_REDIRECT_URL = 'admin:index'
+    ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
+
 ``urls.py``:
 
 .. code-block:: python

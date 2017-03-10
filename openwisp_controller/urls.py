@@ -2,6 +2,14 @@ from django.conf import settings
 from django.conf.urls import include, url
 
 url_metadata = [
+    # allauth proxy
+    {
+        'regexp': r'^accounts/',
+        'app': 'openwisp_users',
+        'include': {
+            'module': 'openwisp_users.accounts.urls'
+        }
+    },
     # django-netjsonconfig schemas
     {
         'regexp': r'^',

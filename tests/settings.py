@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'allauth',
     'allauth.account',
+    'allauth.socialaccount',
     'django_extensions',
     # openwisp2 modules
     'openwisp_users',
@@ -65,7 +66,6 @@ USE_TZ = True
 USE_I18N = False
 USE_L10N = False
 STATIC_URL = '/static/'
-CORS_ORIGIN_ALLOW_ALL = True
 
 TEMPLATES = [
     {
@@ -88,6 +88,8 @@ TEMPLATES = [
 ]
 
 EMAIL_PORT = '1025'  # for testing purposes
+LOGIN_REDIRECT_URL = 'admin:index'
+ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
