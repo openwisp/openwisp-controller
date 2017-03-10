@@ -21,9 +21,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # admin
-    'django_netjsonconfig.admin_theme',
-    'django.contrib.admin',
     # all-auth
     'django.contrib.sites',
     'allauth',
@@ -34,6 +31,9 @@ INSTALLED_APPS = [
     'openwisp_users',
     'openwisp_controller.pki',
     'openwisp_controller.config',
+    # admin
+    'django_netjsonconfig.admin_theme',
+    'django.contrib.admin',
     # other dependencies
     'sortedm2m',
     'reversion',

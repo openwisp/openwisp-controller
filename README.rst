@@ -72,7 +72,7 @@ If you want to contribute, install your cloned fork:
 Setup (integrate in an existing django project)
 -----------------------------------------------
 
-``INSTALLED_APPS`` in ``settings.py`` should look like the following:
+``INSTALLED_APPS`` in ``settings.py`` should look like the following (ordering is important):
 
 .. code-block:: python
 
@@ -82,9 +82,6 @@ Setup (integrate in an existing django project)
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        # admin
-        'django_netjsonconfig.admin_theme',
-        'django.contrib.admin',
         # all-auth
         'django.contrib.sites',
         'allauth',
@@ -95,6 +92,9 @@ Setup (integrate in an existing django project)
         'openwisp_users',
         'openwisp_controller.pki',
         'openwisp_controller.config',
+        # admin
+        'django_netjsonconfig.admin_theme',
+        'django.contrib.admin',
         # other dependencies
         'sortedm2m',
         'reversion',

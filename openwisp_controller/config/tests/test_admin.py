@@ -94,6 +94,27 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self.assertContains(response, 'eth0')
         self.assertContains(response, 'dhcp')
 
+    def test_config_preview_button(self):
+        config = self._create_config(organization=self._create_org())
+        path = reverse('admin:config_config_change', args=[config.pk])
+        self._login()
+        response = self.client.get(path)
+        self.assertIn('Preview', str(response.content))
+
+    def test_template_preview_button(self):
+        t = self._create_template(organization=self._create_org())
+        path = reverse('admin:config_template_change', args=[t.pk])
+        self._login()
+        response = self.client.get(path)
+        self.assertIn('Preview', str(response.content))
+
+    def test_vpn_preview_button(self):
+        v = self._create_vpn(organization=self._create_org())
+        path = reverse('admin:config_vpn_change', args=[v.pk])
+        self._login()
+        response = self.client.get(path)
+        self.assertIn('Preview', str(response.content))
+
     def _create_multitenancy_test_env(self, vpn=False):
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')
