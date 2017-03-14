@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
@@ -148,6 +150,7 @@ class OrganizationConfigSettings(models.Model):
     Configuration management settings
     specific to each organization
     """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.OneToOneField('openwisp_users.Organization',
                                         verbose_name=_('organization'),
                                         related_name='config_settings')
