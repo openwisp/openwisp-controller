@@ -1,10 +1,13 @@
 Changelog
 =========
 
-Version 0.1.2 [unreleased]
+Version 0.1.2 [2017-03-15]
 --------------------------
 
-WIP
+- `3c61053 <https://github.com/openwisp/openwisp-controller/commit/3c61053>`_:
+  [admin] Ensure preview button is present
+- `0087483 <https://github.com/openwisp/openwisp-controller/commit/0087483>`_:
+  [models] Converted ``OrganizationConfigSettings`` to UUID primary key
 
 Version 0.1.1 [2017-03-10]
 --------------------------
