@@ -58,7 +58,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'mac_address': TEST_MACADDR,
             'backend': 'netjsonconfig.OpenWrt'
         })
-        self.assertContains(response, 'unrecognized secret', status_code=403)
+        self.assertContains(response, 'error: unrecognized secret', status_code=403)
 
     def test_register_403_disabled_registration(self):
         org = self._create_org()
@@ -70,7 +70,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'mac_address': TEST_MACADDR,
             'backend': 'netjsonconfig.OpenWrt'
         })
-        self.assertContains(response, 'registration disabled', status_code=403)
+        self.assertContains(response, 'error: registration disabled', status_code=403)
         count = Config.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 0)
@@ -83,7 +83,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'mac_address': TEST_MACADDR,
             'backend': 'netjsonconfig.OpenWrt'
         })
-        self.assertContains(response, 'unrecognized secret', status_code=403)
+        self.assertContains(response, 'error: unrecognized secret', status_code=403)
 
     def test_checksum_404_disabled_org(self):
         org = self._create_org(is_active=False)

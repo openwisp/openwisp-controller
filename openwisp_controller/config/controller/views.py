@@ -44,9 +44,9 @@ class RegisterView(BaseRegisterView):
                                                      .get(shared_secret=secret,
                                                           organization__is_active=True)
         except OrganizationConfigSettings.DoesNotExist:
-            return invalid_response(request, 'unrecognized secret', status=403)
+            return invalid_response(request, 'error: unrecognized secret', status=403)
         if not org_settings.registration_enabled:
-            return invalid_response(request, 'registration disabled', status=403)
+            return invalid_response(request, 'error: registration disabled', status=403)
         # set an organization attribute as a side effect
         # this attribute will be used in ``init_object``
         self.organization = org_settings.organization
