@@ -1,10 +1,11 @@
 Changelog
 =========
 
-Version 0.1.3 [unreleased]
+Version 0.1.3 [2017-03-11]
 --------------------------
 
-WIP
+- `db77ae7 <https://github.com/openwisp/openwisp-controller/commit/db77ae7>`_:
+  [controller] Added "error: " prefix in error responses
 
 Version 0.1.2 [2017-03-15]
 --------------------------
