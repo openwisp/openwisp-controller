@@ -11,7 +11,8 @@ from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseConfigAdmin, BaseForm)
 from openwisp_controller.admin import (MultitenantAdminMixin,
-                                       MultitenantOrgFilter)
+                                       MultitenantOrgFilter,
+                                       MultitenantTemplateFilter)
 from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
 
@@ -27,6 +28,11 @@ class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
     form = ConfigForm
     model = Config
     multitenant_shared_relations = ('templates',)
+    list_filter = [('organization', MultitenantOrgFilter),
+                   'backend',
+                   ('templates', MultitenantTemplateFilter),
+                   'status',
+                   'created']
 
     def _get_default_template_urls(self):
         """
@@ -50,7 +56,6 @@ class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
 
 
 ConfigAdmin.list_display.insert(1, 'organization')
-ConfigAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 ConfigAdmin.fields.insert(1, 'organization')
 
 

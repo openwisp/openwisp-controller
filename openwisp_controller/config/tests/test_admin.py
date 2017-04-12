@@ -257,3 +257,12 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_recoverlist_operator_403('config', 'config')
         self._test_recoverlist_operator_403('config', 'template')
         self._test_recoverlist_operator_403('config', 'vpn')
+
+    def test_config_template_filter(self):
+        data = self._create_multitenancy_test_env()
+        t_special = self._create_template(name='special', organization=data['org1'])
+        self._test_multitenant_admin(
+            url=reverse('admin:config_config_changelist'),
+            visible=[data['t1'].name, t_special.name],
+            hidden=[data['t2'].name, data['t3_inactive'].name]
+        )

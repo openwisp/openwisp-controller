@@ -75,9 +75,19 @@ class MultitenantOrgFilter(admin.RelatedFieldListFilter):
     Admin filter that shows only organizations the current
     user is associated with in its available choices
     """
+    multitenant_lookup = 'pk__in'
+
     def field_choices(self, field, request, model_admin):
         if request.user.is_superuser:
             return super(MultitenantOrgFilter, self).field_choices(field, request, model_admin)
         organizations = request.user.organizations_pk
         return field.get_choices(include_blank=False,
-                                 limit_choices_to={'pk__in': organizations})
+                                 limit_choices_to={self.multitenant_lookup: organizations})
+
+
+class MultitenantTemplateFilter(MultitenantOrgFilter):
+    """
+    Admin filter that shows only templates of
+    organizations the current user is associated with
+    """
+    multitenant_lookup = 'organization__in'
