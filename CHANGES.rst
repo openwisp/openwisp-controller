@@ -1,10 +1,11 @@
 Changelog
 =========
 
-Version 0.1.4 [unreleased]
+Version 0.1.4 [2017-04-21]
 --------------------------
 
-WIP
+- `#2 <https://github.com/openwisp/openwisp-controller/issues/2>`_:
+  [admin] Added templates in config filter
 
 Version 0.1.3 [2017-03-11]
 --------------------------
