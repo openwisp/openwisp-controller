@@ -8,7 +8,7 @@ from sortedm2m.fields import SortedManyToManyField
 
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
 from django_netjsonconfig.base.config import (AbstractConfig, get_random_key,
-                                              key_validator)
+                                              key_validator, sortedm2m__str__)
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
@@ -80,13 +80,6 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
-
-
-def sortedm2m__str__(self):
-    """
-    Improves string representation of m2m relationship objects
-    """
-    return self.template.name
 
 
 Config.templates.through.__str__ = sortedm2m__str__
