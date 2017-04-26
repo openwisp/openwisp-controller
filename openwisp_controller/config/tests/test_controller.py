@@ -5,7 +5,7 @@ from django_netjsonconfig import settings as django_netjsonconfig_settings
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from . import CreateConfigTemplateMixin
-from ..models import Config, OrganizationConfigSettings
+from ..models import Config, OrganizationConfigSettings, Template
 
 TEST_MACADDR = '00:11:22:33:44:55'
 TEST_MACADDR_NAME = TEST_MACADDR.replace(':', '-')
@@ -19,14 +19,15 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
     tests for django_netjsonconfig.controller
     """
     config_model = Config
+    template_model = Template
 
-    def _create_org(self, **kwargs):
+    def _create_org(self, shared_secret=TEST_ORG_SHARED_SECRET, **kwargs):
         org = super(TestController, self)._create_org(**kwargs)
         OrganizationConfigSettings.objects.create(organization=org,
-                                                  shared_secret=TEST_ORG_SHARED_SECRET)
+                                                  shared_secret=shared_secret)
         return org
 
-    def test_register(self):
+    def test_register(self, **kwargs):
         org = self._create_org()
         response = self.client.post(REGISTER_URL, {
             'secret': TEST_ORG_SHARED_SECRET,
@@ -38,6 +39,28 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
         count = Config.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 1)
+
+    def test_register_template_tags(self):
+        org1 = self._create_org(name='org1')
+        t1 = self._create_template(name='t1', organization=org1)
+        t1.tags.add('mesh')
+        t_shared = self._create_template(name='t-shared')
+        t_shared.tags.add('mesh')
+        org2 = self._create_org(name='org2', shared_secret='org2secret')
+        t2 = self._create_template(name='mesh', organization=org2)
+        t2.tags.add('mesh')
+        response = self.client.post(REGISTER_URL, {
+            'secret': TEST_ORG_SHARED_SECRET,
+            'name': TEST_MACADDR_NAME,
+            'mac_address': TEST_MACADDR,
+            'backend': 'netjsonconfig.OpenWrt',
+            'tags': 'mesh'
+        })
+        self.assertEqual(response.status_code, 201)
+        c = Config.objects.filter(mac_address=TEST_MACADDR,
+                                  organization=org1).first()
+        self.assertEqual(c.templates.filter(name=t1.name).count(), 1)
+        self.assertEqual(c.templates.filter(name=t_shared.name).count(), 1)
 
     def test_register_400(self):
         self._create_org()

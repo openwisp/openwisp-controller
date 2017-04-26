@@ -1,3 +1,5 @@
+from django.db.models import Q
+
 from django_netjsonconfig.controller.generics import (BaseChecksumView,
                                                       BaseDownloadConfigView,
                                                       BaseRegisterView,
@@ -54,6 +56,12 @@ class RegisterView(BaseRegisterView):
     def init_object(self, **kwargs):
         kwargs['organization'] = self.organization
         return super(RegisterView, self).init_object(**kwargs)
+
+    def get_template_queryset(self, config):
+        queryset = super(RegisterView, self).get_template_queryset(config)
+        # filter templates of the same organization or shared templates
+        return queryset.filter(Q(organization=self.organization) |
+                               Q(organization=None))
 
 
 checksum = ChecksumView.as_view()

@@ -5,10 +5,13 @@ from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from sortedm2m.fields import SortedManyToManyField
+from taggit.managers import TaggableManager
 
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
 from django_netjsonconfig.base.config import (AbstractConfig, get_random_key,
                                               key_validator, sortedm2m__str__)
+from django_netjsonconfig.base.tag import (AbstractTaggedTemplate,
+                                           AbstractTemplateTag)
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
@@ -85,10 +88,34 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 Config.templates.through.__str__ = sortedm2m__str__
 
 
+class TemplateTag(AbstractTemplateTag):
+    """
+    openwisp-controller TemplateTag model
+    """
+    class Meta(AbstractTemplateTag.Meta):
+        abstract = False
+
+
+class TaggedTemplate(AbstractTaggedTemplate):
+    """
+    openwisp-controller TaggedTemplate model
+    """
+    tag = models.ForeignKey('config.TemplateTag',
+                            related_name='%(app_label)s_%(class)s_items',
+                            on_delete=models.CASCADE)
+
+    class Meta(AbstractTaggedTemplate.Meta):
+        abstract = False
+
+
 class Template(ShareableOrgMixin, AbstractTemplate):
     """
     openwisp-controller Template model
     """
+    tags = TaggableManager(through='config.TaggedTemplate', blank=True,
+                           help_text=_('A comma-separated list of template tags, may be used '
+                                       'to ease auto configuration with specific settings (eg: '
+                                       '4G, mesh, WDS, VPN, ecc.)'))
     vpn = models.ForeignKey('config.Vpn',
                             verbose_name=_('VPN'),
                             blank=True,
