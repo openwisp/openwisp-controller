@@ -50,8 +50,8 @@ class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
         ctx.update({'default_template_urls': self._get_default_template_urls()})
         return ctx
 
-    def add_view(self, request, form_url='', extra_context={}):
-        extra_context.update(self.get_extra_context())
+    def add_view(self, request, form_url='', extra_context=None):
+        extra_context = self.get_extra_context()
         return super(BaseConfigAdmin, self).add_view(request, form_url, extra_context)
 
 
