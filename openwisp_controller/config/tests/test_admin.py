@@ -266,3 +266,24 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             visible=[data['t1'].name, t_special.name],
             hidden=[data['t2'].name, data['t3_inactive'].name]
         )
+
+    def test_config_contains_default_templates_js(self):
+        config = self._create_config(organization=self._create_org())
+        path = reverse('admin:config_config_change', args=[config.pk])
+        self._login()
+        response = self.client.get(path)
+        self.assertContains(response, '// enable default templates')
+
+    def test_template_not_contains_default_templates_js(self):
+        template = self._create_template()
+        path = reverse('admin:config_template_change', args=[template.pk])
+        self._login()
+        response = self.client.get(path)
+        self.assertNotContains(response, '// enable default templates')
+
+    def test_vpn_not_contains_default_templates_js(self):
+        vpn = self._create_vpn()
+        path = reverse('admin:config_vpn_change', args=[vpn.pk])
+        self._login()
+        response = self.client.get(path)
+        self.assertNotContains(response, '// enable default templates')

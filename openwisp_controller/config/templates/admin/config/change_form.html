@@ -1,8 +1,9 @@
 {% extends "admin/django_netjsonconfig/change_form.html" %}
 
-{% block content %}
-{{ block.super }}
+{% block default_templates_js %}
+{% if default_template_urls %}
 <script>
+// enable default templates - do not remove this comment
 (function ($) {
     var urls = {{ default_template_urls|safe }};
         orgSelect = $('#id_organization'),
@@ -24,4 +25,5 @@
     });
 })(django.jQuery);
 </script>
+{% endif %}
 {% endblock %}
