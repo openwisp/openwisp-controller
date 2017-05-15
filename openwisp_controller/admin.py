@@ -33,7 +33,7 @@ class MultitenantAdminMixin(OrgVersionMixin):
 
     def get_queryset(self, request):
         """
-        if current user is not superuser, show only the
+        If current user is not superuser, show only the
         objects associated to organizations she's associated with
         """
         qs = super(MultitenantAdminMixin, self).get_queryset(request)
@@ -42,14 +42,15 @@ class MultitenantAdminMixin(OrgVersionMixin):
         organizations = request.user.organizations_pk
         return qs.filter(organization__in=organizations)
 
-    def get_form(self, request, obj=None, **kwargs):
+    def _edit_form(self, request, form):
         """
+        Modifies the form querysets as follows;
         if current user is not superuser:
             * show only relevant organizations
             * show only relations associated to relevant organizations
               or shared relations
+        else show everything
         """
-        form = super(MultitenantAdminMixin, self).get_form(request, obj, **kwargs)
         fields = form.base_fields
         if not request.user.is_superuser:
             orgs_pk = request.user.organizations_pk
@@ -67,7 +68,16 @@ class MultitenantAdminMixin(OrgVersionMixin):
                     continue
                 field = fields[field_name]
                 field.queryset = field.queryset.filter(q)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(MultitenantAdminMixin, self).get_form(request, obj, **kwargs)
+        self._edit_form(request, form)
         return form
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super(MultitenantAdminMixin, self).get_formset(request, obj=None, **kwargs)
+        self._edit_form(request, formset.form)
+        return formset
 
 
 class MultitenantOrgFilter(admin.RelatedFieldListFilter):
@@ -91,3 +101,16 @@ class MultitenantTemplateFilter(MultitenantOrgFilter):
     organizations the current user is associated with
     """
     multitenant_lookup = 'organization__in'
+
+
+class AlwaysHasChangedMixin(object):
+    def has_changed(self):
+        """
+        This django-admin trick ensures the settings
+        are saved even if default values are unchanged
+        (without this trick new setting objects won't be
+        created unless users change the default values)
+        """
+        if self.instance._state.adding:
+            return True
+        return super(AlwaysHasChangedMixin, self).has_changed()

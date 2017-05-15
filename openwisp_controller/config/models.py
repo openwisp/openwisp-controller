@@ -8,12 +8,14 @@ from sortedm2m.fields import SortedManyToManyField
 from taggit.managers import TaggableManager
 
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
-from django_netjsonconfig.base.config import (AbstractConfig, get_random_key,
-                                              key_validator, sortedm2m__str__)
+from django_netjsonconfig.base.config import AbstractConfig, sortedm2m__str__
+from django_netjsonconfig.base.device import AbstractDevice
 from django_netjsonconfig.base.tag import (AbstractTaggedTemplate,
                                            AbstractTemplateTag)
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
+from django_netjsonconfig.utils import get_random_key
+from django_netjsonconfig.validators import key_validator
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
 
 from .utils import get_default_templates_queryset
@@ -66,10 +68,19 @@ class TemplatesVpnMixin(BaseMixin):
         super(TemplatesVpnMixin, cls).clean_templates(action, instance, templates, **kwargs)
 
 
+class Device(OrgMixin, AbstractDevice):
+    """
+    Concrete Device model
+    """
+    class Meta(AbstractDevice.Meta):
+        abstract = False
+
+
 class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
     """
     Concrete Config model
     """
+    device = models.OneToOneField('config.Device')
     templates = SortedManyToManyField('config.Template',
                                       related_name='config_relations',
                                       verbose_name=_('templates'),
@@ -83,6 +94,11 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
+
+    def clean(self):
+        if not hasattr(self, 'organization') and self._has_device():
+            self.organization = self.device.organization
+        super(Config, self).clean()
 
 
 Config.templates.through.__str__ = sortedm2m__str__

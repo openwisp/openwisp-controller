@@ -4,12 +4,13 @@ from django.test import TestCase
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from . import CreateConfigTemplateMixin, TestVpnX509Mixin
-from ..models import Config, Template
+from ..models import Config, Device, Template
 
 
 class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
                  TestOrganizationMixin, TestCase):
     config_model = Config
+    device_model = Device
     template_model = Template
 
     def test_config_with_org(self):

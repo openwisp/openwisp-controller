@@ -5,7 +5,7 @@ from django_netjsonconfig import settings as django_netjsonconfig_settings
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from . import CreateConfigTemplateMixin
-from ..models import Config, OrganizationConfigSettings, Template
+from ..models import Config, Device, OrganizationConfigSettings, Template
 
 TEST_MACADDR = '00:11:22:33:44:55'
 TEST_MACADDR_NAME = TEST_MACADDR.replace(':', '-')
@@ -19,6 +19,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
     tests for django_netjsonconfig.controller
     """
     config_model = Config
+    device_model = Device
     template_model = Template
 
     def _create_org(self, shared_secret=TEST_ORG_SHARED_SECRET, **kwargs):
@@ -35,8 +36,9 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'mac_address': TEST_MACADDR,
             'backend': 'netjsonconfig.OpenWrt'
         })
+        print(response.content)
         self.assertEqual(response.status_code, 201)
-        count = Config.objects.filter(mac_address=TEST_MACADDR,
+        count = Device.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 1)
 
@@ -57,10 +59,10 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'tags': 'mesh'
         })
         self.assertEqual(response.status_code, 201)
-        c = Config.objects.filter(mac_address=TEST_MACADDR,
+        d = Device.objects.filter(mac_address=TEST_MACADDR,
                                   organization=org1).first()
-        self.assertEqual(c.templates.filter(name=t1.name).count(), 1)
-        self.assertEqual(c.templates.filter(name=t_shared.name).count(), 1)
+        self.assertEqual(d.config.templates.filter(name=t1.name).count(), 1)
+        self.assertEqual(d.config.templates.filter(name=t_shared.name).count(), 1)
 
     def test_register_400(self):
         self._create_org()
@@ -94,7 +96,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'backend': 'netjsonconfig.OpenWrt'
         })
         self.assertContains(response, 'error: registration disabled', status_code=403)
-        count = Config.objects.filter(mac_address=TEST_MACADDR,
+        count = Device.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 0)
 
@@ -111,26 +113,27 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
     def test_checksum_404_disabled_org(self):
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
-        response = self.client.get(reverse('controller:checksum', args=[c.pk]), {'key': c.key})
+        response = self.client.get(reverse('controller:checksum', args=[c.device.pk]), {'key': c.device.key})
         self.assertEqual(response.status_code, 404)
 
     def test_download_config_404_disabled_org(self):
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
-        response = self.client.get(reverse('controller:download_config', args=[c.pk]), {'key': c.key})
+        url = reverse('controller:download_config', args=[c.device.pk])
+        response = self.client.get(url, {'key': c.device.key})
         self.assertEqual(response.status_code, 404)
 
     def test_report_status_404_disabled_org(self):
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
-        response = self.client.post(reverse('controller:report_status', args=[c.pk]),
-                                    {'key': c.key, 'status': 'running'})
+        response = self.client.post(reverse('controller:report_status', args=[c.device.pk]),
+                                    {'key': c.device.key, 'status': 'running'})
         self.assertEqual(response.status_code, 404)
 
     def test_checksum_200(self):
         org = self._create_org()
         c = self._create_config(organization=org)
-        response = self.client.get(reverse('controller:checksum', args=[c.pk]), {'key': c.key})
+        response = self.client.get(reverse('controller:checksum', args=[c.device.pk]), {'key': c.device.key})
         self.assertEqual(response.status_code, 200)
 
 
@@ -154,6 +157,6 @@ class TestRegistrationDisabled(TestOrganizationMixin, TestCase):
             'backend': 'netjsonconfig.OpenWrt'
         })
         self.assertEqual(response.status_code, 404)
-        count = Config.objects.filter(mac_address=TEST_MACADDR,
+        count = Device.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 0)
