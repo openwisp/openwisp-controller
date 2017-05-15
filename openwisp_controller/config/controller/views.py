@@ -6,7 +6,7 @@ from django_netjsonconfig.controller.generics import (BaseChecksumView,
                                                       BaseReportStatusView)
 from django_netjsonconfig.utils import invalid_response
 
-from ..models import Config, OrganizationConfigSettings
+from ..models import Device, OrganizationConfigSettings
 
 
 class ActiveOrgMixin(object):
@@ -19,19 +19,19 @@ class ActiveOrgMixin(object):
 
 
 class ChecksumView(ActiveOrgMixin, BaseChecksumView):
-    model = Config
+    model = Device
 
 
 class DownloadConfigView(ActiveOrgMixin, BaseDownloadConfigView):
-    model = Config
+    model = Device
 
 
 class ReportStatusView(ActiveOrgMixin, BaseReportStatusView):
-    model = Config
+    model = Device
 
 
 class RegisterView(BaseRegisterView):
-    model = Config
+    model = Device
 
     def forbidden(self, request):
         """
@@ -54,8 +54,10 @@ class RegisterView(BaseRegisterView):
         self.organization = org_settings.organization
 
     def init_object(self, **kwargs):
-        kwargs['organization'] = self.organization
-        return super(RegisterView, self).init_object(**kwargs)
+        config = super(RegisterView, self).init_object(**kwargs)
+        config.organization = self.organization
+        config.device.organization = self.organization
+        return config
 
     def get_template_queryset(self, config):
         queryset = super(RegisterView, self).get_template_queryset(config)

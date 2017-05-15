@@ -5,34 +5,47 @@ from django.contrib import admin
 from django.urls import reverse
 
 from django_netjsonconfig import settings as django_netjsonconfig_settings
-from django_netjsonconfig.base.admin import (AbstractConfigAdmin,
-                                             AbstractConfigForm,
+from django_netjsonconfig.base.admin import (AbstractConfigForm,
+                                             AbstractConfigInline,
+                                             AbstractDeviceAdmin,
                                              AbstractTemplateAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
-                                             BaseConfigAdmin, BaseForm)
-from openwisp_controller.admin import (MultitenantAdminMixin,
+                                             BaseForm)
+from openwisp_controller.admin import (AlwaysHasChangedMixin,
+                                       MultitenantAdminMixin,
                                        MultitenantOrgFilter,
                                        MultitenantTemplateFilter)
 from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
 
-from .models import Config, OrganizationConfigSettings, Template, Vpn
+from .models import Config, Device, OrganizationConfigSettings, Template, Vpn
 
 
-class ConfigForm(AbstractConfigForm):
+class ConfigForm(AlwaysHasChangedMixin, AbstractConfigForm):
     class Meta(AbstractConfigForm.Meta):
         model = Config
 
+    def clean_templates(self):
+        org = Organization.objects.get(pk=self.data['organization'])
+        self.cleaned_data['organization'] = org
+        return super(ConfigForm, self).clean_templates()
 
-class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
-    form = ConfigForm
+
+class ConfigInline(MultitenantAdminMixin, AbstractConfigInline):
     model = Config
+    form = ConfigForm
+    extra = 0
     multitenant_shared_relations = ('templates',)
+
+
+class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
+    inlines = [ConfigInline]
     list_filter = [('organization', MultitenantOrgFilter),
-                   'backend',
-                   ('templates', MultitenantTemplateFilter),
-                   'status',
+                   'config__backend',
+                   ('config__templates', MultitenantTemplateFilter),
+                   'config__status',
                    'created']
+    list_select_related = ('config', 'organization')
 
     def _get_default_template_urls(self):
         """
@@ -46,17 +59,17 @@ class ConfigAdmin(MultitenantAdminMixin, AbstractConfigAdmin):
         return json.dumps(urls)
 
     def get_extra_context(self, pk=None):
-        ctx = super(ConfigAdmin, self).get_extra_context(pk)
+        ctx = super(DeviceAdmin, self).get_extra_context(pk)
         ctx.update({'default_template_urls': self._get_default_template_urls()})
         return ctx
 
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = self.get_extra_context()
-        return super(BaseConfigAdmin, self).add_view(request, form_url, extra_context)
+        return super(DeviceAdmin, self).add_view(request, form_url, extra_context)
 
 
-ConfigAdmin.list_display.insert(1, 'organization')
-ConfigAdmin.fields.insert(1, 'organization')
+DeviceAdmin.list_display.insert(1, 'organization')
+DeviceAdmin.fields.insert(1, 'organization')
 
 
 class TemplateForm(BaseForm):
@@ -90,17 +103,8 @@ VpnAdmin.list_filter.remove('ca')
 VpnAdmin.fields.insert(2, 'organization')
 
 
-class ConfigSettingsForm(forms.ModelForm):
-    def has_changed(self):
-        """
-        This django-admin trick ensures the settings
-        are saved even if default values are unchanged
-        (without this trick new setting objects won't be
-        created unless users change the default values)
-        """
-        if self.instance._state.adding:
-            return True
-        return super(ConfigSettingsForm, self).has_changed()
+class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
+    pass
 
 
 class ConfigSettingsInline(admin.StackedInline):
@@ -113,7 +117,7 @@ class OrganizationAdmin(BaseOrganizationAdmin):
     inlines = [ConfigSettingsInline] + BaseOrganizationAdmin.inlines
 
 
-admin.site.register(Config, ConfigAdmin)
+admin.site.register(Device, DeviceAdmin)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
 
