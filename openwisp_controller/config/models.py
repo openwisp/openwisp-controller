@@ -142,6 +142,7 @@ class Template(ShareableOrgMixin, AbstractTemplate):
 
     def clean(self):
         self._validate_org_relation('vpn')
+        super(Template, self).clean()
 
 
 class Vpn(ShareableOrgMixin, AbstractVpn):
