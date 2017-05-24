@@ -7,7 +7,7 @@ Version 0.2.0 [2017-05-24]
 - `#3 <https://github.com/openwisp/openwisp-controller/issues/3>`_:
   [feature] Added support for template tags
 - `#7 <https://github.com/openwisp/openwisp-controller/issues/7>`_:
-  [feature] Added ``Device`` model #7
+  [feature] Added ``Device`` model
 - `#9 <https://github.com/openwisp/openwisp-controller/issues/9>`_:
   [admin] Load default templates JS logic only when required
 - `298b2a2 <https://github.com/openwisp/openwisp-controller/commit/298b2a2>`_:
