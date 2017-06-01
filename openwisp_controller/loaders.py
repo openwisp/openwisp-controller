@@ -7,7 +7,7 @@ from . import __dependencies__
 
 class DependencyLoader(FilesystemLoader):
     """
-    A template loeader that looks in templates dir of
+    A template loader that looks in templates dir of
     django-apps listed in openwisp_controller.__dependencies__
     """
     dependencies = __dependencies__
