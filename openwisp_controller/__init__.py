@@ -12,14 +12,3 @@ def get_version():
             suffix = 0
         version = '%s%s%s' % (version, first_letter, suffix)
     return version
-
-
-# openwisp-controller extends and depends on these apps which
-# cannot be listed in ``settings.INSTALLED_APPS``
-# this variable is used by:
-#   - openwisp_controller.staticfiles.DependencyFinder
-#   - openwisp_controller.loaders.DependencyLoader
-__dependencies__ = (
-    'django_x509',
-    'django_netjsonconfig'
-)

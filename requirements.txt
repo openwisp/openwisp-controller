@@ -1,2 +1,2 @@
 django-netjsonconfig>=0.5.8,<0.7.0
-openwisp-users<0.2
+openwisp-utils[users]<0.2

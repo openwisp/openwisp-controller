@@ -72,7 +72,8 @@ If you want to contribute, install your cloned fork:
 Setup (integrate in an existing django project)
 -----------------------------------------------
 
-``INSTALLED_APPS`` in ``settings.py`` should look like the following (ordering is important):
+``INSTALLED_APPS`` and ``EXTENDED_APPS`` (an internal openwisp2 setting) in ``settings.py``
+should look like the following (ordering is important):
 
 .. code-block:: python
 
@@ -99,18 +100,20 @@ Setup (integrate in an existing django project)
         'sortedm2m',
         'reversion',
     ]
+    
+    EXTENDED_APPS = ('django_netjsonconfig', 'django_x509')
 
-Add ``openwisp_controller.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your ``settings.py``
+Add ``openwisp_utils.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your ``settings.py``
 
 .. code-block:: python
 
     STATICFILES_FINDERS = [
         'django.contrib.staticfiles.finders.FileSystemFinder',
         'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-        'openwisp_controller.staticfiles.DependencyFinder',
+        'openwisp_utils.staticfiles.DependencyFinder',
     ]
 
-Add ``openwisp_controller.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``settings.py``
+Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``settings.py``
 
 .. code-block:: python
 
@@ -123,7 +126,7 @@ Add ``openwisp_controller.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``
                     'django.template.loaders.filesystem.Loader',
                     'django.template.loaders.app_directories.Loader',
                     # add the following line
-                    'openwisp_controller.loaders.DependencyLoader'
+                    'openwisp_utils.loaders.DependencyLoader'
                 ],
                 'context_processors': [
                     'django.template.context_processors.debug',
@@ -149,8 +152,8 @@ Add the following settings to ``settings.py``:
     from django.conf import settings
     from django.conf.urls import include, url
     from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-
-    from django_netjsonconfig.admin_theme.admin import admin, openwisp_admin
+    
+    from openwisp_utils.admin_theme.admin import admin, openwisp_admin
 
     openwisp_admin()
 

@@ -11,12 +11,10 @@ from django_netjsonconfig.base.admin import (AbstractConfigForm,
                                              AbstractTemplateAdmin,
                                              AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
-from openwisp_controller.admin import (AlwaysHasChangedMixin,
-                                       MultitenantAdminMixin,
-                                       MultitenantOrgFilter,
-                                       MultitenantTemplateFilter)
+from openwisp_controller.admin import AlwaysHasChangedMixin, MultitenantAdminMixin
 from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
+from openwisp_utils.admin import MultitenantOrgFilter, MultitenantRelatedOrgFilter
 
 from .models import Config, Device, OrganizationConfigSettings, Template, Vpn
 
@@ -42,7 +40,7 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
     inlines = [ConfigInline]
     list_filter = [('organization', MultitenantOrgFilter),
                    'config__backend',
-                   ('config__templates', MultitenantTemplateFilter),
+                   ('config__templates', MultitenantRelatedOrgFilter),
                    'config__status',
                    'created']
     list_select_related = ('config', 'organization')
