@@ -1,10 +1,7 @@
 """
 Base admin classes and mixins
 """
-from django.contrib import admin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
 
 from openwisp_utils.admin import MultitenantAdminMixin as BaseMultitenantAdminMixin
 

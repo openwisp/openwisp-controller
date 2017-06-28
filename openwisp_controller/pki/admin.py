@@ -1,11 +1,11 @@
 from django.contrib import admin
-from reversion.admin import VersionAdmin
-
 from django_x509.base.admin import CaAdmin as BaseCaAdmin
 from django_x509.base.admin import CertAdmin as BaseCertAdmin
-from openwisp_controller.admin import MultitenantAdminMixin
+from reversion.admin import VersionAdmin
+
 from openwisp_utils.admin import MultitenantOrgFilter
 
+from ..admin import MultitenantAdminMixin
 from .models import Ca, Cert
 
 

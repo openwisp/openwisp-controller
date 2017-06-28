@@ -2,9 +2,8 @@
 import os
 import sys
 
-from setuptools import find_packages, setup
-
 from openwisp_controller import get_version
+from setuptools import find_packages, setup
 
 
 def get_install_requires():

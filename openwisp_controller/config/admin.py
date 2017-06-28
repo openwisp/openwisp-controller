@@ -3,19 +3,16 @@ import json
 from django import forms
 from django.contrib import admin
 from django.urls import reverse
-
 from django_netjsonconfig import settings as django_netjsonconfig_settings
-from django_netjsonconfig.base.admin import (AbstractConfigForm,
-                                             AbstractConfigInline,
-                                             AbstractDeviceAdmin,
-                                             AbstractTemplateAdmin,
-                                             AbstractVpnAdmin, AbstractVpnForm,
+from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigInline, AbstractDeviceAdmin,
+                                             AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
-from openwisp_controller.admin import AlwaysHasChangedMixin, MultitenantAdminMixin
+
 from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
 from openwisp_utils.admin import MultitenantOrgFilter, MultitenantRelatedOrgFilter
 
+from ..admin import AlwaysHasChangedMixin, MultitenantAdminMixin
 from .models import Config, Device, OrganizationConfigSettings, Template, Vpn
 
 

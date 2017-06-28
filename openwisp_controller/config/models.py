@@ -4,18 +4,17 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
-from sortedm2m.fields import SortedManyToManyField
-from taggit.managers import TaggableManager
-
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
 from django_netjsonconfig.base.config import AbstractConfig, sortedm2m__str__
 from django_netjsonconfig.base.device import AbstractDevice
-from django_netjsonconfig.base.tag import (AbstractTaggedTemplate,
-                                           AbstractTemplateTag)
+from django_netjsonconfig.base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from django_netjsonconfig.utils import get_random_key
 from django_netjsonconfig.validators import key_validator
+from sortedm2m.fields import SortedManyToManyField
+from taggit.managers import TaggableManager
+
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
 
 from .utils import get_default_templates_queryset

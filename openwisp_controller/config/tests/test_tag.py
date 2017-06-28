@@ -1,6 +1,6 @@
 from django.test import TestCase
-
 from django_netjsonconfig.tests import CreateTemplateMixin
+
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ..models import Template

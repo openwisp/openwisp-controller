@@ -1,9 +1,6 @@
 from django.db.models import Q
-
-from django_netjsonconfig.controller.generics import (BaseChecksumView,
-                                                      BaseDownloadConfigView,
-                                                      BaseRegisterView,
-                                                      BaseReportStatusView)
+from django_netjsonconfig.controller.generics import (BaseChecksumView, BaseDownloadConfigView,
+                                                      BaseRegisterView, BaseReportStatusView)
 from django_netjsonconfig.utils import invalid_response
 
 from ..models import Device, OrganizationConfigSettings

@@ -17,6 +17,7 @@ install:
 
 before_script:
   - ./runflake8
+  - ./runisort
 
 # command to run tests, e.g. python setup.py test
 script:
