@@ -36,7 +36,6 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
             'mac_address': TEST_MACADDR,
             'backend': 'netjsonconfig.OpenWrt'
         })
-        print(response.content)
         self.assertEqual(response.status_code, 201)
         count = Device.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
