@@ -12,6 +12,7 @@ branches:
 
 # command to install requirements
 install:
+  - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master
   - python setup.py -q develop
   - pip install -r requirements-test.txt
 
