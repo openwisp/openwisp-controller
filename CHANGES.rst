@@ -1,10 +1,18 @@
 Changelog
 =========
 
-Version 0.2.1 [unreleased]
+Version 0.2.1 [2017-07-05]
 --------------------------
 
-WIP
+- `0064b98 <https://github.com/openwisp/openwisp-controller/commit/0064b98>`_:
+  [device] Added ``system`` field
+- `c7fe513 <https://github.com/openwisp/openwisp-controller/commit/c7fe513>`_:
+  [docs] Added "Installing for development" section to README
+- `c75fa68 <https://github.com/openwisp/openwisp-controller/commit/c75fa68>`_:
+  [openwisp-utils] Moved shared logic to `openwisp-utils
+  <https://github.com/openwisp/openwisp-utils>`_
+- `819cb21 <https://github.com/openwisp/openwisp-controller/commit/819cb21>`_:
+  [requirements] django-netjsonconfig>=0.6.2,<0.7.0
 
 Version 0.2.0 [2017-05-24]
 --------------------------
