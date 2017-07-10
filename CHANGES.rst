@@ -1,10 +1,12 @@
 Changelog
 =========
 
-Version 0.2.2 [unreleased]
+Version 0.2.2 [2017-07-10]
 --------------------------
 
-WIP
+- `f3dc784 <https://github.com/openwisp/openwisp-controller/commit/f3dc784>`_:
+  [admin] Moved ``submit_line.html`` to `openwisp-utils
+  <https://github.com/openwisp/openwisp-utils>`_
 
 Version 0.2.1 [2017-07-05]
 --------------------------
