@@ -1,2 +1,2 @@
-django-netjsonconfig>=0.6.2,<0.7.0
+django-netjsonconfig>=0.6.3,<0.7.0
 openwisp-utils[users]<0.2
