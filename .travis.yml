@@ -10,16 +10,15 @@ branches:
   only:
     - master
 
-# command to install requirements
-install:
-  - python setup.py -q develop
-  - pip install -r requirements-test.txt
-
-before_script:
+before_install:
+  - pip install -U pip wheel setuptools
+  - pip install --no-cache-dir -U -r requirements-test.txt
   - ./runflake8
   - ./runisort
 
-# command to run tests, e.g. python setup.py test
+install:
+  - python setup.py -q develop
+
 script:
   - coverage run --source=openwisp_controller runtests.py
 
