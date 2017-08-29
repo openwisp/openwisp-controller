@@ -1,10 +1,13 @@
 Changelog
 =========
 
-Version 0.2.3 [unreleased]
+Version 0.2.3 [2017-08-29]
 --------------------------
 
-WIP
+- `934be13 <https://github.com/openwisp/openwisp-controller/commit/934be13>`_:
+  [models] Updated sortedm2m __str__ definition
+- `b76e4e2 <https://github.com/openwisp/openwisp-controller/commit/b76e4e2>`_:
+  [requirements] django-netjsonconfig>=0.6.3,<0.7.0
 
 Version 0.2.2 [2017-07-10]
 --------------------------
