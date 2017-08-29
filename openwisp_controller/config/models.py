@@ -5,7 +5,7 @@ from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
-from django_netjsonconfig.base.config import AbstractConfig, sortedm2m__str__
+from django_netjsonconfig.base.config import AbstractConfig, TemplatesThrough
 from django_netjsonconfig.base.device import AbstractDevice
 from django_netjsonconfig.base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from django_netjsonconfig.base.template import AbstractTemplate
@@ -83,6 +83,7 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
     templates = SortedManyToManyField('config.Template',
                                       related_name='config_relations',
                                       verbose_name=_('templates'),
+                                      base_class=TemplatesThrough,
                                       blank=True,
                                       help_text=_('configuration templates, applied from '
                                                   'first to last'))
@@ -98,9 +99,6 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
         if not hasattr(self, 'organization') and self._has_device():
             self.organization = self.device.organization
         super(Config, self).clean()
-
-
-Config.templates.through.__str__ = sortedm2m__str__
 
 
 class TemplateTag(AbstractTemplateTag):
