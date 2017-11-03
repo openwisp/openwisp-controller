@@ -160,6 +160,13 @@ class Vpn(ShareableOrgMixin, AbstractVpn):
         self._validate_org_relation('ca')
         self._validate_org_relation('cert')
 
+    def _auto_create_cert_extra(self, cert):
+        """
+        sets the organization on the created certificate
+        """
+        cert.organization = self.organization
+        return cert
+
 
 class VpnClient(AbstractVpnClient):
     """
