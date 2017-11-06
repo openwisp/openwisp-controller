@@ -162,7 +162,7 @@ class Vpn(ShareableOrgMixin, AbstractVpn):
 
     def _auto_create_cert_extra(self, cert):
         """
-        sets the organization on the created certificate
+        sets the organization on the server certificate
         """
         cert.organization = self.organization
         return cert
@@ -183,6 +183,13 @@ class VpnClient(AbstractVpnClient):
 
     class Meta(AbstractVpnClient.Meta):
         abstract = False
+
+    def _auto_create_cert_extra(self, cert):
+        """
+        sets the organization on the created client certificate
+        """
+        cert.organization = self.vpn.organization
+        return cert
 
 
 @python_2_unicode_compatible

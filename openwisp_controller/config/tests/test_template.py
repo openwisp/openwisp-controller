@@ -82,3 +82,15 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
                                   config={})
         control = t.vpn.auto_client()
         self.assertDictEqual(t.config, control)
+
+    def test_auto_client_template_default(self):
+        org = self._create_org()
+        vpn = self._create_vpn(organization=org)
+        t = self._create_template(name='autoclient',
+                                  organization=org,
+                                  default=True,
+                                  type='vpn',
+                                  auto_cert=True,
+                                  vpn=vpn,
+                                  config={})
+        c = self._create_config(organization=org)
