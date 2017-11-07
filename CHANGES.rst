@@ -1,10 +1,10 @@
 Changelog
 =========
 
-Version 0.2.4 [unreleased]
+Version 0.2.4 [2017-11-07]
 --------------------------
 
-WIP
+- Added support for django-x509 0.3.0
 
 Version 0.2.3 [2017-08-29]
 --------------------------
