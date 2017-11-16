@@ -205,7 +205,7 @@ Launch development server and SMTP debugging server:
 
 .. code-block:: shell
 
-    ./manage.py runserver
+    ./manage.py runserver 0.0.0.0:8000
     # open another terminal and run
     python -m smtpd -n -c DebuggingServer localhost:1025
 
