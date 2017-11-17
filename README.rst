@@ -94,7 +94,7 @@ should look like the following (ordering is important):
         'openwisp_controller.pki',
         'openwisp_controller.config',
         # admin
-        'django_netjsonconfig.admin_theme',
+        'openwisp_utils.admin_theme',
         'django.contrib.admin',
         # other dependencies
         'sortedm2m',
