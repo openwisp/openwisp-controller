@@ -1,10 +1,11 @@
 Changelog
 =========
 
-Version 0.2.5 [unreleased]
+Version 0.2.5 [2017-12-02]
 --------------------------
 
-WIP
+- `#21 <https://github.com/openwisp/openwisp-controller/issues/21>`_:
+  [admin] Added a link to password reset in login form
 
 Version 0.2.4 [2017-11-07]
 --------------------------
