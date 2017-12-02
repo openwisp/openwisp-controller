@@ -25,27 +25,33 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         {'codename__endswith': 'template'},
         {'codename__endswith': 'vpn'},
     ]
+    _device_params = {
+        'name': 'test-device',
+        'mac_address': CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
+        'key': CreateConfigTemplateMixin.TEST_KEY,
+        'model': '',
+        'os': '',
+        'notes': '',
+        'config-0-id': '',
+        'config-0-device': '',
+        'config-0-backend': 'netjsonconfig.OpenWrt',
+        'config-0-templates': '',
+        'config-0-config': json.dumps({}),
+        'config-TOTAL_FORMS': 1,
+        'config-INITIAL_FORMS': 0,
+        'config-MIN_NUM_FORMS': 0,
+        'config-MAX_NUM_FORMS': 1,
+    }
+    # WARNING - WATCHOUT
+    # this class attribute is changed dinamically
+    # by other apps which add inlines to DeviceAdmin
+    _additional_params = {}
 
     def _get_device_params(self, org):
-        return {
-            'name': 'test-device',
-            'organization': org.pk,
-            'mac_address': self.TEST_MAC_ADDRESS,
-            'key': self.TEST_KEY,
-            'model': '',
-            'os': '',
-            'notes': '',
-            'config-0-id': '',
-            'config-0-device': '',
-            'config-0-backend': 'netjsonconfig.OpenWrt',
-            'config-0-organization': org.pk,
-            'config-0-templates': '',
-            'config-0-config': json.dumps({}),
-            'config-TOTAL_FORMS': 1,
-            'config-INITIAL_FORMS': 0,
-            'config-MIN_NUM_FORMS': 0,
-            'config-MAX_NUM_FORMS': 1,
-        }
+        p = self._device_params.copy()
+        p.update(self._additional_params)
+        p['organization'] = org.pk
+        return p
 
     def test_device_and_template_different_organization(self):
         org1 = self._create_org()

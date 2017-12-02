@@ -54,6 +54,15 @@ url_metadata = [
             'namespace': 'owm',
         }
     },
+    # openwisp_controller.geo
+    {
+        'regexp': r'^',
+        'app': 'openwisp_controller.geo',
+        'include': {
+            'module': '{app}.api.urls',
+            'namespace': 'geo'
+        }
+    },
 ]
 
 urlpatterns = []
