@@ -15,7 +15,7 @@ class TestAdminMixin(object):
                                             email='admin@admin.com')
 
     def _login(self, username='admin', password='tester'):
-        self.client.login(username=username, password=password)
+        self.client.force_login(user_model.objects.get(username=username))
 
     def _logout(self):
         self.client.logout()
