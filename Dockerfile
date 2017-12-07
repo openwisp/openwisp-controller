@@ -1,7 +1,6 @@
 FROM python:3-onbuild
 
 WORKDIR .
-COPY setup.py .
 RUN apt-get update && apt-get install -y \
     openssl \
     sqlite3 \
@@ -10,10 +9,12 @@ RUN apt-get update && apt-get install -y \
     gdal-bin \
     libproj-dev \
     libgeos-dev \
-    libspatialite-dev 
+    libspatialite-dev
 RUN pip3 install -U pip setuptools wheel
 RUN pip3 install -U .
-
+RUN echo "openwisp-controller installed"
 WORKDIR tests/
-CMD ["./docker-entrypoint.sh"] 
+CMD ["./docker-entrypoint.sh"]
 EXPOSE 8000
+
+ENV NAME openwisp-controller
