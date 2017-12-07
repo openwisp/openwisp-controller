@@ -217,6 +217,21 @@ Run tests with:
 
     ./runtests.py
 
+Install and run on docker
+--------------------------
+
+Build from the Dockerfile:
+
+.. code-block:: shell
+
+   sudo docker build -t openwisp/controller .
+   
+Run the docker container:
+
+.. code-block:: shell
+
+   sudo docker run -it -p 8000:8000 openwisp/controller
+
 Talks
 -----
 
