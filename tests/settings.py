@@ -116,6 +116,9 @@ EMAIL_PORT = '1025'  # for testing purposes
 LOGIN_REDIRECT_URL = 'admin:index'
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
 
+# during development only
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
     from local_settings import *

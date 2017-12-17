@@ -221,19 +221,11 @@ Create database:
     ./manage.py migrate
     ./manage.py createsuperuser
 
-Set ``EMAIL_PORT`` in ``settings.py`` to a port number (eg: ``1025``):
-
-.. code-block:: python
-
-    EMAIL_PORT = '1025'
-
-Launch development server and SMTP debugging server:
+Launch development server:
 
 .. code-block:: shell
 
     ./manage.py runserver 0.0.0.0:8000
-    # open another terminal and run
-    python -m smtpd -n -c DebuggingServer localhost:1025
 
 You can access the admin interface at http://127.0.0.1:8000/admin/.
 
