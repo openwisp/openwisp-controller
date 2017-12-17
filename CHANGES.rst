@@ -1,10 +1,11 @@
 Changelog
 =========
 
-Version 0.3.0 [unreleased]
+Version 0.3.0 [2017-12-17]
 --------------------------
 
-WIP
+- [feature] Added GIS module
+- [feature] Aded Dockerfile
 
 Version 0.2.5 [2017-12-02]
 --------------------------
