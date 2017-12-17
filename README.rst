@@ -83,6 +83,7 @@ should look like the following (ordering is important):
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
+        'django.contrib.gis',
         # all-auth
         'django.contrib.sites',
         'allauth',
@@ -93,17 +94,35 @@ should look like the following (ordering is important):
         'openwisp_users',
         'openwisp_controller.pki',
         'openwisp_controller.config',
+        'openwisp_controller.geo',
         # admin
         'openwisp_utils.admin_theme',
         'django.contrib.admin',
         # other dependencies
         'sortedm2m',
         'reversion',
+        'leaflet',
+        # rest framework
+        'rest_framework',
+        'rest_framework_gis',
+        # channels
+        'channels',
     ]
 
-    EXTENDED_APPS = ('django_netjsonconfig', 'django_x509')
+    EXTENDED_APPS = ('django_netjsonconfig', 'django_x509', 'django_loci',)
 
-Add ``openwisp_utils.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your ``settings.py``
+Ensure you are using one of the available geodjango backends, eg:
+
+.. code-block:: python
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.spatialite',
+            'NAME': 'openwisp-controller.db',
+        }
+    }
+
+Add ``openwisp_utils.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your ``settings.py``:
 
 .. code-block:: python
 
@@ -120,13 +139,11 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``setti
     TEMPLATES = [
         {
             'BACKEND': 'django.template.backends.django.DjangoTemplates',
-            'DIRS': [],
             'OPTIONS': {
                 'loaders': [
                     'django.template.loaders.filesystem.Loader',
                     'django.template.loaders.app_directories.Loader',
-                    # add the following line
-                    'openwisp_utils.loaders.DependencyLoader'
+                    'openwisp_utils.loaders.DependencyLoader',
                 ],
                 'context_processors': [
                     'django.template.context_processors.debug',
@@ -141,6 +158,15 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``setti
 Add the following settings to ``settings.py``:
 
 .. code-block:: python
+
+    FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
+
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'asgiref.inmemory.ChannelLayer',
+            'ROUTING': 'openwisp_controller.geo.channels.routing.channel_routing',
+        },
+    }
 
     LOGIN_REDIRECT_URL = 'admin:index'
     ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
@@ -225,7 +251,7 @@ Build from the Dockerfile:
 .. code-block:: shell
 
    sudo docker build -t openwisp/controller .
-   
+
 Run the docker container:
 
 .. code-block:: shell

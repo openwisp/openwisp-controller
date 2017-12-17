@@ -4,7 +4,7 @@ Changelog
 Version 0.3.0 [2017-12-17]
 --------------------------
 
-- [feature] Added GIS module
+- [feature] Added geographic and indoor mapping module
 - [feature] Aded Dockerfile
 
 Version 0.2.5 [2017-12-02]
