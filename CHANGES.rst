@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Version 0.3.1 [2017-12-20]
+--------------------------
+
+- [pki] Reimplemented serial numbers as UUID integers
+- [pki] Added switcher that facilitates importing certificates
+- [pki] [admin] Removed ``serial_number`` from certificate list
+
 Version 0.3.0 [2017-12-17]
 --------------------------
 
