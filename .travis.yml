@@ -15,6 +15,15 @@ python:
   - "3.4"
   - "2.7"
 
+env:
+  - DJANGO="django>=1.11,<1.12"
+  - DJANGO="django>=2.0,<2.1"
+
+matrix:
+  exclude:
+   - python: "2.7"
+     env: DJANGO="django>=2.0,<2.1"
+
 branches:
   only:
     - master
@@ -26,6 +35,11 @@ before_install:
   - ./runisort
 
 install:
+  - pip install $DJANGO
+  - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master
+  - pip install https://github.com/openwisp/django-loci/tarball/master
+  - pip install https://github.com/openwisp/django-x509/tarball/master
+  - pip install https://github.com/openwisp/openwisp-users/tarball/master
   - python setup.py -q develop
   - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pip install git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
 
