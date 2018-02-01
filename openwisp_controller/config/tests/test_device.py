@@ -24,3 +24,14 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             self.assertIn('This field', e.message_dict['organization'][0])
         else:
             self.fail('ValidationError not raised')
+
+    def test_change_org(self):
+        org1 = self._create_org()
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        self.assertEqual(config.organization_id, org1.pk)
+        org2 = self._create_org(name='org2')
+        device.organization = org2
+        device.full_clean()
+        device.save()
+        self.assertEqual(device.config.organization_id, org2.pk)

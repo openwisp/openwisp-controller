@@ -95,10 +95,13 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
     class Meta(AbstractConfig.Meta):
         abstract = False
 
-    def clean(self):
+    def _update_org(self):
         if not hasattr(self, 'organization') and self._has_device():
             self.organization = self.device.organization
-        super(Config, self).clean()
+
+    def full_clean(self, *args, **kwargs):
+        self._update_org()
+        super(Config, self).full_clean(*args, **kwargs)
 
 
 class TemplateTag(AbstractTemplateTag):
