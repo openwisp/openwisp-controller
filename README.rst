@@ -198,6 +198,7 @@ Install sqlite:
 .. code-block:: shell
 
     sudo apt-get install sqlite3 libsqlite3-dev openssl libssl-dev
+    sudo apt-get install gdal-bin libproj-dev libgeos-dev libspatialite-dev
 
 Install your forked repo:
 
