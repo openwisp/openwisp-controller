@@ -12,9 +12,10 @@ def forward(apps, schema_editor):
     """
     if not schema_editor.connection.alias == 'default':
         return
-    from ..models import Ca, Cert
+    ca_model = apps.get_model('pki', 'Ca')
+    cert_model = apps.get_model('pki', 'Cert')
 
-    for model in [Ca, Cert]:
+    for model in [ca_model, cert_model]:
         for obj in model.objects.all():
             obj.organization_name = obj.x509.get_subject().organizationName or ''
             obj.save()
