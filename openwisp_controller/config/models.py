@@ -79,7 +79,7 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
     """
     Concrete Config model
     """
-    device = models.OneToOneField('config.Device')
+    device = models.OneToOneField('config.Device', on_delete=models.CASCADE)
     templates = SortedManyToManyField('config.Template',
                                       related_name='config_relations',
                                       verbose_name=_('templates'),
@@ -132,7 +132,8 @@ class Template(ShareableOrgMixin, AbstractTemplate):
     vpn = models.ForeignKey('config.Vpn',
                             verbose_name=_('VPN'),
                             blank=True,
-                            null=True)
+                            null=True,
+                            on_delete=models.CASCADE)
 
     class Meta(AbstractTemplate.Meta):
         abstract = False
@@ -146,12 +147,15 @@ class Vpn(ShareableOrgMixin, AbstractVpn):
     """
     openwisp-controller VPN model
     """
-    ca = models.ForeignKey('pki.Ca', verbose_name=_('Certification Authority'))
+    ca = models.ForeignKey('pki.Ca',
+                           verbose_name=_('Certification Authority'),
+                           on_delete=models.CASCADE)
     cert = models.ForeignKey('pki.Cert',
                              verbose_name=_('x509 Certificate'),
                              help_text=_('leave blank to create automatically'),
                              blank=True,
-                             null=True)
+                             null=True,
+                             on_delete=models.CASCADE)
 
     class Meta(AbstractVpn.Meta):
         abstract = False
@@ -201,7 +205,8 @@ class OrganizationConfigSettings(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.OneToOneField('openwisp_users.Organization',
                                         verbose_name=_('organization'),
-                                        related_name='config_settings')
+                                        related_name='config_settings',
+                                        on_delete=models.CASCADE)
     registration_enabled = models.BooleanField(_('auto-registration enabled'),
                                                default=True,
                                                help_text=_('Whether automatic registration of '
