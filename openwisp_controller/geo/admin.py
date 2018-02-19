@@ -6,8 +6,8 @@ from django_loci.base.admin import (AbstractFloorPlanAdmin, AbstractFloorPlanFor
 from openwisp_utils.admin import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeviceAdmin as BaseDeviceAdmin
 from ..config.admin import ConfigInline
+from ..config.admin import DeviceAdmin as BaseDeviceAdmin
 from ..config.models import Device
 from .models import DeviceLocation, FloorPlan, Location
 
