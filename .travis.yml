@@ -41,7 +41,7 @@ install:
 
 script:
   # for some reason the migrations check is failing only on django 2.0
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.4 && $DJANGO != "django>=2.0,<2.1" ]]; then ./tests/manage.py makemigrations --dry-run | grep "No changes detected"; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.4 ]]; then ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
   - coverage run --source=openwisp_controller runtests.py
 
 after_success:
