@@ -18,6 +18,9 @@ openwisp-controller
 
 OpenWISP 2 controller module (built using Python and the Django web-framework).
 
+**Want to help OpenWISP?** `Find out how to help us grow here
+<http://openwisp.io/docs/general/help-us.html>`_.
+
 ------------
 
 .. contents:: **Table of Contents**:
@@ -259,6 +262,10 @@ Talks
 
 Contributing
 ------------
+
+Please read the `OpenWISP contributing guidelines
+<http://openwisp.io/docs/developer/contributing.html>`_
+and also keep in mind the following:
 
 1. Announce your intentions in the `OpenWISP Mailing List <https://groups.google.com/d/forum/openwisp>`_
 2. Fork this repo and install it
