@@ -6,9 +6,7 @@ from django_loci.base.admin import (AbstractFloorPlanAdmin, AbstractFloorPlanFor
 from openwisp_utils.admin import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import ConfigInline
-from ..config.admin import DeviceAdmin as BaseDeviceAdmin
-from ..config.models import Device
+from ..config.admin import DeviceAdmin
 from .models import DeviceLocation, FloorPlan, Location
 
 
@@ -71,11 +69,5 @@ admin.site.register(FloorPlan, FloorPlanAdmin)
 admin.site.register(Location, LocationAdmin)
 
 
-# Add DeviceLocationInline to config.DeviceAdmin
-
-class GeoDeviceAdmin(BaseDeviceAdmin):
-    inlines = [DeviceLocationInline, ConfigInline]
-
-
-admin.site.unregister(Device)
-admin.site.register(Device, GeoDeviceAdmin)
+# Prepend DeviceLocationInline to config.DeviceAdmin
+DeviceAdmin.inlines.insert(0, DeviceLocationInline)
