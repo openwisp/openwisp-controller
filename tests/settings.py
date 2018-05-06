@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'openwisp_controller.pki',
     'openwisp_controller.config',
     'openwisp_controller.geo',
+    'openwisp_controller.connection',
     # admin
     'django.contrib.admin',
     'django.forms',
@@ -120,6 +121,28 @@ OPENWISP_ORGANIZATON_OWNER_ADMIN = True  # tests will fail without this setting
 
 # during development only
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+LOGGING = {
+    'version': 1,
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        }
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+        }
+    },
+    'loggers': {
+        'django.db.backends': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        }
+    }
+}
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
