@@ -19,4 +19,6 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
         if 'device' not in kwargs:
             kwargs['device'] = self._create_device(name='test-device',
                                                    organization=kwargs.get('organization', None))
+        if 'organization' not in kwargs:
+            kwargs['organization'] = kwargs['device'].organization
         return super(CreateConfigTemplateMixin, self)._create_config(**kwargs)
