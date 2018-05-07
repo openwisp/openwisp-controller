@@ -74,7 +74,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'urls'
+ROOT_URLCONF = 'openwisp2.urls'
 
 CHANNEL_LAYERS = {
     'default': {
@@ -120,6 +120,13 @@ ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
 # during development only
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+if not TESTING:
+    CELERY_BROKER_URL = 'redis://localhost/1'
+else:
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = 'memory://'
+
 LOGGING = {
     'version': 1,
     'filters': {
@@ -144,6 +151,6 @@ LOGGING = {
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
-    from local_settings import *
+    from .local_settings import *
 except ImportError:
     pass

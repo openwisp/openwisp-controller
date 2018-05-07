@@ -17,6 +17,8 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+SSH_CONNECTION_TIMEOUT = 5
+SSH_AUTH_TIMEOUT = 2
 
 
 class Ssh(object):
@@ -82,7 +84,10 @@ class Ssh(object):
         exception = None
         for address in self._addresses:
             try:
-                self.shell.connect(address, **self._params)
+                self.shell.connect(address,
+                                   timeout=SSH_CONNECTION_TIMEOUT,
+                                   auth_timeout=SSH_AUTH_TIMEOUT,
+                                   **self._params)
             except Exception as e:
                 exception = e
             else:
