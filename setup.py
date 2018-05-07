@@ -39,8 +39,10 @@ setup(
         "django-loci>=0.1.1,<0.3.0",
         "djangorestframework-gis>=0.12.0,<0.14.0",
         # connections feature
+        # TODO: make optional?
         "paramiko>=2.4.1,<2.5.0",
-        "scp>=0.13.0,<0.14.0"
+        "scp>=0.13.0,<0.14.0",
+        "celery>=4.1.0,<4.2.0"
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',

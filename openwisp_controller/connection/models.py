@@ -14,6 +14,9 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ConnectorMixin(object):
     _connector_field = 'connector'
@@ -66,6 +69,7 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
 
 @python_2_unicode_compatible
 class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
+    _connector_field = 'update_strategy'
     UPDATE_STRATEGY_CHOICES = (
         ('openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt', 'OpenWRT SSH'),
     )
@@ -94,7 +98,6 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                                       max_length=128,
                                       blank=True)
     last_attempt = models.DateTimeField(blank=True, null=True)
-    _connector_field = 'update_strategy'
 
     class Meta:
         verbose_name = _('Device connection')
@@ -139,18 +142,15 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     def disconnect(self):
         self.connector_instance.disconnect()
 
-    @classmethod
-    def config_modified_receiver(cls, **kwargs):
-        """
-        receiver for ``config_modified`` signal
-        triggers the ``update_config`` operation
-        """
-        qs = kwargs['device'].deviceconnection_set.filter(enabled=True)
-        if qs.count() > 0:
-            conn = qs.first()
-            conn.connector_instance.connect()
-            if conn.is_working:
-                conn.connector_instance.update_config()
+    def update_config(self):
+        self.connect()
+        if self.is_working:
+            try:
+                self.connector_instance.update_config()
+            except Exception as e:
+                logger.exception(e)
+            else:
+                self.device.config.set_status_running()
 
 
 @python_2_unicode_compatible
