@@ -1,6 +1,8 @@
 import collections
+import ipaddress
+import logging
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
@@ -14,7 +16,8 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
-import logging
+from .utils import get_interfaces
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,13 +36,17 @@ class ConnectorMixin(object):
     def get_params(self):
         return self.params
 
+    def get_addresses(self):
+        return []
+
     @cached_property
     def connector_class(self):
         return import_string(getattr(self, self._connector_field))
 
     @cached_property
     def connector_instance(self):
-        return self.connector_class(self)
+        return self.connector_class(params=self.get_params(),
+                                    addresses=self.get_addresses())
 
 
 class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
@@ -120,6 +127,29 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                                      'Please select the update strategy manually.')
             })
         self._validate_connector_schema()
+
+    def get_addresses(self):
+        """
+        returns a list of ip addresses for the related device
+        (used to pass a list of ip addresses to a DeviceConnection instance)
+        """
+        deviceip_set = list(self.device.deviceip_set.all()
+                                       .only('address')
+                                       .order_by('priority'))
+        address_list = []
+        for deviceip in deviceip_set:
+            address = deviceip.address
+            ip = ipaddress.ip_address(address)
+            if not ip.is_link_local:
+                address_list.append(address)
+            else:
+                for interface in get_interfaces():
+                    address_list.append('{0}%{1}'.format(address, interface))
+        try:
+            address_list.append(self.device.config.last_ip)
+        except ObjectDoesNotExist:
+            pass
+        return address_list
 
     def get_params(self):
         params = self.credentials.params.copy()

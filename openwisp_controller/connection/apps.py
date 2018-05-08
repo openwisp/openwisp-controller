@@ -1,7 +1,7 @@
+from celery.task.control import inspect
 from django.apps import AppConfig
 from django.utils.translation import ugettext_lazy as _
 from django_netjsonconfig.signals import config_modified
-from celery.task.control import inspect
 
 _TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
 

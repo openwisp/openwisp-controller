@@ -1,14 +1,10 @@
-import ipaddress
 import logging
 
 import paramiko
-from django.core.exceptions import ObjectDoesNotExist
 from django.utils.functional import cached_property
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
 from scp import SCPClient
-
-from ..utils import get_interfaces
 
 try:
     from io import StringIO
@@ -35,9 +31,9 @@ class Ssh(object):
         }
     }
 
-    def __init__(self, device_connection):
-        self.connection = device_connection
-        self.device = device_connection.device
+    def __init__(self, params, addresses):
+        self._params = params
+        self.addresses = addresses
         self.shell = paramiko.SSHClient()
         self.shell.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -52,28 +48,8 @@ class Ssh(object):
             raise SchemaError('Missing password or key')
 
     @cached_property
-    def _addresses(self):
-        deviceip_set = list(self.device.deviceip_set.all()
-                                       .only('address')
-                                       .order_by('priority'))
-        address_list = []
-        for deviceip in deviceip_set:
-            address = deviceip.address
-            ip = ipaddress.ip_address(address)
-            if not ip.is_link_local:
-                address_list.append(address)
-            else:
-                for interface in get_interfaces():
-                    address_list.append('{0}%{1}'.format(address, interface))
-        try:
-            address_list.append(self.device.config.last_ip)
-        except ObjectDoesNotExist:
-            pass
-        return address_list
-
-    @cached_property
-    def _params(self):
-        params = self.connection.get_params()
+    def params(self):
+        params = self._params.copy()
         if 'key' in params:
             key_fileobj = StringIO(params.pop('key'))
             params['pkey'] = paramiko.RSAKey.from_private_key(key_fileobj)
@@ -82,12 +58,12 @@ class Ssh(object):
     def connect(self):
         success = False
         exception = None
-        for address in self._addresses:
+        for address in self.addresses:
             try:
                 self.shell.connect(address,
                                    timeout=SSH_CONNECTION_TIMEOUT,
                                    auth_timeout=SSH_AUTH_TIMEOUT,
-                                   **self._params)
+                                   **self.params)
             except Exception as e:
                 exception = e
             else:

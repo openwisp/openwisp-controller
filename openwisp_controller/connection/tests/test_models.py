@@ -11,6 +11,7 @@ from openwisp_controller.config.tests import CreateConfigTemplateMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ..models import Credentials, DeviceConnection, DeviceIp
+from ..utils import get_interfaces
 
 
 class TestConnectionMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
@@ -136,10 +137,10 @@ class TestModels(TestConnectionMixin, TestCase):
     def test_device_connection_ssh_key_param(self):
         ckey = self._create_credentials_with_key()
         dc = self._create_device_connection(credentials=ckey)
-        self.assertIn('pkey', dc.connector_instance._params)
-        self.assertIsInstance(dc.connector_instance._params['pkey'],
+        self.assertIn('pkey', dc.connector_instance.params)
+        self.assertIsInstance(dc.connector_instance.params['pkey'],
                               paramiko.rsakey.RSAKey)
-        self.assertNotIn('key', dc.connector_instance._params)
+        self.assertNotIn('key', dc.connector_instance.params)
 
     def test_ssh_connect(self):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
@@ -201,3 +202,38 @@ class TestModels(TestConnectionMixin, TestCase):
             self.assertIn('params', e.message_dict)
         else:
             self.fail('ValidationError not raised')
+
+    def _prepare_address_list_test(self, addresses):
+        update_strategy = DeviceConnection.UPDATE_STRATEGY_CHOICES[0][0]
+        device = self._create_device(organization=self._create_org())
+        dc = self._create_device_connection(device=device,
+                                            update_strategy=update_strategy)
+        for index, address in enumerate(addresses):
+            self._create_device_ip(device=device,
+                                   address=address,
+                                   priority=index + 1)
+        return dc
+
+    def test_address_list(self):
+        dc = self._prepare_address_list_test(['10.40.0.1', '192.168.40.1'])
+        self.assertEqual(dc.get_addresses(), [
+            '10.40.0.1',
+            '192.168.40.1'
+        ])
+
+    def test_address_list_with_config_last_ip(self):
+        dc = self._prepare_address_list_test(['192.168.40.1'])
+        self._create_config(device=dc.device,
+                            last_ip='10.40.0.2')
+        self.assertEqual(dc.get_addresses(), [
+            '192.168.40.1',
+            '10.40.0.2',
+        ])
+
+    def test_address_list_link_local_ip(self):
+        ipv6_linklocal = 'fe80::2dae:a0d4:94da:7f61'
+        dc = self._prepare_address_list_test([ipv6_linklocal])
+        address_list = dc.get_addresses()
+        interfaces = get_interfaces()
+        self.assertEqual(len(address_list), len(interfaces))
+        self.assertIn(ipv6_linklocal, address_list[0])
