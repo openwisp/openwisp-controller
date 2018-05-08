@@ -188,6 +188,65 @@ Add the following settings to ``settings.py``:
 
     urlpatterns += staticfiles_urlpatterns()
 
+Settings
+--------
+
+``OPENWISP_CONNECTORS``
+~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+--------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                          |
++--------------+--------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                             |
+|              |                                                                    |
+|              |   (                                                                |
+|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),  |
+|              |   )                                                                |
++--------------+--------------------------------------------------------------------+
+
+Available connector classes. Connectors are python classes that specify ways
+in which OpenWISP can connect to devices in order to launch commands.
+
+``OPENWISP_UPDATE_STRATEGIES``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+----------------------------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                                              |
++--------------+----------------------------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                                                 |
+|              |                                                                                        |
+|              |   (                                                                                    |
+|              |     ('openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt', 'OpenWRT SSH'),  |
+|              |   )                                                                                    |
++--------------+----------------------------------------------------------------------------------------+
+
+Available update strategies. An update strategy is a subclass of a
+connector class which defines an ``update_config`` method which is
+in charge of updating the configuratio of the device.
+
+This operation is launched in a background worker when the configuration
+of a device is changed.
+
+It's possible to write custom update strategies and add them to this
+setting to make them available in OpenWISP.
+
+``OPENWISP_CONFIG_UPDATE_MAPPING``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+--------------------------------------------------------------------+
+| **type**:    | ``dict``                                                           |
++--------------+--------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                             |
+|              |                                                                    |
+|              |   {                                                                |
+|              |     'netjsonconfig.OpenWrt': OPENWISP_UPDATE_STRATEGIES[0][0],     |
+|              |   }                                                                |
++--------------+--------------------------------------------------------------------+
+
+A dictionary that maps configuration backends to update strategies in order to
+automatically determine the update strategy of a device connection if the
+update strategy field is left blank by the user.
+
 Installing for development
 --------------------------
 
@@ -209,11 +268,17 @@ Install your forked repo with `pipenv <https://pipenv.readthedocs.io/en/latest/>
 
 Create database:
 
-.. code-block:: shell
 
+.. code-block:: shell
     cd tests/
     pipenv run ./manage.py migrate
     pipenv run ./manage.py createsuperuser
+
+Launch celery worker (for background jobs):
+
+.. code-block:: shell
+
+    celery -A openwisp2 worker -l info
 
 Launch development server:
 
