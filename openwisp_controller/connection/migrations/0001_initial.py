@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('config', '0012_auto_20180219_1501'),
-        ('openwisp_users', '0002_auto_20180219_1409'),
+        ('openwisp_users', '0001_initial'),
     ]
 
     operations = [
