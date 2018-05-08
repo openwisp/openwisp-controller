@@ -16,6 +16,7 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
+from . import settings as app_settings
 from .utils import get_interfaces
 
 logger = logging.getLogger(__name__)
@@ -53,11 +54,8 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
     """
     Credentials for access
     """
-    CONNECTOR_CHOICES = (
-        ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),
-    )
     connector = models.CharField(_('connection type'),
-                                 choices=CONNECTOR_CHOICES,
+                                 choices=app_settings.CONNECTORS,
                                  max_length=128,
                                  db_index=True)
     params = JSONField(_('parameters'),
@@ -77,17 +75,11 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
 @python_2_unicode_compatible
 class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     _connector_field = 'update_strategy'
-    UPDATE_STRATEGY_CHOICES = (
-        ('openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt', 'OpenWRT SSH'),
-    )
-    CONFIG_BACKEND_MAPPING = {
-        'netjsonconfig.OpenWrt': UPDATE_STRATEGY_CHOICES[0][0],
-    }
     device = models.ForeignKey('config.Device', on_delete=models.CASCADE)
     credentials = models.ForeignKey(Credentials, on_delete=models.CASCADE)
     update_strategy = models.CharField(_('update strategy'),
                                        help_text=_('leave blank to determine automatically'),
-                                       choices=UPDATE_STRATEGY_CHOICES,
+                                       choices=app_settings.UPDATE_STRATEGIES,
                                        max_length=128,
                                        blank=True,
                                        db_index=True)
@@ -113,7 +105,7 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     def clean(self):
         if not self.update_strategy and hasattr(self.device, 'config'):
             try:
-                self.update_strategy = self.CONFIG_BACKEND_MAPPING[self.device.config.backend]
+                self.update_strategy = app_settings.CONFIG_UPDATE_MAPPING[self.device.config.backend]
             except KeyError as e:
                 raise ValidationError({
                     'update_stragy': _('could not determine update strategy '

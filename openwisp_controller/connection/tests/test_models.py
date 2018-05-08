@@ -10,6 +10,7 @@ from openwisp_controller.config.tests import CreateConfigTemplateMixin
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
+from .. import settings as app_settings
 from ..models import Credentials, DeviceConnection, DeviceIp
 from ..utils import get_interfaces
 
@@ -35,7 +36,7 @@ class TestConnectionMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
 
     def _create_credentials(self, **kwargs):
         opts = dict(name='Test credentials',
-                    connector=Credentials.CONNECTOR_CHOICES[0][0],
+                    connector=app_settings.CONNECTORS[0][0],
                     params={'username': 'root',
                             'password': 'password',
                             'port': 22})
@@ -84,7 +85,7 @@ class TestConnectionMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
 
 class TestModels(TestConnectionMixin, TestCase):
     def test_connection_str(self):
-        c = Credentials(name='Dev Key', connector=Credentials.CONNECTOR_CHOICES[0][0])
+        c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])
         self.assertIn(c.name, str(c))
         self.assertIn(c.get_connector_display(), str(c))
 
@@ -101,13 +102,13 @@ class TestModels(TestConnectionMixin, TestCase):
 
     def test_device_connection_auto_update_strategy(self):
         dc = self._create_device_connection()
-        self.assertEqual(dc.update_strategy, dc.UPDATE_STRATEGY_CHOICES[0][0])
+        self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
 
     def test_device_connection_auto_update_strategy_key_error(self):
-        orig_strategy = DeviceConnection.UPDATE_STRATEGY_CHOICES
-        orig_mapping = DeviceConnection.CONFIG_BACKEND_MAPPING
-        DeviceConnection.UPDATE_STRATEGY_CHOICES = (('meddle', 'meddle'),)
-        DeviceConnection.CONFIG_BACKEND_MAPPING = {'wrong': 'wrong'}
+        orig_strategy = app_settings.UPDATE_STRATEGIES
+        orig_mapping = app_settings.CONFIG_UPDATE_MAPPING
+        app_settings.UPDATE_STRATEGIES = (('meddle', 'meddle'),)
+        app_settings.CONFIG_UPDATE_MAPPING = {'wrong': 'wrong'}
         try:
             self._create_device_connection()
         except ValidationError:
@@ -115,8 +116,8 @@ class TestModels(TestConnectionMixin, TestCase):
         else:
             failed = True
         # restore
-        DeviceConnection.UPDATE_STRATEGY_CHOICES = orig_strategy
-        DeviceConnection.CONFIG_BACKEND_MAPPING = orig_mapping
+        app_settings.UPDATE_STRATEGIES = orig_strategy
+        app_settings.CONFIG_UPDATE_MAPPING = orig_mapping
         if failed:
             self.fail('ValidationError not raised')
 
@@ -204,7 +205,7 @@ class TestModels(TestConnectionMixin, TestCase):
             self.fail('ValidationError not raised')
 
     def _prepare_address_list_test(self, addresses):
-        update_strategy = DeviceConnection.UPDATE_STRATEGY_CHOICES[0][0]
+        update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
         device = self._create_device(organization=self._create_org())
         dc = self._create_device_connection(device=device,
                                             update_strategy=update_strategy)
