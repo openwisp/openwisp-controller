@@ -255,12 +255,13 @@ update strategy field is left blank by the user.
 Installing for development
 --------------------------
 
-Install sqlite:
+Install the dependencies:
 
 .. code-block:: shell
 
     sudo apt-get install sqlite3 libsqlite3-dev openssl libssl-dev
-    sudo apt-get install gdal-bin libproj-dev libgeos-dev libspatialite-dev
+    sudo apt-get install gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
+    sudo apt-get install redis
 
 Install your forked repo:
 
