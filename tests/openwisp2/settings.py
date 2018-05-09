@@ -129,6 +129,8 @@ else:
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = 'memory://'
 
+SPATIALITE_LIBRARY_PATH = 'mod_spatialite'
+
 LOGGING = {
     'version': 1,
     'filters': {
