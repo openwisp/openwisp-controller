@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import paramiko
 from django.utils.functional import cached_property
@@ -6,9 +7,9 @@ from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
 from scp import SCPClient
 
-try:
+if sys.version_info.major > 2:  # pragma: nocover
     from io import StringIO
-except ImportError:
+else:  # pragma: nocover
     from StringIO import StringIO
 
 
