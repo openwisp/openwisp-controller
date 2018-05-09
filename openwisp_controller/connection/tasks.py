@@ -21,6 +21,6 @@ def update_config(device_id):
     if device.config.status == 'running':
         return
     qs = device.deviceconnection_set.filter(device_id=device_id, enabled=True)
-    if qs.count() > 0:
-        conn = qs.first()
+    conn = qs.first()
+    if conn:
         conn.update_config()
