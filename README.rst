@@ -278,8 +278,8 @@ Install test requirements:
 
 Create database:
 
-
 .. code-block:: shell
+
     cd tests/
     ./manage.py migrate
     ./manage.py createsuperuser
