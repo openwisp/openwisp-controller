@@ -41,6 +41,15 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         'config-INITIAL_FORMS': 0,
         'config-MIN_NUM_FORMS': 0,
         'config-MAX_NUM_FORMS': 1,
+        # openwisp_controller.connection
+        'deviceconnection_set-TOTAL_FORMS': 0,
+        'deviceconnection_set-INITIAL_FORMS': 0,
+        'deviceconnection_set-MIN_NUM_FORMS': 0,
+        'deviceconnection_set-MAX_NUM_FORMS': 1000,
+        'deviceip_set-TOTAL_FORMS': 0,
+        'deviceip_set-INITIAL_FORMS': 0,
+        'deviceip_set-MIN_NUM_FORMS': 0,
+        'deviceip_set-MAX_NUM_FORMS': 1000,
     }
     # WARNING - WATCHOUT
     # this class attribute is changed dinamically

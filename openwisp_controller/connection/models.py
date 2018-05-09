@@ -72,7 +72,6 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
         return '{0} ({1})'.format(self.name, self.get_connector_display())
 
 
-@python_2_unicode_compatible
 class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     _connector_field = 'update_strategy'
     device = models.ForeignKey('config.Device', on_delete=models.CASCADE)
