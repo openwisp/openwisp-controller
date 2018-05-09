@@ -268,8 +268,8 @@ Install your forked repo with `pipenv <https://pipenv.readthedocs.io/en/latest/>
 
 Create database:
 
-
 .. code-block:: shell
+
     cd tests/
     pipenv run ./manage.py migrate
     pipenv run ./manage.py createsuperuser
