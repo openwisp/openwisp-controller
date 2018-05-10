@@ -1,5 +1,7 @@
 import logging
+import socket
 import sys
+from io import BytesIO
 
 import paramiko
 from django.utils.functional import cached_property
@@ -16,6 +18,7 @@ else:  # pragma: nocover
 logger = logging.getLogger(__name__)
 SSH_CONNECTION_TIMEOUT = 5
 SSH_AUTH_TIMEOUT = 2
+SSH_COMMAND_TIMEOUT = 5
 
 
 class Ssh(object):
@@ -76,10 +79,54 @@ class Ssh(object):
     def disconnect(self):
         self.shell.close()
 
+    def exec_command(self, command, timeout=SSH_COMMAND_TIMEOUT,
+                     exit_codes=[0], raise_unexpected_exit=True):
+        """
+        Executes a command and performs the following operations
+        - logs executed command
+        - logs standard output
+        - logs standard error
+        - aborts on exceptions
+        - raises socket.timeout exceptions
+        """
+        print('$:> {0}'.format(command))
+        # execute commmand
+        try:
+            stdin, stdout, stderr = self.shell.exec_command(command)
+        # re-raise socket.timeout to avoid being catched
+        # by the subsequent `except Exception as e` block
+        except socket.timeout:
+            raise socket.timeout()
+        # any other exception will abort the operation
+        except Exception as e:
+            logger.exception(e)
+            raise e
+        # store command exit status
+        exit_status = stdout.channel.recv_exit_status()
+        # log standard output
+        output = stdout.read().decode('utf8').strip()
+        if output:
+            print(output)
+        # log standard error
+        error = stderr.read().decode('utf8').strip()
+        if error:
+            print(error)
+        # abort the operation if any of the command
+        # returned with a non-zero exit status
+        if exit_status not in exit_codes and raise_unexpected_exit:
+            print('# Previus command failed, aborting upgrade...')
+            message = error if error else output
+            raise Exception(message)
+        return output, exit_status
+
     def update_config(self):
         raise NotImplementedError()
 
     def upload(self, fl, remote_path):
         scp = SCPClient(self.shell.get_transport())
+        if not hasattr(fl, 'getvalue'):
+            fl_memory = BytesIO(fl.read())
+            fl.seek(0)
+            fl = fl_memory
         scp.putfo(fl, remote_path)
         scp.close()
