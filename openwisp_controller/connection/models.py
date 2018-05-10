@@ -172,6 +172,7 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                 logger.exception(e)
             else:
                 self.device.config.set_status_running()
+                self.disconnect()
 
 
 @python_2_unicode_compatible
