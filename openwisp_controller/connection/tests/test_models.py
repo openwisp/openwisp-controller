@@ -163,3 +163,21 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         interfaces = get_interfaces()
         self.assertEqual(len(address_list), len(interfaces))
         self.assertIn(ipv6_linklocal, address_list[0])
+
+    def test_device_connection_credential_org_validation(self):
+        dc = self._create_device_connection()
+        shared = self._create_credentials(name='cred-shared',
+                                          organization=None)
+        dc.credentials = shared
+        dc.full_clean()
+        # ensure credentials of other orgs aren't accepted
+        org2 = self._create_org(name='org2')
+        cred2 = self._create_credentials(name='cred2',
+                                         organization=org2)
+        try:
+            dc.credentials = cred2
+            dc.full_clean()
+        except ValidationError as e:
+            self.assertIn('credentials', e.message_dict)
+        else:
+            self.fail('ValidationError not raised')

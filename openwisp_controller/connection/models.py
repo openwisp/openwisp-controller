@@ -102,6 +102,12 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         verbose_name_plural = _('Device connections')
 
     def clean(self):
+        cred_org = self.credentials.organization
+        if cred_org and cred_org != self.device.organization:
+            raise ValidationError({
+                'credentials': _('The organization of these credentials doesn\'t '
+                                 'match the organization of the device')
+            })
         if not self.update_strategy and hasattr(self.device, 'config'):
             try:
                 self.update_strategy = app_settings.CONFIG_UPDATE_MAPPING[self.device.config.backend]
