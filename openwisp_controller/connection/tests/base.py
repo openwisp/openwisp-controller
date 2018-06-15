@@ -41,7 +41,10 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
                     params={})
         opts.update(kwargs)
         if 'credentials' not in opts:
-            opts['credentials'] = self._create_credentials()
+            cred_opts = {}
+            if 'device' in opts:
+                cred_opts = {'organization': opts['device'].organization}
+            opts['credentials'] = self._create_credentials(**cred_opts)
         org = opts['credentials'].organization
         if 'device' not in opts:
             opts['device'] = self._create_device(organization=org)

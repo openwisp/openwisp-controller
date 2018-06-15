@@ -25,11 +25,19 @@ class DeviceIpInline(admin.TabularInline):
         return qs.order_by('priority')
 
 
-class DeviceConnectionInline(admin.StackedInline):
+class DeviceConnectionInline(MultitenantAdminMixin, admin.StackedInline):
     model = DeviceConnection
     exclude = ['params', 'created', 'modified']
     readonly_fields = ['is_working', 'failure_reason', 'last_attempt']
     extra = 0
+
+    multitenant_shared_relations = ('credentials',)
+
+    def get_queryset(self, request):
+        """
+        Override MultitenantAdminMixin.get_queryset() because it breaks
+        """
+        return super(admin.StackedInline, self).get_queryset(request)
 
 
 DeviceAdmin.inlines += [DeviceConnectionInline, DeviceIpInline]
