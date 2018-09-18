@@ -36,6 +36,9 @@ before_install:
 
 install:
   - pip install $DJANGO
+  # fix issues with travis
+  - pip install "attrs>=17.4.0"
+  - pip install "six>=1.11.0"
   - python setup.py -q develop
   # TODO: temporary, remove when django-netjsonconfig 0.9.0 is released
   - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master
