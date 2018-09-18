@@ -37,6 +37,8 @@ before_install:
 install:
   - pip install $DJANGO
   - python setup.py -q develop
+  # TODO: temporary, remove when django-netjsonconfig 0.9.0 is released
+  - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master
   - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pip install git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
 
 script:

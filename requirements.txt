@@ -1,4 +1,4 @@
-django-netjsonconfig>=0.9.0,<0.10.0
+django-netjsonconfig>=0.8.1,<0.10.0
 openwisp-utils[users]<0.3
 django-loci>=0.1.1,<0.3.0
 djangorestframework-gis>=0.12.0,<0.13.0
