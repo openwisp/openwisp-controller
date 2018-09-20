@@ -1,0 +1,14 @@
+[[source]]
+verify_ssl = true
+url = "https://pypi.org/simple"
+name = "pypi"
+
+[packages]
+"e1839a8" = {editable = true, path = "."}
+"2e72db2" = {file = "https://github.com/openwisp/django-netjsonconfig/tarball/master"}
+
+[dev-packages]
+coverage = "*"
+coveralls = "*"
+isort = "*"
+flake8 = "*"
