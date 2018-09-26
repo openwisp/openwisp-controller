@@ -39,7 +39,7 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
                    ('config__templates', MultitenantRelatedOrgFilter),
                    'config__status',
                    'created']
-    if django_netjsonconfig_settings.BACKEND_DEVICE_LIST:
+    if hasattr(django_netjsonconfig_settings, 'BACKEND_DEVICE_LIST'):
         list_filter.insert(1, 'config__backend')
     list_select_related = ('config', 'organization')
 
