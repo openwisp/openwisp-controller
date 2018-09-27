@@ -221,7 +221,7 @@ class OrganizationConfigSettings(models.Model):
 
     class Meta:
         verbose_name = _('Configuration management settings')
-        verbose_name_plural = _('Configuration management settings')
+        verbose_name_plural = verbose_name
 
     def __str__(self):
         return self.organization.name
