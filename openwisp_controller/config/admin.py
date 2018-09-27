@@ -8,7 +8,6 @@ from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigI
                                              AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
 
-from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
 from openwisp_utils.admin import MultitenantOrgFilter, MultitenantRelatedOrgFilter
 
@@ -98,27 +97,20 @@ VpnAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 VpnAdmin.list_filter.remove('ca')
 VpnAdmin.fields.insert(2, 'organization')
 
-
-class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
-    pass
-
-
-class ConfigSettingsInline(admin.StackedInline):
-    model = OrganizationConfigSettings
-    form = ConfigSettingsForm
-
-
-class OrganizationAdmin(BaseOrganizationAdmin):
-    save_on_top = True
-    inlines = [ConfigSettingsInline] + BaseOrganizationAdmin.inlines
-
-
 admin.site.register(Device, DeviceAdmin)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
 
 
 if getattr(django_netjsonconfig_settings, 'REGISTRATION_ENABLED', True):
-    # add OrganizationConfigSettings inline to Organization admin
-    admin.site.unregister(Organization)
-    admin.site.register(Organization, OrganizationAdmin)
+    from openwisp_users.admin import OrganizationAdmin
+
+    class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
+        pass
+
+    class ConfigSettingsInline(admin.StackedInline):
+        model = OrganizationConfigSettings
+        form = ConfigSettingsForm
+
+    OrganizationAdmin.save_on_top = True
+    OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
