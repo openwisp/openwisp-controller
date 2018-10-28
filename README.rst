@@ -271,7 +271,7 @@ then, You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with other geospatial libraries?
-----------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Please refer 
 `troubleshooting issues related to geospatial libraries
