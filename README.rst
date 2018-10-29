@@ -257,7 +257,7 @@ Run the docker container:
 Troubleshooting Steps
 ---------------------
 
-You may encounter some issues while installing GeoDjango
+You may encounter some issues while installing GeoDjango.
 
 Unable to load SpatiaLite library extension?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
