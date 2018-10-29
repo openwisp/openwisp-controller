@@ -253,6 +253,29 @@ Run the docker container:
 .. code-block:: shell
 
    sudo docker run -it -p 8000:8000 openwisp/controller
+   
+Troubleshooting Steps
+---------------------
+
+You may encounter some issues while installing GeoDjango.
+
+Unable to load SpatiaLite library extension?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are getting below exception::
+
+   django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
+
+then, You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in 
+`django documentation regarding how to install and configure spatialte
+<https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
+
+Having Issues with other geospatial libraries?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Please refer 
+`troubleshooting issues related to geospatial libraries
+<https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
 
 Talks
 -----
