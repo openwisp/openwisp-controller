@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "bf044cf5509ad9b91eff7109e9a8af27c2d69e3319552174a85602e14136ae2b"
+            "sha256": "53f7491837579f17edb05b5c6c9e449376d717ce13882025a4f8021dade93397"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -254,6 +254,9 @@
             "editable": true,
             "path": "."
         },
+        "e81041b": {
+            "file": "https://github.com/openwisp/django-x509/tarball/master"
+        },
         "hyperlink": {
             "hashes": [
                 "sha256:98da4218a56b448c7ec7d2655cb339af1f7d751cf541469bb4fc28c4a4245b34",
@@ -321,14 +324,18 @@
                 "sha256:0b3070afafb9e182d4d8c96e1519fbfdf056f723100dcbeb72e9aff629e23aae",
                 "sha256:dbd7919e63a18d392feec573e9034e407edaa029b5ebaa79624a3817d6a37f14"
             ],
+            "markers": "extra == 'users'",
             "version": "==0.1.10"
         },
         "openwisp-utils": {
-            "hashes": [
-                "sha256:bc57554d3f55a86e0dcb8cdbf52f5fdbd3d76075c9682962eb0c5fcc700445fb",
-                "sha256:e5861f9f4d352b309900b9d32d41d68710cf41dbda8a4b5b696041fc9e072600"
+            "extras": [
+                "users"
             ],
-            "version": "==0.2"
+            "hashes": [
+                "sha256:6572ee1dd70ae89cec11e370575c88181081726d18bcbb5bbb456a1a874033b6",
+                "sha256:7cee59b45f4d732814a0074b6ac9204f6ecfbc9b0d2f87c9cf04d5d7fe4238cd"
+            ],
+            "version": "==0.2.1"
         },
         "pillow": {
             "hashes": [
@@ -435,10 +442,10 @@
         },
         "urllib3": {
             "hashes": [
-                "sha256:41c3db2fc01e5b907288010dec72f9d0a74e37d6994e6eb56849f59fea2265ae",
-                "sha256:8819bba37a02d143296a4d032373c4dd4aca11f6d4c9973335ca75f9c8475f59"
+                "sha256:61bf29cada3fc2fbefad4fdf059ea4bd1b4a86d2b6d15e1c7c0b582b9752fe39",
+                "sha256:de9529817c93f27c8ccbfead6985011db27bd0ddfcdb2d86f3f663385c6a9c22"
             ],
-            "version": "==1.24"
+            "version": "==1.24.1"
         },
         "zope.interface": {
             "hashes": [
@@ -597,10 +604,10 @@
         },
         "urllib3": {
             "hashes": [
-                "sha256:41c3db2fc01e5b907288010dec72f9d0a74e37d6994e6eb56849f59fea2265ae",
-                "sha256:8819bba37a02d143296a4d032373c4dd4aca11f6d4c9973335ca75f9c8475f59"
+                "sha256:61bf29cada3fc2fbefad4fdf059ea4bd1b4a86d2b6d15e1c7c0b582b9752fe39",
+                "sha256:de9529817c93f27c8ccbfead6985011db27bd0ddfcdb2d86f3f663385c6a9c22"
             ],
-            "version": "==1.24"
+            "version": "==1.24.1"
         }
     }
 }
