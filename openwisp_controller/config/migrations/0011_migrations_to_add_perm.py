@@ -1,5 +1,9 @@
 from django.db import migrations 
+<<<<<<< HEAD
 from django.models import Permission 
+=======
+
+>>>>>>> f849d471375576117a2d4948ca7ba9c322818a4d
 
 
 def assignPerm(apps, schema_editor): 
@@ -15,14 +19,17 @@ def assignPerm(apps, schema_editor):
             admin.permissions.add(Permission.objects.get(codename="{}_{}".format(j,i)), bulk=True)
             operator.permissions.add(Permission.objects.get(codename="{}_{}".format(j,i)), bulk=True)
     for i in operators_read_only_admins_manage:
+<<<<<<< HEAD
         try:
             permission=Permission.objects.get(codename="view_{}".format(i))
             operator.permissions.add(permission, bulk=True)
         except Permission.DoesNotExist:
             pass   
         
-        for j in manage_operations: 
-            admin.permissions.add(Permissions.objects.get(codename="{}_{}".format(j,i)), bulk=True)
+=======
+        operator.permissions.add(Permission.objects.get(codename="view_{}".format(i)), bulk=True)
+>>>>>>> f849d471375576117a2d4948ca7ba9c322818a4d
+
     
 
 class PermMigration(migrations.Migration): 
