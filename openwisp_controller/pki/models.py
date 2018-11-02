@@ -17,7 +17,6 @@ class Cert(ShareableOrgMixin, AbstractCert):
     """
     openwisp-controller cert model
     """
-
     ca = models.ForeignKey(Ca, verbose_name=_('CA'),)
 
     class Meta(AbstractCert.Meta):

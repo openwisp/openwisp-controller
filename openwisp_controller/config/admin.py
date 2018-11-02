@@ -8,6 +8,7 @@ from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigI
                                              AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
 
+from openwisp_users.admin import OrganizationAdmin as BaseOrganizationAdmin
 from openwisp_users.models import Organization
 from openwisp_utils.admin import MultitenantOrgFilter, MultitenantRelatedOrgFilter
 
@@ -35,11 +36,10 @@ class ConfigInline(MultitenantAdminMixin, AbstractConfigInline):
 class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
     inlines = [ConfigInline]
     list_filter = [('organization', MultitenantOrgFilter),
+                   'config__backend',
                    ('config__templates', MultitenantRelatedOrgFilter),
                    'config__status',
                    'created']
-    if django_netjsonconfig_settings.BACKEND_DEVICE_LIST:
-        list_filter.insert(1, 'config__backend')
     list_select_related = ('config', 'organization')
 
     def _get_default_template_urls(self):
@@ -97,20 +97,27 @@ VpnAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 VpnAdmin.list_filter.remove('ca')
 VpnAdmin.fields.insert(2, 'organization')
 
+
+class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
+    pass
+
+
+class ConfigSettingsInline(admin.StackedInline):
+    model = OrganizationConfigSettings
+    form = ConfigSettingsForm
+
+
+class OrganizationAdmin(BaseOrganizationAdmin):
+    save_on_top = True
+    inlines = [ConfigSettingsInline] + BaseOrganizationAdmin.inlines
+
+
 admin.site.register(Device, DeviceAdmin)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
 
 
 if getattr(django_netjsonconfig_settings, 'REGISTRATION_ENABLED', True):
-    from openwisp_users.admin import OrganizationAdmin
-
-    class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
-        pass
-
-    class ConfigSettingsInline(admin.StackedInline):
-        model = OrganizationConfigSettings
-        form = ConfigSettingsForm
-
-    OrganizationAdmin.save_on_top = True
-    OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
+    # add OrganizationConfigSettings inline to Organization admin
+    admin.site.unregister(Organization)
+    admin.site.register(Organization, OrganizationAdmin)
