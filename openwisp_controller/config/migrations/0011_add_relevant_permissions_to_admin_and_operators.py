@@ -1,5 +1,5 @@
 from django.db import migrations 
-from django.models import Permission 
+from django.contrib.auth.models import Permission 
 
 
 def assignPerm(apps, schema_editor): 
