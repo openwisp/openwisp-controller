@@ -1,13 +1,13 @@
 from django.db import migrations 
-from django.contrib.auth import Permissions 
+from django.contrib.auth import Permission 
 
 
 def assignPerm(apps, schema_editor): 
     Group= apps.get_model('openwisp_user', 'Group')
     admin = Group.objects.get(name="Administrator")
     operator= Group.objects.get(name="Operator")
-    operators_and_admins_can_change=["Device", "Config", "Template", "Location", "Floorplan",]
-    operators_read_only_admins_manage=["Vpn", "CA", "Certificate",]
+    operators_and_admins_can_change=["device", "config", "template", "location", "floorplan",]
+    operators_read_only_admins_manage=["vpn", "ca", "certificate",]
     manage_operations=["add", "change", "delete"]
 
     for i in operators_and_admins_can_change:
