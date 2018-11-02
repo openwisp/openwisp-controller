@@ -18,6 +18,9 @@ openwisp-controller
 
 OpenWISP 2 controller module (built using Python and the Django web-framework).
 
+**Want to help OpenWISP?** `Find out how to help us grow here
+<http://openwisp.io/docs/general/help-us.html>`_.
+
 ------------
 
 .. contents:: **Table of Contents**:
@@ -197,7 +200,8 @@ Install sqlite:
 
 .. code-block:: shell
 
-    sudo apt-get install sqlite3 libsqlite3-dev openssl libssl-dev
+    sudo apt-get install sqlite3 libsqlite3-dev libsqlite3-mod-spatialite openssl libssl-dev
+    sudo apt-get install gdal-bin libproj-dev libgeos-dev libspatialite-dev
 
 Install your forked repo:
 
@@ -249,6 +253,29 @@ Run the docker container:
 .. code-block:: shell
 
    sudo docker run -it -p 8000:8000 openwisp/controller
+   
+Troubleshooting Steps
+---------------------
+
+You may encounter some issues while installing GeoDjango.
+
+Unable to load SpatiaLite library extension?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are getting below exception::
+
+   django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
+
+then, You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in 
+`django documentation regarding how to install and configure spatialte
+<https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
+
+Having Issues with other geospatial libraries?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Please refer 
+`troubleshooting issues related to geospatial libraries
+<https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
 
 Talks
 -----
@@ -258,6 +285,10 @@ Talks
 
 Contributing
 ------------
+
+Please read the `OpenWISP contributing guidelines
+<http://openwisp.io/docs/developer/contributing.html>`_
+and also keep in mind the following:
 
 1. Announce your intentions in the `OpenWISP Mailing List <https://groups.google.com/d/forum/openwisp>`_
 2. Fork this repo and install it

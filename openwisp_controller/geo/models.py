@@ -10,7 +10,7 @@ class Location(OrgMixin, AbstractLocation):
 
 
 class FloorPlan(OrgMixin, AbstractFloorPlan):
-    location = models.ForeignKey(Location)
+    location = models.ForeignKey(Location, models.CASCADE)
 
     class Meta(AbstractFloorPlan.Meta):
         abstract = False
@@ -28,7 +28,7 @@ class DeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
     content_type = None
     object_id = None
     # reuse the same generic attribute name used in django-loci
-    content_object = models.OneToOneField('config.Device')
+    content_object = models.OneToOneField('config.Device', models.CASCADE)
     # override parent foreign key targets
     location = models.ForeignKey(Location, models.PROTECT,
                                  blank=True, null=True)

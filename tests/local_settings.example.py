@@ -3,8 +3,8 @@
 
 #DATABASES = {
 #    'default': {
-#        'ENGINE': 'django.db.backends.sqlite3',
-#        'NAME': 'netjsonconfig.db',
+#        'ENGINE': 'django.contrib.gis.db.backends.spatialite',
+#        'NAME': 'openwisp-controller.db',
 #        'USER': '',
 #        'PASSWORD': '',
 #        'HOST': '',
