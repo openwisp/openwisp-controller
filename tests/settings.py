@@ -3,7 +3,7 @@ import sys
 
 TESTING = sys.argv[1:2] == ['test']
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
+SPATIALITE_LIBRARY_PATH = 'mod_spatialite.so'
 DEBUG = True
 
 ALLOWED_HOSTS = []
