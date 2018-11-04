@@ -1,15 +1,27 @@
 from django.db import migrations 
-from django.contrib.auth.models import Permission 
+from django.contrib.auth.models import Permission
+from django.contrib.auth.management import create_permissions 
+
+
+def make_default_permissions_in_code(apps, schema_editor):
+    for app_config in apps.get_app_configs():
+        app_config.models_module = True 
+        create_permissions(app_config, apps=apps, verbosity=0)
+        app_config.models_module=None
+    """apps.models_module = True 
+    create_permissions(apps, verbosity=0)
+    apps.models_module = None"""
+
 
 
 
 def assignPerm(apps, schema_editor): 
     Group= apps.get_model('openwisp_users', 'Group')
     admin = Group.objects.get(name="Administrator")
-    operator= Group.objects.get(name="Operator")
+    operator = Group.objects.get(name="Operator")
     operators_and_admins_can_change=["device", "config", "template", "location", "floorplan",]
-    operators_read_only_admins_manage=["vpn", "ca", "certificate",]
-    manage_operations=["add", "change", "delete"]
+    operators_read_only_admins_manage = ["vpn", "ca", "certificate",]
+    manage_operations = ["add", "change", "delete"]
 
     for i in operators_and_admins_can_change:
         for j in manage_operations:
@@ -37,6 +49,7 @@ class Migration(migrations.Migration):
     ]
 
     operations=[
+        migrations.RunPython(make_default_permissions_in_code),
         migrations.RunPython(assignPerm),
     ]
 
