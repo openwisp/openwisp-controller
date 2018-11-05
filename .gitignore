@@ -63,3 +63,4 @@ target/
 local_settings.py
 *.db
 *.tar.gz
+sh.exe.stackdump
