@@ -29,27 +29,26 @@ branches:
     - master
 
 before_install:
-  - pip install -U pip wheel setuptools
-  - pip install --no-cache-dir -U -r requirements-test.txt
-  - ./runflake8
-  - ./runisort
+  - pip install -U pipenv
+  - pipenv install --dev --skip-lock
+  - pipenv run pip freeze
+  - pipenv run lint
+  - pipenv run isort
 
 install:
-  - pip install $DJANGO
+  - pipenv install $DJANGO
   # fix issues with travis
-  - pip install "attrs>=17.4.0"
-  - pip install "six>=1.11.0"
-  - python setup.py -q develop
+  - pipenv install --skip-lock "attrs>=17.4.0"
+  - pipenv install --skip-lock "six>=1.11.0"
   # TODO: temporary, remove when django-netjsonconfig 0.9.0 is released
-  - pip install https://github.com/openwisp/django-netjsonconfig/tarball/master
-  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pip install git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
-  # TODO: temporary, remove when django-x509 is released with the passphrase add-on
-  - pip install https://github.com/openwisp/django-x509/tarball/master
+  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pipenv install git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
+  - pipenv run pip install https://github.com/openwisp/django-x509/tarball/master
 
 script:
   # for some reason the migrations check is failing only on django 2.0
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.4 ]]; then ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
-  - coverage run --source=openwisp_controller runtests.py
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.4 ]]; then pipenv run ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
+  - pipenv run pip freeze
+  - pipenv run coverage run --source=openwisp_controller runtests.py
 
 after_success:
-  coveralls
+  pipenv run coveralls
