@@ -43,6 +43,7 @@ install:
   # TODO: temporary, remove when django-netjsonconfig 0.9.0 is released
   - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pipenv install git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
   - pipenv run pip install https://github.com/openwisp/django-x509/tarball/master
+  - pipenv run pip install git+https://github.com/openwisp/openwisp-users.git
 
 script:
   # for some reason the migrations check is failing only on django 2.0
