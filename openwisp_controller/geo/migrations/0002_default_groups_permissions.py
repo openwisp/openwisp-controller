@@ -1,8 +1,11 @@
 from django.db import migrations
 from django.contrib.auth.models import Permission
 
+from ...migrations import create_default_permissions
+
 
 def assign_permissions_to_groups(apps, schema_editor):
+    create_default_permissions(apps, schema_editor)
     Group = apps.get_model('openwisp_users', 'Group')
     admin = Group.objects.get(name='Administrator')
     operator = Group.objects.get(name='Operator')
@@ -23,7 +26,6 @@ class Migration(migrations.Migration):
         ('openwisp_users', '0004_default_groups'),
         ('geo', '0001_initial')
     ]
-
     operations = [
         migrations.RunPython(
             assign_permissions_to_groups,
