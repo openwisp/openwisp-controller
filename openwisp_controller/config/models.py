@@ -192,7 +192,7 @@ class VpnClient(AbstractVpnClient):
         """
         sets the organization on the created client certificate
         """
-        cert.organization = self.vpn.organization
+        cert.organization = self.config.device.organization
         return cert
 
 
