@@ -94,3 +94,18 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
                               vpn=vpn,
                               config={})
         self._create_config(organization=org)
+
+    def test_auto_generated_certificate_for_organization(self):
+        organization = self._create_org()
+        vpn = self._create_vpn()
+        template = self._create_template(type='vpn', auto_cert=True, vpn=vpn)
+        corresponding_device = self._create_device(organization=organization,)
+        config = self._create_config(
+            device=corresponding_device,
+            organization=corresponding_device.organization
+        )
+        config.templates.add(template)
+        vpn_clients = config.vpnclient_set.all()
+        for vpn_client in vpn_clients:
+            self.assertIsNotNone(vpn_client.cert.organization)
+            self.assertEqual(vpn_client.cert.organization, config.device.organization)
