@@ -36,12 +36,12 @@ before_install:
   - pipenv run isort
 
 install:
-  - pipenv install $DJANGO
+  - pipenv install --skip-lock $DJANGO
   # fix issues with travis
   - pipenv install --skip-lock "attrs>=17.4.0"
   - pipenv install --skip-lock "six"
   # TODO: temporary, remove when django-netjsonconfig 0.9.0 is released
-  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pipenv install git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pipenv install --skip-lock git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
   - pipenv run pip install https://github.com/openwisp/django-x509/tarball/master
   - pipenv run pip install git+https://github.com/openwisp/openwisp-users.git
 
