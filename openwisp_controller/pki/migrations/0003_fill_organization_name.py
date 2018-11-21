@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
+from django.db import migrations
+
+from ..models import Ca, Cert
 
 
 def forward(apps, schema_editor):
@@ -15,9 +17,10 @@ def forward(apps, schema_editor):
     ca_model = apps.get_model('pki', 'Ca')
     cert_model = apps.get_model('pki', 'Cert')
 
-    for model in [ca_model, cert_model]:
+    for model, real_model in [(ca_model, Ca), (cert_model, Cert)]:
         for obj in model.objects.all():
-            obj.organization_name = obj.x509.get_subject().organizationName or ''
+            model_instance = real_model.objects.get(pk=obj.pk)
+            obj.organization_name = model_instance.x509.get_subject().organizationName or ''
             obj.save()
 
 
