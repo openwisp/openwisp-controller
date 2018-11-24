@@ -7,6 +7,7 @@ name = "pypi"
 "e1839a8" = {editable = true, path = "."}
 "2e72db2" = {file = "https://github.com/openwisp/django-netjsonconfig/tarball/master"}
 "e81041b" = {file = "https://github.com/openwisp/django-x509/tarball/master"}
+"aeda7a9" = {file = "https://github.com/openwisp/openwisp-users/tarball/master"}
 
 [dev-packages]
 coverage = "*"
