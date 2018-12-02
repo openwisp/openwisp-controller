@@ -2,7 +2,7 @@ import collections
 import ipaddress
 import logging
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
@@ -142,10 +142,10 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             else:
                 for interface in get_interfaces():
                     address_list.append('{0}%{1}'.format(address, interface))
-        try:
-            address_list.append(self.device.config.last_ip)
-        except ObjectDoesNotExist:
-            pass
+        if self.device.management_ip:
+            address_list.append(self.device.management_ip)
+        if self.device.last_ip:
+            address_list.append(self.device.last_ip)
         return address_list
 
     def get_params(self):
