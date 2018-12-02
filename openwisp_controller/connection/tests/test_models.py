@@ -129,9 +129,13 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         else:
             self.fail('ValidationError not raised')
 
-    def _prepare_address_list_test(self, addresses):
+    def _prepare_address_list_test(self, addresses,
+                                   last_ip=None,
+                                   management_ip=None):
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        device = self._create_device(organization=self._create_org())
+        device = self._create_device(organization=self._create_org(),
+                                     last_ip=last_ip,
+                                     management_ip=management_ip)
         dc = self._create_device_connection(device=device,
                                             update_strategy=update_strategy)
         for index, address in enumerate(addresses):
@@ -147,13 +151,16 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             '192.168.40.1'
         ])
 
-    def test_address_list_with_config_last_ip(self):
-        dc = self._prepare_address_list_test(['192.168.40.1'])
-        self._create_config(device=dc.device,
-                            last_ip='10.40.0.2')
+    def test_address_list_with_device_ip(self):
+        dc = self._prepare_address_list_test(
+            ['192.168.40.1'],
+            management_ip='10.0.0.2',
+            last_ip='84.32.46.153',
+        )
         self.assertEqual(dc.get_addresses(), [
             '192.168.40.1',
-            '10.40.0.2',
+            '10.0.0.2',
+            '84.32.46.153'
         ])
 
     def test_address_list_link_local_ip(self):
