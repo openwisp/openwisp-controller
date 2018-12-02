@@ -177,7 +177,7 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             except Exception as e:
                 logger.exception(e)
             else:
-                self.device.config.set_status_running()
+                self.device.config.set_status_applied()
                 self.disconnect()
 
 
