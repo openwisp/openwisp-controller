@@ -50,6 +50,14 @@ script:
   - if [[ $TRAVIS_PYTHON_VERSION == 3.4 ]]; then pipenv run ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
   - pipenv run pip freeze
   - pipenv run coverage run --source=openwisp_controller runtests.py
+  - |
+    if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+      # gets commit message of last commit before pull request merge
+      COMMIT_MESSAGE=$(git log $TRAVIS_PULL_REQUEST_SHA --format=%B -n 1)
+      printf "Checking commit message:\n\n"
+      printf "$COMMIT_MESSAGE\n\n"
+      checkcommit --message "$COMMIT_MESSAGE"
+    fi
 
 after_success:
   pipenv run coveralls
