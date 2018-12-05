@@ -2,7 +2,7 @@ from django.contrib import admin
 from django_x509.base.admin import AbstractCaAdmin, AbstractCertAdmin
 from reversion.admin import VersionAdmin
 
-from openwisp_utils.admin import MultitenantOrgFilter
+from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
 from .models import Ca, Cert

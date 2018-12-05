@@ -3,7 +3,7 @@ from django_loci.base.admin import (AbstractFloorPlanAdmin, AbstractFloorPlanFor
                                     AbstractLocationAdmin, AbstractLocationForm, AbstractObjectLocationForm,
                                     ObjectLocationMixin)
 
-from openwisp_utils.admin import MultitenantOrgFilter
+from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin

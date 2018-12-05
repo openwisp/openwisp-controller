@@ -9,7 +9,7 @@ from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigI
                                              BaseForm)
 
 from openwisp_users.models import Organization
-from openwisp_utils.admin import MultitenantOrgFilter, MultitenantRelatedOrgFilter
+from openwisp_users.multitenancy import MultitenantOrgFilter, MultitenantRelatedOrgFilter
 
 from ..admin import AlwaysHasChangedMixin, MultitenantAdminMixin
 from .models import Config, Device, OrganizationConfigSettings, Template, Vpn

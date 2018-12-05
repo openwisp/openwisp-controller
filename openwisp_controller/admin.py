@@ -3,7 +3,7 @@ Base admin classes and mixins
 """
 from django.core.exceptions import PermissionDenied
 
-from openwisp_utils.admin import MultitenantAdminMixin as BaseMultitenantAdminMixin
+from openwisp_users.multitenancy import MultitenantAdminMixin as BaseMultitenantAdminMixin
 
 
 class OrgVersionMixin(object):
