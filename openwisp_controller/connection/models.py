@@ -17,6 +17,7 @@ from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
 from . import settings as app_settings
+from ..config.models import Device
 from .utils import get_interfaces
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,12 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
                        help_text=_('global connection parameters'),
                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
                        dump_kwargs={'indent': 4})
+    auto_add = models.BooleanField(_('auto add'),
+                                   default=False,
+                                   help_text=_('automatically add these credentials '
+                                               'to the devices of this organization; '
+                                               'if no organization is specified will '
+                                               'be added to all the new devices'))
 
     class Meta:
         verbose_name = _('Access credentials')
@@ -70,6 +77,59 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
 
     def __str__(self):
         return '{0} ({1})'.format(self.name, self.get_connector_display())
+
+    def save(self, *args, **kwargs):
+        super(Credentials, self).save(*args, **kwargs)
+        self.auto_add_to_devices()
+
+    def auto_add_to_devices(self):
+        """
+        When ``auto_add`` is ``True``, adds the credentials
+        to each relevant ``Device`` and ``DeviceConnection`` objects
+        """
+        if not self.auto_add:
+            return
+        devices = Device.objects.all()
+        org = self.organization
+        if org:
+            devices = devices.filter(organization=org)
+        # exclude devices which have been already added
+        devices = devices.exclude(deviceconnection__credentials=self)
+        for device in devices:
+            conn = DeviceConnection(device=device,
+                                    credentials=self,
+                                    enabled=True)
+            conn.full_clean()
+            conn.save()
+
+    @classmethod
+    def auto_add_credentials_to_device(cls, instance, created, **kwargs):
+        """
+        Adds relevant credentials as ``DeviceConnection``
+        when a device is created, this is called from a
+        post_save signal receiver hooked to the ``Config`` model
+        (why ``Config`` and not ``Device``? because at the moment
+         we can automatically create a DeviceConnection if we have
+         a ``Config`` object)
+        """
+        if not created:
+            return
+        device = instance.device
+        # select credentials which
+        #   - are flagged as auto_add
+        #   - belong to the same organization of the device
+        #     OR
+        #     belong to no organization (hence are shared)
+        conditions = (models.Q(organization=device.organization) |
+                      models.Q(organization=None))
+        credentials = cls.objects.filter(conditions) \
+                                 .filter(auto_add=True)
+        for cred in credentials:
+            conn = DeviceConnection(device=device,
+                                    credentials=cred,
+                                    enabled=True)
+            conn.full_clean()
+            conn.save()
 
 
 class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
