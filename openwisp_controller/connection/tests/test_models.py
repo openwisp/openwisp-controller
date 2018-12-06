@@ -2,6 +2,8 @@ import paramiko
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from openwisp_users.models import Organization
+
 from .. import settings as app_settings
 from ..models import Credentials, DeviceIp
 from ..utils import get_interfaces
@@ -188,3 +190,61 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             self.assertIn('credentials', e.message_dict)
         else:
             self.fail('ValidationError not raised')
+
+    def test_auto_add_to_new_device(self):
+        c = self._create_credentials(auto_add=True,
+                                     organization=None)
+        self._create_credentials(name='cred2',
+                                 auto_add=False,
+                                 organization=None)
+        d = self._create_device(organization=Organization.objects.first())
+        self._create_config(device=d)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_auto_add_to_existing_device_on_creation(self):
+        d = self._create_device(organization=Organization.objects.first())
+        self._create_config(device=d)
+        self.assertEqual(d.deviceconnection_set.count(), 0)
+        c = self._create_credentials(auto_add=True,
+                                     organization=None)
+        org2 = Organization.objects.create(name='org2', slug='org2')
+        self._create_credentials(name='cred2',
+                                 auto_add=True,
+                                 organization=org2)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+        self._create_credentials(name='cred3',
+                                 auto_add=False,
+                                 organization=None)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_auto_add_to_existing_device_on_edit(self):
+        d = self._create_device(organization=Organization.objects.first())
+        self._create_config(device=d)
+        self.assertEqual(d.deviceconnection_set.count(), 0)
+        c = self._create_credentials(auto_add=False,
+                                     organization=None)
+        org2 = Organization.objects.create(name='org2', slug='org2')
+        self._create_credentials(name='cred2',
+                                 auto_add=True,
+                                 organization=org2)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 0)
+        c.auto_add = True
+        c.full_clean()
+        c.save()
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+        # ensure further edits are idempotent
+        c.name = 'changed'
+        c.full_clean()
+        c.save()
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)

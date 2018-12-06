@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from openwisp_utils.admin import MultitenantOrgFilter, TimeReadonlyAdminMixin
+from openwisp_users.multitenancy import MultitenantOrgFilter
+from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin
@@ -9,7 +10,12 @@ from .models import Credentials, DeviceConnection, DeviceIp
 
 @admin.register(Credentials)
 class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'organization', 'connector', 'created', 'modified')
+    list_display = ('name',
+                    'organization',
+                    'connector',
+                    'auto_add',
+                    'created',
+                    'modified')
     list_filter = [('organization', MultitenantOrgFilter),
                    'connector']
     list_select_related = ('organization',)

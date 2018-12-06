@@ -1,5 +1,6 @@
 from celery.task.control import inspect
 from django.apps import AppConfig
+from django.db.models.signals import post_save
 from django.utils.translation import ugettext_lazy as _
 from django_netjsonconfig.signals import config_modified
 
@@ -17,22 +18,29 @@ class ConnectionConfig(AppConfig):
         to the ``update_config`` celery task
         which will be executed in the background
         """
+        config_modified.connect(self.config_modified_receiver,
+                                dispatch_uid='connection.update_config')
+
+        from ..config.models import Config
+        from .models import Credentials
+
+        post_save.connect(Credentials.auto_add_credentials_to_device,
+                          sender=Config,
+                          dispatch_uid='connection.auto_add_credentials')
+
+    @classmethod
+    def config_modified_receiver(cls, **kwargs):
         from .tasks import update_config
+        d = kwargs['device']
+        conn_count = d.deviceconnection_set.count()
+        # if device has no connection specified
+        # or update is already in progress, stop here
+        if conn_count < 1 or cls._is_update_in_progress(d.id):
+            return
+        update_config.delay(d.id)
 
-        def config_modified_receiver(**kwargs):
-            d = kwargs['device']
-            conn_count = d.deviceconnection_set.count()
-            # if device has no connection specified
-            # or update is already in progress, stop here
-            if conn_count < 1 or self._is_update_in_progress(d.id):
-                return
-            update_config.delay(d.id)
-
-        config_modified.connect(config_modified_receiver,
-                                dispatch_uid='connection.update_config',
-                                weak=False)
-
-    def _is_update_in_progress(self, device_id):
+    @classmethod
+    def _is_update_in_progress(cls, device_id):
         active = inspect().active()
         if not active:
             return False
