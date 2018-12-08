@@ -42,7 +42,7 @@ setup(
         # TODO: make optional?
         "paramiko>=2.4.1,<2.5.0",
         "scp>=0.13.0,<0.14.0",
-        "celery>=4.1.0,<4.2.0"
+        "celery>=4.2.0,<4.3.0"
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
