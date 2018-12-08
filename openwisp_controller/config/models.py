@@ -137,6 +137,7 @@ class Template(ShareableOrgMixin, AbstractTemplate):
 
     class Meta(AbstractTemplate.Meta):
         abstract = False
+        unique_together = (('organization', 'name'), )
 
     def clean(self):
         self._validate_org_relation('vpn')

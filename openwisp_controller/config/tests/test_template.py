@@ -109,3 +109,20 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         for vpn_client in vpn_clients:
             self.assertIsNotNone(vpn_client.cert.organization)
             self.assertEqual(vpn_client.cert.organization, config.device.organization)
+
+    def test_template_name_and_organization_unique(self):
+        org = self._create_org()
+        self._create_template(
+            name='template',
+            organization=org,
+            default=True
+        )
+        kwargs = {
+            'name': 'template',  # notice the name attribute is same as in the template just created
+            'organization': org,
+            'default': True,
+        }
+        # _create_template should raise an exception as
+        # two templates with the same organization can't have the same name
+        with self.assertRaises(ValidationError):
+            self._create_template(**kwargs)
