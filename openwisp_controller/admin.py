@@ -22,16 +22,3 @@ class MultitenantAdminMixin(OrgVersionMixin, BaseMultitenantAdminMixin):
     openwisp_utils.admin.MultitenantAdminMixin + OrgVersionMixin
     """
     pass
-
-
-class AlwaysHasChangedMixin(object):
-    def has_changed(self):
-        """
-        This django-admin trick ensures the settings
-        are saved even if default values are unchanged
-        (without this trick new setting objects won't be
-        created unless users change the default values)
-        """
-        if self.instance._state.adding:
-            return True
-        return super(AlwaysHasChangedMixin, self).has_changed()
