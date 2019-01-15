@@ -29,26 +29,26 @@ branches:
     - master
 
 before_install:
+  - export PIPENV_IGNORE_VIRTUALENVS=1
   - pip install -U pipenv
   - pipenv install --dev --skip-lock
-  - pipenv run pip freeze
   - pipenv run lint
   - pipenv run isort
 
 install:
+  - export PIPENV_IGNORE_VIRTUALENVS=1
   - pipenv install --skip-lock $DJANGO
   # fix issues with travis
-  - pipenv install --skip-lock "attrs>=17.4.0"
-  - pipenv install --skip-lock "six"
-  # TODO: temporary, remove when django-netjsonconfig 0.9.0 is released
+  - pipenv install --skip-lock "attrs>=17.4.0" six
+  # fix issue with spatialie on python 2
   - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pipenv install --skip-lock git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
-  - pipenv run pip install https://github.com/openwisp/django-x509/tarball/master
-  - pipenv run pip install git+https://github.com/openwisp/openwisp-users.git
+  - pipenv run install_dev
+  - pipenv run pip freeze
 
 script:
+  - export PIPENV_IGNORE_VIRTUALENVS=1
   # for some reason the migrations check is failing only on django 2.0
   - if [[ $TRAVIS_PYTHON_VERSION == 3.4 ]]; then pipenv run ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
-  - pipenv run pip freeze
   - pipenv run coverage run --source=openwisp_controller runtests.py
   - |
     if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
@@ -56,7 +56,7 @@ script:
       COMMIT_MESSAGE=$(git log $TRAVIS_PULL_REQUEST_SHA --format=%B -n 1)
       printf "Checking commit message:\n\n"
       printf "$COMMIT_MESSAGE\n\n"
-      checkcommit --message "$COMMIT_MESSAGE"
+      pipenv run checkcommit --message "$COMMIT_MESSAGE"
     fi
 
 after_success:

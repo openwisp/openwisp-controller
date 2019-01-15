@@ -64,13 +64,8 @@ Alternatively you can install via pip using git:
 
     pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
 
-If you want to contribute, install your cloned fork with `pipenv <https://pipenv.readthedocs.io/en/latest/>`_:
-
-.. code-block:: shell
-
-    git clone git@github.com:<your_fork>/openwisp-controller.git
-    cd openwisp_controller
-    pipenv install --dev
+If you want to contribute, follow the instructions in
+`Installing for development <#installing-for-development>`_.
 
 Setup (integrate in an existing django project)
 -----------------------------------------------
@@ -209,7 +204,8 @@ Install your forked repo with `pipenv <https://pipenv.readthedocs.io/en/latest/>
 
     git clone git://github.com/<your_fork>/openwisp-controller
     cd openwisp-controller/
-    pipenv install --dev
+    pipenv install --three --dev --skip-lock  # skip-lock is faster (optional)
+    pipenv run install_dev
 
 Create database:
 
@@ -231,7 +227,7 @@ Run tests with:
 
 .. code-block:: shell
 
-    pipenv run ./runtests.py
+    pipenv run test
 
 Install and run on docker
 --------------------------
@@ -260,14 +256,14 @@ If you are getting below exception::
 
    django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
 
-then, You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in 
+then, You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in
 `django documentation regarding how to install and configure spatialte
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with other geospatial libraries?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Please refer 
+Please refer
 `troubleshooting issues related to geospatial libraries
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
 
