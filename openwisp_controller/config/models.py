@@ -1,9 +1,11 @@
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
+from django_netjsonconfig import settings as app_settings
 from django_netjsonconfig.base.config import AbstractConfig, TemplatesThrough
 from django_netjsonconfig.base.config import TemplatesVpnMixin as BaseMixin
 from django_netjsonconfig.base.device import AbstractDevice
@@ -11,7 +13,7 @@ from django_netjsonconfig.base.tag import AbstractTaggedTemplate, AbstractTempla
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from django_netjsonconfig.utils import get_random_key
-from django_netjsonconfig.validators import key_validator
+from django_netjsonconfig.validators import key_validator, mac_address_validator
 from sortedm2m.fields import SortedManyToManyField
 from taggit.managers import TaggableManager
 
@@ -67,11 +69,31 @@ class TemplatesVpnMixin(BaseMixin):
         super(TemplatesVpnMixin, cls).clean_templates(action, instance, templates, **kwargs)
 
 
+# if unique attribute for NETJSONCONFIG_HARDWARE_ID_OPTIONS is not explicitely mentioned,
+# consider it to be False
+if not getattr(settings, 'NETJSONCONFIG_HARDWARE_ID_OPTIONS', {}).get('unique'):
+    app_settings.HARDWARE_ID_OPTIONS.update({'unique': False})
+
+
 class Device(OrgMixin, AbstractDevice):
     """
     Concrete Device model
     """
+    name = models.CharField(max_length=64, unique=False, db_index=True)
+    mac_address = models.CharField(
+        max_length=17,
+        db_index=True,
+        unique=False,
+        validators=[mac_address_validator],
+        help_text=_('primary mac address')
+    )
+
     class Meta(AbstractDevice.Meta):
+        unique_together = (
+            ('name', 'organization'),
+            ('mac_address', 'organization'),
+            ('hardware_id', 'organization'),
+        )
         abstract = False
 
 

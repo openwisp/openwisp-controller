@@ -24,3 +24,43 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             self.assertIn('This field', e.message_dict['organization'][0])
         else:
             self.fail('ValidationError not raised')
+
+    def test_device_name_organization_unique_together(self):
+        org = self._create_org()
+        self._create_device(organization=org, name='test_device_name')
+        kwargs = {
+            'name': 'test_device_name',
+            'organization': org
+        }
+        with self.assertRaises(ValidationError):
+            self._create_device(**kwargs)
+
+    def test_device_macaddress_organization_unique_together(self):
+        org = self._create_org()
+        self._create_device(
+            organization=org,
+            name='test_device1',
+            mac_address='0a-1b-3c-4d-5e-6f'
+        )
+        kwargs = {
+            'organization': org,
+            'name': 'test_device2',
+            'mac_address': '0a-1b-3c-4d-5e-6f'
+        }
+        with self.assertRaises(ValidationError):
+            self._create_device(**kwargs)
+
+    def test_device_hardwareid_unique_together(self):
+        org = self._create_org()
+        self._create_device(
+            organization=org,
+            hardware_id='098H52ST479QE053V2',
+            name='test_device11',
+        )
+        kwargs = {
+            'organization': org,
+            'hardware_id': '098H52ST479QE053V2',
+            'name': 'test_device22'
+        }
+        with self.assertRaises(ValidationError):
+            self._create_device(**kwargs)
