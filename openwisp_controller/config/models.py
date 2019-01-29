@@ -119,7 +119,10 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 
     def clean(self):
         if not hasattr(self, 'organization') and self._has_device():
-            self.organization = self.device.organization
+            if hasattr(self.device, 'organization'):
+                self.organization = self.device.organization
+            else:
+                raise ValidationError("Organization can't be empty")
         super(Config, self).clean()
 
 

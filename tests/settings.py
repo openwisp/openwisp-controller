@@ -112,6 +112,8 @@ TEMPLATES = [
 
 FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
+SPATIALITE_LIBRARY_PATH = 'mod_spatialite.so'
+
 EMAIL_PORT = '1025'  # for testing purposes
 LOGIN_REDIRECT_URL = 'admin:index'
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
