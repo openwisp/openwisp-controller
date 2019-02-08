@@ -64,3 +64,11 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         }
         with self.assertRaises(ValidationError):
             self._create_device(**kwargs)
+
+    def test_config_device_without_org(self):
+        option = {
+            'name': 'testdc'
+        }
+        device = self.device_model(**option)
+        with self.assertRaises(ValidationError):
+            self._create_config(device=device)
