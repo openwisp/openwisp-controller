@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from django_loci.tests.base.test_admin_inline import BaseTestAdminInline
 
 from . import TestGeoMixin
@@ -40,3 +41,26 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
         params.update(_device_params)
         params['organization'] = self.organization.pk
         return params
+
+    def test_add_new_location_without_type(self):
+        self._login_as_admin()
+        p = self._get_prefix()
+        params = self.params
+        params.update({
+            '{0}-0-type'.format(p): '',
+            '{0}-0-location_selection'.format(p): 'new',
+            '{0}-0-location'.format(p): '',
+            '{0}-0-floorplan_selection'.format(p): '',
+            '{0}-0-floorplan'.format(p): '',
+            '{0}-0-floor'.format(p): '',
+            '{0}-0-image'.format(p): '',
+            '{0}-0-indoor'.format(p): '',
+            '{0}-0-id'.format(p): '',
+            '{0}-0-geometry'.format(p): '',
+            '{0}-0-content_object'.format(p): '',
+            '{0}-0-address'.format(p): ''
+        })
+        try:
+            self.client.post(reverse(self.add_url), params, follow=True)
+        except KeyError:
+            self.assertFalse(True)
