@@ -118,7 +118,8 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
         abstract = False
 
     def clean(self):
-        if not hasattr(self, 'organization') and self._has_device():
+        if not hasattr(self, 'organization') and \
+                all([self._has_device(), hasattr(self.device, 'organization')]):
             self.organization = self.device.organization
         super(Config, self).clean()
 
