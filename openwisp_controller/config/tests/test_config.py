@@ -39,9 +39,10 @@ class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
 
     def test_config_and_template_different_organization(self):
         org1 = self._create_org()
-        template = self._create_template(organization=org1)
         org2 = self._create_org(name='test org2', slug='test-org2')
-        config = self._create_config(organization=org2)
+        template = self._create_template(organization=org1)
+        device = self._create_device(organization=org2)
+        config = self._create_config(device=device)
         try:
             config.templates.add(template)
         except ValidationError as e:

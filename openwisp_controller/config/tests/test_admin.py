@@ -57,7 +57,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         org1 = self._create_org()
         template = self._create_template(organization=org1)
         org2 = self._create_org(name='test org2', slug='test-org2')
-        config = self._create_config(organization=org2)
+        config = self._create_config()
         path = reverse('admin:config_device_change', args=[config.device.pk])
         # ensure it fails with error
         self._login()
@@ -157,17 +157,17 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         t2 = self._create_template(name='template2org', organization=org2)
         t3 = self._create_template(name='t3-inactive', organization=inactive)
         d1 = self._create_device(name='org1-config', organization=org1)
-        c1 = self._create_config(device=d1, organization=org1)
+        c1 = self._create_config(device=d1)
         d2 = self._create_device(name='org2-config',
                                  organization=org2,
                                  key='ke1',
                                  mac_address='00:11:22:33:44:56')
-        c2 = self._create_config(device=d2, organization=org2)
+        c2 = self._create_config(device=d2)
         d3 = self._create_device(name='config-inactive',
                                  organization=inactive,
                                  key='key2',
                                  mac_address='00:11:22:33:44:57')
-        c3 = self._create_config(device=d3, organization=inactive)
+        c3 = self._create_config(device=d3)
         c1.templates.add(t1)
         c2.templates.add(t2)
         data = dict(c1=c1, c2=c2, c3_inactive=c3,
