@@ -29,7 +29,16 @@ class TemplatesVpnMixin(BaseMixin):
     def get_default_templates(self):
         """ see ``openwisp_controller.config.utils.get_default_templates_queryset`` """
         queryset = super(TemplatesVpnMixin, self).get_default_templates()
-        return get_default_templates_queryset(self.organization_id, queryset=queryset)
+        query_set_to_return = None
+        try:
+            query_set_to_return = get_default_templates_queryset(
+                self.device.organization_id, queryset=queryset
+            )
+        except AttributeError:
+            query_set_to_return = get_default_templates_queryset(
+                self.organization_id, queryset=queryset
+            )
+        return query_set_to_return
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
@@ -43,9 +52,18 @@ class TemplatesVpnMixin(BaseMixin):
             pk_list = [template.pk for template in templates]
             templates = template_model.objects.filter(pk__in=pk_list)
         # lookg for invalid templates
-        invalids = templates.exclude(organization=instance.organization)\
-                            .exclude(organization=None)\
-                            .values('name')
+        try:
+            invalids = templates.exclude(organization=instance.organization)\
+                                .exclude(organization=None)\
+                                .values('name')
+        except AttributeError as e:
+            if instance.__class__ == Config:
+                invalids = templates.exclude(organization=instance.device.organization)\
+                    .exclude(organization=None)\
+                    .values('name')
+            else:
+                raise e
+
         if templates and invalids:
             names = ''
             for invalid in invalids:
@@ -97,11 +115,11 @@ class Device(OrgMixin, AbstractDevice):
         abstract = False
 
 
-class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
+class Config(TemplatesVpnMixin, AbstractConfig):
     """
     Concrete Config model
     """
-    device = models.OneToOneField('config.Device', on_delete=models.CASCADE)
+    device = models.OneToOneField('config.Device', on_delete=models.CASCADE, null=False, blank=False)
     templates = SortedManyToManyField('config.Template',
                                       related_name='config_relations',
                                       verbose_name=_('templates'),
@@ -116,15 +134,6 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
-
-    def clean(self):
-        if (
-            not hasattr(self, 'organization')
-            and self._has_device()
-            and hasattr(self.device, 'organization')
-        ):
-            self.organization = self.device.organization
-        super(Config, self).clean()
 
 
 class TemplateTag(AbstractTemplateTag):
