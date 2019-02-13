@@ -128,7 +128,9 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self.assertContains(response, 'dhcp')
 
     def test_device_preview_button(self):
-        config = self._create_config(organization=self._create_org())
+        config = self._create_config(device=self._create_device(
+            organization=self._create_org()
+        ))
         path = reverse('admin:config_device_change', args=[config.device.pk])
         self._login()
         response = self.client.get(path)
@@ -304,7 +306,9 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         )
 
     def test_device_contains_default_templates_js(self):
-        config = self._create_config(organization=self._create_org())
+        config = self._create_config(device=self._create_device(
+            organization=self._create_org()
+        ))
         path = reverse('admin:config_device_change', args=[config.device.pk])
         self._login()
         response = self.client.get(path)

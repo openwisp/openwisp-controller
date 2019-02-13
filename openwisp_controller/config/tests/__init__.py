@@ -20,3 +20,9 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
             kwargs['device'] = self._create_device(name='test-device',
                                                    organization=kwargs.get('organization'))
         return super(CreateConfigTemplateMixin, self)._create_config(**kwargs)
+
+
+"""        try:
+            kwargs.pop('organization')
+        except KeyError:
+            pass"""

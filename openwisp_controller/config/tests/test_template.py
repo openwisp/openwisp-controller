@@ -66,7 +66,7 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         org1 = self._create_org(name='org1')
         self._create_template(organization=org1, name='t1', default=True)
         self._create_template(organization=None, name='t2', default=True)
-        c1 = self._create_config(organization=org1)
+        c1 = self._create_config(device=self._create_device(organization=org1))
         self.assertEqual(c1.templates.count(), 2)
         self.assertEqual(c1.templates.filter(name='t1').count(), 1)
         self.assertEqual(c1.templates.filter(name='t2').count(), 1)
@@ -93,7 +93,7 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
                               auto_cert=True,
                               vpn=vpn,
                               config={})
-        self._create_config(organization=org)
+        self._create_config(device=self._create_device(organization=org))
 
     def test_auto_generated_certificate_for_organization(self):
         organization = self._create_org()

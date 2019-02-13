@@ -13,23 +13,9 @@ class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
     device_model = Device
     template_model = Template
 
-    def test_config_with_org(self):
-        org = self._create_org()
-        config = self._create_config(organization=org)
-        self.assertEqual(config.organization_id, org.pk)
-
-    def test_config_without_org(self):
-        try:
-            self._create_config()
-        except ValidationError as e:
-            self.assertIn('organization', e.message_dict)
-            self.assertIn('This field', e.message_dict['organization'][0])
-        else:
-            self.fail('ValidationError not raised')
-
     def test_config_with_shared_template(self):
         org = self._create_org()
-        config = self._create_config(organization=org)
+        config = self._create_config(device=self._create_device(organization=org))
         # shared template
         template = self._create_template()
         # add shared template

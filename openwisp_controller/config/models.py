@@ -29,6 +29,7 @@ class TemplatesVpnMixin(BaseMixin):
     def get_default_templates(self):
         """ see ``openwisp_controller.config.utils.get_default_templates_queryset`` """
         queryset = super(TemplatesVpnMixin, self).get_default_templates()
+        query_set_to_return = None
         try:
             query_set_to_return = get_default_templates_queryset(
                 self.device.organization_id, queryset=queryset
