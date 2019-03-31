@@ -30,7 +30,8 @@ class TemplatesVpnMixin(BaseMixin):
         """ see ``openwisp_controller.config.utils.get_default_templates_queryset`` """
         queryset = super(TemplatesVpnMixin, self).get_default_templates()
         assert self.device
-        return get_default_templates_queryset(self.device.organization_id, queryset=queryset)
+        return get_default_templates_queryset(self.device.organization_id,
+                                              queryset=queryset)
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
@@ -97,6 +98,11 @@ class Device(OrgMixin, AbstractDevice):
             ('hardware_id', 'organization'),
         )
         abstract = False
+
+    def get_temp_config_instance(self, **options):
+        c = super(Device, self).get_temp_config_instance(**options)
+        c.device = self
+        return c
 
 
 class Config(TemplatesVpnMixin, AbstractConfig):
