@@ -4,8 +4,8 @@ from django_netjsonconfig import settings as django_netjsonconfig_settings
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin
 from ..models import Config, Device, OrganizationConfigSettings, Template
+from . import CreateConfigTemplateMixin
 
 TEST_MACADDR = '00:11:22:33:44:55'
 TEST_MACADDR_NAME = TEST_MACADDR.replace(':', '-')
@@ -111,27 +111,27 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
 
     def test_checksum_404_disabled_org(self):
         org = self._create_org(is_active=False)
-        c = self._create_config(device=self._create_device(organization=org))
+        c = self._create_config(organization=org)
         response = self.client.get(reverse('controller:checksum', args=[c.device.pk]), {'key': c.device.key})
         self.assertEqual(response.status_code, 404)
 
     def test_download_config_404_disabled_org(self):
         org = self._create_org(is_active=False)
-        c = self._create_config(device=self._create_device(organization=org))
+        c = self._create_config(organization=org)
         url = reverse('controller:download_config', args=[c.device.pk])
         response = self.client.get(url, {'key': c.device.key})
         self.assertEqual(response.status_code, 404)
 
     def test_report_status_404_disabled_org(self):
         org = self._create_org(is_active=False)
-        c = self._create_config(device=self._create_device(organization=org))
+        c = self._create_config(organization=org)
         response = self.client.post(reverse('controller:report_status', args=[c.device.pk]),
                                     {'key': c.device.key, 'status': 'running'})
         self.assertEqual(response.status_code, 404)
 
     def test_checksum_200(self):
         org = self._create_org()
-        c = self._create_config(device=self._create_device(organization=org))
+        c = self._create_config(organization=org)
         response = self.client.get(reverse('controller:checksum', args=[c.device.pk]), {'key': c.device.key})
         self.assertEqual(response.status_code, 200)
 

@@ -5,10 +5,10 @@ from django.urls import reverse
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ...tests.utils import TestAdminMixin
 from ..models import Config, Device, Template, Vpn
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
 class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
@@ -57,7 +57,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         org1 = self._create_org()
         template = self._create_template(organization=org1)
         org2 = self._create_org(name='test org2', slug='test-org2')
-        config = self._create_config()
+        config = self._create_config(organization=org2)
         path = reverse('admin:config_device_change', args=[config.device.pk])
         # ensure it fails with error
         self._login()
@@ -128,9 +128,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self.assertContains(response, 'dhcp')
 
     def test_device_preview_button(self):
-        config = self._create_config(device=self._create_device(
-            organization=self._create_org()
-        ))
+        config = self._create_config(organization=self._create_org())
         path = reverse('admin:config_device_change', args=[config.device.pk])
         self._login()
         response = self.client.get(path)
@@ -306,9 +304,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         )
 
     def test_device_contains_default_templates_js(self):
-        config = self._create_config(device=self._create_device(
-            organization=self._create_org()
-        ))
+        config = self._create_config(organization=self._create_org())
         path = reverse('admin:config_device_change', args=[config.device.pk])
         self._login()
         response = self.client.get(path)
