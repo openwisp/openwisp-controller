@@ -3,9 +3,9 @@ from django.test import TestCase
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ..models import Vpn
+from . import TestVpnX509Mixin
 
 
 class TestVpn(TestOrganizationMixin, TestVpnX509Mixin, TestCase):

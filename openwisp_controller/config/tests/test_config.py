@@ -3,8 +3,8 @@ from django.test import TestCase
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ..models import Config, Device, Template
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
 class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
@@ -15,7 +15,7 @@ class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
 
     def test_config_with_shared_template(self):
         org = self._create_org()
-        config = self._create_config(device=self._create_device(organization=org))
+        config = self._create_config(organization=org)
         # shared template
         template = self._create_template()
         # add shared template
@@ -27,8 +27,7 @@ class TestConfig(CreateConfigTemplateMixin, TestVpnX509Mixin,
         org1 = self._create_org()
         org2 = self._create_org(name='test org2', slug='test-org2')
         template = self._create_template(organization=org1)
-        device = self._create_device(organization=org2)
-        config = self._create_config(device=device)
+        config = self._create_config(organization=org2)
         try:
             config.templates.add(template)
         except ValidationError as e:

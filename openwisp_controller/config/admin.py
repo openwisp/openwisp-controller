@@ -20,11 +20,6 @@ class ConfigForm(AlwaysHasChangedMixin, AbstractConfigForm):
     class Meta(AbstractConfigForm.Meta):
         model = Config
 
-    def clean_templates(self):
-        org = Organization.objects.get(pk=self.data['organization'])
-        self.cleaned_data['organization'] = org
-        return super(ConfigForm, self).clean_templates()
-
 
 class ConfigInline(MultitenantAdminMixin, AbstractConfigInline):
     model = Config
