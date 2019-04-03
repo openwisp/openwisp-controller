@@ -3,9 +3,9 @@ from django.test import TestCase
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ..models import Config, Device, Template, Vpn
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
 class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
@@ -51,14 +51,14 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         self._create_template(organization=org1, name='t1', default=True)
         self._create_template(organization=org2, name='t2', default=True)
         d1 = self._create_device(organization=org1, name='d1')
-        c1 = self._create_config(organization=org1, device=d1)
+        c1 = self._create_config(device=d1)
         self.assertEqual(c1.templates.count(), 1)
         self.assertEqual(c1.templates.filter(name='t1').count(), 1)
         d2 = self._create_device(organization=org2,
                                  name='d2',
                                  mac_address='00:00:00:11:22:33',
                                  key='1234567890')
-        c2 = self._create_config(organization=org2, device=d2)
+        c2 = self._create_config(device=d2)
         self.assertEqual(c2.templates.count(), 1)
         self.assertEqual(c2.templates.filter(name='t2').count(), 1)
 
@@ -102,7 +102,6 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         corresponding_device = self._create_device(organization=organization,)
         config = self._create_config(
             device=corresponding_device,
-            organization=corresponding_device.organization
         )
         config.templates.add(template)
         vpn_clients = config.vpnclient_set.all()

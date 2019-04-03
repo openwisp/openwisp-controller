@@ -1,9 +1,9 @@
 from django.test import TestCase
 from django_loci.tests.base.test_models import BaseTestModels
 
-from . import TestGeoMixin
 from ...config.models import Device
 from ..models import DeviceLocation, FloorPlan, Location
+from . import TestGeoMixin
 
 
 class TestModels(TestGeoMixin, BaseTestModels, TestCase):

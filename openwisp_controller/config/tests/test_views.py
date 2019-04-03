@@ -3,9 +3,9 @@ from django.urls import reverse
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin
 from ...tests.utils import TestAdminMixin
 from ..models import Template
+from . import CreateConfigTemplateMixin
 
 
 class TestTemplate(CreateConfigTemplateMixin, TestAdminMixin,

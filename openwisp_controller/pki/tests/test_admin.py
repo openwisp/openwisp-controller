@@ -3,9 +3,9 @@ from django.urls import reverse
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import TestPkiMixin
 from ...tests.utils import TestAdminMixin
 from ..models import Ca, Cert
+from . import TestPkiMixin
 
 
 class TestAdmin(TestPkiMixin, TestAdminMixin,

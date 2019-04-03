@@ -29,7 +29,9 @@ class TemplatesVpnMixin(BaseMixin):
     def get_default_templates(self):
         """ see ``openwisp_controller.config.utils.get_default_templates_queryset`` """
         queryset = super(TemplatesVpnMixin, self).get_default_templates()
-        return get_default_templates_queryset(self.organization_id, queryset=queryset)
+        assert self.device
+        return get_default_templates_queryset(self.device.organization_id,
+                                              queryset=queryset)
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
@@ -43,9 +45,10 @@ class TemplatesVpnMixin(BaseMixin):
             pk_list = [template.pk for template in templates]
             templates = template_model.objects.filter(pk__in=pk_list)
         # lookg for invalid templates
-        invalids = templates.exclude(organization=instance.organization)\
-                            .exclude(organization=None)\
+        invalids = templates.exclude(organization=instance.device.organization) \
+                            .exclude(organization=None) \
                             .values('name')
+
         if templates and invalids:
             names = ''
             for invalid in invalids:
@@ -96,8 +99,13 @@ class Device(OrgMixin, AbstractDevice):
         )
         abstract = False
 
+    def get_temp_config_instance(self, **options):
+        c = super(Device, self).get_temp_config_instance(**options)
+        c.device = self
+        return c
 
-class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
+
+class Config(TemplatesVpnMixin, AbstractConfig):
     """
     Concrete Config model
     """
@@ -116,11 +124,6 @@ class Config(OrgMixin, TemplatesVpnMixin, AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
-
-    def clean(self):
-        if not hasattr(self, 'organization') and self._has_device():
-            self.organization = self.device.organization
-        super(Config, self).clean()
 
 
 class TemplateTag(AbstractTemplateTag):

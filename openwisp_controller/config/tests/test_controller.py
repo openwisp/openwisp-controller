@@ -4,8 +4,8 @@ from django_netjsonconfig import settings as django_netjsonconfig_settings
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin
 from ..models import Config, Device, OrganizationConfigSettings, Template
+from . import CreateConfigTemplateMixin
 
 TEST_MACADDR = '00:11:22:33:44:55'
 TEST_MACADDR_NAME = TEST_MACADDR.replace(':', '-')

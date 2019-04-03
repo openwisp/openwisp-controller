@@ -20,10 +20,17 @@ class ConfigForm(AlwaysHasChangedMixin, AbstractConfigForm):
     class Meta(AbstractConfigForm.Meta):
         model = Config
 
-    def clean_templates(self):
+    def get_temp_model_instance(self, **options):
+        config_model = self.Meta.model
+        instance = config_model(**options)
+        device_model = config_model.device.field.related_model
         org = Organization.objects.get(pk=self.data['organization'])
-        self.cleaned_data['organization'] = org
-        return super(ConfigForm, self).clean_templates()
+        instance.device = device_model(
+            name=self.data['name'],
+            mac_address=self.data['mac_address'],
+            organization=org
+        )
+        return instance
 
 
 class ConfigInline(MultitenantAdminMixin, AbstractConfigInline):

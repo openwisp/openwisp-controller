@@ -5,10 +5,10 @@ from django.urls import reverse
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ...tests.utils import TestAdminMixin
 from ..models import Config, Device, Template, Vpn
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
 class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
@@ -166,17 +166,17 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         t2 = self._create_template(name='template2org', organization=org2)
         t3 = self._create_template(name='t3-inactive', organization=inactive)
         d1 = self._create_device(name='org1-config', organization=org1)
-        c1 = self._create_config(device=d1, organization=org1)
+        c1 = self._create_config(device=d1)
         d2 = self._create_device(name='org2-config',
                                  organization=org2,
                                  key='ke1',
                                  mac_address='00:11:22:33:44:56')
-        c2 = self._create_config(device=d2, organization=org2)
+        c2 = self._create_config(device=d2)
         d3 = self._create_device(name='config-inactive',
                                  organization=inactive,
                                  key='key2',
                                  mac_address='00:11:22:33:44:57')
-        c3 = self._create_config(device=d3, organization=inactive)
+        c3 = self._create_config(device=d3)
         c1.templates.add(t1)
         c2.templates.add(t2)
         data = dict(c1=c1, c2=c2, c3_inactive=c3,

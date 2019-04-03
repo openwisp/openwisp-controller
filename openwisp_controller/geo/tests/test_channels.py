@@ -3,9 +3,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django_loci.tests.base.test_channels import BaseTestChannels
 
-from . import TestGeoMixin
 from ...config.models import Device
 from ..models import DeviceLocation, Location
+from . import TestGeoMixin
 
 
 class TestChannels(TestGeoMixin, BaseTestChannels, ChannelTestCase):
