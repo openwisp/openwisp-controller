@@ -114,7 +114,7 @@ class Ssh(object):
         # abort the operation if any of the command
         # returned with a non-zero exit status
         if exit_status not in exit_codes and raise_unexpected_exit:
-            print('# Previus command failed, aborting upgrade...')
+            print('# Previus command failed, aborting...')
             message = error if error else output
             raise Exception(message)
         return output, exit_status
