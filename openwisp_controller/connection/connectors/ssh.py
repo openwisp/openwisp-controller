@@ -119,7 +119,7 @@ class Ssh(object):
             raise Exception(message)
         return output, exit_status
 
-    def update_config(self):
+    def update_config(self):  # pragma: no cover
         raise NotImplementedError()
 
     # TODO: this method is not used yet
