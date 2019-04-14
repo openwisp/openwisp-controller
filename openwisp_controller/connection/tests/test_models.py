@@ -248,3 +248,40 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_device_config_update(self):
+        org1 = self._create_org(name='org1')
+        cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
+        device = self._create_device(organization=org1)
+        update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
+        c = self._create_config(device=device)
+        self._create_device_connection(device=device,
+                                       credentials=cred,
+                                       update_strategy=update_strategy)
+        self._create_device_ip(device=device,
+                               address=self.ssh_server.host)
+        c.config = {
+            'interfaces': [
+                {
+                    'name': 'eth0',
+                    'type': 'ethernet',
+                    'addresses': [
+                        {
+                            'family': 'ipv4',
+                            'proto': 'dhcp'
+                        }
+                    ]
+                }
+            ]
+        }
+        # here you can start capturing standard output
+        # see how it's done here: https://github.com/ncouture/MockSSH/blob/master/tests/test_mock_cisco.py#L14-L20
+        c.full_clean()
+        c.save()
+        # at this point the update_config() method will be triggered
+        # you need to create a command in the mocked SSH server that
+        # just prints something like: mock-ssh-server: openwisp-config restarted
+        # so you can then do:
+        #    self.assertIn('mock-ssh-server: openwisp-config restarted', sdout)
+        # if update_config() finishes successfully then status will be set to "applied"
+        self.assertEqual(device.status, 'applied')

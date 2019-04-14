@@ -33,37 +33,6 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin,
         p['organization'] = org.pk
         return p
 
-    def test_device_config_update(self):
-        org1 = self._create_org(name='org1')
-        cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
-        device = self._create_device(organization=org1)
-        update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        c = self._create_config(device=device)
-        dc = self._create_device_connection(device=device,
-                                            credentials=cred,
-                                            update_strategy=update_strategy)
-        self._create_device_ip(device=device,
-                               address=self.ssh_server.host)
-        uid = self.ssh_server.users
-        config = json.dumps({
-            'interfaces': [
-                {
-                    'name': 'eth0',
-                    'type': 'ethernet',
-                    'addresses': [
-                        {
-                            'family': 'ipv4',
-                            'proto': 'dhcp'
-                        }
-                    ]
-                }
-            ]
-        })
-        c.config = config
-        dc.update_config()
-        self.ssh_server.client(*uid).exec_command('/etc/init.d/openwisp_config restart')
-        self.assertEqual(device.status, 'applied')
-
     def _create_multitenancy_test_env(self):
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')
