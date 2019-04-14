@@ -16,8 +16,8 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
-from . import settings as app_settings
 from ..config.models import Device
+from . import settings as app_settings
 from .utils import get_interfaces
 
 logger = logging.getLogger(__name__)

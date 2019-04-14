@@ -34,6 +34,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
                     params={'username': username,
                             'key': self._SSH_PRIVATE_KEY,
                             'port': port})
+        opts.update(kwargs)
         return self._create_credentials(**opts)
 
     def _create_device_connection(self, **kwargs):
