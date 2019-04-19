@@ -1,6 +1,7 @@
 import paramiko
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from mock import Mock, patch
 
 from openwisp_users.models import Organization
 
@@ -274,14 +275,55 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
                 }
             ]
         }
-        # here you can start capturing standard output
-        # see how it's done here: https://github.com/ncouture/MockSSH/blob/master/tests/test_mock_cisco.py#L14-L20
         c.full_clean()
         c.save()
-        # at this point the update_config() method will be triggered
-        # you need to create a command in the mocked SSH server that
-        # just prints something like: mock-ssh-server: openwisp-config restarted
-        # so you can then do:
-        #    self.assertIn('mock-ssh-server: openwisp-config restarted', sdout)
-        # if update_config() finishes successfully then status will be set to "applied"
-        self.assertEqual(device.status, 'applied')
+        device.refresh_from_db()
+        self.assertEqual(device.status, 'modified')
+        c.config = {
+            'interfaces': [
+                {
+                    'name': 'eth10',
+                    'type': 'ethernet',
+                    'addresses': [
+                        {
+                            'family': 'ipv4',
+                            'proto': 'dhcp'
+                        }
+                    ]
+                }
+            ]
+        }
+        stdin = Mock()
+        stdout = Mock()
+        stderr = Mock()
+        stdout.read().decode('utf8').strip.return_value = \
+            'Mock Object: executed command successfully'
+        stdout.channel.recv_exit_status.return_value = 0
+        stderr.read().decode('utf8').strip.return_value = ''
+        with patch('paramiko.SSHClient.exec_command') as mock_object:
+            mock_object.return_value = [stdin, stdout, stderr]
+            c.full_clean()
+            c.save()
+            device.refresh_from_db()
+            self.assertEqual(paramiko.SSHClient.exec_command.call_count, 1)
+            actual = str(paramiko.SSHClient.exec_command.call_args)
+            expected = str("call('/etc/init.d/openwisp_config restart')")
+            self.assertEqual(expected, actual)
+            self.assertEqual(device.status, 'applied')
+
+    def test_ssh_exec_exist_status(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        self._create_device_ip(address=self.ssh_server.host,
+                               device=dc.device)
+        dc.connect()
+        _, exit_status = dc.connector_instance.exec_command('ls')
+        self.assertEqual(exit_status, 0)
+
+    def test_ssh_exec_exception(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        self._create_device_ip(address=self.ssh_server.host,
+                               device=dc.device)
+        with self.assertRaises(Exception):
+            dc.connector_instance.exec_command('ls')

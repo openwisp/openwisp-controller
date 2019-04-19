@@ -1,12 +1,9 @@
-import json
-
 from django.test import TestCase
 from django.urls import reverse
 
 from ...config.models import Template
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ...tests.utils import TestAdminMixin
-from .. import settings as app_settings
 from ..models import Credentials, DeviceConnection, DeviceIp
 from .base import CreateConnectionsMixin, SshServerMixin
 
@@ -81,7 +78,7 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin,
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
             url=reverse('admin:config_device_add'),
-            visible=[data['cred1'].name + ' (SSH)'],
-            hidden=[data['cred2'].name + ' (SSH)', data['cred3_inactive']],
+            visible=[str(data['cred1'].name) + str(" (SSH)")],
+            hidden=[str(data['cred2'].name) + str(" (SSH)"), data['cred3_inactive']],
             select_widget=True
         )

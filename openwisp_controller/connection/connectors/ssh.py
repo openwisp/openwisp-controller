@@ -1,13 +1,11 @@
 import logging
 import socket
 import sys
-from io import BytesIO
 
 import paramiko
 from django.utils.functional import cached_property
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
-from scp import SCPClient
 
 if sys.version_info.major > 2:  # pragma: nocover
     from io import StringIO
