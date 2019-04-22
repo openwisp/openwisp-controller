@@ -126,7 +126,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
         response = self.client.post(reverse('controller:report_status', args=[c.device.pk]),
-                                    {'key': c.device.key, 'status': 'running'})
+                                    {'key': c.device.key, 'status': 'applied'})
         self.assertEqual(response.status_code, 404)
 
     def test_checksum_200(self):

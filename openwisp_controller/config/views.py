@@ -13,7 +13,7 @@ def get_default_templates(request, organization_id):
     """
     user = request.user
     authenticated = user.is_authenticated
-    if callable(authenticated):
+    if callable(authenticated):  # pragma: nocover
         authenticated = authenticated()
     if not authenticated and not user.is_staff:
         return HttpResponse(status=403)

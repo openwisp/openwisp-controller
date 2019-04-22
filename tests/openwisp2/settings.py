@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'openwisp_controller.pki',
     'openwisp_controller.config',
     'openwisp_controller.geo',
+    'openwisp_controller.connection',
     # admin
     'django.contrib.admin',
     'django.forms',
@@ -73,7 +74,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'urls'
+ROOT_URLCONF = 'openwisp2.urls'
 
 CHANNEL_LAYERS = {
     'default': {
@@ -89,7 +90,7 @@ USE_I18N = False
 USE_L10N = False
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '{0}/media/'.format(BASE_DIR)
+MEDIA_ROOT = '{0}/media/'.format(os.path.dirname(BASE_DIR))
 
 TEMPLATES = [
     {
@@ -121,8 +122,37 @@ OPENWISP_ORGANIZATON_OWNER_ADMIN = True  # tests will fail without this setting
 # during development only
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+if not TESTING:
+    CELERY_BROKER_URL = 'redis://localhost/1'
+else:
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = 'memory://'
+
+LOGGING = {
+    'version': 1,
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        }
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+        }
+    },
+    'loggers': {
+        'django.db.backends': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        }
+    }
+}
+
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
-    from local_settings import *
+    from .local_settings import *
 except ImportError:
     pass
