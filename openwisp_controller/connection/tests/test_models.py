@@ -1,7 +1,9 @@
+import socket
+
+import mock
 import paramiko
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from mock import Mock, patch
 
 from openwisp_users.models import Organization
 
@@ -250,6 +252,19 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
 
+    _exec_command_path = 'paramiko.SSHClient.exec_command'
+
+    def _exec_command_return_value(self, stdin='', stdout='mocked',
+                                   stderr='', exit_code=0):
+        stdin_ = mock.Mock()
+        stdout_ = mock.Mock()
+        stderr_ = mock.Mock()
+        stdin_.read().decode('utf8').strip.return_value = stdin
+        stdout_.read().decode('utf8').strip.return_value = stdout
+        stdout_.channel.recv_exit_status.return_value = exit_code
+        stderr_.read().decode('utf8').strip.return_value = stderr
+        return (stdin_, stdout_, stderr_)
+
     def test_device_config_update(self):
         org1 = self._create_org(name='org1')
         cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
@@ -264,24 +279,6 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         c.config = {
             'interfaces': [
                 {
-                    'name': 'eth0',
-                    'type': 'ethernet',
-                    'addresses': [
-                        {
-                            'family': 'ipv4',
-                            'proto': 'dhcp'
-                        }
-                    ]
-                }
-            ]
-        }
-        c.full_clean()
-        c.save()
-        device.refresh_from_db()
-        self.assertEqual(device.status, 'modified')
-        c.config = {
-            'interfaces': [
-                {
                     'name': 'eth10',
                     'type': 'ethernet',
                     'addresses': [
@@ -293,37 +290,50 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
                 }
             ]
         }
-        stdin = Mock()
-        stdout = Mock()
-        stderr = Mock()
-        stdout.read().decode('utf8').strip.return_value = \
-            'Mock Object: executed command successfully'
-        stdout.channel.recv_exit_status.return_value = 0
-        stderr.read().decode('utf8').strip.return_value = ''
-        with patch('paramiko.SSHClient.exec_command') as mock_object:
-            mock_object.return_value = [stdin, stdout, stderr]
-            c.full_clean()
-            c.save()
-            device.refresh_from_db()
-            self.assertEqual(paramiko.SSHClient.exec_command.call_count, 1)
-            actual = str(paramiko.SSHClient.exec_command.call_args)
-            expected = str("call('/etc/init.d/openwisp_config restart')")
-            self.assertEqual(expected, actual)
-            self.assertEqual(device.status, 'applied')
+        c.full_clean()
 
-    def test_ssh_exec_exist_status(self):
+        with mock.patch(self._exec_command_path) as mocked:
+            mocked.return_value = self._exec_command_return_value()
+            c.save()
+            mocked.assert_called_once()
+        device.refresh_from_db()
+        self.assertEqual(device.status, 'applied')
+
+    def test_ssh_exec_exit_code(self):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         self._create_device_ip(address=self.ssh_server.host,
                                device=dc.device)
-        dc.connect()
-        _, exit_status = dc.connector_instance.exec_command('ls')
-        self.assertEqual(exit_status, 0)
+        dc.connector_instance.connect()
+        with mock.patch(self._exec_command_path) as mocked:
+            mocked.return_value = self._exec_command_return_value(exit_code=1)
+            with self.assertRaises(Exception):
+                dc.connector_instance.exec_command('trigger_command_not_found')
+            dc.connector_instance.disconnect()
+            mocked.assert_called_once()
+
+    def test_ssh_exec_timeout(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        self._create_device_ip(address=self.ssh_server.host,
+                               device=dc.device)
+        dc.connector_instance.connect()
+        with mock.patch(self._exec_command_path) as mocked:
+            mocked.side_effect = socket.timeout()
+            with self.assertRaises(socket.timeout):
+                dc.connector_instance.exec_command('trigger_timeout')
+            dc.connector_instance.disconnect()
+            mocked.assert_called_once()
 
     def test_ssh_exec_exception(self):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         self._create_device_ip(address=self.ssh_server.host,
                                device=dc.device)
-        with self.assertRaises(Exception):
-            dc.connector_instance.exec_command('ls')
+        dc.connector_instance.connect()
+        with mock.patch(self._exec_command_path) as mocked:
+            mocked.side_effect = RuntimeError('test')
+            with self.assertRaises(RuntimeError):
+                dc.connector_instance.exec_command('trigger_exception')
+            dc.connector_instance.disconnect()
+            mocked.assert_called_once()
