@@ -9,7 +9,7 @@ from ..models import DeviceLocation, Location
 from . import TestGeoMixin
 
 
-class TestModels(TestGeoMixin, TestCase):
+class TestApi(TestGeoMixin, TestCase):
     object_model = Device
     location_model = Location
     object_location_model = DeviceLocation
