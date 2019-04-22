@@ -5,7 +5,7 @@ import paramiko
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from openwisp_users.models import Organization
+from openwisp_users.models import Group, Organization
 
 from .. import settings as app_settings
 from ..models import Credentials
@@ -319,3 +319,13 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         dc.save()
         with self.assertRaises(ValueError):
             dc.connector_instance.connect()
+
+    def test_operator_group_permissions(self):
+        group = Group.objects.get(name='Operator')
+        permissions = group.permissions.filter(content_type__app_label='connection')
+        self.assertEqual(permissions.count(), 3)
+
+    def test_administrator_group_permissions(self):
+        group = Group.objects.get(name='Administrator')
+        permissions = group.permissions.filter(content_type__app_label='connection')
+        self.assertEqual(permissions.count(), 6)
