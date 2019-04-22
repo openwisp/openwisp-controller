@@ -16,7 +16,7 @@ else:  # pragma: nocover
 logger = logging.getLogger(__name__)
 SSH_CONNECTION_TIMEOUT = 5
 SSH_AUTH_TIMEOUT = 2
-SSH_COMMAND_TIMEOUT = 5
+SSH_COMMAND_TIMEOUT = 30
 
 
 class Ssh(object):
@@ -90,7 +90,8 @@ class Ssh(object):
         print('$:> {0}'.format(command))
         # execute commmand
         try:
-            stdin, stdout, stderr = self.shell.exec_command(command)
+            stdin, stdout, stderr = self.shell.exec_command(command,
+                                                            timeout=timeout)
         # re-raise socket.timeout to avoid being catched
         # by the subsequent `except Exception as e` block
         except socket.timeout:
