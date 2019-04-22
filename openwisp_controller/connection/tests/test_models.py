@@ -296,8 +296,8 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             mocked.return_value = self._exec_command_return_value()
             c.save()
             mocked.assert_called_once()
-        device.refresh_from_db()
-        self.assertEqual(device.status, 'applied')
+        c.refresh_from_db()
+        self.assertEqual(c.status, 'applied')
 
     def test_ssh_exec_exit_code(self):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)

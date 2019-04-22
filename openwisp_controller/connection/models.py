@@ -51,6 +51,7 @@ class ConnectorMixin(object):
                                     addresses=self.get_addresses())
 
 
+@python_2_unicode_compatible
 class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
     """
     Credentials for access
