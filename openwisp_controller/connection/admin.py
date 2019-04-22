@@ -5,7 +5,7 @@ from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin
-from .models import Credentials, DeviceConnection, DeviceIp
+from .models import Credentials, DeviceConnection
 
 
 @admin.register(Credentials)
@@ -19,16 +19,6 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
     list_filter = [('organization', MultitenantOrgFilter),
                    'connector']
     list_select_related = ('organization',)
-
-
-class DeviceIpInline(admin.TabularInline):
-    model = DeviceIp
-    exclude = ('created', 'modified')
-    extra = 0
-
-    def get_queryset(self, request):
-        qs = super(DeviceIpInline, self).get_queryset(request)
-        return qs.order_by('priority')
 
 
 class DeviceConnectionInline(MultitenantAdminMixin, admin.StackedInline):
@@ -46,4 +36,4 @@ class DeviceConnectionInline(MultitenantAdminMixin, admin.StackedInline):
         return super(admin.StackedInline, self).get_queryset(request)
 
 
-DeviceAdmin.inlines += [DeviceConnectionInline, DeviceIpInline]
+DeviceAdmin.inlines += [DeviceConnectionInline]

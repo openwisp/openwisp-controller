@@ -46,10 +46,6 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         'deviceconnection_set-INITIAL_FORMS': 0,
         'deviceconnection_set-MIN_NUM_FORMS': 0,
         'deviceconnection_set-MAX_NUM_FORMS': 1000,
-        'deviceip_set-TOTAL_FORMS': 0,
-        'deviceip_set-INITIAL_FORMS': 0,
-        'deviceip_set-MIN_NUM_FORMS': 0,
-        'deviceip_set-MAX_NUM_FORMS': 1000,
     }
     # WARNING - WATCHOUT
     # this class attribute is changed dinamically

@@ -8,7 +8,7 @@ from openwisp_controller.config.tests import CreateConfigTemplateMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .. import settings as app_settings
-from ..models import Credentials, DeviceConnection, DeviceIp
+from ..models import Credentials, DeviceConnection
 
 
 class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
@@ -54,18 +54,6 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         dc.full_clean()
         dc.save()
         return dc
-
-    def _create_device_ip(self, **kwargs):
-        opts = dict(address='10.40.0.1',
-                    priority=1)
-        opts.update(kwargs)
-        if 'device' not in opts:
-            dc = self._create_device_connection()
-            opts['device'] = dc.device
-        ip = DeviceIp(**opts)
-        ip.full_clean()
-        ip.save()
-        return ip
 
 
 class SshServer(BaseSshServer):

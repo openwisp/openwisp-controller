@@ -1,5 +1,4 @@
 import collections
-import ipaddress
 import logging
 
 from django.core.exceptions import ValidationError
@@ -18,7 +17,6 @@ from openwisp_utils.base import TimeStampedEditableModel
 
 from ..config.models import Device
 from . import settings as app_settings
-from .utils import get_interfaces
 
 logger = logging.getLogger(__name__)
 
@@ -188,21 +186,10 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
 
     def get_addresses(self):
         """
-        returns a list of ip addresses for the related device
+        returns a list of ip addresses that can be used to connect to the device
         (used to pass a list of ip addresses to a DeviceConnection instance)
         """
-        deviceip_set = list(self.device.deviceip_set.all()
-                                       .only('address')
-                                       .order_by('priority'))
         address_list = []
-        for deviceip in deviceip_set:
-            address = deviceip.address
-            ip = ipaddress.ip_address(address)
-            if not ip.is_link_local:
-                address_list.append(address)
-            else:
-                for interface in get_interfaces():
-                    address_list.append('{0}%{1}'.format(address, interface))
         if self.device.management_ip:
             address_list.append(self.device.management_ip)
         if self.device.last_ip:
@@ -240,17 +227,3 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             else:
                 self.device.config.set_status_applied()
                 self.disconnect()
-
-
-@python_2_unicode_compatible
-class DeviceIp(TimeStampedEditableModel):
-    device = models.ForeignKey('config.Device', on_delete=models.CASCADE)
-    address = models.GenericIPAddressField(_('IP address'))
-    priority = models.PositiveSmallIntegerField()
-
-    class Meta:
-        verbose_name = _('Device IP')
-        verbose_name_plural = _('Device IP addresses')
-
-    def __str__(self):
-        return self.address

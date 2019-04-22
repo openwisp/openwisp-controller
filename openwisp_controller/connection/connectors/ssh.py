@@ -60,7 +60,10 @@ class Ssh(object):
     def connect(self):
         success = False
         exception = None
-        for address in self.addresses:
+        addresses = self.addresses
+        if not addresses:
+            raise ValueError('No valid IP addresses to initiate connections found')
+        for address in addresses:
             try:
                 self.shell.connect(address,
                                    timeout=SSH_CONNECTION_TIMEOUT,
