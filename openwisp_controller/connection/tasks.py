@@ -18,7 +18,7 @@ def update_config(device_id):
     sleep(4)
     # avoid repeating the operation multiple times
     device = Device.objects.select_related('config').get(pk=device_id)
-    if device.config.status == 'running':
+    if device.config.status == 'applied':
         return
     qs = device.deviceconnection_set.filter(device_id=device_id, enabled=True)
     conn = qs.first()
