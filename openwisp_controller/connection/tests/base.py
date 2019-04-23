@@ -1,14 +1,13 @@
 import os
 
 from django.conf import settings
-from mockssh.server import Server as BaseSshServer
 from openwisp_controller.config.models import Config, Device
 from openwisp_controller.config.tests import CreateConfigTemplateMixin
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .. import settings as app_settings
-from ..models import Credentials, DeviceConnection, DeviceIp
+from ..models import Credentials, DeviceConnection
 
 
 class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
@@ -55,47 +54,17 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         dc.save()
         return dc
 
-    def _create_device_ip(self, **kwargs):
-        opts = dict(address='10.40.0.1',
-                    priority=1)
-        opts.update(kwargs)
-        if 'device' not in opts:
-            dc = self._create_device_connection()
-            opts['device'] = dc.device
-        ip = DeviceIp(**opts)
-        ip.full_clean()
-        ip.save()
-        return ip
 
-
-class SshServer(BaseSshServer):
-    is_teardown = False
-
-    def _run(self):
-        try:
-            super(SshServer, self)._run()
-        # do not raise exceptions during tear down
-        except Exception as e:
-            if not self.is_teardown:
-                raise e
-
-
-class SshServerMixin(object):
+class SshMixin(object):
     _TEST_RSA_KEY_PATH = os.path.join(settings.BASE_DIR, 'test-key.rsa')
     _SSH_PRIVATE_KEY = None
 
-    @classmethod
-    def setUpClass(cls):
-        super(SshServerMixin, cls).setUpClass()
-        with open(cls._TEST_RSA_KEY_PATH, 'r') as f:
-            cls._SSH_PRIVATE_KEY = f.read()
-        cls.ssh_server = SshServer({'root': cls._TEST_RSA_KEY_PATH})
-        cls.ssh_server.__enter__()
+    class ssh_server:
+        host = '127.0.0.1'
+        port = 5555
 
     @classmethod
-    def tearDownClass(cls):
-        cls.ssh_server.is_teardown = True
-        try:
-            cls.ssh_server.__exit__()
-        except OSError:
-            pass
+    def setUpClass(cls):
+        super(SshMixin, cls).setUpClass()
+        with open(cls._TEST_RSA_KEY_PATH, 'r') as f:
+            cls._SSH_PRIVATE_KEY = f.read()

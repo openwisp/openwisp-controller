@@ -4,15 +4,14 @@ from django.urls import reverse
 from ...config.models import Template
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ...tests.utils import TestAdminMixin
-from ..models import Credentials, DeviceConnection, DeviceIp
-from .base import CreateConnectionsMixin, SshServerMixin
+from ..models import Credentials, DeviceConnection
+from .base import CreateConnectionsMixin, SshMixin
 
 
 class TestAdmin(TestAdminMixin, CreateConnectionsMixin,
-                SshServerMixin, TestCase):
+                SshMixin, TestCase):
     template_model = Template
     credentials_model = Credentials
-    deviceip_model = DeviceIp
     connection_model = DeviceConnection
     operator_permission_filters = [
         {'codename__endswith': 'config'},
@@ -20,8 +19,7 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin,
         {'codename__endswith': 'template'},
         {'codename__endswith': 'connection'},
         {'codename__endswith': 'credentials'},
-        {'codename__endswith': 'device_connection'},
-        {'codename__endswith': 'device_ip'},
+        {'codename__endswith': 'device_connection'}
     ]
     _device_params = TestConfigAdmin._device_params.copy()
 

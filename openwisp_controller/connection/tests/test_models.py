@@ -5,23 +5,28 @@ import paramiko
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from openwisp_users.models import Organization
+from openwisp_users.models import Group, Organization
 
 from .. import settings as app_settings
-from ..models import Credentials, DeviceIp
-from ..utils import get_interfaces
-from .base import CreateConnectionsMixin, SshServerMixin
+from ..models import Credentials
+from .base import CreateConnectionsMixin, SshMixin
 
 
-class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
+class TestModels(SshMixin, CreateConnectionsMixin, TestCase):
+    _connect_path = 'paramiko.SSHClient.connect'
+
+    def _create_device(self, *args, **kwargs):
+        if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
+            kwargs.update({
+                'last_ip': self.ssh_server.host,
+                'management_ip': self.ssh_server.host,
+            })
+        return super(TestModels, self)._create_device(*args, **kwargs)
+
     def test_connection_str(self):
         c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])
         self.assertIn(c.name, str(c))
         self.assertIn(c.get_connector_display(), str(c))
-
-    def test_deviceip_str(self):
-        di = DeviceIp(address='10.40.0.1')
-        self.assertIn(di.address, str(di))
 
     def test_device_connection_get_params(self):
         dc = self._create_device_connection()
@@ -73,27 +78,27 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
                               paramiko.rsakey.RSAKey)
         self.assertNotIn('key', dc.connector_instance.params)
 
-    def test_ssh_connect(self):
+    @mock.patch(_connect_path)
+    def test_ssh_connect(self, mocked_connect):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        self._create_device_ip(address=self.ssh_server.host,
-                               device=dc.device)
         dc.connect()
+        mocked_connect.assert_called_once()
         self.assertTrue(dc.is_working)
         self.assertIsNotNone(dc.last_attempt)
         self.assertEqual(dc.failure_reason, '')
-        try:
-            dc.disconnect()
-        except OSError:
-            pass
+        dc.disconnect()
 
     def test_ssh_connect_failure(self):
         ckey = self._create_credentials_with_key(username='wrong',
                                                  port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        self._create_device_ip(address=self.ssh_server.host,
-                               device=dc.device)
-        dc.connect()
+        dc.device.last_ip = None
+        dc.device.save()
+        with mock.patch(self._connect_path) as mocked_connect:
+            mocked_connect.side_effect = Exception('Authentication failed.')
+            dc.connect()
+            mocked_connect.assert_called_once()
         self.assertEqual(dc.is_working, False)
         self.assertIsNotNone(dc.last_attempt)
         self.assertEqual(dc.failure_reason, 'Authentication failed.')
@@ -134,8 +139,7 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         else:
             self.fail('ValidationError not raised')
 
-    def _prepare_address_list_test(self, addresses,
-                                   last_ip=None,
+    def _prepare_address_list_test(self, last_ip=None,
                                    management_ip=None):
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
         device = self._create_device(organization=self._create_org(),
@@ -143,38 +147,21 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
                                      management_ip=management_ip)
         dc = self._create_device_connection(device=device,
                                             update_strategy=update_strategy)
-        for index, address in enumerate(addresses):
-            self._create_device_ip(device=device,
-                                   address=address,
-                                   priority=index + 1)
         return dc
 
     def test_address_list(self):
-        dc = self._prepare_address_list_test(['10.40.0.1', '192.168.40.1'])
-        self.assertEqual(dc.get_addresses(), [
-            '10.40.0.1',
-            '192.168.40.1'
-        ])
+        dc = self._prepare_address_list_test()
+        self.assertEqual(dc.get_addresses(), [])
 
     def test_address_list_with_device_ip(self):
         dc = self._prepare_address_list_test(
-            ['192.168.40.1'],
             management_ip='10.0.0.2',
             last_ip='84.32.46.153',
         )
         self.assertEqual(dc.get_addresses(), [
-            '192.168.40.1',
             '10.0.0.2',
             '84.32.46.153'
         ])
-
-    def test_address_list_link_local_ip(self):
-        ipv6_linklocal = 'fe80::2dae:a0d4:94da:7f61'
-        dc = self._prepare_address_list_test([ipv6_linklocal])
-        address_list = dc.get_addresses()
-        interfaces = get_interfaces()
-        self.assertEqual(len(address_list), len(interfaces))
-        self.assertIn(ipv6_linklocal, address_list[0])
 
     def test_device_connection_credential_org_validation(self):
         dc = self._create_device_connection()
@@ -265,7 +252,8 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         stderr_.read().decode('utf8').strip.return_value = stderr
         return (stdin_, stdout_, stderr_)
 
-    def test_device_config_update(self):
+    @mock.patch(_connect_path)
+    def test_device_config_update(self, mocked_connect):
         org1 = self._create_org(name='org1')
         cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
         device = self._create_device(organization=org1)
@@ -274,8 +262,6 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         self._create_device_connection(device=device,
                                        credentials=cred,
                                        update_strategy=update_strategy)
-        self._create_device_ip(device=device,
-                               address=self.ssh_server.host)
         c.config = {
             'interfaces': [
                 {
@@ -299,11 +285,10 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         c.refresh_from_db()
         self.assertEqual(c.status, 'applied')
 
-    def test_ssh_exec_exit_code(self):
+    @mock.patch(_connect_path)
+    def test_ssh_exec_exit_code(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        self._create_device_ip(address=self.ssh_server.host,
-                               device=dc.device)
         dc.connector_instance.connect()
         with mock.patch(self._exec_command_path) as mocked:
             mocked.return_value = self._exec_command_return_value(exit_code=1)
@@ -312,11 +297,10 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
-    def test_ssh_exec_timeout(self):
+    @mock.patch(_connect_path)
+    def test_ssh_exec_timeout(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        self._create_device_ip(address=self.ssh_server.host,
-                               device=dc.device)
         dc.connector_instance.connect()
         with mock.patch(self._exec_command_path) as mocked:
             mocked.side_effect = socket.timeout()
@@ -325,11 +309,10 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
-    def test_ssh_exec_exception(self):
+    @mock.patch(_connect_path)
+    def test_ssh_exec_exception(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        self._create_device_ip(address=self.ssh_server.host,
-                               device=dc.device)
         dc.connector_instance.connect()
         with mock.patch(self._exec_command_path) as mocked:
             mocked.side_effect = RuntimeError('test')
@@ -337,3 +320,22 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
                 dc.connector_instance.exec_command('trigger_exception')
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
+
+    def test_connect_no_addresses(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        dc.device.last_ip = None
+        dc.device.management_ip = None
+        dc.save()
+        with self.assertRaises(ValueError):
+            dc.connector_instance.connect()
+
+    def test_operator_group_permissions(self):
+        group = Group.objects.get(name='Operator')
+        permissions = group.permissions.filter(content_type__app_label='connection')
+        self.assertEqual(permissions.count(), 3)
+
+    def test_administrator_group_permissions(self):
+        group = Group.objects.get(name='Administrator')
+        permissions = group.permissions.filter(content_type__app_label='connection')
+        self.assertEqual(permissions.count(), 6)

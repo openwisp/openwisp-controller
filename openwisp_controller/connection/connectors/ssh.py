@@ -7,6 +7,8 @@ from django.utils.functional import cached_property
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
 
+from .. import settings as app_settings
+
 if sys.version_info.major > 2:  # pragma: nocover
     from io import StringIO
 else:  # pragma: nocover
@@ -14,9 +16,6 @@ else:  # pragma: nocover
 
 
 logger = logging.getLogger(__name__)
-SSH_CONNECTION_TIMEOUT = 5
-SSH_AUTH_TIMEOUT = 2
-SSH_COMMAND_TIMEOUT = 30
 
 
 class Ssh(object):
@@ -60,11 +59,14 @@ class Ssh(object):
     def connect(self):
         success = False
         exception = None
-        for address in self.addresses:
+        addresses = self.addresses
+        if not addresses:
+            raise ValueError('No valid IP addresses to initiate connections found')
+        for address in addresses:
             try:
                 self.shell.connect(address,
-                                   timeout=SSH_CONNECTION_TIMEOUT,
-                                   auth_timeout=SSH_AUTH_TIMEOUT,
+                                   timeout=app_settings.SSH_CONNECTION_TIMEOUT,
+                                   auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
                                    **self.params)
             except Exception as e:
                 exception = e
@@ -77,7 +79,7 @@ class Ssh(object):
     def disconnect(self):
         self.shell.close()
 
-    def exec_command(self, command, timeout=SSH_COMMAND_TIMEOUT,
+    def exec_command(self, command, timeout=app_settings.SSH_COMMAND_TIMEOUT,
                      exit_codes=[0], raise_unexpected_exit=True):
         """
         Executes a command and performs the following operations

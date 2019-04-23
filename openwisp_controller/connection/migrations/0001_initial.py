@@ -55,20 +55,5 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Device connections',
                 'verbose_name': 'Device connection',
             },
-        ),
-        migrations.CreateModel(
-            name='DeviceIp',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('address', models.GenericIPAddressField(verbose_name='IP address')),
-                ('priority', models.PositiveSmallIntegerField()),
-                ('device', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='config.Device')),
-            ],
-            options={
-                'verbose_name_plural': 'Device IP addresses',
-                'verbose_name': 'Device IP',
-            },
-        ),
+        )
     ]
