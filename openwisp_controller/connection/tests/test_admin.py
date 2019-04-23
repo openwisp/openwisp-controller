@@ -5,11 +5,11 @@ from ...config.models import Template
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ...tests.utils import TestAdminMixin
 from ..models import Credentials, DeviceConnection
-from .base import CreateConnectionsMixin, SshServerMixin
+from .base import CreateConnectionsMixin, SshMixin
 
 
 class TestAdmin(TestAdminMixin, CreateConnectionsMixin,
-                SshServerMixin, TestCase):
+                SshMixin, TestCase):
     template_model = Template
     credentials_model = Credentials
     connection_model = DeviceConnection

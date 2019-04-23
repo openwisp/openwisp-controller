@@ -9,10 +9,12 @@ from openwisp_users.models import Group, Organization
 
 from .. import settings as app_settings
 from ..models import Credentials
-from .base import CreateConnectionsMixin, SshServerMixin
+from .base import CreateConnectionsMixin, SshMixin
 
 
-class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
+class TestModels(SshMixin, CreateConnectionsMixin, TestCase):
+    _connect_path = 'paramiko.SSHClient.connect'
+
     def _create_device(self, *args, **kwargs):
         if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
             kwargs.update({
@@ -76,23 +78,27 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
                               paramiko.rsakey.RSAKey)
         self.assertNotIn('key', dc.connector_instance.params)
 
-    def test_ssh_connect(self):
+    @mock.patch(_connect_path)
+    def test_ssh_connect(self, mocked_connect):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connect()
+        mocked_connect.assert_called_once()
         self.assertTrue(dc.is_working)
         self.assertIsNotNone(dc.last_attempt)
         self.assertEqual(dc.failure_reason, '')
-        try:
-            dc.disconnect()
-        except OSError:
-            pass
+        dc.disconnect()
 
     def test_ssh_connect_failure(self):
         ckey = self._create_credentials_with_key(username='wrong',
                                                  port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        dc.connect()
+        dc.device.last_ip = None
+        dc.device.save()
+        with mock.patch(self._connect_path) as mocked_connect:
+            mocked_connect.side_effect = Exception('Authentication failed.')
+            dc.connect()
+            mocked_connect.assert_called_once()
         self.assertEqual(dc.is_working, False)
         self.assertIsNotNone(dc.last_attempt)
         self.assertEqual(dc.failure_reason, 'Authentication failed.')
@@ -246,7 +252,8 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         stderr_.read().decode('utf8').strip.return_value = stderr
         return (stdin_, stdout_, stderr_)
 
-    def test_device_config_update(self):
+    @mock.patch(_connect_path)
+    def test_device_config_update(self, mocked_connect):
         org1 = self._create_org(name='org1')
         cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
         device = self._create_device(organization=org1)
@@ -278,7 +285,8 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
         c.refresh_from_db()
         self.assertEqual(c.status, 'applied')
 
-    def test_ssh_exec_exit_code(self):
+    @mock.patch(_connect_path)
+    def test_ssh_exec_exit_code(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
@@ -289,7 +297,8 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
-    def test_ssh_exec_timeout(self):
+    @mock.patch(_connect_path)
+    def test_ssh_exec_timeout(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
@@ -300,7 +309,8 @@ class TestModels(SshServerMixin, CreateConnectionsMixin, TestCase):
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
-    def test_ssh_exec_exception(self):
+    @mock.patch(_connect_path)
+    def test_ssh_exec_exception(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()

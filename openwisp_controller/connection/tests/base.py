@@ -1,7 +1,6 @@
 import os
 
 from django.conf import settings
-from mockssh.server import Server as BaseSshServer
 from openwisp_controller.config.models import Config, Device
 from openwisp_controller.config.tests import CreateConfigTemplateMixin
 
@@ -56,34 +55,16 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         return dc
 
 
-class SshServer(BaseSshServer):
-    is_teardown = False
-
-    def _run(self):
-        try:
-            super(SshServer, self)._run()
-        # do not raise exceptions during tear down
-        except Exception as e:
-            if not self.is_teardown:
-                raise e
-
-
-class SshServerMixin(object):
+class SshMixin(object):
     _TEST_RSA_KEY_PATH = os.path.join(settings.BASE_DIR, 'test-key.rsa')
     _SSH_PRIVATE_KEY = None
 
-    @classmethod
-    def setUpClass(cls):
-        super(SshServerMixin, cls).setUpClass()
-        with open(cls._TEST_RSA_KEY_PATH, 'r') as f:
-            cls._SSH_PRIVATE_KEY = f.read()
-        cls.ssh_server = SshServer({'root': cls._TEST_RSA_KEY_PATH})
-        cls.ssh_server.__enter__()
+    class ssh_server:
+        host = '127.0.0.1'
+        port = 5555
 
     @classmethod
-    def tearDownClass(cls):
-        cls.ssh_server.is_teardown = True
-        try:
-            cls.ssh_server.__exit__()
-        except OSError:
-            pass
+    def setUpClass(cls):
+        super(SshMixin, cls).setUpClass()
+        with open(cls._TEST_RSA_KEY_PATH, 'r') as f:
+            cls._SSH_PRIVATE_KEY = f.read()

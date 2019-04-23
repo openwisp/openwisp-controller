@@ -12,7 +12,6 @@ coveralls = "*"
 isort = "*"
 flake8 = "*"
 mock = "*"
-mock-ssh-server = {version = ">=0.5.0,<0.6.0"}
 
 [scripts]
 lint = "python -m flake8"
