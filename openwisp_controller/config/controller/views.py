@@ -1,9 +1,10 @@
 from django.db.models import Q
-from django_netjsonconfig.controller.generics import (BaseChecksumView, BaseDownloadConfigView,
-                                                      BaseRegisterView, BaseReportStatusView)
+from django_netjsonconfig.controller.generics import (BaseDeviceChecksumView, BaseDeviceDownloadConfigView,
+                                                      BaseDeviceRegisterView, BaseDeviceReportStatusView,
+                                                      BaseVpnChecksumView, BaseVpnDownloadConfigView)
 from django_netjsonconfig.utils import invalid_response
 
-from ..models import Device, OrganizationConfigSettings
+from ..models import Device, OrganizationConfigSettings, Vpn
 
 
 class ActiveOrgMixin(object):
@@ -15,19 +16,19 @@ class ActiveOrgMixin(object):
         return super(ActiveOrgMixin, self).get_object(*args, **kwargs)
 
 
-class ChecksumView(ActiveOrgMixin, BaseChecksumView):
+class DeviceChecksumView(ActiveOrgMixin, BaseDeviceChecksumView):
     model = Device
 
 
-class DownloadConfigView(ActiveOrgMixin, BaseDownloadConfigView):
+class DeviceDownloadConfigView(ActiveOrgMixin, BaseDeviceDownloadConfigView):
     model = Device
 
 
-class ReportStatusView(ActiveOrgMixin, BaseReportStatusView):
+class DeviceReportStatusView(ActiveOrgMixin, BaseDeviceReportStatusView):
     model = Device
 
 
-class RegisterView(BaseRegisterView):
+class DeviceRegisterView(BaseDeviceRegisterView):
     model = Device
 
     def forbidden(self, request):
@@ -51,19 +52,29 @@ class RegisterView(BaseRegisterView):
         self.organization = org_settings.organization
 
     def init_object(self, **kwargs):
-        config = super(RegisterView, self).init_object(**kwargs)
+        config = super(DeviceRegisterView, self).init_object(**kwargs)
         config.organization = self.organization
         config.device.organization = self.organization
         return config
 
     def get_template_queryset(self, config):
-        queryset = super(RegisterView, self).get_template_queryset(config)
+        queryset = super(DeviceRegisterView, self).get_template_queryset(config)
         # filter templates of the same organization or shared templates
         return queryset.filter(Q(organization=self.organization) |
                                Q(organization=None))
 
 
-checksum = ChecksumView.as_view()
-download_config = DownloadConfigView.as_view()
-report_status = ReportStatusView.as_view()
-register = RegisterView.as_view()
+class VpnChecksumView(BaseVpnChecksumView):
+    model = Vpn
+
+
+class VpnDownloadConfigView(BaseVpnDownloadConfigView):
+    model = Vpn
+
+
+device_checksum = DeviceChecksumView.as_view()
+device_download_config = DeviceDownloadConfigView.as_view()
+device_report_status = DeviceReportStatusView.as_view()
+device_register = DeviceRegisterView.as_view()
+vpn_checksum = VpnChecksumView.as_view()
+vpn_download_config = VpnDownloadConfigView.as_view()

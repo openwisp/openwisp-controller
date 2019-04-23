@@ -10,7 +10,7 @@ from . import CreateConfigTemplateMixin
 TEST_MACADDR = '00:11:22:33:44:55'
 TEST_MACADDR_NAME = TEST_MACADDR.replace(':', '-')
 TEST_ORG_SHARED_SECRET = 'functional_testing_secret'
-REGISTER_URL = reverse('controller:register')
+REGISTER_URL = reverse('controller:device_register')
 
 
 class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
@@ -112,27 +112,27 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
     def test_checksum_404_disabled_org(self):
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
-        response = self.client.get(reverse('controller:checksum', args=[c.device.pk]), {'key': c.device.key})
+        response = self.client.get(reverse('controller:device_checksum', args=[c.device.pk]), {'key': c.device.key})
         self.assertEqual(response.status_code, 404)
 
     def test_download_config_404_disabled_org(self):
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
-        url = reverse('controller:download_config', args=[c.device.pk])
+        url = reverse('controller:device_download_config', args=[c.device.pk])
         response = self.client.get(url, {'key': c.device.key})
         self.assertEqual(response.status_code, 404)
 
     def test_report_status_404_disabled_org(self):
         org = self._create_org(is_active=False)
         c = self._create_config(organization=org)
-        response = self.client.post(reverse('controller:report_status', args=[c.device.pk]),
+        response = self.client.post(reverse('controller:device_report_status', args=[c.device.pk]),
                                     {'key': c.device.key, 'status': 'applied'})
         self.assertEqual(response.status_code, 404)
 
     def test_checksum_200(self):
         org = self._create_org()
         c = self._create_config(organization=org)
-        response = self.client.get(reverse('controller:checksum', args=[c.device.pk]), {'key': c.device.key})
+        response = self.client.get(reverse('controller:device_checksum', args=[c.device.pk]), {'key': c.device.key})
         self.assertEqual(response.status_code, 200)
 
 
