@@ -82,17 +82,21 @@ should look like the following (ordering is important):
         'django.contrib.messages',
         'django.contrib.staticfiles',
         'django.contrib.gis',
+        # openwisp2 admin theme
+        # (must be loaded here)
+        'openwisp_utils.admin_theme',
         # all-auth
         'django.contrib.sites',
         'allauth',
         'allauth.account',
         'allauth.socialaccount',
         'django_extensions',
-        # openwisp2 modules
-        'openwisp_users',
-        'openwisp_controller.pki',
+        # openwisp2 module
         'openwisp_controller.config',
+        'openwisp_controller.pki',
         'openwisp_controller.geo',
+        'openwisp_controller.connection',
+        'openwisp_users',
         # admin
         'openwisp_utils.admin_theme',
         'django.contrib.admin',
