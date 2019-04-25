@@ -34,11 +34,11 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'django_extensions',
     # openwisp2 modules
-    'openwisp_users',
-    'openwisp_controller.pki',
     'openwisp_controller.config',
+    'openwisp_controller.pki',
     'openwisp_controller.geo',
     'openwisp_controller.connection',
+    'openwisp_users',
     # admin
     'django.contrib.admin',
     'django.forms',
@@ -106,6 +106,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'openwisp_utils.admin_theme.context_processor.menu_items'
             ],
         },
     }

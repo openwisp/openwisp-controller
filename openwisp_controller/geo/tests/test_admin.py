@@ -99,9 +99,3 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
                     data['inactive'].name,
                     data['fl3_inactive']]
         )
-
-    def test_floorplan_no_organization(self):
-        self._create_admin()
-        self._login()
-        r = self.client.get(reverse('admin:geo_floorplan_add'))
-        self.assertNotContains(r, 'organization')
