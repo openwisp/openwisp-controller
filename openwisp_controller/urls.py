@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.conf.urls import include, url
 
+from .config.api import urls as api
+
 url_metadata = [
     # allauth proxy
     {
@@ -65,7 +67,9 @@ url_metadata = [
     },
 ]
 
-urlpatterns = []
+urlpatterns = [
+    url(r'^api/v1/', include(api)),
+]
 
 for meta in url_metadata:
     module = meta['include'].pop('module')
