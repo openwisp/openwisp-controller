@@ -1,4 +1,6 @@
 import uuid
+import json
+import urllib.request
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -16,6 +18,8 @@ from django_netjsonconfig.utils import get_random_key
 from django_netjsonconfig.validators import key_validator, mac_address_validator
 from sortedm2m.fields import SortedManyToManyField
 from taggit.managers import TaggableManager
+from openwisp_users.models import Organization
+from ..pki.models import Ca, Cert
 
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
 
@@ -166,7 +170,44 @@ class Template(ShareableOrgMixin, AbstractTemplate):
 
     def clean(self):
         self._validate_org_relation('vpn')
+        if self.sharing == 'import':
+            self._get_remote_template()
         super(Template, self).clean()
+
+    def _get_remote_template(self):
+        try:
+            with urllib.request.urlopen(self.url) as response:
+                try:
+                    data = json.loads(response.read().decode())
+                    self.id = data['id']
+                    self.config = json.dumps(eval(data['config']))
+                    self.default_values = json.dumps(eval(data['default_values']))
+                    self.auto_cert = data['auto_cert']
+                    self.backend = data['backend']
+                    self.key = data['key']
+                    if data['type'] == 'generic':
+                        self.type = data['type']
+                    else:
+                        vpn_org = Organization(**data['vpn']['organization'])
+                        vpn_org.full_clean()
+                        vpn_org.save()
+                        vpn_ca = Ca(**data['vpn']['ca'])
+                        vpn_ca.full_clean()
+                        vpn_ca.save()
+                        vpn_cert = Cert(**data['vpn']['cert'])
+                        vpn_cert.full_clean()
+                        vpn_cert.save()
+                        vpn = Vpn(**data['vpn'])
+                        vpn.organization = vpn_org
+                        vpn.ca = vpn_ca
+                        vpn.cert = vpn_cert
+                        vpn.full_clean()
+                        vpn.save()
+                        self.vpn = vpn
+                except ValueError:
+                    raise ValidationError({'url', _('Url is not valid')})
+        except urllib.request.HTTPError:
+            raise ValidationError({'url': _('Url is not valid. Please check it')})
 
 
 class Vpn(ShareableOrgMixin, AbstractVpn):
