@@ -1,4 +1,4 @@
-FROM python:3-onbuild
+FROM python:3.6-stretch
 
 WORKDIR .
 RUN apt-get update && apt-get install -y \
@@ -9,9 +9,10 @@ RUN apt-get update && apt-get install -y \
     gdal-bin \
     libproj-dev \
     libgeos-dev \
-    libspatialite-dev
+    libspatialite-dev \
+    git
 RUN pip3 install -U pip setuptools wheel
-RUN pip3 install -U .
+RUN git clone https://github.com/openwisp/openwisp-controller && cd openwisp-controller/ && pip3 install -U .
 RUN echo "openwisp-controller installed"
 WORKDIR tests/
 CMD ["./docker-entrypoint.sh"]
