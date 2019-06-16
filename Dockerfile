@@ -1,20 +1,30 @@
-FROM python:3-onbuild
+FROM python:3.7-alpine
 
-WORKDIR .
-RUN apt-get update && apt-get install -y \
-    openssl \
-    sqlite3 \
-    libsqlite3-dev \
-    libssl-dev \
-    gdal-bin \
-    libproj-dev \
-    libgeos-dev \
-    libspatialite-dev
-RUN pip3 install -U pip setuptools wheel
-RUN pip3 install -U .
-RUN echo "openwisp-controller installed"
-WORKDIR tests/
-CMD ["./docker-entrypoint.sh"]
+WORKDIR /opt/openwisp/
+CMD ["sh", "docker-entrypoint.sh"]
 EXPOSE 8000
+ENV NAME=openwisp-controller \
+    PYTHONBUFFERED=1
 
-ENV NAME openwisp-controller
+RUN apk add --no-cache \
+            --update zlib-dev jpeg-dev libffi-dev gettext gcc openssl tzdata && \
+    apk add --no-cache \
+            --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+            --update geos-dev gdal-dev libspatialite && \
+    apk add --no-cache \
+            --update \
+            --virtual .build-deps postgresql-dev git build-base linux-headers openssl-dev
+
+RUN pip install django-netjsonconfig openwisp-utils scp celery asgi_redis \
+                django-loci paramiko openwisp-users cryptography==2.3.1 \
+                djangorestframework-gis redis service_identity django-redis
+
+ADD . /opt/openwisp
+
+RUN pip install -U . && \
+    pip install https://github.com/openwisp/openwisp-users/tarball/master && \
+    pip install https://github.com/openwisp/django-netjsonconfig/tarball/master && \
+    pip install https://github.com/openwisp/django-x509/tarball/master && \
+    pip install https://github.com/openwisp/openwisp-utils/tarball/master
+
+WORKDIR /opt/openwisp/tests/

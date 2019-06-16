@@ -308,13 +308,13 @@ Build from the Dockerfile:
 
 .. code-block:: shell
 
-    sudo docker build -t openwisp/controller .
+    docker-compose build
 
 Run the docker container:
 
 .. code-block:: shell
 
-    sudo docker run -it -p 8000:8000 openwisp/controller
+    docker-compose up
 
 Troubleshooting Steps
 ---------------------
