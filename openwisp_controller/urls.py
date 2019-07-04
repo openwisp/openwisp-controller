@@ -45,6 +45,15 @@ url_metadata = [
             'namespace': 'controller'
         }
     },
+    # openwisp_controller config api
+    {
+        'regexp': r'^',
+        'app': 'openwisp_controller.config',
+        'include': {
+            'module': '{app}.api.urls',
+            'namespace': 'api'
+        }
+    },
     # owm_legacy
     {
         'regexp': r'^',
