@@ -1,17 +1,22 @@
+import copy
 import json
 
+from django import __version__ as django_version
 from django.test import TestCase
 from django.urls import reverse
+from django_netjsonconfig.tests import CreateTemplateSubscriptionMixin
+from mock import Mock, patch
+from packaging import version
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...pki.models import Ca, Cert
 from ...tests.utils import TestAdminMixin
-from ..models import Config, Device, Template, Vpn
+from ..models import Config, Device, Template, TemplateSubscription, Vpn
 from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
-class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
+class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin, CreateTemplateSubscriptionMixin,
                 TestVpnX509Mixin, TestOrganizationMixin, TestCase):
     ca_model = Ca
     cert_model = Cert
@@ -19,6 +24,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
     device_model = Device
     template_model = Template
     vpn_model = Vpn
+    subscription_model = TemplateSubscription
     operator_permission_filters = [
         {'codename__endswith': 'config'},
         {'codename__endswith': 'device'},
@@ -57,6 +63,174 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         p.update(self._additional_params)
         p['organization'] = org.pk
         return p
+
+    def test_subscription_api(self):
+        template = self._create_template()
+        data = {
+            'template': template.pk,
+            'subscriber': 'http://testsubscriber.com',
+            'subscribe': True
+        }
+        path = reverse('api:notify_template')
+        response = self.client.post(path, data=data)
+        subscriber = self.subscription_model.objects.get(template=template)
+        self.assertEqual(subscriber.subscribe, True)
+        self.assertEqual(response.status_code, 200)
+        data.update({
+            'subscribe': False
+        })
+        response = self.client.post(path, data=data)
+        subscriber = self.subscription_model.objects.get(template=template)
+        self.assertEqual(subscriber.subscribe, False)
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_subscriber(self):
+        subscriber = self._create_subscription()
+        path = reverse('admin:django_netjsonconfig_templatesubscription_delete', args=[subscriber.pk])
+        response = self.client.get(path, follow=True)
+        self.assertEqual(response.status_code, 403)
+
+    def test_add_subscriber(self):
+        path = reverse('admin:django_netjsonconfig_templatesubscription_add')
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 403)
+
+    def test_change_subscriber(self):
+        subscriber = self._create_subscription()
+        path = reverse('admin:django_netjsonconfig_templatesubscription_change', args=[subscriber.pk])
+        response = self.client.get(path, follow=True)
+        # With django versions >= 2.1, response have a status code of 200
+        # Where as in versions < 2.1, response have a status code of 403
+        # Thus, we have to ensure the required test is carried out in each case
+        if version.parse(django_version) >= version.parse('2.1'):
+            self.assertContains(response, 'readonly">test-template')
+        else:
+            self.assertEqual(response.status_code, 403)
+
+    def test_delete_template_with_subscription(self):
+        template = self._create_template(name='test-delete')
+        self._create_subscription(template=template)
+        path = reverse('admin:django_netjsonconfig_template_delete', args=[template.pk])
+        response = self.client.post(path, follow=True)
+        # With django versions >= 2.1, response have a status code of 200
+        # Where as in versions < 2.1, response have a status code of 403
+        # Thus, we have to ensure the required test is carried out in each case
+        if version.parse(django_version) >= version.parse('2.1'):
+            self.assertContains(response, "doesn\'t have permission to delete")
+        else:
+            queryset = self.template_model.objects.filter(pk=template.pk)
+            self.assertEqual(queryset.count(), 1)
+
+    @patch('requests.get')
+    @patch('requests.post')
+    def test_subscription_notification(self, mocked_post, mocked_get):
+        data = {
+            'sharing': 'import',
+            'name': 'import-template',
+            'url': 'http://localhost:8080/test/url/',
+            'backend': 'netjsonconfig.OpenWrt',
+            'type': 'vpn'
+        }
+        path = reverse('admin:django_netjsonconfig_template_add')
+        import_response = Mock()
+        celery_response = Mock()
+        celery_response.status_code = 200
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        mocked_post.return_value = celery_response
+        mocked_get.return_value = import_response
+        response = self.client.post(path, data, follow=True)
+        template = self.template_model.objects.get(name='import-template', sharing='import')
+        mocked_post.assert_called_once()
+        mocked_get.assert_called_once()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(template.name, 'import-template')
+        # Test to see subscription count on templare changelist
+        path = reverse('admin:django_netjsonconfig_template_changelist')
+        response = self.client.get(path)
+        self.assertContains(response, 'subscribe')
+        # Test delete template from detail page
+        path = reverse('admin:django_netjsonconfig_template_delete', args=[template.pk])
+        data = {
+            'action': 'delete_selected',
+            '_selected_action': [template.pk]
+        }
+        response = self.client.post(path, data, follow=True)
+        queryset = self.template_model.objects.filter(name='import-template')
+        self.assertEqual(queryset.count(), 0)
+        self.assertEqual(mocked_post.call_count, 2)
+        self.assertEqual(response.status_code, 200)
+
+    @patch('requests.get')
+    @patch('requests.post')
+    def test_delete_import_template(self, mocked_post, mocked_get):
+        """
+        Test for template deletion at change list page
+        using the delete_selected action
+        """
+        data = {
+            'sharing': 'import',
+            'name': 'import-template',
+            'url': 'http://localhost/test/url/',
+            'backend': 'netjsonconfig.OpenWrt',
+            'type': 'vpn'
+        }
+        path = reverse('admin:django_netjsonconfig_template_add')
+        import_response = Mock()
+        celery_response = Mock()
+        celery_response.status_code = 200
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        mocked_post.return_value = celery_response
+        mocked_get.return_value = import_response
+        response = self.client.post(path, data, follow=True)
+        template = self.template_model.objects.get(name='import-template', sharing='import')
+        mocked_post.assert_called_once()
+        mocked_get.assert_called_once()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(template.name, 'import-template')
+        path = reverse('admin:django_netjsonconfig_template_changelist')
+        data = {
+            'action': 'delete_selected',
+            'post': 'yes',
+            '_selected_action': [template.pk]
+        }
+        response = self.client.post(path, data, follow=True)
+        queryset = self.template_model.objects.filter(name='import-template')
+        self.assertEqual(queryset.count(), 0)
+        self.assertEqual(mocked_post.call_count, 2)
+        self.assertEqual(response.status_code, 200)
+
+    @patch('requests.get')
+    @patch('requests.post')
+    def test_template_synchronous(self, mocked_post, mocked_get):
+        data = {
+            'sharing': 'import',
+            'name': 'import-template',
+            'url': 'http://localhost/test/url/',
+            'backend': 'netjsonconfig.OpenWrt',
+            'type': 'vpn'
+        }
+        path = reverse('admin:django_netjsonconfig_template_add')
+        import_response = Mock()
+        celery_response = Mock()
+        celery_response.status_code = 200
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        mocked_post.return_value = celery_response
+        mocked_get.return_value = import_response
+        response = self.client.post(path, data, follow=True)
+        template = self.template_model.objects.get(name='import-template', sharing='import')
+        # synchronizing import template.
+        # This is triggered by the periodic celery task
+        syn_path = reverse('api:synchronize_template')
+        import_response.reset_mock(return_value=True)
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        response = self.client.post(syn_path, data={'template_id': template.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mocked_get.call_count, 2)
+        self.assertEqual(mocked_post.call_count, 2)
 
     def test_import_api(self):
         org = self._create_org()

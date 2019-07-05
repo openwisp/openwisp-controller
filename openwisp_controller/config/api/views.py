@@ -1,9 +1,10 @@
-from django_netjsonconfig.api.generics import BaseListTemplateView, BaseTemplateDetailView
+from django_netjsonconfig.api.generics import (BaseListTemplateView, BaseTemplateDetailView,
+                                               BaseTemplateSubscriptionView, BaseTemplateSynchronizationView)
 
 from openwisp_users.models import Organization
 
 from ...pki.models import Ca, Cert
-from ..models import Template, Vpn
+from ..models import Template, TemplateSubscription, Vpn
 from .serializers import (CaOrgSerializer, CertOrgSerializer, ListOrgTemplateSerializer,
                           TemplateDetailOrgSerializer, VpnOrgSerializer)
 
@@ -47,5 +48,16 @@ class ListTemplateView(BaseListTemplateView):
             return qs
 
 
+class TemplateSubscriptionView(BaseTemplateSubscriptionView):
+    template_subscribe_model = TemplateSubscription
+    template_model = Template
+
+
+class TemplateSynchronizationView(BaseTemplateSynchronizationView):
+    template_model = Template
+
+
 template_detail = TemplateDetailView.as_view()
 list_template = ListTemplateView.as_view()
+notify_template = TemplateSubscriptionView.as_view()
+synchronize_template = TemplateSynchronizationView.as_view()
