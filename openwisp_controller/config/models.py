@@ -99,6 +99,9 @@ class Device(OrgMixin, AbstractDevice):
         )
         abstract = False
 
+    def __str__(self):
+        return self.hardware_id if app_settings.HARDWARE_ID_ENABLED else self.name
+
     def get_temp_config_instance(self, **options):
         c = super(Device, self).get_temp_config_instance(**options)
         c.device = self
