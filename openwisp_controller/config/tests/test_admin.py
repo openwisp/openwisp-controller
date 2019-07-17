@@ -58,6 +58,55 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         p['organization'] = org.pk
         return p
 
+    def test_import_api(self):
+        org = self._create_org()
+        ca = self._create_ca(organization=org)
+        cert = self._create_cert(organization=org)
+        vpn = self._create_vpn(ca=ca, cert=cert, organization=org)
+        temp1 = self._create_template(name='test1',
+                                      sharing='public',
+                                      description='some text',
+                                      organization=org,
+                                      type='vpn',
+                                      vpn=vpn)
+        temp2 = self._create_template(name='test2',
+                                      sharing='secret_key',
+                                      description='some text',
+                                      organization=org)
+        temp3 = self._create_template(name='test3', organization=org)
+        path1 = reverse('api:template_detail', args=[temp1.pk])
+        path2 = reverse('api:template_detail', args=[temp2.pk])
+        path2 = '{0}?key={1}'.format(path2, temp2.key)
+        path3 = reverse('api:template_detail', args=[temp3.pk])
+        response1 = self.client.get(path1)
+        response2 = self.client.get(path2)
+        response3 = self.client.get(path3)
+        self.assertNotContains(response1, '{"detail":"Not found."}')
+        self.assertNotContains(response2, '{"detail":"Not found."}')
+        self.assertContains(response3, '{"detail":"Not found."}', status_code=404)
+
+    def test_search_api(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        self._create_template(name='test-template1',
+                              organization=org1,
+                              sharing='public',
+                              description='some text')
+        self._create_template(name='test-template2',
+                              organization=org1)
+        self._create_template(name='test-template3',
+                              organization=org2)
+        path = reverse('api:list_template')
+        response = self.client.get(path, data={'org': org1.name})
+        self.assertContains(response, 'test-template1')
+        self.assertNotContains(response, 'test-template2')
+        response = self.client.get(path, data={'org': org2.name})
+        self.assertContains(response, "[]")
+        response = self.client.get(path, data={'org': 'doesnot_exist'})
+        self.assertContains(response, "[]")
+        response = self.client.get(path)
+        self.assertContains(response, "[]")
+
     def test_device_and_template_different_organization(self):
         org1 = self._create_org()
         template = self._create_template(organization=org1)
