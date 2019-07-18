@@ -111,7 +111,6 @@ class TemplateSubscriptionAdmin(AbstractTemplateSubscriptionAdmin):
     model = TemplateSubscription
 
 
-
 VpnAdmin.list_display.insert(1, 'organization')
 VpnAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 VpnAdmin.list_filter.remove('ca')

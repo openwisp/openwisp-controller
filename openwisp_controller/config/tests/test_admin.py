@@ -136,7 +136,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin, CreateTemplateSubscri
         celery_response = Mock()
         celery_response.status_code = 200
         import_response.status_code = 200
-        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        import_response.json.return_value = copy.deepcopy(self._vpn_template_data)
         mocked_post.return_value = celery_response
         mocked_get.return_value = import_response
         response = self.client.post(path, data, follow=True)
@@ -180,7 +180,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin, CreateTemplateSubscri
         celery_response = Mock()
         celery_response.status_code = 200
         import_response.status_code = 200
-        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        import_response.json.return_value = copy.deepcopy(self._vpn_template_data)
         mocked_post.return_value = celery_response
         mocked_get.return_value = import_response
         response = self.client.post(path, data, follow=True)
@@ -216,7 +216,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin, CreateTemplateSubscri
         celery_response = Mock()
         celery_response.status_code = 200
         import_response.status_code = 200
-        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        import_response.json.return_value = copy.deepcopy(self._vpn_template_data)
         mocked_post.return_value = celery_response
         mocked_get.return_value = import_response
         response = self.client.post(path, data, follow=True)
@@ -226,7 +226,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin, CreateTemplateSubscri
         syn_path = reverse('api:synchronize_template')
         import_response.reset_mock(return_value=True)
         import_response.status_code = 200
-        import_response.json.return_value = copy.deepcopy(self._import_template_data)
+        import_response.json.return_value = copy.deepcopy(self._vpn_template_data)
         response = self.client.post(syn_path, data={'template_id': template.pk})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(mocked_get.call_count, 2)
@@ -280,6 +280,51 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin, CreateTemplateSubscri
         self.assertContains(response, "[]")
         response = self.client.get(path)
         self.assertContains(response, "[]")
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_create_external_template(self, mocked_get, mocked_post):
+        import_response = Mock()
+        celery_response = Mock()
+        celery_response.status_code = 200
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._vpn_template_data)
+        mocked_get.return_value = import_response
+        mocked_post.return_value = celery_response
+        path = reverse('api:create_template')
+        org = self._create_org()
+        data = {
+            'url': 'http://localhost/test',
+            'org': org.name
+        }
+        self._login()
+        response = self.client.post(path, data=data)
+        self.assertEqual(response.status_code, 200)
+        queryset = self.template_model.objects.filter(name='vpn-temp')
+        self.assertEqual(queryset.count(), 1)
+        # testing for already exist errors
+        import_response.reset_mock(return_value=True)
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._vpn_template_data)
+        response = self.client.post(path, data=data)
+        self.assertContains(response, 'errors', status_code=400)
+        #
+        # test for the creation
+        # of generic template
+        #
+        import_response.reset_mock(return_value=True)
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._generic_template_data)
+        response = self.client.post(path, data=data)
+        self.assertEqual(response.status_code, 200)
+        queryset = self.template_model.objects.filter(name='generic-temp')
+        self.assertEqual(queryset.count(), 1)
+        # testing for already exist errors
+        import_response.reset_mock(return_value=True)
+        import_response.status_code = 200
+        import_response.json.return_value = copy.deepcopy(self._generic_template_data)
+        response = self.client.post(path, data=data)
+        self.assertContains(response, 'errors', status_code=400)
 
     def test_device_and_template_different_organization(self):
         org1 = self._create_org()

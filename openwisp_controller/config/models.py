@@ -15,13 +15,12 @@ from django_netjsonconfig.base.tag import AbstractTaggedTemplate, AbstractTempla
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
 from django_netjsonconfig.tasks import base_sync_template_content
-from django_netjsonconfig.utils import get_random_key
+from django_netjsonconfig.utils import get_random_key, get_remote_template_data
 from django_netjsonconfig.validators import key_validator, mac_address_validator
 from sortedm2m.fields import SortedManyToManyField
 from taggit.managers import TaggableManager
 
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
-from openwisp_users.models import Organization
 
 from ..pki.models import Ca, Cert
 from .utils import get_default_templates_queryset
@@ -126,6 +125,10 @@ class Config(TemplatesVpnMixin, AbstractConfig):
                                  through='config.VpnClient',
                                  related_name='vpn_relations',
                                  blank=True)
+    subscription = models.OneToOneField('config.TemplateSubscription',
+                                        blank=True,
+                                        null=True,
+                                        on_delete=models.CASCADE)
 
     class Meta(AbstractConfig.Meta):
         abstract = False
@@ -207,18 +210,11 @@ class Template(ShareableOrgMixin, AbstractTemplate):
     def clean(self):
         self._validate_org_relation('vpn')
         if self.sharing == 'import':
-            data = self._get_remote_template_data()
-            import_org = Organization(**data['organization'])
-            try:
-                import_org.full_clean()
-            except ValidationError:
-                import_org = Organization.objects.get(name=import_org.name)
-            import_org.save()
-            data['organization'] = import_org
+            data = get_remote_template_data(self.url)
             if data['type'] == 'vpn':
-                data['vpn']['ca']['organization'] = import_org
-                data['vpn']['cert']['organization'] = import_org
-                data['vpn']['organization'] = import_org
+                data['vpn']['ca']['organization'] = self.organization
+                data['vpn']['cert']['organization'] = self.organization
+                data['vpn']['organization'] = self.organization
             self._set_field_values(data)
         super(Template, self).clean()
 
@@ -284,8 +280,7 @@ class TemplateSubscription(AbstractTemplateSubscription):
     """
     template = models.ForeignKey('config.Template',
                                  verbose_name=_('Template'),
-                                 on_delete=models.CASCADE,
-                                 )
+                                 on_delete=models.CASCADE)
 
     class Meta(AbstractTemplateSubscription.Meta):
         abstract = False
