@@ -1,0 +1,52 @@
+# This repository adheres to the publiccode.yml standard by including this 
+# metadata file that makes public software easily discoverable.
+# More info at https://github.com/italia/publiccode.yml
+
+publiccodeYmlVersion: '0.2'
+name: OpenWISP 2 Controller
+url: 'https://github.com/openwisp/openwisp-controller'
+developmentStatus: stable
+platforms:
+  - linux
+softwareType: standalone/web
+releaseDate: '2018-02-19'
+softwareVersion: 0.3.2
+logo: 'http://openwisp.io/docs/_downloads/openwisp.org.svg'
+categories:
+  - network-management
+maintenance:
+  type: community
+  contacts:
+    - name: Federico Capoano
+      email: federico.capoano@gmail.com
+    - name: Marco Cappellacci
+      email: marco.cappellacci@uniurb.it
+legal:
+  license: GPL-3.0-only
+  mainCopyrightOwner: OpenWISP
+  repoOwner: OpenWISP
+localisation:
+  localisationReady: true
+  availableLanguages:
+    - en
+it:
+  piattaforme:
+    spid: false
+description:
+  en:
+    genericName: Network Management System
+    documentation: 'http://openwisp.io/docs/'
+    shortDescription: A Hackable Network Management System for the 21st Century
+    longDescription: >
+      OpenWISP is a software platform designed to ease and automate the
+      management of networks, with a special focus on wireless networks, mainly
+      used in public wifi, mesh networks, community networks and IoT scenarios.
+
+
+      OpenWISP 2, launched in December 2016, is the new generation of the
+      software which is gradually replacing OpenWISP 1 and aims to build an
+      ecosystem of applications and tools that make it easy for developers to
+      build custom networking applications in order to bring innovation in the
+      network infrastructure of communities that most need it.
+    videos:
+      - 'https://www.youtube.com/watch?v=MY097Y2cPQ0'
