@@ -1,11 +1,7 @@
-from django.conf.urls import url
+'''
+There are no urls in this file. It has no functional use.
+This file exists only to maintain backward compatibility.
+'''
 
-from . import views
-
-app_name = 'openwisp_controller'
-
-urlpatterns = [
-    url(r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
-        views.get_default_templates,
-        name='get_default_templates'),
-]
+app_name = 'openwisp_controller'  # pragma: no cover
+urlpatterns = []   # pragma: no cover

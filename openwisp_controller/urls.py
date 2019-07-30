@@ -27,15 +27,6 @@ url_metadata = [
             'namespace': 'x509'
         }
     },
-    # openwisp_controller.config (get_default_templates)
-    {
-        'regexp': r'^',
-        'app': 'openwisp_controller.config',
-        'include': {
-            'module': '{app}.urls',
-            'namespace': 'config'
-        }
-    },
     # openwisp_controller controller
     {
         'regexp': r'^',

@@ -1,12 +1,14 @@
 import json
 
 from django import forms
+from django.conf.urls import url
 from django.contrib import admin
 from django.urls import reverse
 from django_netjsonconfig import settings as django_netjsonconfig_settings
 from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigInline, AbstractDeviceAdmin,
                                              AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
+from openwisp_controller.config.views import get_default_templates
 
 from openwisp_users.models import Organization
 from openwisp_users.multitenancy import MultitenantOrgFilter, MultitenantRelatedOrgFilter
@@ -58,8 +60,15 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
         organizations = Organization.active.all()
         urls = {}
         for org in organizations:
-            urls[str(org.pk)] = reverse('config:get_default_templates', args=[org.pk])
+            urls[str(org.pk)] = reverse('admin:get_default_templates', args=[org.pk])
         return json.dumps(urls)
+
+    def get_urls(self):
+        return [
+            url(r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
+                get_default_templates,
+                name='get_default_templates'),
+        ] + super(DeviceAdmin, self).get_urls()
 
     def get_extra_context(self, pk=None):
         ctx = super(DeviceAdmin, self).get_extra_context(pk)
