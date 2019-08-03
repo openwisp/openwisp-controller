@@ -1,5 +1,8 @@
+import copy
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from mock import Mock, patch
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
@@ -125,3 +128,30 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         # two templates with the same organization can't have the same name
         with self.assertRaises(ValidationError):
             self._create_template(**kwargs)
+
+    @patch('requests.get')
+    def test_import_template(self, mocked):
+        options = {
+            "sharing": "import",
+            "url": "http://localhost:8000/test/url/",
+            "name": "import-template",
+            "backend": "netjsonconfig.OpenWrt"
+        }
+        response = Mock()
+        response.status_code = 200
+        response.json.return_value = copy.deepcopy(self._vpn_template_data)
+        mocked.return_value = response
+        t = self.template_model(**options)
+        t.full_clean()
+        t.save()
+        mocked.assert_called_once()
+        queryset = self.template_model.objects.get(name='import-template')
+        self.assertEqual(queryset.name, 'import-template')
+        self.assertEqual(queryset.vpn.name, 'vpn1')
+        options.update({
+            'url': None
+        })
+        with self.assertRaises(ValidationError):
+            t = self.template_model(**options)
+            t.full_clean()
+            t.save()

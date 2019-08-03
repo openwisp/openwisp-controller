@@ -1,13 +1,14 @@
-from django_netjsonconfig.api.generics import (BaseListTemplateView, BaseTemplateDetailView,
+from django_netjsonconfig.api.generics import (BaseSubscriptionCountView, BaseTemplateDetailView,
                                                BaseTemplateSubscriptionView, BaseTemplateSynchronizationView)
+from django_netjsonconfig.api.serializers import ListSubscriptionCountSerializer
 
 from openwisp_users.models import Organization
 
 from ...pki.models import Ca, Cert
 from ..models import Template, TemplateSubscription, Vpn
 from .generics import BaseListCreateTemplateView
-from .serializers import (CaOrgSerializer, CertOrgSerializer, ListCreateTemplateSerializer,
-                          ListOrgTemplateSerializer, TemplateDetailOrgSerializer, VpnOrgSerializer)
+from .serializers import (CaOrgSerializer, CertOrgSerializer, ListOrgTemplateSerializer,
+                          TemplateDetailOrgSerializer, VpnOrgSerializer)
 
 
 class TemplateDetailView(BaseTemplateDetailView):
@@ -24,10 +25,19 @@ class TemplateDetailView(BaseTemplateDetailView):
     queryset = Template.objects.none()
 
 
-class ListTemplateView(BaseListTemplateView):
+class ListTemplateView(BaseListCreateTemplateView):
     queryset = Template.objects.all()
     template_model = Template
     list_serializer = ListOrgTemplateSerializer
+    template_subscription_model = TemplateSubscription
+    vpn_model = Vpn
+    ca_model = Ca
+    cert_model = Cert
+    ca_serializer = CaOrgSerializer
+    cert_serializer = CertOrgSerializer
+    vpn_serializer = VpnOrgSerializer
+    template_serializer = TemplateDetailOrgSerializer
+    list_template_serializer = ListOrgTemplateSerializer
 
     def get_queryset(self):
         """
@@ -36,38 +46,35 @@ class ListTemplateView(BaseListTemplateView):
         queryset.
         """
         org_name = self.request.GET.get('org', None)
-        queryset = super(ListTemplateView, self).get_queryset()
+        queryset = super(BaseListCreateTemplateView, self).get_queryset()
         if org_name:
             try:
                 org = Organization.objects.get(name=org_name)
             except Organization.DoesNotExist:
-                return self.template_model.objects.none()
+                return queryset
             queryset = queryset.filter(organization=org)
             return queryset
         else:
-            qs = self.template_model.objects.none()
-            return qs
-
-
-class ListCreateTemplateView(BaseListCreateTemplateView):
-    ListCreateTemplateSerializer.Meta.model = Template
-    CaOrgSerializer.Meta.model = Ca
-    CertOrgSerializer.Meta.model = Cert
-    VpnOrgSerializer.Meta.model = Vpn
-    serializer_class = ListCreateTemplateSerializer
+            return queryset
 
 
 class TemplateSubscriptionView(BaseTemplateSubscriptionView):
-    template_subscribe_model = TemplateSubscription
+    template_subscription_model = TemplateSubscription
     template_model = Template
 
 
 class TemplateSynchronizationView(BaseTemplateSynchronizationView):
     template_model = Template
+    template_subscription_model = TemplateSubscription
+
+
+class SubscriptionCountView(BaseSubscriptionCountView):
+    template_subscription_model = TemplateSubscription
+    subscription_serializer = ListSubscriptionCountSerializer
 
 
 template_detail = TemplateDetailView.as_view()
 list_template = ListTemplateView.as_view()
-create_template = ListCreateTemplateView.as_view()
-notify_template = TemplateSubscriptionView.as_view()
+subscribe_template = TemplateSubscriptionView.as_view()
 synchronize_template = TemplateSynchronizationView.as_view()
+subscription_count = SubscriptionCountView.as_view()

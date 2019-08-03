@@ -1,8 +1,14 @@
 import os
 import sys
 
+from celery.schedules import crontab
+
 TESTING = sys.argv[1:2] == ['test']
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# To make sure celery can find the db file
+# irrespective of where it is started
+DB_DIR = os.path.abspath(os.path.join(__file__, "../../../"))
+
 
 DEBUG = True
 
@@ -11,7 +17,7 @@ ALLOWED_HOSTS = []
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.spatialite',
-        'NAME': 'openwisp-controller.db',
+        'NAME': '{0}/openwisp-controller.db'.format(DB_DIR),
     }
 }
 
@@ -129,6 +135,12 @@ else:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = 'memory://'
+CELERY_BEAT_SCHEDULE = {
+    'synchronize_templates': {
+        'task': 'openwisp_controller.config.tasks.synchronize_templates',
+        'schedule':60,
+    },
+}
 
 LOGGING = {
     'version': 1,

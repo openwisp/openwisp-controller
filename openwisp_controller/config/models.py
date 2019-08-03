@@ -1,6 +1,5 @@
 import uuid
 
-from celery.decorators import periodic_task
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -14,7 +13,6 @@ from django_netjsonconfig.base.subscription import AbstractTemplateSubscription
 from django_netjsonconfig.base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
-from django_netjsonconfig.tasks import base_sync_template_content
 from django_netjsonconfig.utils import get_random_key, get_remote_template_data
 from django_netjsonconfig.validators import key_validator, mac_address_validator
 from sortedm2m.fields import SortedManyToManyField
@@ -125,10 +123,6 @@ class Config(TemplatesVpnMixin, AbstractConfig):
                                  through='config.VpnClient',
                                  related_name='vpn_relations',
                                  blank=True)
-    subscription = models.OneToOneField('config.TemplateSubscription',
-                                        blank=True,
-                                        null=True,
-                                        on_delete=models.CASCADE)
 
     class Meta(AbstractConfig.Meta):
         abstract = False
@@ -209,12 +203,16 @@ class Template(ShareableOrgMixin, AbstractTemplate):
 
     def clean(self):
         self._validate_org_relation('vpn')
-        if self.sharing == 'import':
-            data = get_remote_template_data(self.url)
-            if data['type'] == 'vpn':
-                data['vpn']['ca']['organization'] = self.organization
-                data['vpn']['cert']['organization'] = self.organization
-                data['vpn']['organization'] = self.organization
+        if self.sharing == 'import' or self.url:
+            if not self.url:
+                raise ValidationError({'url': 'URL is required for import of templates'})
+            else:
+                data = get_remote_template_data(self.url)
+                if data['type'] == 'vpn':
+                    data['organization'] = self.organization
+                    data['vpn']['ca']['organization'] = self.organization
+                    data['vpn']['cert']['organization'] = self.organization
+                    data['vpn']['organization'] = self.organization
             self._set_field_values(data)
         super(Template, self).clean()
 
@@ -284,10 +282,3 @@ class TemplateSubscription(AbstractTemplateSubscription):
 
     class Meta(AbstractTemplateSubscription.Meta):
         abstract = False
-
-
-@periodic_task(run_every=60)
-def sync_template_content():
-    template_subscribers = TemplateSubscription.objects.filter(subscribe=True)
-    for subscription in template_subscribers:
-        base_sync_template_content(subscription.subscriber, subscription.template.pk)

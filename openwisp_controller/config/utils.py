@@ -1,4 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
+
+from openwisp_users.models import OrganizationUser
 
 
 def get_default_templates_queryset(organization_id, queryset=None, model=None):
@@ -15,3 +19,26 @@ def get_default_templates_queryset(organization_id, queryset=None, model=None):
     queryset = queryset.filter(Q(organization_id=organization_id) |
                                Q(organization_id=None))
     return queryset
+
+
+def get_serializer_object(user, serializer, model, data):
+    serializer.Meta.model = model
+    serializer.model = model
+    serializer_data = serializer(data=data)
+    if serializer_data.is_valid():
+        return serializer_data.save()
+    else:
+        if 'Template' not in str(serializer_data.errors) and \
+                'ca, serial_number must make a unique set' in str(serializer_data.errors) or \
+                'already exists' in str(serializer_data.errors):
+            # This takes care of the ca, serial_number unique and vpn already exist
+            # error during an update.
+            obj_name = data['name']
+            obj = model.objects.get(name=obj_name)
+            obj_org_user = OrganizationUser.objects.get(organization=obj.organization)
+            if obj_org_user.user == user:
+                model.objects.filter(name=obj_name).update(**data)
+                return model.objects.get(name=obj_name)
+            else:
+                raise ValidationError(_("{0}".format(serializer_data.errors)))
+        raise ValidationError(_("{0}".format(serializer_data.errors)))

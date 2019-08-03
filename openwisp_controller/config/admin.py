@@ -5,8 +5,8 @@ from django.contrib import admin
 from django.urls import reverse
 from django_netjsonconfig import settings as django_netjsonconfig_settings
 from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigInline, AbstractDeviceAdmin,
-                                             AbstractTemplateAdmin, AbstractTemplateSubscriptionAdmin,
-                                             AbstractVpnAdmin, AbstractVpnForm, BaseForm)
+                                             AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
+                                             BaseForm)
 
 from openwisp_users.models import Organization
 from openwisp_users.multitenancy import MultitenantOrgFilter, MultitenantRelatedOrgFilter
@@ -87,7 +87,7 @@ class TemplateAdmin(MultitenantAdminMixin, AbstractTemplateAdmin):
     # during unsubscription.
     # Template Subscription model is used to get number of
     # of subscribers for list_display
-    template_subscribe_model = TemplateSubscription
+    template_subscription_model = TemplateSubscription
     vpn_model = Vpn
     multitenant_shared_relations = ('vpn',)
 
@@ -107,10 +107,6 @@ class VpnAdmin(MultitenantAdminMixin, AbstractVpnAdmin):
     multitenant_shared_relations = ('ca', 'cert')
 
 
-class TemplateSubscriptionAdmin(AbstractTemplateSubscriptionAdmin):
-    model = TemplateSubscription
-
-
 VpnAdmin.list_display.insert(1, 'organization')
 VpnAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 VpnAdmin.list_filter.remove('ca')
@@ -119,7 +115,6 @@ VpnAdmin.fields.insert(2, 'organization')
 admin.site.register(Device, DeviceAdmin)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
-admin.site.register(TemplateSubscription, TemplateSubscriptionAdmin)
 
 
 if getattr(django_netjsonconfig_settings, 'REGISTRATION_ENABLED', True):
