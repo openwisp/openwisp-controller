@@ -1,6 +1,7 @@
 language: python
 sudo: false
 cache: pip
+dist: trusty
 
 addons:
   apt:
@@ -12,7 +13,7 @@ addons:
       - libspatialite-dev
 
 python:
-  - "3.4"
+  - "3.5"
   - "2.7"
 
 env:
@@ -48,7 +49,7 @@ install:
 script:
   - export PIPENV_IGNORE_VIRTUALENVS=1
   # for some reason the migrations check is failing only on django 2.0
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.4 ]]; then pipenv run ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then pipenv run ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
   - pipenv run coverage run --source=openwisp_controller runtests.py
   - |
     if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
