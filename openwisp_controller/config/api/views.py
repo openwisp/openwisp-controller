@@ -2,7 +2,7 @@ from django_netjsonconfig.api.generics import (BaseSubscriptionCountView, BaseTe
                                                BaseTemplateSubscriptionView, BaseTemplateSynchronizationView)
 from django_netjsonconfig.api.serializers import ListSubscriptionCountSerializer
 
-from openwisp_users.models import Organization
+from openwisp_users.models import Organization, OrganizationUser
 
 from ...pki.models import Ca, Cert
 from ..models import Template, TemplateSubscription, Vpn
@@ -33,6 +33,8 @@ class ListTemplateView(BaseListCreateTemplateView):
     vpn_model = Vpn
     ca_model = Ca
     cert_model = Cert
+    org_model = Organization
+    org_user_model = OrganizationUser
     ca_serializer = CaOrgSerializer
     cert_serializer = CertOrgSerializer
     vpn_serializer = VpnOrgSerializer

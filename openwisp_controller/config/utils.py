@@ -28,11 +28,7 @@ def get_serializer_object(user, serializer, model, data):
     if serializer_data.is_valid():
         return serializer_data.save()
     else:
-        if 'Template' not in str(serializer_data.errors) and \
-                'ca, serial_number must make a unique set' in str(serializer_data.errors) or \
-                'already exists' in str(serializer_data.errors):
-            # This takes care of the ca, serial_number unique and vpn already exist
-            # error during an update.
+        if str(model.__name__) in ["Ca", "Cert", "Vpn"]:
             obj_name = data['name']
             obj = model.objects.get(name=obj_name)
             obj_org_user = OrganizationUser.objects.get(organization=obj.organization)

@@ -82,6 +82,7 @@ should look like the following (ordering is important):
         'django.contrib.messages',
         'django.contrib.staticfiles',
         'django.contrib.gis',
+        'corsheaders',
         # openwisp2 admin theme
         # (must be loaded here)
         'openwisp_utils.admin_theme',
@@ -253,6 +254,36 @@ A dictionary that maps configuration backends to update strategies in order to
 automatically determine the update strategy of a device connection if the
 update strategy field is left blank by the user.
 
+``CORS_ORIGIN_WHITELIST``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+--------------------------------------------------------------------+
+| **type**:    | ``list``                                                           |
++--------------+--------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                             |
+|              |                                                                    |
+|              |   [                                                                |
+|              |     "http://localhost:3000/"                                       |
+|              |   ]                                                                |
++--------------+--------------------------------------------------------------------+
+
+This sets the CORS white list to the library frontend
+
+``CSRF_TRUSTED_ORIGINS``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+--------------------------------------------------------------------+
+| **type**:    | ``list``                                                           |
++--------------+--------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                             |
+|              |                                                                    |
+|              |   [                                                                |
+|              |     "localhost:3000"                                               |
+|              |   ]                                                                |
++--------------+--------------------------------------------------------------------+
+
+This sets the CSRF trusted origins to be the library frontend
+
 Installing for development
 --------------------------
 
@@ -285,7 +316,7 @@ Launch celery worker (for background jobs):
 
 .. code-block:: shell
 
-    celery -A openwisp2 worker -l info
+    celery -A openwisp2 worker -l info -B
 
 Launch development server:
 

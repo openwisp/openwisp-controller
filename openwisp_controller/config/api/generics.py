@@ -1,13 +1,10 @@
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 from django_netjsonconfig.api.generics import BaseListTemplateView
 from django_netjsonconfig.utils import get_remote_template_data
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.generics import get_object_or_404
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-
-from openwisp_users.models import Organization
 
 from ..utils import get_serializer_object
 
@@ -18,7 +15,6 @@ class BaseListCreateTemplateView(CreateModelMixin, BaseListTemplateView):
     This API will be used at the template library
     backend repo
     """
-    authentication_classes = (SessionAuthentication, BasicAuthentication)
     permission_classes = (IsAuthenticatedOrReadOnly,)
     allowed_methods = ('GET', 'POST', 'HEAD', 'OPTION')
 
@@ -26,11 +22,24 @@ class BaseListCreateTemplateView(CreateModelMixin, BaseListTemplateView):
         return self.create(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        import_url = request.POST.get('import-url', None)
-        org = request.POST.get('org', None)
-        template_org = get_object_or_404(Organization, name=org, users=self.request.user)
+        import_url = request.data.get('import-url', None)
         data = get_remote_template_data(import_url)
         try:
+            try:
+                template_org = self.org_model.objects.get(name=data['organization']['name'])
+                org_user = self.org_user_model.objects.get(organization=template_org)
+                if org_user.user == request.user:
+                    self.org_model.objects.filter(pk=template_org.pk).update(**data['organization'])
+                else:
+                    raise ValidationError(
+                        {'Organization': _('A User with this organization name already exist')}
+                    )
+            except self.org_model.DoesNotExist:
+                template_org = self.org_model(**data['organization'])
+                template_org.full_clean()
+                template_org.save()
+                template_org.add_user(self.request.user)
+                template_org.save()
             data['organization'] = template_org
             if data['type'] == 'vpn':
                 data['vpn']['ca']['organization'] = template_org
@@ -59,11 +68,11 @@ class BaseListCreateTemplateView(CreateModelMixin, BaseListTemplateView):
             template.save()
         except ValidationError as e:
             errors = {
-                'template-errors': str(e.messages)
+                'template_errors': str(e.messages)
             }
             return Response(data=errors, status=500)
         success = {
-            'template-success': 'template {0} was successfully created'.format(template)
+            'template_success': "Your template was successfully created"
         }
         self.template_subscription_model.subscribe(request, template)
         return Response(data=success, status=200)
