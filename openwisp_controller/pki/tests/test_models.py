@@ -47,7 +47,7 @@ class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
 
     def test_crl_view(self):
         ca = self._create_ca()
-        response = self.client.get(reverse('x509:crl', args=[ca.pk]))
+        response = self.client.get(reverse('admin:crl', args=[ca.pk]))
         self.assertEqual(response.status_code, 200)
         crl = crypto.load_crl(crypto.FILETYPE_PEM, response.content)
         revoked_list = crl.get_revoked()
