@@ -18,7 +18,7 @@ openwisp-controller
 
 OpenWISP 2 controller module (built using Python and the Django web-framework).
 
-**Want to help OpenWISP?** `Find out how to help us grow here
+**Want to help OpenWISP?** `Find out how to help us grow here:
 <http://openwisp.io/docs/general/help-us.html>`_.
 
 ------------
@@ -210,7 +210,7 @@ Settings
 |              |   )                                                                |
 +--------------+--------------------------------------------------------------------+
 
-Available connector classes. Connectors are python classes that specify ways
+**Available connector classes**: Connectors are python classes that specify ways
 in which OpenWISP can connect to devices in order to launch commands.
 
 ``OPENWISP_UPDATE_STRATEGIES``
@@ -226,7 +226,7 @@ in which OpenWISP can connect to devices in order to launch commands.
 |              |   )                                                                                    |
 +--------------+----------------------------------------------------------------------------------------+
 
-Available update strategies. An update strategy is a subclass of a
+**Available update strategies**: An update strategy is a subclass of a
 connector class which defines an ``update_config`` method which is
 in charge of updating the configuratio of the device.
 
