@@ -11,7 +11,7 @@ platforms:
 softwareType: standalone/web
 releaseDate: '2018-02-19'
 softwareVersion: 0.3.2
-logo: 'http://openwisp.io/docs/_downloads/openwisp.org.svg'
+logo: 'openwisp.org.svg'
 categories:
   - network-management
 maintenance:
@@ -50,3 +50,7 @@ description:
       network infrastructure of communities that most need it.
     videos:
       - 'https://www.youtube.com/watch?v=MY097Y2cPQ0'
+    features:
+      - Automate networks management
+      - Special focus on wireless networks (public wifi, mesh networks, community networks, IoT)
+      - Easy to build custom applications
