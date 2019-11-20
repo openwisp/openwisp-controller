@@ -1,4 +1,4 @@
-# This repository adheres to the publiccode.yml standard by including this 
+# This repository adheres to the publiccode.yml standard by including this
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/italia/publiccode.yml
 
@@ -42,7 +42,6 @@ description:
       management of networks, with a special focus on wireless networks, mainly
       used in public wifi, mesh networks, community networks and IoT scenarios.
 
-
       OpenWISP 2, launched in December 2016, is the new generation of the
       software which is gradually replacing OpenWISP 1 and aims to build an
       ecosystem of applications and tools that make it easy for developers to
@@ -51,6 +50,6 @@ description:
     videos:
       - 'https://www.youtube.com/watch?v=MY097Y2cPQ0'
     features:
-      - Automate networks management
+      - Network Management & Automation
       - Special focus on wireless networks (public wifi, mesh networks, community networks, IoT)
-      - Easy to build custom applications
+      - Allows to build custom applications
