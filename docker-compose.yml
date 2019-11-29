@@ -1,0 +1,14 @@
+version: "3"
+
+services:
+  controller:
+    image: openwisp/controller-development:latest
+    build:
+      context: .
+    ports:
+      - 8000:8000
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
