@@ -1,5 +1,5 @@
 language: python
-sudo: false
+os: linux
 cache: pip
 dist: trusty
 
@@ -20,7 +20,7 @@ env:
   - DJANGO="django>=1.11,<1.12"
   - DJANGO="django>=2.0,<2.1"
 
-matrix:
+jobs:
   exclude:
    - python: "2.7"
      env: DJANGO="django>=2.0,<2.1"
