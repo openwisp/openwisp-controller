@@ -1,7 +1,7 @@
 language: python
 sudo: false
 cache: pip
-dist: trusty
+dist: bionic
 
 addons:
   apt:
@@ -11,6 +11,8 @@ addons:
       - libproj-dev
       - libgeos-dev
       - libspatialite-dev
+      - spatialite-bin
+      - libsqlite3-mod-spatialite
 
 python:
   - "3.5"
