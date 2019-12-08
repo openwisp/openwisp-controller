@@ -16,8 +16,9 @@ class FloorPlan(OrgMixin, AbstractFloorPlan):
         abstract = False
 
     def clean(self):
-        if self.location:
-            self.organization = self.location.organization
+        if not hasattr(self, 'location'):
+            return
+        self.organization = self.location.organization
         self._validate_org_relation('location')
         super(FloorPlan, self).clean()
 
