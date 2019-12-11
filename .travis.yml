@@ -35,7 +35,7 @@ before_install:
   - pip install -U pipenv
   - pipenv install --dev --skip-lock
   - pipenv run lint
-  - pipenv run isort
+  - pipenv run isort --recursive --check-only
 
 install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
