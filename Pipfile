@@ -7,7 +7,6 @@ name = "pypi"
 openwisp_controller = {path = ".", editable = true}
 
 [dev-packages]
-coverage = "*"
 coveralls = "*"
 isort = "*"
 flake8 = "*"
