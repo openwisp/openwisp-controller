@@ -328,3 +328,43 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._login()
         response = self.client.get(path)
         self.assertNotContains(response, '// enable default templates')
+
+    def _get_clone_template_post_data(self, template):
+        return {
+            '_selected_action': [template.pk],
+            'action': 'clone_selected_templates',
+            'csrfmiddlewaretoken': 'test',
+        }
+
+    def test_clone_templates_superuser_1_org(self):
+        path = reverse('admin:config_template_changelist')
+        t = self._create_template(organization=self._get_org(org_name='default'))
+        post_data = self._get_clone_template_post_data(t)
+        self.client.force_login(self._get_admin())
+        response = self.client.post(path, post_data, follow=True)
+        self.assertContains(response, '{} (Clone)'.format(t.name))
+
+    def test_clone_templates_superuser_multi_orgs(self):
+        path = reverse('admin:config_template_changelist')
+        t = self._create_template(organization=self._get_org('org_2'))
+        post_data = self._get_clone_template_post_data(t)
+        self.client.force_login(self._get_admin())
+        response = self.client.post(path, post_data)
+        self.assertContains(response, 'Clone objects')
+
+    def test_clone_templates_operator_1_org(self):
+        path = reverse('admin:config_template_changelist')
+        t = self._create_template(organization=self._get_org())
+        post_data = self._get_clone_template_post_data(t)
+        self.client.force_login(self._create_operator(organizations=[self._get_org()]))
+        response = self.client.post(path, post_data, follow=True)
+        self.assertContains(response, '{} (Clone)'.format(t.name))
+
+    def test_clone_templates_operator_multi_orgs(self):
+        path = reverse('admin:config_template_changelist')
+        t = self._create_template(organization=self._get_org())
+        post_data = self._get_clone_template_post_data(t)
+        self.client.force_login(self._create_operator(
+            organizations=[self._get_org(), self._get_org('org_2')]))
+        response = self.client.post(path, post_data)
+        self.assertContains(response, 'Clone objects')

@@ -2,8 +2,11 @@ import json
 
 from django import forms
 from django.conf.urls import url
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin import helpers
+from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django_netjsonconfig import settings as django_netjsonconfig_settings
 from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigInline, AbstractDeviceAdmin,
                                              AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
@@ -15,6 +18,7 @@ from openwisp_users.multitenancy import MultitenantOrgFilter, MultitenantRelated
 from openwisp_utils.admin import AlwaysHasChangedMixin
 
 from ..admin import MultitenantAdminMixin
+from .forms import CloneOrganizationForm
 from .models import Config, Device, OrganizationConfigSettings, Template, Vpn
 
 
@@ -89,9 +93,41 @@ class TemplateForm(BaseForm):
         model = Template
 
 
+def clone_selected_templates(modeladmin, request, queryset):
+    selectable_orgs = None
+    if request.user.is_superuser:
+        all_orgs = Organization.objects.all()
+        if all_orgs.count() > 1:
+            selectable_orgs = all_orgs
+    elif len(request.user.organizations_pk) > 1:
+        selectable_orgs = Organization.objects.filter(pk__in=request.user.organizations_pk)
+    if selectable_orgs:
+        if request.POST.get('organization'):
+            for template in queryset:
+                clone = template.clone(request.user)
+                clone.organization = Organization.objects.get(pk=request.POST.get('organization'))
+                clone.save()
+            modeladmin.message_user(request, _('Successfully cloned selected templates.'), messages.SUCCESS)
+            return None
+
+        context = {
+            'title': 'Cloned templates organization',
+            'queryset': queryset,
+            'opts': modeladmin.model._meta,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'form': CloneOrganizationForm(queryset=selectable_orgs)
+        }
+        return TemplateResponse(request, 'admin/config/clone_org_select_form.html', context)
+    else:
+        for template in queryset:
+            clone = template.clone(request.user)
+            clone.save()
+
+
 class TemplateAdmin(MultitenantAdminMixin, AbstractTemplateAdmin):
     form = TemplateForm
     multitenant_shared_relations = ('vpn',)
+    actions = [clone_selected_templates]
 
 
 TemplateAdmin.list_display.insert(1, 'organization')
