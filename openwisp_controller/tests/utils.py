@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 
-from openwisp_utils.tests.utils import TestMultitenantAdminMixin
+from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
 user_model = get_user_model()
 
