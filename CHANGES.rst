@@ -1,10 +1,30 @@
 Changelog
 =========
 
-Version 0.4.0 [2018-02-19]
+Version 0.4.0 [2019-01-09]
 --------------------------
 
-WIP
+- [feature] Added connection module (possibility to SSH into devices)
+- [feature] Added default operator group
+- [feature] Added management IP feature
+- [change] Changed configuration status: ``running`` has been renamed to ``applied``
+- [admin] Added ``NETJSONCONFIG_MANAGEMENT_IP_DEVICE_LIST`` setting
+- [admin] Added ``NETJSONCONFIG_BACKEND_DEVICE_LIST`` setting
+- [x509] Fixed common_name redundancy
+- [admin] Hidden "Download Configuration" button when no config is available
+- [controller] Register view now updates device details
+- [deps] Added support for Django 2.1 and Django 2.2
+- [models] Added support for hardware ID / serial number
+- [device] Add context field to device
+- [bugfix] Show error when the preview is experiencing issues
+- [ux] Group device change form in tabs
+- [ux] Show loading indicator while loading preview
+- [vpn] Add controller views (download & checksum) for VPN config
+- [vpn] Fixed DH params in preview #107
+- [change] Moved urls to admin namespace
+- [feature] Implement copy/clone templates
+- [feature] Added API to get context of device
+- [bugfix] Ensure atomicity of transactions with database during auto-registration
 
 Version 0.3.2 [2018-02-19]
 --------------------------
