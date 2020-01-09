@@ -9,8 +9,8 @@ developmentStatus: stable
 platforms:
   - linux
 softwareType: standalone/web
-releaseDate: '2018-02-19'
-softwareVersion: 0.3.2
+releaseDate: '2020-01-09'
+softwareVersion: 0.4.0
 logo: 'openwisp.org.svg'
 categories:
   - network-management
