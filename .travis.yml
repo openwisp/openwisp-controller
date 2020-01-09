@@ -35,7 +35,6 @@ before_install:
   - pip install -U pipenv
   - pipenv install --dev --skip-lock
   - pipenv run lint
-  - pipenv run isort --recursive --check-only
 
 install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
@@ -50,16 +49,18 @@ install:
 script:
   - export PIPENV_IGNORE_VIRTUALENVS=1
   # for some reason the migrations check is failing only on django 2.0
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then pipenv run ./tests/manage.py makemigrations config pki --dry-run | grep "No changes detected"; fi
-  - pipenv run coverage run --source=openwisp_controller runtests.py
   - |
-    if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-      # gets commit message of last commit before pull request merge
-      COMMIT_MESSAGE=$(git log $TRAVIS_PULL_REQUEST_SHA --format=%B -n 1)
-      printf "Checking commit message:\n\n"
-      printf "$COMMIT_MESSAGE\n\n"
-      pipenv run checkcommit --message "$COMMIT_MESSAGE"
-    fi
+      if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then
+        pipenv run openwisp-utils-qa-checks \
+        --migration-path \
+          "./openwisp_controller/config/migrations \
+          ./openwisp_controller/connection/migrations \
+          ./openwisp_controller/geo/migrations \
+          ./openwisp_controller/pki/migrations" \
+        --migrations-to-ignore "12 0 0 4" \
+        --migration-module "config connection geo pki";
+      fi
+  - pipenv run coverage run --source=openwisp_controller runtests.py
 
 after_success:
   pipenv run coveralls
