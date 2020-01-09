@@ -5,8 +5,8 @@ from OpenSSL import crypto
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from ..models import Ca, Cert
 from . import TestPkiMixin
+from ..models import Ca, Cert
 
 
 class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):

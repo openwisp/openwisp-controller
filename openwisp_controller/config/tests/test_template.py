@@ -3,9 +3,9 @@ from django.test import TestCase
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ..models import Config, Device, Template, Vpn
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
 class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
