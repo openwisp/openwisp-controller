@@ -1,0 +1,35 @@
+.organization-selection form select {
+    margin: 10px
+}
+
+.organization-selection form input[type="submit"] {
+    background: #ba2121;
+    border-radius: 4px;
+    padding: 10px 15px;
+    color: #fff;
+    margin: 10px 0 0 0
+}
+
+.organization-selection form input[type="submit"]:active,
+.organization-selection form input[type="submit"]:focus,
+.organization-selection form input[type="submit"]:hover {
+    background: #a41515;
+}
+
+.organization-selection form .cancel-link {
+    display: inline-block;
+    vertical-align: middle;
+    height: 15px;
+    line-height: 15px;
+    background: #ddd;
+    border-radius: 4px;
+    padding: 10px 15px;
+    color: #333;
+    margin: 10px 0 0 10px;
+}
+
+.organization-selection form .cancel-link:active,
+.organization-selection form .cancel-link:focus,
+.organization-selection form .cancel-link:hover {
+    background: #ccc;
+}
