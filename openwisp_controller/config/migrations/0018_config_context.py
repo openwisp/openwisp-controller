@@ -2,6 +2,7 @@
 
 from django.db import migrations
 import jsonfield.fields
+import collections
 
 
 class Migration(migrations.Migration):
@@ -14,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='config',
             name='context',
-            field=jsonfield.fields.JSONField(blank=True, help_text='Additional <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html#context" target="_blank">context (configuration variables)</a> in JSON format', null=True),
+            field=jsonfield.fields.JSONField(blank=True, dump_kwargs={'indent': 4}, help_text='Additional <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html#context" target="_blank">context (configuration variables)</a> in JSON format', load_kwargs={'object_pairs_hook': collections.OrderedDict}, null=True),
         ),
     ]
