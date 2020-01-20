@@ -37,7 +37,7 @@ setup(
         "django-netjsonconfig>=0.8.1,<0.10.0",
         "openwisp-utils>=0.3.2,<0.4.0",
         "openwisp-users>=0.1.12,<0.2.0",
-        "django-loci>=0.1.1,<0.3.0",
+        "django-loci>=0.3.0,<0.4.0",
         "djangorestframework-gis>=0.12.0,<0.14.0",
         "paramiko>=2.4.1,<2.5.0",
         "scp>=0.13.0,<0.14.0",
@@ -52,7 +52,6 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: OS Independent',
         'Framework :: Django',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3',
     ]
 )
