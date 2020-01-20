@@ -11,9 +11,12 @@ coveralls = "*"
 isort = "*"
 flake8 = "*"
 mock = "*"
+pytest-django = ">=3.4.2,<3.6.0"
+pytest-asyncio = ">=0.10.0,<0.11.0"
+pytest-cov = ">=2.7.0,<2.8.0"
 
 [scripts]
 lint = "python -m flake8"
 isort = "python -m isort"
-test = "python runtests.py"
+test = "python runtests.py && pytest"
 install_dev = "sh install-dev.sh"
