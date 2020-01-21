@@ -50,12 +50,12 @@ class ObjectLocationForm(AbstractObjectLocationForm):
         model = DeviceLocation
 
     def _get_location_instance(self):
-        location = super(ObjectLocationForm, self)._get_location_instance()
+        location = super()._get_location_instance()
         location.organization_id = self.data.get('organization')
         return location
 
     def _get_floorplan_instance(self):
-        floorplan = super(ObjectLocationForm, self)._get_floorplan_instance()
+        floorplan = super()._get_floorplan_instance()
         floorplan.organization_id = self.data.get('organization')
         return floorplan
 

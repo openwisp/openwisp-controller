@@ -4,8 +4,8 @@ from django_netjsonconfig import settings as django_netjsonconfig_settings
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin
 from ..models import Config, Device, OrganizationConfigSettings, Template
+from . import CreateConfigTemplateMixin
 
 TEST_MACADDR = '00:11:22:33:44:55'
 TEST_MACADDR_NAME = TEST_MACADDR.replace(':', '-')
@@ -23,7 +23,7 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
     template_model = Template
 
     def _create_org(self, shared_secret=TEST_ORG_SHARED_SECRET, **kwargs):
-        org = super(TestController, self)._create_org(**kwargs)
+        org = super()._create_org(**kwargs)
         OrganizationConfigSettings.objects.create(organization=org,
                                                   shared_secret=shared_secret)
         return org
@@ -144,12 +144,12 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
 class TestRegistrationDisabled(TestOrganizationMixin, TestCase):
     @classmethod
     def setUpClass(cls):
-        super(TestRegistrationDisabled, cls).setUpClass()
+        super().setUpClass()
         django_netjsonconfig_settings.REGISTRATION_ENABLED = False
 
     @classmethod
     def tearDownClass(cls):
-        super(TestRegistrationDisabled, cls).tearDownClass()
+        super().tearDownClass()
         django_netjsonconfig_settings.REGISTRATION_ENABLED = True
 
     def test_register_404(self):

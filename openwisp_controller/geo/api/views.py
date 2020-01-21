@@ -33,7 +33,7 @@ class DeviceLocationView(generics.RetrieveUpdateAPIView):
             return None
 
     def get_object(self, *args, **kwargs):
-        device = super(DeviceLocationView, self).get_object()
+        device = super().get_object()
         location = self.get_location(device)
         if location:
             return location

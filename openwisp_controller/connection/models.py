@@ -4,7 +4,6 @@ import logging
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-from django.utils.encoding import python_2_unicode_compatible
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext_lazy as _
@@ -15,8 +14,8 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
-from . import settings as app_settings
 from ..config.models import Device
+from . import settings as app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,6 @@ class ConnectorMixin(object):
                                     addresses=self.get_addresses())
 
 
-@python_2_unicode_compatible
 class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
     """
     Credentials for access
@@ -78,7 +76,7 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
         return '{0} ({1})'.format(self.name, self.get_connector_display())
 
     def save(self, *args, **kwargs):
-        super(Credentials, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
         self.auto_add_to_devices()
 
     def auto_add_to_devices(self):

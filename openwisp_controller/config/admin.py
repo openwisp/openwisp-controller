@@ -72,16 +72,16 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
             url(r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
                 get_default_templates,
                 name='get_default_templates'),
-        ] + super(DeviceAdmin, self).get_urls()
+        ] + super().get_urls()
 
     def get_extra_context(self, pk=None):
-        ctx = super(DeviceAdmin, self).get_extra_context(pk)
+        ctx = super().get_extra_context(pk)
         ctx.update({'default_template_urls': self._get_default_template_urls()})
         return ctx
 
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = self.get_extra_context()
-        return super(DeviceAdmin, self).add_view(request, form_url, extra_context)
+        return super().add_view(request, form_url, extra_context)
 
 
 DeviceAdmin.list_display.insert(1, 'organization')

@@ -3,7 +3,6 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from django_netjsonconfig import settings as app_settings
 from django_netjsonconfig.base.config import AbstractConfig, TemplatesThrough
@@ -28,7 +27,7 @@ class TemplatesVpnMixin(BaseMixin):
 
     def get_default_templates(self):
         """ see ``openwisp_controller.config.utils.get_default_templates_queryset`` """
-        queryset = super(TemplatesVpnMixin, self).get_default_templates()
+        queryset = super().get_default_templates()
         assert self.device
         return get_default_templates_queryset(self.device.organization_id,
                                               queryset=queryset)
@@ -69,7 +68,7 @@ class TemplatesVpnMixin(BaseMixin):
         """
         templates = cls.clean_templates_org(action, instance, pk_set, **kwargs)
         # perform validation of configuration (local config + templates)
-        super(TemplatesVpnMixin, cls).clean_templates(action, instance, templates, **kwargs)
+        super().clean_templates(action, instance, templates, **kwargs)
 
 
 # if unique attribute for NETJSONCONFIG_HARDWARE_ID_OPTIONS is not explicitely mentioned,
@@ -103,7 +102,7 @@ class Device(OrgMixin, AbstractDevice):
         return self.hardware_id if app_settings.HARDWARE_ID_ENABLED else self.name
 
     def get_temp_config_instance(self, **options):
-        c = super(Device, self).get_temp_config_instance(**options)
+        c = super().get_temp_config_instance(**options)
         c.device = self
         return c
 
@@ -169,7 +168,7 @@ class Template(ShareableOrgMixin, AbstractTemplate):
 
     def clean(self):
         self._validate_org_relation('vpn')
-        super(Template, self).clean()
+        super().clean()
 
 
 class Vpn(ShareableOrgMixin, AbstractVpn):
@@ -225,7 +224,6 @@ class VpnClient(AbstractVpnClient):
         return cert
 
 
-@python_2_unicode_compatible
 class OrganizationConfigSettings(models.Model):
     """
     Configuration management settings

@@ -20,7 +20,7 @@ class FloorPlan(OrgMixin, AbstractFloorPlan):
             return
         self.organization = self.location.organization
         self._validate_org_relation('location')
-        super(FloorPlan, self).clean()
+        super().clean()
 
 
 class DeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
@@ -44,7 +44,7 @@ class DeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
     def clean(self):
         self._validate_org_relation('location', field_error='location')
         self._validate_org_relation('floorplan', field_error='floorplan')
-        super(DeviceLocation, self).clean()
+        super().clean()
 
     @property
     def device(self):

@@ -7,7 +7,7 @@ class ConfigConfig(DjangoNetjsonconfigApp):
     label = 'config'
 
     def ready(self, *args, **kwargs):
-        super(ConfigConfig, self).ready(*args, **kwargs)
+        super().ready(*args, **kwargs)
         self.add_default_menu_items()
 
     def __setmodels__(self):

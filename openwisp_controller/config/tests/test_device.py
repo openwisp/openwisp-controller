@@ -3,8 +3,8 @@ from django.test import TestCase
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin
 from ..models import Config, Device
+from . import CreateConfigTemplateMixin
 
 
 class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):

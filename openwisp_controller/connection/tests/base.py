@@ -65,6 +65,6 @@ class SshMixin(object):
 
     @classmethod
     def setUpClass(cls):
-        super(SshMixin, cls).setUpClass()
+        super().setUpClass()
         with open(cls._TEST_RSA_KEY_PATH, 'r') as f:
             cls._SSH_PRIVATE_KEY = f.read()

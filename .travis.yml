@@ -14,11 +14,12 @@ addons:
       - libsqlite3-mod-spatialite
 
 python:
-  - "3.5"
+  - "3.6"
+  - "3.7"
 
 env:
-  - DJANGO="django>=1.11,<1.12"
-  - DJANGO="django>=2.0,<2.1"
+  - DJANGO="django>=2.2,<2.3"
+  - DJANGO="django>=3.0,<3.1"
 
 branches:
   only:
@@ -27,33 +28,27 @@ branches:
 before_install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
   - pip install -U pipenv
+  - pipenv run install_dev
   - pipenv install --dev --skip-lock
   - pipenv run lint
 
 install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
   - pipenv install --skip-lock $DJANGO
-  # fix issues with travis
-  - pipenv install --skip-lock "attrs>=17.4.0" six packaging
-  # fix issue with spatialie on python 2
-  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then pipenv install --skip-lock git+git://github.com/tinio/pysqlite.git@extension-enabled#egg=pysqlite; fi
-  - pipenv run install_dev
   - pipenv run pip freeze
 
 script:
   - export PIPENV_IGNORE_VIRTUALENVS=1
   # for some reason the migrations check is failing only on django 2.0
   - |
-      if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then
-        pipenv run openwisp-utils-qa-checks \
-        --migration-path \
-          "./openwisp_controller/config/migrations \
-          ./openwisp_controller/connection/migrations \
-          ./openwisp_controller/geo/migrations \
-          ./openwisp_controller/pki/migrations" \
-        --migrations-to-ignore "12 0 0 4" \
-        --migration-module "config connection geo pki";
-      fi
+    pipenv run openwisp-utils-qa-checks \
+    --migration-path \
+      "./openwisp_controller/config/migrations \
+      ./openwisp_controller/connection/migrations \
+      ./openwisp_controller/geo/migrations \
+      ./openwisp_controller/pki/migrations" \
+    --migrations-to-ignore "12 0 0 4" \
+    --migration-module "config connection geo pki";
   - pipenv run pytest --cov=openwisp_controller
   - pipenv run coverage run -a --source=openwisp_controller runtests.py
 

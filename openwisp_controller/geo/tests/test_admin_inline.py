@@ -2,10 +2,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django_loci.tests.base.test_admin_inline import BaseTestAdminInline
 
-from . import TestGeoMixin
 from ...config.models import Device
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ..models import DeviceLocation, FloorPlan, Location
+from . import TestGeoMixin
 
 # ConfigInline management fields
 _device_params = TestConfigAdmin._device_params.copy()

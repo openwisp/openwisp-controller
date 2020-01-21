@@ -5,10 +5,10 @@ from django.urls import reverse
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ...pki.models import Ca, Cert
 from ...tests.utils import TestAdminMixin
 from ..models import Config, Device, Template, Vpn
+from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
 class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,

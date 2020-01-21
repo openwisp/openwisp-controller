@@ -10,7 +10,7 @@ class TestVpnX509Mixin(CreateVpnMixin, TestPkiMixin):
             name = org.name if org else kwargs.get('name') or 'test'
             ca_options['name'] = '{0}-ca'.format(name)
             ca_options['organization'] = org
-        return super(TestVpnX509Mixin, self)._create_vpn(ca_options, **kwargs)
+        return super()._create_vpn(ca_options, **kwargs)
 
 
 class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
@@ -18,4 +18,4 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
         if 'device' not in kwargs:
             kwargs['device'] = self._create_device(name='test-device',
                                                    organization=kwargs.pop('organization'))
-        return super(CreateConfigTemplateMixin, self)._create_config(**kwargs)
+        return super()._create_config(**kwargs)
