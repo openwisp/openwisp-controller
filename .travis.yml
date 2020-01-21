@@ -15,16 +15,10 @@ addons:
 
 python:
   - "3.5"
-  - "2.7"
 
 env:
   - DJANGO="django>=1.11,<1.12"
   - DJANGO="django>=2.0,<2.1"
-
-matrix:
-  exclude:
-   - python: "2.7"
-     env: DJANGO="django>=2.0,<2.1"
 
 branches:
   only:
@@ -60,7 +54,8 @@ script:
         --migrations-to-ignore "12 0 0 4" \
         --migration-module "config connection geo pki";
       fi
-  - pipenv run coverage run --source=openwisp_controller runtests.py
+  - pipenv run pytest --cov=openwisp_controller
+  - pipenv run coverage run -a --source=openwisp_controller runtests.py
 
 after_success:
   pipenv run coveralls

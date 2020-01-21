@@ -43,7 +43,8 @@ class DeviceLocationView(generics.RetrieveUpdateAPIView):
     def create_location(self, device):
         location = Location(name=device.name,
                             type='outdoor',
-                            organization=device.organization)
+                            organization=device.organization,
+                            is_mobile=True)
         location.full_clean()
         location.save()
         dl = DeviceLocation(content_object=device,

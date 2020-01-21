@@ -37,7 +37,7 @@ An automated installer is available at `ansible-openwisp2 <https://github.com/op
 Dependencies
 ------------
 
-* Python 2.7 or Python >= 3.5
+* Python >= 3.5
 * OpenSSL
 
 Install stable version from pypi
@@ -165,10 +165,10 @@ Add the following settings to ``settings.py``:
 
     FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
+    ASGI_APPLICATION = 'openwisp_controller.geo.channels.routing.channel_routing'
     CHANNEL_LAYERS = {
         'default': {
-            'BACKEND': 'asgiref.inmemory.ChannelLayer',
-            'ROUTING': 'openwisp_controller.geo.channels.routing.channel_routing',
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
         },
     }
 
