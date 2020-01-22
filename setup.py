@@ -35,7 +35,7 @@ setup(
     zip_safe=False,
     install_requires=[
         "django-netjsonconfig>=0.9.0,<0.10.0",
-        "openwisp-utils>=0.4.0,<0.5.0",
+        "openwisp-utils>=0.4.1,<0.5.0",
         "openwisp-users>=0.2.0,<0.3.0",
         "django-loci>=0.3.1,<0.4.0",
         "djangorestframework-gis>=0.12.0,<0.16.0",

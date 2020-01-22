@@ -1,5 +1,3 @@
-import uuid
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -11,12 +9,12 @@ from django_netjsonconfig.base.device import AbstractDevice
 from django_netjsonconfig.base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from django_netjsonconfig.base.template import AbstractTemplate
 from django_netjsonconfig.base.vpn import AbstractVpn, AbstractVpnClient
-from django_netjsonconfig.utils import get_random_key
-from django_netjsonconfig.validators import key_validator, mac_address_validator
+from django_netjsonconfig.validators import mac_address_validator
 from sortedm2m.fields import SortedManyToManyField
 from taggit.managers import TaggableManager
 
 from openwisp_users.mixins import OrgMixin, ShareableOrgMixin
+from openwisp_utils.base import KeyField, UUIDModel
 
 from .utils import get_default_templates_queryset
 
@@ -224,12 +222,11 @@ class VpnClient(AbstractVpnClient):
         return cert
 
 
-class OrganizationConfigSettings(models.Model):
+class OrganizationConfigSettings(UUIDModel):
     """
     Configuration management settings
     specific to each organization
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.OneToOneField('openwisp_users.Organization',
                                         verbose_name=_('organization'),
                                         related_name='config_settings',
@@ -238,13 +235,11 @@ class OrganizationConfigSettings(models.Model):
                                                default=True,
                                                help_text=_('Whether automatic registration of '
                                                            'devices is enabled or not'))
-    shared_secret = models.CharField(_('shared secret'),
-                                     max_length=32,
-                                     unique=True,
-                                     db_index=True,
-                                     default=get_random_key,
-                                     validators=[key_validator],
-                                     help_text=_('used for automatic registration of devices'))
+    shared_secret = KeyField(max_length=32,
+                             unique=True,
+                             db_index=True,
+                             verbose_name=_('shared secret'),
+                             help_text=_('used for automatic registration of devices'))
 
     class Meta:
         verbose_name = _('Configuration management settings')
