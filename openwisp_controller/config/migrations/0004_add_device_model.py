@@ -4,8 +4,9 @@ import django.core.validators
 from django.db import migrations, models
 import django.db.models.deletion
 import django.utils.timezone
-import django_netjsonconfig.utils
 import model_utils.fields
+import openwisp_utils.base
+import openwisp_utils.utils
 import re
 import uuid
 
@@ -24,7 +25,7 @@ class Migration(migrations.Migration):
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=64, unique=True)),
                 ('mac_address', models.CharField(help_text='primary mac address', max_length=17, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', 32), code='invalid', message='Must be a valid mac address.')])),
-                ('key', models.CharField(db_index=True, default=django_netjsonconfig.utils.get_random_key, help_text='unique device key', max_length=64, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$', 32), code='invalid', message='Key must not contain spaces, dots or slashes.')])),
+                ('key', openwisp_utils.base.KeyField(db_index=True, default=openwisp_utils.utils.get_random_key, help_text='unique device key', max_length=64, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$'), code='invalid', message='This value must not contain spaces, dots or slashes.')])),
                 ('model', models.CharField(blank=True, help_text='device model and manufacturer', max_length=64)),
                 ('os', models.CharField(blank=True, help_text='operating system identifier', max_length=128, verbose_name='operating system')),
                 ('notes', models.TextField(blank=True)),

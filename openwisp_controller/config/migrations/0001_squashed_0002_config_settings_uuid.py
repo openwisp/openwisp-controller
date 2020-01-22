@@ -6,7 +6,8 @@ import django.core.validators
 from django.db import migrations, models
 import django.utils.timezone
 import django_netjsonconfig.base.template
-import django_netjsonconfig.utils
+import openwisp_utils.base
+import openwisp_utils.utils
 import jsonfield.fields
 import model_utils.fields
 import openwisp_utils.base
@@ -38,7 +39,7 @@ class Migration(migrations.Migration):
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
                 ('status', model_utils.fields.StatusField(choices=[('modified', 'modified'), ('running', 'running'), ('error', 'error')], default='modified', help_text='modified means the configuration is not applied yet; running means applied and running; error means the configuration caused issues and it was rolledback', max_length=100, no_check_for_status=True)),
-                ('key', models.CharField(db_index=True, default=django_netjsonconfig.utils.get_random_key, help_text='unique key that can be used to download the configuration', max_length=64, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$', 32), code='invalid', message='Key must not contain spaces, dots or slashes.')])),
+                ('key', models.CharField(db_index=True, default=openwisp_utils.utils.get_random_key, help_text='unique key that can be used to download the configuration', max_length=64, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$', 32), code='invalid', message='Key must not contain spaces, dots or slashes.')])),
                 ('mac_address', models.CharField(help_text='primary mac address', max_length=17, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', 32), code='invalid', message='Must be a valid mac address.')])),
                 ('last_ip', models.GenericIPAddressField(blank=True, help_text='indicates the last ip from which the configuration was downloaded from (except downloads from this page)', null=True)),
                 ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='openwisp_users.Organization', verbose_name='organization')),
