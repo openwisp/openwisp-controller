@@ -13,7 +13,7 @@ class ActiveOrgMixin(object):
     """
     def get_object(self, *args, **kwargs):
         kwargs['organization__is_active'] = True
-        return super(ActiveOrgMixin, self).get_object(*args, **kwargs)
+        return super().get_object(*args, **kwargs)
 
 
 class DeviceChecksumView(ActiveOrgMixin, BaseDeviceChecksumView):
@@ -52,13 +52,13 @@ class DeviceRegisterView(BaseDeviceRegisterView):
         self.organization = org_settings.organization
 
     def init_object(self, **kwargs):
-        config = super(DeviceRegisterView, self).init_object(**kwargs)
+        config = super().init_object(**kwargs)
         config.organization = self.organization
         config.device.organization = self.organization
         return config
 
     def get_template_queryset(self, config):
-        queryset = super(DeviceRegisterView, self).get_template_queryset(config)
+        queryset = super().get_template_queryset(config)
         # filter templates of the same organization or shared templates
         return queryset.filter(Q(organization=self.organization) |
                                Q(organization=None))

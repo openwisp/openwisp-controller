@@ -21,7 +21,7 @@ class TestModels(SshMixin, CreateConnectionsMixin, TestCase):
                 'last_ip': self.ssh_server.host,
                 'management_ip': self.ssh_server.host,
             })
-        return super(TestModels, self)._create_device(*args, **kwargs)
+        return super()._create_device(*args, **kwargs)
 
     def test_connection_str(self):
         c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])

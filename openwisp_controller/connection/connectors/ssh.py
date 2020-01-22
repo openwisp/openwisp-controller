@@ -1,6 +1,6 @@
 import logging
 import socket
-import sys
+from io import StringIO
 
 import paramiko
 from django.utils.functional import cached_property
@@ -8,12 +8,6 @@ from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
 
 from .. import settings as app_settings
-
-if sys.version_info.major > 2:  # pragma: nocover
-    from io import StringIO
-else:  # pragma: nocover
-    from StringIO import StringIO
-
 
 logger = logging.getLogger(__name__)
 

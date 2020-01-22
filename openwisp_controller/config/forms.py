@@ -8,5 +8,5 @@ class CloneOrganizationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         queryset = kwargs.pop('queryset')
-        super(CloneOrganizationForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields['organization'].queryset = queryset

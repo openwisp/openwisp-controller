@@ -14,7 +14,7 @@ class OrgVersionMixin(object):
         """ only superusers are allowed to recover deleted objects """
         if not request.user.is_superuser:
             raise PermissionDenied
-        return super(OrgVersionMixin, self).recoverlist_view(request, extra_context)
+        return super().recoverlist_view(request, extra_context)
 
 
 class MultitenantAdminMixin(OrgVersionMixin, BaseMultitenantAdminMixin):

@@ -26,17 +26,17 @@ class TestGeoMixin(TestLociMixin):
         if 'location' in kwargs:
             kwargs['organization'] = kwargs['location'].organization
         self._add_default_org(kwargs)
-        return super(TestGeoMixin, self)._create_object(**kwargs)
+        return super()._create_object(**kwargs)
 
     def _create_location(self, **kwargs):
         self._add_default_org(kwargs)
-        return super(TestGeoMixin, self)._create_location(**kwargs)
+        return super()._create_location(**kwargs)
 
     def _create_floorplan(self, **kwargs):
         if 'location' not in kwargs:
             kwargs['location'] = self._create_location(type='indoor')
         kwargs['organization'] = kwargs['location'].organization
-        return super(TestGeoMixin, self)._create_floorplan(**kwargs)
+        return super()._create_floorplan(**kwargs)
 
     def _create_object_location(self, **kwargs):
         if 'location' not in kwargs:

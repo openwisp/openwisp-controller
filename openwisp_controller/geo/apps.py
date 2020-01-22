@@ -13,7 +13,7 @@ class GeoConfig(LociConfig):
         self.location_model = Location
 
     def ready(self):
-        super(GeoConfig, self).ready()
+        super().ready()
         if getattr(settings, 'TESTING', False):
             self._add_params_to_test_config()
 

@@ -1,6 +1,7 @@
 import importlib
 
 import pytest
+from channels.db import database_sync_to_async
 from channels.routing import ProtocolTypeRouter
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
@@ -9,9 +10,9 @@ from django.contrib.auth.models import Permission
 from django.http.request import HttpRequest
 from openwisp_controller.geo.channels.consumers import LocationBroadcast
 
-from . import TestGeoMixin
 from ...config.models import Device
 from ..models import DeviceLocation, Location
+from . import TestGeoMixin
 
 
 class TestChannels(TestGeoMixin):
@@ -28,15 +29,15 @@ class TestChannels(TestGeoMixin):
         request.session.save()
         return request.session
 
-    def _get_request_dict(self, pk=None, user=None):
+    async def _get_request_dict(self, pk=None, user=None):
         if not pk:
-            location = self._create_location(is_mobile=True)
-            self._create_object_location(location=location)
+            location = await database_sync_to_async(self._create_location)(is_mobile=True)
+            await database_sync_to_async(self._create_object_location)(location=location)
             pk = location.pk
         path = '/ws/loci/location/{0}/'.format(pk)
         session = None
         if user:
-            session = self._force_login(user)
+            session = await database_sync_to_async(self._force_login)(user)
         return {'pk': pk, 'path': path, 'session': session}
 
     def _get_communicator(self, request_vars, user=None):
@@ -57,32 +58,34 @@ class TestChannels(TestGeoMixin):
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_consumer_staff_but_no_change_permission(self):
-        user = self.user_model.objects.create_user(username='user',
-                                                   password='password',
-                                                   email='test@test.org',
-                                                   is_staff=True)
-        location = self._create_location(is_mobile=True)
-        self._create_object_location(location=location)
+        user = await database_sync_to_async(self.user_model.objects.create_user)(username='user',
+                                                                                 password='password',
+                                                                                 email='test@test.org',
+                                                                                 is_staff=True)
+        location = await database_sync_to_async(self._create_location)(is_mobile=True)
+        await database_sync_to_async(self._create_object_location)(location=location)
         pk = location.pk
-        request_vars = self._get_request_dict(user=user, pk=pk)
+        request_vars = await self._get_request_dict(user=user, pk=pk)
         communicator = self._get_communicator(request_vars, user)
         connected, _ = await communicator.connect()
         assert not connected
         await communicator.disconnect()
         # add permission to change location and repeat
-        perm = Permission.objects.filter(name='Can change location').first()
-        user.user_permissions.add(perm)
-        user = self.user_model.objects.get(pk=user.pk)
-        request_vars = self._get_request_dict(user=user, pk=pk)
+        perm = await database_sync_to_async(
+            (await database_sync_to_async(Permission.objects.filter)(name='Can change location')).first
+        )()
+        await database_sync_to_async(user.user_permissions.add)(perm)
+        user = await database_sync_to_async(self.user_model.objects.get)(pk=user.pk)
+        request_vars = await self._get_request_dict(user=user, pk=pk)
         communicator = self._get_communicator(request_vars, user)
         connected, _ = await communicator.connect()
         assert not connected
         await communicator.disconnect()
         # add user to organization
-        location.organization.add_user(user)
-        location.organization.save()
-        user = self.user_model.objects.get(pk=user.pk)
-        request_vars = self._get_request_dict(user=user, pk=pk)
+        await database_sync_to_async(location.organization.add_user)(user)
+        await database_sync_to_async(location.organization.save)()
+        user = await database_sync_to_async(self.user_model.objects.get)(pk=user.pk)
+        request_vars = await self._get_request_dict(user=user, pk=pk)
         communicator = self._get_communicator(request_vars, user)
         connected, _ = await communicator.connect()
         assert connected
