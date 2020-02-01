@@ -31,6 +31,7 @@ before_install:
   - pipenv run install_dev
   - pipenv install --dev --skip-lock
   - pipenv run lint
+  - npm install -g jslint
 
 install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
@@ -40,6 +41,7 @@ install:
 script:
   - export PIPENV_IGNORE_VIRTUALENVS=1
   # for some reason the migrations check is failing only on django 2.0
+  - jslint openwisp_controller/pki/static/pki/js/*.js
   - |
     pipenv run openwisp-utils-qa-checks \
     --migration-path \
