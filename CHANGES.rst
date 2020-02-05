@@ -1,6 +1,15 @@
 Changelog
 =========
 
+Version 0.5.0 [2020-02-05]
+--------------------------
+
+- [deps] Upgraded to django 3, upgraded dependencies
+- [deps] Dropped support for python 2
+- [x509] Fixed serial number max length (imported from django-x509)
+- [admin] Fixed bug that caused organization field to be missing
+  when importing a CA or certificate
+
 Version 0.4.0 [2020-01-09]
 --------------------------
 
