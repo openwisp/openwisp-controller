@@ -23,7 +23,7 @@ setup(
     version=get_version(),
     license='GPL3',
     author='Federico Capoano',
-    author_email='nemesis@ninux.org',
+    author_email='federico.capoano@gmail.com',
     description='OpenWISP 2 Controller',
     long_description=open('README.rst').read(),
     url='http://openwisp.org',
