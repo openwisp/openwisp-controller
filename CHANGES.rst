@@ -1,7 +1,7 @@
 Changelog
 =========
 
-Version 0.4.0 [2019-01-09]
+Version 0.4.0 [2020-01-09]
 --------------------------
 
 - [feature] Added connection module (possibility to SSH into devices)
