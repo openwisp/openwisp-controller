@@ -104,6 +104,11 @@ class Device(OrgMixin, AbstractDevice):
         c.device = self
         return c
 
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self.generate_key(self.organization.config_settings.shared_secret)
+        super().save(*args, **kwargs)
+
 
 class Config(TemplatesVpnMixin, AbstractConfig):
     """
