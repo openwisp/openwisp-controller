@@ -260,9 +260,9 @@ Install the dependencies:
 
 .. code-block:: shell
 
-    sudo apt-get install sqlite3 libsqlite3-dev openssl libssl-dev
-    sudo apt-get install gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
-    sudo apt-get install redis
+    sudo apt -y install sqlite3 libsqlite3-dev openssl libssl-dev
+    sudo apt -y install gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
+    sudo apt -y install redis
 
 Install your forked repo with `pipenv <https://pipenv.readthedocs.io/en/latest/>`_:
 
