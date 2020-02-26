@@ -146,12 +146,12 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         }
     },
-    'loggers': {
-        'django.db.backends': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
-        }
-    }
+    # 'loggers': {
+    #     'django.db.backends': {
+    #         'level': 'DEBUG',
+    #         'handlers': ['console'],
+    #     }
+    # }
 }
 
 # local settings must be imported before test runner otherwise they'll be ignored
