@@ -27,8 +27,8 @@ branches:
 
 before_install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
-  - pip install -U pipenv
   - pipenv run install_dev
+  - pip install -U pipenv
   - pipenv install --dev --skip-lock
   - pipenv run lint
   - npm install -g jslint
