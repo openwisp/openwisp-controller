@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django_netjsonconfig import settings as app_settings
@@ -103,6 +103,18 @@ class Device(OrgMixin, AbstractDevice):
         c = super().get_temp_config_instance(**options)
         c.device = self
         return c
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            try:
+                shared_secret = self.organization.config_settings.shared_secret
+            except ObjectDoesNotExist:
+                # should not happen, but if organization config settings
+                # is not defined the default key will default to being random
+                self.key = KeyField.default_callable()
+            else:
+                self.key = self.generate_key(shared_secret)
+        super().save(*args, **kwargs)
 
 
 class Config(TemplatesVpnMixin, AbstractConfig):
