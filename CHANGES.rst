@@ -1,6 +1,15 @@
 Changelog
 =========
 
+Version 0.5.1 [2020-02-28]
+--------------------------
+
+- [models] Improved consistent key generation, now a consisten key is generated
+  also when creating devices from the admin interface (or via model API),
+  before it was only done during registration
+- [admin] Fixed unsaved changes JS bug that was triggered in certain cases
+- [deps] Switched back to jsonfield
+
 Version 0.5.0 [2020-02-05]
 --------------------------
 
