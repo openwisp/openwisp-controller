@@ -1,6 +1,7 @@
+from unittest import mock
+
 from django.test import TestCase
 from django.urls import reverse
-from django_netjsonconfig import settings as django_netjsonconfig_settings
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
@@ -140,19 +141,8 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
                                    {'key': c.device.key})
         self.assertEqual(response.status_code, 200)
 
-
-class TestRegistrationDisabled(TestOrganizationMixin, TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        django_netjsonconfig_settings.REGISTRATION_ENABLED = False
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        django_netjsonconfig_settings.REGISTRATION_ENABLED = True
-
-    def test_register_404(self):
+    @mock.patch('django_netjsonconfig.settings.REGISTRATION_ENABLED', False)
+    def test_register_403_disabled_registration_setting(self):
         org = self._create_org()
         response = self.client.post(REGISTER_URL, {
             'secret': TEST_ORG_SHARED_SECRET,
@@ -160,7 +150,7 @@ class TestRegistrationDisabled(TestOrganizationMixin, TestCase):
             'mac_address': TEST_MACADDR,
             'backend': 'netjsonconfig.OpenWrt'
         })
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
         count = Device.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 0)
