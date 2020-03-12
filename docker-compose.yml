@@ -3,6 +3,8 @@ version: "3"
 services:
   controller:
     image: openwisp/controller-development:latest
+    environment: 
+      - REDIS_URL=redis://redis:6379
     build:
       context: .
     ports:
