@@ -7,7 +7,7 @@ from django.contrib.admin import helpers
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from django_netjsonconfig import settings as django_netjsonconfig_settings
+from django_netjsonconfig import settings as app_settings
 from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigInline, AbstractDeviceAdmin,
                                              AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
                                              BaseForm)
@@ -52,7 +52,7 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
                    ('config__templates', MultitenantRelatedOrgFilter),
                    'config__status',
                    'created']
-    if django_netjsonconfig_settings.BACKEND_DEVICE_LIST:
+    if app_settings.BACKEND_DEVICE_LIST:
         list_filter.insert(1, 'config__backend')
     list_select_related = ('config', 'organization')
 
@@ -84,7 +84,8 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
         return super().add_view(request, form_url, extra_context)
 
 
-DeviceAdmin.list_display.insert(1, 'organization')
+org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
+DeviceAdmin.list_display.insert(org_position, 'organization')
 DeviceAdmin.fields.insert(1, 'organization')
 
 
@@ -155,7 +156,7 @@ admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
 
 
-if getattr(django_netjsonconfig_settings, 'REGISTRATION_ENABLED', True):
+if getattr(app_settings, 'REGISTRATION_ENABLED', True):
     from openwisp_users.admin import OrganizationAdmin
 
     class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
