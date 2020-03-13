@@ -1,7 +1,8 @@
 from django.db.models import Q
 from django_netjsonconfig.controller.generics import (BaseDeviceChecksumView, BaseDeviceDownloadConfigView,
                                                       BaseDeviceRegisterView, BaseDeviceReportStatusView,
-                                                      BaseVpnChecksumView, BaseVpnDownloadConfigView)
+                                                      BaseDeviceUpdateInfoView, BaseVpnChecksumView,
+                                                      BaseVpnDownloadConfigView)
 from django_netjsonconfig.utils import invalid_response
 
 from ..models import Device, OrganizationConfigSettings, Vpn
@@ -21,6 +22,10 @@ class DeviceChecksumView(ActiveOrgMixin, BaseDeviceChecksumView):
 
 
 class DeviceDownloadConfigView(ActiveOrgMixin, BaseDeviceDownloadConfigView):
+    model = Device
+
+
+class DeviceUpdateInfoView(ActiveOrgMixin, BaseDeviceUpdateInfoView):
     model = Device
 
 
@@ -74,6 +79,7 @@ class VpnDownloadConfigView(BaseVpnDownloadConfigView):
 
 device_checksum = DeviceChecksumView.as_view()
 device_download_config = DeviceDownloadConfigView.as_view()
+device_update_info = DeviceUpdateInfoView.as_view()
 device_report_status = DeviceReportStatusView.as_view()
 device_register = DeviceRegisterView.as_view()
 vpn_checksum = VpnChecksumView.as_view()
