@@ -1,5 +1,10 @@
 from django.conf import settings
+from django_netjsonconfig import settings as app_settings
 from django_netjsonconfig.apps import DjangoNetjsonconfigApp
+
+# ensure Device.hardware_id field is not flagged as unique
+# (because it's flagged as unique_together with organization)
+app_settings.HARDWARE_ID_OPTIONS['unique'] = False
 
 
 class ConfigConfig(DjangoNetjsonconfigApp):
