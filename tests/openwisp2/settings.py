@@ -126,7 +126,7 @@ OPENWISP_ORGANIZATON_OWNER_ADMIN = True  # tests will fail without this setting
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 if not TESTING:
-    CELERY_BROKER_URL = 'redis://localhost/1'
+    CELERY_BROKER_URL = os.getenv('REDIS_URL','redis://localhost/1')
 else:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
