@@ -13,7 +13,7 @@ def update_config(device_id):
     """
     # wait for the saving operations of this device to complete
     # (there may be multiple ones happening at the same time)
-    sleep(4)
+    sleep(2)
     # avoid repeating the operation multiple times
     device = Device.objects.select_related('config').get(pk=device_id)
     if device.config.status == 'applied':

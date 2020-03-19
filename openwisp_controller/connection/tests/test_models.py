@@ -9,19 +9,11 @@ from openwisp_users.models import Group, Organization
 
 from .. import settings as app_settings
 from ..models import Credentials
-from .base import CreateConnectionsMixin, SshMixin
+from .base import CreateConnectionsMixin
 
 
-class TestModels(SshMixin, CreateConnectionsMixin, TestCase):
+class TestModels(CreateConnectionsMixin, TestCase):
     _connect_path = 'paramiko.SSHClient.connect'
-
-    def _create_device(self, *args, **kwargs):
-        if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
-            kwargs.update({
-                'last_ip': self.ssh_server.host,
-                'management_ip': self.ssh_server.host,
-            })
-        return super()._create_device(*args, **kwargs)
 
     def test_connection_str(self):
         c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])

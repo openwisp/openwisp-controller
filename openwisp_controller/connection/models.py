@@ -211,6 +211,7 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         finally:
             self.last_attempt = timezone.now()
             self.save()
+        return self.is_working
 
     def disconnect(self):
         self.connector_instance.disconnect()

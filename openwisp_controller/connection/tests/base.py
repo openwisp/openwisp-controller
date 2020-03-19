@@ -14,6 +14,27 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
     device_model = Device
     config_model = Config
 
+    _TEST_RSA_PRIVATE_KEY_PATH = os.path.join(settings.BASE_DIR, 'test-key.rsa')
+    _TEST_RSA_PRIVATE_KEY_VALUE = None
+
+    class ssh_server:
+        host = '127.0.0.1'
+        port = 5555
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with open(cls._TEST_RSA_PRIVATE_KEY_PATH, 'r') as f:
+            cls._TEST_RSA_PRIVATE_KEY_VALUE = f.read()
+
+    def _create_device(self, *args, **kwargs):
+        if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
+            kwargs.update({
+                'last_ip': self.ssh_server.host,
+                'management_ip': self.ssh_server.host,
+            })
+        return super()._create_device(*args, **kwargs)
+
     def _create_credentials(self, **kwargs):
         opts = dict(name='Test credentials',
                     connector=app_settings.CONNECTORS[0][0],
@@ -31,7 +52,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
     def _create_credentials_with_key(self, username='root', port=22, **kwargs):
         opts = dict(name='Test SSH Key',
                     params={'username': username,
-                            'key': self._SSH_PRIVATE_KEY,
+                            'key': self._TEST_RSA_PRIVATE_KEY_VALUE,
                             'port': port})
         opts.update(kwargs)
         return self._create_credentials(**opts)
@@ -53,18 +74,3 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         dc.full_clean()
         dc.save()
         return dc
-
-
-class SshMixin(object):
-    _TEST_RSA_KEY_PATH = os.path.join(settings.BASE_DIR, 'test-key.rsa')
-    _SSH_PRIVATE_KEY = None
-
-    class ssh_server:
-        host = '127.0.0.1'
-        port = 5555
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        with open(cls._TEST_RSA_KEY_PATH, 'r') as f:
-            cls._SSH_PRIVATE_KEY = f.read()

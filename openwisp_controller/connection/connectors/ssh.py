@@ -1,11 +1,12 @@
 import logging
 import socket
-from io import StringIO
+from io import BytesIO, StringIO
 
 import paramiko
 from django.utils.functional import cached_property
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
+from scp import SCPClient
 
 from .. import settings as app_settings
 
@@ -117,13 +118,11 @@ class Ssh(object):
     def update_config(self):  # pragma: no cover
         raise NotImplementedError()
 
-    # TODO: this method is not used yet
-    # but will be necessary in the future to support other OSes
-    # def upload(self, fl, remote_path):
-    #     scp = SCPClient(self.shell.get_transport())
-    #     if not hasattr(fl, 'getvalue'):
-    #         fl_memory = BytesIO(fl.read())
-    #         fl.seek(0)
-    #         fl = fl_memory
-    #     scp.putfo(fl, remote_path)
-    #     scp.close()
+    def upload(self, fl, remote_path):
+        scp = SCPClient(self.shell.get_transport())
+        if not hasattr(fl, 'getvalue'):
+            fl_memory = BytesIO(fl.read())
+            fl.seek(0)
+            fl = fl_memory
+        scp.putfo(fl, remote_path)
+        scp.close()
