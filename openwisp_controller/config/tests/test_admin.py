@@ -351,7 +351,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         post_data = self._get_clone_template_post_data(t)
         self.client.force_login(self._get_admin())
         response = self.client.post(path, post_data)
-        self.assertContains(response, 'Clone objects')
+        self.assertContains(response, 'Clone templates')
 
     def test_clone_templates_operator_1_org(self):
         path = reverse('admin:config_template_changelist')
@@ -365,7 +365,8 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         path = reverse('admin:config_template_changelist')
         t = self._create_template(organization=self._get_org())
         post_data = self._get_clone_template_post_data(t)
-        self.client.force_login(self._create_operator(
-            organizations=[self._get_org(), self._get_org('org_2')]))
+        operator = self._create_operator(organizations=[self._get_org(),
+                                                        self._get_org('org_2')])
+        self.client.force_login(operator)
         response = self.client.post(path, post_data)
-        self.assertContains(response, 'Clone objects')
+        self.assertContains(response, 'Clone templates')

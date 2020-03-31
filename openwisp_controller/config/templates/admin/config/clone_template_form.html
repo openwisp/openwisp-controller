@@ -2,7 +2,7 @@
 {% load i18n l10n admin_urls static %}
 
 {% block extrahead %}
-<link rel="stylesheet" type="text/css" href="{% static "admin/config/css/clone_org_intermediate.css" %}">
+<link rel="stylesheet" type="text/css" href="{% static "admin/config/css/clone-template-form.css" %}">
 {% endblock %}
 
 {% block bodyclass %}
@@ -14,7 +14,7 @@ organization-selection
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
     &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
     &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
-    &rsaquo; {% trans 'Clone objects' %}
+    &rsaquo; {% trans 'Clone templates' %}
 </div>
 {% endblock %}
 
@@ -30,7 +30,7 @@ organization-selection
         <br>
         <input type="hidden" name="action" value="clone_selected_templates">
         <input type="submit" value="{% trans 'Clone' %}">
-        <a href="#" class="button cancel-link">{% trans 'Cancel' %}</a>
+        <a href="{% url 'admin:config_template_changelist' %}" class="button cancel-link">{% trans 'Cancel' %}</a>
     </div>
 </form>
 {% endblock %}

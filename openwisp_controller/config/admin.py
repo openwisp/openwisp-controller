@@ -112,13 +112,13 @@ def clone_selected_templates(modeladmin, request, queryset):
             return None
 
         context = {
-            'title': 'Cloned templates organization',
+            'title': _('Clone templates'),
             'queryset': queryset,
             'opts': modeladmin.model._meta,
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
             'form': CloneOrganizationForm(queryset=selectable_orgs)
         }
-        return TemplateResponse(request, 'admin/config/clone_org_select_form.html', context)
+        return TemplateResponse(request, 'admin/config/clone_template_form.html', context)
     else:
         for template in queryset:
             clone = template.clone(request.user)
