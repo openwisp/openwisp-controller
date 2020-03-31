@@ -1,6 +1,5 @@
 {% extends "admin/base_site.html" %}
 {% load i18n l10n admin_urls static %}
-{% load i18n %}
 
 {% block extrahead %}
 <link rel="stylesheet" type="text/css" href="{% static "admin/config/css/clone_org_intermediate.css" %}">
@@ -28,7 +27,7 @@ organization-selection
         <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
         {% endfor %}
         {{ form }}
-        </br>
+        <br>
         <input type="hidden" name="action" value="clone_selected_templates">
         <input type="submit" value="{% trans 'Clone' %}">
         <a href="#" class="button cancel-link">{% trans 'Cancel' %}</a>
