@@ -9,7 +9,7 @@ from .models import Ca, Cert
 
 
 class CaAdmin(MultitenantAdminMixin, VersionAdmin, AbstractCaAdmin):
-    pass
+    history_latest_first = True
 
 
 CaAdmin.fields.insert(2, 'organization')
@@ -20,6 +20,7 @@ CaAdmin.Media.js += ('admin/pki/js/show-org-field.js',)
 
 class CertAdmin(MultitenantAdminMixin, VersionAdmin, AbstractCertAdmin):
     multitenant_shared_relations = ('ca',)
+    history_latest_first = True
 
 
 CertAdmin.fields.insert(2, 'organization')
