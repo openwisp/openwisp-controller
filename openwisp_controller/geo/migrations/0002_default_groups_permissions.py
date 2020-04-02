@@ -6,7 +6,7 @@ from ...migrations import create_default_permissions
 
 def assign_permissions_to_groups(apps, schema_editor):
     create_default_permissions(apps, schema_editor)
-    operators_and_admins_can_change = ['location', 'floorplan', ]
+    operators_and_admins_can_change = ['location', 'floorplan', 'devicelocation']
     manage_operations = ['add', 'change', 'delete']
     Group = apps.get_model('openwisp_users', 'Group')
 
