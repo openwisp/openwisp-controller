@@ -1,8 +1,15 @@
 Changelog
 =========
 
+Version 0.6.0 [2020-04-02]
+--------------------------
+
+- Added controller view that allows to update the device information (firmware version used)
+- Recover deleted object views in recoverable objects now show latest objects first
+- Added ``NETJSONCONFIG_HARDWARE_ID_AS_NAME`` setting
+
 Version 0.5.2 [2020-03-18]
----------------------------
+--------------------------
 
 - [controller] Added ``NETJSONCONFIG_REGISTRATION_SELF_CREATION``
 - [models] Handled accidental duplication of files across templates
