@@ -16,6 +16,7 @@ from openwisp_utils.base import TimeStampedEditableModel
 
 from ..config.models import Device
 from . import settings as app_settings
+from .signals import is_working_changed
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,10 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         verbose_name = _('Device connection')
         verbose_name_plural = _('Device connections')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_is_working = self.is_working
+
     def clean(self):
         cred_org = self.credentials.organization
         if cred_org and cred_org != self.device.organization:
@@ -226,3 +231,12 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             else:
                 self.device.config.set_status_applied()
                 self.disconnect()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_working != self._initial_is_working:
+            self.send_is_working_changed_signal()
+        self._initial_is_working = self.is_working
+
+    def send_is_working_changed_signal(self):
+        is_working_changed.send(sender=self.__class__, is_working=self.is_working)
