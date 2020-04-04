@@ -6,9 +6,11 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from openwisp_users.models import Group, Organization
+from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
-from ..models import Credentials
+from ..models import Credentials, DeviceConnection
+from ..signals import is_working_changed
 from .base import CreateConnectionsMixin
 
 
@@ -321,6 +323,18 @@ class TestModels(CreateConnectionsMixin, TestCase):
         dc.save()
         with self.assertRaises(ValueError):
             dc.connector_instance.connect()
+
+    def test_is_working_change_signal_emitted(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        with catch_signal(is_working_changed) as handler:
+            dc.is_working = True
+            dc.save()
+        handler.assert_called_once_with(
+            is_working=True,
+            sender=DeviceConnection,
+            signal=is_working_changed,
+        )
 
     def test_operator_group_permissions(self):
         group = Group.objects.get(name='Operator')
