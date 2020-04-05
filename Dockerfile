@@ -15,6 +15,7 @@ RUN apk add --no-cache \
             --update \
             --virtual .build-deps postgresql-dev git build-base linux-headers openssl-dev
 
+# TODO: Update this and remove django-netjsonconfig
 RUN pip install django-netjsonconfig openwisp-utils scp celery asgi_redis \
                 django-loci paramiko openwisp-users cryptography==2.3.1 \
                 djangorestframework-gis redis service_identity django-redis

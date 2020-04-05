@@ -1,7 +1,6 @@
 coveralls
-openwisp-utils[qa]>=0.4.1
-mock>=2.0.0
-mock-ssh-server>=0.8.0,<0.9.0
+openwisp-utils[qa]~=0.5.0
 pytest-django>=3.8.0,<4.0.0
 pytest-asyncio>=0.10.0,<0.11.0
 pytest-cov>=2.8.0,<2.9.0
+mock-ssh-server>=0.8.0,<0.9.0

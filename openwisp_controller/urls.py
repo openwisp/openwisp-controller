@@ -8,14 +8,6 @@ url_metadata = [
         'app': 'openwisp_users',
         'include': {'module': 'openwisp_users.accounts.urls'},
     },
-    # django-netjsonconfig schemas
-    {
-        'regexp': r'^',
-        'include': {
-            'module': 'django_netjsonconfig.urls',
-            'namespace': 'netjsonconfig',
-        },
-    },
     # openwisp_controller.pki (CRL view)
     {
         'regexp': r'^',

@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from ...config.models import Template
-from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
+from ...config.tests.tests import TestAdmin as TestConfigAdmin
 from ...tests.utils import TestAdminMixin
 from ..models import Credentials, DeviceConnection
 from .base import CreateConnectionsMixin

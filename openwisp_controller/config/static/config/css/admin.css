@@ -1,0 +1,252 @@
+a.button:focus,
+a.jsoneditor-exit:focus{ text-decoration: none }
+.djnjc-preformatted, .field-config .vLargeTextField,
+.jsoneditor .vLargeTextField{
+    font-size:1em;
+    font-family: "Bitstream Vera Sans Mono",
+                 "Monaco",
+                 "Droid Sans Mono",
+                 "DejaVu Sans Mono",
+                 "Ubuntu Mono",
+                 "Courier New", Courier, monospace;
+    color: #f9f9f9;
+    overflow: auto;
+    background-color: #222;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    padding: 20px;
+    line-height: 22px;
+}
+.jsoneditor .vLargeTextField{
+    color: #333;
+    background-color: #fff;
+    padding: 15px;
+    font-weight: bold
+}
+
+.vLargeTextField.jsoneditor-raw{
+    min-width: 100%;
+    min-height: 500px;
+    box-sizing: border-box;
+}
+
+input.readonly{
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    background-color: rgba(0, 0, 0, 0.070);
+}
+
+.djnjc-overlay {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 11;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.91);
+}
+
+.djnjc-overlay .inner{
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    padding: 0;
+}
+
+.djnjc-overlay.loading{
+  display: flex;
+  background: rgba(255, 255, 255, 0.98);
+  align-items: center;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.8);
+  margin: 0 auto;
+  border-radius: 100%;
+  -webkit-animation: sk-scaleout 1.0s infinite ease-in-out;
+  animation: sk-scaleout 1.0s infinite ease-in-out;
+}
+#loading-overlay,
+#tabs-container { display: none }
+#device_form #loading-overlay { display: flex }
+#device_form #tabs-container { display: block }
+
+@-webkit-keyframes sk-scaleout {
+  0% { -webkit-transform: scale(0) }
+  100% {
+    -webkit-transform: scale(1.0);
+    opacity: 0;
+  }
+}
+
+@keyframes sk-scaleout {
+  0% {
+    -webkit-transform: scale(0);
+    transform: scale(0);
+  } 100% {
+    -webkit-transform: scale(1.0);
+    transform: scale(1.0);
+    opacity: 0;
+  }
+}
+
+.djnjc-overlay .djnjc-preformatted{
+    margin: 0;
+    padding: 40px 60px 20px;
+    background-color: transparent;
+    color: #adffa6;
+    line-height: 1.5em;
+}
+
+.djnjc-preformatted.error{
+    color: #ff7277
+}
+
+.djnjc-overlay .close,
+.djnjc-overlay .close:focus,
+.djnjc-overlay .close:active{
+    position: absolute;
+    right: 3%;
+    top: 1.5%;
+    font-weight: bold;
+    font-size: 15px;
+    background-color: #772299;
+    color: #fff;
+    padding: 5px 8px;
+    border-radius: 5px;
+    text-decoration: none;
+}
+.djnjc-overlay .close:hover{
+    background-color: #9e47c1;
+}
+
+.errors.field-templates li,
+.errorlist.nonfield li{
+    white-space: pre-line;
+    word-break: break-all;
+}
+.form-row select{ background-color: #fff }
+.form-row input[disabled], .form-row select[disabled]{ background-color: #f4f4f4 }
+/* hide vpn specific fields by default */
+.field-vpn, .field-auto_cert{
+    display: none;
+}
+#container .help{ margin-top: 3px; font-size: 13px }
+#container .help a,
+#netjsonconfig-hint a, #netjsonconfig-hint-advancedmode a{
+    text-decoration: underline;
+    vertical-align: initial;
+}
+#netjsonconfig-hint, #netjsonconfig-hint-advancedmode { width: auto }
+
+#container ul.sortedm2m-items{ height: auto; min-height: auto }
+#container .sortedm2m-container .help{
+    margin-bottom: 20px;
+    color: #333;
+    font-weight: bold;
+}
+
+#template_form #id_tags{ width: 261px }
+
+#device_form #id_model,
+#device_form #id_os,
+#device_form #id_system{ width: 610px }
+#device_form #id_notes{ height: 42px }
+
+#config-group .field-status .help{
+  white-space: pre;
+  color: #777;
+}
+
+div.change-form #device_form div.inline-group.tab-content > fieldset.module > h2,
+div.change-form #device_form div.inline-group.tab-content > .tabular > fieldset.module > h2,
+div.change-form #device_form > div > fieldset.module.aligned,
+div.change-form #device_form > div > div.inline-group{
+  display: none;
+}
+
+.change-form #device_form div.inline-group.tab-content > fieldset.module > div.inline-related > h3{
+  margin-top: -1em;
+  border-top: 0 none;
+  padding: 1em;
+}
+
+.change-form #device_form div.inline-group.tab-content > .tabular{
+  margin-top: -1em;
+}
+
+ul.tabs{
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+ul.tabs li{
+    display: inline-block;
+    margin-right: 4px;
+}
+ul.tabs a,
+ul.tabs a:hover,
+ul.tabs a:focus{
+    display: inline-block;
+    padding: 10px 15px;
+    color: #333;
+    background: #E6E6E6;
+    border-radius: 3px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+ul.tabs a:hover,
+ul.tabs a:focus{
+    color: #000;
+    background: #cdcdcd;
+}
+
+ul.tabs a.current{
+    background: #f8f8f8;
+    color: #666;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 0 none;
+    border-color: rgba(0, 0, 0, 0.25);
+    cursor: default;
+}
+
+div.tabs-divider{
+    margin-top: -4px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tab-content{
+    display: none;
+    padding: 1em 0 0em 0em !important;
+}
+
+.tab-content.current{
+    display: block !important;
+}
+
+.tabs-loading{
+    text-align: center;
+    padding: 17em 0;
+    font-size: 16px;
+}
+
+@media (max-width: 767px) {
+  ul.tabs li {
+      display: block;
+  }
+  ul.tabs a,
+  ul.tabs a:hover,
+  ul.tabs a:focus {
+      display: block;
+      border-radius 0;
+      width: 100%;
+      padding-left: 0;
+      padding-right: 0;
+      border: 1px solid rgba(0, 0, 0, 0.1) !important;
+      border-radius: 0;
+      text-align: center;
+  }
+  div.tabs-divider{ display: none }
+}

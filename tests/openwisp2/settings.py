@@ -5,6 +5,7 @@ TESTING = sys.argv[1:2] == ['test']
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEBUG = True
+TESTING = sys.argv[1] == 'test'
 
 ALLOWED_HOSTS = []
 
@@ -56,7 +57,6 @@ INSTALLED_APPS = [
 ]
 
 EXTENDED_APPS = (
-    'django_netjsonconfig',
     'django_x509',
     'django_loci',
 )
@@ -95,6 +95,8 @@ USE_L10N = False
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = '{0}/media/'.format(os.path.dirname(BASE_DIR))
+
+CORS_ORIGIN_ALLOW_ALL = True
 
 TEMPLATES = [
     {
@@ -151,6 +153,12 @@ LOGGING = {
     #     }
     # }
 }
+
+NETJSONCONFIG_SHARED_SECRET = 't3st1ng'
+NETJSONCONFIG_CONTEXT = {'vpnserver1': 'vpn.testdomain.com'}
+
+if TESTING:
+    NETJSONCONFIG_HARDWARE_ID_ENABLED = True
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:

@@ -5,7 +5,7 @@ import collections
 import django.core.validators
 from django.db import migrations, models
 import django.utils.timezone
-import django_netjsonconfig.base.template
+import openwisp_controller.config.base.template
 import openwisp_utils.base
 import openwisp_utils.utils
 import jsonfield.fields
@@ -281,7 +281,7 @@ class Migration(migrations.Migration):
                     'auto_cert',
                     models.BooleanField(
                         db_index=True,
-                        default=django_netjsonconfig.base.template.default_auto_cert,
+                        default=openwisp_controller.config.base.template.default_auto_cert,
                         help_text='whether x509 client certificates should be automatically managed behind the scenes for each configuration using this template, valid only for the VPN type',
                         verbose_name='auto certificate',
                     ),

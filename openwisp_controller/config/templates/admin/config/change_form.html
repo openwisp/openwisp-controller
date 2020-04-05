@@ -1,29 +1,79 @@
-{% extends "admin/django_netjsonconfig/change_form.html" %}
+{% extends "admin/change_form.html" %}
+{% load i18n admin_modify %}
 
-{% block default_templates_js %}
-{% if default_template_urls %}
-<script>
-// enable default templates - do not remove this comment
-(function ($) {
-    var urls = {{ default_template_urls|safe }};
-        orgSelect = $('#id_organization'),
-        initialValue = orgSelect.val(),
-        firstRun = true;
-    orgSelect.change(function(){
-        var value = $(this).val(),
-            url = urls[value];
-        // on page load or if value is empty, return here
-        if (!value || (value === initialValue && firstRun)) { return }
-        firstRun = false;
-        // get default templates of selected org
-        $.get(url).done(function(data){
-            $('input.sortedm2m').prop('checked', false);
-            $.each(data['default_templates'], function(i, uuid){
-                $('input.sortedm2m[value='+ uuid +']').trigger('click');
-            });
-        })
-    });
-})(django.jQuery);
-</script>
+{% block object-tools-items %}
+<li>
+    {% if download_url %}
+    <a href="{{ download_url }}" class="downloadlink">{% trans "Download configuration" %}</a>
+    {% endif %}
+</li>
+{{ block.super }}
+{% endblock %}
+
+{% block submit_buttons_top %}{% submit_row %}{% endblock %}
+{% block submit_buttons_bottom %}{% submit_row %}{% endblock %}
+
+{% block field_sets %}
+{% if not add %}
+<div id="loading-overlay" class="djnjc-overlay loading">
+    <div class="spinner"></div>
+</div>
+
+<div id="tabs-container">
+    <ul class="tabs">
+        <li>
+            <a class="button" href="#overview-group">
+                {% trans 'Overview' %}
+            </a>
+        </li>
+    </ul>
+    <div class="tabs-divider"></div>
+</div>
 {% endif %}
+{{ block.super }}
+{% endblock %}
+
+{% block content %}
+<div class="{% if not add %}change-form{% else %}add-form{% endif %}">
+    {{ block.super }}
+    <div class="djnjc-overlay">
+        <div class="inner"></div>
+    </div>
+
+    {% block default_templates_js %}
+    {% if default_templates %}
+    <script>
+        // enable default templates - do not remove this comment
+        {% for template in default_templates %}
+        django.jQuery('input.sortedm2m[value={{ template }}]').prop('checked', true);
+        {% endfor %}
+    </script>
+    {% endif %}
+    {% if default_template_urls %}
+    <script>
+        // enable default templates - do not remove this comment
+        (function ($) {
+            var urls = {{ default_template_urls| safe }};
+        orgSelect = $('#id_organization'),
+            initialValue = orgSelect.val(),
+            firstRun = true;
+        orgSelect.change(function () {
+            var value = $(this).val(),
+                url = urls[value];
+            // on page load or if value is empty, return here
+            if (!value || (value === initialValue && firstRun)) { return }
+            firstRun = false;
+            // get default templates of selected org
+            $.get(url).done(function (data) {
+                $('input.sortedm2m').prop('checked', false);
+                $.each(data['default_templates'], function (i, uuid) {
+                    $('input.sortedm2m[value=' + uuid + ']').trigger('click');
+                });
+            })
+        });
+    }) (django.jQuery);
+    </script>
+    {% endif %}
+    {% endblock %}
+</div>
 {% endblock %}

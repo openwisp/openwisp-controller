@@ -25,6 +25,8 @@ class TestGeoMixin(TestLociMixin):
     def _create_object(self, **kwargs):
         if 'location' in kwargs:
             kwargs['organization'] = kwargs['location'].organization
+        if 'location' not in kwargs:
+            kwargs['hardware_id'] = '1234'
         self._add_default_org(kwargs)
         return super()._create_object(**kwargs)
 

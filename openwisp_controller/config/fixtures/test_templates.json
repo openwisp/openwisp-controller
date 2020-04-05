@@ -1,0 +1,50 @@
+[
+    {
+        "pk": "d083b494-8e16-4054-9537-fb9eba914861",
+        "model": "config.template",
+        "fields": {
+            "name": "dhcp",
+            "backend": "netjsonconfig.OpenWrt",
+            "config": {
+                "interfaces": [
+                    {
+                        "name": "eth0",
+                        "type": "ethernet",
+                        "addresses": [
+                            {
+                                "proto": "dhcp",
+                                "family": "ipv4"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "created": "2015-05-16T20:02:52.483Z",
+            "modified": "2015-05-16T19:33:41.621Z"
+        }
+    },
+    {
+        "pk": "d083b494-8e16-4054-9537-fb9eba914862",
+        "model": "config.template",
+        "fields": {
+            "name": "radio0",
+            "backend": "netjsonconfig.OpenWrt",
+            "config": {
+                "radios": [
+                    {
+                        "name": "radio0",
+                        "phy": "phy0",
+                        "driver": "mac80211",
+                        "protocol": "802.11n",
+                        "channel": 11,
+                        "channel_width": 20,
+                        "tx_power": 8,
+                        "country": "IT"
+                    }
+                ]
+            },
+            "created": "2015-05-16T20:02:52.483Z",
+            "modified": "2015-05-16T19:33:41.621Z"
+        }
+    }
+]

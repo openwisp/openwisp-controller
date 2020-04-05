@@ -110,7 +110,7 @@ should look like the following (ordering is important):
         'channels',
     ]
 
-    EXTENDED_APPS = ('django_netjsonconfig', 'django_x509', 'django_loci',)
+    EXTENDED_APPS = ('django_x509', 'django_loci',)
 
 Ensure you are using one of the available geodjango backends, eg:
 
@@ -337,7 +337,7 @@ Install your forked repo:
     cd openwisp-controller/
     python setup.py develop
 
-Install development dependencies (optional):
+Install development dependencies:
 
 .. code-block:: shell
 
@@ -369,8 +369,13 @@ Run tests with:
 
 .. code-block:: shell
 
-    ./run-qa-checks
     ./runtests.py
+
+Run quality assurance tests with:
+
+.. code-block:: shell
+
+    ./run-qa-checks
 
 Install and run on docker
 --------------------------

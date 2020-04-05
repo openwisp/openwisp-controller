@@ -1,7 +1,10 @@
 from ipaddress import ip_address
 
 from django.db.models import Q
-from django_netjsonconfig.controller.generics import (
+
+from ..models import Device, OrganizationConfigSettings, Vpn
+from ..utils import invalid_response
+from .generics import (
     BaseDeviceChecksumView,
     BaseDeviceDownloadConfigView,
     BaseDeviceRegisterView,
@@ -10,9 +13,6 @@ from django_netjsonconfig.controller.generics import (
     BaseVpnChecksumView,
     BaseVpnDownloadConfigView,
 )
-from django_netjsonconfig.utils import invalid_response
-
-from ..models import Device, OrganizationConfigSettings, Vpn
 
 
 class ActiveOrgMixin(object):

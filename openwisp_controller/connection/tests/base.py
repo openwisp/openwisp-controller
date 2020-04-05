@@ -2,11 +2,11 @@ import os
 
 from django.conf import settings
 from mockssh import Server
-from openwisp_controller.config.models import Config, Device
-from openwisp_controller.config.tests import CreateConfigTemplateMixin
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
+from ...config.models import Config, Device
+from ...config.tests.base import CreateConfigTemplateMixin
 from .. import settings as app_settings
 from ..models import Credentials, DeviceConnection
 
@@ -14,7 +14,7 @@ from ..models import Credentials, DeviceConnection
 class SshServer(Server):
     def _run(self, *args, **kwargs):
         """
-        Hides "Bad file descriptor" system issue which
+        Hides 'Bad file descriptor' system issue which
         does not affect the effectivness of the tests
         """
         try:
@@ -54,7 +54,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         return super()._create_device(*args, **kwargs)
 
     def _get_credentials(self, **kwargs):
-        opts = {"name": "Test credentials"}
+        opts = {'name': 'Test credentials'}
         opts.update(**kwargs)
         try:
             return Credentials.objects.get(**opts)
@@ -69,7 +69,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         )
         opts.update(kwargs)
         if 'organization' not in opts:
-            opts['organization'] = self._create_org()
+            opts['organization'] = self._get_org()
         c = Credentials(**opts)
         c.full_clean()
         c.save()

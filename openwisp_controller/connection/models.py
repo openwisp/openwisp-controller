@@ -7,9 +7,9 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext_lazy as _
-from django_netjsonconfig.base.base import BaseModel
 from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
+from openwisp_controller.config.base.base import BaseModel
 
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel

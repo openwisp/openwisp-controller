@@ -14,7 +14,7 @@ class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
     cert_model = Cert
 
     def test_ca_creation_with_org(self):
-        org = self._create_org()
+        org = self._get_org()
         ca = self._create_ca(organization=org)
         self.assertEqual(ca.organization_id, org.pk)
 
@@ -23,7 +23,7 @@ class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
         self.assertIsNone(ca.organization)
 
     def test_cert_and_ca_different_organization(self):
-        org1 = self._create_org()
+        org1 = self._get_org()
         ca = self._create_ca(organization=org1)
         org2 = self._create_org(name='test org2', slug='test-org2')
         try:
@@ -35,7 +35,7 @@ class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
             self.fail('ValidationError not raised')
 
     def test_cert_creation(self):
-        org = self._create_org()
+        org = self._get_org()
         ca = self._create_ca(organization=org)
         cert = self._create_cert(ca=ca, organization=org)
         self.assertEqual(ca.organization.pk, cert.organization.pk)

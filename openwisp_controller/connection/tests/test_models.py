@@ -51,7 +51,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
             self.fail('ValidationError not raised')
 
     def test_device_connection_auto_update_strategy_missing_config(self):
-        device = self._create_device(organization=self._create_org())
+        device = self._create_device(organization=self._get_org())
         self.assertFalse(hasattr(device, 'config'))
         try:
             self._create_device_connection(device=device)
@@ -150,9 +150,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
     def _prepare_address_list_test(self, last_ip=None, management_ip=None):
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
         device = self._create_device(
-            organization=self._create_org(),
-            last_ip=last_ip,
-            management_ip=management_ip,
+            organization=self._get_org(), last_ip=last_ip, management_ip=management_ip
         )
         dc = self._create_device_connection(
             device=device, update_strategy=update_strategy
