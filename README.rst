@@ -179,7 +179,6 @@ Add the following settings to ``settings.py``:
 
 .. code-block:: python
 
-    from django.conf import settings
     from django.conf.urls import include, url
     from django.contrib import admin
     from django.contrib.staticfiles.urls import staticfiles_urlpatterns
@@ -253,13 +252,18 @@ update strategy field is left blank by the user.
 Installing for development
 --------------------------
 
-Install the dependencies:
+Install the system dependencies:
 
 .. code-block:: shell
 
-    sudo apt -y install sqlite3 libsqlite3-dev openssl libssl-dev
-    sudo apt -y install gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
-    sudo apt -y install redis
+    sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
+    sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
+
+Launch Redis:
+
+.. code-block:: shell
+
+    docker-compose up -d redis
 
 Install your forked repo with `pipenv <https://pipenv.readthedocs.io/en/latest/>`_:
 
@@ -282,7 +286,7 @@ Launch celery worker (for background jobs):
 
 .. code-block:: shell
 
-    celery -A openwisp2 worker -l info
+    pipenv run celery -A openwisp2 worker -l info
 
 Launch development server:
 

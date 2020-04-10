@@ -3,7 +3,7 @@ version: "3"
 services:
   controller:
     image: openwisp/controller-development:latest
-    environment: 
+    environment:
       - REDIS_URL=redis://redis:6379
     build:
       context: .
@@ -14,3 +14,6 @@ services:
 
   redis:
     image: redis:alpine
+    ports:
+      - "6379:6379"
+    entrypoint: redis-server --appendonly yes
