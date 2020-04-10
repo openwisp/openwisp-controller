@@ -25,7 +25,16 @@ class ConnectorMixin(object):
     _connector_field = 'connector'
 
     def clean(self):
+        # Validate the connector field here to avoid ImportError in case that it is not valid
+        # (eg. it is an empty string because the user has forgotten to pick up one from the choices)
+        # The field value is validated in a later stage anyways. We are returning {} to avoid showing
+        # a duplicate error message for the field
+        if not self._get_connector():
+            raise ValidationError({})
         self._validate_connector_schema()
+
+    def _get_connector(self):
+        return getattr(self, self._connector_field)
 
     def _validate_connector_schema(self):
         try:
@@ -41,7 +50,8 @@ class ConnectorMixin(object):
 
     @cached_property
     def connector_class(self):
-        return import_string(getattr(self, self._connector_field))
+        connector = self._get_connector()
+        return import_string(connector)
 
     @cached_property
     def connector_instance(self):

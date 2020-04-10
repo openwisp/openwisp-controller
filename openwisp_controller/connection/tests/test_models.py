@@ -120,6 +120,17 @@ class TestModels(CreateConnectionsMixin, TestCase):
         else:
             self.fail('ValidationError not raised')
 
+    def test_credentials_connection_missing(self):
+        with self.assertRaises(ValidationError) as e:
+            c = Credentials(name='Test credentials',
+                            connector=None,
+                            params={'username': 'root',
+                                    'password': 'password',
+                                    'port': 22},
+                            organization=self._create_org())
+            c.full_clean()
+            self.assertIn('connector', e.message_dict)
+
     def test_device_connection_schema(self):
         # unrecognized parameter
         try:
