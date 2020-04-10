@@ -4,7 +4,8 @@ url = "https://pypi.org/simple"
 name = "pypi"
 
 [packages]
-openwisp_controller = {path = ".", editable = true}
+openwisp_controller = {path = ".",editable = true}
+redis = "*"
 
 [dev-packages]
 coveralls = "*"
