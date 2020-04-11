@@ -252,7 +252,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
         cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
         device = self._create_device(organization=org1)
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        c = self._create_config(device=device)
+        c = self._create_config(device=device, status='applied')
         self._create_device_connection(device=device,
                                        credentials=cred,
                                        update_strategy=update_strategy)
