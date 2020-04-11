@@ -249,4 +249,4 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         self._initial_is_working = self.is_working
 
     def send_is_working_changed_signal(self):
-        is_working_changed.send(sender=self.__class__, is_working=self.is_working)
+        is_working_changed.send(sender=self.__class__, is_working=self.is_working, instance=self)
