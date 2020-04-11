@@ -331,6 +331,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
             dc.is_working = True
             dc.save()
         handler.assert_called_once_with(
+            instance=dc,
             is_working=True,
             sender=DeviceConnection,
             signal=is_working_changed,
