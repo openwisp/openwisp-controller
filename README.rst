@@ -190,6 +190,23 @@ Add the following settings to ``settings.py``:
 
     urlpatterns += staticfiles_urlpatterns()
 
+Signals
+-------
+
+``is_working_changed``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.connection.signals.is_working_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``DeviceConnection`` which got its ``is_working`` modified
+- ``is_working``: bool variable informing working status of device
+
+This signal is emitted every time ``DeviceConnection.is_working`` changes.
+
+It is not triggered when the device is created for the first time.
+
 Settings
 --------
 
