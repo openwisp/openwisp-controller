@@ -154,3 +154,36 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin,
         count = Device.objects.filter(mac_address=TEST_MACADDR,
                                       organization=org).count()
         self.assertEqual(count, 0)
+
+    def test_ip_fields_not_duplicated(self):
+        org1 = self._create_org()
+        c1 = self._create_config(organization=org1)
+        d2 = self._create_device(
+            organization=org1,
+            name='testdup',
+            mac_address='00:11:22:33:66:77'
+        )
+        c2 = self._create_config(device=d2)
+        org2 = self._create_org(shared_secret='123456')
+        c3 = self._create_config(organization=org2)
+        self.client.get(
+            reverse('controller:device_checksum', args=[c3.device.pk]),
+            {'key': c3.device.key, 'management_ip': '192.168.1.99'}
+        )
+        self.client.get(
+            reverse('controller:device_checksum', args=[c1.device.pk]),
+            {'key': c1.device.key, 'management_ip': '192.168.1.99'}
+        )
+        self.client.get(
+            reverse('controller:device_checksum', args=[c2.device.pk]),
+            {'key': c2.device.key, 'management_ip': '192.168.1.99'}
+        )
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        # device previously having the IP now won't have it anymore
+        self.assertNotEqual(c1.device.last_ip, c2.device.last_ip)
+        self.assertNotEqual(c1.device.management_ip, c2.device.management_ip)
+        # other organization is not affected
+        self.assertEquals(c3.device.last_ip, '127.0.0.1')
+        self.assertEqual(c3.device.management_ip, '192.168.1.99')

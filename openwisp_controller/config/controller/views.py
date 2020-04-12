@@ -17,7 +17,26 @@ class ActiveOrgMixin(object):
         return super().get_object(*args, **kwargs)
 
 
-class DeviceChecksumView(ActiveOrgMixin, BaseDeviceChecksumView):
+class UpdateLastIpMixin(object):
+    def update_last_ip(self, device, request):
+        result = super().update_last_ip(device, request)
+        if result:
+            # avoid that any other device in the
+            # same org stays with the same last_ip
+            # (eg: because of DHCP dynamic assignment)
+            Device.objects.filter(
+                organization=device.organization,
+                last_ip=device.last_ip,
+            ).exclude(pk=device.pk).update(last_ip='')
+            # same as before but for management_ip
+            Device.objects.filter(
+                organization=device.organization,
+                management_ip=device.management_ip,
+            ).exclude(pk=device.pk).update(management_ip='')
+        return result
+
+
+class DeviceChecksumView(UpdateLastIpMixin, ActiveOrgMixin, BaseDeviceChecksumView):
     model = Device
 
 
@@ -33,7 +52,7 @@ class DeviceReportStatusView(ActiveOrgMixin, BaseDeviceReportStatusView):
     model = Device
 
 
-class DeviceRegisterView(BaseDeviceRegisterView):
+class DeviceRegisterView(UpdateLastIpMixin, BaseDeviceRegisterView):
     model = Device
 
     def forbidden(self, request):
