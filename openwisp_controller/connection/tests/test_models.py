@@ -1,24 +1,36 @@
 import socket
+from unittest import mock
 
-import mock
 import paramiko
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from swapper import load_model
 
 from openwisp_users.models import Group, Organization
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
-from ..models import Credentials, DeviceConnection
 from ..signals import is_working_changed
-from .base import CreateConnectionsMixin
+from .utils import CreateConnectionsMixin
+
+Config = load_model('config', 'Config')
+Device = load_model('config', 'Device')
+Credentials = load_model('connection', 'Credentials')
+DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
 class TestModels(CreateConnectionsMixin, TestCase):
+    app_label = 'connection'
+    credentials_model = Credentials
+    device_connection_model = DeviceConnection
+    device_model = Device
+    config_model = Config
     _connect_path = 'paramiko.SSHClient.connect'
 
     def test_connection_str(self):
-        c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])
+        c = self.credentials_model(
+            name='Dev Key', connector=app_settings.CONNECTORS[0][0]
+        )
         self.assertIn(c.name, str(c))
         self.assertIn(c.get_connector_display(), str(c))
 
@@ -123,11 +135,11 @@ class TestModels(CreateConnectionsMixin, TestCase):
 
     def test_credentials_connection_missing(self):
         with self.assertRaises(ValidationError) as e:
-            c = Credentials(
+            c = self.credentials_model(
                 name='Test credentials',
                 connector=None,
                 params={'username': 'root', 'password': 'password', 'port': 22},
-                organization=self._create_org(),
+                organization=self._get_org(),
             )
             c.full_clean()
             self.assertIn('connector', e.message_dict)
@@ -234,7 +246,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
         org = Organization.objects.first()
         self._create_device(organization=org)
         self._create_credentials(auto_add=True, organization=None)
-        self.assertEqual(Credentials.objects.count(), 1)
+        self.assertEqual(self.credentials_model.objects.count(), 1)
 
     _exec_command_path = 'paramiko.SSHClient.exec_command'
 
@@ -336,18 +348,22 @@ class TestModels(CreateConnectionsMixin, TestCase):
             instance=dc,
             is_working=True,
             old_is_working=None,
-            sender=DeviceConnection,
+            sender=self.device_connection_model,
             signal=is_working_changed,
         )
 
     def test_operator_group_permissions(self):
         group = Group.objects.get(name='Operator')
-        permissions = group.permissions.filter(content_type__app_label='connection')
+        permissions = group.permissions.filter(
+            content_type__app_label=f'{self.app_label}'
+        )
         self.assertEqual(permissions.count(), 3)
 
     def test_administrator_group_permissions(self):
         group = Group.objects.get(name='Administrator')
-        permissions = group.permissions.filter(content_type__app_label='connection')
+        permissions = group.permissions.filter(
+            content_type__app_label=f'{self.app_label}'
+        )
         self.assertEqual(permissions.count(), 6)
 
     def test_device_connection_set_connector(self):
@@ -363,5 +379,8 @@ class TestModels(CreateConnectionsMixin, TestCase):
         self.assertTrue(dc.connector_instance, 'IS_MODIFIED')
         dc.credentials.delete()
         # ensure change not permanent
-        dc2 = self._create_device_connection()
+        org2 = self._create_org(name='org2')
+        dev2 = self._create_device(organization=org2)
+        self._create_config(device=dev2)
+        dc2 = self._create_device_connection(device=dev2)
         self.assertFalse(hasattr(dc2.connector_instance, 'IS_MODIFIED'))

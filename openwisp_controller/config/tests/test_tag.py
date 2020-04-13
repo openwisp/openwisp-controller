@@ -1,9 +1,11 @@
 from django.test import TestCase
-from django_netjsonconfig.tests import CreateTemplateMixin
+from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from ..models import Template
+from .utils import CreateTemplateMixin
+
+Template = load_model('config', 'Template')
 
 
 class TestTag(TestOrganizationMixin, CreateTemplateMixin, TestCase):
@@ -14,6 +16,6 @@ class TestTag(TestOrganizationMixin, CreateTemplateMixin, TestCase):
     template_model = Template
 
     def test_tag(self):
-        t = self._create_template(organization=self._create_org())
+        t = self._create_template(organization=self._get_org())
         t.tags.add('mesh')
         self.assertEqual(t.tags.filter(name='mesh').count(), 1)

@@ -1,17 +1,27 @@
 from django.test import TestCase
 from django.urls import reverse
+from swapper import load_model
 
-from ...config.models import Template
-from ...config.tests.tests import TestAdmin as TestConfigAdmin
+from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ...tests.utils import TestAdminMixin
-from ..models import Credentials, DeviceConnection
-from .base import CreateConnectionsMixin
+from .utils import CreateConnectionsMixin
+
+Template = load_model('config', 'Template')
+Config = load_model('config', 'Config')
+Device = load_model('config', 'Device')
+Credentials = load_model('connection', 'Credentials')
+DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
 class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
+    config_app_label = 'config'
+    app_label = 'connection'
     template_model = Template
     credentials_model = Credentials
-    connection_model = DeviceConnection
+    device_connection_model = DeviceConnection
+    device_model = Device
+    config_model = Config
+
     operator_permission_filters = [
         {'codename__endswith': 'config'},
         {'codename__endswith': 'device'},
@@ -55,7 +65,7 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     def test_credentials_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:connection_credentials_changelist'),
+            url=reverse(f'admin:{self.app_label}_credentials_changelist'),
             visible=[data['cred1'].name, data['org1'].name],
             hidden=[data['cred2'].name, data['org2'].name, data['cred3_inactive'].name],
         )
@@ -63,7 +73,7 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     def test_credentials_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:connection_credentials_add'),
+            url=reverse(f'admin:{self.app_label}_credentials_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -72,7 +82,7 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     def test_connection_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:connection_credentials_changelist'),
+            url=reverse(f'admin:{self.app_label}_credentials_changelist'),
             visible=[data['dc1'].credentials.name, data['org1'].name],
             hidden=[
                 data['dc2'].credentials.name,
@@ -84,7 +94,7 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     def test_connection_credentials_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:config_device_add'),
+            url=reverse(f'admin:{self.config_app_label}_device_add'),
             visible=[str(data['cred1'].name) + str(' (SSH)')],
             hidden=[str(data['cred2'].name) + str(' (SSH)'), data['cred3_inactive']],
             select_widget=True,

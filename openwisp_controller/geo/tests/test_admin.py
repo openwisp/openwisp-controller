@@ -2,19 +2,25 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django_loci.tests.base.test_admin import BaseTestAdmin
+from swapper import load_model
 
-from ...config.models import Device
 from ...tests.utils import TestAdminMixin
-from ..models import DeviceLocation, FloorPlan, Location
-from . import TestGeoMixin
+from .utils import TestGeoMixin
+
+Device = load_model('config', 'Device')
+Location = load_model('geo', 'Location')
+FloorPlan = load_model('geo', 'FloorPlan')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
+    app_label = 'geo'
     object_model = Device
     location_model = Location
     floorplan_model = FloorPlan
     object_location_model = DeviceLocation
     user_model = get_user_model()
+
     operator_permission_filters = [
         {'codename__endswith': 'config'},
         {'codename__endswith': 'device'},
@@ -85,7 +91,7 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         self._create_admin()
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:geo_location_changelist'),
+            url=reverse(f'admin:{self.app_label}_location_changelist'),
             visible=[data['l1'].name, data['org1'].name],
             hidden=[
                 data['l2'].name,
@@ -99,7 +105,7 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         self._create_admin()
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:geo_location_add'),
+            url=reverse(f'admin:{self.app_label}_location_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -109,7 +115,7 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         self._create_admin()
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:geo_floorplan_changelist'),
+            url=reverse(f'admin:{self.app_label}_floorplan_changelist'),
             visible=[data['fl1'], data['org1'].name],
             hidden=[
                 data['fl2'],

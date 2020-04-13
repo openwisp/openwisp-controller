@@ -135,8 +135,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 if app_settings.HARDWARE_ID_ENABLED
                 else self.mac_address
             )
-            hash = md5('{}+{}'.format(keybase, shared_secret).encode('utf-8'))
-            return hash.hexdigest()
+            hash_key = md5('{}+{}'.format(keybase, shared_secret).encode('utf-8'))
+            return hash_key.hexdigest()
         else:
             return KeyField.default_callable()
 

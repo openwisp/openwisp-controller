@@ -1,17 +1,17 @@
 (function ($) {
     var form = '#content-main form',
-        mapValues = function(object) {
-            $('input, select, textarea', form).each(function(i, el){
+        mapValues = function (object) {
+            $('input, select, textarea', form).each(function (i, el) {
                 var field = $(el),
                     name = field.attr('name'),
                     value = field.val();
                 // ignore fields that have no name attribute, begin with "_" or "initial-"
                 if (!name || name.substr(0, 1) == '_' || name.substr(0, 8) == 'initial-' ||
-                // ignore hidden fields
-                name == 'csrfmiddlewaretoken' ||
-                // ignore hidden inline helper fields
-                name.indexOf('__prefix__') >= 0 ||
-                name.indexOf('root') === 0) {
+                    // ignore hidden fields
+                    name == 'csrfmiddlewaretoken' ||
+                    // ignore hidden inline helper fields
+                    name.indexOf('__prefix__') >= 0 ||
+                    name.indexOf('root') === 0) {
                     return;
                 }
                 // fix checkbox values inconsistency
@@ -24,15 +24,15 @@
                 // convert JSON string to Javascript object in order
                 // to perform object comparison with `objectIsEqual`
                 if (name == 'config' || name == 'config-0-config' || name == 'config-0-context') {
-                    try{
+                    try {
                         object[name] = JSON.parse(value);
                     }
-                    catch(ignore){}
+                    catch (ignore) { }
                 }
             });
         };
 
-    var unsaved_changes = function(e) {
+    var unsaved_changes = function (e) {
         // get current values
         var current_values = {};
         mapValues(current_values);
@@ -63,7 +63,7 @@
     };
 
     // compares equality of two objects
-    var objectIsEqual = function(obj1, obj2) {
+    var objectIsEqual = function (obj1, obj2) {
         if (typeof obj1 != 'object' && typeof obj2 != 'object') {
             return obj1 == obj2;
         }
@@ -76,16 +76,16 @@
             return false;
         }
         var p;
-        for(p in obj1) {
-            switch(typeof obj1[p]) {
+        for (p in obj1) {
+            switch (typeof obj1[p]) {
                 case 'object':
                     if (!objectIsEqual(obj1[p], obj2[p])) { return false; } break;
                 default:
                     if (obj1[p] != obj2[p]) { return false; }
             }
         }
-        for(p in obj2) {
-            if(obj1[p] === undefined) { return false; }
+        for (p in obj2) {
+            if (obj1[p] === undefined) { return false; }
         }
         return true;
     };
@@ -96,7 +96,7 @@
         django._njc_initial_values = {};
         mapValues(django._njc_initial_values);
         // do not perform unsaved_changes if submitting form
-        $(form).submit(function() {
+        $(form).submit(function () {
             $(window).unbind('beforeunload', unsaved_changes);
         });
         // bind unload event

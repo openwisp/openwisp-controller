@@ -1,28 +1,15 @@
-from django.db import models
-from django.utils.translation import ugettext_lazy as _
-from django_x509.base.models import AbstractCa, AbstractCert
+import swapper
 
-from openwisp_users.mixins import ShareableOrgMixin
+from .base.models import AbstractCa, AbstractCert
 
 
-class Ca(ShareableOrgMixin, AbstractCa):
-    """
-    openwisp-controller CA model
-    """
-
+class Ca(AbstractCa):
     class Meta(AbstractCa.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('pki', 'Ca')
 
 
-class Cert(ShareableOrgMixin, AbstractCert):
-    """
-    openwisp-controller cert model
-    """
-
-    ca = models.ForeignKey(Ca, verbose_name=_('CA'), on_delete=models.CASCADE)
-
+class Cert(AbstractCert):
     class Meta(AbstractCert.Meta):
         abstract = False
-
-    def clean(self):
-        self._validate_org_relation('ca')
+        swappable = swapper.swappable_setting('pki', 'Cert')

@@ -2,6 +2,7 @@ from celery.task.control import inspect
 from django.apps import AppConfig
 from django.db.models.signals import post_save
 from django.utils.translation import ugettext_lazy as _
+from swapper import load_model
 
 from ..config.signals import config_modified
 
@@ -22,10 +23,8 @@ class ConnectionConfig(AppConfig):
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid='connection.update_config'
         )
-
-        from ..config.models import Config
-        from .models import Credentials
-
+        Config = load_model('config', 'Config')
+        Credentials = load_model('connection', 'Credentials')
         post_save.connect(
             Credentials.auto_add_credentials_to_device,
             sender=Config,

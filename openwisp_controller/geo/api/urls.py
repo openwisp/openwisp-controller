@@ -1,13 +1,6 @@
-from django.conf.urls import url
-
-from . import views
+from ..utils import get_geo_urls
+from . import views as geo_views
 
 app_name = 'openwisp_controller'
 
-urlpatterns = [
-    url(
-        r'^api/device-location/(?P<pk>[^/]+)/$',
-        views.device_location,
-        name='api_device_location',
-    ),
-]
+urlpatterns = get_geo_urls(geo_views)

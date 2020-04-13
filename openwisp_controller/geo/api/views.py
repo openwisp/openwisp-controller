@@ -2,9 +2,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import generics
 from rest_framework.permissions import BasePermission
 from rest_framework_gis import serializers as gis_serializers
+from swapper import load_model
 
-from ...config.models import Device
-from ..models import DeviceLocation, Location
+Device = load_model('config', 'Device')
+Location = load_model('geo', 'Location')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 class DevicePermission(BasePermission):

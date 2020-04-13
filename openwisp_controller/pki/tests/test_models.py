@@ -2,14 +2,17 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from OpenSSL import crypto
+from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from ..models import Ca, Cert
-from . import TestPkiMixin
+from .utils import TestPkiMixin
+
+Ca = load_model('pki', 'Ca')
+Cert = load_model('pki', 'Cert')
 
 
-class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
+class TestModels(TestPkiMixin, TestOrganizationMixin, TestCase):
     ca_model = Ca
     cert_model = Cert
 
@@ -41,7 +44,7 @@ class TestModels(TestCase, TestPkiMixin, TestOrganizationMixin):
         self.assertEqual(ca.organization.pk, cert.organization.pk)
 
     def test_cert_validate_org_relation_no_rel(self):
-        cert = Cert()
+        cert = self.cert_model()
         with self.assertRaises(ValidationError):
             cert.full_clean()
 

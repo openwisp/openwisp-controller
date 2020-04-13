@@ -9,14 +9,18 @@ import model_utils.fields
 import openwisp_users.mixins
 import uuid
 
+from django.conf import settings
+import swapper
+
 
 class Migration(migrations.Migration):
 
     initial = True
 
     dependencies = [
-        ('config', '0012_auto_20180219_1501'),
         ('openwisp_users', '0001_initial'),
+        migrations.swappable_dependency(settings.CONFIG_DEVICE_MODEL),
+        swapper.dependency('config', 'Device'),
     ]
 
     operations = [
@@ -161,7 +165,8 @@ class Migration(migrations.Migration):
                 (
                     'device',
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to='config.Device'
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=swapper.get_model_name('config', 'Device'),
                     ),
                 ),
             ],

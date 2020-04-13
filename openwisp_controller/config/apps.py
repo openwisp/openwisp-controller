@@ -1,8 +1,8 @@
 from django.apps import AppConfig
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import m2m_changed, post_delete
 from django.utils.translation import ugettext_lazy as _
+from swapper import get_model_name, load_model
 
 from . import settings as app_settings
 
@@ -18,15 +18,12 @@ class ConfigConfig(AppConfig):
 
     def ready(self, *args, **kwargs):
         self.__setmodels__()
-        self.check_settings()
         self.connect_signals()
         self.add_default_menu_items()
 
     def __setmodels__(self):
-        from .models import Config, VpnClient
-
-        self.config_model = Config
-        self.vpnclient_model = VpnClient
+        self.config_model = load_model('config', 'Config')
+        self.vpnclient_model = load_model('config', 'VpnClient')
 
     def connect_signals(self):
         """
@@ -50,24 +47,12 @@ class ConfigConfig(AppConfig):
             self.vpnclient_model.post_delete, sender=self.vpnclient_model
         )
 
-    def check_settings(self):
-        if (
-            settings.DEBUG is False
-            and app_settings.REGISTRATION_ENABLED
-            and not app_settings.SHARED_SECRET
-        ):  # pragma: nocover
-            raise ImproperlyConfigured(
-                'Security error: NETJSONCONFIG_SHARED_SECRET is not set. '
-                'Please set it or disable auto-registration by setting '
-                'NETJSONCONFIG_REGISTRATION_ENABLED to False'
-            )
-
     def add_default_menu_items(self):
         menu_setting = 'OPENWISP_DEFAULT_ADMIN_MENU_ITEMS'
         items = [
-            {'model': 'config.Device'},
-            {'model': 'config.Template'},
-            {'model': 'config.Vpn'},
+            {'model': get_model_name('config', 'Device')},
+            {'model': get_model_name('config', 'Template')},
+            {'model': get_model_name('config', 'Vpn')},
         ]
         if not hasattr(settings, menu_setting):
             setattr(settings, menu_setting, items)

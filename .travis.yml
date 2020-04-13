@@ -30,14 +30,17 @@ before_install:
   - npm install -g jslint
 
 install:
+  - pip install -U -e .
   - pip install $DJANGO
-  - pip install -e .
   - ./install-dev.sh
 
 script:
   - ./run-qa-checks
   - pytest --cov=openwisp_controller
   - coverage run -a --source=openwisp_controller runtests.py
+  - pytest -c pytest.sampleapp.ini
+  # SAMPLE tests do not influence coverage, so we can speed up tests with --parallel
+  - SAMPLE_APP=1 ./runtests.py --parallel --keepdb
 
 after_success:
   coveralls

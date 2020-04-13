@@ -1,6 +1,6 @@
 django>=2.2,<3.1
 django-model-utils>=4.0
-netjsonconfig>=0.7.0,<0.8.0
+netjsonconfig>=0.8.0,<0.9.0
 django-sortedm2m>=3.0.0,<3.1.0
 django-reversion>=3.0.5,<3.1.0
 django-x509>=0.6.2,<0.7.0
@@ -13,3 +13,4 @@ paramiko>=2.7.1,<2.8.0
 scp>=0.13.0,<0.14.0
 celery>=4.4.3,<4.5.0
 redis>=3.4.1,<4.0.0
+swapper~=1.1.0

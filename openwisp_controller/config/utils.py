@@ -76,6 +76,7 @@ def update_last_ip(device, request):
         changed = True
     if changed:
         device.save()
+    return changed
 
 
 def forbid_unallowed(request, param_group, param, allowed_values=None):

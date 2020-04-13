@@ -6,12 +6,14 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
 from django.views.decorators.http import last_modified
+from swapper import load_model
 
 from openwisp_users.models import Organization
 
-from .models import Template
 from .settings import BACKENDS, VPN_BACKENDS
 from .utils import get_default_templates_queryset, get_object_or_404
+
+Template = load_model('config', 'Template')
 
 
 def get_default_templates(request, organization_id):

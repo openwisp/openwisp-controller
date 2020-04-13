@@ -11,41 +11,41 @@ django.jQuery(function ($) {
     resizeEvent.initUIEvent('resize', true, false, window, 0);
     window.dispatchEvent(resizeEvent);
   },
-  showTab = function(menuLink){
-    var tabId = menuLink.attr('href');
-    $('ul.tabs a').removeClass('current');
-    $('.tab-content').removeClass('current');
-    menuLink.addClass('current');
-    $(tabId).addClass('current');
-    triggerResize();
-    $.event.trigger({
-      type: 'tabshown',
-      tabId: tabId,
-    });
-    return tabId;
-  },
-  showFragment = function(fragment) {
-    if (!fragment) { return; }
-    showTab($('ul.tabs a[href="' + fragment + '"]'));
-  };
+    showTab = function (menuLink) {
+      var tabId = menuLink.attr('href');
+      $('ul.tabs a').removeClass('current');
+      $('.tab-content').removeClass('current');
+      menuLink.addClass('current');
+      $(tabId).addClass('current');
+      triggerResize();
+      $.event.trigger({
+        type: 'tabshown',
+        tabId: tabId,
+      });
+      return tabId;
+    },
+    showFragment = function (fragment) {
+      if (!fragment) { return; }
+      showTab($('ul.tabs a[href="' + fragment + '"]'));
+    };
 
-  $('ul.tabs a').click(function(e){
+  $('ul.tabs a').click(function (e) {
     var tabId = showTab($(this));
     e.preventDefault();
     history.pushState(tabId, '', tabId);
   });
 
   var overview = $('#device_form > div > fieldset.module.aligned')
-                     .addClass('tab-content')
-                     .attr('id', 'overview-group'),
-      tabs = $('#device_form > div > div.inline-group')
-                 .addClass('tab-content'),
-      tabsContainer = $('#tabs-container ul');
-  tabs.each(function(i, el) {
+    .addClass('tab-content')
+    .attr('id', 'overview-group'),
+    tabs = $('#device_form > div > div.inline-group')
+      .addClass('tab-content'),
+    tabsContainer = $('#tabs-container ul');
+  tabs.each(function (i, el) {
     var $el = $(el),
-        tabId = $el.attr('id'),
-        label = $el.find('> fieldset.module > h2, ' +
-                         '> .tabular > fieldset.module > h2').text();
+      tabId = $el.attr('id'),
+      label = $el.find('> fieldset.module > h2, ' +
+        '> .tabular > fieldset.module > h2').text();
     tabsContainer.append(
       '<li><a class="button" href="#' + tabId + '">' + label + '</a></li>'
     );
@@ -65,5 +65,15 @@ django.jQuery(function ($) {
     $('ul.tabs li:first-child a').addClass('current');
     overview.addClass('current');
   }
+
+  // if there's any validation error, show the first one
+  var errors = $('.errorlist');
+  if (errors.length) {
+    var erroredTab = errors.eq(0).parents('.tab-content');
+    if (erroredTab.length) {
+      window.location.hash = '#' + erroredTab.attr('id');
+    }
+  }
+
   $('#loading-overlay').fadeOut(400);
 });

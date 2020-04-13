@@ -7,9 +7,10 @@ from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
 from sortedm2m.fields import SortedManyToManyField
+from swapper import get_model_name
 
 from .. import settings as app_settings
-from ..signals import config_modified
+from ..signals import config_modified, config_status_changed
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
 
@@ -29,9 +30,11 @@ class AbstractConfig(BaseConfig):
     NetJSON DeviceConfiguration object
     """
 
-    device = models.OneToOneField('config.Device', on_delete=models.CASCADE)
+    device = models.OneToOneField(
+        get_model_name('config', 'Device'), on_delete=models.CASCADE
+    )
     templates = SortedManyToManyField(
-        'config.Template',
+        get_model_name('config', 'Template'),
         related_name='config_relations',
         verbose_name=_('templates'),
         base_class=TemplatesThrough,
@@ -39,8 +42,8 @@ class AbstractConfig(BaseConfig):
         help_text=_('configuration templates, applied from ' 'first to last'),
     )
     vpn = models.ManyToManyField(
-        'config.Vpn',
-        through='config.VpnClient',
+        get_model_name('config', 'Vpn'),
+        through=get_model_name('config', 'VpnClient'),
         related_name='vpn_relations',
         blank=True,
     )
@@ -154,6 +157,7 @@ class AbstractConfig(BaseConfig):
             return
         if instance.status != 'modified':
             instance.set_status_modified()
+        # config modified signal sent regardless
         else:
             instance._send_config_modified_signal()
 
@@ -255,38 +259,58 @@ class AbstractConfig(BaseConfig):
         current = self.__class__.objects.get(pk=self.pk)
         for attr in ['backend', 'config', 'context']:
             if getattr(self, attr) != getattr(current, attr):
-                self.set_status_modified(save=False)
+                if self.status != 'modified':
+                    self.set_status_modified(save=False)
+                else:
+                    # config modified signal is always sent
+                    # regardless of the current status
+                    self._send_config_modified_signal()
                 break
 
     def save(self, *args, **kwargs):
         created = self._state.adding
-        super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
         if created:
             default_templates = self.get_default_templates()
             if default_templates:
                 self.templates.add(*default_templates)
         if not created and getattr(self, '_send_config_modified_after_save', False):
             self._send_config_modified_signal()
+            self._send_config_modified_after_save = None
+        if getattr(self, '_send_config_status_changed', False):
+            self._send_config_status_changed_signal()
+            self._send_config_status_changed = None
+        return result
 
     def _send_config_modified_signal(self):
         """
-        sends signal ``config_modified``
+        Emits ``config_modified`` signal.
+        Called also by Template when templates of a device are modified
         """
-        config_modified.send(sender=self.__class__, config=self, device=self.device)
+        config_modified.send(
+            sender=self.__class__,
+            instance=self,
+            # kept for backward compatibility
+            config=self,
+            device=self.device,
+        )
+
+    def _send_config_status_changed_signal(self):
+        """
+        Emits ``config_status_changed`` signal.
+        Called also by Template when templates of a device are modified
+        """
+        config_status_changed.send(sender=self.__class__, instance=self)
 
     def _set_status(self, status, save=True):
         self.status = status
+        self._send_config_status_changed = True
         if save:
             self.save()
 
     def set_status_modified(self, save=True):
+        self._send_config_modified_after_save = True
         self._set_status('modified', save)
-        if save:
-            self._send_config_modified_signal()
-        else:
-            # set this attribute that will be
-            # checked in the save method
-            self._send_config_modified_after_save = True
 
     def set_status_applied(self, save=True):
         self._set_status('applied', save)

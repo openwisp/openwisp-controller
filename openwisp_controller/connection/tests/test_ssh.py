@@ -1,15 +1,26 @@
 import io
 import os
 from contextlib import redirect_stdout
+from unittest import mock
 
-import mock
 from django.conf import settings
 from django.test import TestCase
+from swapper import load_model
 
-from .base import CreateConnectionsMixin, SshServer
+from .utils import CreateConnectionsMixin, SshServer
+
+Config = load_model('config', 'Config')
+Device = load_model('config', 'Device')
+Credentials = load_model('connection', 'Credentials')
+DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
 class TestSsh(CreateConnectionsMixin, TestCase):
+    credentials_model = Credentials
+    device_connection_model = DeviceConnection
+    device_model = Device
+    config_model = Config
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -43,7 +54,7 @@ class TestSsh(CreateConnectionsMixin, TestCase):
                 dc.connector_instance.exec_command('wrongcommand')
         output = stdout.getvalue()
         self.assertIn('/bin/sh: 1: wrongcommand: not found', output)
-        self.assertIn('# Previus command failed, aborting...', output)
+        self.assertIn('# Previous command failed, aborting...', output)
 
     @mock.patch('scp.SCPClient.putfo')
     def test_connection_upload(self, putfo_mocked):

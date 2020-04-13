@@ -1,14 +1,18 @@
 from django.test import TestCase
 from django.urls import reverse
+from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...tests.utils import TestAdminMixin
-from ..models import Ca, Cert
-from . import TestPkiMixin
+from .utils import TestPkiMixin
+
+Ca = load_model('pki', 'Ca')
+Cert = load_model('pki', 'Cert')
 
 
 class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
+    app_label = 'pki'
     ca_model = Ca
     cert_model = Cert
     operator_permission_filters = [
@@ -57,7 +61,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     def test_ca_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:pki_ca_changelist'),
+            url=reverse(f'admin:{self.app_label}_ca_changelist'),
             visible=[data['ca1'].name, data['org1'].name],
             hidden=[
                 data['ca2'].name,
@@ -70,7 +74,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     def test_ca_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:pki_ca_add'),
+            url=reverse(f'admin:{self.app_label}_ca_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -79,7 +83,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     def test_cert_queryset(self):
         data = self._create_multitenancy_test_env(cert=True)
         self._test_multitenant_admin(
-            url=reverse('admin:pki_cert_changelist'),
+            url=reverse(f'admin:{self.app_label}_cert_changelist'),
             visible=[data['cert1'].name, data['org1'].name],
             hidden=[
                 data['cert2'].name,
@@ -92,7 +96,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     def test_cert_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:pki_cert_add'),
+            url=reverse(f'admin:{self.app_label}_cert_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -101,7 +105,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     def test_cert_ca_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:pki_cert_add'),
+            url=reverse(f'admin:{self.app_label}_cert_add'),
             visible=[data['ca1'].name, data['ca_shared'].name],
             hidden=[data['ca2'].name, data['ca_inactive'].name],
             select_widget=True,
@@ -113,16 +117,16 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         self._login(username='operator', password='tester')
         ca = self._create_ca(name='ca', organization=org)
         cert = self._create_cert(name='cert', ca=ca, organization=org)
-        url = reverse('admin:pki_cert_change', args=[cert.pk])
+        url = reverse(f'admin:{self.app_label}_cert_change', args=[cert.pk])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
     def test_changelist_recover_deleted_button(self):
         self._create_multitenancy_test_env()
-        self._test_changelist_recover_deleted('pki', 'ca')
-        self._test_changelist_recover_deleted('pki', 'cert')
+        self._test_changelist_recover_deleted(self.app_label, 'ca')
+        self._test_changelist_recover_deleted(self.app_label, 'cert')
 
     def test_recoverlist_operator_403(self):
         self._create_multitenancy_test_env()
-        self._test_recoverlist_operator_403('pki', 'ca')
-        self._test_recoverlist_operator_403('pki', 'cert')
+        self._test_recoverlist_operator_403(self.app_label, 'ca')
+        self._test_recoverlist_operator_403(self.app_label, 'cert')

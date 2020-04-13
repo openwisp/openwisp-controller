@@ -7,12 +7,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
 TESTING = sys.argv[1] == 'test'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.spatialite',
-        'NAME': 'openwisp-controller.db',
+        'NAME': os.path.join(BASE_DIR, 'openwisp-controller.db'),
     }
 }
 
@@ -54,12 +54,9 @@ INSTALLED_APPS = [
     'rest_framework_gis',
     # channels
     'channels',
+    # 'debug_toolbar',
 ]
-
-EXTENDED_APPS = (
-    'django_x509',
-    'django_loci',
-)
+EXTENDED_APPS = ('django_x509', 'django_loci')
 
 AUTH_USER_MODEL = 'openwisp_users.User'
 SITE_ID = '1'
@@ -78,7 +75,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+# INTERNAL_IPS = ['127.0.0.1']
 
 ROOT_URLCONF = 'openwisp2.urls'
 
@@ -94,7 +93,7 @@ USE_I18N = False
 USE_L10N = False
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '{0}/media/'.format(os.path.dirname(BASE_DIR))
+MEDIA_ROOT = f'{os.path.dirname(BASE_DIR)}/media/'
 
 CORS_ORIGIN_ALLOW_ALL = True
 
@@ -154,11 +153,54 @@ LOGGING = {
     # }
 }
 
-NETJSONCONFIG_SHARED_SECRET = 't3st1ng'
-NETJSONCONFIG_CONTEXT = {'vpnserver1': 'vpn.testdomain.com'}
+OPENWISP_CONTROLLER_CONTEXT = {'vpnserver1': 'vpn.testdomain.com'}
 
+TEST_RUNNER = 'openwisp_utils.tests.TimeLoggingTestRunner'
 if TESTING:
-    NETJSONCONFIG_HARDWARE_ID_ENABLED = True
+    OPENWISP_CONTROLLER_HARDWARE_ID_ENABLED = True
+
+if os.environ.get('SAMPLE_APP', False):
+    # Replace Config
+    config_index = INSTALLED_APPS.index('openwisp_controller.config')
+    INSTALLED_APPS.remove('openwisp_controller.config')
+    INSTALLED_APPS.insert(config_index, 'openwisp2.sample_config')
+    # Replace Pki
+    pki_index = INSTALLED_APPS.index('openwisp_controller.pki')
+    INSTALLED_APPS.remove('openwisp_controller.pki')
+    INSTALLED_APPS.insert(pki_index, 'openwisp2.sample_pki')
+    # Replace Geo
+    geo_index = INSTALLED_APPS.index('openwisp_controller.geo')
+    INSTALLED_APPS.remove('openwisp_controller.geo')
+    INSTALLED_APPS.insert(geo_index, 'openwisp2.sample_geo')
+    # Replace Connection
+    connection_index = INSTALLED_APPS.index('openwisp_controller.connection')
+    INSTALLED_APPS.remove('openwisp_controller.connection')
+    INSTALLED_APPS.insert(connection_index, 'openwisp2.sample_connection')
+    # Extended apps
+    EXTENDED_APPS = (
+        'django_x509',
+        'django_loci',
+        'openwisp_controller.config',
+        'openwisp_controller.pki',
+        'openwisp_controller.geo',
+        'openwisp_controller.connection',
+    )
+    # Swapper
+    CONFIG_DEVICE_MODEL = 'sample_config.Device'
+    CONFIG_CONFIG_MODEL = 'sample_config.Config'
+    CONFIG_TEMPLATETAG_MODEL = 'sample_config.TemplateTag'
+    CONFIG_TAGGEDTEMPLATE_MODEL = 'sample_config.TaggedTemplate'
+    CONFIG_TEMPLATE_MODEL = 'sample_config.Template'
+    CONFIG_VPN_MODEL = 'sample_config.Vpn'
+    CONFIG_VPNCLIENT_MODEL = 'sample_config.VpnClient'
+    CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = 'sample_config.OrganizationConfigSettings'
+    PKI_CA_MODEL = 'sample_pki.Ca'
+    PKI_CERT_MODEL = 'sample_pki.Cert'
+    GEO_LOCATION_MODEL = 'sample_geo.Location'
+    GEO_FLOORPLAN_MODEL = 'sample_geo.FloorPlan'
+    GEO_DEVICELOCATION_MODEL = 'sample_geo.DeviceLocation'
+    CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
+    CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:

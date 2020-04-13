@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from swapper import get_model_name
 from taggit.managers import TaggableManager
 
 from openwisp_users.mixins import ShareableOrgMixin
@@ -33,7 +34,7 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
     """
 
     tags = TaggableManager(
-        through='config.TaggedTemplate',
+        through=get_model_name('config', 'TaggedTemplate'),
         blank=True,
         help_text=_(
             'A comma-separated list of template tags, may be used '
@@ -42,7 +43,7 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
         ),
     )
     vpn = models.ForeignKey(
-        'config.Vpn',
+        get_model_name('config', 'Vpn'),
         verbose_name=_('VPN'),
         blank=True,
         null=True,
@@ -102,9 +103,14 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
             self._update_related_config_status()
 
     def _update_related_config_status(self):
+        changing_status = list(self.config_relations.exclude(status='modified'))
         self.config_relations.update(status='modified')
         for config in self.config_relations.all():
+            # config modified signal sent regardless
             config._send_config_modified_signal()
+            # config status changed signal sent only if status changed
+            if config in changing_status:
+                config._send_config_status_changed_signal()
 
     def clean(self, *args, **kwargs):
         """

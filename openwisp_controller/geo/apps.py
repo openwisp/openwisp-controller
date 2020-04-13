@@ -1,3 +1,4 @@
+import swapper
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from django_loci.apps import LociConfig
@@ -9,9 +10,7 @@ class GeoConfig(LociConfig):
     verbose_name = _('Geographic Information')
 
     def __setmodels__(self):
-        from .models import Location
-
-        self.location_model = Location
+        self.location_model = swapper.load_model('geo', 'Location')
 
     def ready(self):
         super().ready()
@@ -29,7 +28,7 @@ class GeoConfig(LociConfig):
               complexity down to a sane level
         """
         from .tests.test_admin_inline import TestAdminInline
-        from ..config.tests.tests import TestAdmin as TestConfigAdmin
+        from ..config.tests.test_admin import TestAdmin as TestConfigAdmin
 
         params = TestAdminInline._get_params()
         delete_keys = []

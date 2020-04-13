@@ -1,3 +1,4 @@
+import swapper
 from django.contrib import admin
 from django.utils.translation import ugettext_lazy as _
 
@@ -6,7 +7,9 @@ from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin
-from .models import Credentials, DeviceConnection
+
+Credentials = swapper.load_model('connection', 'Credentials')
+DeviceConnection = swapper.load_model('connection', 'DeviceConnection')
 
 
 @admin.register(Credentials)

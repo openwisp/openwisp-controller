@@ -1,10 +1,14 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django_loci.tests.base.test_models import BaseTestModels
+from swapper import load_model
 
-from ...config.models import Device
-from ..models import DeviceLocation, FloorPlan, Location
-from . import TestGeoMixin
+from .utils import TestGeoMixin
+
+Device = load_model('config', 'Device')
+Location = load_model('geo', 'Location')
+FloorPlan = load_model('geo', 'FloorPlan')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 class TestModels(TestGeoMixin, BaseTestModels, TestCase):

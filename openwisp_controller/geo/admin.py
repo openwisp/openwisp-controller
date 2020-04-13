@@ -9,12 +9,16 @@ from django_loci.base.admin import (
     AbstractObjectLocationForm,
     ObjectLocationMixin,
 )
+from swapper import load_model
 
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin
-from .models import DeviceLocation, FloorPlan, Location
+
+DeviceLocation = load_model('geo', 'DeviceLocation')
+FloorPlan = load_model('geo', 'FloorPlan')
+Location = load_model('geo', 'Location')
 
 
 class FloorPlanForm(AbstractFloorPlanForm):
@@ -23,32 +27,17 @@ class FloorPlanForm(AbstractFloorPlanForm):
         exclude = ('organization',)  # automatically managed
 
 
+class FloorPlanInline(AbstractFloorPlanInline):
+    form = FloorPlanForm
+    model = FloorPlan
+
+
 class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     form = FloorPlanForm
     list_filter = [('organization', MultitenantOrgFilter), 'created']
 
 
 FloorPlanAdmin.list_display.insert(1, 'organization')
-
-
-class LocationForm(AbstractLocationForm):
-    class Meta(AbstractLocationForm.Meta):
-        model = Location
-
-
-class FloorPlanInline(AbstractFloorPlanInline):
-    form = FloorPlanForm
-    model = FloorPlan
-
-
-class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
-    form = LocationForm
-    inlines = [FloorPlanInline]
-    list_select_related = ('organization',)
-
-
-LocationAdmin.list_display.insert(1, 'organization')
-LocationAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 
 
 class ObjectLocationForm(AbstractObjectLocationForm):
@@ -64,6 +53,21 @@ class ObjectLocationForm(AbstractObjectLocationForm):
         floorplan = super()._get_floorplan_instance()
         floorplan.organization_id = self.data.get('organization')
         return floorplan
+
+
+class LocationForm(AbstractLocationForm):
+    class Meta(AbstractLocationForm.Meta):
+        model = Location
+
+
+class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
+    form = LocationForm
+    inlines = [FloorPlanInline]
+    list_select_related = ('organization',)
+
+
+LocationAdmin.list_display.insert(1, 'organization')
+LocationAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
 
 
 class DeviceLocationInline(ObjectLocationMixin, admin.StackedInline):

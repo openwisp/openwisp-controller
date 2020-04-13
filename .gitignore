@@ -66,5 +66,6 @@ local_settings.py
 *.db
 *.tar.gz
 
-# Pipfile.lock is not recommended when targeting multiple python versions
+# Pipenv
+Pipfile
 Pipfile.lock

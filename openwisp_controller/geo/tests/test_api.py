@@ -3,17 +3,20 @@ import json
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.urls import reverse
+from swapper import load_model
 
-from ...config.models import Device
-from ..models import DeviceLocation, Location
-from . import TestGeoMixin
+from .utils import TestGeoMixin
+
+Device = load_model('config', 'Device')
+Location = load_model('geo', 'Location')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 class TestApi(TestGeoMixin, TestCase):
-    object_model = Device
-    location_model = Location
-    object_location_model = DeviceLocation
     url_name = 'geo:api_device_location'
+    object_location_model = DeviceLocation
+    location_model = Location
+    object_model = Device
 
     def test_permission_404(self):
         url = reverse(self.url_name, args=[self.object_model().pk])

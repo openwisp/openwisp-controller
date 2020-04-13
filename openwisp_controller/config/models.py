@@ -1,3 +1,5 @@
+import swapper
+
 from .base.config import AbstractConfig
 from .base.device import AbstractDevice
 from .base.multitenancy import AbstractOrganizationConfigSettings
@@ -13,6 +15,7 @@ class Device(AbstractDevice):
 
     class Meta(AbstractDevice.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'Device')
 
 
 class Config(AbstractConfig):
@@ -22,6 +25,7 @@ class Config(AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'Config')
 
 
 class TemplateTag(AbstractTemplateTag):
@@ -31,6 +35,7 @@ class TemplateTag(AbstractTemplateTag):
 
     class Meta(AbstractTemplateTag.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'TemplateTag')
 
 
 class TaggedTemplate(AbstractTaggedTemplate):
@@ -40,6 +45,7 @@ class TaggedTemplate(AbstractTaggedTemplate):
 
     class Meta(AbstractTaggedTemplate.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'TaggedTemplate')
 
 
 class Template(AbstractTemplate):
@@ -49,6 +55,7 @@ class Template(AbstractTemplate):
 
     class Meta(AbstractTemplate.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'Template')
 
 
 class Vpn(AbstractVpn):
@@ -58,6 +65,7 @@ class Vpn(AbstractVpn):
 
     class Meta(AbstractVpn.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'Vpn')
 
 
 class VpnClient(AbstractVpnClient):
@@ -67,6 +75,7 @@ class VpnClient(AbstractVpnClient):
 
     class Meta(AbstractVpnClient.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'VpnClient')
 
 
 class OrganizationConfigSettings(AbstractOrganizationConfigSettings):
@@ -77,3 +86,4 @@ class OrganizationConfigSettings(AbstractOrganizationConfigSettings):
 
     class Meta(AbstractOrganizationConfigSettings.Meta):
         abstract = False
+        swappable = swapper.swappable_setting('config', 'OrganizationConfigSettings')

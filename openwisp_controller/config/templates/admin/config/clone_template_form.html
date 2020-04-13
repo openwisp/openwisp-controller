@@ -30,7 +30,7 @@ organization-selection
         <br>
         <input type="hidden" name="action" value="clone_selected_templates">
         <input type="submit" value="{% trans 'Clone' %}">
-        <a href="{% url 'admin:config_template_changelist' %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+        <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
     </div>
 </form>
 {% endblock %}

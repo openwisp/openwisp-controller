@@ -1,8 +1,9 @@
 from time import sleep
 
 from celery import shared_task
+from swapper import load_model
 
-from ..config.models import Device
+Device = load_model('config', 'Device')
 
 
 @shared_task

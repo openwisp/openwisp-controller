@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
+from swapper import get_model_name
 
 from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import KeyField
@@ -21,10 +22,12 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
         max_length=64, help_text=_('VPN server hostname or ip address')
     )
     ca = models.ForeignKey(
-        'pki.Ca', verbose_name=_('Certification Authority'), on_delete=models.CASCADE
+        get_model_name('pki', 'Ca'),
+        verbose_name=_('Certification Authority'),
+        on_delete=models.CASCADE,
     )
     cert = models.ForeignKey(
-        'pki.Cert',
+        get_model_name('pki', 'Cert'),
         verbose_name=_('x509 Certificate'),
         help_text=_('leave blank to create automatically'),
         blank=True,
@@ -181,10 +184,12 @@ class AbstractVpnClient(models.Model):
     m2m through model
     """
 
-    config = models.ForeignKey('config.Config', on_delete=models.CASCADE)
-    vpn = models.ForeignKey('config.Vpn', on_delete=models.CASCADE)
+    config = models.ForeignKey(
+        get_model_name('config', 'Config'), on_delete=models.CASCADE
+    )
+    vpn = models.ForeignKey(get_model_name('config', 'Vpn'), on_delete=models.CASCADE)
     cert = models.OneToOneField(
-        'pki.Cert', on_delete=models.CASCADE, blank=True, null=True
+        get_model_name('pki', 'Cert'), on_delete=models.CASCADE, blank=True, null=True
     )
     # this flags indicates whether the certificate must be
     # automatically managed, which is going to be almost in all cases

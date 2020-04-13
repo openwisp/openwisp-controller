@@ -1,12 +1,18 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django_loci.tests.base.test_admin_inline import BaseTestAdminInline
+from swapper import load_model
 
-from ...config.models import Device
-from ...config.tests.tests import TestAdmin as TestConfigAdmin
-from ..models import DeviceLocation, FloorPlan, Location
-from . import TestGeoMixin
+from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
+from .utils import TestGeoMixin
+
+Device = load_model('config', 'Device')
+Location = load_model('geo', 'Location')
+FloorPlan = load_model('geo', 'FloorPlan')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 # ConfigInline management fields
 _device_params = TestConfigAdmin._device_params.copy()
@@ -20,12 +26,13 @@ for key in _delete_keys:
 
 
 class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
+    app_label = 'geo'
     object_model = Device
     location_model = Location
     floorplan_model = FloorPlan
     object_location_model = DeviceLocation
     user_model = get_user_model()
-    app_label = 'geo'
+
     inline_field_prefix = 'devicelocation'
 
     def setUp(self):
@@ -42,6 +49,7 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
         params['organization'] = self.organization.pk
         return params
 
+    @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_AS_NAME', False)
     def test_add_mobile(self):
         self._login_as_admin()
         prefix = self._get_prefix()
@@ -66,8 +74,4 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
         self.assertEqual(
             loc.objectlocation_set.first().content_object.name, params['name']
         )
-        # TODO: The loc_name is hardware_id because device object
-        # now returns the hardware_id, This looks like an intended
-        # change, in AbstractDevice.__str__ hence, I didn't
-        # change it, Please confirm the same.
-        self.assertEqual(loc.name, params['hardware_id'])
+        self.assertEqual(loc.name, params['name'])

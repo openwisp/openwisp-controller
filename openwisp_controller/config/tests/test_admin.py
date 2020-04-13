@@ -1,29 +1,48 @@
 import json
+import os
+from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from ...pki.models import Ca, Cert
 from ...tests.utils import TestAdminMixin
-from ..models import Config, Device, Template, Vpn
-from . import CreateConfigTemplateMixin, TestVpnX509Mixin
+from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
+
+devnull = open(os.devnull, 'w')
+Config = load_model('config', 'Config')
+Device = load_model('config', 'Device')
+Template = load_model('config', 'Template')
+Vpn = load_model('config', 'Vpn')
+Ca = load_model('pki', 'Ca')
+Cert = load_model('pki', 'Cert')
 
 
 class TestAdmin(
     CreateConfigTemplateMixin,
-    TestAdminMixin,
     TestVpnX509Mixin,
+    TestAdminMixin,
     TestOrganizationMixin,
     TestCase,
 ):
+    """
+    tests for Config model
+    """
+
+    app_label = 'config'
     ca_model = Ca
     cert_model = Cert
     config_model = Config
     device_model = Device
     template_model = Template
     vpn_model = Vpn
+    user_model = get_user_model()
+
+    fixtures = ['test_templates']
+    maxDiff = None
     operator_permission_filters = [
         {'codename__endswith': 'config'},
         {'codename__endswith': 'device'},
@@ -32,6 +51,7 @@ class TestAdmin(
     ]
     _device_params = {
         'name': 'test-device',
+        'hardware_id': '1234',
         'mac_address': CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
         'key': CreateConfigTemplateMixin.TEST_KEY,
         'model': '',
@@ -54,9 +74,12 @@ class TestAdmin(
         'deviceconnection_set-MAX_NUM_FORMS': 1000,
     }
     # WARNING - WATCHOUT
-    # this class attribute is changed dinamically
+    # this class attribute is changed dynamically
     # by other apps which add inlines to DeviceAdmin
     _additional_params = {}
+
+    def setUp(self):
+        self.client.force_login(self._get_admin())
 
     def _get_device_params(self, org):
         p = self._device_params.copy()
@@ -65,11 +88,11 @@ class TestAdmin(
         return p
 
     def test_device_and_template_different_organization(self):
-        org1 = self._create_org()
+        org1 = self._get_org()
         template = self._create_template(organization=org1)
         org2 = self._create_org(name='test org2', slug='test-org2')
         config = self._create_config(organization=org2)
-        path = reverse('admin:config_device_change', args=[config.device.pk])
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
         # ensure it fails with error
         self._login()
         params = self._get_device_params(org=org2)
@@ -89,10 +112,10 @@ class TestAdmin(
         self.assertNotContains(response, 'errors field-templates', status_code=302)
 
     def test_add_device(self):
-        org1 = self._create_org()
+        org1 = self._get_org()
         t1 = self._create_template(name='t1', organization=org1)
         t2 = self._create_template(name='t2', organization=None)
-        path = reverse('admin:config_device_add')
+        path = reverse(f'admin:{self.app_label}_device_add')
         data = self._get_device_params(org=org1)
         data.update(
             {
@@ -102,7 +125,7 @@ class TestAdmin(
         )
         self._login()
         self.client.post(path, data)
-        queryset = Device.objects.filter(name='testadd')
+        queryset = self.device_model.objects.filter(name='testadd')
         self.assertEqual(queryset.count(), 1)
         device = queryset.first()
         self.assertEqual(device.config.templates.count(), 2)
@@ -111,10 +134,10 @@ class TestAdmin(
         )
 
     def test_preview_device(self):
-        org = self._create_org()
+        org = self._get_org()
         self._create_template(organization=org)
-        templates = Template.objects.all()
-        path = reverse('admin:config_device_preview')
+        templates = self.template_model.objects.all()
+        path = reverse(f'admin:{self.app_label}_device_preview')
         config = json.dumps(
             {
                 'interfaces': [
@@ -142,22 +165,22 @@ class TestAdmin(
         self.assertContains(response, 'dhcp')
 
     def test_device_preview_button(self):
-        config = self._create_config(organization=self._create_org())
-        path = reverse('admin:config_device_change', args=[config.device.pk])
+        config = self._create_config(organization=self._get_org())
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
         self._login()
         response = self.client.get(path)
         self.assertIn('Preview', str(response.content))
 
     def test_template_preview_button(self):
-        t = self._create_template(organization=self._create_org())
-        path = reverse('admin:config_template_change', args=[t.pk])
+        t = self._create_template(organization=self._get_org())
+        path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
         self._login()
         response = self.client.get(path)
         self.assertIn('Preview', str(response.content))
 
     def test_vpn_preview_button(self):
-        v = self._create_vpn(organization=self._create_org())
-        path = reverse('admin:config_vpn_change', args=[v.pk])
+        v = self._create_vpn(organization=self._get_org())
+        path = reverse(f'admin:{self.app_label}_vpn_change', args=[v.pk])
         self._login()
         response = self.client.get(path)
         self.assertIn('Preview', str(response.content))
@@ -216,7 +239,7 @@ class TestAdmin(
     def test_device_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:config_device_changelist'),
+            url=reverse(f'admin:{self.app_label}_device_changelist'),
             visible=[data['c1'].name, data['org1'].name],
             hidden=[data['c2'].name, data['org2'].name, data['c3_inactive'].name],
         )
@@ -224,7 +247,7 @@ class TestAdmin(
     def test_device_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:config_device_add'),
+            url=reverse(f'admin:{self.app_label}_device_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -234,7 +257,7 @@ class TestAdmin(
         data = self._create_multitenancy_test_env()
         t_shared = self._create_template(name='t-shared', organization=None)
         self._test_multitenant_admin(
-            url=reverse('admin:config_device_add'),
+            url=reverse(f'admin:{self.app_label}_device_add'),
             visible=[str(data['t1']), str(t_shared)],
             hidden=[str(data['t2']), str(data['t3_inactive'])],
         )
@@ -242,7 +265,7 @@ class TestAdmin(
     def test_template_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:config_template_changelist'),
+            url=reverse(f'admin:{self.app_label}_template_changelist'),
             visible=[data['t1'].name, data['org1'].name],
             hidden=[data['t2'].name, data['org2'].name, data['t3_inactive'].name],
         )
@@ -250,7 +273,7 @@ class TestAdmin(
     def test_template_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:config_template_add'),
+            url=reverse(f'admin:{self.app_label}_template_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -259,7 +282,7 @@ class TestAdmin(
     def test_template_vpn_fk_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=reverse('admin:config_template_add'),
+            url=reverse(f'admin:{self.app_label}_template_add'),
             visible=[data['vpn1'].name, data['vpn_shared'].name],
             hidden=[data['vpn2'].name, data['vpn_inactive'].name],
             select_widget=True,
@@ -268,7 +291,7 @@ class TestAdmin(
     def test_vpn_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=reverse('admin:config_vpn_changelist'),
+            url=reverse(f'admin:{self.app_label}_vpn_changelist'),
             visible=[data['org1'].name, data['vpn1'].name],
             hidden=[
                 data['org2'].name,
@@ -282,7 +305,7 @@ class TestAdmin(
     def test_vpn_organization_fk_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse('admin:config_vpn_add'),
+            url=reverse(f'admin:{self.app_label}_vpn_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
@@ -291,7 +314,7 @@ class TestAdmin(
     def test_vpn_ca_fk_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=reverse('admin:config_vpn_add'),
+            url=reverse(f'admin:{self.app_label}_vpn_add'),
             visible=[data['vpn1'].ca.name, data['vpn_shared'].ca.name],
             hidden=[data['vpn2'].ca.name, data['vpn_inactive'].ca.name],
             select_widget=True,
@@ -300,7 +323,7 @@ class TestAdmin(
     def test_vpn_cert_fk_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=reverse('admin:config_vpn_add'),
+            url=reverse(f'admin:{self.app_label}_vpn_add'),
             visible=[data['vpn1'].cert.name, data['vpn_shared'].cert.name],
             hidden=[data['vpn2'].cert.name, data['vpn_inactive'].cert.name],
             select_widget=True,
@@ -308,42 +331,42 @@ class TestAdmin(
 
     def test_changelist_recover_deleted_button(self):
         self._create_multitenancy_test_env()
-        self._test_changelist_recover_deleted('config', 'device')
-        self._test_changelist_recover_deleted('config', 'template')
-        self._test_changelist_recover_deleted('config', 'vpn')
+        self._test_changelist_recover_deleted(self.app_label, 'device')
+        self._test_changelist_recover_deleted(self.app_label, 'template')
+        self._test_changelist_recover_deleted(self.app_label, 'vpn')
 
     def test_recoverlist_operator_403(self):
         self._create_multitenancy_test_env()
-        self._test_recoverlist_operator_403('config', 'device')
-        self._test_recoverlist_operator_403('config', 'template')
-        self._test_recoverlist_operator_403('config', 'vpn')
+        self._test_recoverlist_operator_403(self.app_label, 'device')
+        self._test_recoverlist_operator_403(self.app_label, 'template')
+        self._test_recoverlist_operator_403(self.app_label, 'vpn')
 
     def test_device_template_filter(self):
         data = self._create_multitenancy_test_env()
         t_special = self._create_template(name='special', organization=data['org1'])
         self._test_multitenant_admin(
-            url=reverse('admin:config_device_changelist'),
+            url=reverse(f'admin:{self.app_label}_device_changelist'),
             visible=[data['t1'].name, t_special.name],
             hidden=[data['t2'].name, data['t3_inactive'].name],
         )
 
     def test_device_contains_default_templates_js(self):
-        config = self._create_config(organization=self._create_org())
-        path = reverse('admin:config_device_change', args=[config.device.pk])
+        config = self._create_config(organization=self._get_org())
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
         self._login()
         response = self.client.get(path)
         self.assertContains(response, '// enable default templates')
 
     def test_template_not_contains_default_templates_js(self):
         template = self._create_template()
-        path = reverse('admin:config_template_change', args=[template.pk])
+        path = reverse(f'admin:{self.app_label}_template_change', args=[template.pk])
         self._login()
         response = self.client.get(path)
         self.assertNotContains(response, '// enable default templates')
 
     def test_vpn_not_contains_default_templates_js(self):
         vpn = self._create_vpn()
-        path = reverse('admin:config_vpn_change', args=[vpn.pk])
+        path = reverse(f'admin:{self.app_label}_vpn_change', args=[vpn.pk])
         self._login()
         response = self.client.get(path)
         self.assertNotContains(response, '// enable default templates')
@@ -356,7 +379,7 @@ class TestAdmin(
         }
 
     def test_clone_templates_superuser_1_org(self):
-        path = reverse('admin:config_template_changelist')
+        path = reverse(f'admin:{self.app_label}_template_changelist')
         t = self._create_template(organization=self._get_org(org_name='default'))
         post_data = self._get_clone_template_post_data(t)
         self.client.force_login(self._get_admin())
@@ -364,7 +387,7 @@ class TestAdmin(
         self.assertContains(response, '{} (Clone)'.format(t.name))
 
     def test_clone_templates_superuser_multi_orgs(self):
-        path = reverse('admin:config_template_changelist')
+        path = reverse(f'admin:{self.app_label}_template_changelist')
         t = self._create_template(organization=self._get_org('org_2'))
         post_data = self._get_clone_template_post_data(t)
         self.client.force_login(self._get_admin())
@@ -372,16 +395,17 @@ class TestAdmin(
         self.assertContains(response, 'Clone templates')
 
     def test_clone_templates_operator_1_org(self):
-        path = reverse('admin:config_template_changelist')
+        path = reverse(f'admin:{self.app_label}_template_changelist')
         t = self._create_template(organization=self._get_org())
+        test_user = self._create_operator(organizations=[self._get_org()])
         post_data = self._get_clone_template_post_data(t)
-        self.client.force_login(self._create_operator(organizations=[self._get_org()]))
+        self.client.force_login(test_user)
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, '{} (Clone)'.format(t.name))
 
     def test_clone_templates_operator_multi_orgs(self):
-        path = reverse('admin:config_template_changelist')
-        t = self._create_template(organization=self._get_org())
+        path = reverse(f'admin:{self.app_label}_template_changelist')
+        t = self._create_template()
         post_data = self._get_clone_template_post_data(t)
         operator = self._create_operator(
             organizations=[self._get_org(), self._get_org('org_2')]
@@ -389,3 +413,471 @@ class TestAdmin(
         self.client.force_login(operator)
         response = self.client.post(path, post_data)
         self.assertContains(response, 'Clone templates')
+
+    def test_change_device_clean_templates(self):
+        o = self._get_org()
+        t = self.template_model.objects.first()
+        d = self._create_device(organization=o)
+        c = self._create_config(device=d, backend=t.backend, config=t.config)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        params = self._get_device_params(org=o)
+        params.update(
+            {
+                'name': 'test-change-device',
+                'config-0-id': str(c.pk),
+                'config-0-device': str(d.pk),
+                'config-0-templates': str(t.pk),
+                'config-INITIAL_FORMS': 1,
+            }
+        )
+        # ensure it fails with error
+        response = self.client.post(path, params)
+        self.assertContains(response, 'errors field-templates')
+        # remove conflicting template and ensure doesn't error
+        params['config-0-templates'] = ''
+        response = self.client.post(path, params)
+        self.assertNotContains(response, 'errors field-templates', status_code=302)
+
+    def test_download_device_config(self):
+        d = self._create_device(name='download')
+        self._create_config(device=d)
+        path = reverse(f'admin:{self.app_label}_device_download', args=[d.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('content-type'), 'application/octet-stream')
+
+    def test_download_device_config_404(self):
+        d = self._create_device(name='download')
+        path = reverse(f'admin:{self.app_label}_device_download', args=[d.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 404)
+
+    def test_preview_device_config(self):
+        templates = self.template_model.objects.all()
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        config = json.dumps(
+            {
+                'general': {'description': '{{hardware_id}}'},
+                'interfaces': [
+                    {
+                        'name': 'lo0',
+                        'type': 'loopback',
+                        'addresses': [
+                            {
+                                'family': 'ipv4',
+                                'proto': 'static',
+                                'address': '127.0.0.1',
+                                'mask': 8,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        data = {
+            'name': 'test-device',
+            'hardware_id': 'SERIAL012345',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': config,
+            'context': '',
+            'csrfmiddlewaretoken': 'test',
+            'templates': ','.join([str(t.pk) for t in templates]),
+        }
+        response = self.client.post(path, data)
+        self.assertContains(response, '<pre class="djnjc-preformatted')
+        self.assertContains(response, 'lo0')
+        self.assertContains(response, 'eth0')
+        self.assertContains(response, 'dhcp')
+        self.assertContains(response, 'radio0')
+        self.assertContains(response, 'SERIAL012345')
+
+    def test_preview_device_config_empty_id(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        config = json.dumps({'general': {'descripion': 'id: {{ id }}'}})
+        data = {
+            'id': '',
+            'name': 'test-empty-id',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': config,
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        # expect 200
+        self.assertContains(response, 'id:')
+
+    def test_preview_device_attributeerror(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        data = {
+            'name': 'test-device',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': '{}',
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        self.assertContains(response, '<pre class="djnjc-preformatted')
+
+    @patch('sys.stdout', devnull)
+    @patch('sys.stderr', devnull)
+    def test_preview_device_valueerror(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        data = {
+            'name': 'test-device',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': '{}',
+            'templates': 'wrong,totally',
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        self.assertEqual(response.status_code, 400)
+
+    @patch('sys.stdout', devnull)
+    @patch('sys.stderr', devnull)
+    def test_preview_device_validationerror(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        data = {
+            'name': 'test-device',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': '{"interfaces": {"wrong":"wrong"}}',
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        self.assertEqual(response.status_code, 400)
+
+    @patch('sys.stdout', devnull)
+    @patch('sys.stderr', devnull)
+    def test_preview_device_jsonerror(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        data = {
+            'name': 'test-device',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': 'WRONG',
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        self.assertEqual(response.status_code, 400)
+
+    def test_preview_device_showerror(self):
+        t1 = self.template_model.objects.get(name='dhcp')
+        t2 = self.template_model(
+            name='t', config=t1.config, backend='netjsonconfig.OpenWrt'
+        )
+        t2.full_clean()
+        t2.save()
+        templates = [t1, t2]
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        data = {
+            'name': 'test-device',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': '{}',
+            'templates': ','.join([str(t.pk) for t in templates]),
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        # expect duplicate error
+        self.assertContains(response, '<pre class="djnjc-preformatted error')
+
+    @patch('sys.stdout', devnull)
+    @patch('sys.stderr', devnull)
+    def test_preview_device_405(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        response = self.client.get(path, {})
+        self.assertEqual(response.status_code, 405)
+
+    def test_download_template_config(self):
+        t = self.template_model.objects.first()
+        path = reverse(f'admin:{self.app_label}_template_download', args=[t.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.get('content-type'), 'application/octet-stream')
+
+    def test_preview_template(self):
+        template = self.template_model.objects.get(name='radio0')
+        path = reverse(f'admin:{self.app_label}_template_preview')
+        data = {
+            'name': template.name,
+            'backend': template.backend,
+            'config': json.dumps(template.config),
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        self.assertContains(response, '<pre class="djnjc-preformatted')
+        self.assertContains(response, 'radio0')
+        self.assertContains(response, 'phy')
+        self.assertNotContains(response, 'system')
+        self.assertNotContains(response, 'hostname')
+
+    def test_change_device_404(self):
+        path = reverse(
+            f'admin:{self.app_label}_device_change', args=[self.device_model().pk]
+        )
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 404)
+
+    def test_change_device_malformed_uuid(self):
+        path = reverse(f'admin:{self.app_label}_device_change', args=['wrong'])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 404)
+
+    def test_uuid_field_in_change(self):
+        t = self.template_model.objects.first()
+        d = self._create_device()
+        c = self._create_config(device=d, backend=t.backend, config=t.config)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[c.device.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'field-uuid')
+
+    def test_empty_backend_import_error(self):
+        t = self.template_model.objects.first()
+        path = reverse(f'admin:{self.app_label}_device_add')
+        params = self._get_device_params(org=self._get_org())
+        params.update(
+            {
+                'name': 'empty-backend',
+                'key': self.TEST_KEY,
+                'config-0-templates': str(t.pk),
+                'config-0-backend': '',
+                'config-0-config': json.dumps({'general': {'hostname': 'config'}}),
+            }
+        )
+        response = self.client.post(path, params)
+        self.assertContains(response, 'errors field-backend')
+
+    def test_default_device_backend(self):
+        path = reverse(f'admin:{self.app_label}_device_add')
+        response = self.client.get(path)
+        self.assertContains(response, '<option value="netjsonconfig.OpenWrt" selected')
+
+    def test_existing_device_backend(self):
+        d = self._create_device()
+        self._create_config(device=d, backend='netjsonconfig.OpenWisp')
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        response = self.client.get(path)
+        self.assertContains(response, '<option value="netjsonconfig.OpenWisp" selected')
+
+    def test_device_search(self):
+        d = self._create_device(name='admin-search-test')
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        response = self.client.get(path, {'q': str(d.pk.hex)})
+        self.assertContains(response, 'admin-search-test')
+        response = self.client.get(path, {'q': 'ZERO-RESULTS-PLEASE'})
+        self.assertNotContains(response, 'admin-search-test')
+
+    def test_default_template_backend(self):
+        path = reverse(f'admin:{self.app_label}_template_add')
+        response = self.client.get(path)
+        self.assertContains(response, '<option value="netjsonconfig.OpenWrt" selected')
+
+    def test_existing_template_backend(self):
+        t = self.template_model.objects.first()
+        t.backend = 'netjsonconfig.OpenWisp'
+        t.save()
+        path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
+        response = self.client.get(path)
+        self.assertContains(response, '<option value="netjsonconfig.OpenWisp" selected')
+
+    def test_preview_variables(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        c = self._create_config(
+            device=self._create_device(name='variables'),
+            config={
+                'general': {
+                    'cid': '{{ id }}',
+                    'ckey': '{{ key }}',
+                    'cname': '{{ name }}',
+                }
+            },
+        )
+        templates = self.template_model.objects.all()
+        c.templates.add(*templates)
+        d = c.device
+        data = {
+            'name': d.name,
+            'id': d.id,
+            'mac_address': d.mac_address,
+            'key': d.key,
+            'backend': c.backend,
+            'config': json.dumps(c.config),
+            'csrfmiddlewaretoken': 'test',
+            'templates': ','.join([str(t.pk) for t in templates]),
+        }
+        response = self.client.post(path, data)
+        response_html = response.content.decode('utf8')
+        self.assertTrue(
+            any(
+                [
+                    "cid &#39;{0}&#39;".format(str(d.id)) in response_html,
+                    # django >= 3.0
+                    "cid &#x27;{0}&#x27;".format(str(d.id)) in response_html,
+                ]
+            )
+        )
+        self.assertTrue(
+            any(
+                [
+                    "ckey &#39;{0}&#39;".format(str(d.key)) in response_html,
+                    # django >= 3.0
+                    "ckey &#x27;{0}&#x27;".format(str(d.key)) in response_html,
+                ]
+            )
+        )
+        self.assertTrue(
+            any(
+                [
+                    "cname &#39;{0}&#39;".format(str(d.name)) in response_html,
+                    # django >= 3.0
+                    "cname &#x27;{0}&#x27;".format(str(d.name)) in response_html,
+                ]
+            )
+        )
+
+    def test_download_vpn_config(self):
+        v = self._create_vpn()
+        path = reverse(f'admin:{self.app_label}_vpn_download', args=[v.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.get('content-type'), 'application/octet-stream')
+
+    def test_preview_vpn(self):
+        v = self._create_vpn()
+        path = reverse(f'admin:{self.app_label}_vpn_preview')
+        data = {
+            'name': v.name,
+            'backend': v.backend,
+            'host': v.host,
+            'ca': v.ca_id,
+            'cert': v.cert_id,
+            'config': json.dumps(v.config),
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data)
+        self.assertContains(response, '<pre class="djnjc-preformatted')
+        self.assertContains(response, '# openvpn config:')
+
+    def test_add_vpn(self):
+        path = reverse(f'admin:{self.app_label}_vpn_add')
+        response = self.client.get(path)
+        self.assertContains(
+            response, 'value="openwisp_controller.vpn_backends.OpenVpn" selected'
+        )
+
+    def test_ip_not_in_add_device(self):
+        path = reverse(f'admin:{self.app_label}_device_add')
+        response = self.client.get(path)
+        self.assertNotContains(response, 'last_ip')
+
+    def test_ip_in_change_device(self):
+        d = self._create_device()
+        t = self.template_model.objects.first()
+        self._create_config(device=d, backend=t.backend, config=t.config)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        response = self.client.get(path)
+        self.assertContains(response, 'last_ip')
+
+    def test_hardware_id_in_change_device(self):
+        d = self._create_device()
+        t = self.template_model.objects.first()
+        self._create_config(device=d, backend=t.backend, config=t.config)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        response = self.client.get(path)
+        self.assertContains(response, 'hardware_id')
+
+    def test_error_if_download_config(self):
+        d = self._create_device()
+        res = self.client.get(
+            reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        )
+        self.assertNotContains(res, 'Download configuration')
+
+    def test_preview_device_with_context(self):
+        path = reverse(f'admin:{self.app_label}_device_preview')
+        config = json.dumps(
+            {
+                'openwisp': [
+                    {
+                        'config_name': 'controller',
+                        'config_value': 'http',
+                        'url': 'http://controller.examplewifiservice.com',
+                        'interval': '{{ interval }}',
+                        'verify_ssl': '1',
+                        'uuid': 'UUID',
+                        'key': self.TEST_KEY,
+                    }
+                ]
+            }
+        )
+        data = {
+            'id': 'd60ecd62-5d00-4e7b-bd16-6fc64a95e60c',
+            'name': 'test-asd',
+            'mac_address': self.TEST_MAC_ADDRESS,
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': config,
+            'csrfmiddlewaretoken': 'test',
+            'context': '{"interval": "60"}',
+        }
+        response = self.client.post(path, data)
+        response_html = response.content.decode('utf8')
+        self.assertTrue(
+            any(
+                [
+                    "option interval &#39;60&#39;" in response_html,
+                    # django >= 3.0
+                    "option interval &#x27;60&#x27;" in response_html,
+                ]
+            )
+        )
+
+    def test_context_device(self):
+        device = self._create_device()
+        url = reverse(f'admin:{self.app_label}_device_context', args=[device.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.json(), device.get_context())
+        self.assertEqual(response.status_code, 200)
+
+    def test_context_user_not_authenticated(self):
+        self.client.logout()
+        device = self._create_device()
+        url = reverse(f'admin:{self.app_label}_device_context', args=[device.pk])
+        response = self.client.get(url)
+        expected_url = '{}?next={}'.format(reverse('admin:login'), url)
+        self.assertRedirects(response, expected_url)
+
+    @patch('sys.stdout', devnull)
+    @patch('sys.stderr', devnull)
+    def test_context_vpn(self):
+        vpn = self._create_vpn()
+        url = reverse(f'admin:{self.app_label}_vpn_context', args=[vpn.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.json(), vpn.get_context())
+        self.assertEqual(response.status_code, 200)
+
+    def test_context_template(self):
+        template = self._create_template()
+        url = reverse(f'admin:{self.app_label}_template_context', args=[template.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.json(), template.get_context())
+        self.assertEqual(response.status_code, 200)
+
+    def test_clone_template(self):
+        path = reverse(f'admin:{self.app_label}_template_changelist')
+        t = self._create_template()
+        data = {
+            '_selected_action': [t.pk],
+            'action': 'clone_selected_templates',
+            'csrfmiddlewaretoken': 'test',
+        }
+        response = self.client.post(path, data, follow=True)
+        self.assertContains(response, '{} (Clone)'.format(t.name))
+        response = self.client.post(path, data, follow=True)
+        self.assertContains(response, '{} (Clone 2)'.format(t.name))
+        response = self.client.post(path, data, follow=True)
+        self.assertContains(response, '{} (Clone 3)'.format(t.name))
+
+    @classmethod
+    def tearDownClass(cls):
+        devnull.close()
