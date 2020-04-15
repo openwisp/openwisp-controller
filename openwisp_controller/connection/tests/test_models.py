@@ -233,6 +233,12 @@ class TestModels(CreateConnectionsMixin, TestCase):
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
 
+    def test_auto_add_device_missing_config(self):
+        org = Organization.objects.first()
+        self._create_device(organization=org)
+        self._create_credentials(auto_add=True, organization=None)
+        self.assertEqual(Credentials.objects.count(), 1)
+
     _exec_command_path = 'paramiko.SSHClient.exec_command'
 
     def _exec_command_return_value(self, stdin='', stdout='mocked',

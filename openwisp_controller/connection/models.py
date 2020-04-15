@@ -87,7 +87,7 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
         """
         if not self.auto_add:
             return
-        devices = Device.objects.all()
+        devices = Device.objects.exclude(config=None)
         org = self.organization
         if org:
             devices = devices.filter(organization=org)
@@ -170,7 +170,7 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                 'credentials': _('The organization of these credentials doesn\'t '
                                  'match the organization of the device')
             })
-        if not self.update_strategy and hasattr(self.device, 'config'):
+        if not self.update_strategy and self.device._has_config():
             try:
                 self.update_strategy = app_settings.CONFIG_UPDATE_MAPPING[self.device.config.backend]
             except KeyError as e:
