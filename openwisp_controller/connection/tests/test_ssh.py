@@ -5,16 +5,15 @@ from contextlib import redirect_stdout
 import mock
 from django.conf import settings
 from django.test import TestCase
-from mockssh import Server
 
-from .base import CreateConnectionsMixin
+from .base import CreateConnectionsMixin, SshServer
 
 
 class TestSsh(CreateConnectionsMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.mock_ssh_server = Server({'root': cls._TEST_RSA_PRIVATE_KEY_PATH}).__enter__()
+        cls.mock_ssh_server = SshServer({'root': cls._TEST_RSA_PRIVATE_KEY_PATH}).__enter__()
         cls.ssh_server.port = cls.mock_ssh_server.port
 
     @classmethod
@@ -24,7 +23,8 @@ class TestSsh(CreateConnectionsMixin, TestCase):
     def test_connection_connect(self):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
-        dc.connector_instance.connect()
+        dc.connect()
+        self.assertTrue(dc.is_working)
         stdout = io.StringIO()
         with redirect_stdout(stdout):
             dc.connector_instance.exec_command('echo test')
