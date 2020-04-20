@@ -363,3 +363,20 @@ class TestModels(CreateConnectionsMixin, TestCase):
         group = Group.objects.get(name='Administrator')
         permissions = group.permissions.filter(content_type__app_label='connection')
         self.assertEqual(permissions.count(), 6)
+
+    def test_device_connection_set_connector(self):
+        dc = self._create_device_connection()
+        connector = dc.connector_class(
+            params=dc.get_params(),
+            addresses=dc.get_addresses()
+        )
+        connector.IS_MODIFIED = True
+        self.assertFalse(hasattr(dc.connector_instance, 'IS_MODIFIED'))
+        del dc.connector_instance
+        dc.set_connector(connector)
+        self.assertTrue(hasattr(dc.connector_instance, 'IS_MODIFIED'))
+        self.assertTrue(dc.connector_instance, 'IS_MODIFIED')
+        dc.credentials.delete()
+        # ensure change not permanent
+        dc2 = self._create_device_connection()
+        self.assertFalse(hasattr(dc2.connector_instance, 'IS_MODIFIED'))

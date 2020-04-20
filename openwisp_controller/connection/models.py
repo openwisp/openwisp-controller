@@ -214,6 +214,9 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         params.update(self.params)
         return params
 
+    def set_connector(self, connector):
+        self.connector_instance = connector
+
     def connect(self):
         try:
             self.connector_instance.connect()
