@@ -38,7 +38,7 @@ setup(
         "openwisp-users>=0.2.0,<0.3.0",
         "django-loci>=0.3.1,<0.4.0",
         "djangorestframework-gis>=0.12.0,<0.16.0",
-        "paramiko>=2.4.1,<2.8.0",
+        "paramiko>=2.7.1,<2.8.0",
         "scp>=0.13.0,<0.14.0",
         "celery>=4.2.0,<4.5.0",
     ],
