@@ -9,6 +9,7 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from scp import SCPClient
 
 from .. import settings as app_settings
+from .exceptions import CommandFailedException
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class Ssh(object):
         if exit_status not in exit_codes and raise_unexpected_exit:
             print('# Previus command failed, aborting...')
             message = error if error else output
-            raise Exception(message)
+            raise CommandFailedException(message)
         return output, exit_status
 
     def update_config(self):  # pragma: no cover
