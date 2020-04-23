@@ -1,4 +1,7 @@
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
+from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
 from django_loci.base.models import AbstractFloorPlan, AbstractLocation, AbstractObjectLocation
 
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
@@ -7,6 +10,11 @@ from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 class Location(OrgMixin, AbstractLocation):
     class Meta(AbstractLocation.Meta):
         abstract = False
+
+    def clean(self):
+        if self.geometry is not None and not isinstance(self.geometry, Point):
+            raise ValidationError({'geometry': _('Only point geometry is allowed')})
+        super().clean()
 
 
 class FloorPlan(OrgMixin, AbstractFloorPlan):
