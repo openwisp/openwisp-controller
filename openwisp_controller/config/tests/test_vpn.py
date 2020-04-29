@@ -52,6 +52,8 @@ class TestVpn(TestOrganizationMixin, TestVpnX509Mixin, TestCase):
             self._create_vpn(ca=ca, cert=cert, organization=org2)
         except ValidationError as e:
             self.assertIn('organization', e.message_dict)
-            self.assertIn('related certificate match', e.message_dict['organization'][0])
+            self.assertIn(
+                'related certificate match', e.message_dict['organization'][0]
+            )
         else:
             self.fail('ValidationError not raised')

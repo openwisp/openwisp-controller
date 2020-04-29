@@ -17,9 +17,28 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='TaggedTemplate',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('object_id', models.UUIDField(db_index=True, verbose_name='Object id')),
-                ('content_type', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='config_taggedtemplate_tagged_items', to='contenttypes.ContentType', verbose_name='Content type')),
+                (
+                    'id',
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name='ID',
+                    ),
+                ),
+                (
+                    'object_id',
+                    models.UUIDField(db_index=True, verbose_name='Object id'),
+                ),
+                (
+                    'content_type',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name='config_taggedtemplate_tagged_items',
+                        to='contenttypes.ContentType',
+                        verbose_name='Content type',
+                    ),
+                ),
             ],
             options={
                 'verbose_name': 'Tagged item',
@@ -30,9 +49,23 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='TemplateTag',
             fields=[
-                ('name', models.CharField(max_length=100, unique=True, verbose_name='Name')),
-                ('slug', models.SlugField(max_length=100, unique=True, verbose_name='Slug')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    'name',
+                    models.CharField(max_length=100, unique=True, verbose_name='Name'),
+                ),
+                (
+                    'slug',
+                    models.SlugField(max_length=100, unique=True, verbose_name='Slug'),
+                ),
+                (
+                    'id',
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
             ],
             options={
                 'verbose_name': 'Tag',
@@ -43,11 +76,21 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='taggedtemplate',
             name='tag',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='config_taggedtemplate_items', to='config.TemplateTag'),
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name='config_taggedtemplate_items',
+                to='config.TemplateTag',
+            ),
         ),
         migrations.AddField(
             model_name='template',
             name='tags',
-            field=taggit.managers.TaggableManager(blank=True, help_text='A comma-separated list of template tags, may be used to ease auto configuration with specific settings (eg: 4G, mesh, WDS, VPN, ecc.)', through='config.TaggedTemplate', to='config.TemplateTag', verbose_name='Tags'),
+            field=taggit.managers.TaggableManager(
+                blank=True,
+                help_text='A comma-separated list of template tags, may be used to ease auto configuration with specific settings (eg: 4G, mesh, WDS, VPN, ecc.)',
+                through='config.TaggedTemplate',
+                to='config.TemplateTag',
+                verbose_name='Tags',
+            ),
         ),
     ]

@@ -8,8 +8,9 @@ from ..models import Template
 from . import CreateConfigTemplateMixin
 
 
-class TestTemplate(CreateConfigTemplateMixin, TestAdminMixin,
-                   TestOrganizationMixin, TestCase):
+class TestTemplate(
+    CreateConfigTemplateMixin, TestAdminMixin, TestOrganizationMixin, TestCase
+):
     template_model = Template
 
     def _create_template_test_data(self):
@@ -21,22 +22,32 @@ class TestTemplate(CreateConfigTemplateMixin, TestAdminMixin,
         t3 = self._create_template(organization=None, name='t3', default=True)
         # inactive org and template
         inactive_org = self._create_org(name='inactive-org', is_active=False)
-        inactive_t = self._create_template(organization=inactive_org,
-                                           name='inactive-t',
-                                           default=True)
+        inactive_t = self._create_template(
+            organization=inactive_org, name='inactive-t', default=True
+        )
         return org1, org2, t1, t2, t3, inactive_org, inactive_t
 
     def test_get_default_templates(self):
-        org1, org2, t1, t2, t3, inactive_org, inactive_t = self._create_template_test_data()
+        (
+            org1,
+            org2,
+            t1,
+            t2,
+            t3,
+            inactive_org,
+            inactive_t,
+        ) = self._create_template_test_data()
         self._login()
-        response = self.client.get(reverse('admin:get_default_templates',
-                                           args=[org1.pk]))
+        response = self.client.get(
+            reverse('admin:get_default_templates', args=[org1.pk])
+        )
         templates = response.json()['default_templates']
         self.assertEqual(len(templates), 2)
         self.assertIn(str(t1.pk), templates)
         self.assertIn(str(t3.pk), templates)
-        response = self.client.get(reverse('admin:get_default_templates',
-                                           args=[org2.pk]))
+        response = self.client.get(
+            reverse('admin:get_default_templates', args=[org2.pk])
+        )
         templates = response.json()['default_templates']
         self.assertEqual(len(templates), 2)
         self.assertIn(str(t2.pk), templates)
@@ -44,25 +55,39 @@ class TestTemplate(CreateConfigTemplateMixin, TestAdminMixin,
 
     def test_get_default_templates_403(self):
         org1 = self._create_org(name='org1')
-        response = self.client.get(reverse('admin:get_default_templates',
-                                           args=[org1.pk]))
+        response = self.client.get(
+            reverse('admin:get_default_templates', args=[org1.pk])
+        )
         self.assertEqual(response.status_code, 403)
 
     def test_get_default_templates_404(self):
         self._login()
-        response = self.client.get(reverse('admin:get_default_templates',
-                                           args=['d80a60a1415e4836b8f4bc588b084c29']))
+        response = self.client.get(
+            reverse(
+                'admin:get_default_templates', args=['d80a60a1415e4836b8f4bc588b084c29']
+            )
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_get_default_templates_404_inactive(self):
-        org1, org2, t1, t2, t3, inactive_org, inactive_t = self._create_template_test_data()
+        (
+            org1,
+            org2,
+            t1,
+            t2,
+            t3,
+            inactive_org,
+            inactive_t,
+        ) = self._create_template_test_data()
         self._login()
-        response = self.client.get(reverse('admin:get_default_templates',
-                                           args=[inactive_org.pk]))
+        response = self.client.get(
+            reverse('admin:get_default_templates', args=[inactive_org.pk])
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_get_default_templates_400(self):
         self._login()
-        response = self.client.get(reverse('admin:get_default_templates',
-                                           args=['wrong']))
+        response = self.client.get(
+            reverse('admin:get_default_templates', args=['wrong'])
+        )
         self.assertEqual(response.status_code, 404)

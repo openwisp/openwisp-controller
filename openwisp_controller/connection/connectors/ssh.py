@@ -16,16 +16,16 @@ logger = logging.getLogger(__name__)
 
 class Ssh(object):
     schema = {
-        "$schema": "http://json-schema.org/draft-04/schema#",
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["username"],
-        "properties": {
-            "username": {"type": "string"},
-            "password": {"type": "string"},
-            "key": {"type": "string"},
-            "port": {"type": "integer"},
-        }
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+        'additionalProperties': False,
+        'required': ['username'],
+        'properties': {
+            'username': {'type': 'string'},
+            'password': {'type': 'string'},
+            'key': {'type': 'string'},
+            'port': {'type': 'integer'},
+        },
     }
 
     def __init__(self, params, addresses):
@@ -60,10 +60,12 @@ class Ssh(object):
             raise ValueError('No valid IP addresses to initiate connections found')
         for address in addresses:
             try:
-                self.shell.connect(address,
-                                   timeout=app_settings.SSH_CONNECTION_TIMEOUT,
-                                   auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
-                                   **self.params)
+                self.shell.connect(
+                    address,
+                    timeout=app_settings.SSH_CONNECTION_TIMEOUT,
+                    auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
+                    **self.params
+                )
             except Exception as e:
                 exception = e
             else:
@@ -75,8 +77,13 @@ class Ssh(object):
     def disconnect(self):
         self.shell.close()
 
-    def exec_command(self, command, timeout=app_settings.SSH_COMMAND_TIMEOUT,
-                     exit_codes=[0], raise_unexpected_exit=True):
+    def exec_command(
+        self,
+        command,
+        timeout=app_settings.SSH_COMMAND_TIMEOUT,
+        exit_codes=[0],
+        raise_unexpected_exit=True,
+    ):
         """
         Executes a command and performs the following operations
         - logs executed command
@@ -88,8 +95,7 @@ class Ssh(object):
         print('$:> {0}'.format(command))
         # execute commmand
         try:
-            stdin, stdout, stderr = self.shell.exec_command(command,
-                                                            timeout=timeout)
+            stdin, stdout, stderr = self.shell.exec_command(command, timeout=timeout)
         # re-raise socket.timeout to avoid being catched
         # by the subsequent `except Exception as e` block
         except socket.timeout:

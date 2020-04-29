@@ -22,24 +22,103 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Device',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    'id',
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
                 ('name', models.CharField(max_length=64, unique=True)),
-                ('mac_address', models.CharField(help_text='primary mac address', max_length=17, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', 32), code='invalid', message='Must be a valid mac address.')])),
-                ('key', openwisp_utils.base.KeyField(db_index=True, default=openwisp_utils.utils.get_random_key, help_text='unique device key', max_length=64, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$'), code='invalid', message='This value must not contain spaces, dots or slashes.')])),
-                ('model', models.CharField(blank=True, help_text='device model and manufacturer', max_length=64)),
-                ('os', models.CharField(blank=True, help_text='operating system identifier', max_length=128, verbose_name='operating system')),
+                (
+                    'mac_address',
+                    models.CharField(
+                        help_text='primary mac address',
+                        max_length=17,
+                        unique=True,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                re.compile(
+                                    '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', 32
+                                ),
+                                code='invalid',
+                                message='Must be a valid mac address.',
+                            )
+                        ],
+                    ),
+                ),
+                (
+                    'key',
+                    openwisp_utils.base.KeyField(
+                        db_index=True,
+                        default=openwisp_utils.utils.get_random_key,
+                        help_text='unique device key',
+                        max_length=64,
+                        unique=True,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                re.compile('^[^\\s/\\.]+$'),
+                                code='invalid',
+                                message='This value must not contain spaces, dots or slashes.',
+                            )
+                        ],
+                    ),
+                ),
+                (
+                    'model',
+                    models.CharField(
+                        blank=True,
+                        help_text='device model and manufacturer',
+                        max_length=64,
+                    ),
+                ),
+                (
+                    'os',
+                    models.CharField(
+                        blank=True,
+                        help_text='operating system identifier',
+                        max_length=128,
+                        verbose_name='operating system',
+                    ),
+                ),
                 ('notes', models.TextField(blank=True)),
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='openwisp_users.Organization', verbose_name='organization')),
+                (
+                    'created',
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='created',
+                    ),
+                ),
+                (
+                    'modified',
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='modified',
+                    ),
+                ),
+                (
+                    'organization',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='openwisp_users.Organization',
+                        verbose_name='organization',
+                    ),
+                ),
             ],
-            options={
-                'abstract': False,
-            },
+            options={'abstract': False,},
         ),
         migrations.AddField(
             model_name='config',
             name='device',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='config.Device'),
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to='config.Device',
+            ),
         ),
     ]

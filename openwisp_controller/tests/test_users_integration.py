@@ -5,6 +5,7 @@ class TestUsersIntegration(TestUsersAdmin):
     """
     tests integration with openwisp_users
     """
+
     pass
 
 

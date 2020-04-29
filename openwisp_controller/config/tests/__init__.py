@@ -1,4 +1,8 @@
-from django_netjsonconfig.tests import CreateConfigMixin, CreateTemplateMixin, CreateVpnMixin
+from django_netjsonconfig.tests import (
+    CreateConfigMixin,
+    CreateTemplateMixin,
+    CreateVpnMixin,
+)
 
 from ...pki.tests import TestPkiMixin
 
@@ -16,6 +20,7 @@ class TestVpnX509Mixin(CreateVpnMixin, TestPkiMixin):
 class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
     def _create_config(self, **kwargs):
         if 'device' not in kwargs:
-            kwargs['device'] = self._create_device(name='test-device',
-                                                   organization=kwargs.pop('organization'))
+            kwargs['device'] = self._create_device(
+                name='test-device', organization=kwargs.pop('organization')
+            )
         return super()._create_config(**kwargs)

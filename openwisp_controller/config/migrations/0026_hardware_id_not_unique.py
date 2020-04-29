@@ -13,6 +13,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='device',
             name='hardware_id',
-            field=models.CharField(blank=True, help_text='Serial number of this device', max_length=32, null=True, verbose_name='Serial number'),
+            field=models.CharField(
+                blank=True,
+                help_text='Serial number of this device',
+                max_length=32,
+                null=True,
+                verbose_name='Serial number',
+            ),
         ),
     ]

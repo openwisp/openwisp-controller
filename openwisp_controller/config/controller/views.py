@@ -1,8 +1,13 @@
 from django.db.models import Q
-from django_netjsonconfig.controller.generics import (BaseDeviceChecksumView, BaseDeviceDownloadConfigView,
-                                                      BaseDeviceRegisterView, BaseDeviceReportStatusView,
-                                                      BaseDeviceUpdateInfoView, BaseVpnChecksumView,
-                                                      BaseVpnDownloadConfigView)
+from django_netjsonconfig.controller.generics import (
+    BaseDeviceChecksumView,
+    BaseDeviceDownloadConfigView,
+    BaseDeviceRegisterView,
+    BaseDeviceReportStatusView,
+    BaseDeviceUpdateInfoView,
+    BaseVpnChecksumView,
+    BaseVpnDownloadConfigView,
+)
 from django_netjsonconfig.utils import invalid_response
 
 from ..models import Device, OrganizationConfigSettings, Vpn
@@ -12,6 +17,7 @@ class ActiveOrgMixin(object):
     """
     adds check to organization.is_active to ``get_object`` method
     """
+
     def get_object(self, *args, **kwargs):
         kwargs['organization__is_active'] = True
         return super().get_object(*args, **kwargs)
@@ -25,13 +31,11 @@ class UpdateLastIpMixin(object):
             # same org stays with the same last_ip
             # (eg: because of DHCP dynamic assignment)
             Device.objects.filter(
-                organization=device.organization,
-                last_ip=device.last_ip,
+                organization=device.organization, last_ip=device.last_ip,
             ).exclude(pk=device.pk).update(last_ip='')
             # same as before but for management_ip
             Device.objects.filter(
-                organization=device.organization,
-                management_ip=device.management_ip,
+                organization=device.organization, management_ip=device.management_ip,
             ).exclude(pk=device.pk).update(management_ip='')
         return result
 
@@ -63,10 +67,9 @@ class DeviceRegisterView(UpdateLastIpMixin, BaseDeviceRegisterView):
         """
         try:
             secret = request.POST.get('secret')
-            org_settings = OrganizationConfigSettings.objects \
-                                                     .select_related('organization') \
-                                                     .get(shared_secret=secret,
-                                                          organization__is_active=True)
+            org_settings = OrganizationConfigSettings.objects.select_related(
+                'organization'
+            ).get(shared_secret=secret, organization__is_active=True)
         except OrganizationConfigSettings.DoesNotExist:
             return invalid_response(request, 'error: unrecognized secret', status=403)
         if not org_settings.registration_enabled:
@@ -84,8 +87,7 @@ class DeviceRegisterView(UpdateLastIpMixin, BaseDeviceRegisterView):
     def get_template_queryset(self, config):
         queryset = super().get_template_queryset(config)
         # filter templates of the same organization or shared templates
-        return queryset.filter(Q(organization=self.organization) |
-                               Q(organization=None))
+        return queryset.filter(Q(organization=self.organization) | Q(organization=None))
 
 
 class VpnChecksumView(BaseVpnChecksumView):

@@ -43,7 +43,9 @@ class TestGeoMixin(TestLociMixin):
             kwargs['location'] = self._create_location()
         kwargs['organization'] = kwargs['location'].organization
         if 'content_object' not in kwargs:
-            kwargs['content_object'] = self._create_object(organization=kwargs['organization'])
+            kwargs['content_object'] = self._create_object(
+                organization=kwargs['organization']
+            )
         if kwargs['location'].type == 'indoor':
             kwargs['indoor'] = '-140.38620,40.369227'
         del kwargs['organization']  # not needed in this model

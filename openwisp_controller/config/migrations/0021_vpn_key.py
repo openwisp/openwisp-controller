@@ -17,6 +17,18 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='vpn',
             name='key',
-            field=openwisp_utils.base.KeyField(db_index=True, default=openwisp_utils.utils.get_random_key, help_text=None, max_length=64, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$'), code='invalid', message='This value must not contain spaces, dots or slashes.')]),
+            field=openwisp_utils.base.KeyField(
+                db_index=True,
+                default=openwisp_utils.utils.get_random_key,
+                help_text=None,
+                max_length=64,
+                validators=[
+                    django.core.validators.RegexValidator(
+                        re.compile('^[^\\s/\\.]+$'),
+                        code='invalid',
+                        message='This value must not contain spaces, dots or slashes.',
+                    )
+                ],
+            ),
         ),
     ]

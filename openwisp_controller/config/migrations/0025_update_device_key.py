@@ -17,6 +17,20 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='device',
             name='key',
-            field=openwisp_utils.base.KeyField(blank=True, db_index=True, default=None, help_text='unique device key', max_length=64, unique=True, validators=[django.core.validators.RegexValidator(re.compile('^[^\\s/\\.]+$'), code='invalid', message='This value must not contain spaces, dots or slashes.')]),
+            field=openwisp_utils.base.KeyField(
+                blank=True,
+                db_index=True,
+                default=None,
+                help_text='unique device key',
+                max_length=64,
+                unique=True,
+                validators=[
+                    django.core.validators.RegexValidator(
+                        re.compile('^[^\\s/\\.]+$'),
+                        code='invalid',
+                        message='This value must not contain spaces, dots or slashes.',
+                    )
+                ],
+            ),
         ),
     ]

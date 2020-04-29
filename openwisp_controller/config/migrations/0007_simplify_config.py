@@ -10,16 +10,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='config',
-            name='name',
-        ),
-        migrations.RemoveField(
-            model_name='config',
-            name='key',
-        ),
-        migrations.RemoveField(
-            model_name='config',
-            name='mac_address',
-        ),
+        migrations.RemoveField(model_name='config', name='name',),
+        migrations.RemoveField(model_name='config', name='key',),
+        migrations.RemoveField(model_name='config', name='mac_address',),
     ]

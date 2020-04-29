@@ -45,18 +45,20 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
 
     def _create_device(self, *args, **kwargs):
         if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
-            kwargs.update({
-                'last_ip': self.ssh_server.host,
-                'management_ip': self.ssh_server.host,
-            })
+            kwargs.update(
+                {
+                    'last_ip': self.ssh_server.host,
+                    'management_ip': self.ssh_server.host,
+                }
+            )
         return super()._create_device(*args, **kwargs)
 
     def _create_credentials(self, **kwargs):
-        opts = dict(name='Test credentials',
-                    connector=app_settings.CONNECTORS[0][0],
-                    params={'username': 'root',
-                            'password': 'password',
-                            'port': 22})
+        opts = dict(
+            name='Test credentials',
+            connector=app_settings.CONNECTORS[0][0],
+            params={'username': 'root', 'password': 'password', 'port': 22},
+        )
         opts.update(kwargs)
         if 'organization' not in opts:
             opts['organization'] = self._create_org()
@@ -66,16 +68,19 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         return c
 
     def _create_credentials_with_key(self, username='root', port=22, **kwargs):
-        opts = dict(name='Test SSH Key',
-                    params={'username': username,
-                            'key': self._TEST_RSA_PRIVATE_KEY_VALUE,
-                            'port': port})
+        opts = dict(
+            name='Test SSH Key',
+            params={
+                'username': username,
+                'key': self._TEST_RSA_PRIVATE_KEY_VALUE,
+                'port': port,
+            },
+        )
         opts.update(kwargs)
         return self._create_credentials(**opts)
 
     def _create_device_connection(self, **kwargs):
-        opts = dict(enabled=True,
-                    params={})
+        opts = dict(enabled=True, params={})
         opts.update(kwargs)
         if 'credentials' not in opts:
             cred_opts = {}

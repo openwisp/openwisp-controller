@@ -13,11 +13,23 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='ca',
             name='serial_number',
-            field=models.CharField(blank=True, help_text='leave blank to determine automatically', max_length=39, null=True, verbose_name='serial number'),
+            field=models.CharField(
+                blank=True,
+                help_text='leave blank to determine automatically',
+                max_length=39,
+                null=True,
+                verbose_name='serial number',
+            ),
         ),
         migrations.AlterField(
             model_name='cert',
             name='serial_number',
-            field=models.CharField(blank=True, help_text='leave blank to determine automatically', max_length=39, null=True, verbose_name='serial number'),
+            field=models.CharField(
+                blank=True,
+                help_text='leave blank to determine automatically',
+                max_length=39,
+                null=True,
+                verbose_name='serial number',
+            ),
         ),
     ]

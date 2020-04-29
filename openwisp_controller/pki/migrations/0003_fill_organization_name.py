@@ -18,7 +18,9 @@ def forward(apps, schema_editor):
     for model, real_model in [(ca_model, Ca), (cert_model, Cert)]:
         for obj in model.objects.all():
             model_instance = real_model.objects.get(pk=obj.pk)
-            obj.organization_name = model_instance.x509.get_subject().organizationName or ''
+            obj.organization_name = (
+                model_instance.x509.get_subject().organizationName or ''
+            )
             obj.save()
 
 

@@ -17,6 +17,7 @@ class ConfigConfig(DjangoNetjsonconfigApp):
 
     def __setmodels__(self):
         from .models import Config, VpnClient
+
         self.config_model = Config
         self.vpnclient_model = VpnClient
 

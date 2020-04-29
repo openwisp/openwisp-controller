@@ -29,15 +29,15 @@ def assign_permissions_to_groups(apps, schema_editor):
 
     for model_name in operators_read_only_admins_manage:
         try:
-            permission = Permission.objects.get(
-                codename="view_{}".format(model_name)
-            )
+            permission = Permission.objects.get(codename='view_{}'.format(model_name))
             operator.permissions.add(permission.pk)
         except Permission.DoesNotExist:
             pass
         for operation in manage_operations:
             admin.permissions.add(
-                Permission.objects.get(codename="{}_{}".format(operation, model_name)).pk
+                Permission.objects.get(
+                    codename='{}_{}'.format(operation, model_name)
+                ).pk
             )
 
 
@@ -49,7 +49,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(
-            assign_permissions_to_groups,
-            reverse_code=migrations.RunPython.noop
+            assign_permissions_to_groups, reverse_code=migrations.RunPython.noop
         ),
     ]

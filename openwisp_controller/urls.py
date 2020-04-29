@@ -6,53 +6,39 @@ url_metadata = [
     {
         'regexp': r'^accounts/',
         'app': 'openwisp_users',
-        'include': {
-            'module': 'openwisp_users.accounts.urls'
-        }
+        'include': {'module': 'openwisp_users.accounts.urls'},
     },
     # django-netjsonconfig schemas
     {
         'regexp': r'^',
         'include': {
             'module': 'django_netjsonconfig.urls',
-            'namespace': 'netjsonconfig'
-        }
+            'namespace': 'netjsonconfig',
+        },
     },
     # openwisp_controller.pki (CRL view)
     {
         'regexp': r'^',
         'app': 'openwisp_controller.pki',
-        'include': {
-            'module': '{app}.urls',
-            'namespace': 'x509'
-        }
+        'include': {'module': '{app}.urls', 'namespace': 'x509'},
     },
     # openwisp_controller controller
     {
         'regexp': r'^',
         'app': 'openwisp_controller.config',
-        'include': {
-            'module': '{app}.controller.urls',
-            'namespace': 'controller'
-        }
+        'include': {'module': '{app}.controller.urls', 'namespace': 'controller'},
     },
     # owm_legacy
     {
         'regexp': r'^',
         'app': 'owm_legacy',
-        'include': {
-            'module': '{app}.urls',
-            'namespace': 'owm',
-        }
+        'include': {'module': '{app}.urls', 'namespace': 'owm'},
     },
     # openwisp_controller.geo
     {
         'regexp': r'^',
         'app': 'openwisp_controller.geo',
-        'include': {
-            'module': '{app}.api.urls',
-            'namespace': 'geo'
-        }
+        'include': {'module': '{app}.api.urls', 'namespace': 'geo'},
     },
 ]
 

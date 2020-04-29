@@ -27,30 +27,18 @@ branches:
 
 before_install:
   - export PIPENV_IGNORE_VIRTUALENVS=1
-  - pipenv run install_dev
   - pip install -U pipenv
   - pipenv install --dev --skip-lock
-  - pipenv run lint
+  - pipenv run install_dev
   - npm install -g jslint
 
 install:
-  - export PIPENV_IGNORE_VIRTUALENVS=1
+  - pipenv run qa_checks
   - pipenv install --skip-lock $DJANGO
   - pipenv run pip freeze
 
 script:
-  - export PIPENV_IGNORE_VIRTUALENVS=1
-  # for some reason the migrations check is failing only on django 2.0
   - jslint openwisp_controller/pki/static/pki/js/*.js
-  - |
-    pipenv run openwisp-utils-qa-checks \
-    --migration-path \
-      "./openwisp_controller/config/migrations \
-      ./openwisp_controller/connection/migrations \
-      ./openwisp_controller/geo/migrations \
-      ./openwisp_controller/pki/migrations" \
-    --migrations-to-ignore "12 0 0 4" \
-    --migration-module "config connection geo pki";
   - pipenv run pytest --cov=openwisp_controller
   - pipenv run coverage run -a --source=openwisp_controller runtests.py
 

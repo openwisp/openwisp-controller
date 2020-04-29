@@ -8,8 +8,7 @@ from ..models import Ca, Cert
 from . import TestPkiMixin
 
 
-class TestAdmin(TestPkiMixin, TestAdminMixin,
-                TestOrganizationMixin, TestCase):
+class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     ca_model = Ca
     cert_model = Cert
     operator_permission_filters = [
@@ -26,20 +25,33 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
         ca2 = self._create_ca(name='ca2', organization=org2)
         ca_shared = self._create_ca(name='ca-shared', organization=None)
         ca_inactive = self._create_ca(name='ca-inactive', organization=inactive)
-        data = dict(ca1=ca1, ca2=ca2, ca_inactive=ca_inactive, ca_shared=ca_shared,
-                    org1=org1, org2=org2, inactive=inactive,
-                    operator=operator)
+        data = dict(
+            ca1=ca1,
+            ca2=ca2,
+            ca_inactive=ca_inactive,
+            ca_shared=ca_shared,
+            org1=org1,
+            org2=org2,
+            inactive=inactive,
+            operator=operator,
+        )
         if cert:
             cert1 = self._create_cert(name='cert1', ca=ca1, organization=org1)
             cert2 = self._create_cert(name='cert2', ca=ca2, organization=org2)
-            cert_shared = self._create_cert(name='cert-shared',
-                                            ca=ca_shared,
-                                            organization=None)
-            cert_inactive = self._create_cert(name='cert-inactive',
-                                              ca=ca_inactive,
-                                              organization=inactive)
-            data.update(dict(cert1=cert1, cert_shared=cert_shared,
-                             cert2=cert2, cert_inactive=cert_inactive))
+            cert_shared = self._create_cert(
+                name='cert-shared', ca=ca_shared, organization=None
+            )
+            cert_inactive = self._create_cert(
+                name='cert-inactive', ca=ca_inactive, organization=inactive
+            )
+            data.update(
+                dict(
+                    cert1=cert1,
+                    cert_shared=cert_shared,
+                    cert2=cert2,
+                    cert_inactive=cert_inactive,
+                )
+            )
         return data
 
     def test_ca_queryset(self):
@@ -47,9 +59,12 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:pki_ca_changelist'),
             visible=[data['ca1'].name, data['org1'].name],
-            hidden=[data['ca2'].name, data['org2'].name,
-                    data['ca_inactive'].name,
-                    data['ca_shared'].name]
+            hidden=[
+                data['ca2'].name,
+                data['org2'].name,
+                data['ca_inactive'].name,
+                data['ca_shared'].name,
+            ],
         )
 
     def test_ca_organization_fk_queryset(self):
@@ -58,19 +73,20 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
             url=reverse('admin:pki_ca_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_cert_queryset(self):
         data = self._create_multitenancy_test_env(cert=True)
         self._test_multitenant_admin(
             url=reverse('admin:pki_cert_changelist'),
-            visible=[data['cert1'].name,
-                     data['org1'].name],
-            hidden=[data['cert2'].name,
-                    data['org2'].name,
-                    data['cert_inactive'].name,
-                    data['cert_shared'].name]
+            visible=[data['cert1'].name, data['org1'].name],
+            hidden=[
+                data['cert2'].name,
+                data['org2'].name,
+                data['cert_inactive'].name,
+                data['cert_shared'].name,
+            ],
         )
 
     def test_cert_organization_fk_queryset(self):
@@ -79,7 +95,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
             url=reverse('admin:pki_cert_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_cert_ca_fk_queryset(self):
@@ -88,7 +104,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin,
             url=reverse('admin:pki_cert_add'),
             visible=[data['ca1'].name, data['ca_shared'].name],
             hidden=[data['ca2'].name, data['ca_inactive'].name],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_cert_changeform_200(self):

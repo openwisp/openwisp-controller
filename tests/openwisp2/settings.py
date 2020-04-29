@@ -52,10 +52,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_gis',
     # channels
-    'channels'
+    'channels',
 ]
 
-EXTENDED_APPS = ('django_netjsonconfig', 'django_x509', 'django_loci',)
+EXTENDED_APPS = (
+    'django_netjsonconfig',
+    'django_x509',
+    'django_loci',
+)
 
 AUTH_USER_MODEL = 'openwisp_users.User'
 SITE_ID = '1'
@@ -80,9 +84,7 @@ ROOT_URLCONF = 'openwisp2.urls'
 
 ASGI_APPLICATION = 'openwisp_controller.geo.channels.routing.channel_routing'
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    },
+    'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
 }
 
 TIME_ZONE = 'Europe/Rome'
@@ -108,7 +110,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'openwisp_utils.admin_theme.context_processor.menu_items'
+                'openwisp_utils.admin_theme.context_processor.menu_items',
             ],
         },
     }
@@ -126,7 +128,7 @@ OPENWISP_ORGANIZATON_OWNER_ADMIN = True  # tests will fail without this setting
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 if not TESTING:
-    CELERY_BROKER_URL = os.getenv('REDIS_URL','redis://localhost/1')
+    CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost/1')
 else:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
@@ -134,11 +136,7 @@ else:
 
 LOGGING = {
     'version': 1,
-    'filters': {
-        'require_debug_true': {
-            '()': 'django.utils.log.RequireDebugTrue',
-        }
-    },
+    'filters': {'require_debug_true': {'()': 'django.utils.log.RequireDebugTrue',}},
     'handlers': {
         'console': {
             'level': 'DEBUG',

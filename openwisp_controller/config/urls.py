@@ -4,4 +4,4 @@ This file exists only to maintain backward compatibility.
 '''
 
 app_name = 'openwisp_controller'  # pragma: no cover
-urlpatterns = []   # pragma: no cover
+urlpatterns = []  # pragma: no cover

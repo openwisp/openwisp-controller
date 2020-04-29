@@ -18,7 +18,6 @@ pytest-cov = ">=2.8.0,<2.9.0"
 mock-ssh-server = ">=0.8.0,<0.9.0"
 
 [scripts]
-lint = "python -m flake8"
-isort = "python -m isort"
 test = "python runtests.py && pytest"
 install_dev = "sh install-dev.sh"
+qa_checks = "sh run-qa-checks"

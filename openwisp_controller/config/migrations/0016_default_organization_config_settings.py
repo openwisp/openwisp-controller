@@ -3,10 +3,7 @@ from django.db import migrations
 
 def create_default_config_settings_organization(apps, schema_editor):
     organization_model = apps.get_model('openwisp_users', 'Organization')
-    config_settings_model = apps.get_model(
-        'config',
-        'OrganizationConfigSettings'
-    )
+    config_settings_model = apps.get_model('config', 'OrganizationConfigSettings')
     for organization in organization_model.objects.all():
         try:
             organization.config_settings
@@ -18,12 +15,12 @@ def create_default_config_settings_organization(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-       ('openwisp_users', '0003_default_organization'),
-       ('config', '0015_default_groups_permissions'),
+        ('openwisp_users', '0003_default_organization'),
+        ('config', '0015_default_groups_permissions'),
     ]
     operations = [
         migrations.RunPython(
             create_default_config_settings_organization,
-            reverse_code=migrations.RunPython.noop
+            reverse_code=migrations.RunPython.noop,
         )
     ]
