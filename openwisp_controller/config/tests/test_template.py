@@ -8,8 +8,9 @@ from ..models import Config, Device, Template, Vpn
 from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
-class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
-                   TestOrganizationMixin, TestCase):
+class TestTemplate(
+    CreateConfigTemplateMixin, TestVpnX509Mixin, TestOrganizationMixin, TestCase
+):
     ca_model = Ca
     cert_model = Cert
     config_model = Config
@@ -54,10 +55,12 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         c1 = self._create_config(device=d1)
         self.assertEqual(c1.templates.count(), 1)
         self.assertEqual(c1.templates.filter(name='t1').count(), 1)
-        d2 = self._create_device(organization=org2,
-                                 name='d2',
-                                 mac_address='00:00:00:11:22:33',
-                                 key='1234567890')
+        d2 = self._create_device(
+            organization=org2,
+            name='d2',
+            mac_address='00:00:00:11:22:33',
+            key='1234567890',
+        )
         c2 = self._create_config(device=d2)
         self.assertEqual(c2.templates.count(), 1)
         self.assertEqual(c2.templates.filter(name='t2').count(), 1)
@@ -74,25 +77,29 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
     def test_auto_client_template(self):
         org = self._create_org()
         vpn = self._create_vpn(organization=org)
-        t = self._create_template(name='autoclient',
-                                  organization=org,
-                                  type='vpn',
-                                  auto_cert=True,
-                                  vpn=vpn,
-                                  config={})
+        t = self._create_template(
+            name='autoclient',
+            organization=org,
+            type='vpn',
+            auto_cert=True,
+            vpn=vpn,
+            config={},
+        )
         control = t.vpn.auto_client()
         self.assertDictEqual(t.config, control)
 
     def test_auto_client_template_default(self):
         org = self._create_org()
         vpn = self._create_vpn(organization=org)
-        self._create_template(name='autoclient',
-                              organization=org,
-                              default=True,
-                              type='vpn',
-                              auto_cert=True,
-                              vpn=vpn,
-                              config={})
+        self._create_template(
+            name='autoclient',
+            organization=org,
+            default=True,
+            type='vpn',
+            auto_cert=True,
+            vpn=vpn,
+            config={},
+        )
         self._create_config(organization=org)
 
     def test_auto_generated_certificate_for_organization(self):
@@ -100,9 +107,7 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
         vpn = self._create_vpn()
         template = self._create_template(type='vpn', auto_cert=True, vpn=vpn)
         corresponding_device = self._create_device(organization=organization,)
-        config = self._create_config(
-            device=corresponding_device,
-        )
+        config = self._create_config(device=corresponding_device,)
         config.templates.add(template)
         vpn_clients = config.vpnclient_set.all()
         for vpn_client in vpn_clients:
@@ -111,13 +116,9 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin,
 
     def test_template_name_and_organization_unique(self):
         org = self._create_org()
-        self._create_template(
-            name='template',
-            organization=org,
-            default=True
-        )
+        self._create_template(name='template', organization=org, default=True)
         kwargs = {
-            'name': 'template',  # notice the name attribute is same as in the template just created
+            'name': 'template',  # the name attribute is same as in the template created
             'organization': org,
             'default': True,
         }

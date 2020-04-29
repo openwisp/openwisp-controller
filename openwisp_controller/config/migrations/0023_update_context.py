@@ -15,6 +15,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='config',
             name='context',
-            field=jsonfield.fields.JSONField(blank=True, default=dict, dump_kwargs={'ensure_ascii': False, 'indent': 4}, help_text='Additional <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html#context" target="_blank">context (configuration variables)</a> in JSON format', load_kwargs={'object_pairs_hook': collections.OrderedDict}),
+            field=jsonfield.fields.JSONField(
+                blank=True,
+                default=dict,
+                dump_kwargs={'ensure_ascii': False, 'indent': 4},
+                help_text='Additional <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html#context" target="_blank">context (configuration variables)</a> in JSON format',
+                load_kwargs={'object_pairs_hook': collections.OrderedDict},
+            ),
         ),
     ]

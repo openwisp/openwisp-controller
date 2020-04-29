@@ -9,9 +9,10 @@ class LocationBroadcast(BaseLocationBroadcast):
     def is_authorized(self, user, location):
         result = super().is_authorized(user, location)
         # non superusers must also be members of the org
-        if result and not user.is_superuser and (
-            (location.organization.pk,) not in
-            user.organizations_pk
+        if (
+            result
+            and not user.is_superuser
+            and ((location.organization.pk,) not in user.organizations_pk)
         ):
             return False
         return result

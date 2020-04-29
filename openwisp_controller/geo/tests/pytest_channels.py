@@ -31,8 +31,12 @@ class TestChannels(TestGeoMixin):
 
     async def _get_request_dict(self, pk=None, user=None):
         if not pk:
-            location = await database_sync_to_async(self._create_location)(is_mobile=True)
-            await database_sync_to_async(self._create_object_location)(location=location)
+            location = await database_sync_to_async(self._create_location)(
+                is_mobile=True
+            )
+            await database_sync_to_async(self._create_object_location)(
+                location=location
+            )
             pk = location.pk
         path = '/ws/loci/location/{0}/'.format(pk)
         session = None
@@ -41,27 +45,23 @@ class TestChannels(TestGeoMixin):
         return {'pk': pk, 'path': path, 'session': session}
 
     def _get_communicator(self, request_vars, user=None):
-        communicator = WebsocketCommunicator(LocationBroadcast,
-                                             request_vars['path'])
+        communicator = WebsocketCommunicator(LocationBroadcast, request_vars['path'])
         if user:
-            communicator.scope.update({
-                "user": user,
-                "session": request_vars['session'],
-                "url_route": {
-                    "kwargs": {
-                        "pk": request_vars['pk']
-                    }
+            communicator.scope.update(
+                {
+                    'user': user,
+                    'session': request_vars['session'],
+                    'url_route': {'kwargs': {'pk': request_vars['pk']}},
                 }
-            })
+            )
         return communicator
 
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_consumer_staff_but_no_change_permission(self):
-        user = await database_sync_to_async(self.user_model.objects.create_user)(username='user',
-                                                                                 password='password',
-                                                                                 email='test@test.org',
-                                                                                 is_staff=True)
+        user = await database_sync_to_async(self.user_model.objects.create_user)(
+            username='user', password='password', email='test@test.org', is_staff=True
+        )
         location = await database_sync_to_async(self._create_location)(is_mobile=True)
         await database_sync_to_async(self._create_object_location)(location=location)
         pk = location.pk
@@ -72,7 +72,11 @@ class TestChannels(TestGeoMixin):
         await communicator.disconnect()
         # add permission to change location and repeat
         perm = await database_sync_to_async(
-            (await database_sync_to_async(Permission.objects.filter)(name='Can change location')).first
+            (
+                await database_sync_to_async(Permission.objects.filter)(
+                    name='Can change location'
+                )
+            ).first
         )()
         await database_sync_to_async(user.user_permissions.add)(perm)
         user = await database_sync_to_async(self.user_model.objects.get)(pk=user.pk)
@@ -93,4 +97,5 @@ class TestChannels(TestGeoMixin):
 
     def test_routing(self):
         from openwisp_controller.geo.channels.routing import channel_routing
+
         assert isinstance(channel_routing, ProtocolTypeRouter)

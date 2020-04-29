@@ -10,6 +10,7 @@ class TestTag(TestOrganizationMixin, CreateTemplateMixin, TestCase):
     """
     tests for Tag model
     """
+
     template_model = Template
 
     def test_tag(self):

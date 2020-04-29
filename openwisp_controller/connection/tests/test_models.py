@@ -68,8 +68,9 @@ class TestModels(CreateConnectionsMixin, TestCase):
         ckey = self._create_credentials_with_key()
         dc = self._create_device_connection(credentials=ckey)
         self.assertIn('pkey', dc.connector_instance.params)
-        self.assertIsInstance(dc.connector_instance.params['pkey'],
-                              paramiko.rsakey.RSAKey)
+        self.assertIsInstance(
+            dc.connector_instance.params['pkey'], paramiko.rsakey.RSAKey
+        )
         self.assertNotIn('key', dc.connector_instance.params)
 
     @mock.patch(_connect_path)
@@ -84,8 +85,9 @@ class TestModels(CreateConnectionsMixin, TestCase):
         dc.disconnect()
 
     def test_ssh_connect_failure(self):
-        ckey = self._create_credentials_with_key(username='wrong',
-                                                 port=self.ssh_server.port)
+        ckey = self._create_credentials_with_key(
+            username='wrong', port=self.ssh_server.port
+        )
         dc = self._create_device_connection(credentials=ckey)
         dc.device.last_ip = None
         dc.device.save()
@@ -100,21 +102,20 @@ class TestModels(CreateConnectionsMixin, TestCase):
     def test_credentials_schema(self):
         # unrecognized parameter
         try:
-            self._create_credentials(params={
-                'username': 'root',
-                'password': 'password',
-                'unrecognized': True
-            })
+            self._create_credentials(
+                params={
+                    'username': 'root',
+                    'password': 'password',
+                    'unrecognized': True,
+                }
+            )
         except ValidationError as e:
             self.assertIn('params', e.message_dict)
         else:
             self.fail('ValidationError not raised')
         # missing password or key
         try:
-            self._create_credentials(params={
-                'username': 'root',
-                'port': 22
-            })
+            self._create_credentials(params={'username': 'root', 'port': 22})
         except ValidationError as e:
             self.assertIn('params', e.message_dict)
         else:
@@ -122,36 +123,40 @@ class TestModels(CreateConnectionsMixin, TestCase):
 
     def test_credentials_connection_missing(self):
         with self.assertRaises(ValidationError) as e:
-            c = Credentials(name='Test credentials',
-                            connector=None,
-                            params={'username': 'root',
-                                    'password': 'password',
-                                    'port': 22},
-                            organization=self._create_org())
+            c = Credentials(
+                name='Test credentials',
+                connector=None,
+                params={'username': 'root', 'password': 'password', 'port': 22},
+                organization=self._create_org(),
+            )
             c.full_clean()
             self.assertIn('connector', e.message_dict)
 
     def test_device_connection_schema(self):
         # unrecognized parameter
         try:
-            self._create_device_connection(params={
-                'username': 'root',
-                'password': 'password',
-                'unrecognized': True
-            })
+            self._create_device_connection(
+                params={
+                    'username': 'root',
+                    'password': 'password',
+                    'unrecognized': True,
+                }
+            )
         except ValidationError as e:
             self.assertIn('params', e.message_dict)
         else:
             self.fail('ValidationError not raised')
 
-    def _prepare_address_list_test(self, last_ip=None,
-                                   management_ip=None):
+    def _prepare_address_list_test(self, last_ip=None, management_ip=None):
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        device = self._create_device(organization=self._create_org(),
-                                     last_ip=last_ip,
-                                     management_ip=management_ip)
-        dc = self._create_device_connection(device=device,
-                                            update_strategy=update_strategy)
+        device = self._create_device(
+            organization=self._create_org(),
+            last_ip=last_ip,
+            management_ip=management_ip,
+        )
+        dc = self._create_device_connection(
+            device=device, update_strategy=update_strategy
+        )
         return dc
 
     def test_address_list(self):
@@ -160,24 +165,18 @@ class TestModels(CreateConnectionsMixin, TestCase):
 
     def test_address_list_with_device_ip(self):
         dc = self._prepare_address_list_test(
-            management_ip='10.0.0.2',
-            last_ip='84.32.46.153',
+            management_ip='10.0.0.2', last_ip='84.32.46.153',
         )
-        self.assertEqual(dc.get_addresses(), [
-            '10.0.0.2',
-            '84.32.46.153'
-        ])
+        self.assertEqual(dc.get_addresses(), ['10.0.0.2', '84.32.46.153'])
 
     def test_device_connection_credential_org_validation(self):
         dc = self._create_device_connection()
-        shared = self._create_credentials(name='cred-shared',
-                                          organization=None)
+        shared = self._create_credentials(name='cred-shared', organization=None)
         dc.credentials = shared
         dc.full_clean()
         # ensure credentials of other orgs aren't accepted
         org2 = self._create_org(name='org2')
-        cred2 = self._create_credentials(name='cred2',
-                                         organization=org2)
+        cred2 = self._create_credentials(name='cred2', organization=org2)
         try:
             dc.credentials = cred2
             dc.full_clean()
@@ -187,11 +186,8 @@ class TestModels(CreateConnectionsMixin, TestCase):
             self.fail('ValidationError not raised')
 
     def test_auto_add_to_new_device(self):
-        c = self._create_credentials(auto_add=True,
-                                     organization=None)
-        self._create_credentials(name='cred2',
-                                 auto_add=False,
-                                 organization=None)
+        c = self._create_credentials(auto_add=True, organization=None)
+        self._create_credentials(name='cred2', auto_add=False, organization=None)
         d = self._create_device(organization=Organization.objects.first())
         self._create_config(device=d)
         d.refresh_from_db()
@@ -202,18 +198,13 @@ class TestModels(CreateConnectionsMixin, TestCase):
         d = self._create_device(organization=Organization.objects.first())
         self._create_config(device=d)
         self.assertEqual(d.deviceconnection_set.count(), 0)
-        c = self._create_credentials(auto_add=True,
-                                     organization=None)
+        c = self._create_credentials(auto_add=True, organization=None)
         org2 = Organization.objects.create(name='org2', slug='org2')
-        self._create_credentials(name='cred2',
-                                 auto_add=True,
-                                 organization=org2)
+        self._create_credentials(name='cred2', auto_add=True, organization=org2)
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
-        self._create_credentials(name='cred3',
-                                 auto_add=False,
-                                 organization=None)
+        self._create_credentials(name='cred3', auto_add=False, organization=None)
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
@@ -222,12 +213,9 @@ class TestModels(CreateConnectionsMixin, TestCase):
         d = self._create_device(organization=Organization.objects.first())
         self._create_config(device=d)
         self.assertEqual(d.deviceconnection_set.count(), 0)
-        c = self._create_credentials(auto_add=False,
-                                     organization=None)
+        c = self._create_credentials(auto_add=False, organization=None)
         org2 = Organization.objects.create(name='org2', slug='org2')
-        self._create_credentials(name='cred2',
-                                 auto_add=True,
-                                 organization=org2)
+        self._create_credentials(name='cred2', auto_add=True, organization=org2)
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 0)
         c.auto_add = True
@@ -252,8 +240,9 @@ class TestModels(CreateConnectionsMixin, TestCase):
 
     _exec_command_path = 'paramiko.SSHClient.exec_command'
 
-    def _exec_command_return_value(self, stdin='', stdout='mocked',
-                                   stderr='', exit_code=0):
+    def _exec_command_return_value(
+        self, stdin='', stdout='mocked', stderr='', exit_code=0
+    ):
         stdin_ = mock.Mock()
         stdout_ = mock.Mock()
         stderr_ = mock.Mock()
@@ -266,24 +255,21 @@ class TestModels(CreateConnectionsMixin, TestCase):
     @mock.patch(_connect_path)
     def test_device_config_update(self, mocked_connect):
         org1 = self._create_org(name='org1')
-        cred = self._create_credentials_with_key(organization=org1, port=self.ssh_server.port)
+        cred = self._create_credentials_with_key(
+            organization=org1, port=self.ssh_server.port
+        )
         device = self._create_device(organization=org1)
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
         c = self._create_config(device=device, status='applied')
-        self._create_device_connection(device=device,
-                                       credentials=cred,
-                                       update_strategy=update_strategy)
+        self._create_device_connection(
+            device=device, credentials=cred, update_strategy=update_strategy
+        )
         c.config = {
             'interfaces': [
                 {
                     'name': 'eth10',
                     'type': 'ethernet',
-                    'addresses': [
-                        {
-                            'family': 'ipv4',
-                            'proto': 'dhcp'
-                        }
-                    ]
+                    'addresses': [{'family': 'ipv4', 'proto': 'dhcp'}],
                 }
             ]
         }
@@ -367,8 +353,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
     def test_device_connection_set_connector(self):
         dc = self._create_device_connection()
         connector = dc.connector_class(
-            params=dc.get_params(),
-            addresses=dc.get_addresses()
+            params=dc.get_params(), addresses=dc.get_addresses()
         )
         connector.IS_MODIFIED = True
         self.assertFalse(hasattr(dc.connector_instance, 'IS_MODIFIED'))

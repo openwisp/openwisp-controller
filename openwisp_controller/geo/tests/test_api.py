@@ -39,11 +39,14 @@ class TestApi(TestGeoMixin, TestCase):
         self.assertEqual(self.location_model.objects.count(), 1)
         r = self.client.get(url, {'key': dl.device.key})
         self.assertEqual(r.status_code, 200)
-        self.assertDictEqual(r.json(), {
-            'type': 'Feature',
-            'geometry': json.loads(dl.location.geometry.geojson),
-            'properties': {'name': dl.location.name}
-        })
+        self.assertDictEqual(
+            r.json(),
+            {
+                'type': 'Feature',
+                'geometry': json.loads(dl.location.geometry.geojson),
+                'properties': {'name': dl.location.name},
+            },
+        )
         self.assertEqual(self.location_model.objects.count(), 1)
 
     def test_get_create_location(self):
@@ -52,11 +55,10 @@ class TestApi(TestGeoMixin, TestCase):
         url = reverse(self.url_name, args=[device.pk])
         r = self.client.get(url, {'key': device.key})
         self.assertEqual(r.status_code, 200)
-        self.assertDictEqual(r.json(), {
-            'type': 'Feature',
-            'geometry': None,
-            'properties': {'name': device.name}
-        })
+        self.assertDictEqual(
+            r.json(),
+            {'type': 'Feature', 'geometry': None, 'properties': {'name': device.name}},
+        )
         self.assertEqual(self.location_model.objects.count(), 1)
 
     def test_put_update_coordinates(self):
@@ -69,9 +71,12 @@ class TestApi(TestGeoMixin, TestCase):
         feature = json.dumps({'type': 'Feature', 'geometry': coords})
         r = self.client.put(url, feature, content_type='application/json')
         self.assertEqual(r.status_code, 200)
-        self.assertDictEqual(r.json(), {
-            'type': 'Feature',
-            'geometry': coords,
-            'properties': {'name': dl.location.name}
-        })
+        self.assertDictEqual(
+            r.json(),
+            {
+                'type': 'Feature',
+                'geometry': coords,
+                'properties': {'name': dl.location.name},
+            },
+        )
         self.assertEqual(self.location_model.objects.count(), 1)

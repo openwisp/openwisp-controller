@@ -13,6 +13,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='device',
             name='system',
-            field=models.CharField(blank=True, db_index=True, help_text='system on chip or CPU info', max_length=128, verbose_name='SOC / CPU'),
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text='system on chip or CPU info',
+                max_length=128,
+                verbose_name='SOC / CPU',
+            ),
         ),
     ]

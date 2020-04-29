@@ -1,5 +1,9 @@
 from django.contrib.gis.db import models
-from django_loci.base.models import AbstractFloorPlan, AbstractLocation, AbstractObjectLocation
+from django_loci.base.models import (
+    AbstractFloorPlan,
+    AbstractLocation,
+    AbstractObjectLocation,
+)
 
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
@@ -31,10 +35,8 @@ class DeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
     # reuse the same generic attribute name used in django-loci
     content_object = models.OneToOneField('config.Device', models.CASCADE)
     # override parent foreign key targets
-    location = models.ForeignKey(Location, models.PROTECT,
-                                 blank=True, null=True)
-    floorplan = models.ForeignKey(FloorPlan, models.PROTECT,
-                                  blank=True, null=True)
+    location = models.ForeignKey(Location, models.PROTECT, blank=True, null=True)
+    floorplan = models.ForeignKey(FloorPlan, models.PROTECT, blank=True, null=True)
 
     class Meta(AbstractObjectLocation.Meta):
         abstract = False

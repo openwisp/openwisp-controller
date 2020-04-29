@@ -11,8 +11,13 @@ from ..models import Config, Device, Template, Vpn
 from . import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 
-class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
-                TestVpnX509Mixin, TestOrganizationMixin, TestCase):
+class TestAdmin(
+    CreateConfigTemplateMixin,
+    TestAdminMixin,
+    TestVpnX509Mixin,
+    TestOrganizationMixin,
+    TestCase,
+):
     ca_model = Ca
     cert_model = Cert
     config_model = Config
@@ -68,12 +73,14 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         # ensure it fails with error
         self._login()
         params = self._get_device_params(org=org2)
-        params.update({
-            'config-0-id': config.pk,
-            'config-0-device': config.device.pk,
-            'config-0-templates': template.pk,
-            'config-INITIAL_FORMS': 1,
-        })
+        params.update(
+            {
+                'config-0-id': config.pk,
+                'config-0-device': config.device.pk,
+                'config-0-templates': template.pk,
+                'config-INITIAL_FORMS': 1,
+            }
+        )
         response = self.client.post(path, params)
         self.assertContains(response, 'errors field-templates')
         # remove conflicting template and ensure doesn't error
@@ -87,37 +94,38 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         t2 = self._create_template(name='t2', organization=None)
         path = reverse('admin:config_device_add')
         data = self._get_device_params(org=org1)
-        data.update({
-            'name': 'testadd',
-            'config-0-templates': ','.join([str(t1.pk), str(t2.pk)]),
-        })
+        data.update(
+            {
+                'name': 'testadd',
+                'config-0-templates': ','.join([str(t1.pk), str(t2.pk)]),
+            }
+        )
         self._login()
         self.client.post(path, data)
         queryset = Device.objects.filter(name='testadd')
         self.assertEqual(queryset.count(), 1)
         device = queryset.first()
         self.assertEqual(device.config.templates.count(), 2)
-        self.assertEqual(device.config.templates.filter(name__in=['t1', 't2']).count(), 2)
+        self.assertEqual(
+            device.config.templates.filter(name__in=['t1', 't2']).count(), 2
+        )
 
     def test_preview_device(self):
         org = self._create_org()
         self._create_template(organization=org)
         templates = Template.objects.all()
         path = reverse('admin:config_device_preview')
-        config = json.dumps({
-            'interfaces': [
-                {
-                    'name': 'eth0',
-                    'type': 'ethernet',
-                    'addresses': [
-                        {
-                            'family': 'ipv4',
-                            'proto': 'dhcp'
-                        }
-                    ]
-                }
-            ]
-        })
+        config = json.dumps(
+            {
+                'interfaces': [
+                    {
+                        'name': 'eth0',
+                        'type': 'ethernet',
+                        'addresses': [{'family': 'ipv4', 'proto': 'dhcp'}],
+                    }
+                ]
+            }
+        )
         data = {
             'name': 'test-device',
             'organization': org.pk,
@@ -125,7 +133,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             'backend': 'netjsonconfig.OpenWrt',
             'config': config,
             'csrfmiddlewaretoken': 'test',
-            'templates': ','.join([str(t.pk) for t in templates])
+            'templates': ','.join([str(t.pk) for t in templates]),
         }
         self._login()
         response = self.client.post(path, data)
@@ -164,36 +172,45 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         t3 = self._create_template(name='t3-inactive', organization=inactive)
         d1 = self._create_device(name='org1-config', organization=org1)
         c1 = self._create_config(device=d1)
-        d2 = self._create_device(name='org2-config',
-                                 organization=org2,
-                                 key='ke1',
-                                 mac_address='00:11:22:33:44:56')
+        d2 = self._create_device(
+            name='org2-config',
+            organization=org2,
+            key='ke1',
+            mac_address='00:11:22:33:44:56',
+        )
         c2 = self._create_config(device=d2)
-        d3 = self._create_device(name='config-inactive',
-                                 organization=inactive,
-                                 key='key2',
-                                 mac_address='00:11:22:33:44:57')
+        d3 = self._create_device(
+            name='config-inactive',
+            organization=inactive,
+            key='key2',
+            mac_address='00:11:22:33:44:57',
+        )
         c3 = self._create_config(device=d3)
         c1.templates.add(t1)
         c2.templates.add(t2)
-        data = dict(c1=c1, c2=c2, c3_inactive=c3,
-                    t1=t1, t2=t2, t3_inactive=t3,
-                    org1=org1, org2=org2,
-                    inactive=inactive,
-                    operator=operator)
+        data = dict(
+            c1=c1,
+            c2=c2,
+            c3_inactive=c3,
+            t1=t1,
+            t2=t2,
+            t3_inactive=t3,
+            org1=org1,
+            org2=org2,
+            inactive=inactive,
+            operator=operator,
+        )
         if vpn:
             v1 = self._create_vpn(name='vpn1org', organization=org1)
             v2 = self._create_vpn(name='vpn2org', organization=org2)
             v3 = self._create_vpn(name='vpn3shared', organization=None)
             v4 = self._create_vpn(name='vpn4inactive', organization=inactive)
-            t4 = self._create_template(name='vpn-template1org',
-                                       organization=org1,
-                                       type='vpn',
-                                       vpn=v1)
-            data.update(dict(vpn1=v1, vpn2=v2,
-                             vpn_shared=v3,
-                             vpn_inactive=v4,
-                             t1_vpn=t4))
+            t4 = self._create_template(
+                name='vpn-template1org', organization=org1, type='vpn', vpn=v1
+            )
+            data.update(
+                dict(vpn1=v1, vpn2=v2, vpn_shared=v3, vpn_inactive=v4, t1_vpn=t4)
+            )
         return data
 
     def test_device_queryset(self):
@@ -201,8 +218,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_device_changelist'),
             visible=[data['c1'].name, data['org1'].name],
-            hidden=[data['c2'].name, data['org2'].name,
-                    data['c3_inactive'].name]
+            hidden=[data['c2'].name, data['org2'].name, data['c3_inactive'].name],
         )
 
     def test_device_organization_fk_queryset(self):
@@ -211,13 +227,12 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             url=reverse('admin:config_device_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_device_templates_m2m_queryset(self):
         data = self._create_multitenancy_test_env()
-        t_shared = self._create_template(name='t-shared',
-                                         organization=None)
+        t_shared = self._create_template(name='t-shared', organization=None)
         self._test_multitenant_admin(
             url=reverse('admin:config_device_add'),
             visible=[str(data['t1']), str(t_shared)],
@@ -229,8 +244,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_template_changelist'),
             visible=[data['t1'].name, data['org1'].name],
-            hidden=[data['t2'].name, data['org2'].name,
-                    data['t3_inactive'].name],
+            hidden=[data['t2'].name, data['org2'].name, data['t3_inactive'].name],
         )
 
     def test_template_organization_fk_queryset(self):
@@ -239,7 +253,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             url=reverse('admin:config_template_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_template_vpn_fk_queryset(self):
@@ -248,7 +262,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             url=reverse('admin:config_template_add'),
             visible=[data['vpn1'].name, data['vpn_shared'].name],
             hidden=[data['vpn2'].name, data['vpn_inactive'].name],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_vpn_queryset(self):
@@ -256,9 +270,13 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_vpn_changelist'),
             visible=[data['org1'].name, data['vpn1'].name],
-            hidden=[data['org2'].name, data['inactive'],
-                    data['vpn2'].name, data['vpn_shared'].name,
-                    data['vpn_inactive'].name]
+            hidden=[
+                data['org2'].name,
+                data['inactive'],
+                data['vpn2'].name,
+                data['vpn_shared'].name,
+                data['vpn_inactive'].name,
+            ],
         )
 
     def test_vpn_organization_fk_queryset(self):
@@ -267,7 +285,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             url=reverse('admin:config_vpn_add'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_vpn_ca_fk_queryset(self):
@@ -276,7 +294,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             url=reverse('admin:config_vpn_add'),
             visible=[data['vpn1'].ca.name, data['vpn_shared'].ca.name],
             hidden=[data['vpn2'].ca.name, data['vpn_inactive'].ca.name],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_vpn_cert_fk_queryset(self):
@@ -285,7 +303,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
             url=reverse('admin:config_vpn_add'),
             visible=[data['vpn1'].cert.name, data['vpn_shared'].cert.name],
             hidden=[data['vpn2'].cert.name, data['vpn_inactive'].cert.name],
-            select_widget=True
+            select_widget=True,
         )
 
     def test_changelist_recover_deleted_button(self):
@@ -306,7 +324,7 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         self._test_multitenant_admin(
             url=reverse('admin:config_device_changelist'),
             visible=[data['t1'].name, t_special.name],
-            hidden=[data['t2'].name, data['t3_inactive'].name]
+            hidden=[data['t2'].name, data['t3_inactive'].name],
         )
 
     def test_device_contains_default_templates_js(self):
@@ -365,8 +383,9 @@ class TestAdmin(CreateConfigTemplateMixin, TestAdminMixin,
         path = reverse('admin:config_template_changelist')
         t = self._create_template(organization=self._get_org())
         post_data = self._get_clone_template_post_data(t)
-        operator = self._create_operator(organizations=[self._get_org(),
-                                                        self._get_org('org_2')])
+        operator = self._create_operator(
+            organizations=[self._get_org(), self._get_org('org_2')]
+        )
         self.client.force_login(operator)
         response = self.client.post(path, post_data)
         self.assertContains(response, 'Clone templates')

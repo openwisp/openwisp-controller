@@ -1,7 +1,13 @@
 from django.contrib import admin
-from django_loci.base.admin import (AbstractFloorPlanAdmin, AbstractFloorPlanForm, AbstractFloorPlanInline,
-                                    AbstractLocationAdmin, AbstractLocationForm, AbstractObjectLocationForm,
-                                    ObjectLocationMixin)
+from django_loci.base.admin import (
+    AbstractFloorPlanAdmin,
+    AbstractFloorPlanForm,
+    AbstractFloorPlanInline,
+    AbstractLocationAdmin,
+    AbstractLocationForm,
+    AbstractObjectLocationForm,
+    ObjectLocationMixin,
+)
 
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
@@ -18,8 +24,7 @@ class FloorPlanForm(AbstractFloorPlanForm):
 
 class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     form = FloorPlanForm
-    list_filter = [('organization', MultitenantOrgFilter),
-                   'created']
+    list_filter = [('organization', MultitenantOrgFilter), 'created']
 
 
 FloorPlanAdmin.list_display.insert(1, 'organization')

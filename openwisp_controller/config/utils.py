@@ -12,6 +12,7 @@ def get_default_templates_queryset(organization_id, queryset=None, model=None):
     """
     if queryset is None:
         queryset = model.objects.filter(default=True)
-    queryset = queryset.filter(Q(organization_id=organization_id) |
-                               Q(organization_id=None))
+    queryset = queryset.filter(
+        Q(organization_id=organization_id) | Q(organization_id=None)
+    )
     return queryset

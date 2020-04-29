@@ -50,22 +50,34 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='device',
             name='last_ip',
-            field=models.GenericIPAddressField(blank=True, help_text='indicates the IP address logged from the last request coming from the device', null=True),
+            field=models.GenericIPAddressField(
+                blank=True,
+                help_text='indicates the IP address logged from the last request coming from the device',
+                null=True,
+            ),
         ),
         migrations.RunPython(migrate_last_ip_forward, migrate_last_ip_backward),
-        migrations.RemoveField(
-            model_name='config',
-            name='last_ip',
-        ),
+        migrations.RemoveField(model_name='config', name='last_ip',),
         migrations.AddField(
             model_name='device',
             name='management_ip',
-            field=models.GenericIPAddressField(blank=True, help_text='ip address of the management interface, if available', null=True),
+            field=models.GenericIPAddressField(
+                blank=True,
+                help_text='ip address of the management interface, if available',
+                null=True,
+            ),
         ),
         migrations.AlterField(
             model_name='config',
             name='status',
-            field=model_utils.fields.StatusField(choices=[(0, 'dummy')], default='modified', help_text='"modified" means the configuration is not applied yet; \n"applied" means the configuration is applied successfully; \n"error" means the configuration caused issues and it was rolled back;', max_length=100, no_check_for_status=True, verbose_name='configuration status'),
+            field=model_utils.fields.StatusField(
+                choices=[(0, 'dummy')],
+                default='modified',
+                help_text='"modified" means the configuration is not applied yet; \n"applied" means the configuration is applied successfully; \n"error" means the configuration caused issues and it was rolled back;',
+                max_length=100,
+                no_check_for_status=True,
+                verbose_name='configuration status',
+            ),
         ),
         migrations.RunPython(migrate_status_forward, migrate_status_backward),
         migrations.AlterField(

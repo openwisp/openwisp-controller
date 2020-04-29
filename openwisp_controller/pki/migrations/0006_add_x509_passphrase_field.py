@@ -13,11 +13,19 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='ca',
             name='passphrase',
-            field=models.CharField(blank=True, help_text='Passphrase for the private key, if present', max_length=64),
+            field=models.CharField(
+                blank=True,
+                help_text='Passphrase for the private key, if present',
+                max_length=64,
+            ),
         ),
         migrations.AddField(
             model_name='cert',
             name='passphrase',
-            field=models.CharField(blank=True, help_text='Passphrase for the private key, if present', max_length=64),
+            field=models.CharField(
+                blank=True,
+                help_text='Passphrase for the private key, if present',
+                max_length=64,
+            ),
         ),
     ]

@@ -17,14 +17,15 @@ class LocationSerializer(gis_serializers.GeoFeatureModelSerializer):
         model = Location
         geo_field = 'geometry'
         fields = ('name', 'geometry')
-        read_only_fields = ('name', )
+        read_only_fields = ('name',)
 
 
 class DeviceLocationView(generics.RetrieveUpdateAPIView):
     serializer_class = LocationSerializer
     permission_classes = (DevicePermission,)
-    queryset = Device.objects.select_related('devicelocation',
-                                             'devicelocation__location')
+    queryset = Device.objects.select_related(
+        'devicelocation', 'devicelocation__location'
+    )
 
     def get_location(self, device):
         try:
@@ -41,14 +42,15 @@ class DeviceLocationView(generics.RetrieveUpdateAPIView):
         return self.create_location(device)
 
     def create_location(self, device):
-        location = Location(name=device.name,
-                            type='outdoor',
-                            organization=device.organization,
-                            is_mobile=True)
+        location = Location(
+            name=device.name,
+            type='outdoor',
+            organization=device.organization,
+            is_mobile=True,
+        )
         location.full_clean()
         location.save()
-        dl = DeviceLocation(content_object=device,
-                            location=location)
+        dl = DeviceLocation(content_object=device, location=location)
         dl.full_clean()
         dl.save()
         return location

@@ -9,6 +9,7 @@ class Ca(ShareableOrgMixin, AbstractCa):
     """
     openwisp-controller CA model
     """
+
     class Meta(AbstractCa.Meta):
         abstract = False
 
@@ -17,6 +18,7 @@ class Cert(ShareableOrgMixin, AbstractCert):
     """
     openwisp-controller cert model
     """
+
     ca = models.ForeignKey(Ca, verbose_name=_('CA'), on_delete=models.CASCADE)
 
     class Meta(AbstractCert.Meta):

@@ -10,14 +10,15 @@ from .models import Credentials, DeviceConnection
 
 @admin.register(Credentials)
 class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin):
-    list_display = ('name',
-                    'organization',
-                    'connector',
-                    'auto_add',
-                    'created',
-                    'modified')
-    list_filter = [('organization', MultitenantOrgFilter),
-                   'connector']
+    list_display = (
+        'name',
+        'organization',
+        'connector',
+        'auto_add',
+        'created',
+        'modified',
+    )
+    list_filter = [('organization', MultitenantOrgFilter), 'connector']
     list_select_related = ('organization',)
 
 

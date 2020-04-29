@@ -18,19 +18,23 @@ class ConnectionConfig(AppConfig):
         to the ``update_config`` celery task
         which will be executed in the background
         """
-        config_modified.connect(self.config_modified_receiver,
-                                dispatch_uid='connection.update_config')
+        config_modified.connect(
+            self.config_modified_receiver, dispatch_uid='connection.update_config'
+        )
 
         from ..config.models import Config
         from .models import Credentials
 
-        post_save.connect(Credentials.auto_add_credentials_to_device,
-                          sender=Config,
-                          dispatch_uid='connection.auto_add_credentials')
+        post_save.connect(
+            Credentials.auto_add_credentials_to_device,
+            sender=Config,
+            dispatch_uid='connection.auto_add_credentials',
+        )
 
     @classmethod
     def config_modified_receiver(cls, **kwargs):
         from .tasks import update_config
+
         d = kwargs['device']
         conn_count = d.deviceconnection_set.count()
         # if device has no connection specified

@@ -23,13 +23,63 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Credentials',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
+                (
+                    'id',
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    'created',
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='created',
+                    ),
+                ),
+                (
+                    'modified',
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='modified',
+                    ),
+                ),
                 ('name', models.CharField(db_index=True, max_length=64, unique=True)),
-                ('connector', models.CharField(choices=[('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH')], db_index=True, max_length=128, verbose_name='connection type')),
-                ('params', jsonfield.fields.JSONField(default=dict, dump_kwargs={'indent': 4}, help_text='global connection parameters', load_kwargs={'object_pairs_hook': collections.OrderedDict}, verbose_name='parameters')),
-                ('organization', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='openwisp_users.Organization', verbose_name='organization')),
+                (
+                    'connector',
+                    models.CharField(
+                        choices=[
+                            ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH')
+                        ],
+                        db_index=True,
+                        max_length=128,
+                        verbose_name='connection type',
+                    ),
+                ),
+                (
+                    'params',
+                    jsonfield.fields.JSONField(
+                        default=dict,
+                        dump_kwargs={'indent': 4},
+                        help_text='global connection parameters',
+                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                        verbose_name='parameters',
+                    ),
+                ),
+                (
+                    'organization',
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='openwisp_users.Organization',
+                        verbose_name='organization',
+                    ),
+                ),
             ],
             options={
                 'verbose_name_plural': 'Access credentials',
@@ -40,21 +90,84 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='DeviceConnection',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('update_strategy', models.CharField(blank=True, choices=[('openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt', 'OpenWRT SSH')], db_index=True, help_text='leave blank to determine automatically', max_length=128, verbose_name='update strategy')),
+                (
+                    'id',
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    'created',
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='created',
+                    ),
+                ),
+                (
+                    'modified',
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='modified',
+                    ),
+                ),
+                (
+                    'update_strategy',
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            (
+                                'openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt',
+                                'OpenWRT SSH',
+                            )
+                        ],
+                        db_index=True,
+                        help_text='leave blank to determine automatically',
+                        max_length=128,
+                        verbose_name='update strategy',
+                    ),
+                ),
                 ('enabled', models.BooleanField(db_index=True, default=True)),
-                ('params', jsonfield.fields.JSONField(blank=True, default=dict, dump_kwargs={'indent': 4}, help_text='local connection parameters (will override the global parameters if specified)', load_kwargs={'object_pairs_hook': collections.OrderedDict}, verbose_name='parameters')),
+                (
+                    'params',
+                    jsonfield.fields.JSONField(
+                        blank=True,
+                        default=dict,
+                        dump_kwargs={'indent': 4},
+                        help_text='local connection parameters (will override the global parameters if specified)',
+                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                        verbose_name='parameters',
+                    ),
+                ),
                 ('is_working', models.NullBooleanField(default=None)),
                 ('last_attempt', models.DateTimeField(blank=True, null=True)),
-                ('failure_reason', models.CharField(blank=True, max_length=128, verbose_name='reason of failure')),
-                ('credentials', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='connection.Credentials')),
-                ('device', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='config.Device')),
+                (
+                    'failure_reason',
+                    models.CharField(
+                        blank=True, max_length=128, verbose_name='reason of failure'
+                    ),
+                ),
+                (
+                    'credentials',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='connection.Credentials',
+                    ),
+                ),
+                (
+                    'device',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to='config.Device'
+                    ),
+                ),
             ],
             options={
                 'verbose_name_plural': 'Device connections',
                 'verbose_name': 'Device connection',
             },
-        )
+        ),
     ]

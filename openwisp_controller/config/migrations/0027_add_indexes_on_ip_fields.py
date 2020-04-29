@@ -13,11 +13,21 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='device',
             name='last_ip',
-            field=models.GenericIPAddressField(blank=True, db_index=True, help_text='indicates the IP address logged from the last request coming from the device', null=True),
+            field=models.GenericIPAddressField(
+                blank=True,
+                db_index=True,
+                help_text='indicates the IP address logged from the last request coming from the device',
+                null=True,
+            ),
         ),
         migrations.AlterField(
             model_name='device',
             name='management_ip',
-            field=models.GenericIPAddressField(blank=True, db_index=True, help_text='ip address of the management interface, if available', null=True),
+            field=models.GenericIPAddressField(
+                blank=True,
+                db_index=True,
+                help_text='ip address of the management interface, if available',
+                null=True,
+            ),
         ),
     ]

@@ -30,18 +30,17 @@ def assign_permissions_to_groups(apps, schema_editor):
     for model_name in only_admins_can_manage:
         for operation in manage_operations:
             admin.permissions.add(
-                Permission.objects.get(codename='{}_{}'.format(operation, model_name)).pk
+                Permission.objects.get(
+                    codename='{}_{}'.format(operation, model_name)
+                ).pk
             )
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ('connection', '0002_credentials_auto_add')
-    ]
+    dependencies = [('connection', '0002_credentials_auto_add')]
 
     operations = [
         migrations.RunPython(
-            assign_permissions_to_groups,
-            reverse_code=migrations.RunPython.noop
+            assign_permissions_to_groups, reverse_code=migrations.RunPython.noop
         ),
     ]

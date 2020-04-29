@@ -8,13 +8,22 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django_netjsonconfig import settings as app_settings
-from django_netjsonconfig.base.admin import (AbstractConfigForm, AbstractConfigInline, AbstractDeviceAdmin,
-                                             AbstractTemplateAdmin, AbstractVpnAdmin, AbstractVpnForm,
-                                             BaseForm)
+from django_netjsonconfig.base.admin import (
+    AbstractConfigForm,
+    AbstractConfigInline,
+    AbstractDeviceAdmin,
+    AbstractTemplateAdmin,
+    AbstractVpnAdmin,
+    AbstractVpnForm,
+    BaseForm,
+)
 from openwisp_controller.config.views import get_default_templates
 
 from openwisp_users.models import Organization
-from openwisp_users.multitenancy import MultitenantOrgFilter, MultitenantRelatedOrgFilter
+from openwisp_users.multitenancy import (
+    MultitenantOrgFilter,
+    MultitenantRelatedOrgFilter,
+)
 from openwisp_utils.admin import AlwaysHasChangedMixin
 
 from ..admin import MultitenantAdminMixin
@@ -34,7 +43,7 @@ class ConfigForm(AlwaysHasChangedMixin, AbstractConfigForm):
         instance.device = device_model(
             name=self.data['name'],
             mac_address=self.data['mac_address'],
-            organization=org
+            organization=org,
         )
         return instance
 
@@ -48,10 +57,12 @@ class ConfigInline(MultitenantAdminMixin, AbstractConfigInline):
 
 class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
     inlines = [ConfigInline]
-    list_filter = [('organization', MultitenantOrgFilter),
-                   ('config__templates', MultitenantRelatedOrgFilter),
-                   'config__status',
-                   'created']
+    list_filter = [
+        ('organization', MultitenantOrgFilter),
+        ('config__templates', MultitenantRelatedOrgFilter),
+        'config__status',
+        'created',
+    ]
     if app_settings.BACKEND_DEVICE_LIST:
         list_filter.insert(1, 'config__backend')
     list_select_related = ('config', 'organization')
@@ -69,9 +80,11 @@ class DeviceAdmin(MultitenantAdminMixin, AbstractDeviceAdmin):
 
     def get_urls(self):
         return [
-            url(r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
+            url(
+                r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
                 get_default_templates,
-                name='get_default_templates'),
+                name='get_default_templates',
+            ),
         ] + super().get_urls()
 
     def get_extra_context(self, pk=None):
@@ -101,14 +114,20 @@ def clone_selected_templates(modeladmin, request, queryset):
         if all_orgs.count() > 1:
             selectable_orgs = all_orgs
     elif len(request.user.organizations_pk) > 1:
-        selectable_orgs = Organization.objects.filter(pk__in=request.user.organizations_pk)
+        selectable_orgs = Organization.objects.filter(
+            pk__in=request.user.organizations_pk
+        )
     if selectable_orgs:
         if request.POST.get('organization'):
             for template in queryset:
                 clone = template.clone(request.user)
-                clone.organization = Organization.objects.get(pk=request.POST.get('organization'))
+                clone.organization = Organization.objects.get(
+                    pk=request.POST.get('organization')
+                )
                 clone.save()
-            modeladmin.message_user(request, _('Successfully cloned selected templates.'), messages.SUCCESS)
+            modeladmin.message_user(
+                request, _('Successfully cloned selected templates.'), messages.SUCCESS
+            )
             return None
 
         context = {
@@ -116,9 +135,11 @@ def clone_selected_templates(modeladmin, request, queryset):
             'queryset': queryset,
             'opts': modeladmin.model._meta,
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-            'form': CloneOrganizationForm(queryset=selectable_orgs)
+            'form': CloneOrganizationForm(queryset=selectable_orgs),
         }
-        return TemplateResponse(request, 'admin/config/clone_template_form.html', context)
+        return TemplateResponse(
+            request, 'admin/config/clone_template_form.html', context
+        )
     else:
         for template in queryset:
             clone = template.clone(request.user)

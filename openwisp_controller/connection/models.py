@@ -25,10 +25,11 @@ class ConnectorMixin(object):
     _connector_field = 'connector'
 
     def clean(self):
-        # Validate the connector field here to avoid ImportError in case that it is not valid
-        # (eg. it is an empty string because the user has forgotten to pick up one from the choices)
-        # The field value is validated in a later stage anyways. We are returning {} to avoid showing
-        # a duplicate error message for the field
+        # Validate the connector field here to avoid ImportError in case that
+        # it is not valid (eg. it is an empty string because the user has forgotten
+        # to pick up one from the choices). The field value is validated in a later
+        # stage anyways. We are returning {} to avoid showing a duplicate error
+        # message for the field
         if not self._get_connector():
             raise ValidationError({})
         self._validate_connector_schema()
@@ -55,29 +56,39 @@ class ConnectorMixin(object):
 
     @cached_property
     def connector_instance(self):
-        return self.connector_class(params=self.get_params(),
-                                    addresses=self.get_addresses())
+        return self.connector_class(
+            params=self.get_params(), addresses=self.get_addresses()
+        )
 
 
 class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
     """
     Credentials for access
     """
-    connector = models.CharField(_('connection type'),
-                                 choices=app_settings.CONNECTORS,
-                                 max_length=128,
-                                 db_index=True)
-    params = JSONField(_('parameters'),
-                       default=dict,
-                       help_text=_('global connection parameters'),
-                       load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                       dump_kwargs={'indent': 4})
-    auto_add = models.BooleanField(_('auto add'),
-                                   default=False,
-                                   help_text=_('automatically add these credentials '
-                                               'to the devices of this organization; '
-                                               'if no organization is specified will '
-                                               'be added to all the new devices'))
+
+    connector = models.CharField(
+        _('connection type'),
+        choices=app_settings.CONNECTORS,
+        max_length=128,
+        db_index=True,
+    )
+    params = JSONField(
+        _('parameters'),
+        default=dict,
+        help_text=_('global connection parameters'),
+        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+        dump_kwargs={'indent': 4},
+    )
+    auto_add = models.BooleanField(
+        _('auto add'),
+        default=False,
+        help_text=_(
+            'automatically add these credentials '
+            'to the devices of this organization; '
+            'if no organization is specified will '
+            'be added to all the new devices'
+        ),
+    )
 
     class Meta:
         verbose_name = _('Access credentials')
@@ -104,9 +115,7 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
         # exclude devices which have been already added
         devices = devices.exclude(deviceconnection__credentials=self)
         for device in devices:
-            conn = DeviceConnection(device=device,
-                                    credentials=self,
-                                    enabled=True)
+            conn = DeviceConnection(device=device, credentials=self, enabled=True)
             conn.full_clean()
             conn.save()
 
@@ -128,14 +137,12 @@ class Credentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
         #   - belong to the same organization of the device
         #     OR
         #     belong to no organization (hence are shared)
-        conditions = (models.Q(organization=device.organization) |
-                      models.Q(organization=None))
-        credentials = cls.objects.filter(conditions) \
-                                 .filter(auto_add=True)
+        conditions = models.Q(organization=device.organization) | models.Q(
+            organization=None
+        )
+        credentials = cls.objects.filter(conditions).filter(auto_add=True)
         for cred in credentials:
-            conn = DeviceConnection(device=device,
-                                    credentials=cred,
-                                    enabled=True)
+            conn = DeviceConnection(device=device, credentials=cred, enabled=True)
             conn.full_clean()
             conn.save()
 
@@ -144,25 +151,31 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     _connector_field = 'update_strategy'
     device = models.ForeignKey('config.Device', on_delete=models.CASCADE)
     credentials = models.ForeignKey(Credentials, on_delete=models.CASCADE)
-    update_strategy = models.CharField(_('update strategy'),
-                                       help_text=_('leave blank to determine automatically'),
-                                       choices=app_settings.UPDATE_STRATEGIES,
-                                       max_length=128,
-                                       blank=True,
-                                       db_index=True)
+    update_strategy = models.CharField(
+        _('update strategy'),
+        help_text=_('leave blank to determine automatically'),
+        choices=app_settings.UPDATE_STRATEGIES,
+        max_length=128,
+        blank=True,
+        db_index=True,
+    )
     enabled = models.BooleanField(default=True, db_index=True)
-    params = JSONField(_('parameters'),
-                       default=dict,
-                       blank=True,
-                       help_text=_('local connection parameters (will override '
-                                   'the global parameters if specified)'),
-                       load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                       dump_kwargs={'indent': 4})
+    params = JSONField(
+        _('parameters'),
+        default=dict,
+        blank=True,
+        help_text=_(
+            'local connection parameters (will override '
+            'the global parameters if specified)'
+        ),
+        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+        dump_kwargs={'indent': 4},
+    )
     # usability improvements
     is_working = models.NullBooleanField(default=None)
-    failure_reason = models.CharField(_('reason of failure'),
-                                      max_length=128,
-                                      blank=True)
+    failure_reason = models.CharField(
+        _('reason of failure'), max_length=128, blank=True
+    )
     last_attempt = models.DateTimeField(blank=True, null=True)
 
     class Meta:
@@ -176,25 +189,39 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     def clean(self):
         cred_org = self.credentials.organization
         if cred_org and cred_org != self.device.organization:
-            raise ValidationError({
-                'credentials': _('The organization of these credentials doesn\'t '
-                                 'match the organization of the device')
-            })
+            raise ValidationError(
+                {
+                    'credentials': _(
+                        'The organization of these credentials doesn\'t '
+                        'match the organization of the device'
+                    )
+                }
+            )
         if not self.update_strategy and self.device._has_config():
             try:
-                self.update_strategy = app_settings.CONFIG_UPDATE_MAPPING[self.device.config.backend]
+                self.update_strategy = app_settings.CONFIG_UPDATE_MAPPING[
+                    self.device.config.backend
+                ]
             except KeyError as e:
-                raise ValidationError({
-                    'update_stragy': _('could not determine update strategy '
-                                       ' automatically, exception: {0}'.format(e))
-                })
+                raise ValidationError(
+                    {
+                        'update_stragy': _(
+                            'could not determine update strategy '
+                            ' automatically, exception: {0}'.format(e)
+                        )
+                    }
+                )
         elif not self.update_strategy:
-            raise ValidationError({
-                'update_strategy': _('the update strategy can be determined automatically '
-                                     'only if the device has a configuration specified, '
-                                     'because it is inferred from the configuration backend. '
-                                     'Please select the update strategy manually.')
-            })
+            raise ValidationError(
+                {
+                    'update_strategy': _(
+                        'the update strategy can be determined automatically '
+                        'only if the device has a configuration specified, '
+                        'because it is inferred from the configuration backend. '
+                        'Please select the update strategy manually.'
+                    )
+                }
+            )
         self._validate_connector_schema()
 
     def get_addresses(self):
@@ -252,4 +279,6 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         self._initial_is_working = self.is_working
 
     def send_is_working_changed_signal(self):
-        is_working_changed.send(sender=self.__class__, is_working=self.is_working, instance=self)
+        is_working_changed.send(
+            sender=self.__class__, is_working=self.is_working, instance=self
+        )

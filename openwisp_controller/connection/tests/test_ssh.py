@@ -13,7 +13,9 @@ class TestSsh(CreateConnectionsMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.mock_ssh_server = SshServer({'root': cls._TEST_RSA_PRIVATE_KEY_PATH}).__enter__()
+        cls.mock_ssh_server = SshServer(
+            {'root': cls._TEST_RSA_PRIVATE_KEY_PATH}
+        ).__enter__()
         cls.ssh_server.port = cls.mock_ssh_server.port
 
     @classmethod

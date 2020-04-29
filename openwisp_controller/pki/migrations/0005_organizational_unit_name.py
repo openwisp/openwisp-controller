@@ -13,11 +13,15 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='ca',
             name='organizational_unit_name',
-            field=models.CharField(blank=True, max_length=64, verbose_name='organizational unit name'),
+            field=models.CharField(
+                blank=True, max_length=64, verbose_name='organizational unit name'
+            ),
         ),
         migrations.AddField(
             model_name='cert',
             name='organizational_unit_name',
-            field=models.CharField(blank=True, max_length=64, verbose_name='organizational unit name'),
+            field=models.CharField(
+                blank=True, max_length=64, verbose_name='organizational unit name'
+            ),
         ),
     ]

@@ -10,6 +10,7 @@ class GeoConfig(LociConfig):
 
     def __setmodels__(self):
         from .models import Location
+
         self.location_model = Location
 
     def ready(self):
@@ -29,6 +30,7 @@ class GeoConfig(LociConfig):
         """
         from .tests.test_admin_inline import TestAdminInline
         from ..config.tests.test_admin import TestAdmin as TestConfigAdmin
+
         params = TestAdminInline._get_params()
         delete_keys = []
         # delete unnecessary fields
