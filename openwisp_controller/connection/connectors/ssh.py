@@ -62,8 +62,9 @@ class Ssh(object):
             try:
                 self.shell.connect(
                     address,
-                    timeout=app_settings.SSH_CONNECTION_TIMEOUT,
                     auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
+                    banner_timeout=app_settings.SSH_BANNER_TIMEOUT,
+                    timeout=app_settings.SSH_CONNECTION_TIMEOUT,
                     **self.params
                 )
             except Exception as e:
