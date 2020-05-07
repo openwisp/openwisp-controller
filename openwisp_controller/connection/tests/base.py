@@ -51,6 +51,14 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
             })
         return super()._create_device(*args, **kwargs)
 
+    def _get_credentials(self, **kwargs):
+        opts = {"name": "Test credentials"}
+        opts.update(**kwargs)
+        try:
+            return Credentials.objects.get(**opts)
+        except Credentials.DoesNotExist:
+            return self._create_credentials(**opts)
+
     def _create_credentials(self, **kwargs):
         opts = dict(name='Test credentials',
                     connector=app_settings.CONNECTORS[0][0],
