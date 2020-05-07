@@ -210,6 +210,50 @@ It is not triggered when the device is created for the first time.
 Settings
 --------
 
+``OPENWISP_SSH_AUTH_TIMEOUT``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+---------+
+| **type**:    | ``int`` |
++--------------+---------+
+| **default**: | ``2``   |
++--------------+---------+
+
+Configure timeout to wait for an authentication response when establishing a SSH connection.
+
+``OPENWISP_SSH_BANNER_TIMEOUT``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+---------+
+| **type**:    | ``int`` |
++--------------+---------+
+| **default**: | ``30``  |
++--------------+---------+
+
+Configure timeout to wait for the banner to be presented when establishing a SSH connection.
+
+``OPENWISP_SSH_COMMAND_TIMEOUT``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+---------+
+| **type**:    | ``int`` |
++--------------+---------+
+| **default**: | ``30``  |
++--------------+---------+
+
+Configure timeout on blocking read/write operations when executing a command in a SSH connection.
+
+``OPENWISP_SSH_CONNECTION_TIMEOUT``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+---------+
+| **type**:    | ``int`` |
++--------------+---------+
+| **default**: | ``5``   |
++--------------+---------+
+
+Configure timeout for the TCP connect when establishing a SSH connection.
+
 ``OPENWISP_CONNECTORS``
 ~~~~~~~~~~~~~~~~~~~~~~~
 
