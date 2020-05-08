@@ -227,7 +227,7 @@ Configure timeout to wait for an authentication response when establishing a SSH
 +--------------+---------+
 | **type**:    | ``int`` |
 +--------------+---------+
-| **default**: | ``30``  |
+| **default**: | ``60``  |
 +--------------+---------+
 
 Configure timeout to wait for the banner to be presented when establishing a SSH connection.
