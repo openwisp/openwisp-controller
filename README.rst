@@ -326,34 +326,39 @@ Launch Redis:
 
     docker-compose up -d redis
 
-Install your forked repo with `pipenv <https://pipenv.readthedocs.io/en/latest/>`_:
+Install your forked repo:
 
 .. code-block:: shell
 
     git clone git://github.com/<your_fork>/openwisp-controller
     cd openwisp-controller/
-    pipenv install --three --dev --skip-lock  # skip-lock is faster (optional)
-    pipenv run install_dev
+    python setup.py develop
+
+Install development dependencies (optional):
+
+.. code-block:: shell
+
+    ./install-dev.sh
 
 Create database:
 
 .. code-block:: shell
 
     cd tests/
-    pipenv run ./manage.py migrate
-    pipenv run ./manage.py createsuperuser
+    ./manage.py migrate
+    ./manage.py createsuperuser
 
 Launch celery worker (for background jobs):
 
 .. code-block:: shell
 
-    pipenv run celery -A openwisp2 worker -l info
+    celery -A openwisp2 worker -l info
 
 Launch development server:
 
 .. code-block:: shell
 
-    pipenv run ./manage.py runserver 0.0.0.0:8000
+    ./manage.py runserver 0.0.0.0:8000
 
 You can access the admin interface at http://127.0.0.1:8000/admin/.
 
@@ -361,7 +366,8 @@ Run tests with:
 
 .. code-block:: shell
 
-    pipenv run test
+    ./run-qa-checks
+    ./runtests.py
 
 Install and run on docker
 --------------------------

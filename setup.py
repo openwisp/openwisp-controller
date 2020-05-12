@@ -5,6 +5,26 @@ import sys
 from openwisp_controller import get_version
 from setuptools import find_packages, setup
 
+
+def get_install_requires():
+    """
+    parse requirements.txt, ignore links, exclude comments
+    """
+    requirements = []
+    for line in open('requirements.txt').readlines():
+        # skip to next iteration if comment or empty line
+        if (
+            line.startswith('#')
+            or line == ''
+            or line.startswith('http')
+            or line.startswith('git')
+        ):
+            continue
+        # add line to requirements
+        requirements.append(line)
+    return requirements
+
+
 if sys.argv[-1] == 'publish':
     # delete any *.pyc, *.pyo and __pycache__
     os.system('find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf')
@@ -33,15 +53,7 @@ setup(
     packages=find_packages(exclude=['tests', 'docs']),
     include_package_data=True,
     zip_safe=False,
-    install_requires=[
-        'django-netjsonconfig>=0.11.0,<0.13.0',
-        'openwisp-users>=0.2.0,<0.3.0',
-        'django-loci>=0.3.1,<0.4.0',
-        'djangorestframework-gis>=0.12.0,<0.16.0',
-        'paramiko>=2.7.1,<2.8.0',
-        'scp>=0.13.0,<0.14.0',
-        'celery>=4.2.0,<4.5.0',
-    ],
+    install_requires=get_install_requires(),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',

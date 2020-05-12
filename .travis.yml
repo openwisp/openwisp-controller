@@ -26,21 +26,18 @@ branches:
     - master
 
 before_install:
-  - export PIPENV_IGNORE_VIRTUALENVS=1
-  - pip install -U pipenv
-  - pipenv install --dev --skip-lock
-  - pipenv run install_dev
+  - pip install -U -r requirements-test.txt
   - npm install -g jslint
 
 install:
-  - pipenv run qa_checks
-  - pipenv install --skip-lock $DJANGO
-  - pipenv run pip freeze
+  - pip install $DJANGO
+  - pip install -e .
+  - ./install-dev.sh
 
 script:
-  - jslint openwisp_controller/pki/static/pki/js/*.js
-  - pipenv run pytest --cov=openwisp_controller
-  - pipenv run coverage run -a --source=openwisp_controller runtests.py
+  - ./run-qa-checks
+  - pytest --cov=openwisp_controller
+  - coverage run -a --source=openwisp_controller runtests.py
 
 after_success:
-  pipenv run coveralls
+  coveralls

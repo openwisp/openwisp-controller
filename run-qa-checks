@@ -5,10 +5,10 @@ set -e
 # JSLint check
 jslint openwisp_controller/pki/static/pki/js/*.js
 
-pipenv run openwisp-qa-check \
-      --migration-path \
-        "./openwisp_controller/config/migrations
-        ./openwisp_controller/connection/migrations
-        ./openwisp_controller/geo/migrations
-        ./openwisp_controller/pki/migrations" \
-      --migrations-to-ignore "12 0 0 4"
+openwisp-qa-check \
+  --migration-path \
+    "./openwisp_controller/config/migrations
+    ./openwisp_controller/connection/migrations
+    ./openwisp_controller/geo/migrations
+    ./openwisp_controller/pki/migrations" \
+  --migrations-to-ignore "12 0 0 4"
