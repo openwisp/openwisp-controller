@@ -212,3 +212,29 @@ class TestController(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase)
         # other organization is not affected
         self.assertEquals(c3.device.last_ip, '127.0.0.1')
         self.assertEqual(c3.device.management_ip, '192.168.1.99')
+
+    # simulate public IP by mocking the
+    # method which tells us if the ip is private or not
+    @mock.patch('ipaddress.IPv4Address.is_private', False)
+    def test_last_ip_public_can_be_duplicated(self):
+        org1 = self._create_org()
+        d1 = self._create_device(
+            organization=org1, name='testdup1', mac_address='00:11:22:33:66:11'
+        )
+        c1 = self._create_config(device=d1)
+        d2 = self._create_device(
+            organization=org1, name='testdup2', mac_address='00:11:22:33:66:22'
+        )
+        c2 = self._create_config(device=d2)
+        self.client.get(
+            reverse('controller:device_checksum', args=[c1.device.pk]),
+            {'key': c1.device.key, 'management_ip': '192.168.1.99'},
+        )
+        self.client.get(
+            reverse('controller:device_checksum', args=[c2.device.pk]),
+            {'key': c2.device.key, 'management_ip': '192.168.1.99'},
+        )
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        self.assertEqual(c1.device.last_ip, c2.device.last_ip)
+        self.assertNotEqual(c1.device.management_ip, c2.device.management_ip)
