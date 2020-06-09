@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import ugettext_lazy as _
 
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import TimeReadonlyAdminMixin
@@ -24,6 +25,8 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
 
 class DeviceConnectionInline(MultitenantAdminMixin, admin.StackedInline):
     model = DeviceConnection
+    verbose_name = _('Credentials')
+    verbose_name_plural = verbose_name
     exclude = ['params', 'created', 'modified']
     readonly_fields = ['is_working', 'failure_reason', 'last_attempt']
     extra = 0

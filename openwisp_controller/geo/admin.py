@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import ugettext_lazy as _
 from django_loci.base.admin import (
     AbstractFloorPlanAdmin,
     AbstractFloorPlanForm,
@@ -68,6 +69,8 @@ class ObjectLocationForm(AbstractObjectLocationForm):
 class DeviceLocationInline(ObjectLocationMixin, admin.StackedInline):
     model = DeviceLocation
     form = ObjectLocationForm
+    verbose_name = _('Map')
+    verbose_name_plural = verbose_name
 
 
 admin.site.register(FloorPlan, FloorPlanAdmin)
@@ -75,4 +78,4 @@ admin.site.register(Location, LocationAdmin)
 
 
 # Prepend DeviceLocationInline to config.DeviceAdmin
-DeviceAdmin.inlines.insert(0, DeviceLocationInline)
+DeviceAdmin.inlines.insert(1, DeviceLocationInline)

@@ -52,6 +52,8 @@ class ConfigInline(MultitenantAdminMixin, AbstractConfigInline):
     model = Config
     form = ConfigForm
     extra = 0
+    verbose_name = _('Configuration')
+    verbose_name_plural = verbose_name
     multitenant_shared_relations = ('templates',)
 
 
