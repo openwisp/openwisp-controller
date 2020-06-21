@@ -200,8 +200,10 @@ Signals
 
 **Arguments**:
 
-- ``instance``: instance of ``DeviceConnection`` which got its ``is_working`` modified
-- ``is_working``: bool variable informing working status of device
+- ``instance``: instance of ``DeviceConnection``
+- ``is_working``: value of ``DeviceConnection.is_working``
+- ``old_is_working``: previous value of ``DeviceConnection.is_working``,
+  either ``None`` (for new connections), ``True`` or ``False``
 
 This signal is emitted every time ``DeviceConnection.is_working`` changes.
 
