@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -240,7 +242,9 @@ class TestVpn(
         expected.update(settings.OPENWISP_CONTROLLER_CONTEXT)
         self.assertEqual(v.get_context(), expected)
 
-    def test_dh(self):
+    @mock.patch('openwisp_controller.config.base.vpn.AbstractVpn.dhparam')
+    def test_dh(self, mocked_dhparam):
+        mocked_dhparam.return_value = self._dh
         v = self._create_vpn()
         v.dh = None
         v.save()

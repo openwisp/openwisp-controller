@@ -1,6 +1,25 @@
 from ...migrations import create_default_permissions
 from django.contrib.auth.models import Permission
 
+import swapper
+import subprocess
+
+
+def get_swapped_model(apps, app_name, model_name):
+    model_path = swapper.get_model_name(app_name, model_name)
+    app, model = swapper.split(model_path)
+    return apps.get_model(app, model)
+
+
+def update_vpn_dhparam_length(apps, schema_editor):
+    vpn_model = get_swapped_model(apps, 'config', 'Vpn')
+    for record in vpn_model.objects.all().iterator():
+        if len(record.dh) < 424:
+            record.dh = subprocess.check_output(
+                'openssl dhparam 2048 2> /dev/null', shell=True
+            ).decode('utf-8')
+            record.save()
+
 
 def assign_permissions_to_groups(apps, schema_editor):
     create_default_permissions(apps, schema_editor)
