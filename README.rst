@@ -204,6 +204,7 @@ Signals
 - ``is_working``: value of ``DeviceConnection.is_working``
 - ``old_is_working``: previous value of ``DeviceConnection.is_working``,
   either ``None`` (for new connections), ``True`` or ``False``
+- ``failure_reason``: error message explaining reason for failure in establishing connection
 
 This signal is emitted every time ``DeviceConnection.is_working`` changes.
 

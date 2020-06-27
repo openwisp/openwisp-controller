@@ -334,6 +334,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
             dc.is_working = True
             dc.save()
         handler.assert_called_once_with(
+            failure_reason='',
             instance=dc,
             is_working=True,
             old_is_working=None,

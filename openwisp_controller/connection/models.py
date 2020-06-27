@@ -283,5 +283,6 @@ class DeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             sender=self.__class__,
             is_working=self.is_working,
             old_is_working=self._initial_is_working,
+            failure_reason=self.failure_reason,
             instance=self,
         )
