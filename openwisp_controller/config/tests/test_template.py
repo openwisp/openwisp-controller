@@ -243,10 +243,7 @@ class TestTemplate(
 
     def test_get_context(self):
         t = self._create_template()
-        expected = {
-            'id': str(t.id),
-            'name': t.name,
-        }
+        expected = {}
         expected.update(settings.OPENWISP_CONTROLLER_CONTEXT)
         self.assertEqual(t.get_context(), expected)
 

@@ -16,6 +16,7 @@ class JsonSchemaWidget(AdminTextareaWidget):
         js = [
             static('{0}/js/{1}'.format(prefix, f))
             for f in (
+                'utils.js',
                 'lib/advanced-mode.js',
                 'lib/tomorrow_night_bright.js',
                 'lib/jsonschema-ui.js',

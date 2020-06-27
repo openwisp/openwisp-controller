@@ -148,15 +148,21 @@ class BaseConfig(BaseModel):
         """
         backend = self.backend_class
         kwargs = {'config': self.get_config()}
+        context = {}
         # determine if we can pass templates
         # expecting a many2many relationship
         if hasattr(self, 'templates'):
             if template_instances is None:
                 template_instances = self.templates.all()
-            kwargs['templates'] = [t.config for t in template_instances]
+            templates_list = list()
+            for t in template_instances:
+                templates_list.append(t.config)
+                context.update(t.get_context())
+            kwargs['templates'] = templates_list
         # pass context to backend if get_context method is defined
         if hasattr(self, 'get_context'):
-            kwargs['context'] = self.get_context()
+            context.update(self.get_context())
+            kwargs['context'] = context
         backend_instance = backend(**kwargs)
         # remove accidentally duplicated files when combining config and templates
         # this may happen if a device uses multiple VPN client templates

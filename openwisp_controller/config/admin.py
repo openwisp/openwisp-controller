@@ -473,19 +473,28 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin):
     ]
     search_fields = ['name']
     multitenant_shared_relations = ('vpn',)
-    fields = [
-        'name',
-        'organization',
-        'type',
-        'backend',
-        'vpn',
-        'auto_cert',
-        'tags',
-        'default',
-        'config',
-        'created',
-        'modified',
-    ]
+    fieldsets = (
+        (
+            None,
+            {
+                'fields': [
+                    'name',
+                    'organization',
+                    'type',
+                    'backend',
+                    'vpn',
+                    'auto_cert',
+                    'tags',
+                    'default',
+                ]
+            },
+        ),
+        (
+            _('Advanced options'),
+            {'classes': ('collapse',), 'fields': ('default_values',)},
+        ),
+        (None, {'fields': ('config', 'created', 'modified')}),
+    )
 
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
