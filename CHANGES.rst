@@ -1,10 +1,27 @@
 Changelog
 =========
 
-Version 0.7.0 [unreleased]
+Version 0.7.0 [2020-07-01]
 --------------------------
 
-WIP
+- [feature] Added signals: ``config_status_changed``, ``checksum_requested``, ``config_download_requested``
+- [feature] Added the possibility of specifying default values for variables used in templates
+- [feature] Added ``banner_timeout``
+- [feature] Emit signal when ``DeviceConnection.is_working`` changes
+- [change] **Backward incompatible change**: the ``config_modified``
+  signal is not emitted anymore when the device is created
+- [change] VPN files now have 0600 permissions by default
+- [change] Increased minimum `netjsonconfig <https://github.com/openwisp/netjsonconfig>`_ version to 0.8.0
+- [change] Increased minimum `paramiko <https://github.com/paramiko/paramiko>`_ version to 2.7.1
+- [change] Increased minimum `celery <https://github.com/celery/celery/>`_ version to 4.4.3
+- [fix] Avoid errors being hidden by tabs
+- [fix] Fixed clashes between javascript schema validation and variables
+- [fix] Fixed exception when adding device credential without type
+- [fix] Fixed exception when auto adding device credentials to devices which don't have a configuration
+- [fix] Avoid multiple devices having the same management IP address (multiple devices
+  having the same last IP is allowed because last IP is almost always a public address)
+- [docs] Documented SSH timeouts
+- [docs] Update outdated steps in README instructions
 
 Version 0.6.0 [2020-04-02]
 --------------------------
