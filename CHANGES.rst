@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Version 0.7.0.post1 [2020-07-01]
+--------------------------------
+
+- Increased minimum django-netjsonconfig version to 0.12
+
 Version 0.7.0 [2020-07-01]
 --------------------------
 
