@@ -27,8 +27,8 @@ class GeoConfig(LociConfig):
               way config doesn't know anything about geo, keeping
               complexity down to a sane level
         """
-        from .tests.test_admin_inline import TestAdminInline
         from ..config.tests.test_admin import TestAdmin as TestConfigAdmin
+        from .tests.test_admin_inline import TestAdminInline
 
         params = TestAdminInline._get_params()
         delete_keys = []

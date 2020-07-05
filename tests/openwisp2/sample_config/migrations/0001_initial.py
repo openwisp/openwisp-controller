@@ -126,7 +126,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     'object_id',
-                    models.UUIDField(db_index=True, verbose_name='Object id'),
+                    models.UUIDField(db_index=True, verbose_name='object ID'),
                 ),
                 ('details', models.CharField(blank=True, max_length=64, null=True)),
                 (
@@ -135,7 +135,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name='sample_config_taggedtemplate_tagged_items',
                         to='contenttypes.ContentType',
-                        verbose_name='Content type',
+                        verbose_name='content type',
                     ),
                 ),
             ],
@@ -159,11 +159,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     'name',
-                    models.CharField(max_length=100, unique=True, verbose_name='Name'),
+                    models.CharField(max_length=100, unique=True, verbose_name='name'),
                 ),
                 (
                     'slug',
-                    models.SlugField(max_length=100, unique=True, verbose_name='Slug'),
+                    models.SlugField(max_length=100, unique=True, verbose_name='slug'),
                 ),
                 ('details', models.CharField(blank=True, max_length=64, null=True)),
             ],
