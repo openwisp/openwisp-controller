@@ -4,9 +4,12 @@ Changelog
 Version 0.8.0 [unreleased]
 --------------------------
 
-- [support] add django-x509 0.7.X and dropped lower versions
-- [support] add django-taggit 1.3.X and dropped lower versions
-- [feature] add ability to extend the openwisp-controller django app
+- [change] The code of `django-netjsonconfig <https://github.com/openwisp/django-netjsonconfig>`_ was merged
+  in openwisp-controller to simplify maintenance.
+- [feature] Added possibility to `extend openwisp-controller <https://github.com/openwisp/openwisp-controller#extending-openwisp-controller>`_
+- [support] Increased minimum `django-x509 <https://github.com/openwisp/django-x509>`_ version to 0.7.0
+- [change] Increased minimum `django-taggit <https://github.com/jazzband/django-taggit>`_ version to 1.3.0
+
 - improved documentation
 
 Version 0.7.0.post1 [2020-07-01]
