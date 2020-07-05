@@ -1,4 +1,5 @@
 from django.db import models
+
 from openwisp_controller.config.base.config import AbstractConfig
 from openwisp_controller.config.base.device import AbstractDevice
 from openwisp_controller.config.base.multitenancy import (

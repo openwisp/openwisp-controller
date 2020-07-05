@@ -1,3 +1,5 @@
+from swapper import load_model
+
 from openwisp_controller.config.controller.views import (
     DeviceChecksumView as BaseDeviceChecksumView,
 )
@@ -19,7 +21,6 @@ from openwisp_controller.config.controller.views import (
 from openwisp_controller.config.controller.views import (
     VpnDownloadConfigView as BaseVpnDownloadConfigView,
 )
-from swapper import load_model
 
 Device = load_model('config', 'Device')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')

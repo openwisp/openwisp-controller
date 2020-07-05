@@ -1,4 +1,5 @@
 from django.db import models
+
 from openwisp_controller.connection.base.models import (
     AbstractCredentials,
     AbstractDeviceConnection,

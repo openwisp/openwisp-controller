@@ -1,4 +1,5 @@
 from django.db import models
+
 from openwisp_controller.geo.base.models import (
     BaseDeviceLocation,
     BaseFloorPlan,

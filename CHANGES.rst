@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Version 0.8.0 [unreleased]
+--------------------------
+
+- [support] add django-x509 0.7.X and dropped lower versions
+- [support] add django-taggit 1.3.X and dropped lower versions
+- [feature] add ability to extend the openwisp-controller django app
+- improved documentation
+
 Version 0.7.0.post1 [2020-07-01]
 --------------------------------
 

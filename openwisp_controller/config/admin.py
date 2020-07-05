@@ -17,9 +17,9 @@ from django.template.response import TemplateResponse
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from openwisp_controller.config.views import get_default_templates
 from swapper import load_model
 
+from openwisp_controller.config.views import get_default_templates
 from openwisp_users.models import Organization
 from openwisp_users.multitenancy import (
     MultitenantOrgFilter,
@@ -590,8 +590,8 @@ admin.site.register(Vpn, VpnAdmin)
 
 
 if getattr(app_settings, 'REGISTRATION_ENABLED', True):
-    from openwisp_utils.admin import AlwaysHasChangedMixin
     from openwisp_users.admin import OrganizationAdmin
+    from openwisp_utils.admin import AlwaysHasChangedMixin
 
     class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         pass

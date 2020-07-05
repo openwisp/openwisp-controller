@@ -10,8 +10,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.models import Permission
 from django.http.request import HttpRequest
-from openwisp_controller.geo.channels.consumers import LocationBroadcast
 from swapper import load_model
+
+from openwisp_controller.geo.channels.consumers import LocationBroadcast
 
 from .utils import TestGeoMixin
 
