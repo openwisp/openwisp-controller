@@ -34,7 +34,32 @@ openwisp-controller
 
 ------------
 
-OpenWISP 2 controller module for central configuration management of your Network Devices.
+OpenWISP Controller is a configuration manager that allows to automate several
+networking tasks like adoption, provisioning, management VPN configuration,
+X509 certificates automatic generation, revocation of x509 certificates and
+a lot more features.
+
+OpenWISP is not only an application designed for end users, but can also be
+used as a framework on which custom network automation solution can be built
+on top of its building blocks.
+
+Other popular building blocks that are part of the OpenWISP ecosystem are:
+
+- `openwisp-monitoring <https://github.com/openwisp/openwisp-monitoring>`_:
+  provides device status monitoring, collection of metrics, charts, alerts,
+  possibility to define custom checks
+- `openwisp-firmware-upgrader <https://github.com/openwisp/openwisp-firmware-upgrader>`_:
+  automated firmware upgrades (single devices or mass network upgrades)
+- `openwisp-radius <https://github.com/openwisp/openwisp-radius>`_:
+  based on FreeRADIUS, allows to implement network access authentication systems like
+  802.1x WPA2 Enterprise, captive portal authentication, Hotspot 2.0 (802.11u)
+- `openwisp-network-topology <https://github.com/openwisp/openwisp-network-topology>`_:
+  provides way to collect and visualize network topology data from
+  dynamic mesh routing deamons or other network software (eg: OpenVPN);
+  it can be used in conjunction with openwisp-monitoring to get a better idea
+  of the state of the network
+- `openwisp-ipam <https://github.com/openwisp/openwisp-ipam>`_:
+  it allows to manage the IP address space of networks
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp2-docs/master/assets/design/openwisp-logo-black.svg
   :target: http://openwisp.org
@@ -89,10 +114,10 @@ Alternatively you can install via pip using git:
 If you want to contribute, follow the instructions in
 `Installing for development <#installing-for-development>`_.
 
-Project Structure & Goals
--------------------------
+Project Structure & main features
+----------------------------------
 
-The openwisp-controller django project consists of four djanog apps:
+OpenWISP Controller is a python package consisting of four django apps:
 
 Config App
 ~~~~~~~~~~
@@ -107,25 +132,35 @@ Config App
 * `configuration variables <#how-to-use-configuration-variables>`_: reference ansible-like variables in the configuration and templates
 * **template tags**: tag templates to automate different types of auto-configurations (eg: mesh, WDS, 4G)
 * **simple HTTP resources**: allow devices to automatically download configuration updates
-* **VPN management**: easily create VPN servers and clients
+* **VPN management**: automatically provision VPN tunnels with unique x509 certificates
+
+PKI App
+~~~~~~~
+
+The PKI app is based on `django-x509 <https://github.com/openwisp/django-x509>`_,
+it allows to create, import and view x509 CAs and certificates directly from
+the administration dashboard.
 
 Connection App
 ~~~~~~~~~~~~~~
 
-Enables the controller to create a connection (SSH) connection with the
-device to apply configurations in immediately to the network device.
+This app enables the controller to instantiate connections to the devices
+in order perform push operations (eg: configuration updates or
+firmware upgrades via the additional `firmware upgrade module
+<https://github.com/openwisp/openwisp-firmware-upgrader>`_).
+
+The default connection protocol implemented is SSH, but other protocol
+mechanism is extensible and custom protocols can be implemented as well.
 
 Geo App
 ~~~~~~~
 
-Geo app is build on `django-loci <https://github.com/openwisp/django-loci>`_ project,
-it enables us to store, update and show real-time location of the device.
+The geographic app is based on `django-loci <https://github.com/openwisp/django-loci>`_
+and allows to define the geographic coordinates of the devices,
+as well as their indoor coordinates on floorplan images.
 
-Pki App
-~~~~~~~
-
-Pki app is build on `django-x509 <https://github.com/openwisp/django-x509>`_ project,
-it enables us to interact with the CAs and certs from the dashboard interface itself.
+This module also provides an API through which mobile devices can update
+their coordinates.
 
 Settings
 --------
@@ -368,6 +403,9 @@ to avoid indiscriminate registration of new devices without explicit permission.
 Additional context that is passed to the default context of each device object.
 
 ``OPENWISP_CONTROLLER_CONTEXT`` can be used to define system-wide configuration variables.
+
+For more information regarding how to use configuration variables in OpenWISP,
+see `How to use configuration variables <#how-to-use-configuration-variables>`_.
 
 For technical information about how variables are handled in the lower levels
 of OpenWISP, see `netjsonconfig context: configuration variables
@@ -681,7 +719,7 @@ Global variables
 ~~~~~~~~~~~~~~~~
 
 Variables can also be defined globally using the
-`NETJSONCONFIG_CONTEXT <#netjsonconfig_context>`_ setting.
+`OPENWISP_CONTROLLER_CONTEXT <#openwisp-controller-context>`_ setting.
 
 Example usage of variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
