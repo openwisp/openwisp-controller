@@ -29,7 +29,8 @@ openwisp-controller
    :target: https://pypi.org/project/black/
    :alt: code style: black
 
-.. image:: https://github.com/openwisp/openwisp-controller/tree/master/docs/controller_demo.gif
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/controller_demo.gif
+   :target: https://github.com/openwisp/openwisp-controller/tree/master/docs/controller_demo.gif
    :alt: Feature Highlights
 
 ------------
