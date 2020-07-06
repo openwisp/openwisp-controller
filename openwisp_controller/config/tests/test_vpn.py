@@ -24,17 +24,10 @@ class TestVpn(
     tests for Vpn model
     """
 
-    ca_model = Ca
-    cert_model = Cert
-    vpn_model = Vpn
-    vpn_client_model = VpnClient
-    template_model = Template
-    device_model = Device
-    config_model = Config
     maxDiff = None
 
     def test_config_not_none(self):
-        v = self.vpn_model(
+        v = Vpn(
             name='test',
             host='vpn1.test.com',
             ca=self._create_ca(),
@@ -49,7 +42,7 @@ class TestVpn(
         self.assertEqual(v.config, {})
 
     def test_backend_class(self):
-        v = self.vpn_model(
+        v = Vpn(
             name='test',
             host='vpn1.test.com',
             ca=self._create_ca(),
@@ -58,7 +51,7 @@ class TestVpn(
         self.assertIs(v.backend_class, OpenVpn)
 
     def test_backend_instance(self):
-        v = self.vpn_model(
+        v = Vpn(
             name='test',
             host='vpn1.test.com',
             ca=self._create_ca(),
@@ -69,7 +62,7 @@ class TestVpn(
 
     def test_validation(self):
         config = {'openvpn': {'invalid': True}}
-        v = self.vpn_model(
+        v = Vpn(
             name='test',
             host='vpn1.test.com',
             ca=self._create_ca(),
@@ -100,7 +93,7 @@ class TestVpn(
         c.templates.add(t)
         # one VpnClient instance has been automatically created
         # now try to create a duplicate
-        client = self.vpn_client_model(vpn=vpn, config=c, auto_cert=True)
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
         try:
             client.full_clean()
         except ValidationError as e:
@@ -118,17 +111,15 @@ class TestVpn(
         c.templates.add(t)
         vpnclient = c.vpnclient_set.first()
         cert_pk = vpnclient.cert.pk
-        self.assertEqual(self.cert_model.objects.filter(pk=cert_pk).count(), 1)
+        self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 1)
         c.delete()
-        self.assertEqual(
-            self.vpn_client_model.objects.filter(pk=vpnclient.pk).count(), 0
-        )
-        self.assertEqual(self.cert_model.objects.filter(pk=cert_pk).count(), 0)
+        self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
+        self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
 
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
         different_ca = self._create_ca()
-        cert = self.cert_model(
+        cert = Cert(
             name='test-cert-vpn',
             ca=ca,
             key_length='2048',
@@ -142,7 +133,7 @@ class TestVpn(
         )
         cert.full_clean()
         cert.save()
-        vpn = self.vpn_model(
+        vpn = Vpn(
             name='test',
             host='vpn1.test.com',
             ca=different_ca,
@@ -208,7 +199,7 @@ class TestVpn(
         vpn = self._create_vpn()
         d = self._create_device()
         c = self._create_config(device=d)
-        client = self.vpn_client_model(vpn=vpn, config=c, auto_cert=True)
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
         self.assertEqual(
             client._get_common_name(), '{mac_address}-{name}'.format(**d.__dict__)
         )
@@ -250,7 +241,7 @@ class TestVpn(
         self.assertTrue(v.dh.endswith('-----END DH PARAMETERS-----\n'))
 
     def test_get_context_empty_vpn(self):
-        v = self.vpn_model()
+        v = Vpn()
         self.assertEqual(v.get_context(), settings.OPENWISP_CONTROLLER_CONTEXT)
 
     def test_key_validator(self):

@@ -28,40 +28,34 @@ class TestConfig(
     tests for Config model
     """
 
-    config_model = Config
-    device_model = Device
-    template_model = Template
-    ca_model = Ca
-    vpn_model = Vpn
-
     fixtures = ['test_templates']
     maxDiff = None
 
     def test_str(self):
-        c = self.config_model()
+        c = Config()
         self.assertEqual(str(c), str(c.pk))
-        c = self.config_model(device=self.device_model(name='test'))
+        c = Config(device=Device(name='test'))
         self.assertEqual(str(c), 'test')
 
     def test_config_not_none(self):
-        c = self.config_model(
+        c = Config(
             device=self._create_device(), backend='netjsonconfig.OpenWrt', config=None
         )
         c.full_clean()
         self.assertEqual(c.config, {})
 
     def test_backend_class(self):
-        c = self.config_model(backend='netjsonconfig.OpenWrt')
+        c = Config(backend='netjsonconfig.OpenWrt')
         self.assertIs(c.backend_class, OpenWrt)
 
     def test_backend_instance(self):
         config = {'general': {'hostname': 'config'}}
-        c = self.config_model(backend='netjsonconfig.OpenWrt', config=config)
+        c = Config(backend='netjsonconfig.OpenWrt', config=config)
         self.assertIsInstance(c.backend_instance, OpenWrt)
 
     def test_netjson_validation(self):
         config = {'interfaces': {'invalid': True}}
-        c = self.config_model(
+        c = Config(
             device=self._create_device(), backend='netjsonconfig.OpenWrt', config=config
         )
         # ensure django ValidationError is raised
@@ -73,8 +67,8 @@ class TestConfig(
             self.fail('ValidationError not raised')
 
     def test_json(self):
-        dhcp = self.template_model.objects.get(name='dhcp')
-        radio = self.template_model.objects.get(name='radio0')
+        dhcp = Template.objects.get(name='dhcp')
+        radio = Template.objects.get(name='radio0')
         c = self._create_config(
             organization=self._get_org(), config={'general': {'hostname': 'json-test'}}
         )
@@ -115,9 +109,7 @@ class TestConfig(
         # the assignment and raise an exception
         config = {'files': [{'path': '/test', 'mode': '0644', 'contents': 'test'}]}
         config_copy = deepcopy(config)
-        t = self.template_model(
-            name='files', backend='netjsonconfig.OpenWrt', config=config
-        )
+        t = Template(name='files', backend='netjsonconfig.OpenWrt', config=config)
         t.full_clean()
         t.save()
         c = self._create_config(organization=self._get_org(), config=config_copy)
@@ -140,7 +132,7 @@ class TestConfig(
         see issue #5
         https://github.com/openwisp/django-netjsonconfig/issues/5
         """
-        c = self.config_model(device=self._create_device())
+        c = Config(device=self._create_device())
         with self.assertRaises(ValidationError):
             c.full_clean()
         c.backend = 'wrong'
@@ -148,7 +140,7 @@ class TestConfig(
             c.full_clean()
 
     def test_default_status(self):
-        c = self.config_model()
+        c = Config()
         self.assertEqual(c.status, 'modified')
 
     def test_status_modified_after_change(self):
@@ -163,7 +155,7 @@ class TestConfig(
     def test_status_modified_after_templates_changed(self):
         c = self._create_config(organization=self._get_org(), status='applied')
         self.assertEqual(c.status, 'applied')
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         c.templates.add(t)
         c.refresh_from_db()
         self.assertEqual(c.status, 'modified')
@@ -200,7 +192,7 @@ class TestConfig(
                 'mac_address': '{{ mac_address }}',
             }
         }
-        c = self.config_model(
+        c = Config(
             device=self._create_device(name='context-test'),
             backend='netjsonconfig.OpenWrt',
             config=config,
@@ -213,7 +205,7 @@ class TestConfig(
 
     def test_context_setting(self):
         config = {'general': {'vpnserver1': '{{ vpnserver1 }}'}}
-        c = self.config_model(
+        c = Config(
             device=self._create_device(), backend='netjsonconfig.OpenWrt', config=config
         )
         output = c.backend_instance.render()
@@ -238,8 +230,8 @@ class TestConfig(
 
     def test_delete_vpnclient(self):
         self.test_create_vpnclient()
-        c = self.config_model.objects.get(device__name='test-create-cert')
-        t = self.template_model.objects.get(name='test-network')
+        c = Config.objects.get(device__name='test-create-cert')
+        t = Template.objects.get(name='test-network')
         c.templates.remove(t)
         c.save()
         vpnclient = c.vpnclient_set.first()
@@ -248,7 +240,7 @@ class TestConfig(
 
     def test_clear_vpnclient(self):
         self.test_create_vpnclient()
-        c = self.config_model.objects.get(device__name='test-create-cert')
+        c = Config.objects.get(device__name='test-create-cert')
         c.templates.clear()
         c.save()
         vpnclient = c.vpnclient_set.first()
@@ -270,14 +262,14 @@ class TestConfig(
 
     def test_automatically_created_cert_common_name_format(self):
         self.test_create_cert()
-        c = self.config_model.objects.get(device__name='test-create-cert')
+        c = Config.objects.get(device__name='test-create-cert')
         vpnclient = c.vpnclient_set.first()
         expected_cn = app_settings.COMMON_NAME_FORMAT.format(**c.device.__dict__)
         self.assertEqual(vpnclient.cert.common_name, expected_cn)
 
     def test_automatically_created_cert_deleted_post_clear(self):
         self.test_create_cert()
-        c = self.config_model.objects.get(device__name='test-create-cert')
+        c = Config.objects.get(device__name='test-create-cert')
         vpnclient = c.vpnclient_set.first()
         cert = vpnclient.cert
         cert_model = cert.__class__
@@ -287,8 +279,8 @@ class TestConfig(
 
     def test_automatically_created_cert_deleted_post_remove(self):
         self.test_create_cert()
-        c = self.config_model.objects.get(device__name='test-create-cert')
-        t = self.template_model.objects.get(name='test-create-cert')
+        c = Config.objects.get(device__name='test-create-cert')
+        t = Template.objects.get(name='test-create-cert')
         vpnclient = c.vpnclient_set.first()
         cert = vpnclient.cert
         cert_model = cert.__class__
@@ -310,7 +302,7 @@ class TestConfig(
 
     def _get_vpn_context(self):
         self.test_create_cert()
-        c = self.config_model.objects.get(device__name='test-create-cert')
+        c = Config.objects.get(device__name='test-create-cert')
         context = c.get_context()
         vpnclient = c.vpnclient_set.first()
         return context, vpnclient
@@ -409,10 +401,10 @@ class TestConfig(
         self.assertIn(t.name, through)
 
     def test_get_template_model_static(self):
-        self.assertIs(self.config_model.get_template_model(), self.template_model)
+        self.assertIs(Config.get_template_model(), Template)
 
     def test_get_template_model_bound(self):
-        self.assertIs(self.config_model().get_template_model(), self.template_model)
+        self.assertIs(Config().get_template_model(), Template)
 
     def test_remove_duplicate_files(self):
         template1 = self._create_template(
@@ -520,7 +512,7 @@ class TestConfig(
         with catch_signal(config_status_changed) as handler:
             c.save()
             handler.assert_called_once_with(
-                sender=self.config_model, signal=config_status_changed, instance=c,
+                sender=Config, signal=config_status_changed, instance=c,
             )
             self.assertEqual(c.status, 'modified')
 
@@ -547,7 +539,7 @@ class TestConfig(
         with catch_signal(config_modified) as handler:
             c.save()
             handler.assert_called_once_with(
-                sender=self.config_model,
+                sender=Config,
                 signal=config_modified,
                 instance=c,
                 device=c.device,

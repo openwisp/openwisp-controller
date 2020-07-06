@@ -13,8 +13,7 @@ Cert = load_model('pki', 'Cert')
 
 class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     app_label = 'pki'
-    ca_model = Ca
-    cert_model = Cert
+
     operator_permission_filters = [
         {'codename__endswith': 'ca'},
         {'codename__endswith': 'cert'},

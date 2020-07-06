@@ -13,9 +13,6 @@ Cert = load_model('pki', 'Cert')
 
 
 class TestModels(TestPkiMixin, TestOrganizationMixin, TestCase):
-    ca_model = Ca
-    cert_model = Cert
-
     def test_ca_creation_with_org(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
@@ -44,7 +41,7 @@ class TestModels(TestPkiMixin, TestOrganizationMixin, TestCase):
         self.assertEqual(ca.organization.pk, cert.organization.pk)
 
     def test_cert_validate_org_relation_no_rel(self):
-        cert = self.cert_model()
+        cert = Cert()
         with self.assertRaises(ValidationError):
             cert.full_clean()
 

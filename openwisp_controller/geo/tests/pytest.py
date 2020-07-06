@@ -19,6 +19,7 @@ from .utils import TestGeoMixin
 Device = load_model('config', 'Device')
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
+User = get_user_model()
 
 
 @skipIf(os.environ.get('SAMPLE_APP', False), 'Running tests on SAMPLE_APP')
@@ -66,7 +67,7 @@ class TestChannels(TestGeoMixin):
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_consumer_staff_but_no_change_permission(self):
-        user = await database_sync_to_async(self.user_model.objects.create_user)(
+        user = await database_sync_to_async(User.objects.create_user)(
             username='user', password='password', email='test@test.org', is_staff=True
         )
         location = await database_sync_to_async(self._create_location)(is_mobile=True)
@@ -86,7 +87,7 @@ class TestChannels(TestGeoMixin):
             ).first
         )()
         await database_sync_to_async(user.user_permissions.add)(perm)
-        user = await database_sync_to_async(self.user_model.objects.get)(pk=user.pk)
+        user = await database_sync_to_async(User.objects.get)(pk=user.pk)
         request_vars = await self._get_request_dict(user=user, pk=pk)
         communicator = self._get_communicator(request_vars, user)
         connected, _ = await communicator.connect()
@@ -95,7 +96,7 @@ class TestChannels(TestGeoMixin):
         # add user to organization
         await database_sync_to_async(location.organization.add_user)(user)
         await database_sync_to_async(location.organization.save)()
-        user = await database_sync_to_async(self.user_model.objects.get)(pk=user.pk)
+        user = await database_sync_to_async(User.objects.get)(pk=user.pk)
         request_vars = await self._get_request_dict(user=user, pk=pk)
         communicator = self._get_communicator(request_vars, user)
         connected, _ = await communicator.connect()

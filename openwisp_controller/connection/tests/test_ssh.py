@@ -16,11 +16,6 @@ DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
 class TestSsh(CreateConnectionsMixin, TestCase):
-    credentials_model = Credentials
-    device_connection_model = DeviceConnection
-    device_model = Device
-    config_model = Config
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

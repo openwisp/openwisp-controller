@@ -5,7 +5,16 @@ change with care.
 """
 from uuid import uuid4
 
+from swapper import load_model
+
 from ...pki.tests.utils import TestPkiMixin
+
+Config = load_model('config', 'Config')
+Device = load_model('config', 'Device')
+Template = load_model('config', 'Template')
+Vpn = load_model('config', 'Vpn')
+Ca = load_model('pki', 'Ca')
+Cert = load_model('pki', 'Cert')
 
 
 class CreateDeviceMixin(object):
@@ -21,7 +30,7 @@ class CreateDeviceMixin(object):
             os='LEDE Reboot 17.01-SNAPSHOT r3313-c2999ef',
         )
         options.update(kwargs)
-        d = self.device_model(**options)
+        d = Device(**options)
         d.full_clean()
         d.save()
         return d
@@ -46,7 +55,7 @@ class CreateConfigMixin(CreateDeviceMixin):
             options['device'] = self._create_device(
                 organization=self._get_org(), name='test-device'
             )
-        c = self.config_model(**options)
+        c = Config(**options)
         c.full_clean()
         c.save()
         return c
@@ -60,13 +69,16 @@ class CreateTemplateMixin(object):
             'config': {'interfaces': [{'name': 'eth0', 'type': 'ethernet'}]},
         }
         model_kwargs.update(kwargs)
-        t = self.template_model(**model_kwargs)
+        t = Template(**model_kwargs)
         t.full_clean()
         t.save()
         return t
 
 
 class CreateVpnMixin(object):
+    ca_model = Ca
+    cert_model = Cert
+
     _dh = """-----BEGIN DH PARAMETERS-----
 MIGHAoGBAMkiqC2kAkjhysnuBORxJgDMdq3JrvaNh1kZW0IkFiyLRyhtYf92atP4
 ycYELVoRZoRZ8zp2Y2L71vHRNx5okiXZ1xRWDfEVp7TFVc+oCTTRwJqyq21/DJpe
@@ -101,7 +113,7 @@ Qt01H2yL7CvdEUi/gCUJNS9Jm40248nwKgyrwyoS3SjY49CAcEYLAgEC
         options.update(**kwargs)
         if not options['ca']:
             options['ca'] = self._create_ca(**ca_options)
-        vpn = self.vpn_model(**options)
+        vpn = Vpn(**options)
         vpn.full_clean()
         vpn.save()
         return vpn
