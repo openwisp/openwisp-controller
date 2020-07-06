@@ -55,8 +55,7 @@
         (function ($) {
             var urls = {{ default_template_urls| safe }};
             $('#id_organization').change(function () {
-                var value = $(this).val(),
-                    url = urls[value];
+                var url = urls[$(this).val()];
                 // on page load or if value is empty, return here
                 if (!url) {
                     $('input.sortedm2m').prop('checked', false);
@@ -69,8 +68,8 @@
                         $('input.sortedm2m[value=' + uuid + ']').trigger('click');
                     });
                 })
-        });
-    }) (django.jQuery);
+            });
+        }) (django.jQuery);
     </script>
     {% endif %}
     {% endblock %}
