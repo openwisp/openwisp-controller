@@ -3,30 +3,31 @@ var cleanedData,
     getContext,
     evaluateVars,
     cleanData,
-    context_json_valid,
+    isContextValid,
     span = document.createElement('span');
 
 span.setAttribute('style', 'color:red');
 span.setAttribute('id', 'context-error');
 
 getContext = function () {
-    var context_div = document.querySelectorAll(".field-context, .field-default_values")[0];
-    if (context_div && !context_div.querySelector('span')) {
-        context_div.appendChild(span);
+    var contextDiv = document.querySelectorAll('.field-context, .field-default_values')[0];
+    if (contextDiv && !contextDiv.querySelector('span')) {
+        contextDiv.appendChild(span);
     }
-    return document.querySelectorAll("#id_config-0-context, #id_default_values")[0];
+    return document.querySelectorAll('#id_config-0-context, #id_default_values')[0];
 };
 
 // check default_values is valid
-context_json_valid = function () {
+isContextValid = function () {
     var json = getContext();
+    if (!json) { return true; }  // VPN server
     try {
         JSON.parse(json.value);
     } catch (e) {
-        span.innerHTML = "Invalid JSON: " + e.message;
+        span.innerHTML = 'Invalid JSON: ' + e.message;
         return false;
     }
-    span.innerHTML = "";
+    span.innerHTML = '';
     return true;
 }
 
@@ -52,13 +53,10 @@ evaluateVars = function (data, context) {
 
 cleanData = function (data) {
     var json = getContext();
-    if (json && data && context_json_valid()) {
+    if (json && data && isContextValid()) {
         cleanedData = evaluateVars(data, JSON.parse(json.value));
         return cleanedData;
     } else {
         return data;
     }
 };
-
-
-

@@ -167,7 +167,7 @@
         contextField = window.getContext();
         if (contextField) {
             contextField.addEventListener('change', function () {
-                window.context_json_valid();
+                window.isContextValid();
                 if (inFullScreenMode) {
                     advancedEditor.validate();
                 } else {
@@ -183,7 +183,7 @@
         container.find('.advanced-mode').clone().prependTo(header);
         // advanced mode button
         header.find('.advanced-mode').click(function () {
-            if (!window.context_json_valid()) {
+            if (!window.isContextValid()) {
                 alert('Advanced mode does not work when default value field is invalid JSON!');
             } else {
                 // update autogenrated advanced json editor with new data
