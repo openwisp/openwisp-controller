@@ -54,22 +54,21 @@
         // enable default templates - do not remove this comment
         (function ($) {
             var urls = {{ default_template_urls| safe }};
-        orgSelect = $('#id_organization'),
-            initialValue = orgSelect.val(),
-            firstRun = true;
-        orgSelect.change(function () {
-            var value = $(this).val(),
-                url = urls[value];
-            // on page load or if value is empty, return here
-            if (!value || (value === initialValue && firstRun)) { return }
-            firstRun = false;
-            // get default templates of selected org
-            $.get(url).done(function (data) {
-                $('input.sortedm2m').prop('checked', false);
-                $.each(data['default_templates'], function (i, uuid) {
-                    $('input.sortedm2m[value=' + uuid + ']').trigger('click');
-                });
-            })
+            $('#id_organization').change(function () {
+                var value = $(this).val(),
+                    url = urls[value];
+                // on page load or if value is empty, return here
+                if (!url) {
+                    $('input.sortedm2m').prop('checked', false);
+                    return
+                }
+                // get default templates of selected org
+                $.get(url).done(function (data) {
+                    $('input.sortedm2m').prop('checked', false);
+                    $.each(data['default_templates'], function (i, uuid) {
+                        $('input.sortedm2m[value=' + uuid + ']').trigger('click');
+                    });
+                })
         });
     }) (django.jQuery);
     </script>
