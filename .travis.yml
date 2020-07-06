@@ -36,9 +36,9 @@ install:
 
 script:
   - ./run-qa-checks
-  - pytest --cov=openwisp_controller
+  - pytest -c tests/pytest.ini --cov=openwisp_controller
   - coverage run -a --source=openwisp_controller runtests.py
-  - pytest -c pytest.sampleapp.ini
+  - pytest -c tests/pytest.sampleapp.ini
   # SAMPLE tests do not influence coverage, so we can speed up tests with --parallel
   - SAMPLE_APP=1 ./runtests.py --parallel --keepdb
 
