@@ -72,7 +72,7 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
         if not self.cert:
             self.cert = self._auto_create_cert()
         if not self.dh:
-            self.dh = self.dhparam(1024)
+            self.dh = self.dhparam(2048)
         super().save(*args, **kwargs)
 
     @classmethod
@@ -80,7 +80,7 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
         """
         Returns an automatically generated set of DH parameters in PEM
         """
-        return subprocess.check_output(
+        return subprocess.check_output(  # pragma: nocover
             'openssl dhparam {0} 2> /dev/null'.format(length), shell=True
         ).decode('utf-8')
 

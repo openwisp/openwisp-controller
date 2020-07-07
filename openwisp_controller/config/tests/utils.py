@@ -3,6 +3,7 @@ test utilities shared among test classes
 these mixins are reused also in openwisp2
 change with care.
 """
+from unittest import mock
 from uuid import uuid4
 
 from swapper import load_model
@@ -80,10 +81,13 @@ class CreateVpnMixin(object):
     cert_model = Cert
 
     _dh = """-----BEGIN DH PARAMETERS-----
-MIGHAoGBAMkiqC2kAkjhysnuBORxJgDMdq3JrvaNh1kZW0IkFiyLRyhtYf92atP4
-ycYELVoRZoRZ8zp2Y2L71vHRNx5okiXZ1xRWDfEVp7TFVc+oCTTRwJqyq21/DJpe
-Qt01H2yL7CvdEUi/gCUJNS9Jm40248nwKgyrwyoS3SjY49CAcEYLAgEC
------END DH PARAMETERS-----"""
+MIIBCAKCAQEAqzVRdXJ/R4L/sq0bhgCXnFy9M5lOYkux9SIoe8hvrcqNAvJu/V+g
+Xl+pFR8I8Er70E2wIv2b3exThpa3JrJiAdNQaAmZ9pUcJZCqI3dCoJk7UmlIEKPB
+eUGdsrCuqpicJiavhj2ESb2p5tnWCrydgY9Vpr1ZrMoCLVO0wgMrm+MOdnscuMv8
+6bIYReXcA+dQaT4jr/dvemtCV3r7NByMcq5gVqb2enNpq3SEkLLlJC0rHt1ewiHq
+FMbH5wGVnwU3rZf+/kv/ySddQRj9ZeR9LFsXYM0sXJNpd5rO/XZqoI8edVX+lPh8
+UqzLuoNWCyj8KCicbA7tiBxX+2zgQpch8wIBAg==
+-----END DH PARAMETERS-----\n"""
     _vpn_config = {
         'openvpn': [
             {
@@ -101,6 +105,10 @@ Qt01H2yL7CvdEUi/gCUJNS9Jm40248nwKgyrwyoS3SjY49CAcEYLAgEC
         ]
     }
 
+    @mock.patch(
+        'openwisp_controller.config.base.vpn.AbstractVpn.dhparam',
+        mock.MagicMock(return_value=_dh),
+    )
     def _create_vpn(self, ca_options={}, **kwargs):
         options = dict(
             name='test',
