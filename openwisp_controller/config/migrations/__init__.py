@@ -13,12 +13,16 @@ def get_swapped_model(apps, app_name, model_name):
 
 def update_vpn_dhparam_length(apps, schema_editor):
     vpn_model = get_swapped_model(apps, 'config', 'Vpn')
-    for record in vpn_model.objects.all().iterator():
-        if len(record.dh) < 424:
-            record.dh = subprocess.check_output(
+    for vpn in vpn_model.objects.all().iterator():
+        if len(vpn.dh) < 424:
+            print(
+                f'\n  Generating a new 2048 bit DH key for {vpn.name}, this may take a while...',
+                end='',
+            )
+            vpn.dh = subprocess.check_output(
                 'openssl dhparam 2048 2> /dev/null', shell=True
             ).decode('utf-8')
-            record.save()
+            vpn.save()
 
 
 def assign_permissions_to_groups(apps, schema_editor):
