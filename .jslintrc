@@ -14,7 +14,8 @@
     "dismissAddAnotherPopup",
     "FileReader",
     "Image",
-    "L"
+    "L",
+    "setTimeout"
   ],
 
   "adsafe":     false,

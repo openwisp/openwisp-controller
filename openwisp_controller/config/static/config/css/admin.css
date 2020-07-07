@@ -71,6 +71,7 @@ input.readonly{
 #tabs-container { display: none }
 #device_form #loading-overlay { display: flex }
 #device_form #tabs-container { display: block }
+#loading-overlay p{ text-align: center; width: 100%; padding: 0 25px; }
 
 @-webkit-keyframes sk-scaleout {
   0% { -webkit-transform: scale(0) }

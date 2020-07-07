@@ -4,6 +4,7 @@ set -e
 
 # JSLint check
 jslint openwisp_controller/pki/static/pki/js/*.js
+jslint openwisp_controller/config/static/config/js/vpn.js
 
 openwisp-qa-check \
   --migrations-to-ignore "12 0 0 4" \
