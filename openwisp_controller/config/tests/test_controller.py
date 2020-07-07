@@ -755,8 +755,10 @@ class TestController(
         )
         self.assertEqual(response.status_code, 201)
         d = Device.objects.filter(mac_address=TEST_MACADDR, organization=org1).first()
-        self.assertEqual(d.config.templates.filter(name=t1.name).count(), 1)
-        self.assertEqual(d.config.templates.filter(name=t_shared.name).count(), 1)
+        self.assertEqual(d.config.templates.count(), 2)
+        self.assertEqual(d.config.templates.filter(pk=t1.pk).count(), 1)
+        self.assertEqual(d.config.templates.filter(pk=t_shared.pk).count(), 1)
+        self.assertEqual(d.config.templates.filter(pk=t2.pk).count(), 0)
 
     def test_register_400(self):
         self._get_org()
