@@ -9,6 +9,7 @@ from ...tests.utils import TestAdminMixin
 from .utils import CreateConfigTemplateMixin
 
 Template = load_model('config', 'Template')
+User = get_user_model()
 
 
 class TestViews(
@@ -18,11 +19,8 @@ class TestViews(
     tests for config.views
     """
 
-    template_model = Template
-    user_model = get_user_model()
-
     def setUp(self):
-        self.user_model.objects.create_superuser(
+        User.objects.create_superuser(
             username='admin', password='tester', email='admin@admin.com'
         )
 
@@ -32,7 +30,7 @@ class TestViews(
         self.assertIn('error', response.json())
 
     def test_schema_200(self):
-        self.client.force_login(self.user_model.objects.get(username='admin'))
+        self.client.force_login(User.objects.get(username='admin'))
         response = self.client.get(reverse('admin:schema'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('netjsonconfig.OpenWrt', response.json())

@@ -1,11 +1,15 @@
 import os
 
 from mockssh import Server
+from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...config.tests.utils import CreateConfigTemplateMixin
 from .. import settings as app_settings
+
+Credentials = load_model('connection', 'Credentials')
+DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
 class SshServer(Server):
@@ -52,8 +56,8 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         opts = {'name': 'Test credentials'}
         opts.update(**kwargs)
         try:
-            return self.credentials_model.objects.get(**opts)
-        except self.credentials_model.DoesNotExist:
+            return Credentials.objects.get(**opts)
+        except Credentials.DoesNotExist:
             return self._create_credentials(**opts)
 
     def _create_credentials(self, **kwargs):
@@ -65,7 +69,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         opts.update(kwargs)
         if 'organization' not in opts:
             opts['organization'] = self._get_org()
-        c = self.credentials_model(**opts)
+        c = Credentials(**opts)
         c.full_clean()
         c.save()
         return c
@@ -94,7 +98,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         if 'device' not in opts:
             opts['device'] = self._create_device(organization=org)
             self._create_config(device=opts['device'])
-        dc = self.device_connection_model(**opts)
+        dc = DeviceConnection(**opts)
         dc.full_clean()
         dc.save()
         return dc

@@ -19,6 +19,7 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('pki', 'Ca')
 Cert = load_model('pki', 'Cert')
+User = get_user_model()
 
 
 class TestAdmin(
@@ -33,14 +34,6 @@ class TestAdmin(
     """
 
     app_label = 'config'
-    ca_model = Ca
-    cert_model = Cert
-    config_model = Config
-    device_model = Device
-    template_model = Template
-    vpn_model = Vpn
-    user_model = get_user_model()
-
     fixtures = ['test_templates']
     maxDiff = None
     operator_permission_filters = [
@@ -125,7 +118,7 @@ class TestAdmin(
         )
         self._login()
         self.client.post(path, data)
-        queryset = self.device_model.objects.filter(name='testadd')
+        queryset = Device.objects.filter(name='testadd')
         self.assertEqual(queryset.count(), 1)
         device = queryset.first()
         self.assertEqual(device.config.templates.count(), 2)
@@ -136,7 +129,7 @@ class TestAdmin(
     def test_preview_device(self):
         org = self._get_org()
         self._create_template(organization=org)
-        templates = self.template_model.objects.all()
+        templates = Template.objects.all()
         path = reverse(f'admin:{self.app_label}_device_preview')
         config = json.dumps(
             {
@@ -416,7 +409,7 @@ class TestAdmin(
 
     def test_change_device_clean_templates(self):
         o = self._get_org()
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         d = self._create_device(organization=o)
         c = self._create_config(device=d, backend=t.backend, config=t.config)
         path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
@@ -453,7 +446,7 @@ class TestAdmin(
         self.assertEqual(response.status_code, 404)
 
     def test_preview_device_config(self):
-        templates = self.template_model.objects.all()
+        templates = Template.objects.all()
         path = reverse(f'admin:{self.app_label}_device_preview')
         config = json.dumps(
             {
@@ -590,10 +583,8 @@ class TestAdmin(
         self.assertEqual(response.status_code, 400)
 
     def test_preview_device_showerror(self):
-        t1 = self.template_model.objects.get(name='dhcp')
-        t2 = self.template_model(
-            name='t', config=t1.config, backend='netjsonconfig.OpenWrt'
-        )
+        t1 = Template.objects.get(name='dhcp')
+        t2 = Template(name='t', config=t1.config, backend='netjsonconfig.OpenWrt')
         t2.full_clean()
         t2.save()
         templates = [t1, t2]
@@ -618,13 +609,13 @@ class TestAdmin(
         self.assertEqual(response.status_code, 405)
 
     def test_download_template_config(self):
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         path = reverse(f'admin:{self.app_label}_template_download', args=[t.pk])
         response = self.client.get(path)
         self.assertEqual(response.get('content-type'), 'application/octet-stream')
 
     def test_preview_template(self):
-        template = self.template_model.objects.get(name='radio0')
+        template = Template.objects.get(name='radio0')
         path = reverse(f'admin:{self.app_label}_template_preview')
         data = {
             'name': template.name,
@@ -640,9 +631,7 @@ class TestAdmin(
         self.assertNotContains(response, 'hostname')
 
     def test_change_device_404(self):
-        path = reverse(
-            f'admin:{self.app_label}_device_change', args=[self.device_model().pk]
-        )
+        path = reverse(f'admin:{self.app_label}_device_change', args=[Device().pk])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 
@@ -652,7 +641,7 @@ class TestAdmin(
         self.assertEqual(response.status_code, 404)
 
     def test_uuid_field_in_change(self):
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         d = self._create_device()
         c = self._create_config(device=d, backend=t.backend, config=t.config)
         path = reverse(f'admin:{self.app_label}_device_change', args=[c.device.pk])
@@ -661,7 +650,7 @@ class TestAdmin(
         self.assertContains(response, 'field-uuid')
 
     def test_empty_backend_import_error(self):
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         path = reverse(f'admin:{self.app_label}_device_add')
         params = self._get_device_params(org=self._get_org())
         params.update(
@@ -702,7 +691,7 @@ class TestAdmin(
         self.assertContains(response, '<option value="netjsonconfig.OpenWrt" selected')
 
     def test_existing_template_backend(self):
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         t.backend = 'netjsonconfig.OpenWisp'
         t.save()
         path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
@@ -721,7 +710,7 @@ class TestAdmin(
                 }
             },
         )
-        templates = self.template_model.objects.all()
+        templates = Template.objects.all()
         c.templates.add(*templates)
         d = c.device
         data = {
@@ -800,7 +789,7 @@ class TestAdmin(
 
     def test_ip_in_change_device(self):
         d = self._create_device()
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         self._create_config(device=d, backend=t.backend, config=t.config)
         path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
         response = self.client.get(path)
@@ -808,7 +797,7 @@ class TestAdmin(
 
     def test_hardware_id_in_change_device(self):
         d = self._create_device()
-        t = self.template_model.objects.first()
+        t = Template.objects.first()
         self._create_config(device=d, backend=t.backend, config=t.config)
         path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
         response = self.client.get(path)

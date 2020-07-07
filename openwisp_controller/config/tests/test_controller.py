@@ -33,12 +33,6 @@ OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 class TestController(
     CreateConfigTemplateMixin, TestOrganizationMixin, TestVpnX509Mixin, TestCase
 ):
-    config_model = Config
-    device_model = Device
-    template_model = Template
-    org_config_set_model = OrganizationConfigSettings
-    ca_model = Ca
-    vpn_model = Vpn
 
     """
     tests for config.controller
@@ -49,7 +43,7 @@ class TestController(
 
     def _create_org(self, shared_secret=TEST_ORG_SHARED_SECRET, **kwargs):
         org = super()._create_org(**kwargs)
-        self.org_config_set_model.objects.create(
+        OrganizationConfigSettings.objects.create(
             organization=org, shared_secret=shared_secret
         )
         return org
@@ -79,7 +73,7 @@ class TestController(
         with catch_signal(checksum_requested) as handler:
             response = self.client.get(url, {'key': d.key, 'management_ip': '10.0.0.2'})
             handler.assert_called_once_with(
-                sender=self.device_model,
+                sender=Device,
                 signal=checksum_requested,
                 instance=d,
                 request=response.wsgi_request,
@@ -99,7 +93,7 @@ class TestController(
         with catch_signal(config_download_requested) as handler:
             response = self.client.get(url, {'key': d.key, 'management_ip': '10.0.0.2'})
             handler.assert_called_once_with(
-                sender=self.device_model,
+                sender=Device,
                 signal=config_download_requested,
                 instance=d,
                 request=response.wsgi_request,
@@ -157,7 +151,7 @@ class TestController(
         with catch_signal(checksum_requested) as handler:
             response = self.client.get(url, {'key': v.key})
             handler.assert_called_once_with(
-                sender=self.vpn_model,
+                sender=Vpn,
                 signal=checksum_requested,
                 instance=v,
                 request=response.wsgi_request,
@@ -275,13 +269,13 @@ class TestController(
         self.assertEqual(lines[0], 'registration-result: success')
         uuid = lines[1].replace('uuid: ', '')
         key = lines[2].replace('key: ', '')
-        d = self.device_model.objects.get(pk=uuid)
+        d = Device.objects.get(pk=uuid)
         self._check_header(response)
         self.assertEqual(d.key, key)
         self.assertIsNotNone(d.last_ip)
         self.assertEqual(d.mac_address, TEST_MACADDR)
         self.assertEqual(response.status_code, 201)
-        count = self.device_model.objects.filter(
+        count = Device.objects.filter(
             mac_address=TEST_MACADDR, organization=org
         ).count()
         self.assertEqual(count, 1)
@@ -354,7 +348,7 @@ class TestController(
         new = lines[4].replace('is-new: ', '')
         self.assertEqual(new, '1')
         self.assertEqual(key, TEST_CONSISTENT_KEY)
-        d = self.device_model.objects.get(pk=uuid)
+        d = Device.objects.get(pk=uuid)
         self._check_header(response)
         self.assertEqual(d.key, TEST_CONSISTENT_KEY)
         self.assertIsNotNone(d.last_ip)
@@ -382,9 +376,7 @@ class TestController(
         new = lines[4].replace('is-new: ', '')
         self.assertEqual(hostname, d.name)
         self.assertEqual(new, '0')
-        count = self.device_model.objects.filter(
-            pk=uuid, key=key, name=hostname
-        ).count()
+        count = Device.objects.filter(pk=uuid, key=key, name=hostname).count()
         self.assertEqual(count, 1)
 
     def test_device_consistent_registration_exists_no_config(self):
@@ -411,9 +403,7 @@ class TestController(
         new = lines[4].replace('is-new: ', '')
         self.assertEqual(hostname, d.name)
         self.assertEqual(new, '0')
-        count = self.device_model.objects.filter(
-            pk=uuid, key=key, name=hostname
-        ).count()
+        count = Device.objects.filter(pk=uuid, key=key, name=hostname).count()
         self.assertEqual(count, 1)
         d.refresh_from_db()
         self.assertIsNotNone(d.config)
@@ -489,9 +479,7 @@ class TestController(
             )
             d.config.refresh_from_db()
             handler.assert_called_once_with(
-                sender=self.config_model,
-                signal=config_status_changed,
-                instance=d.config,
+                sender=Config, signal=config_status_changed, instance=d.config,
             )
         self._check_header(response)
         d.config.refresh_from_db()
@@ -506,9 +494,7 @@ class TestController(
             )
             d.config.refresh_from_db()
             handler.assert_called_once_with(
-                sender=self.config_model,
-                signal=config_status_changed,
-                instance=d.config,
+                sender=Config, signal=config_status_changed, instance=d.config,
             )
         self._check_header(response)
         d.config.refresh_from_db()
@@ -677,7 +663,7 @@ class TestController(
             }
             response = self.client.post(self.register_url, options)
             self.assertEqual(response.status_code, 400)
-            self.assertEqual(self.device_model.objects.count(), 0)
+            self.assertEqual(Device.objects.count(), 0)
 
     @patch('openwisp_controller.config.settings.CONSISTENT_REGISTRATION', False)
     def test_consistent_registration_disabled(self):
@@ -700,10 +686,8 @@ class TestController(
         new = lines[4].replace('is-new: ', '')
         self.assertEqual(new, '1')
         self.assertNotEqual(key, TEST_CONSISTENT_KEY)
-        self.assertEqual(
-            self.device_model.objects.filter(key=TEST_CONSISTENT_KEY).count(), 0
-        )
-        self.assertEqual(self.device_model.objects.filter(key=key).count(), 1)
+        self.assertEqual(Device.objects.filter(key=TEST_CONSISTENT_KEY).count(), 0)
+        self.assertEqual(Device.objects.filter(key=key).count(), 1)
 
     @patch('openwisp_controller.config.settings.REGISTRATION_ENABLED', False)
     def test_registration_disabled(self):
@@ -745,7 +729,7 @@ class TestController(
         self.assertEqual(lines[0], 'registration-result: success')
         uuid = lines[1].replace('uuid: ', '')
         key = lines[2].replace('key: ', '')
-        created = self.device_model.objects.get(pk=uuid)
+        created = Device.objects.get(pk=uuid)
         self.assertEqual(created.key, key)
         self.assertEqual(created.pk, device.pk)
 
@@ -770,9 +754,7 @@ class TestController(
             },
         )
         self.assertEqual(response.status_code, 201)
-        d = self.device_model.objects.filter(
-            mac_address=TEST_MACADDR, organization=org1
-        ).first()
+        d = Device.objects.filter(mac_address=TEST_MACADDR, organization=org1).first()
         self.assertEqual(d.config.templates.filter(name=t1.name).count(), 1)
         self.assertEqual(d.config.templates.filter(name=t_shared.name).count(), 1)
 
@@ -867,7 +849,7 @@ class TestController(
             },
         )
         self.assertContains(response, 'error: registration disabled', status_code=403)
-        count = self.device_model.objects.filter(
+        count = Device.objects.filter(
             mac_address=TEST_MACADDR, organization=org
         ).count()
         self.assertEqual(count, 0)
@@ -933,7 +915,7 @@ class TestController(
             },
         )
         self.assertEqual(response.status_code, 403)
-        count = self.device_model.objects.filter(
+        count = Device.objects.filter(
             mac_address=TEST_MACADDR, organization=org
         ).count()
         self.assertEqual(count, 0)

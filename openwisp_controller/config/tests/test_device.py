@@ -21,21 +21,18 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     tests for Device model
     """
 
-    config_model = Config
-    device_model = Device
-
     @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_AS_NAME', False)
     def test_str_name(self):
-        d = self.device_model(name='test')
+        d = Device(name='test')
         self.assertEqual(str(d), 'test')
 
     @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_AS_NAME', True)
     def test_str_hardware_id(self):
-        d = self.device_model(name='test', hardware_id='123')
+        d = Device(name='test', hardware_id='123')
         self.assertEqual(str(d), '123')
 
     def test_mac_address_validator(self):
-        d = self.device_model(name='test', key=self.TEST_KEY)
+        d = Device(name='test', key=self.TEST_KEY)
         bad_mac_addresses_list = [
             '{0}:BB:CC'.format(self.TEST_MAC_ADDRESS),
             'AA:BB:CC:11:22033',
@@ -64,7 +61,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
 
     def test_key_validator(self):
 
-        d = self.device_model(
+        d = Device(
             organization=self._get_org(),
             name='test',
             mac_address=self.TEST_MAC_ADDRESS,
@@ -97,22 +94,20 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         self.assertEqual(d.status, c.get_status_display())
 
     def test_config_model(self):
-        d = self.device_model()
-        self.assertIs(d.get_config_model(), self.config_model)
+        d = Device()
+        self.assertIs(d.get_config_model(), Config)
 
     def test_config_model_static(self):
-        self.assertIs(self.device_model.get_config_model(), self.config_model)
+        self.assertIs(Device.get_config_model(), Config)
 
     def test_get_default_templates(self):
         d = self._create_device()
         self.assertEqual(
-            d.get_default_templates().count(),
-            self.config_model().get_default_templates().count(),
+            d.get_default_templates().count(), Config().get_default_templates().count(),
         )
         self._create_config(device=d)
         self.assertEqual(
-            d.get_default_templates().count(),
-            self.config_model().get_default_templates().count(),
+            d.get_default_templates().count(), Config().get_default_templates().count(),
         )
 
     def test_bad_hostnames(self):
@@ -163,11 +158,11 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
 
     def test_get_context_without_config(self):
         d = self._create_device()
-        self.assertEqual(d.get_context(), self.config_model(device=d).get_context())
+        self.assertEqual(d.get_context(), Config(device=d).get_context())
 
     @mock.patch('openwisp_controller.config.settings.CONSISTENT_REGISTRATION', False)
     def test_generate_random_key(self):
-        d = self.device_model(name='test_generate_key', mac_address='00:11:22:33:44:55')
+        d = Device(name='test_generate_key', mac_address='00:11:22:33:44:55')
         self.assertIsNone(d.key)
         # generating key twice shall not yield same result
         self.assertNotEqual(
@@ -178,9 +173,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     @mock.patch('openwisp_controller.config.settings.CONSISTENT_REGISTRATION', True)
     @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_ENABLED', False)
     def test_generate_consistent_key_mac_address(self):
-        device = self.device_model(
-            name='test_generate_key', mac_address='00:11:22:33:44:55'
-        )
+        device = Device(name='test_generate_key', mac_address='00:11:22:33:44:55')
         self.assertIsNone(device.key)
         string = '{}+{}'.format(device.mac_address, TEST_ORG_SHARED_SECRET).encode(
             'utf-8'
@@ -194,7 +187,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     @mock.patch('openwisp_controller.config.settings.CONSISTENT_REGISTRATION', True)
     @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_ENABLED', True)
     def test_generate_consistent_key_mac_hardware_id(self):
-        d = self.device_model(
+        d = Device(
             name='test_generate_key',
             mac_address='00:11:22:33:44:55',
             hardware_id='1234',

@@ -21,16 +21,10 @@ DeviceConnection = load_model('connection', 'DeviceConnection')
 
 class TestModels(CreateConnectionsMixin, TestCase):
     app_label = 'connection'
-    credentials_model = Credentials
-    device_connection_model = DeviceConnection
-    device_model = Device
-    config_model = Config
     _connect_path = 'paramiko.SSHClient.connect'
 
     def test_connection_str(self):
-        c = self.credentials_model(
-            name='Dev Key', connector=app_settings.CONNECTORS[0][0]
-        )
+        c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])
         self.assertIn(c.name, str(c))
         self.assertIn(c.get_connector_display(), str(c))
 
@@ -135,7 +129,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
 
     def test_credentials_connection_missing(self):
         with self.assertRaises(ValidationError) as e:
-            c = self.credentials_model(
+            c = Credentials(
                 name='Test credentials',
                 connector=None,
                 params={'username': 'root', 'password': 'password', 'port': 22},
@@ -246,7 +240,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
         org = Organization.objects.first()
         self._create_device(organization=org)
         self._create_credentials(auto_add=True, organization=None)
-        self.assertEqual(self.credentials_model.objects.count(), 1)
+        self.assertEqual(Credentials.objects.count(), 1)
 
     _exec_command_path = 'paramiko.SSHClient.exec_command'
 
@@ -348,7 +342,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
             instance=dc,
             is_working=True,
             old_is_working=None,
-            sender=self.device_connection_model,
+            sender=DeviceConnection,
             signal=is_working_changed,
         )
 

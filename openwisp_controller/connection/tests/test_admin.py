@@ -16,12 +16,6 @@ DeviceConnection = load_model('connection', 'DeviceConnection')
 class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = 'config'
     app_label = 'connection'
-    template_model = Template
-    credentials_model = Credentials
-    device_connection_model = DeviceConnection
-    device_model = Device
-    config_model = Config
-
     operator_permission_filters = [
         {'codename__endswith': 'config'},
         {'codename__endswith': 'device'},

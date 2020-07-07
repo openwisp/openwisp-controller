@@ -17,6 +17,7 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('pki', 'Ca')
 Cert = load_model('pki', 'Cert')
+User = get_user_model()
 
 
 class TestTemplate(
@@ -26,34 +27,22 @@ class TestTemplate(
     tests for Template model
     """
 
-    ca_model = Ca
-    cert_model = Cert
-    config_model = Config
-    device_model = Device
-    template_model = Template
-    vpn_model = Vpn
-    user_model = get_user_model()
-
     def test_str(self):
-        t = self.template_model(name='test', backend='netjsonconfig.OpenWrt')
+        t = Template(name='test', backend='netjsonconfig.OpenWrt')
         self.assertEqual(str(t), 'test')
 
     def test_backend_class(self):
-        t = self.template_model(name='test', backend='netjsonconfig.OpenWrt')
+        t = Template(name='test', backend='netjsonconfig.OpenWrt')
         self.assertIs(t.backend_class, OpenWrt)
 
     def test_backend_instance(self):
         config = {'general': {'hostname': 'template'}}
-        t = self.template_model(
-            name='test', backend='netjsonconfig.OpenWrt', config=config
-        )
+        t = Template(name='test', backend='netjsonconfig.OpenWrt', config=config)
         self.assertIsInstance(t.backend_instance, OpenWrt)
 
     def test_validation(self):
         config = {'interfaces': {'invalid': True}}
-        t = self.template_model(
-            name='test', backend='netjsonconfig.OpenWrt', config=config
-        )
+        t = Template(name='test', backend='netjsonconfig.OpenWrt', config=config)
         # ensure django ValidationError is raised
         with self.assertRaises(ValidationError):
             t.full_clean()
@@ -78,7 +67,7 @@ class TestTemplate(
             t.save()
             c.refresh_from_db()
             handler.assert_called_once_with(
-                sender=self.config_model, signal=config_status_changed, instance=c,
+                sender=Config, signal=config_status_changed, instance=c,
             )
             self.assertEqual(c.status, 'modified')
 
@@ -102,7 +91,7 @@ class TestTemplate(
             c.templates.add(t)
             c.refresh_from_db()
             handler.assert_called_once_with(
-                sender=self.config_model, signal=config_status_changed, instance=c,
+                sender=Config, signal=config_status_changed, instance=c,
             )
 
     def test_config_modified_signal_always_sent(self):
@@ -113,7 +102,7 @@ class TestTemplate(
         with catch_signal(config_modified) as handler:
             conf.templates.add(temp)
             handler.assert_called_once_with(
-                sender=self.config_model,
+                sender=Config,
                 signal=config_modified,
                 instance=conf,
                 device=conf.device,
@@ -251,7 +240,7 @@ class TestTemplate(
         org = self._get_org()
         t = self._create_template(organization=org, default=True)
         t.save()
-        user = self.user_model.objects.create_superuser(
+        user = User.objects.create_superuser(
             username='admin', password='tester', email='admin@admin.com'
         )
         c = t.clone(user)
@@ -295,10 +284,10 @@ class TestTemplate(
             "config": config,
             "default_values": default_values,
         }
-        temp = self.template_model(**options)
+        temp = Template(**options)
         temp.full_clean()
         temp.save()
-        obj = self.template_model.objects.get(name='test1')
+        obj = Template.objects.get(name='test1')
         self.assertEqual(obj.name, 'test1')
 
     def test_template_with_org(self):
