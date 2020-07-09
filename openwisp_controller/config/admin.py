@@ -61,6 +61,7 @@ class BaseConfigAdmin(BaseAdmin):
     preview_template = None
     actions_on_bottom = True
     save_on_top = True
+    ordering = ['name']
 
     class Media:
         css = {'all': (static('{0}css/admin.css'.format(prefix)),)}
