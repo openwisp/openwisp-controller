@@ -263,7 +263,7 @@ class BaseConfigAdmin(BaseAdmin):
 
 class BaseForm(forms.ModelForm):
     """
-    Adds support for ``NETJSONCONFIG_DEFAULT_BACKEND``
+    Adds support for ``OPENWISP_CONTROLLER_DEFAULT_BACKEND``
     """
 
     if app_settings.DEFAULT_BACKEND:
@@ -545,7 +545,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin):
 
 class VpnForm(forms.ModelForm):
     """
-    Adds support for ``NETJSONCONFIG_DEFAULT_BACKEND``
+    Adds support for ``OPENWISP_CONTROLLER_VPN_BACKENDS``
     """
 
     if app_settings.DEFAULT_VPN_BACKEND:
