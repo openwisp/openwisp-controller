@@ -4,10 +4,7 @@ set -e
 
 
 # JSHint check
-# jslint openwisp_controller/pki/static/pki/js/*.js
 jshint openwisp_controller/pki/static/admin/pki/js/*.js
-
-# jslint openwisp_controller/config/static/config/js/*.js
 jshint openwisp_controller/config/static/config/js/*.js
 
 
