@@ -46,7 +46,7 @@ HARDWARE_ID_OPTIONS = {
     'blank': not HARDWARE_ID_ENABLED,
     'null': True,
     'max_length': 32,
-    'unique': True,
+    'unique': False,
     'verbose_name': _('Serial number'),
     'help_text': _('Serial number of this device'),
 }

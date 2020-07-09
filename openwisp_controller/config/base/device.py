@@ -11,11 +11,6 @@ from .. import settings as app_settings
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
-# if unique attribute for NETJSONCONFIG_HARDWARE_ID_OPTIONS is not
-# explicitely mentioned, consider it to be False
-if not getattr(app_settings, 'NETJSONCONFIG_HARDWARE_ID_OPTIONS', {}).get('unique'):
-    app_settings.HARDWARE_ID_OPTIONS.update({'unique': False})
-
 
 class AbstractDevice(OrgMixin, BaseModel):
     """
