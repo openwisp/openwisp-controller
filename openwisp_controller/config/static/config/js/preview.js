@@ -13,7 +13,7 @@ django.jQuery(function ($) {
         loadingOverlay.show();
         // add id to POST data
         // note: may be overridden by fields of OneToOne relation
-        if ($id.length) { data.id = $id.val(); }
+        if ($id.length) { data.$id = $id.val(); }
         // gather data to send in POST
         fields.each(function (i, field) {
             var $field = $(field),
