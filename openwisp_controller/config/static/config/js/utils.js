@@ -29,7 +29,7 @@ isContextValid = function () {
     }
     span.innerHTML = '';
     return true;
-}
+};
 
 evaluateVars = function (data, context) {
     if (typeof data === 'object') {
