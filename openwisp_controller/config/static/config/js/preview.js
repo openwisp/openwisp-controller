@@ -1,3 +1,4 @@
+"use strict";
 django.jQuery(function ($) {
     var overlay = $('.djnjc-overlay'),
         body = $('body'),

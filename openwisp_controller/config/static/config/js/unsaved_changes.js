@@ -1,3 +1,4 @@
+'use strict';
 (function ($) {
     var form = '#content-main form',
         mapValues = function (object) {

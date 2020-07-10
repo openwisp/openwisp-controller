@@ -1,3 +1,4 @@
+'use strict';
 (function ($) {
     var inFullScreenMode = false,
         oldHeight = 0,

@@ -1,3 +1,5 @@
+'use strict';
+
 var cleanedData,
     pattern = /^\{\{\s*(\w*)\s*\}\}$/g,
     getContext,

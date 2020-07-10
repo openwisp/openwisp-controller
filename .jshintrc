@@ -1,0 +1,14 @@
+  
+{
+    "undef": false,
+    "unused": true,
+    "esversion": 6,
+    "curly": true,
+    "strict": "global",
+    "globals": {
+        "django": true,
+        "gettext": true,
+        "ReconnectingWebSocket": true
+    },
+    "browser": true
+}

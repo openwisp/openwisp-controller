@@ -1,5 +1,6 @@
+'use strict';
 django.jQuery(function ($) {
-  'use strict';
+  
   if ($('.add-form').length || !$('#device_form').length) {
     return;
   }
