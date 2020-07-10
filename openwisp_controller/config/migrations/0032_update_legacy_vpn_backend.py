@@ -1,5 +1,3 @@
-# Manually Create Migration
-
 from django.db import migrations
 
 
