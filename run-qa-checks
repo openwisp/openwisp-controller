@@ -2,7 +2,6 @@
 
 set -e
 
-
 # JSHint check
 jshint openwisp_controller/pki/static/admin/pki/js/*.js
 jshint openwisp_controller/config/static/config/js/*.js
