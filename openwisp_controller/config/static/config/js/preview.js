@@ -54,6 +54,7 @@ django.jQuery(function ($) {
                     if (gettext) { message = gettext(message); }
                     alert(message + ':\n\n' + xhr.responseText);
                 }
+                closePreview();
             });
     };
     var closePreview = function () {
