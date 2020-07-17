@@ -55,7 +55,7 @@ django.jQuery(function ($) {
   $('.tabs-loading').hide();
 
   // open fragment
-  $(window).on('hashchange', function (e) {
+  $(window).on('hashchange', function () {
     showFragment(window.location.hash);
   });
 

@@ -1,5 +1,5 @@
+'use strict';
 django.jQuery(function ($) {
-    'use strict';
     if (!$('.add-form').length) {
         return;
     }
@@ -29,7 +29,7 @@ django.jQuery(function ($) {
         }, 2500);
     };
 
-    $('#vpn_form').submit(function (e) {
+    $('#vpn_form').submit(function () {
         var backendValue = $('#id_backend').val();
         if (backendValue.toLowerCase().indexOf('openvpn') > -1) {
             showOverlay();
