@@ -342,7 +342,15 @@ class ConfigInline(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.StackedI
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
-    list_display = ['name', 'backend', 'config_status', 'ip', 'created', 'modified']
+    list_display = [
+        'name',
+        'backend',
+        'config_status',
+        'mac_address',
+        'ip',
+        'created',
+        'modified',
+    ]
     list_filter = [
         ('organization', MultitenantOrgFilter),
         ('config__templates', MultitenantRelatedOrgFilter),
