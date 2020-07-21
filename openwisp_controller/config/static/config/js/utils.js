@@ -1,3 +1,5 @@
+'use strict';
+
 var cleanedData,
     pattern = /^\{\{\s*(\w*)\s*\}\}$/g,
     getContext,
@@ -29,7 +31,7 @@ isContextValid = function () {
     }
     span.innerHTML = '';
     return true;
-}
+};
 
 evaluateVars = function (data, context) {
     if (typeof data === 'object') {

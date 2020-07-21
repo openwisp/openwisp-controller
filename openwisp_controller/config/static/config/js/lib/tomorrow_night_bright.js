@@ -1,5 +1,5 @@
 ace.define("ace/theme/tomorrow_night_bright",["require","exports","module","ace/lib/dom"], function(acequire, exports, module) {
-
+"use strict";
 exports.isDark = true;
 exports.cssClass = "ace-tomorrow-night-bright";
 exports.cssText = ".ace-tomorrow-night-bright .ace_gutter {\

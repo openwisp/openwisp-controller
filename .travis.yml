@@ -27,7 +27,7 @@ branches:
 
 before_install:
   - pip install -U -r requirements-test.txt
-  - npm install -g jslint
+  - npm install -g jshint
 
 install:
   - pip install -U -e .

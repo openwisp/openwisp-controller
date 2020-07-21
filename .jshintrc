@@ -1,0 +1,16 @@
+{
+    "undef": false,
+    "unused": true,
+    "esversion": 6,
+    "curly": true,
+    "strict": "global",
+    "globals": {
+        "advancedJSONEditor": true,
+        "alert": true,
+        "django": true,
+        "gettext": true,
+        "JSONEditor": true,
+        "ReconnectingWebSocket": true
+    },
+    "browser": true
+}

@@ -1,3 +1,4 @@
+'use strict';
 (function ($) {
     var inFullScreenMode = false,
         oldHeight = 0,
@@ -40,7 +41,7 @@
             mode: 'code',
             theme: 'ace/theme/tomorrow_night_bright',
             indentation: 4,
-            onEditable: function (node) {
+            onEditable: function () {
                 return true;
             },
             onChange: function () {
@@ -303,7 +304,7 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
         el.className = 'grid-column';
         return el;
     },
-    setGridColumnSize: function (el, size) {
+    setGridColumnSize: function (el) {
         return el;
     },
     getLink: function (text) {
@@ -413,7 +414,7 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
         el.setAttribute('type', type);
         return el;
     },
-    afterInputReady: function (input) {
+    afterInputReady: function () {
         return;
     },
     getFormControl: function (label, input, description) {
@@ -522,8 +523,8 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
         input.errmsg.parentNode.style.display = 'none';
         input.parentNode.className = input.parentNode.className.replace(/\s?errors/g, '');
     },
-    addTableRowError: function (row) { return; },
-    removeTableRowError: function (row) { return; },
+    addTableRowError: function () { return; },
+    removeTableRowError: function () { return; },
     getTabHolder: function () {
         var el = document.createElement('div');
         el.innerHTML = "<div style='float: left; width: 130px;' class='tabs'></div><div class='content' style='margin-left: 130px;'></div><div style='clear:both;'></div>";

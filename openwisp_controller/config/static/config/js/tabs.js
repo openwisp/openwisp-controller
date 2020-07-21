@@ -1,5 +1,6 @@
+'use strict';
 django.jQuery(function ($) {
-  'use strict';
+  
   if ($('.add-form').length || !$('#device_form').length) {
     return;
   }
@@ -54,7 +55,7 @@ django.jQuery(function ($) {
   $('.tabs-loading').hide();
 
   // open fragment
-  $(window).on('hashchange', function (e) {
+  $(window).on('hashchange', function () {
     showFragment(window.location.hash);
   });
 
