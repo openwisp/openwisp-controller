@@ -181,6 +181,7 @@ ul.tabs{
     margin: 0;
     padding: 0;
     list-style: none;
+    font-size: 0;
 }
 ul.tabs li{
     display: inline-block;
@@ -196,6 +197,7 @@ ul.tabs a:focus{
     border-radius: 3px;
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0;
+    font-size: 13px;
 }
 
 ul.tabs a:hover,
