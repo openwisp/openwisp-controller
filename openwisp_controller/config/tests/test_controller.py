@@ -12,6 +12,7 @@ from openwisp_utils.tests import catch_signal
 from ..signals import (
     checksum_requested,
     config_download_requested,
+    config_modified,
     config_status_changed,
 )
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
@@ -978,3 +979,22 @@ class TestController(
         c2.refresh_from_db()
         self.assertEqual(c1.device.last_ip, c2.device.last_ip)
         self.assertNotEqual(c1.device.management_ip, c2.device.management_ip)
+
+    def test_config_modified_not_sent_in_registration(self):
+        options = {
+            'hardware_id': '1234',
+            'secret': TEST_ORG_SHARED_SECRET,
+            'name': TEST_MACADDR_NAME,
+            'mac_address': TEST_MACADDR,
+            'backend': 'netjsonconfig.OpenWrt',
+        }
+        org = self._get_org()
+        qs = Device.objects.filter(mac_address=TEST_MACADDR, organization=org)
+        self.assertEqual(qs.count(), 0)
+        # create default template to ensure the config object will be changed
+        self._create_template(name='t1', organization=org, default=True)
+        # ensure config_modified signal not emitted
+        with catch_signal(config_modified) as handler:
+            self.client.post(self.register_url, options)
+            handler.assert_not_called()
+        self.assertEqual(qs.count(), 1)

@@ -34,17 +34,22 @@ class ConfigConfig(AppConfig):
         m2m_changed.connect(
             self.config_model.clean_templates,
             sender=self.config_model.templates.through,
+            dispatch_uid='config.clean_templates',
         )
         m2m_changed.connect(
             self.config_model.templates_changed,
             sender=self.config_model.templates.through,
+            dispatch_uid='config.templates_changed',
         )
         m2m_changed.connect(
             self.config_model.manage_vpn_clients,
             sender=self.config_model.templates.through,
+            dispatch_uid='config.manage_vpn_clients',
         )
         post_delete.connect(
-            self.vpnclient_model.post_delete, sender=self.vpnclient_model
+            self.vpnclient_model.post_delete,
+            sender=self.vpnclient_model,
+            dispatch_uid='vpnclient.post_delete',
         )
 
     def add_default_menu_items(self):

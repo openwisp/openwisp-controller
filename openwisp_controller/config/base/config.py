@@ -69,6 +69,8 @@ class AbstractConfig(BaseConfig):
         load_kwargs={'object_pairs_hook': collections.OrderedDict},
         dump_kwargs={'indent': 4},
     )
+    # for internal usage
+    _just_created = False
 
     class Meta:
         abstract = True
@@ -151,14 +153,15 @@ class AbstractConfig(BaseConfig):
     def templates_changed(cls, action, instance, **kwargs):
         """
         this method is called from a django signal (m2m_changed)
-        see config.apps.DjangoNetjsonconfigApp.connect_signals
+        see config.apps.ConfigConfig.connect_signals
         """
         if action not in ['post_add', 'post_remove', 'post_clear']:
             return
         if instance.status != 'modified':
             instance.set_status_modified()
-        # config modified signal sent regardless
-        else:
+        # send config modified signal only if the
+        # config object hasn't been just created
+        elif not instance._just_created:
             instance._send_config_modified_signal()
 
     @classmethod
@@ -269,6 +272,7 @@ class AbstractConfig(BaseConfig):
 
     def save(self, *args, **kwargs):
         created = self._state.adding
+        self._just_created = created
         result = super().save(*args, **kwargs)
         if created:
             default_templates = self.get_default_templates()

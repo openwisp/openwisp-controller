@@ -98,6 +98,8 @@ class TestTemplate(
         temp = self._create_template()
         conf = self._create_config(device=self._create_device(name='test-status'))
         self.assertEqual(conf.status, 'modified')
+        # refresh instance to reset _just_created attribute
+        conf = Config.objects.get(pk=conf.pk)
 
         with catch_signal(config_modified) as handler:
             conf.templates.add(temp)
