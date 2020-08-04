@@ -168,9 +168,12 @@ div.change-form #device_form > div > div.inline-group{
 }
 
 .change-form #device_form div.inline-group.tab-content > fieldset.module > div.inline-related > h3{
-  margin-top: -1em;
   border-top: 0 none;
   padding: 1em;
+}
+
+.change-form #device_form div.inline-group.tab-content > fieldset.module > div.inline-related:nth-of-type(1) > h3{
+  margin-top: -1em;
 }
 
 .change-form #device_form div.inline-group.tab-content > .tabular{
