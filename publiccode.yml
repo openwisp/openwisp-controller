@@ -2,15 +2,15 @@
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/italia/publiccode.yml
 
-publiccodeYmlVersion: '0.2'
+publiccodeYmlVersion: '0.3'
 name: OpenWISP 2 Controller
 url: 'https://github.com/openwisp/openwisp-controller'
 developmentStatus: stable
 platforms:
   - linux
 softwareType: standalone/web
-releaseDate: '2020-04-02'
-softwareVersion: 0.6.0
+releaseDate: '2020-06-30'
+softwareVersion: 0.7.0
 logo: 'openwisp.org.svg'
 categories:
   - network-management
