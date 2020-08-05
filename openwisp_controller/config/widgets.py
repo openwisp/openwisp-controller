@@ -31,7 +31,8 @@ class JsonSchemaWidget(AdminTextareaWidget):
         }
         return forms.Media(js=js, css=css)
 
-    def render(self, name, value, attrs={}, renderer=None):
+    def render(self, name, value, attrs=None, renderer=None):
+        attrs = attrs or {}
         attrs['class'] = 'vLargeTextField jsoneditor-raw'
         html = """
 <input class="button json-editor-btn-edit advanced-mode" type="button" value="{0}">
