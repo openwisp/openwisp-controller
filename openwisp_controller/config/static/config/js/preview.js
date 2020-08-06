@@ -1,7 +1,7 @@
 "use strict";
 django.jQuery(function ($) {
     var overlay = $('.djnjc-overlay'),
-        body = $('body'),
+        html = $('html'),
         inner = overlay.find('.inner'),
         preview_url = $('.previewlink').attr('data-url');
     var openPreview = function () {
@@ -30,10 +30,10 @@ django.jQuery(function ($) {
             data[name] = $field.val();
         });
         // show preview
-        $.post(preview_url, data, function (html) {
-            inner.html($('#content-main div', html).html());
+        $.post(preview_url, data, function (htmlContent) {
+            inner.html($('#content-main div', htmlContent).html());
             overlay.show();
-            body.css('overflow', 'hidden');
+            html.css('overflow', 'hidden');
             overlay.find('pre').trigger('click');
             // close preview
             overlay.find('.close').click(function (e) {
@@ -61,7 +61,7 @@ django.jQuery(function ($) {
     var closePreview = function () {
         overlay.hide();
         inner.html('');
-        body.attr('style', '');
+        html.attr('style', '');
     };
     $('.previewlink').click(function (e) {
         var configUi = $('#id_config_jsoneditor, #id_config-0-config_jsoneditor'),
