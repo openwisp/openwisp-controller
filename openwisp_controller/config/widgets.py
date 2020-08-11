@@ -12,10 +12,9 @@ class JsonSchemaWidget(AdminTextareaWidget):
 
     @property
     def media(self):
-        prefix = 'config'
         js = [
-            static('{0}/js/{1}'.format(prefix, f))
-            for f in (
+            static(f'config/js/{path}')
+            for path in (
                 'utils.js',
                 'lib/advanced-mode.js',
                 'lib/tomorrow_night_bright.js',
@@ -25,8 +24,8 @@ class JsonSchemaWidget(AdminTextareaWidget):
         ]
         css = {
             'all': [
-                static('{0}/css/{1}'.format(prefix, f))
-                for f in ('lib/jsonschema-ui.css', 'lib/advanced-mode.css')
+                static(f'config/css/{path}')
+                for path in ('lib/jsonschema-ui.css', 'lib/advanced-mode.css')
             ]
         }
         return forms.Media(js=js, css=css)

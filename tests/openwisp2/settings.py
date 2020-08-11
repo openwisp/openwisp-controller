@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'sortedm2m',
     'reversion',
     'leaflet',
+    'flat_json_widget',
     # rest framework
     'rest_framework',
     'rest_framework_gis',

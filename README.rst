@@ -679,14 +679,9 @@ Each device gets the following attributes passed as configuration variables:
 User defined device variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In the device configuration section, you can access the context
-field by clicking on "Advanced Options (show)".
-
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-advanced.png
-   :alt: advanced options (show)
-
-Then you can define the variables as a key, value dictionary (JSON formatted)
-as shown below.
+In the device configuration section you can find a section named
+"Configuration variables" where it is possible to define the configuration
+variables and their values, as shown in the example below:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-context.png
    :alt: context
@@ -706,12 +701,8 @@ This allows to achieve 2 goals:
 These default values will be overridden by the
 `User defined device variables <#user-defined-device-variables>`_.
 
-To do this, click on "Advanced Options (show)" in the edit template page:
-
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/template-advanced.png
-   :alt: advanced options (show)
-
-Then you can define the default values of the variables:
+The default values of variables can be manipulated from the section
+"configuration variables" in the edit template page:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/template-default-values.png
   :alt: default values
