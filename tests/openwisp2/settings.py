@@ -1,10 +1,10 @@
 import os
 import sys
 
-TESTING = sys.argv[1:2] == ['test']
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 DEBUG = True
+TESTING = sys.argv[1:2] == ['test']
+SHELL = 'shell' in sys.argv or 'shell_plus' in sys.argv
 
 ALLOWED_HOSTS = ['*']
 
@@ -136,7 +136,7 @@ else:
 
 LOGGING = {
     'version': 1,
-    'filters': {'require_debug_true': {'()': 'django.utils.log.RequireDebugTrue',}},
+    'filters': {'require_debug_true': {'()': 'django.utils.log.RequireDebugTrue'}},
     'handlers': {
         'console': {
             'level': 'DEBUG',
@@ -144,13 +144,28 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         }
     },
-    # 'loggers': {
-    #     'django.db.backends': {
-    #         'level': 'DEBUG',
-    #         'handlers': ['console'],
-    #     }
-    # }
 }
+
+if not TESTING and SHELL:
+    LOGGING.update(
+        {
+            'loggers': {
+                '': {
+                    # this sets root level logger to log debug and higher level
+                    # logs to console. All other loggers inherit settings from
+                    # root level logger.
+                    'handlers': ['console'],
+                    'level': 'DEBUG',
+                    'propagate': False,
+                },
+                'django.db': {
+                    'level': 'DEBUG',
+                    'handlers': ['console'],
+                    'propagate': False,
+                },
+            }
+        }
+    )
 
 OPENWISP_CONTROLLER_CONTEXT = {'vpnserver1': 'vpn.testdomain.com'}
 
