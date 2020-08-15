@@ -13,7 +13,7 @@ class LocationBroadcast(BaseLocationBroadcast):
         if (
             result
             and not user.is_superuser
-            and ((location.organization.pk,) not in user.organizations_pk)
+            and not user.is_manager(location.organization)
         ):
             return False
         return result

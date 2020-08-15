@@ -507,18 +507,19 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin):
 
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
-        if request.user.is_superuser:
+        user = request.user
+        if user.is_superuser:
             all_orgs = Organization.objects.all()
             if all_orgs.count() > 1:
                 selectable_orgs = all_orgs
-        elif len(request.user.organizations_pk) > 1:
+        elif len(user.organizations_dict.keys()) > 1:
             selectable_orgs = Organization.objects.filter(
-                pk__in=request.user.organizations_pk
+                pk__in=user.organizations_dict.keys()
             )
         if selectable_orgs:
             if request.POST.get('organization'):
                 for template in queryset:
-                    clone = template.clone(request.user)
+                    clone = template.clone(user)
                     clone.organization = Organization.objects.get(
                         pk=request.POST.get('organization')
                     )
@@ -545,7 +546,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin):
             )
         else:
             for template in queryset:
-                clone = template.clone(request.user)
+                clone = template.clone(user)
                 clone.save()
 
     actions = ['clone_selected_templates']

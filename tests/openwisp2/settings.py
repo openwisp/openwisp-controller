@@ -122,7 +122,6 @@ EMAIL_PORT = '1025'  # for testing purposes
 LOGIN_REDIRECT_URL = 'admin:index'
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
 OPENWISP_ORGANIZATON_USER_ADMIN = True  # tests will fail without this setting
-OPENWISP_ORGANIZATON_OWNER_ADMIN = True  # tests will fail without this setting
 
 # during development only
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

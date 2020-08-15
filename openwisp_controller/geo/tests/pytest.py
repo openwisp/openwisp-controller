@@ -20,6 +20,7 @@ Device = load_model('config', 'Device')
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 User = get_user_model()
+OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 @skipIf(os.environ.get('SAMPLE_APP', False), 'Running tests on SAMPLE_APP')
@@ -94,7 +95,9 @@ class TestChannels(TestGeoMixin):
         assert not connected
         await communicator.disconnect()
         # add user to organization
-        await database_sync_to_async(location.organization.add_user)(user)
+        await database_sync_to_async(OrganizationUser.objects.create)(
+            organization=location.organization, user=user, is_admin=True
+        )
         await database_sync_to_async(location.organization.save)()
         user = await database_sync_to_async(User.objects.get)(pk=user.pk)
         request_vars = await self._get_request_dict(user=user, pk=pk)
