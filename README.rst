@@ -161,7 +161,13 @@ and allows to define the geographic coordinates of the devices,
 as well as their indoor coordinates on floorplan images.
 
 This module also provides an API through which mobile devices can update
-their coordinates.
+their coordinates. See below for further details:
+
+.. code-block:: text
+
+    GET /api/v1/device/{id}/location/
+    PUT /api/v1/device/{id}/location/
+
 
 Settings
 --------
