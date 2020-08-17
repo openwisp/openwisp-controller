@@ -1,3 +1,5 @@
+# NOTE: This Docker image is for development purposes only.
+
 version: "3"
 
 services:

@@ -617,6 +617,10 @@ Run quality assurance tests with:
 Install and run on docker
 --------------------------
 
+NOTE: This Docker image is for development purposes only. 
+For the official OpenWISP Docker images, see: `docker-openwisp
+<https://github.com/openwisp/docker-openwisp>`_.
+
 Build from the Dockerfile:
 
 .. code-block:: shell
