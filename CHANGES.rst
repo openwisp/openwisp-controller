@@ -9,8 +9,10 @@ Version 0.8.0 [unreleased]
 - [feature] Added possibility to `extend openwisp-controller <https://github.com/openwisp/openwisp-controller#extending-openwisp-controller>`_
 - [support] Increased minimum `django-x509 <https://github.com/openwisp/django-x509>`_ version to 0.7.0
 - [change] Increased minimum `django-taggit <https://github.com/jazzband/django-taggit>`_ version to 1.3.0
-- [API] Added `API documentation <https://github.com/openwisp/openwisp-controller#geo-app>`_
-
+- [api] Changed API of device_location view for consistency: ``/api/device-location/{id}/``
+  becomes ``/api/v1/device/{id}/location/``, the old URL is kept for backward compatibility
+  but will be removed in the future
+- [api] Added `API documentation <https://github.com/openwisp/openwisp-controller#geo-app>`_
 - improved documentation
 
 Version 0.7.0.post1 [2020-07-01]
