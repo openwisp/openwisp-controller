@@ -18,7 +18,7 @@ Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
-Ca = load_model('pki', 'Ca')
+Ca = load_model('django_x509', 'Ca')
 
 
 class TestConfig(

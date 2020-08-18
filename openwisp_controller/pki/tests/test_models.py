@@ -8,8 +8,8 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .utils import TestPkiMixin
 
-Ca = load_model('pki', 'Ca')
-Cert = load_model('pki', 'Cert')
+Ca = load_model('django_x509', 'Ca')
+Cert = load_model('django_x509', 'Cert')
 
 
 class TestModels(TestPkiMixin, TestOrganizationMixin, TestCase):

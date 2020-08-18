@@ -1,5 +1,6 @@
-from ...migrations import create_default_permissions
 from django.contrib.auth.models import Permission
+
+from ...migrations import create_default_permissions
 
 
 def assign_permissions_to_groups(apps, schema_editor):

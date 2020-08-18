@@ -15,7 +15,9 @@ class AbstractCa(ShareableOrgMixin, BaseCa):
 class AbstractCert(ShareableOrgMixin, BaseCert):
 
     ca = models.ForeignKey(
-        get_model_name('pki', 'Ca'), verbose_name=_('CA'), on_delete=models.CASCADE
+        get_model_name('django_x509', 'Ca'),
+        verbose_name=_('CA'),
+        on_delete=models.CASCADE,
     )
 
     class Meta(BaseCert.Meta):

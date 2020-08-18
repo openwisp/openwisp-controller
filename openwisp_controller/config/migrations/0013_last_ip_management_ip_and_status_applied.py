@@ -1,5 +1,5 @@
-from django.db import migrations, models
 import model_utils.fields
+from django.db import migrations, models
 
 
 def migrate_last_ip_forward(apps, schema_editor):

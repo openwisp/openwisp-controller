@@ -22,12 +22,12 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
         max_length=64, help_text=_('VPN server hostname or ip address')
     )
     ca = models.ForeignKey(
-        get_model_name('pki', 'Ca'),
+        get_model_name('django_x509', 'Ca'),
         verbose_name=_('Certification Authority'),
         on_delete=models.CASCADE,
     )
     cert = models.ForeignKey(
-        get_model_name('pki', 'Cert'),
+        get_model_name('django_x509', 'Cert'),
         verbose_name=_('x509 Certificate'),
         help_text=_('leave blank to create automatically'),
         blank=True,
@@ -189,7 +189,10 @@ class AbstractVpnClient(models.Model):
     )
     vpn = models.ForeignKey(get_model_name('config', 'Vpn'), on_delete=models.CASCADE)
     cert = models.OneToOneField(
-        get_model_name('pki', 'Cert'), on_delete=models.CASCADE, blank=True, null=True
+        get_model_name('django_x509', 'Cert'),
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
     )
     # this flags indicates whether the certificate must be
     # automatically managed, which is going to be almost in all cases
