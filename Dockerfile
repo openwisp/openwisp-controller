@@ -1,3 +1,5 @@
+# NOTE: This Docker image is for development purposes only.
+
 FROM python:3.7.5-slim-buster
 
 RUN apt update && \
