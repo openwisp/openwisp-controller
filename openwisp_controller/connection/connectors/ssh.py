@@ -18,14 +18,39 @@ class Ssh(object):
     schema = {
         '$schema': 'http://json-schema.org/draft-04/schema#',
         'type': 'object',
-        'additionalProperties': False,
-        'required': ['username'],
-        'properties': {
-            'username': {'type': 'string'},
-            'password': {'type': 'string'},
-            'key': {'type': 'string'},
-            'port': {'type': 'integer'},
-        },
+        'title': 'Credentials type',
+        'oneOf': [
+            {
+                'title': 'SSH (password)',
+                'required': ['username', 'password'],
+                'additionalProperties': False,
+                'properties': {
+                    'username': {'type': 'string', 'minLength': 2},
+                    'password': {'type': 'string', 'minLength': 4},
+                    'port': {
+                        'type': 'integer',
+                        'default': 22,
+                        'minimum': 1,
+                        'maximum': 65535,
+                    },
+                },
+            },
+            {
+                'title': 'SSH (private key)',
+                'required': ['username', 'key'],
+                'additionalProperties': False,
+                'properties': {
+                    'username': {'type': 'string'},
+                    'key': {'type': 'string', 'format': 'textarea', 'minLength': 64},
+                    'port': {
+                        'type': 'number',
+                        'default': 22,
+                        'minimum': 1,
+                        'maximum': 65535,
+                    },
+                },
+            },
+        ],
     }
 
     def __init__(self, params, addresses):

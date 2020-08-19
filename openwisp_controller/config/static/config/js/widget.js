@@ -2,8 +2,8 @@
 (function ($) {
     var inFullScreenMode = false,
         oldHeight = 0,
-        oldWidth = 0;
-    var toggleFullScreen = function () {
+        oldWidth = 0,
+    toggleFullScreen = function () {
         var advanced = $('#advanced_editor');
         if (!inFullScreenMode) {
             // store the old height and width of the editor before going to fullscreen mode in order to be able to restore them
@@ -230,25 +230,26 @@
     };
 
     var bindLoadUi = function () {
-        $.getJSON(django._netjsonconfigSchemaUrl, function (schemas) {
+        $.getJSON(django._jsonSchemaWidgetUrl, function (schemas) {
             $('.jsoneditor-raw').each(function (i, el) {
                 var field = $(el),
                     schema = field.attr("data-schema"),
-                    schema_selector = field.attr("data-schema-selector");
+                    schemaSelector = field.attr("data-schema-selector");
                 if (schema !== undefined) {
                     loadUi(el, schema, schemas, true);
                 } else {
-                    if (schema_selector === undefined) {
-                        schema_selector = '#id_backend, #id_config-0-backend';
+                    if (schemaSelector === undefined) {
+                        schemaSelector = '#id_backend, #id_config-0-backend';
                     }
-                    var backend = $(schema_selector);
+                    var selector = $(schemaSelector);
                     // load first time
-                    loadUi(el, backend.val(), schemas, true);
-                    // reload when backend is changed
-                    backend.change(function () {
-                        loadUi(el, backend.val(), schemas);
+                    loadUi(el, selector.val(), schemas, true);
+                    // reload when selector is changed
+                    selector.change(function () {
+                        loadUi(el, selector.val(), schemas);
                     });
                 }
+                $(document).trigger('jsonschema-schemaloaded');
             });
         });
     };

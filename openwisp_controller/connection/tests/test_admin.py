@@ -1,9 +1,13 @@
+import json
+
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ...tests.utils import TestAdminMixin
+from ..connectors.ssh import Ssh
+from ..widgets import CredentialsSchemaWidget
 from .utils import CreateConnectionsMixin
 
 Template = load_model('config', 'Template')
@@ -93,3 +97,29 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             hidden=[str(data['cred2'].name) + str(' (SSH)'), data['cred3_inactive']],
             select_widget=True,
         )
+
+    def test_credentials_jsonschema_widget_presence(self):
+        url = reverse(f'admin:{self.app_label}_credentials_add')
+        schema_url = reverse(CredentialsSchemaWidget.schema_view_name)
+        expected = f'<script>django._jsonSchemaWidgetUrl = "{schema_url}";</script>'
+        self._login()
+        response = self.client.get(url)
+        self.assertContains(response, expected)
+
+    def test_credentials_jsonschema_widget_media(self):
+        widget = CredentialsSchemaWidget()
+        html = widget.media.render()
+        expected_list = [
+            'admin/js/jquery.init.js',
+            'connection/js/credentials.js',
+            'connection/css/credentials.css',
+        ]
+        for expected in expected_list:
+            self.assertIn(expected, html)
+
+    def test_credentials_jsonschema_view(self):
+        url = reverse(CredentialsSchemaWidget.schema_view_name)
+        self._login()
+        response = self.client.get(url)
+        ssh_schema = json.dumps(Ssh.schema)
+        self.assertIn(ssh_schema, response.content.decode('utf8'))
