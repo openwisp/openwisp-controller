@@ -208,13 +208,16 @@ if os.environ.get('SAMPLE_APP', False):
     CONFIG_VPN_MODEL = 'sample_config.Vpn'
     CONFIG_VPNCLIENT_MODEL = 'sample_config.VpnClient'
     CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = 'sample_config.OrganizationConfigSettings'
-    PKI_CA_MODEL = 'sample_pki.Ca'
-    PKI_CERT_MODEL = 'sample_pki.Cert'
+    DJANGO_X509_CA_MODEL = 'sample_pki.Ca'
+    DJANGO_X509_CERT_MODEL = 'sample_pki.Cert'
     GEO_LOCATION_MODEL = 'sample_geo.Location'
     GEO_FLOORPLAN_MODEL = 'sample_geo.FloorPlan'
     GEO_DEVICELOCATION_MODEL = 'sample_geo.DeviceLocation'
     CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
     CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
+else:
+    DJANGO_X509_CA_MODEL = 'pki.Ca'
+    DJANGO_X509_CERT_MODEL = 'pki.Cert'
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:

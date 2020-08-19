@@ -15,8 +15,8 @@ Device = load_model('config', 'Device')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 VpnClient = load_model('config', 'VpnClient')
-Ca = load_model('pki', 'Ca')
-Cert = load_model('pki', 'Cert')
+Ca = load_model('django_x509', 'Ca')
+Cert = load_model('django_x509', 'Cert')
 
 
 class TestVpn(

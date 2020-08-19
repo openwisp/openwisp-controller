@@ -8,8 +8,8 @@ from openwisp_users.multitenancy import MultitenantOrgFilter
 from ..admin import MultitenantAdminMixin
 from .base import PkiReversionTemplatesMixin
 
-Ca = load_model('pki', 'Ca')
-Cert = load_model('pki', 'Cert')
+Ca = load_model('django_x509', 'Ca')
+Cert = load_model('django_x509', 'Cert')
 
 
 @admin.register(Ca)

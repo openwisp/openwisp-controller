@@ -1,8 +1,9 @@
-from ...migrations import create_default_permissions
-from django.contrib.auth.models import Permission
+import subprocess
 
 import swapper
-import subprocess
+from django.contrib.auth.models import Permission
+
+from ...migrations import create_default_permissions
 
 
 def get_swapped_model(apps, app_name, model_name):

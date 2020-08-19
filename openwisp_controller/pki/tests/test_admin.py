@@ -7,8 +7,8 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from ...tests.utils import TestAdminMixin
 from .utils import TestPkiMixin
 
-Ca = load_model('pki', 'Ca')
-Cert = load_model('pki', 'Cert')
+Ca = load_model('django_x509', 'Ca')
+Cert = load_model('django_x509', 'Cert')
 
 
 class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):

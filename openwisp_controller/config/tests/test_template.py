@@ -15,8 +15,8 @@ Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
-Ca = load_model('pki', 'Ca')
-Cert = load_model('pki', 'Cert')
+Ca = load_model('django_x509', 'Ca')
+Cert = load_model('django_x509', 'Cert')
 User = get_user_model()
 
 

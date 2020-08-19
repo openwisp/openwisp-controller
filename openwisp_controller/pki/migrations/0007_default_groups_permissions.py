@@ -1,4 +1,5 @@
 from django.db import migrations
+
 from . import assign_permissions_to_groups
 
 

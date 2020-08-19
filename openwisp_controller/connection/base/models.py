@@ -180,7 +180,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         dump_kwargs={'indent': 4},
     )
     # usability improvements
-    is_working = models.NullBooleanField(default=None)
+    is_working = models.BooleanField(null=True, blank=True, default=None)
     failure_reason = models.CharField(
         _('reason of failure'), max_length=128, blank=True
     )
