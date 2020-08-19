@@ -299,3 +299,10 @@ div.jsoneditor .inline-related h3 {
 }
 
 #config-0.inline-related{ position: static }
+
+.jsoneditor-wrapper div[data-schemaid="root"] > label:first-of-type,
+.jsoneditor-wrapper div[data-schemaid="root"] > select:first-of-type {
+    position: relative;
+    bottom: -52px;
+    z-index: 99;
+}
