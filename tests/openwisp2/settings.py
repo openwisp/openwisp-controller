@@ -216,8 +216,10 @@ if os.environ.get('SAMPLE_APP', False):
     CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
     CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
 else:
-    DJANGO_X509_CA_MODEL = 'pki.Ca'
-    DJANGO_X509_CERT_MODEL = 'pki.Cert'
+    # not needed, these are the default values, left here only for example purposes
+    # DJANGO_X509_CA_MODEL = 'pki.Ca'
+    # DJANGO_X509_CERT_MODEL = 'pki.Cert'
+    pass
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
