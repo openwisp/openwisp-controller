@@ -19,7 +19,11 @@ class Migration(migrations.Migration):
             field=jsonfield.fields.JSONField(
                 blank=True,
                 dump_kwargs={'indent': 4},
-                help_text='Additional <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html#context" target="_blank">context (configuration variables)</a> in JSON format',
+                help_text=(
+                    'Additional <a href="http://netjsonconfig.openwisp.org'
+                    '/en/stable/general/basics.html#context" target="_blank">context '
+                    '(configuration variables)</a> in JSON format'
+                ),
                 load_kwargs={'object_pairs_hook': collections.OrderedDict},
                 null=True,
             ),

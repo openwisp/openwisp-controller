@@ -88,7 +88,11 @@ class Migration(migrations.Migration):
             name='tags',
             field=taggit.managers.TaggableManager(
                 blank=True,
-                help_text='A comma-separated list of template tags, may be used to ease auto configuration with specific settings (eg: 4G, mesh, WDS, VPN, ecc.)',
+                help_text=(
+                    'A comma-separated list of template tags, may '
+                    'be used to ease auto configuration with specific '
+                    'settings (eg: 4G, mesh, WDS, VPN, ecc.)'
+                ),
                 through='config.TaggedTemplate',
                 to='config.TemplateTag',
                 verbose_name='Tags',

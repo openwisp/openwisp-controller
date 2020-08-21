@@ -8,7 +8,6 @@ import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
 import swapper
-from django.conf import settings
 from django.db import migrations, models
 
 import openwisp_users.mixins
@@ -20,7 +19,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('openwisp_users', '0001_initial'),
-        migrations.swappable_dependency(settings.CONFIG_DEVICE_MODEL),
         swapper.dependency('config', 'Device'),
     ]
 
@@ -126,7 +124,10 @@ class Migration(migrations.Migration):
                         blank=True,
                         choices=[
                             (
-                                'openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt',
+                                (
+                                    'openwisp_controller.connection.connectors'
+                                    '.openwrt.ssh.OpenWrt'
+                                ),
                                 'OpenWRT SSH',
                             )
                         ],
@@ -143,7 +144,10 @@ class Migration(migrations.Migration):
                         blank=True,
                         default=dict,
                         dump_kwargs={'indent': 4},
-                        help_text='local connection parameters (will override the global parameters if specified)',
+                        help_text=(
+                            'local connection parameters (will override '
+                            'the global parameters if specified)'
+                        ),
                         load_kwargs={'object_pairs_hook': collections.OrderedDict},
                         verbose_name='parameters',
                     ),

@@ -63,7 +63,10 @@ class Migration(migrations.Migration):
                             django.core.validators.RegexValidator(
                                 re.compile('^[^\\s/\\.]+$'),
                                 code='invalid',
-                                message='This value must not contain spaces, dots or slashes.',
+                                message=(
+                                    'This value must not contain spaces, dots or '
+                                    'slashes.'
+                                ),
                             )
                         ],
                     ),
@@ -111,7 +114,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={'abstract': False,},
+            options={'abstract': False},
         ),
         migrations.AddField(
             model_name='config',

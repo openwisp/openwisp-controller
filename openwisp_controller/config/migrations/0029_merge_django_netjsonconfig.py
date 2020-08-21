@@ -22,7 +22,9 @@ class Migration(migrations.Migration):
                 validators=[
                     django.core.validators.RegexValidator(
                         re.compile(
-                            '^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])(\\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]))*$|^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+                            '^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])'
+                            '(\\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}'
+                            '[a-zA-Z0-9]))*$|^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
                         ),
                         code='invalid',
                         message='Must be either a valid hostname or mac address.',
