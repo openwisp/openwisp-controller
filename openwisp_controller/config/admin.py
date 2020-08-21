@@ -461,7 +461,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
 if not app_settings.BACKEND_DEVICE_LIST:  # pragma: nocover
     DeviceAdmin.list_display.remove('backend')
-    DeviceAdmin.list_filter.remove('config__backend')
 
 
 class CloneOrganizationForm(forms.Form):
