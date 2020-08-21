@@ -745,7 +745,6 @@ div.jsoneditor-menu {
   box-sizing: border-box;
   color: white;
   background-color: #3883fa;
-  border-bottom: 1px solid #3883fa;
 }
 
 div.jsoneditor-menu > button,
@@ -844,7 +843,6 @@ div.jsoneditor-menu a:hover {
 }
 
 div.jsoneditor-menu a.jsoneditor-exit {
-  font-size: 8pt;
   position: absolute;
   right: 0;
   top: 0;
@@ -950,14 +948,15 @@ table.jsoneditor-search button.jsoneditor-previous:hover {
 .jsoneditor-text-errors td pre{ margin: 0 }
 
 .full-screen{
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  padding-left: 0px;
-  padding-right: 0px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
   background-color: #ffffff;
-  width: 100%;
-  z-index: 9;
+  z-index: 10000;
 }
 
 .editor-full{
@@ -969,7 +968,6 @@ table.jsoneditor-search button.jsoneditor-previous:hover {
 }
 
 .jsoneditor-menu label{
-  margin-left: 10px;
   color: #fff !important;
   line-height: 28px;
   padding: 0;
@@ -979,4 +977,14 @@ table.jsoneditor-search button.jsoneditor-previous:hover {
 .jsoneditor-menu label a{
   font-weight: bold;
   color: #fff !important;
+}
+
+.jsoneditor-menu #netjsonconfig-hint-advancedmode{
+  padding: 0;
+  font-size: 13px;
+}
+@media (max-width: 768px){
+  .jsoneditor-menu #netjsonconfig-hint-advancedmode{
+    display: none;
+  }
 }

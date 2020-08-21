@@ -1,31 +1,19 @@
 'use strict';
 (function ($) {
     var inFullScreenMode = false,
-        oldHeight = 0,
-        oldWidth = 0,
     toggleFullScreen = function () {
         var advanced = $('#advanced_editor');
         if (!inFullScreenMode) {
-            // store the old height and width of the editor before going to fullscreen mode in order to be able to restore them
-            oldHeight = advanced.height();
-            oldWidth = advanced.width();
-            advanced.addClass('full-screen').height($(window).height()).width(window.outerWidth);
-            $('body').addClass('editor-full');
-            $(window).resize(function () {
-                advanced.height($(window).height()).width(window.outerWidth);
-            });
+            advanced.addClass('full-screen');
+            $('html').addClass('editor-full');
             inFullScreenMode = true;
             advanced.find('.jsoneditor-menu a').show();
             advanced.find('.jsoneditor-menu label').show();
-            window.scrollTo(0, 0);
         }
         else {
-            advanced.removeClass('full-screen').height(oldHeight).width(oldWidth);
-            $('body').removeClass('editor-full');
-            // unbind all events listened to while going to full screen mode
-            $(window).unbind('resize');
+            advanced.removeClass('full-screen');
+            $('html').removeClass('editor-full');
             inFullScreenMode = false;
-            document.getElementById('advanced_editor').scrollIntoView(true);
             advanced.find('.jsoneditor-menu a').hide();
             advanced.find('.jsoneditor-menu label').hide();
         }
@@ -65,6 +53,12 @@
             .append(advanced.parents('.field-config').find('#netjsonconfig-hint')
                 .clone(true)
                 .attr('id', 'netjsonconfig-hint-advancedmode'));
+        // hide on esc button
+        $('html').on('keydown', function (e) {
+            if (inFullScreenMode && e.keyCode === 27) { // ESC
+                $('#advanced_editor').find('.jsoneditor-exit').click();
+            }
+        });
         return editor;
     };
 
