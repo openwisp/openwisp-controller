@@ -1,0 +1,69 @@
+from django.apps.registry import apps
+from django.test import TestCase
+from openwisp_notifications.types import unregister_notification_type
+from swapper import load_model
+
+from openwisp_controller.config.tests.utils import CreateConfigMixin
+from openwisp_users.tests.utils import TestOrganizationMixin
+
+from ..signals import device_registered
+
+Config = load_model('config', 'Config')
+Notification = load_model('openwisp_notifications', 'Notification')
+
+notification_qs = Notification.objects.all()
+
+
+class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
+    def setUp(self):
+        self.admin = self._get_admin()
+
+    def test_config_problem_notification(self):
+        config = self._create_config()
+        config.set_status_error()
+
+        self.assertEqual(config.status, 'error')
+        self.assertEqual(notification_qs.count(), 1)
+        notification = notification_qs.first()
+        self.assertEqual(notification.actor, config)
+        self.assertEqual(notification.target, config.device)
+        self.assertEqual(notification.type, 'config_error')
+        self.assertEqual(
+            notification.email_subject,
+            f'[example.com] ERROR: "{config.device}"'
+            ' configuration encountered an error',
+        )
+        self.assertIn('encountered an error', notification.message)
+
+    def test_device_registered(self):
+        # To avoid adding repetitive code for registering a device,
+        # we simulate that "device_registered" signal is emitted
+        config = self._create_config()
+        device = config.device
+        device_registered.send(sender=Config, instance=config.device)
+
+        self.assertEqual(notification_qs.count(), 1)
+        notification = notification_qs.first()
+        self.assertEqual(notification.actor, device)
+        self.assertEqual(notification.target, device)
+        self.assertEqual(notification.type, 'device_registered')
+        self.assertEqual(
+            notification.email_subject,
+            f'[example.com] SUCCESS: "{device}" registered successfully',
+        )
+        self.assertIn('registered successfully', notification.message)
+
+    def test_default_notification_type_already_unregistered(self):
+        # Simulates if 'default notification type is already unregistered
+        # by some other module
+
+        # Unregister "config_error" and "device_registered" notification
+        # types to avoid getting rasing ImproperlyConfigured exceptions
+        unregister_notification_type('config_error')
+        unregister_notification_type('device_registered')
+
+        # This will try to unregister 'default' notification type
+        # which is already got unregistered when Django loaded.
+        # No exception should be raised as the exception is already handled.
+        app = apps.get_app_config('config')
+        app.ready()
