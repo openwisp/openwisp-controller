@@ -13,6 +13,10 @@ addons:
       - spatialite-bin
       - libsqlite3-mod-spatialite
 
+services:
+  - docker
+  - redis-server
+
 python:
   - "3.6"
   - "3.7"

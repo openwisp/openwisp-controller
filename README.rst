@@ -61,6 +61,8 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
   of the state of the network
 - `openwisp-ipam <https://github.com/openwisp/openwisp-ipam>`_:
   it allows to manage the IP address space of networks
+- `openwisp-notifications <https://github.com/openwisp/openwisp-notifications>`_:
+  it allows to create and manage notifications from the network.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp2-docs/master/assets/design/openwisp-logo-black.svg
   :target: http://openwisp.org
@@ -561,6 +563,17 @@ their hardware ID instead of their name.
 
 If you still want to reference devices by their name, set this to ``False``.
 
+Default Alerts / Notifications
+------------------------------
+
++-----------------------+---------------------------------------------------------------------+
+| Notification Type     | Use                                                                 |
++-----------------------+---------------------------------------------------------------------+
+| ``config_error``      | Fires when status of a device configuration changes to  ``error``.  |
++-----------------------+---------------------------------------------------------------------+
+| ``device_registered`` | Fires when a new device is registered automatically on the network. |
++-----------------------+---------------------------------------------------------------------+
+
 Installing for development
 --------------------------
 
@@ -879,14 +892,30 @@ This signal is emitted once the device gets registered automatically through the
 Setup (Integrate into other Apps)
 ---------------------------------
 
-Add ``openwisp_controller`` to ``INSTALLED_APPS``:
+Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
 
 .. code-block:: python
 
     INSTALLED_APPS = [
-        # other apps
-        'openwisp_controller',
+        ...
+        # openwisp2 modules
+        'openwisp_controller.config',
+        'openwisp_controller.pki',
+        'openwisp_controller.geo',
+        'openwisp_controller.connection',
+        'openwisp_controller.notifications',
+        'openwisp_users',
+        'openwisp_notifications',
+        # openwisp2 admin theme
+        # (must be loaded here)
+        'openwisp_utils.admin_theme',
+        'django.contrib.admin',
+        'django.forms',
+        ...
     ]
+
+**Note**: The order of applications in ``INSTALLED_APPS`` should be maintained,
+otherwise it might not work properly.
 
 Add the URLs to your main ``urls.py``:
 
@@ -903,6 +932,9 @@ Then run:
 .. code-block:: shell
 
     ./manage.py migrate
+
+**Note**: In order to properly configure notifications for your project,
+please follow `setup guide of openwisp-notifications <https://github.com/openwisp/openwisp-notifications#setup-integrate-into-an-existing-django-project>`_.
 
 Extending openwisp-controller
 -----------------------------
@@ -1441,6 +1473,17 @@ is required only when you want to make changes in the geo API,
 Remember to change ``geo_views`` location in ``urls.py`` in point 11 for extending views.
 
 For more information about django views, please refer to the `views section in the django documentation <https://docs.djangoproject.com/en/dev/topics/http/views/>`_.
+
+Registering new notification types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can define your own notification types using ``register_notification_type`` function from OpenWISP
+Notifications. For more information, see the relevant
+`documentation section about registering notification types in openwisp-notifications <https://github.com/openwisp/openwisp-notifications#registering--unregistering-notification-types>`_.
+
+Once a new notification type is registered, you have to use the `"notify" signal provided in
+openwisp-notifications <https://github.com/openwisp/openwisp-notifications#sending-notifications>`_
+to send notifications for this type.
 
 Talks
 -----

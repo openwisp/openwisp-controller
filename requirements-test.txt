@@ -1,4 +1,6 @@
 coveralls
+channels_redis~=3.1
+django_redis~=4.12
 openwisp-utils[qa]~=0.6.0
 pytest~=6.0
 pytest-django>=3.8.0,<4.0.0
