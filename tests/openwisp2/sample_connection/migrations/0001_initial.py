@@ -77,7 +77,11 @@ class Migration(migrations.Migration):
                     'auto_add',
                     models.BooleanField(
                         default=False,
-                        help_text='automatically add these credentials to the devices of this organization; if no organization is specified will be added to all the new devices',
+                        help_text=(
+                            'automatically add these credentials to the '
+                            'devices of this organization; if no organization is '
+                            'specified will be added to all the new devices'
+                        ),
                         verbose_name='auto add',
                     ),
                 ),
@@ -138,7 +142,10 @@ class Migration(migrations.Migration):
                         blank=True,
                         choices=[
                             (
-                                'openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt',
+                                (
+                                    'openwisp_controller.connection.connectors.'
+                                    'openwrt.ssh.OpenWrt'
+                                ),
                                 'OpenWRT SSH',
                             )
                         ],
@@ -155,7 +162,10 @@ class Migration(migrations.Migration):
                         blank=True,
                         default=dict,
                         dump_kwargs={'indent': 4},
-                        help_text='local connection parameters (will override the global parameters if specified)',
+                        help_text=(
+                            'local connection parameters (will override the '
+                            'global parameters if specified)'
+                        ),
                         load_kwargs={'object_pairs_hook': collections.OrderedDict},
                         verbose_name='parameters',
                     ),

@@ -49,7 +49,11 @@ class Migration(migrations.Migration):
                             ('netjsonconfig.OpenWrt', 'OpenWRT'),
                             ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
                         ],
-                        help_text='Select <a href="http://netjsonconfig.openwisp.org/en/stable/" target="_blank">netjsonconfig</a> backend',
+                        help_text=(
+                            'Select <a href="http://netjsonconfig.openwisp.org'
+                            '/en/stable/" target="_blank">netjsonconfig</a> '
+                            'backend'
+                        ),
                         max_length=128,
                         verbose_name='backend',
                     ),
@@ -90,7 +94,11 @@ class Migration(migrations.Migration):
                             ('error', 'error'),
                         ],
                         default='modified',
-                        help_text='modified means the configuration is not applied yet; running means applied and running; error means the configuration caused issues and it was rolledback',
+                        help_text=(
+                            'modified means the configuration is not applied '
+                            'yet; running means applied and running; error means the '
+                            'configuration caused issues and it was rolledback'
+                        ),
                         max_length=100,
                         no_check_for_status=True,
                     ),
@@ -100,7 +108,9 @@ class Migration(migrations.Migration):
                     models.CharField(
                         db_index=True,
                         default=openwisp_utils.utils.get_random_key,
-                        help_text='unique key that can be used to download the configuration',
+                        help_text=(
+                            'unique key that can be used to download the configuration'
+                        ),
                         max_length=64,
                         unique=True,
                         validators=[
@@ -133,7 +143,11 @@ class Migration(migrations.Migration):
                     'last_ip',
                     models.GenericIPAddressField(
                         blank=True,
-                        help_text='indicates the last ip from which the configuration was downloaded from (except downloads from this page)',
+                        help_text=(
+                            'indicates the last ip from which the '
+                            'configuration was downloaded from (except '
+                            'downloads from this page)'
+                        ),
                         null=True,
                     ),
                 ),
@@ -168,7 +182,10 @@ class Migration(migrations.Migration):
                     'registration_enabled',
                     models.BooleanField(
                         default=True,
-                        help_text='Whether automatic registration of devices is enabled or not',
+                        help_text=(
+                            'Whether automatic registration of devices is '
+                            'enabled or not'
+                        ),
                         verbose_name='auto-registration enabled',
                     ),
                 ),
@@ -184,7 +201,10 @@ class Migration(migrations.Migration):
                             django.core.validators.RegexValidator(
                                 re.compile('^[^\\s/\\.]+$'),
                                 code='invalid',
-                                message='This value must not contain spaces, dots or slashes.',
+                                message=(
+                                    'This value must not contain spaces, dots '
+                                    'or slashes.'
+                                ),
                             )
                         ],
                         verbose_name='shared secret',
@@ -225,7 +245,10 @@ class Migration(migrations.Migration):
                             ('netjsonconfig.OpenWrt', 'OpenWRT'),
                             ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
                         ],
-                        help_text='Select <a href="http://netjsonconfig.openwisp.org/en/stable/" target="_blank">netjsonconfig</a> backend',
+                        help_text=(
+                            'Select <a href="http://netjsonconfig.openwisp.org'
+                            '/en/stable/" target="_blank">netjsonconfig</a> backend'
+                        ),
                         max_length=128,
                         verbose_name='backend',
                     ),
@@ -263,7 +286,9 @@ class Migration(migrations.Migration):
                         choices=[('generic', 'Generic'), ('vpn', 'VPN-client')],
                         db_index=True,
                         default='generic',
-                        help_text='template type, determines which features are available',
+                        help_text=(
+                            'template type, determines which features are available'
+                        ),
                         max_length=16,
                         verbose_name='type',
                     ),
@@ -273,7 +298,10 @@ class Migration(migrations.Migration):
                     models.BooleanField(
                         db_index=True,
                         default=False,
-                        help_text='whether new configurations will have this template enabled by default',
+                        help_text=(
+                            'whether new configurations will have this '
+                            'template enabled by default'
+                        ),
                         verbose_name='enabled by default',
                     ),
                 ),
@@ -281,8 +309,14 @@ class Migration(migrations.Migration):
                     'auto_cert',
                     models.BooleanField(
                         db_index=True,
-                        default=openwisp_controller.config.base.template.default_auto_cert,
-                        help_text='whether x509 client certificates should be automatically managed behind the scenes for each configuration using this template, valid only for the VPN type',
+                        default=(
+                            openwisp_controller.config.base.template.default_auto_cert
+                        ),
+                        help_text=(
+                            'whether x509 client certificates should be automatically '
+                            'managed behind the scenes for each configuration '
+                            'using this template, valid only for the VPN type'
+                        ),
                         verbose_name='auto certificate',
                     ),
                 ),

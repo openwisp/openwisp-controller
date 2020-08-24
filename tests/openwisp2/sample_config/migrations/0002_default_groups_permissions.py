@@ -1,4 +1,3 @@
-from django.contrib.auth.models import Permission
 from django.db import migrations
 
 from openwisp_controller.config.migrations import assign_permissions_to_groups

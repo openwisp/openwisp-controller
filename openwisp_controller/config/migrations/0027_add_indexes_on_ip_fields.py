@@ -16,7 +16,10 @@ class Migration(migrations.Migration):
             field=models.GenericIPAddressField(
                 blank=True,
                 db_index=True,
-                help_text='indicates the IP address logged from the last request coming from the device',
+                help_text=(
+                    'indicates the IP address logged from the '
+                    'last request coming from the device'
+                ),
                 null=True,
             ),
         ),

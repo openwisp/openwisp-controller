@@ -52,7 +52,10 @@ class Migration(migrations.Migration):
             name='last_ip',
             field=models.GenericIPAddressField(
                 blank=True,
-                help_text='indicates the IP address logged from the last request coming from the device',
+                help_text=(
+                    'indicates the IP address logged from the last '
+                    'request coming from the device'
+                ),
                 null=True,
             ),
         ),
@@ -73,7 +76,12 @@ class Migration(migrations.Migration):
             field=model_utils.fields.StatusField(
                 choices=[(0, 'dummy')],
                 default='modified',
-                help_text='"modified" means the configuration is not applied yet; \n"applied" means the configuration is applied successfully; \n"error" means the configuration caused issues and it was rolled back;',
+                help_text=(
+                    '"modified" means the configuration is not applied yet; '
+                    '\n"applied" means the configuration is applied successfully; '
+                    '\n"error" means the configuration caused issues and it '
+                    'was rolled back;'
+                ),
                 max_length=100,
                 no_check_for_status=True,
                 verbose_name='configuration status',

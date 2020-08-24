@@ -17,7 +17,10 @@ def update_vpn_dhparam_length(apps, schema_editor):
     for vpn in vpn_model.objects.all().iterator():
         if len(vpn.dh) < 424:
             print(
-                f'\n  Generating a new 2048 bit DH key for {vpn.name}, this may take a while...',
+                (
+                    '\n  Generating a new 2048 bit DH key for '
+                    f'{vpn.name}, this may take a while...'
+                ),
                 end='',
             )
             vpn.dh = subprocess.check_output(

@@ -8,7 +8,6 @@ import django.utils.timezone
 import django_loci.storage
 import model_utils.fields
 import swapper
-from django.conf import settings
 from django.db import migrations, models
 
 import openwisp_users.mixins
@@ -20,7 +19,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('openwisp_users', '0001_initial'),
-        migrations.swappable_dependency(settings.CONFIG_DEVICE_MODEL),
         swapper.dependency('config', 'Device'),
     ]
 
@@ -70,7 +68,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={'abstract': False,},
+            options={'abstract': False},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.CreateModel(
@@ -112,7 +110,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={'abstract': False,},
+            options={'abstract': False},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.CreateModel(
@@ -146,7 +144,10 @@ class Migration(migrations.Migration):
                 (
                     'name',
                     models.CharField(
-                        help_text='A descriptive name of the location (building name, company name, etc.)',
+                        help_text=(
+                            'A descriptive name of the location '
+                            '(building name, company name, etc.)'
+                        ),
                         max_length=75,
                         verbose_name='name',
                     ),
@@ -157,15 +158,23 @@ class Migration(migrations.Migration):
                         choices=[
                             (
                                 'outdoor',
-                                'Outdoor environment (eg: street, square, garden, land)',
+                                (
+                                    'Outdoor environment (eg: street, square, garden, '
+                                    'land)'
+                                ),
                             ),
                             (
                                 'indoor',
-                                'Indoor environment (eg: building, roofs, subway, large vehicles)',
+                                (
+                                    'Indoor environment (eg: building, roofs, subway, '
+                                    'large vehicles)'
+                                ),
                             ),
                         ],
                         db_index=True,
-                        help_text='indoor locations can have floorplans associated to them',
+                        help_text=(
+                            'indoor locations can have floorplans associated to them'
+                        ),
                         max_length=8,
                     ),
                 ),
@@ -202,7 +211,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={'abstract': False,},
+            options={'abstract': False},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.AddField(

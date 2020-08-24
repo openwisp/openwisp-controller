@@ -65,7 +65,10 @@ class Migration(migrations.Migration):
                             ('netjsonconfig.OpenWrt', 'OpenWRT'),
                             ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
                         ],
-                        help_text='Select <a href="http://netjsonconfig.openwisp.org/en/stable/" target="_blank">netjsonconfig</a> backend',
+                        help_text=(
+                            'Select <a href="http://netjsonconfig.openwisp.org'
+                            '/en/stable/" target="_blank">netjsonconfig</a> backend'
+                        ),
                         max_length=128,
                         verbose_name='backend',
                     ),
@@ -90,7 +93,12 @@ class Migration(migrations.Migration):
                             ('error', 'error'),
                         ],
                         default='modified',
-                        help_text='"modified" means the configuration is not applied yet; \n"applied" means the configuration is applied successfully; \n"error" means the configuration caused issues and it was rolled back;',
+                        help_text=(
+                            '"modified" means the configuration is not applied yet; '
+                            '\n"applied" means the configuration is applied '
+                            'successfully; \n"error" means the configuration '
+                            'caused issues and it was rolled back;'
+                        ),
                         max_length=100,
                         no_check_for_status=True,
                         verbose_name='configuration status',
@@ -102,7 +110,11 @@ class Migration(migrations.Migration):
                         blank=True,
                         default=dict,
                         dump_kwargs={'ensure_ascii': False, 'indent': 4},
-                        help_text='Additional <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html#context" target="_blank">context (configuration variables)</a> in JSON format',
+                        help_text=(
+                            'Additional <a href="http://netjsonconfig.openwisp.org'
+                            '/en/stable/general/basics.html#context" target="_blank">'
+                            'context (configuration variables)</a> in JSON format'
+                        ),
                         load_kwargs={'object_pairs_hook': collections.OrderedDict},
                     ),
                 ),
@@ -231,7 +243,10 @@ class Migration(migrations.Migration):
                             django.core.validators.RegexValidator(
                                 re.compile('^[^\\s/\\.]+$'),
                                 code='invalid',
-                                message='This value must not contain spaces, dots or slashes.',
+                                message=(
+                                    'This value must not contain spaces, '
+                                    'dots or slashes.'
+                                ),
                             )
                         ],
                     ),
@@ -368,7 +383,10 @@ class Migration(migrations.Migration):
                             ('netjsonconfig.OpenWrt', 'OpenWRT'),
                             ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
                         ],
-                        help_text='Select <a href="http://netjsonconfig.openwisp.org/en/stable/" target="_blank">netjsonconfig</a> backend',
+                        help_text=(
+                            'Select <a href="http://netjsonconfig.openwisp.org'
+                            '/en/stable/" target="_blank">netjsonconfig</a> backend'
+                        ),
                         max_length=128,
                         verbose_name='backend',
                     ),
@@ -390,7 +408,9 @@ class Migration(migrations.Migration):
                         choices=[('generic', 'Generic'), ('vpn', 'VPN-client')],
                         db_index=True,
                         default='generic',
-                        help_text='template type, determines which features are available',
+                        help_text=(
+                            'template type, determines which features are available'
+                        ),
                         max_length=16,
                         verbose_name='type',
                     ),
@@ -400,7 +420,10 @@ class Migration(migrations.Migration):
                     models.BooleanField(
                         db_index=True,
                         default=False,
-                        help_text='whether new configurations will have this template enabled by default',
+                        help_text=(
+                            'whether new configurations will have '
+                            'this template enabled by default'
+                        ),
                         verbose_name='enabled by default',
                     ),
                 ),
@@ -408,8 +431,14 @@ class Migration(migrations.Migration):
                     'auto_cert',
                     models.BooleanField(
                         db_index=True,
-                        default=openwisp_controller.config.base.template.default_auto_cert,
-                        help_text='whether x509 client certificates should be automatically managed behind the scenes for each configuration using this template, valid only for the VPN type',
+                        default=(
+                            openwisp_controller.config.base.template.default_auto_cert
+                        ),
+                        help_text=(
+                            'whether x509 client certificates should be automatically '
+                            'managed behind the scenes for each configuration using '
+                            'this template, valid only for the VPN type'
+                        ),
                         verbose_name='auto certificate',
                     ),
                 ),
@@ -419,7 +448,11 @@ class Migration(migrations.Migration):
                         blank=True,
                         default=dict,
                         dump_kwargs={'ensure_ascii': False, 'indent': 4},
-                        help_text='A dictionary containing the default values for the variables used by this template; these default variables will be used during schema validation.',
+                        help_text=(
+                            'A dictionary containing the default values for '
+                            'the variables used by this template; these default '
+                            'variables will be used during schema validation.'
+                        ),
                         load_kwargs={'object_pairs_hook': collections.OrderedDict},
                         verbose_name='Default Values',
                     ),
@@ -439,7 +472,11 @@ class Migration(migrations.Migration):
                     'tags',
                     taggit.managers.TaggableManager(
                         blank=True,
-                        help_text='A comma-separated list of template tags, may be used to ease auto configuration with specific settings (eg: 4G, mesh, WDS, VPN, ecc.)',
+                        help_text=(
+                            'A comma-separated list of template tags, may '
+                            'be used to ease auto configuration with specific '
+                            'settings (eg: 4G, mesh, WDS, VPN, ecc.)'
+                        ),
                         through='sample_config.TaggedTemplate',
                         to='sample_config.TemplateTag',
                         verbose_name='Tags',
@@ -489,7 +526,10 @@ class Migration(migrations.Migration):
                     'registration_enabled',
                     models.BooleanField(
                         default=True,
-                        help_text='Whether automatic registration of devices is enabled or not',
+                        help_text=(
+                            'Whether automatic registration of devices '
+                            'is enabled or not'
+                        ),
                         verbose_name='auto-registration enabled',
                     ),
                 ),
@@ -505,7 +545,10 @@ class Migration(migrations.Migration):
                             django.core.validators.RegexValidator(
                                 re.compile('^[^\\s/\\.]+$'),
                                 code='invalid',
-                                message='This value must not contain spaces, dots or slashes.',
+                                message=(
+                                    'This value must not contain spaces, '
+                                    'dots or slashes.'
+                                ),
                             )
                         ],
                         verbose_name='shared secret',
@@ -564,10 +607,15 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.RegexValidator(
                                 re.compile(
-                                    '^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])(\\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]))*$|^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+                                    '^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}'
+                                    '[a-zA-Z0-9])(\\.([a-zA-Z0-9]|[a-zA-Z0-9]'
+                                    '[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]))*$|^'
+                                    '([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
                                 ),
                                 code='invalid',
-                                message='Must be either a valid hostname or mac address.',
+                                message=(
+                                    'Must be either a valid hostname or mac address.'
+                                ),
                             )
                         ],
                     ),
@@ -600,7 +648,10 @@ class Migration(migrations.Migration):
                             django.core.validators.RegexValidator(
                                 re.compile('^[^\\s/\\.]+$'),
                                 code='invalid',
-                                message='This value must not contain spaces, dots or slashes.',
+                                message=(
+                                    'This value must not contain spaces, '
+                                    'dots or slashes.'
+                                ),
                             )
                         ],
                     ),
@@ -640,7 +691,10 @@ class Migration(migrations.Migration):
                     models.GenericIPAddressField(
                         blank=True,
                         db_index=True,
-                        help_text='indicates the IP address logged from the last request coming from the device',
+                        help_text=(
+                            'indicates the IP address logged from the last '
+                            'request coming from the device'
+                        ),
                         null=True,
                     ),
                 ),
@@ -649,7 +703,9 @@ class Migration(migrations.Migration):
                     models.GenericIPAddressField(
                         blank=True,
                         db_index=True,
-                        help_text='ip address of the management interface, if available',
+                        help_text=(
+                            'ip address of the management interface, if available'
+                        ),
                         null=True,
                     ),
                 ),
