@@ -203,6 +203,32 @@ class TestConfig(
         self.assertIn(c.device.name, output)
         self.assertIn(c.device.mac_address, output)
 
+    def test_context_validation(self):
+        config = Config(
+            device=self._create_device(name='context-test'),
+            backend='netjsonconfig.OpenWrt',
+            config={},
+        )
+
+        for value in [None, '', False]:
+            with self.subTest(f'testing {value} in config.context'):
+                config.context = value
+                config.full_clean()
+                self.assertEqual(config.context, {})
+
+        for value in [['a', 'b'], '"test"']:
+            with self.subTest(
+                f'testing {value} in config.context, expecting validation error'
+            ):
+                config.context = value
+                with self.assertRaises(ValidationError) as context_manager:
+                    config.full_clean()
+                message_dict = context_manager.exception.message_dict
+                self.assertIn('context', message_dict)
+                self.assertIn(
+                    'the supplied value is not a JSON object', message_dict['context']
+                )
+
     def test_context_setting(self):
         config = {'general': {'vpnserver1': '{{ vpnserver1 }}'}}
         c = Config(

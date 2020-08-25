@@ -253,10 +253,17 @@ class AbstractConfig(BaseConfig):
 
     def clean(self):
         """
-        modifies status if key attributes of the configuration
-        have changed (queries the database)
+        * validates context field
+        * modifies status if key attributes of the configuration
+          have changed (queries the database)
         """
         super().clean()
+        if not self.context:
+            self.context = {}
+        if not isinstance(self.context, dict):
+            raise ValidationError(
+                {'context': _('the supplied value is not a JSON object')}
+            )
         if self._state.adding:
             return
         current = self.__class__.objects.get(pk=self.pk)

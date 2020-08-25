@@ -129,11 +129,19 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
 
     def clean(self, *args, **kwargs):
         """
+        * validates org relationship of VPN if present
+        * validates default_values field
         * ensures VPN is selected if type is VPN
         * clears VPN specific fields if type is not VPN
         * automatically determines configuration if necessary
         """
         self._validate_org_relation('vpn')
+        if not self.default_values:
+            self.default_values = {}
+        if not isinstance(self.default_values, dict):
+            raise ValidationError(
+                {'default_values': _('the supplied value is not a JSON object')}
+            )
         if self.type == 'vpn' and not self.vpn:
             raise ValidationError(
                 {'vpn': _('A VPN must be selected when template type is "VPN"')}
