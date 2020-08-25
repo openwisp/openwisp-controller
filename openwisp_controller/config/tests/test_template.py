@@ -292,6 +292,32 @@ class TestTemplate(
         obj = Template.objects.get(name='test1')
         self.assertEqual(obj.name, 'test1')
 
+    def test_default_value_validation(self):
+        options = {
+            'name': 'test1',
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': {},
+        }
+        template = Template(**options)
+
+        for value in [None, '', False]:
+            with self.subTest(f'testing {value} in template.default_values'):
+                template.default_values = value
+                template.full_clean()
+                self.assertEqual(template.default_values, {})
+
+        for value in [['a', 'b'], '"test"']:
+            with self.subTest(f'testing {value} in template.default_values'):
+                template.default_values = value
+                with self.assertRaises(ValidationError) as context_manager:
+                    template.full_clean()
+                message_dict = context_manager.exception.message_dict
+                self.assertIn('default_values', message_dict)
+                self.assertIn(
+                    'the supplied value is not a JSON object',
+                    message_dict['default_values'],
+                )
+
     def test_template_with_org(self):
         org = self._get_org()
         template = self._create_template(organization=org)
