@@ -1784,6 +1784,7 @@ Once you have created the models, add the following to your ``settings.py``:
     GEO_DEVICELOCATION_MODEL = 'sample_geo.DeviceLocation'
     CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
     CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
+    CONNECTION_COMMAND_MODEL = 'sample_connection.Command'
 
 Substitute ``sample_config``, ``sample_pki``, ``sample_connection`` &
 ``sample_geo`` with the name you chose in step 1.

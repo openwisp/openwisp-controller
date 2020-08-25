@@ -415,6 +415,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'modified',
     ]
     inlines = [ConfigInline]
+    conditional_inlines = []
 
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
@@ -495,6 +496,19 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = self.get_extra_context()
         return super().add_view(request, form_url, extra_context)
+
+    def get_inlines(self, request, obj):
+        inlines = super().get_inlines(request, obj)
+        # this only makes sense in existing devices
+        if not obj:
+            return inlines
+        # add conditional_inlines if condition is met
+        inlines = list(inlines)  # copy
+        for inline in self.conditional_inlines:
+            inline_instance = inline(inline.model, admin.site)
+            if inline_instance._get_conditional_queryset(request):
+                inlines.append(inline)
+        return inlines
 
 
 class CloneOrganizationForm(forms.Form):

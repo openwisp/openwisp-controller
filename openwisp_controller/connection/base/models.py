@@ -1,12 +1,14 @@
 import collections
 import logging
 
+import jsonschema
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext
+from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
@@ -16,7 +18,9 @@ from openwisp_utils.base import TimeStampedEditableModel
 
 from ...base import ShareableOrgMixinUniqueName
 from .. import settings as app_settings
+from ..commands import COMMAND_CHOICES, get_command_schema
 from ..signals import is_working_changed
+from ..tasks import launch_command
 
 logger = logging.getLogger(__name__)
 
@@ -294,3 +298,188 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             failure_reason=self.failure_reason,
             instance=self,
         )
+
+
+class AbstractCommand(TimeStampedEditableModel):
+    STATUS_CHOICES = (
+        ('in-progress', _('in progress')),
+        ('success', _('success')),
+        ('failed', _('failed')),
+    )
+    device = models.ForeignKey(
+        get_model_name('config', 'Device'), on_delete=models.CASCADE
+    )
+    # if the related DeviceConnection is deleted,
+    # set this to NULL to avoid losing history
+    connection = models.ForeignKey(
+        get_model_name('connection', 'DeviceConnection'),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=False,
+    )
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
+    )
+    type = models.CharField(max_length=16, choices=COMMAND_CHOICES)
+    input = JSONField(
+        blank=True,
+        null=True,
+        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+        dump_kwargs={'indent': 4},
+    )
+    output = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = _('Command')
+        verbose_name_plural = _('Commands')
+        abstract = True
+        ordering = ('created',)
+
+    def __str__(self):
+        command = self.input['command'] if self.is_custom else self.get_type_display()
+        limit = 32
+        if len(command) > limit:
+            command = f'{command[:limit]}…'
+        sent = _('sent on')
+        created = timezone.localtime(self.created)
+        return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
+
+    def full_clean(self, *args, **kwargs):
+        """
+        Automatically sets the connection field if empty
+        Will be done before the rest of the validation process
+        to avoid triggering validation errors.
+        """
+        if not self.connection:
+            self.connection = self.device.deviceconnection_set.first()
+        return super().full_clean(*args, **kwargs)
+
+    def clean(self):
+        try:
+            jsonschema.Draft4Validator(self._schema).validate(self.input)
+        except SchemaError as e:
+            raise ValidationError({'input': e.message})
+
+    @property
+    def is_custom(self):
+        return self.type == 'custom'
+
+    def save(self, *args, **kwargs):
+        """
+        Automatically schedules execution of
+        commands in the background upon creation.
+        """
+        adding = self._state.adding
+        output = super().save(*args, **kwargs)
+        if adding:
+            self._schedule_command()
+        return output
+
+    def _schedule_command(self):
+        """
+        executes ``launch_command`` celery taks in the background
+        once changes are committed to the database
+        """
+        transaction.on_commit(lambda: launch_command.delay(self.pk))
+
+    def execute(self):
+        """
+        Launches the execution of commands and based
+        on the connection status or exit codes
+        it determines if the commands succeeded or not
+        """
+        if self.status in ['failed', 'success']:
+            raise RuntimeError(
+                'This command has already been executed, ' 'please create a new one.'
+            )
+        exit_code = self._exec_command()
+        # if output is None, the commands couldn't execute
+        # because the system couldn't connect to the device
+        if exit_code is None:
+            self.status = 'failed'
+            self.output = self.connection.failure_reason
+        # one command failed
+        elif exit_code != 0:
+            self.status = 'failed'
+        # all commands succeeded
+        else:
+            self.status = 'success'
+        self._clean_sensitive_info()
+        self.save()
+
+    def _exec_command(self):
+        """
+        Executes commands, stores output, returns exit_code
+        """
+        self.connection.connect()
+        # if couldn't connect to device, stop here
+        if not self.connection.is_working:
+            return None
+        # predefined command
+        if not self.is_custom:
+            output, exit_code = self._execute_predefined_command()
+            command = self.get_type_display()
+        # custom commands, perform each one separately and save output incrementally
+        else:
+            command = self.custom_command
+            output, exit_code = self.connection.connector_instance.exec_command(
+                command, raise_unexpected_exit=False
+            )
+        self._add_output(output)
+        # if got non zero exit code, add extra info
+        if exit_code != 0:
+            self._add_output(
+                gettext(f'Command "{command}" returned non-zero exit code: {exit_code}')
+            )
+        # loop completed (or broken), disconnect
+        self.connection.disconnect()
+        return exit_code
+
+    def _execute_predefined_command(self):
+        method = getattr(self.connection.connector_instance, self.type)
+        return method(*self.arguments)
+
+    def _add_output(self, output):
+        """
+        adds trailing new line if output doesn't have it
+        """
+        if not output.endswith('\n'):
+            output += '\n'
+        self.output += output
+
+    def _clean_sensitive_info(self):
+        """
+        Removes sensitive information from input field if necessary
+        """
+        if self.type == 'change_password':
+            self.input = {'password': '********'}
+
+    @property
+    def custom_command(self):
+        if not self.is_custom:
+            raise TypeError(
+                f'custom_commands property is not applicable in '
+                f'command instance of type "{self.type}"'
+            )
+        return self.input['command']
+
+    @property
+    def arguments(self):
+        """
+        Interprets input as comma separated arguments
+        """
+        self._enforce_not_custom()
+        if self.input:
+            return self.input.values()
+        return []
+
+    @property
+    def _schema(self):
+        return get_command_schema(self.type)
+
+    def _enforce_not_custom(self):
+        if self.is_custom:
+            raise TypeError(
+                f'arguments property is not applicable in '
+                f'command instance of type "{self.type}"'
+            )

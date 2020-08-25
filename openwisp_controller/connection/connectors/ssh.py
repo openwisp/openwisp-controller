@@ -142,6 +142,9 @@ class Ssh(object):
         error = stderr.read().decode('utf-8', 'ignore')
         if error:
             logger.error(error)
+            if not output.endswith('\n'):
+                output += '\n'
+            output += error
         # abort the operation if any of the command
         # returned with a non-zero exit status
         if exit_status not in exit_codes and raise_unexpected_exit:

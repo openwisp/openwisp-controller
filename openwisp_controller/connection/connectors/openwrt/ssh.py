@@ -15,6 +15,14 @@ class OpenWrt(Ssh):
         else:
             logger.info('Configuration already being applied')
 
+    def reboot(self):
+        return self.exec_command('reboot')
+
+    def change_password(self, password, confirm_password, user='root'):
+        return self.exec_command(
+            f'echo -e "{password}\n{confirm_password}" | passwd {user}'
+        )
+
 
 class OpenWisp1(Ssh):
     """

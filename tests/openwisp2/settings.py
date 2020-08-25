@@ -228,6 +228,7 @@ if os.environ.get('SAMPLE_APP', False):
     GEO_DEVICELOCATION_MODEL = 'sample_geo.DeviceLocation'
     CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
     CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
+    CONNECTION_COMMAND_MODEL = 'sample_connection.Command'
 else:
     # not needed, these are the default values, left here only for example purposes
     # DJANGO_X509_CA_MODEL = 'pki.Ca'

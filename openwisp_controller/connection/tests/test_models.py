@@ -1,10 +1,11 @@
 import socket
-import uuid
 from unittest import mock
 
 import paramiko
+from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone
 from swapper import load_model
 
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -21,6 +22,7 @@ Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 Group = load_model('openwisp_users', 'Group')
 Organization = load_model('openwisp_users', 'Organization')
+Command = load_model('connection', 'Command')
 
 _connect_path = 'paramiko.SSHClient.connect'
 _exec_command_path = 'paramiko.SSHClient.exec_command'
@@ -35,10 +37,10 @@ class BaseTestModels(CreateConnectionsMixin):
         stdin_ = mock.Mock()
         stdout_ = mock.Mock()
         stderr_ = mock.Mock()
-        stdin_.read().decode('utf8').strip.return_value = stdin
-        stdout_.read().decode('utf8').strip.return_value = stdout
+        stdin_.read().decode.return_value = stdin
+        stdout_.read().decode.return_value = stdout
         stdout_.channel.recv_exit_status.return_value = exit_code
-        stderr_.read().decode('utf8').strip.return_value = stderr
+        stderr_.read().decode.return_value = stderr
         return (stdin_, stdout_, stderr_)
 
 
@@ -330,14 +332,14 @@ class TestModels(BaseTestModels, TestCase):
         permissions = group.permissions.filter(
             content_type__app_label=f'{self.app_label}'
         )
-        self.assertEqual(permissions.count(), 3)
+        self.assertEqual(permissions.count(), 6)
 
     def test_administrator_group_permissions(self):
         group = Group.objects.get(name='Administrator')
         permissions = group.permissions.filter(
             content_type__app_label=f'{self.app_label}'
         )
-        self.assertEqual(permissions.count(), 6)
+        self.assertEqual(permissions.count(), 12)
 
     def test_device_connection_set_connector(self):
         dc = self._create_device_connection()
@@ -358,25 +360,252 @@ class TestModels(BaseTestModels, TestCase):
         dc2 = self._create_device_connection(device=dev2)
         self.assertFalse(hasattr(dc2.connector_instance, 'IS_MODIFIED'))
 
-    @mock.patch('logging.Logger.warning')
-    @mock.patch('time.sleep')
-    def test_update_config_missing_config(self, mocked_sleep, mocked_warning):
-        pk = self._create_device().pk
-        update_config.delay(pk)
-        mocked_warning.assert_called_with(
-            f'update_config("{pk}") failed: Device has no config.'
-        )
-        mocked_sleep.assert_called_once()
+    def test_command_str(self):
+        with self.subTest('custom command short'):
+            command = Command(type='custom', input='echo test')
+            self.assertIn('«echo test» sent on', str(command))
+        with self.subTest('custom command long'):
+            cmd = 'echo "longer than thirtytwo characters"'
+            command = Command(type='custom', input=cmd)
+            self.assertIn('«echo "longer than thirtytwo char…»', str(command))
+        with self.subTest('predefined command'):
+            command = Command(type='reboot')
+            created = timezone.localtime(command.created).strftime(
+                "%d %b %Y at %I:%M %p"
+            )
+            self.assertIn('«Reboot» sent on', str(command))
+            self.assertIn(created, str(command))
 
-    @mock.patch('logging.Logger.warning')
-    @mock.patch('time.sleep')
-    def test_update_config_missing_device(self, mocked_sleep, mocked_warning):
-        pk = uuid.uuid4()
-        update_config.delay(pk)
-        mocked_warning.assert_called_with(
-            f'update_config("{pk}") failed: Device matching query does not exist.'
+    def test_command_is_custom(self):
+        command = Command(type='custom', input='echo test')
+        self.assertTrue(command.is_custom)
+
+    def test_command_validation(self):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device, type='custom', input={'command': 'echo test'}
         )
-        mocked_sleep.assert_called_once()
+
+        with self.subTest('auto connection'):
+            command.full_clean()
+            self.assertEqual(command.connection, dc)
+            self.assertEqual(command.input, {'command': 'echo test'})
+
+        with self.subTest('custom type without input raises ValidationError'):
+            command.type = 'custom'
+            command.input = {'command': '\n'}
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            e = context_manager.exception
+            self.assertIn('input', e.message_dict)
+            self.assertEqual(e.message_dict['input'], ["'\\n' does not match '.'"])
+
+        with self.subTest('test extra arg on reboot'):
+            command.type = 'reboot'
+            command.input = '["test"]'
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            e = context_manager.exception
+            self.assertIn('input', e.message_dict)
+            self.assertEqual(
+                e.message_dict['input'], ["['test'] is not of type 'null'"]
+            )
+
+        with self.subTest('test extra arg on password'):
+            command.type = 'change_password'
+            command.input = {
+                'password': 'Pass@1234',
+                'confirm_password': 'Pass@1234',
+                'command': 'wrong',
+            }
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            e = context_manager.exception
+            self.assertIn('input', e.message_dict)
+            self.assertIn(
+                'has too many properties', e.message_dict['input'][0],
+            )
+
+        with self.subTest('JSON check on arguments'):
+            command.type = 'change_password'
+            command.input = 'notjson'
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            e = context_manager.exception
+            self.assertIn('input', e.message_dict)
+            self.assertEqual(
+                e.message_dict['input'],
+                ['Enter valid JSON.', "'notjson' is not of type 'object'"],
+            )
+
+        with self.subTest('JSON check on arguments'):
+            command.type = 'change_password'
+            command.input = '[]'
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            e = context_manager.exception
+            self.assertIn('input', e.message_dict)
+            self.assertEqual(e.message_dict['input'], ["[] is not of type 'object'"])
+
+    def test_custom_command(self):
+        command = Command(input='test', type='change_password')
+        with self.assertRaises(TypeError) as context_manager:
+            command.custom_command
+        self.assertEqual(
+            str(context_manager.exception),
+            'custom_commands property is not applicable in '
+            'command instance of type "change_password"',
+        )
+
+    def test_arguments(self):
+        command = Command(
+            type='change_password',
+            input={'password': 'newpwd', 'confirm_password': 'newpwd'},
+        )
+        self.assertEqual(list(command.arguments), ['newpwd', 'newpwd'])
+
+        with self.subTest('value error'):
+            command = Command(input='["echo test"]', type='custom')
+            with self.assertRaises(TypeError) as context_manager:
+                command.arguments
+            self.assertEqual(
+                str(context_manager.exception),
+                'arguments property is not applicable in '
+                'command instance of type "custom"',
+            )
+
+    @mock.patch(_connect_path)
+    def test_execute_command_failure_exit_code(self, connect_mocked):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type='custom',
+            input={'command': 'cat /tmp/doesntexist'},
+        )
+        command.full_clean()
+        stdout = 'not found'
+        stderr = 'error'
+        with mock.patch(_exec_command_path) as mocked:
+            mocked.return_value = self._exec_command_return_value(
+                stdout=stdout, stderr=stderr, exit_code=1
+            )
+            command.save()
+            # must call this explicitly because lack of transactions in this test case
+            command.execute()
+            connect_mocked.assert_called_once()
+            mocked.assert_called_once()
+        command.refresh_from_db()
+        self.assertEqual(command.status, 'failed')
+        info = 'Command "cat /tmp/doesntexist" returned non-zero exit code: 1'
+        self.assertEqual(command.output, f'{stdout}\n{stderr}\n{info}\n')
+
+    def test_execute_command_failure_connection_failed(self):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type='custom',
+            input={'command': 'echo test'},
+        )
+        command.full_clean()
+        with mock.patch(_connect_path) as mocked_connect:
+            mocked_connect.side_effect = Exception('Authentication failed.')
+            command.save()
+            # must call this explicitly because lack of transactions in this test case
+            command.execute()
+            mocked_connect.assert_called_once()
+        command.refresh_from_db()
+        dc.refresh_from_db()
+        self.assertEqual(command.status, 'failed')
+        self.assertFalse(dc.is_working)
+        self.assertEqual(command.output, dc.failure_reason)
+
+        with self.subTest('attempt to repeat execution should fail'):
+            with self.assertRaises(RuntimeError) as context_manager:
+                command.execute()
+            self.assertEqual(
+                str(context_manager.exception),
+                'This command has already been executed, ' 'please create a new one.',
+            )
+
+    @mock.patch(_connect_path)
+    def test_execute_reboot(self, connect_mocked):
+        dc = self._create_device_connection()
+        command = Command(device=dc.device, connection=dc, type='reboot')
+        command.full_clean()
+        with mock.patch(_exec_command_path) as mocked_exec_command:
+            mocked_exec_command.return_value = self._exec_command_return_value(
+                stdout='Rebooting.'
+            )
+            command.save()
+            # must call this explicitly because lack of transactions in this test case
+            command.execute()
+            connect_mocked.assert_called_once()
+            mocked_exec_command.assert_called_once()
+            mocked_exec_command.assert_called_with(
+                'reboot', timeout=app_settings.SSH_COMMAND_TIMEOUT
+            )
+        command.refresh_from_db()
+        self.assertEqual(command.status, 'success')
+        self.assertEqual(command.output, 'Rebooting.\n')
+
+        with self.subTest('attempt to repeat execution should fail'):
+            with self.assertRaises(RuntimeError) as context_manager:
+                command.execute()
+            self.assertEqual(
+                str(context_manager.exception),
+                'This command has already been executed, ' 'please create a new one.',
+            )
+
+    @mock.patch(_connect_path)
+    def test_execute_change_password(self, connect_mocked):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type='change_password',
+            input={'password': 'Newpasswd@123', 'confirm_password': 'Newpasswd@123'},
+        )
+        command.full_clean()
+        with mock.patch(_exec_command_path) as mocked_exec_command:
+            mocked_exec_command.return_value = self._exec_command_return_value(
+                stdout='Changed password for user root.'
+            )
+            command.save()
+            # must call this explicitly because lack of transactions in this test case
+            command.execute()
+            connect_mocked.assert_called_once()
+            mocked_exec_command.assert_called_once()
+            mocked_exec_command.assert_called_with(
+                'echo -e "Newpasswd@123\nNewpasswd@123" | passwd root',
+                timeout=app_settings.SSH_COMMAND_TIMEOUT,
+            )
+        command.refresh_from_db()
+        self.assertEqual(command.status, 'success')
+        self.assertEqual(command.output, 'Changed password for user root.\n')
+        self.assertEqual(list(command.arguments), ['********'])
+
+    def test_command_permissions(self):
+        ct = ContentType.objects.get_by_natural_key(
+            app_label=self.app_label, model='command'
+        )
+        operator_group = Group.objects.get(name='Operator')
+        admin_group = Group.objects.get(name='Administrator')
+        operator_permissions = operator_group.permissions.filter(content_type=ct)
+        admin_permissions = admin_group.permissions.filter(content_type=ct)
+
+        with self.subTest('operator permissions'):
+            self.assertEqual(operator_permissions.count(), 2)
+            self.assertTrue(
+                operator_permissions.filter(codename='add_command').exists()
+            )
+            self.assertTrue(
+                operator_permissions.filter(codename='view_command').exists()
+            )
+
+        with self.subTest('administrator permissions'):
+            self.assertEqual(admin_permissions.count(), 4)
 
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
@@ -470,3 +699,22 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.save()
             mocked_active.assert_called_once()
             mocked_update_config.assert_called_once_with(conf.device.pk)
+
+    @mock.patch(_connect_path)
+    def test_schedule_command_called(self, connect_mocked):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type='custom',
+            input={'command': 'echo test'},
+        )
+        command.full_clean()
+        with mock.patch(_exec_command_path) as mocked:
+            mocked.return_value = self._exec_command_return_value()
+            command.save()
+            connect_mocked.assert_called_once()
+            mocked.assert_called_once()
+        command.refresh_from_db()
+        self.assertEqual(command.status, 'success')
+        self.assertEqual(command.output, 'mocked\n')

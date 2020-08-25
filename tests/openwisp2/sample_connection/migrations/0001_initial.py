@@ -13,6 +13,7 @@ from django.db import migrations, models
 import openwisp_controller.connection.base.models
 import openwisp_users.mixins
 from openwisp_controller.connection import settings as connection_settings
+from openwisp_controller.connection.commands import COMMAND_CHOICES
 
 
 class Migration(migrations.Migration):
@@ -22,6 +23,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('sample_config', '0001_initial'),
         swapper.dependency('openwisp_users', 'Organization'),
+        swapper.dependency('config', 'Device'),
     ]
 
     operations = [
@@ -196,5 +198,80 @@ class Migration(migrations.Migration):
                 openwisp_controller.connection.base.models.ConnectorMixin,
                 models.Model,
             ),
+        ),
+        migrations.CreateModel(
+            name='Command',
+            fields=[
+                (
+                    'id',
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    'created',
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='created',
+                    ),
+                ),
+                (
+                    'modified',
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='modified',
+                    ),
+                ),
+                (
+                    'status',
+                    models.CharField(
+                        choices=[
+                            ('in-progress', 'in progress'),
+                            ('success', 'success'),
+                            ('failed', 'failed'),
+                        ],
+                        default='in-progress',
+                        max_length=12,
+                    ),
+                ),
+                ('type', models.CharField(choices=COMMAND_CHOICES, max_length=16,),),
+                (
+                    'input',
+                    jsonfield.fields.JSONField(
+                        blank=True,
+                        dump_kwargs={'indent': 4},
+                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                        null=True,
+                    ),
+                ),
+                ('output', models.TextField(blank=True)),
+                (
+                    'connection',
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=swapper.get_model_name('connection', 'DeviceConnection'),
+                    ),
+                ),
+                (
+                    'device',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=swapper.get_model_name('config', 'Device'),
+                    ),
+                ),
+            ],
+            options={
+                'verbose_name': 'Command',
+                'verbose_name_plural': 'Commands',
+                'ordering': ('created',),
+                'abstract': False,
+                'swappable': swapper.swappable_setting('connection', 'Command'),
+            },
         ),
     ]

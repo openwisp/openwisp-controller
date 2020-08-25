@@ -1,0 +1,6 @@
+.field-input_data .readonly,
+.field-output .readonly{
+    font-family: monospace;
+    line-height: 1.5em;
+    white-space: pre;
+}

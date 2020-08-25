@@ -9,12 +9,12 @@ from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeviceAdmin
 from .schema import schema
 from .widgets import CredentialsSchemaWidget
 
 Credentials = swapper.load_model('connection', 'Credentials')
 DeviceConnection = swapper.load_model('connection', 'DeviceConnection')
+Command = swapper.load_model('connection', 'Command')
 
 
 class CredentialsForm(forms.ModelForm):
@@ -76,6 +76,3 @@ class DeviceConnectionInline(MultitenantAdminMixin, admin.StackedInline):
         Override MultitenantAdminMixin.get_queryset() because it breaks
         """
         return super(admin.StackedInline, self).get_queryset(request)
-
-
-DeviceAdmin.inlines += [DeviceConnectionInline]

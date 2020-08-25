@@ -1,6 +1,7 @@
 from django.db import models
 
 from openwisp_controller.connection.base.models import (
+    AbstractCommand,
     AbstractCredentials,
     AbstractDeviceConnection,
 )
@@ -20,4 +21,9 @@ class Credentials(DetailsModel, AbstractCredentials):
 
 class DeviceConnection(DetailsModel, AbstractDeviceConnection):
     class Meta(AbstractDeviceConnection.Meta):
+        abstract = False
+
+
+class Command(AbstractCommand):
+    class Meta(AbstractCommand.Meta):
         abstract = False

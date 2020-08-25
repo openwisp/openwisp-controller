@@ -3,7 +3,10 @@ import time
 
 import swapper
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import gettext_lazy as _
+from swapper import load_model
 
 from . import settings as app_settings
 
@@ -34,3 +37,30 @@ def update_config(device_id):
     if conn:
         logger.info(f'Updating {device} (pk: {device_id})')
         conn.update_config()
+
+
+# task timeout is SSH_COMMAND_TIMEOUT plus a 20% margin
+@shared_task(soft_time_limit=app_settings.SSH_COMMAND_TIMEOUT * 1.2)
+def launch_command(command_id):
+    """
+    Launches execution of commands in the background
+    """
+    Command = load_model('connection', 'Command')
+    try:
+        command = Command.objects.get(pk=command_id)
+    except Command.DoesNotExist as e:
+        logger.warning(f'launch_command("{command_id}") failed: {e}')
+        return
+    try:
+        command.execute()
+    except SoftTimeLimitExceeded:
+        command.status = 'failed'
+        command._add_output(_('Background task time limit exceeded.'))
+        command.save()
+    except Exception as e:
+        logger.exception(
+            f'An exception was raised while executing command {command_id}'
+        )
+        command.status = 'failed'
+        command._add_output(_(f'Internal system error: {e}'))
+        command.save()
