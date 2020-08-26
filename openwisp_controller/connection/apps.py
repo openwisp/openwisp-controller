@@ -1,5 +1,6 @@
 from celery.task.control import inspect
 from django.apps import AppConfig
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.utils.translation import ugettext_lazy as _
 from swapper import load_model
@@ -41,7 +42,7 @@ class ConnectionConfig(AppConfig):
         # or update is already in progress, stop here
         if conn_count < 1 or cls._is_update_in_progress(d.id):
             return
-        update_config.delay(d.id)
+        transaction.on_commit(lambda: update_config.delay(d.id))
 
     @classmethod
     def _is_update_in_progress(cls, device_id):

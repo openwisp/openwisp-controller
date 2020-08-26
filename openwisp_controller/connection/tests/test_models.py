@@ -11,6 +11,7 @@ from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
 from ..signals import is_working_changed
+from ..tasks import update_config
 from .utils import CreateConnectionsMixin
 
 Config = load_model('config', 'Config')
@@ -257,36 +258,6 @@ class TestModels(CreateConnectionsMixin, TestCase):
         return (stdin_, stdout_, stderr_)
 
     @mock.patch(_connect_path)
-    def test_device_config_update(self, mocked_connect):
-        org1 = self._create_org(name='org1')
-        cred = self._create_credentials_with_key(
-            organization=org1, port=self.ssh_server.port
-        )
-        device = self._create_device(organization=org1)
-        update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        c = self._create_config(device=device, status='applied')
-        self._create_device_connection(
-            device=device, credentials=cred, update_strategy=update_strategy
-        )
-        c.config = {
-            'interfaces': [
-                {
-                    'name': 'eth10',
-                    'type': 'ethernet',
-                    'addresses': [{'family': 'ipv4', 'proto': 'dhcp'}],
-                }
-            ]
-        }
-        c.full_clean()
-
-        with mock.patch(self._exec_command_path) as mocked:
-            mocked.return_value = self._exec_command_return_value()
-            c.save()
-            mocked.assert_called_once()
-        c.refresh_from_db()
-        self.assertEqual(c.status, 'applied')
-
-    @mock.patch(_connect_path)
     def test_ssh_exec_exit_code(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
@@ -378,3 +349,9 @@ class TestModels(CreateConnectionsMixin, TestCase):
         self._create_config(device=dev2)
         dc2 = self._create_device_connection(device=dev2)
         self.assertFalse(hasattr(dc2.connector_instance, 'IS_MODIFIED'))
+
+    @mock.patch('logging.Logger.warning')
+    def test_update_config_task_resilient_to_failure(self, mocked):
+        pk = self._create_device().pk
+        update_config.delay(pk)
+        mocked.assert_called_with(f'Config with device id: {pk} does not exist')
