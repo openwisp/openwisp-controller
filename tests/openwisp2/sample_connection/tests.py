@@ -2,6 +2,9 @@ from openwisp_controller.connection.tests.test_admin import TestAdmin as BaseTes
 from openwisp_controller.connection.tests.test_models import (
     TestModels as BaseTestModels,
 )
+from openwisp_controller.connection.tests.test_models import (
+    TestModelsTransaction as BaseTestModelsTransaction,
+)
 from openwisp_controller.connection.tests.test_ssh import TestSsh as BaseTestSsh
 
 
@@ -14,10 +17,15 @@ class TestModels(BaseTestModels):
     app_label = 'sample_connection'
 
 
+class TestModelsTransaction(BaseTestModelsTransaction):
+    app_label = 'sample_connection'
+
+
 class TestSsh(BaseTestSsh):
     pass
 
 
 del BaseTestAdmin
 del BaseTestModels
+del BaseTestModelsTransaction
 del BaseTestSsh

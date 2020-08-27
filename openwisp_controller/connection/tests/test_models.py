@@ -3,7 +3,7 @@ from unittest import mock
 
 import paramiko
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
 from openwisp_users.models import Group, Organization
@@ -19,11 +19,27 @@ Device = load_model('config', 'Device')
 Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 
+_connect_path = 'paramiko.SSHClient.connect'
+_exec_command_path = 'paramiko.SSHClient.exec_command'
 
-class TestModels(CreateConnectionsMixin, TestCase):
+
+class BaseTestModels(CreateConnectionsMixin):
     app_label = 'connection'
-    _connect_path = 'paramiko.SSHClient.connect'
 
+    def _exec_command_return_value(
+        self, stdin='', stdout='mocked', stderr='', exit_code=0
+    ):
+        stdin_ = mock.Mock()
+        stdout_ = mock.Mock()
+        stderr_ = mock.Mock()
+        stdin_.read().decode('utf8').strip.return_value = stdin
+        stdout_.read().decode('utf8').strip.return_value = stdout
+        stdout_.channel.recv_exit_status.return_value = exit_code
+        stderr_.read().decode('utf8').strip.return_value = stderr
+        return (stdin_, stdout_, stderr_)
+
+
+class TestModels(BaseTestModels, TestCase):
     def test_connection_str(self):
         c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])
         self.assertIn(c.name, str(c))
@@ -98,7 +114,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
         dc = self._create_device_connection(credentials=ckey)
         dc.device.last_ip = None
         dc.device.save()
-        with mock.patch(self._connect_path) as mocked_connect:
+        with mock.patch(_connect_path) as mocked_connect:
             mocked_connect.side_effect = Exception('Authentication failed.')
             dc.connect()
             mocked_connect.assert_called_once()
@@ -243,26 +259,12 @@ class TestModels(CreateConnectionsMixin, TestCase):
         self._create_credentials(auto_add=True, organization=None)
         self.assertEqual(Credentials.objects.count(), 1)
 
-    _exec_command_path = 'paramiko.SSHClient.exec_command'
-
-    def _exec_command_return_value(
-        self, stdin='', stdout='mocked', stderr='', exit_code=0
-    ):
-        stdin_ = mock.Mock()
-        stdout_ = mock.Mock()
-        stderr_ = mock.Mock()
-        stdin_.read().decode('utf8').strip.return_value = stdin
-        stdout_.read().decode('utf8').strip.return_value = stdout
-        stdout_.channel.recv_exit_status.return_value = exit_code
-        stderr_.read().decode('utf8').strip.return_value = stderr
-        return (stdin_, stdout_, stderr_)
-
     @mock.patch(_connect_path)
     def test_ssh_exec_exit_code(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
-        with mock.patch(self._exec_command_path) as mocked:
+        with mock.patch(_exec_command_path) as mocked:
             mocked.return_value = self._exec_command_return_value(exit_code=1)
             with self.assertRaises(Exception):
                 dc.connector_instance.exec_command('trigger_command_not_found')
@@ -274,7 +276,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
-        with mock.patch(self._exec_command_path) as mocked:
+        with mock.patch(_exec_command_path) as mocked:
             mocked.side_effect = socket.timeout()
             with self.assertRaises(socket.timeout):
                 dc.connector_instance.exec_command('trigger_timeout')
@@ -286,7 +288,7 @@ class TestModels(CreateConnectionsMixin, TestCase):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
-        with mock.patch(self._exec_command_path) as mocked:
+        with mock.patch(_exec_command_path) as mocked:
             mocked.side_effect = RuntimeError('test')
             with self.assertRaises(RuntimeError):
                 dc.connector_instance.exec_command('trigger_exception')
@@ -351,7 +353,45 @@ class TestModels(CreateConnectionsMixin, TestCase):
         self.assertFalse(hasattr(dc2.connector_instance, 'IS_MODIFIED'))
 
     @mock.patch('logging.Logger.warning')
-    def test_update_config_task_resilient_to_failure(self, mocked):
+    @mock.patch('time.sleep')
+    def test_update_config_task_resilient_to_failure(
+        self, mocked_sleep, mocked_warning
+    ):
         pk = self._create_device().pk
         update_config.delay(pk)
-        mocked.assert_called_with(f'Config with device id: {pk} does not exist')
+        mocked_warning.assert_called_with(f'Config with device id: {pk} does not exist')
+        mocked_sleep.assert_called_once()
+
+
+class TestModelsTransaction(BaseTestModels, TransactionTestCase):
+    @mock.patch(_connect_path)
+    @mock.patch('time.sleep')
+    def test_device_config_update(self, mocked_sleep, mocked_connect):
+        org1 = self._create_org(name='org1')
+        cred = self._create_credentials_with_key(
+            organization=org1, port=self.ssh_server.port
+        )
+        device = self._create_device(organization=org1)
+        update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
+        c = self._create_config(device=device, status='applied')
+        self._create_device_connection(
+            device=device, credentials=cred, update_strategy=update_strategy
+        )
+        c.config = {
+            'interfaces': [
+                {
+                    'name': 'eth10',
+                    'type': 'ethernet',
+                    'addresses': [{'family': 'ipv4', 'proto': 'dhcp'}],
+                }
+            ]
+        }
+        c.full_clean()
+
+        with mock.patch(_exec_command_path) as mocked_exec_command:
+            mocked_exec_command.return_value = self._exec_command_return_value()
+            c.save()
+            mocked_exec_command.assert_called_once()
+
+        c.refresh_from_db()
+        self.assertEqual(c.status, 'applied')

@@ -1,5 +1,5 @@
 import logging
-from time import sleep
+import time
 
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
@@ -17,7 +17,7 @@ def update_config(device_id):
     """
     # wait for the saving operations of this device to complete
     # (there may be multiple ones happening at the same time)
-    sleep(2)
+    time.sleep(2)
     # avoid repeating the operation multiple times
     device = Device.objects.select_related('config').get(pk=device_id)
     try:
