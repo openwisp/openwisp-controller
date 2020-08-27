@@ -123,3 +123,6 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         response = self.client.get(url)
         ssh_schema = json.dumps(Ssh.schema)
         self.assertIn(ssh_schema, response.content.decode('utf8'))
+
+
+del TestConfigAdmin
