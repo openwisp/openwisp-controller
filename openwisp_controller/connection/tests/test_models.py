@@ -1,4 +1,5 @@
 import socket
+import uuid
 from unittest import mock
 
 import paramiko
@@ -354,12 +355,22 @@ class TestModels(BaseTestModels, TestCase):
 
     @mock.patch('logging.Logger.warning')
     @mock.patch('time.sleep')
-    def test_update_config_task_resilient_to_failure(
-        self, mocked_sleep, mocked_warning
-    ):
+    def test_update_config_missing_config(self, mocked_sleep, mocked_warning):
         pk = self._create_device().pk
         update_config.delay(pk)
-        mocked_warning.assert_called_with(f'Config with device id: {pk} does not exist')
+        mocked_warning.assert_called_with(
+            f'update_config("{pk}") failed: Device has no config.'
+        )
+        mocked_sleep.assert_called_once()
+
+    @mock.patch('logging.Logger.warning')
+    @mock.patch('time.sleep')
+    def test_update_config_missing_device(self, mocked_sleep, mocked_warning):
+        pk = uuid.uuid4()
+        update_config.delay(pk)
+        mocked_warning.assert_called_with(
+            f'update_config("{pk}") failed: Device matching query does not exist.'
+        )
         mocked_sleep.assert_called_once()
 
 

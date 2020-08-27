@@ -19,12 +19,12 @@ def update_config(device_id):
     # (there may be multiple ones happening at the same time)
     time.sleep(2)
     # avoid repeating the operation multiple times
-    device = Device.objects.select_related('config').get(pk=device_id)
     try:
+        device = Device.objects.select_related('config').get(pk=device_id)
         if device.config.status == 'applied':
             return
-    except ObjectDoesNotExist:
-        logger.warning(f'Config with device id: {device_id} does not exist')
+    except ObjectDoesNotExist as e:
+        logger.warning(f'update_config("{device_id}") failed: {e}')
         return
     qs = device.deviceconnection_set.filter(device_id=device_id, enabled=True)
     conn = qs.first()
