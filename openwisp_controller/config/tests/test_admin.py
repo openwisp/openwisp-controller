@@ -896,4 +896,5 @@ class TestAdmin(
 
     @classmethod
     def tearDownClass(cls):
+        super().tearDownClass()
         devnull.close()

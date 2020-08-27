@@ -26,6 +26,7 @@ class TestSsh(CreateConnectionsMixin, TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        super().tearDownClass()
         cls.mock_ssh_server.__exit__()
 
     def test_connection_connect(self):
