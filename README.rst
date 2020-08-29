@@ -41,7 +41,7 @@ X509 certificates automatic generation, revocation of x509 certificates and
 a lot more features.
 
 OpenWISP is not only an application designed for end users, but can also be
-used as a framework on which custom network automation solution can be built
+used as a framework on which custom network automation solutions can be built
 on top of its building blocks.
 
 Other popular building blocks that are part of the OpenWISP ecosystem are:
@@ -623,7 +623,7 @@ Run quality assurance tests with:
 Install and run on docker
 --------------------------
 
-NOTE: This Docker image is for development purposes only. 
+NOTE: This Docker image is for development purposes only.
 For the official OpenWISP Docker images, see: `docker-openwisp
 <https://github.com/openwisp/docker-openwisp>`_.
 
