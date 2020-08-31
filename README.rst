@@ -56,7 +56,7 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
   802.1x WPA2 Enterprise, captive portal authentication, Hotspot 2.0 (802.11u)
 - `openwisp-network-topology <https://github.com/openwisp/openwisp-network-topology>`_:
   provides way to collect and visualize network topology data from
-  dynamic mesh routing deamons or other network software (eg: OpenVPN);
+  dynamic mesh routing daemons or other network software (eg: OpenVPN);
   it can be used in conjunction with openwisp-monitoring to get a better idea
   of the state of the network
 - `openwisp-ipam <https://github.com/openwisp/openwisp-ipam>`_:
