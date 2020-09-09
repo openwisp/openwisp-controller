@@ -34,24 +34,33 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def config_modified_receiver(cls, **kwargs):
-        from .tasks import update_config
-
-        d = kwargs['device']
-        conn_count = d.deviceconnection_set.count()
-        # if device has no connection specified
-        # or update is already in progress, stop here
-        if conn_count < 1 or cls._is_update_in_progress(d.id):
+        device = kwargs['device']
+        conn_count = device.deviceconnection_set.count()
+        # if device has no connection specified stop here
+        if conn_count < 1:
             return
-        transaction.on_commit(lambda: update_config.delay(d.id))
+        transaction.on_commit(lambda: cls._launch_update_config(device.pk))
 
     @classmethod
-    def _is_update_in_progress(cls, device_id):
+    def _launch_update_config(cls, device_pk):
+        """
+        Calls the background task update_config only if
+        no other tasks are running for the same device
+        """
+        if cls._is_update_in_progress(device_pk):
+            return
+        from .tasks import update_config
+
+        update_config.delay(device_pk)
+
+    @classmethod
+    def _is_update_in_progress(cls, device_pk):
         active = inspect().active()
         if not active:
             return False
         # check if there's any other running task before adding it
         for task_list in active.values():
             for task in task_list:
-                if task['name'] == _TASK_NAME and str(device_id) in task['args']:
+                if task['name'] == _TASK_NAME and str(device_pk) in task['args']:
                     return True
         return False

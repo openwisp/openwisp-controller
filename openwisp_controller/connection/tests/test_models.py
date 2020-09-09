@@ -11,6 +11,7 @@ from openwisp_users.models import Group, Organization
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from ..apps import _TASK_NAME
 from ..signals import is_working_changed
 from ..tasks import update_config
 from .utils import CreateConnectionsMixin
@@ -375,20 +376,18 @@ class TestModels(BaseTestModels, TestCase):
 
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
-    @mock.patch(_connect_path)
-    @mock.patch('time.sleep')
-    def test_device_config_update(self, mocked_sleep, mocked_connect):
+    def _prepare_conf_object(self):
         org1 = self._create_org(name='org1')
         cred = self._create_credentials_with_key(
             organization=org1, port=self.ssh_server.port
         )
         device = self._create_device(organization=org1)
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        c = self._create_config(device=device, status='applied')
+        conf = self._create_config(device=device, status='applied')
         self._create_device_connection(
             device=device, credentials=cred, update_strategy=update_strategy
         )
-        c.config = {
+        conf.config = {
             'interfaces': [
                 {
                     'name': 'eth10',
@@ -397,12 +396,42 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 }
             ]
         }
-        c.full_clean()
+        conf.full_clean()
+        return conf
+
+    @mock.patch(_connect_path)
+    @mock.patch('time.sleep')
+    def test_device_config_update(self, mocked_sleep, mocked_connect):
+        conf = self._prepare_conf_object()
 
         with mock.patch(_exec_command_path) as mocked_exec_command:
             mocked_exec_command.return_value = self._exec_command_return_value()
-            c.save()
+            conf.save()
             mocked_exec_command.assert_called_once()
 
-        c.refresh_from_db()
-        self.assertEqual(c.status, 'applied')
+        conf.refresh_from_db()
+        self.assertEqual(conf.status, 'applied')
+
+    @mock.patch.object(update_config, 'delay')
+    def test_device_update_config_in_progress(self, mocked_update_config):
+        conf = self._prepare_conf_object()
+
+        with mock.patch('celery.app.control.Inspect.active') as mocked_active:
+            mocked_active.return_value = {
+                'task': [{'name': _TASK_NAME, 'args': [str(conf.device.pk)]}]
+            }
+            conf.save()
+            mocked_active.assert_called_once()
+            mocked_update_config.assert_not_called()
+
+    @mock.patch.object(update_config, 'delay')
+    def test_device_update_config_not_in_progress(self, mocked_update_config):
+        conf = self._prepare_conf_object()
+
+        with mock.patch('celery.app.control.Inspect.active') as mocked_active:
+            mocked_active.return_value = {
+                'task': [{'name': _TASK_NAME, 'args': ['...']}]
+            }
+            conf.save()
+            mocked_active.assert_called_once()
+            mocked_update_config.assert_called_once_with(conf.device.pk)
