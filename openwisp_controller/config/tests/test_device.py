@@ -7,6 +7,7 @@ from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
+from .. import settings as app_settings
 from ..validators import device_name_validator, mac_address_validator
 from .utils import CreateConfigTemplateMixin
 
@@ -14,6 +15,7 @@ TEST_ORG_SHARED_SECRET = 'functional_testing_secret'
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+_original_context = app_settings.CONTEXT.copy()
 
 
 class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
@@ -154,7 +156,9 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     def test_get_context_with_config(self):
         d = self._create_device()
         c = self._create_config(device=d)
+        self.assertEqual(app_settings.CONTEXT, _original_context)
         self.assertEqual(d.get_context(), c.get_context())
+        self.assertEqual(app_settings.CONTEXT, _original_context)
 
     def test_get_context_without_config(self):
         d = self._create_device()

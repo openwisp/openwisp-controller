@@ -8,6 +8,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...vpn_backends import OpenVpn
+from .. import settings as app_settings
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 Config = load_model('config', 'Config')
@@ -232,6 +233,7 @@ class TestVpn(
         }
         expected.update(settings.OPENWISP_CONTROLLER_CONTEXT)
         self.assertEqual(v.get_context(), expected)
+        self.assertNotEqual(v.get_context(), app_settings.CONTEXT)
 
     @mock.patch('openwisp_controller.config.base.vpn.AbstractVpn.dhparam')
     def test_dh(self, mocked_dhparam):

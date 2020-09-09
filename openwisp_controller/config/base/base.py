@@ -95,7 +95,7 @@ class BaseConfig(BaseModel):
         return c
 
     def get_context(self):
-        return app_settings.CONTEXT
+        return app_settings.CONTEXT.copy()
 
     @classmethod
     def validate_netjsonconfig_backend(cls, backend):

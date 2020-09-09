@@ -8,6 +8,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
+from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
@@ -18,6 +19,8 @@ Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 User = get_user_model()
+
+_original_context = app_settings.CONTEXT.copy()
 
 
 class TestTemplate(
@@ -412,3 +415,24 @@ class TestTemplate(
         # two templates with the same organization can't have the same name
         with self.assertRaises(ValidationError):
             self._create_template(**kwargs)
+
+    def test_context_regression(self):
+        self.test_auto_generated_certificate_for_organization()
+
+        with self.subTest('test Template.get_context()'):
+            template_qs = Template.objects.filter(type='vpn')
+            self.assertEqual(template_qs.count(), 1)
+            t = template_qs.first()
+            self.assertEqual(t.get_context(), _original_context)
+            self.assertEqual(app_settings.CONTEXT, _original_context)
+
+        with self.subTest(
+            'test Device.get_context() interacting with VPN client template'
+        ):
+            device_qs = Device.objects.all()
+            self.assertEqual(device_qs.count(), 1)
+            d = device_qs.first()
+            orig_context_set = set(_original_context.items())
+            context_set = set(d.get_context().items())
+            self.assertTrue(orig_context_set.issubset(context_set))
+            self.assertEqual(app_settings.CONTEXT, _original_context)
