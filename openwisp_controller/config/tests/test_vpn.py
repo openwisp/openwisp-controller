@@ -308,3 +308,20 @@ class TestVpn(
             )
         else:
             self.fail('ValidationError not raised')
+
+    def test_auto_create_cert_with_long_device_name(self):
+        device_name = 'thisisaveryveryveryveryveryveryveryveryveryver'
+        org = self._create_org(name='org1')
+        vpn = self._create_vpn(organization=org)
+        d = self._create_device(organization=org, name=device_name)
+        c = self._create_config(device=d)
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
+        client.full_clean()
+        client.save()
+        self.assertEqual(
+            client._get_common_name(), '{mac_address}-{name}'.format(**d.__dict__)
+        )
+        self.assertEqual(len(client._get_common_name()), 64)
+        cert = Cert.objects.filter(organization=org, name=device_name)
+        self.assertEqual(cert.count(), 1)
+        self.assertEqual(cert.first().common_name, client._get_common_name())

@@ -218,6 +218,8 @@ class AbstractVpnClient(models.Model):
         returns the common name for a new certificate
         """
         d = self.config.device
+        end = 63 - len(d.mac_address)
+        d.name = d.name[:end]
         cn_format = app_settings.COMMON_NAME_FORMAT
         if cn_format == '{mac_address}-{name}' and d.name == d.mac_address:
             cn_format = '{mac_address}'
