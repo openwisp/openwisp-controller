@@ -865,6 +865,17 @@ This signal is emitted every time ``DeviceConnection.is_working`` changes.
 
 It is not triggered when the device is created for the first time.
 
+``device_registered``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_registered``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device`` which got registered.
+
+This signal is emitted once the device gets registered automatically through the controller.
+
 Setup (Integrate into other Apps)
 ---------------------------------
 
