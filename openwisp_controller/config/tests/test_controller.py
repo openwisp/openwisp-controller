@@ -14,6 +14,7 @@ from ..signals import (
     config_download_requested,
     config_modified,
     config_status_changed,
+    device_registered,
 )
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
@@ -998,3 +999,10 @@ class TestController(
             self.client.post(self.register_url, options)
             handler.assert_not_called()
         self.assertEqual(qs.count(), 1)
+
+    def test_device_registered_signal(self):
+        with catch_signal(device_registered) as handler:
+            device = self.test_register()
+            handler.assert_called_once_with(
+                sender=Config, signal=device_registered, instance=device,
+            )

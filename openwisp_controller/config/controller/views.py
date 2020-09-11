@@ -11,7 +11,7 @@ from django.views.generic.detail import SingleObjectMixin
 from swapper import load_model
 
 from .. import settings as app_settings
-from ..signals import checksum_requested, config_download_requested
+from ..signals import checksum_requested, config_download_requested, device_registered
 from ..utils import (
     ControllerResponse,
     forbid_unallowed,
@@ -342,6 +342,8 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             )
         # add templates specified in tags
         self.add_tagged_templates(config, request)
+        # emit device registered signal
+        device_registered.send(sender=config.__class__, instance=device)
         # prepare response
         s = (
             'registration-result: success\n'
