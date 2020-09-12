@@ -614,6 +614,12 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.get('content-type'), 'application/octet-stream')
 
+    def test_template_has_download_config(self):
+        t = Template.objects.first()
+        path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
+        r = self.client.get(path)
+        self.assertContains(r, 'Download configuration')
+
     def test_preview_template(self):
         template = Template.objects.get(name='radio0')
         path = reverse(f'admin:{self.app_label}_template_preview')
@@ -759,6 +765,12 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.get('content-type'), 'application/octet-stream')
 
+    def test_vpn_has_download_config(self):
+        v = self._create_vpn()
+        path = reverse(f'admin:{self.app_label}_vpn_change', args=[v.pk])
+        r = self.client.get(path)
+        self.assertContains(r, 'Download configuration')
+
     def test_preview_vpn(self):
         v = self._create_vpn()
         path = reverse(f'admin:{self.app_label}_vpn_preview')
@@ -809,6 +821,14 @@ class TestAdmin(
             reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
         )
         self.assertNotContains(res, 'Download configuration')
+
+    def test_device_has_download_config(self):
+        d = self._create_device()
+        t = Template.objects.first()
+        self._create_config(device=d, backend=t.backend, config=t.config)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        r = self.client.get(path)
+        self.assertContains(r, 'Download configuration')
 
     def test_preview_device_with_context(self):
         path = reverse(f'admin:{self.app_label}_device_preview')

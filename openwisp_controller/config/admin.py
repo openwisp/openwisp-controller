@@ -90,10 +90,9 @@ class BaseConfigAdmin(BaseAdmin):
         if pk:
             ctx['download_url'] = reverse('{0}_download'.format(prefix), args=[pk])
             try:
-                has_config = (
-                    self.model.__name__ == 'Device'
-                    and self.model.objects.get(pk=pk)._has_config()
-                )
+                has_config = True
+                if self.model.__name__ == 'Device':
+                    has_config = self.model.objects.get(pk=pk)._has_config()
             except (ObjectDoesNotExist, ValidationError):
                 raise Http404()
             else:
