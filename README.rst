@@ -60,9 +60,9 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
   it can be used in conjunction with openwisp-monitoring to get a better idea
   of the state of the network
 - `openwisp-ipam <https://github.com/openwisp/openwisp-ipam>`_:
-  it allows to manage the IP address space of networks
+  allows to manage the assignment of IP addresses used in the network
 - `openwisp-notifications <https://github.com/openwisp/openwisp-notifications>`_:
-  it allows to create and manage notifications from the network.
+  allows users to be aware of important events happening in the network.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp2-docs/master/assets/design/openwisp-logo-black.svg
   :target: http://openwisp.org
@@ -886,8 +886,12 @@ It is not triggered when the device is created for the first time.
 **Arguments**:
 
 - ``instance``: instance of ``Device`` which got registered.
+- ``is_new``: boolean, will be ``True`` when the device is new,
+  ``False`` when the device already exists
+  (eg: a device which gets a factory reset will register again)
 
-This signal is emitted once the device gets registered automatically through the controller.
+This signal is emitted when a device registers automatically through the controller
+HTTP API.
 
 Setup (Integrate into other Apps)
 ---------------------------------

@@ -343,7 +343,7 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         # add templates specified in tags
         self.add_tagged_templates(config, request)
         # emit device registered signal
-        device_registered.send(sender=config.__class__, instance=device)
+        device_registered.send(sender=device.__class__, instance=device, is_new=new)
         # prepare response
         s = (
             'registration-result: success\n'

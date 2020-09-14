@@ -106,7 +106,7 @@ class ConfigConfig(AppConfig):
                     ' {notification.verb}'
                 ),
                 'message': _(
-                    'A new device [{notification.target}]'
+                    '{condition} device [{notification.target}]'
                     '({notification.target_link}) has {notification.verb}.'
                 ),
             },

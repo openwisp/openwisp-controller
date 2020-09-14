@@ -8,7 +8,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ..signals import device_registered
 
-Config = load_model('config', 'Config')
+Device = load_model('config', 'Device')
 Notification = load_model('openwisp_notifications', 'Notification')
 
 notification_qs = Notification.objects.all()
@@ -40,18 +40,28 @@ class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
         # we simulate that "device_registered" signal is emitted
         config = self._create_config()
         device = config.device
-        device_registered.send(sender=Config, instance=config.device)
 
-        self.assertEqual(notification_qs.count(), 1)
-        notification = notification_qs.first()
-        self.assertEqual(notification.actor, device)
-        self.assertEqual(notification.target, device)
-        self.assertEqual(notification.type, 'device_registered')
-        self.assertEqual(
-            notification.email_subject,
-            f'[example.com] SUCCESS: "{device}" registered successfully',
-        )
-        self.assertIn('registered successfully', notification.message)
+        with self.subTest('is_new=True'):
+            device_registered.send(sender=Device, instance=config.device, is_new=True)
+            self.assertEqual(notification_qs.count(), 1)
+            notification = notification_qs.first()
+            self.assertEqual(notification.actor, device)
+            self.assertEqual(notification.target, device)
+            self.assertEqual(notification.type, 'device_registered')
+            self.assertEqual(
+                notification.email_subject,
+                f'[example.com] SUCCESS: "{device}" registered successfully',
+            )
+            self.assertIn('registered successfully', notification.message)
+            self.assertIn('A new device', notification.message)
+
+        Notification.objects.all().delete()
+
+        with self.subTest('is_new=True'):
+            device_registered.send(sender=Device, instance=config.device, is_new=False)
+            self.assertEqual(notification_qs.count(), 1)
+            notification = notification_qs.first()
+            self.assertIn('The existing device', notification.message)
 
     def test_default_notification_type_already_unregistered(self):
         # Simulates if 'default notification type is already unregistered

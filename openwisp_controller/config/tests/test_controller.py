@@ -1004,5 +1004,5 @@ class TestController(
         with catch_signal(device_registered) as handler:
             device = self.test_register()
             handler.assert_called_once_with(
-                sender=Config, signal=device_registered, instance=device,
+                sender=Device, signal=device_registered, instance=device, is_new=True
             )

@@ -1,4 +1,5 @@
 from django.dispatch import receiver
+from django.utils.translation import ugettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
@@ -22,11 +23,14 @@ def config_status_error_notification(sender, instance, **kwargs):
 
 
 @receiver(
-    device_registered, sender=Config, dispatch_uid='device_registered_notification'
+    device_registered, sender=Device, dispatch_uid='device_registered_notification'
 )
-def device_registered_notification(sender, instance, **kwargs):
+def device_registered_notification(sender, instance, is_new, **kwargs):
     """
     Creates notification when a new device is registered automatically
     through controller.
     """
-    notify.send(sender=instance, type='device_registered', target=instance)
+    condition = _('A new') if is_new else _('The existing')
+    notify.send(
+        sender=instance, type='device_registered', target=instance, condition=condition
+    )
