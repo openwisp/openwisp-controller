@@ -178,44 +178,52 @@ You can change the values for the following variables in
 ``OPENWISP_SSH_AUTH_TIMEOUT``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+---------+
-| **type**:    | ``int`` |
-+--------------+---------+
-| **default**: | ``2``   |
-+--------------+---------+
++--------------+-------------+
+| **type**:    |   ``int``   |
++--------------+-------------+
+| **default**: |    ``2``    |
++--------------+-------------+
+| **unit**:    | ``seconds`` |
++--------------+-------------+
 
 Configure timeout to wait for an authentication response when establishing a SSH connection.
 
 ``OPENWISP_SSH_BANNER_TIMEOUT``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+---------+
-| **type**:    | ``int`` |
-+--------------+---------+
-| **default**: | ``60``  |
-+--------------+---------+
++--------------+-------------+
+| **type**:    |   ``int``   |
++--------------+-------------+
+| **default**: |    ``60``   |
++--------------+-------------+
+| **unit**:    | ``seconds`` |
++--------------+-------------+
 
 Configure timeout to wait for the banner to be presented when establishing a SSH connection.
 
 ``OPENWISP_SSH_COMMAND_TIMEOUT``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+---------+
-| **type**:    | ``int`` |
-+--------------+---------+
-| **default**: | ``30``  |
-+--------------+---------+
++--------------+-------------+
+| **type**:    |   ``int``   |
++--------------+-------------+
+| **default**: |    ``30``   |
++--------------+-------------+
+| **unit**:    | ``seconds`` |
++--------------+-------------+
 
 Configure timeout on blocking read/write operations when executing a command in a SSH connection.
 
 ``OPENWISP_SSH_CONNECTION_TIMEOUT``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+---------+
-| **type**:    | ``int`` |
-+--------------+---------+
-| **default**: | ``5``   |
-+--------------+---------+
++--------------+-------------+
+| **type**:    |   ``int``   |
++--------------+-------------+
+| **default**: |    ``5``    |
++--------------+-------------+
+| **unit**:    | ``seconds`` |
++--------------+-------------+
 
 Configure timeout for the TCP connect when establishing a SSH connection.
 
