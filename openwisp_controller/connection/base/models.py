@@ -370,6 +370,8 @@ class AbstractCommand(TimeStampedEditableModel):
         commands in the background upon creation.
         """
         adding = self._state.adding
+        if adding:
+            self.full_clean()
         output = super().save(*args, **kwargs)
         if adding:
             self._schedule_command()
