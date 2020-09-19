@@ -20,7 +20,6 @@ SAMPLE_APP=1 openwisp-qa-check \
   --skip-isort \
   --skip-flake8 \
   --skip-black \
-  --skip-checkmigrations \
   --skip-checkendline \
   --skip-checkcommit \
   --migration-path "./tests/openwisp2/sample_config/migrations/

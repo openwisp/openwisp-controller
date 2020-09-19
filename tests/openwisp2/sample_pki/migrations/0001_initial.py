@@ -120,7 +120,7 @@ class Migration(migrations.Migration):
                 (
                     'common_name',
                     models.CharField(
-                        blank=True, max_length=63, verbose_name='common name'
+                        blank=True, max_length=64, verbose_name='common name'
                     ),
                 ),
                 (
@@ -298,7 +298,7 @@ class Migration(migrations.Migration):
                 (
                     'common_name',
                     models.CharField(
-                        blank=True, max_length=63, verbose_name='common name'
+                        blank=True, max_length=64, verbose_name='common name'
                     ),
                 ),
                 (
