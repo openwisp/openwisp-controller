@@ -27,8 +27,9 @@ notifications:
   on_success: never
 
 env:
-  - DJANGO="django>=2.2,<2.3"
-  - DJANGO="django>=3.0,<3.1"
+  - DJANGO="django~=2.2"
+  - DJANGO="django~=3.0"
+  - DJANGO="django~=3.1"
 
 branches:
   only:
