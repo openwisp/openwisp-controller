@@ -563,6 +563,11 @@ class TestConfig(
             self.assertEqual(c.status, 'modified')
 
         with catch_signal(config_modified) as handler:
+            c.config = {'general': {'description': 'hey'}}
+            c.full_clean()
+            handler.assert_not_called()
+
+        with catch_signal(config_modified) as handler:
             c.save()
             handler.assert_called_once_with(
                 sender=Config,
@@ -575,6 +580,7 @@ class TestConfig(
 
         with catch_signal(config_modified) as handler:
             c.config = {'general': {'description': 'changed again'}}
+            c.full_clean()
             c.full_clean()
             c.save()
             handler.assert_called_once()

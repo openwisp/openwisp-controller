@@ -159,10 +159,6 @@ class AbstractConfig(BaseConfig):
             return
         if instance.status != 'modified':
             instance.set_status_modified()
-        # send config modified signal only if the
-        # config object hasn't been just created
-        elif not instance._just_created:
-            instance._send_config_modified_signal()
 
     @classmethod
     def manage_vpn_clients(cls, action, instance, pk_set, **kwargs):
@@ -274,7 +270,7 @@ class AbstractConfig(BaseConfig):
                 else:
                     # config modified signal is always sent
                     # regardless of the current status
-                    self._send_config_modified_signal()
+                    self._send_config_modified_after_save = True
                 break
 
     def save(self, *args, **kwargs):

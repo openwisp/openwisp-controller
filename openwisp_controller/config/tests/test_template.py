@@ -97,14 +97,21 @@ class TestTemplate(
                 sender=Config, signal=config_status_changed, instance=c,
             )
 
-    def test_config_modified_signal_always_sent(self):
+    def test_config_modified_signal(self):
         temp = self._create_template()
         conf = self._create_config(device=self._create_device(name='test-status'))
         self.assertEqual(conf.status, 'modified')
         # refresh instance to reset _just_created attribute
         conf = Config.objects.get(pk=conf.pk)
 
+        with self.subTest('signal not sent m2m if config status is already modified'):
+            # (avoids executing push updates multiple times)
+            with catch_signal(config_modified) as handler:
+                conf.templates.add(temp)
+                handler.assert_not_called()
+
         with catch_signal(config_modified) as handler:
+            conf.set_status_applied()
             conf.templates.add(temp)
             handler.assert_called_once_with(
                 sender=Config,
