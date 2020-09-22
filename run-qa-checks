@@ -3,8 +3,11 @@
 set -e
 
 rm -rf ./openwisp_controller/geo/tests/.pytest_cache \
+       ./openwisp_controller/config/tests/.pytest_cache/ \
+       ./openwisp_controller/connection/tests/.pytest_cache/ \
        ./openwisp_controller/.pytest_cache/ \
        ./tests/openwisp2/sample_geo/.pytest_cache \
+       ./tests/.pytest_cache \
        ./tests/openwisp2/.pytest_cache/ \
        ./htmlcov/ 2> /dev/null || true
 

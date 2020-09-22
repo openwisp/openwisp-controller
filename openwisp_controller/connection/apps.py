@@ -1,4 +1,6 @@
+from asgiref.sync import async_to_sync
 from celery.task.control import inspect
+from channels import layers
 from django.apps import AppConfig
 from django.db import transaction
 from django.db.models.signals import post_save
@@ -26,11 +28,15 @@ class ConnectionConfig(AppConfig):
         """
         self.register_notification_types()
         self.notification_cache_update()
+
+        Config = load_model('config', 'Config')
+        Credentials = load_model('connection', 'Credentials')
+        Command = load_model('connection', 'Command')
+
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid='connection.update_config'
         )
-        Config = load_model('config', 'Config')
-        Credentials = load_model('connection', 'Credentials')
+
         post_save.connect(
             Credentials.auto_add_credentials_to_device,
             sender=Config,
@@ -42,6 +48,10 @@ class ConnectionConfig(AppConfig):
             dispatch_uid='is_working_changed_receiver',
         )
 
+        post_save.connect(
+            self.command_save_receiver, sender=Command, dispatch_uid="command_save_handler"
+        )
+
     @classmethod
     def config_modified_receiver(cls, **kwargs):
         device = kwargs['device']
@@ -50,6 +60,20 @@ class ConnectionConfig(AppConfig):
         if conn_count < 1:
             return
         transaction.on_commit(lambda: cls._launch_update_config(device.pk))
+
+    @classmethod
+    def command_save_receiver(cls, sender, created, instance, **kwargs):
+        from .api.serializer import CommandSerializer
+
+        channel_layer = layers.get_channel_layer()
+        if created:
+            # Trigger websocket message only when command status is updated
+            return
+        serialized_data = CommandSerializer(instance).data
+        async_to_sync(channel_layer.group_send)(
+            f'config.device-{instance.device_id}',
+            {'type': 'send.update', 'model': 'Command', 'data': serialized_data},
+        )
 
     @classmethod
     def _launch_update_config(cls, device_pk):

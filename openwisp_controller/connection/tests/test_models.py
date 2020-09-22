@@ -362,10 +362,10 @@ class TestModels(BaseTestModels, TestCase):
 
     def test_command_str(self):
         with self.subTest('custom command short'):
-            command = Command(type='custom', input='echo test')
+            command = Command(type='custom', input={'command': 'echo test'})
             self.assertIn('«echo test» sent on', str(command))
         with self.subTest('custom command long'):
-            cmd = 'echo "longer than thirtytwo characters"'
+            cmd = {'command': 'echo "longer than thirtytwo characters"'}
             command = Command(type='custom', input=cmd)
             self.assertIn('«echo "longer than thirtytwo char…»', str(command))
         with self.subTest('predefined command'):
@@ -377,7 +377,7 @@ class TestModels(BaseTestModels, TestCase):
             self.assertIn(created, str(command))
 
     def test_command_is_custom(self):
-        command = Command(type='custom', input='echo test')
+        command = Command(type='custom', input={'command': 'echo test'})
         self.assertTrue(command.is_custom)
 
     def test_command_validation(self):

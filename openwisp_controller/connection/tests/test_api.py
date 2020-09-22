@@ -8,13 +8,13 @@ from swapper import load_model
 from openwisp_users.tests.test_api import AuthenticationMixin
 
 from ..api.views import CommandPaginator
-from .utils import CreateConnectionsMixin
+from .utils import CreateCommandMixin
 
 Command = load_model('connection', 'Command')
 command_qs = Command.objects.order_by('-created')
 
 
-class TestCommandsAPI(TestCase, AuthenticationMixin, CreateConnectionsMixin):
+class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
     url_namespace = 'connection'
 
     def setUp(self):
@@ -22,16 +22,6 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateConnectionsMixin):
         self.client.force_login(self.admin)
         self.device_conn = self._create_device_connection()
         self.device_id = self.device_conn.device.id
-
-    def _create_command(self, device_conn=None):
-        if not device_conn:
-            device_conn = self.device_conn
-        return Command.objects.create(
-            device=device_conn.device,
-            connection=device_conn,
-            type='custom',
-            input={'command': 'echo test'},
-        )
 
     def _get_path(self, url_name, *args, **kwargs):
         path = reverse(f'{self.url_namespace}:{url_name}', args=args)
@@ -48,7 +38,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateConnectionsMixin):
         number_of_commands = 6
         url = self._get_path('api_device_command_list_create', self.device_id)
         for _ in range(number_of_commands):
-            self._create_command()
+            self._create_command(device_conn=self.device_conn)
         self.assertEqual(command_qs.count(), number_of_commands)
 
         response = self.client.get(url)
@@ -167,7 +157,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateConnectionsMixin):
             test_command_attributes(self, payload)
 
     def test_command_details_api(self):
-        command_obj = self._create_command()
+        command_obj = self._create_command(device_conn=self.device_conn)
         url = self._get_path(
             'api_device_command_details', self.device_id, command_obj.id
         )
@@ -185,7 +175,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateConnectionsMixin):
 
     def test_bearer_authentication(self):
         self.client.logout()
-        command_obj = self._create_command()
+        command_obj = self._create_command(device_conn=self.device_conn)
         token = self._obtain_auth_token(username='admin', password='tester')
 
         with self.subTest('Test creating command'):

@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
-import subprocess
 import sys
+
+import pytest
 
 if __name__ == '__main__':
     sys.path.insert(0, 'tests')
@@ -20,13 +21,8 @@ if __name__ == '__main__':
     execute_from_command_line(args)
 
     if not os.environ.get('SAMPLE_APP', False):
-        file_name = 'openwisp_controller/geo/tests'
+        app_dir = 'openwisp_controller/'
     else:
-        file_name = 'tests/openwisp2/sample_geo'
+        app_dir = 'tests/openwisp2/'
 
-    return_code = subprocess.call(
-        'pytest --cov=openwisp_controller --cov-append '
-        f'-c tests/pytest.ini {file_name}',
-        shell=True,
-    )
-    sys.exit(return_code)
+    sys.exit(pytest.main([app_dir]))

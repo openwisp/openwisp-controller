@@ -10,6 +10,7 @@ from .. import settings as app_settings
 
 Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
+Command = load_model('connection', 'Command')
 
 
 class SshServer(Server):
@@ -99,3 +100,16 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         dc.full_clean()
         dc.save()
         return dc
+
+
+class CreateCommandMixin(CreateConnectionsMixin):
+    def _create_command(self, device_conn=None, device_conn_opts={}, **kwargs):
+        if device_conn is None:
+            device_conn = self._create_device_connection(**device_conn_opts)
+        opts = {
+            'device': device_conn.device,
+            'connection': device_conn,
+            'type': 'custom',
+            'input': {'command': 'echo test'},
+        }
+        return Command.objects.create(**opts)
