@@ -404,13 +404,28 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     def test_device_config_update(self, mocked_sleep, mocked_connect):
         conf = self._prepare_conf_object()
 
-        with mock.patch(_exec_command_path) as mocked_exec_command:
-            mocked_exec_command.return_value = self._exec_command_return_value()
-            conf.save()
-            mocked_exec_command.assert_called_once()
+        with self.subTest('exit_code 0'):
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                mocked_exec_command.return_value = self._exec_command_return_value()
+                conf.save()
+                mocked_exec_command.assert_called_once()
 
-        conf.refresh_from_db()
-        self.assertEqual(conf.status, 'applied')
+            conf.refresh_from_db()
+            self.assertEqual(conf.status, 'applied')
+
+        with self.subTest('exit_code 1'):
+            conf.config = '{"interfaces": []}'
+            conf.full_clean()
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                mocked_exec_command.return_value = self._exec_command_return_value(
+                    exit_code=1
+                )
+                conf.save()
+                self.assertEqual(mocked_exec_command.call_count, 2)
+
+            conf.refresh_from_db()
+            # exit code 1 considers the update not successful
+            self.assertEqual(conf.status, 'modified')
 
     @mock.patch.object(update_config, 'delay')
     def test_device_update_config_in_progress(self, mocked_update_config):
