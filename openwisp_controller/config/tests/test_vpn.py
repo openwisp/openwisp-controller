@@ -310,7 +310,7 @@ class TestVpn(
             self.fail('ValidationError not raised')
 
     def test_auto_create_cert_with_long_device_name(self):
-        device_name = 'thisisaveryveryveryveryveryveryveryveryveryver'
+        device_name = 'abcdifghijklmnopqrstuvwxyz12345678901234567890'
         org = self._create_org(name='org1')
         vpn = self._create_vpn(organization=org)
         d = self._create_device(organization=org, name=device_name)
