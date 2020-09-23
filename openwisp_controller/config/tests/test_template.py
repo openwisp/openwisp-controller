@@ -1,7 +1,11 @@
+import uuid
+from unittest import mock
+
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
 
@@ -10,6 +14,8 @@ from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
+from ..tasks import logger as task_logger
+from ..tasks import update_template_related_config_status
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 Config = load_model('config', 'Config')
@@ -50,40 +56,6 @@ class TestTemplate(
         with self.assertRaises(ValidationError):
             t.full_clean()
 
-    def test_config_status_modified_after_change(self):
-        t = self._create_template()
-        c = self._create_config(device=self._create_device(name='test-status'))
-        self.assertEqual(c.status, 'modified')
-
-        with catch_signal(config_status_changed) as handler:
-            c.templates.add(t)
-            handler.assert_not_called()
-
-        c.status = 'applied'
-        c.save()
-        c.refresh_from_db()
-        self.assertEqual(c.status, 'applied')
-        t.config['interfaces'][0]['name'] = 'eth1'
-        t.full_clean()
-
-        with catch_signal(config_status_changed) as handler:
-            t.save()
-            c.refresh_from_db()
-            handler.assert_called_once_with(
-                sender=Config, signal=config_status_changed, instance=c,
-            )
-            self.assertEqual(c.status, 'modified')
-
-        # status has already changed to modified
-        # sgnal should not be triggered again
-        with catch_signal(config_status_changed) as handler:
-            t.config['interfaces'][0]['name'] = 'eth2'
-            t.full_clean()
-            t.save()
-            c.refresh_from_db()
-            handler.assert_not_called()
-            self.assertEqual(c.status, 'modified')
-
     def test_config_status_modified_after_template_added(self):
         t = self._create_template()
         c = self._create_config(device=self._create_device(name='test-status'))
@@ -96,53 +68,6 @@ class TestTemplate(
             handler.assert_called_once_with(
                 sender=Config, signal=config_status_changed, instance=c,
             )
-
-    def test_config_modified_signal(self):
-        temp = self._create_template()
-        conf = self._create_config(device=self._create_device(name='test-status'))
-        self.assertEqual(conf.status, 'modified')
-        # refresh instance to reset _just_created attribute
-        conf = Config.objects.get(pk=conf.pk)
-
-        with self.subTest('signal not sent m2m if config status is already modified'):
-            # (avoids executing push updates multiple times)
-            with catch_signal(config_modified) as handler:
-                conf.templates.add(temp)
-                handler.assert_not_called()
-
-        with catch_signal(config_modified) as handler:
-            conf.set_status_applied()
-            conf.templates.add(temp)
-            handler.assert_called_once_with(
-                sender=Config,
-                signal=config_modified,
-                instance=conf,
-                device=conf.device,
-                config=conf,
-            )
-
-        conf.status = 'applied'
-        conf.save()
-        conf.refresh_from_db()
-        self.assertEqual(conf.status, 'applied')
-        temp.config['interfaces'][0]['name'] = 'eth1'
-        temp.full_clean()
-
-        with catch_signal(config_modified) as handler:
-            temp.save()
-            conf.refresh_from_db()
-            handler.assert_called_once()
-            self.assertEqual(conf.status, 'modified')
-
-        # status has already changed to modified
-        # sgnal should be triggered anyway
-        with catch_signal(config_modified) as handler:
-            temp.config['interfaces'][0]['name'] = 'eth2'
-            temp.full_clean()
-            temp.save()
-            conf.refresh_from_db()
-            handler.assert_called_once()
-            self.assertEqual(conf.status, 'modified')
 
     def test_no_auto_hostname(self):
         t = self._create_template()
@@ -443,3 +368,131 @@ class TestTemplate(
             context_set = set(d.get_context().items())
             self.assertTrue(orig_context_set.issubset(context_set))
             self.assertEqual(app_settings.CONTEXT, _original_context)
+
+
+class TestTemplateTransaction(
+    TestOrganizationMixin,
+    CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
+    TransactionTestCase,
+):
+    def test_config_status_modified_after_change(self):
+        t = self._create_template()
+        c = self._create_config(device=self._create_device(name='test-status'))
+        self.assertEqual(c.status, 'modified')
+
+        with self.subTest('signal not sent if related config is in modified status'):
+            with catch_signal(config_status_changed) as handler:
+                c.templates.add(t)
+                handler.assert_not_called()
+
+        c.status = 'applied'
+        c.save()
+        c.refresh_from_db()
+        self.assertEqual(c.status, 'applied')
+        t.config['interfaces'][0]['name'] = 'eth1'
+        t.full_clean()
+
+        with self.subTest('signal is sent if related config is in applied status'):
+            with catch_signal(config_status_changed) as handler:
+                t.save()
+                c.refresh_from_db()
+                handler.assert_called_once_with(
+                    sender=Config, signal=config_status_changed, instance=c,
+                )
+                self.assertEqual(c.status, 'modified')
+
+        with self.subTest(
+            'signal not sent if config is already modified (additional case)'
+        ):
+            # status has already changed to modified
+            # sgnal should not be triggered again
+            with catch_signal(config_status_changed) as handler:
+                t.config['interfaces'][0]['name'] = 'eth2'
+                t.full_clean()
+                with self.assertNumQueries(7):
+                    t.save()
+                c.refresh_from_db()
+                handler.assert_not_called()
+                self.assertEqual(c.status, 'modified')
+
+    def test_config_modified_signal(self):
+        temp = self._create_template()
+        conf = self._create_config(device=self._create_device(name='test-status'))
+        self.assertEqual(conf.status, 'modified')
+        # refresh instance to reset _just_created attribute
+        conf = Config.objects.get(pk=conf.pk)
+
+        with self.subTest('signal not sent m2m if config status is already modified'):
+            # (avoids executing push updates multiple times)
+            with catch_signal(config_modified) as handler:
+                conf.templates.add(temp)
+                handler.assert_not_called()
+
+        with self.subTest('signal sent after assigning template to config'):
+            with catch_signal(config_modified) as handler:
+                conf.set_status_applied()
+                conf.templates.add(temp)
+                handler.assert_called_once_with(
+                    sender=Config,
+                    signal=config_modified,
+                    instance=conf,
+                    device=conf.device,
+                    config=conf,
+                )
+
+        conf.status = 'applied'
+        conf.save()
+        conf.refresh_from_db()
+        self.assertEqual(conf.status, 'applied')
+        temp.config['interfaces'][0]['name'] = 'eth1'
+
+        with self.subTest('signal sent after changing a template'):
+            with catch_signal(config_modified) as handler:
+                temp.full_clean()
+                temp.save()
+                conf.refresh_from_db()
+                handler.assert_called_once()
+                self.assertEqual(conf.status, 'modified')
+
+        with self.subTest('signal sent also if config is already in modified status'):
+            # status has already changed to modified
+            # sgnal should be triggered anyway
+            with catch_signal(config_modified) as handler:
+                temp.config['interfaces'][0]['name'] = 'eth2'
+                temp.full_clean()
+                temp.save()
+                conf.refresh_from_db()
+                handler.assert_called_once()
+                self.assertEqual(conf.status, 'modified')
+
+    @mock.patch.object(update_template_related_config_status, 'delay')
+    def test_task_called(self, mocked_task):
+        with self.subTest('task not called when template is created'):
+            template = self._create_template()
+            conf = self._create_config(device=self._create_device(name='test-status'))
+            conf.set_status_applied()
+            mocked_task.assert_not_called()
+
+        with self.subTest('task is called when template is assigned to conf'):
+            template.config['interfaces'][0]['name'] = 'eth1'
+            template.full_clean()
+            template.save()
+            mocked_task.assert_called_with(template.pk)
+
+    @mock.patch.object(task_logger, 'warning')
+    def test_task_failure(self, mocked_warning):
+        update_template_related_config_status.delay(uuid.uuid4())
+        mocked_warning.assert_called_once()
+
+    @mock.patch.object(
+        Template, '_update_related_config_status', side_effect=SoftTimeLimitExceeded
+    )
+    def test_task_timeout(self, mocked_update_related_config_status):
+        template = self._create_template()
+        with mock.patch.object(task_logger, 'error') as mocked_error:
+            template.config['interfaces'][0]['name'] = 'eth2'
+            template.full_clean()
+            template.save()
+            mocked_error.assert_called_once()
+        mocked_update_related_config_status.assert_called_once()

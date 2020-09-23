@@ -4,7 +4,7 @@ from copy import copy
 from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from swapper import get_model_name
@@ -13,6 +13,7 @@ from taggit.managers import TaggableManager
 from openwisp_users.mixins import ShareableOrgMixin
 
 from ..settings import DEFAULT_AUTO_CERT
+from ..tasks import update_template_related_config_status
 from .base import BaseConfig
 
 TYPE_CHOICES = (
@@ -115,12 +116,14 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
         super().save(*args, **kwargs)
         # update relations
         if update_related_config_status:
-            self._update_related_config_status()
+            transaction.on_commit(
+                lambda: update_template_related_config_status.delay(self.pk)
+            )
 
     def _update_related_config_status(self):
         changing_status = list(self.config_relations.exclude(status='modified'))
         self.config_relations.update(status='modified')
-        for config in self.config_relations.all():
+        for config in self.config_relations.select_related('device').iterator():
             # config modified signal sent regardless
             config._send_config_modified_signal()
             # config status changed signal sent only if status changed
