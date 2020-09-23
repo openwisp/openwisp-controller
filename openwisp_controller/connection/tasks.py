@@ -18,9 +18,9 @@ def update_config(device_id):
     # wait for the saving operations of this device to complete
     # (there may be multiple ones happening at the same time)
     time.sleep(2)
-    # avoid repeating the operation multiple times
     try:
         device = Device.objects.select_related('config').get(pk=device_id)
+        # avoid repeating the operation multiple times
         if device.config.status == 'applied':
             return
     except ObjectDoesNotExist as e:
