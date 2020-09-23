@@ -22,3 +22,6 @@ SSH_AUTH_TIMEOUT = getattr(settings, 'OPENWISP_SSH_AUTH_TIMEOUT', 2)
 SSH_BANNER_TIMEOUT = getattr(settings, 'OPENWISP_SSH_BANNER_TIMEOUT', 60)
 SSH_COMMAND_TIMEOUT = getattr(settings, 'OPENWISP_SSH_COMMAND_TIMEOUT', 30)
 SSH_CONNECTION_TIMEOUT = getattr(settings, 'OPENWISP_SSH_CONNECTION_TIMEOUT', 5)
+
+# this may get overridden by openwisp-monitoring
+UPDATE_CONFIG_MODEL = getattr(settings, 'OPENWISP_UPDATE_CONFIG_MODEL', 'config.Device')

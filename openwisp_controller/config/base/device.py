@@ -182,3 +182,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         config = self.get_config_model()(**options)
         config.device = self
         return config
+
+    def can_be_updated(self):
+        """
+        returns True if the device can and should be updated
+        can be overridden with custom logic if needed
+        """
+        return self.config.status != 'applied'
