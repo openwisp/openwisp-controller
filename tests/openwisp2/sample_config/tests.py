@@ -4,6 +4,9 @@ from openwisp_controller.config.tests.test_controller import (
     TestController as BaseTestController,
 )
 from openwisp_controller.config.tests.test_device import TestDevice as BaseTestDevice
+from openwisp_controller.config.tests.test_notifications import (
+    TestNotifications as BaseTestNotifications,
+)
 from openwisp_controller.config.tests.test_tag import TestTag as BaseTestTag
 from openwisp_controller.config.tests.test_template import (
     TestTemplate as BaseTestTemplate,
@@ -36,6 +39,10 @@ class TestTemplate(BaseTestTemplate):
     pass
 
 
+class TestNotifications(BaseTestNotifications):
+    app_label = 'sample_config'
+
+
 class TestViews(BaseTestViews):
     pass
 
@@ -50,5 +57,6 @@ del BaseTestController
 del BaseTestDevice
 del BaseTestTag
 del BaseTestTemplate
+del BaseTestNotifications
 del BaseTestViews
 del BaseTestVpn

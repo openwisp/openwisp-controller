@@ -15,6 +15,8 @@ notification_qs = Notification.objects.all()
 
 
 class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
+    app_label = 'config'
+
     def setUp(self):
         self.admin = self._get_admin()
 
@@ -75,5 +77,5 @@ class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
         # This will try to unregister 'default' notification type
         # which is already got unregistered when Django loaded.
         # No exception should be raised as the exception is already handled.
-        app = apps.get_app_config('config')
+        app = apps.get_app_config(self.app_label)
         app.ready()
