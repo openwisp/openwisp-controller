@@ -155,6 +155,8 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
         if self.type == 'vpn' and not self.config:
             self.config = self.vpn.auto_client(auto_cert=self.auto_cert)
         super().clean(*args, **kwargs)
+        if not self.config:
+            raise ValidationError(_('The configuration field cannot be empty.'))
 
     def get_context(self):
         context = {}
@@ -193,4 +195,6 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
         return name
 
 
+# It's allowed to be blank because VPN client templates can be
+# automatically generated via the netjsonconfig library if left empty.
 AbstractTemplate._meta.get_field('config').blank = True
