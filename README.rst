@@ -893,8 +893,8 @@ It is not triggered when the device is created for the first time.
 This signal is emitted when a device registers automatically through the controller
 HTTP API.
 
-Setup (Integrate into other Apps)
----------------------------------
+Setup (integrate in an existing django project)
+-----------------------------------------------
 
 Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
 
@@ -917,9 +917,50 @@ Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
         'django.forms',
         ...
     ]
+    EXTENDED_APPS = ('django_x509', 'django_loci')
 
 **Note**: The order of applications in ``INSTALLED_APPS`` should be maintained,
 otherwise it might not work properly.
+
+Other settings needed in ``settings.py``:
+
+.. code-block:: python
+
+    STATICFILES_FINDERS = [
+        'django.contrib.staticfiles.finders.FileSystemFinder',
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+        'openwisp_utils.staticfiles.DependencyFinder',
+    ]
+
+    ASGI_APPLICATION = 'openwisp_controller.geo.channels.routing.channel_routing'
+    CHANNEL_LAYERS = {
+        # in production you should use another channel layer backend
+        'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
+    }
+
+    TEMPLATES = [
+        {
+            'BACKEND': 'django.template.backends.django.DjangoTemplates',
+            'DIRS': [],
+            'OPTIONS': {
+                'loaders': [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                    'openwisp_utils.loaders.DependencyLoader',
+                ],
+                'context_processors': [
+                    'django.template.context_processors.debug',
+                    'django.template.context_processors.request',
+                    'django.contrib.auth.context_processors.auth',
+                    'django.contrib.messages.context_processors.messages',
+                    'openwisp_utils.admin_theme.context_processor.menu_items',
+                    'openwisp_notifications.context_processors.notification_api_settings',
+                ],
+            },
+        }
+    ]
+
+    FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 Add the URLs to your main ``urls.py``:
 
@@ -928,8 +969,43 @@ Add the URLs to your main ``urls.py``:
     urlpatterns = [
         # ... other urls in your project ...
         # openwisp-controller urls
-        url(r'^', include('openwisp_controller.urls')),
+        url(r'^admin/', admin.site.urls),
+        url(r'', include('openwisp_controller.urls')),
+        url(r'', include('openwisp_notifications.urls')),
     ]
+
+Configure caching (you may use a different cache storage if you want):
+
+.. code-block:: python
+
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://localhost/0',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            }
+        }
+    }
+
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'default'
+
+Configure celery (you may use a different broker if you want):
+
+.. code-block:: python
+
+    # here we show how to configure celery with redis but you can
+    # use other brokers if you want, consult the celery docs
+    CELERY_BROKER_URL = 'redis://localhost/1'
+
+    INSTALLED_APPS.append('djcelery_email')
+    EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
+
+If you decide to use redis (as shown in these examples),
+install the requierd python packages::
+
+    pip install redis django-redis
 
 Then run:
 
@@ -937,20 +1013,19 @@ Then run:
 
     ./manage.py migrate
 
-**Note**: In order to properly configure notifications for your project,
-please follow `setup guide of openwisp-notifications <https://github.com/openwisp/openwisp-notifications#setup-integrate-into-an-existing-django-project>`_.
-
 Extending openwisp-controller
 -----------------------------
 
-One of the core values of the OpenWISP project is `Software Reusability <http://openwisp.io/docs/general/values.html#software-reusability-means-long-term-sustainability>`_,
+One of the core values of the OpenWISP project is
+`Software Reusability <http://openwisp.io/docs/general/values.html#software-reusability-means-long-term-sustainability>`_,
 for this reason *openwisp-controller* provides a set of base classes
 which can be imported, extended and reused to create derivative apps.
 
 In order to implement your custom version of *openwisp-controller*,
 you need to perform the steps described in this section.
 
-When in doubt, the code in the `test project <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/>`_
+When in doubt, the code in the
+`test project <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/>`_
 will serve you as source of truth: just replicate and adapt that code
 to get a basic derivative of *openwisp-controller* working.
 
@@ -1094,6 +1169,8 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``setti
                     'django.template.context_processors.request',
                     'django.contrib.auth.context_processors.auth',
                     'django.contrib.messages.context_processors.messages',
+                    'openwisp_utils.admin_theme.context_processor.menu_items',
+                    'openwisp_notifications.context_processors.notification_api_settings',
                 ],
             },
         }
