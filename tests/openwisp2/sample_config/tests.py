@@ -16,6 +16,9 @@ from openwisp_controller.config.tests.test_template import (
 )
 from openwisp_controller.config.tests.test_views import TestViews as BaseTestViews
 from openwisp_controller.config.tests.test_vpn import TestVpn as BaseTestVpn
+from openwisp_controller.config.tests.test_vpn import (
+    TestVpnTransaction as BaseTestVpnTransaction,
+)
 
 
 class TestAdmin(BaseTestAdmin):
@@ -58,6 +61,10 @@ class TestVpn(BaseTestVpn):
     pass
 
 
+class TestVpnTransaction(BaseTestVpnTransaction):
+    pass
+
+
 del BaseTestAdmin
 del BaseTestConfig
 del BaseTestController
@@ -68,3 +75,4 @@ del BaseTestTemplateTransaction
 del BaseTestNotifications
 del BaseTestViews
 del BaseTestVpn
+del BaseTestVpnTransaction

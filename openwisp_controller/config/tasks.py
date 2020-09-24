@@ -29,3 +29,16 @@ def update_template_related_config_status(template_pk):
             f'_update_related_config_status for {template} '
             f'(ID: {template_pk})'
         )
+
+
+@shared_task(soft_time_limit=1200)
+def create_vpn_dh(vpn_pk):
+    Vpn = load_model('config', 'Vpn')
+    vpn_obj = Vpn.objects.get(pk=vpn_pk)
+    try:
+        vpn_obj.dh = Vpn.dhparam(2048)
+    except SoftTimeLimitExceeded:
+        logger.error('A timeout exception occurred while generating the DH')
+    else:
+        vpn_obj.full_clean()
+        vpn_obj.save()

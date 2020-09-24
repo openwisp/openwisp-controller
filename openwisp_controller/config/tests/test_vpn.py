@@ -1,14 +1,16 @@
 from unittest import mock
 
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...vpn_backends import OpenVpn
 from .. import settings as app_settings
+from ..tasks import create_vpn_dh
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 Config = load_model('config', 'Config')
@@ -325,3 +327,38 @@ class TestVpn(
         cert = Cert.objects.filter(organization=org, name=device_name)
         self.assertEqual(cert.count(), 1)
         self.assertEqual(cert.first().common_name, client._get_common_name())
+
+    @mock.patch.object(Vpn, 'dhparam', side_effect=SoftTimeLimitExceeded)
+    def test_update_vpn_dh_timeout(self, dhparam):
+        vpn = self._create_vpn(dh='')
+        with mock.patch('logging.Logger.error') as mocked_logger:
+            create_vpn_dh.delay(vpn.pk)
+            mocked_logger.assert_called_once()
+        dhparam.assert_called_once()
+
+
+class TestVpnTransaction(
+    TestOrganizationMixin,
+    TestVpnX509Mixin,
+    CreateConfigTemplateMixin,
+    TransactionTestCase,
+):
+    @mock.patch.object(create_vpn_dh, 'delay')
+    def test_create_vpn_dh_with_vpn_create(self, delay):
+        vpn = self._create_vpn(dh='')
+        delay.assert_called_once_with(vpn.pk)
+
+    @mock.patch.object(create_vpn_dh, 'delay')
+    def test_placeholder_dh_set(self, delay):
+        self._create_vpn(dh='', host='localhost')
+        vpn = Vpn.objects.get(host='localhost')
+        self.assertEqual(vpn.dh, Vpn._placeholder_dh)
+        delay.assert_called_once_with(vpn.pk)
+
+    @mock.patch.object(Vpn, 'dhparam')
+    def test_update_vpn_dh(self, dhparam):
+        dhparam.return_value = self._dh
+        vpn = self._create_vpn(dh='')
+        vpn.refresh_from_db()
+        self.assertNotEqual(vpn.dh, Vpn._placeholder_dh)
+        dhparam.assert_called_once()
