@@ -231,7 +231,7 @@ class TestTemplate(
         options = {
             'name': 'test1',
             'backend': 'netjsonconfig.OpenWrt',
-            'config': {},
+            'config': {'dns_server': '8.8.8.8'},
         }
         template = Template(**options)
 
@@ -368,6 +368,11 @@ class TestTemplate(
             context_set = set(d.get_context().items())
             self.assertTrue(orig_context_set.issubset(context_set))
             self.assertEqual(app_settings.CONTEXT, _original_context)
+
+    def test_template_with_no_config(self):
+        msg = 'The configuration field cannot be empty'
+        with self.assertRaisesMessage(ValidationError, msg):
+            self._create_template(config={})
 
 
 class TestTemplateTransaction(
