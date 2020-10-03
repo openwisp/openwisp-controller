@@ -83,6 +83,8 @@ class AbstractDevice(OrgMixin, BaseModel):
             ('hardware_id', 'organization'),
         )
         abstract = True
+        verbose_name = app_settings.DEVICE_VERBOSE_NAME[0]
+        verbose_name_plural = app_settings.DEVICE_VERBOSE_NAME[1]
 
     def __str__(self):
         return (
