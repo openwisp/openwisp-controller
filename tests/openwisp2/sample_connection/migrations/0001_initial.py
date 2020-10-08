@@ -176,9 +176,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     'failure_reason',
-                    models.CharField(
-                        blank=True, max_length=128, verbose_name='reason of failure'
-                    ),
+                    models.TextField(blank=True, verbose_name='reason of failure'),
                 ),
                 ('last_attempt', models.DateTimeField(blank=True, null=True)),
                 ('details', models.CharField(blank=True, max_length=64, null=True)),

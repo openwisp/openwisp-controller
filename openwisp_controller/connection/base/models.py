@@ -181,9 +181,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     )
     # usability improvements
     is_working = models.BooleanField(null=True, blank=True, default=None)
-    failure_reason = models.CharField(
-        _('reason of failure'), max_length=128, blank=True
-    )
+    failure_reason = models.TextField(_('reason of failure'), blank=True)
     last_attempt = models.DateTimeField(blank=True, null=True)
 
     class Meta:
