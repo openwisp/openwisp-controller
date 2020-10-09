@@ -1,10 +1,13 @@
 import json
+from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from swapper import load_model
 
+from ... import settings as module_settings
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
+from ...tests import _get_updated_templates_settings
 from ...tests.utils import TestAdminMixin
 from ..connectors.ssh import Ssh
 from ..widgets import CredentialsSchemaWidget
@@ -175,6 +178,20 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         self.assertIn('custom', result)
         self.assertIn('change_password', result)
         self.assertIn('reboot', result)
+
+    @patch.object(
+        module_settings, 'OPENWISP_CONTROLLER_API_HOST', 'https://example.com',
+    )
+    def test_notification_host_setting(self, ctx_processors=[]):
+        url = reverse(
+            f'admin:{self.config_app_label}_device_change', args=(self.device.id,)
+        )
+        with override_settings(
+            TEMPLATES=_get_updated_templates_settings(ctx_processors)
+        ):
+            response = self.client.get(url)
+            self.assertContains(response, 'https://example.com')
+            self.assertNotContains(response, 'owControllerApiHost = window.location')
 
 
 del TestConfigAdmin

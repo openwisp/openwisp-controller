@@ -5,7 +5,7 @@ var interpolate = interpolate || function(){};
 
 const deviceId = getObjectIdFromUrl();
 const commandWebSocket = new ReconnectingWebSocket(
-    `${getWebSocketProtocol()}${location.host}/ws/device/${getObjectIdFromUrl()}/command`,
+    `${getWebSocketProtocol()}${owControllerApiHost.host}/ws/device/${getObjectIdFromUrl()}/command`,
     null, {
         debug: false
     }
@@ -326,7 +326,7 @@ function initCommandOverlay($) {
         };
         $.ajax({
             type: 'POST',
-            url: `/api/v1/device/${deviceId}/command/`,
+            url: `${owControllerApiHost.origin}/api/v1/device/${deviceId}/command/`,
             headers: {
                 'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
             },

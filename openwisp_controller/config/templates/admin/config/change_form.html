@@ -10,6 +10,17 @@
 {% endif %}
 {% endblock %}
 
+{% block extrahead %}
+    <script>
+    {% if OPENWISP_CONTROLLER_API_HOST %}
+        const owControllerApiHost = new URL('{{ OPENWISP_CONTROLLER_API_HOST }}');
+    {% else %}
+        const owControllerApiHost = window.location;
+    {% endif %}
+    </script>
+   {{ block.super}}
+{% endblock extrahead %}
+
 {% block object-tools-items %}
 <li>
     {% if download_url %}

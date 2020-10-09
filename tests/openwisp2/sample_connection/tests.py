@@ -28,12 +28,6 @@ class TestConnectionAdmin(BaseTestConnectionAdmin):
 class TestCommandInlines(BaseTestCommandInlines):
     config_app_label = 'sample_config'
 
-    def test_notification_host_setting(self):
-        # TODO: Fix this failing test
-        # ctx_processor = 'openwisp2.context_processors.controller_api_settings'
-        # super().test_notification_host_setting([ctx_processor])
-        pass
-
 
 class TestModels(BaseTestModels):
     app_label = 'sample_connection'

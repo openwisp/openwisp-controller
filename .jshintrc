@@ -11,7 +11,8 @@
         "gettext": true,
         "JSONEditor": true,
         "ReconnectingWebSocket": true,
-        "userLanguage": true
+        "userLanguage": true,
+        "owControllerApiHost": true
     },
     "browser": true
 }
