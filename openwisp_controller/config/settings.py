@@ -52,3 +52,6 @@ HARDWARE_ID_OPTIONS = {
 }
 HARDWARE_ID_OPTIONS.update(get_settings_value('HARDWARE_ID_OPTIONS', {}))
 HARDWARE_ID_AS_NAME = get_settings_value('HARDWARE_ID_AS_NAME', True)
+DEVICE_VERBOSE_NAME = get_settings_value(
+    'DEVICE_VERBOSE_NAME', (_('Device'), _('Devices'))
+)

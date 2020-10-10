@@ -12,6 +12,8 @@ from django.db import migrations, models
 import openwisp_utils.base
 import openwisp_utils.utils
 
+from .. import settings as app_settings
+
 
 class Migration(migrations.Migration):
 
@@ -114,7 +116,11 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={
+                'abstract': False,
+                'verbose_name': app_settings.DEVICE_VERBOSE_NAME[0],
+                'verbose_name_plural': app_settings.DEVICE_VERBOSE_NAME[1],
+            },
         ),
         migrations.AddField(
             model_name='config',
