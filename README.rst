@@ -563,6 +563,23 @@ their hardware ID instead of their name.
 
 If you still want to reference devices by their name, set this to ``False``.
 
+``OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------------------------+
+| **type**:    |         ``tuple``           |
++--------------+-----------------------------+
+| **default**: |  ``('Device', 'Devices')``  |
++--------------+-----------------------------+
+
+Defines the verbose_name attribute of Device model, which is displayed on admin site.
+The first and second element of the tuple represents singular and plural forms.
+For example, if we want to change the verbose name of Device model at admin, we could write:
+
+.. code-block:: python
+
+    OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Router', 'Routers')
+
 Default Alerts / Notifications
 ------------------------------
 
