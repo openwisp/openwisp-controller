@@ -566,19 +566,20 @@ If you still want to reference devices by their name, set this to ``False``.
 ``OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+-----------------------------+
-| **type**:    |         ``tuple``           |
-+--------------+-----------------------------+
-| **default**: |  ``('Device', 'Devices')``  |
-+--------------+-----------------------------+
++--------------+----------------------------+
+| **type**:    | ``tuple``                  |
++--------------+----------------------------+
+| **default**: | ``('Device', 'Devices')``  |
++--------------+----------------------------+
 
-Defines the verbose_name attribute of Device model, which is displayed on admin site.
-The first and second element of the tuple represents singular and plural forms.
-For example, if we want to change the verbose name of Device model at admin, we could write:
+Defines the ``verbose_name`` attribute of the ``Device`` model, which is displayed in the
+admin site. The first and second element of the tuple represent the singular and plural forms.
+
+For example, if we want to change the verbose name to "Hotspot", we could write:
 
 .. code-block:: python
 
-    OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Router', 'Routers')
+    OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Hotspot', 'Hotspots')
 
 Default Alerts / Notifications
 ------------------------------

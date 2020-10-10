@@ -11,7 +11,6 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...tests.utils import TestAdminMixin
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
-from .. import settings as app_settings
 
 devnull = open(os.devnull, 'w')
 Config = load_model('config', 'Config')
@@ -919,12 +918,3 @@ class TestAdmin(
     def tearDownClass(cls):
         super().tearDownClass()
         devnull.close()
-
-    @patch.object(app_settings, 'DEVICE_VERBOSE_NAME', ('TestDevices', 'TestDevice'))
-    def test_device_verbose_name(self):
-        original_name = app_settings.DEVICE_VERBOSE_NAME
-        path = reverse(f'admin:{self.app_label}_device_changelist')
-        response = self.client.get(path)
-        self.assertContains(response, 'TestDevices')
-        self.assertContains(response, '<h1>Select TestDevice to change')
-        app_settings.DEVICE_VERBOSE_NAME = original_name
