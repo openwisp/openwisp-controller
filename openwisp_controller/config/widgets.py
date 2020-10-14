@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.admin.widgets import AdminTextareaWidget
 from django.template.loader import get_template
+from django.urls import reverse
 
 
 class JsonSchemaWidget(AdminTextareaWidget):
@@ -45,5 +46,6 @@ class JsonSchemaWidget(AdminTextareaWidget):
         attrs = attrs or {}
         attrs['class'] = 'vLargeTextField jsoneditor-raw'
         attrs.update(self.extra_attrs)
+        attrs.update({'data-schema-url': reverse(self.schema_view_name)})
         html += super().render(name, value, attrs, renderer)
         return html
