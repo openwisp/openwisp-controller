@@ -1,5 +1,7 @@
 'use strict';
 (function ($) {
+    django._schemas = new Map();
+    django._jsonEditors = new Map();
     var inFullScreenMode = false,
         prevDefaultValues = {},
         defaultValuesUrl = window.location.origin + '/admin/config/device/get-template-default-values/',
@@ -200,7 +202,7 @@
             disable_edit_json: true,
             startval: startval,
             keep_oneof_values: false,
-            show_errors: 'change',
+            show_errors: field.data('show-errors') ? field.data('show-errors'): 'change',
             // if no backend selected use empty schema
             schema: backend ? schemas[backend] : {}
         };
@@ -208,6 +210,7 @@
             $.extend(options, JSON.parse(field.attr("data-options")));
         }
         editor = new JSONEditor(document.getElementById(id), options);
+        django._jsonEditors[id] = editor;
         // initialise advanced json editor here (disable schema validation in VPN admin)
         advancedEditor = initAdvancedEditor(field, value, options.schema, $('#vpn_form').length === 1);
         $advancedEl = $('#advanced_editor');
@@ -330,8 +333,9 @@
     };
 
     var bindLoadUi = function () {
-        $.getJSON(django._jsonSchemaWidgetUrl, function (schemas) {
-            $('.jsoneditor-raw').each(function (i, el) {
+        $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
+            $.getJSON($(el).data('schema-url'), function (schemas) {
+                django._schemas[$(el).data('schema-url')] = schemas;
                 var field = $(el),
                     schema = field.attr("data-schema"),
                     schemaSelector = field.attr("data-schema-selector");

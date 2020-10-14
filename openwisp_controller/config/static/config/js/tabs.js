@@ -1,6 +1,6 @@
 'use strict';
 django.jQuery(function ($) {
-  
+
   if ($('.add-form').length || !$('#device_form').length) {
     return;
   }
@@ -48,7 +48,7 @@ django.jQuery(function ($) {
       label = $el.find('> fieldset.module > h2, ' +
         '> .tabular > fieldset.module > h2').text();
     tabsContainer.append(
-      '<li><a class="button" href="#' + tabId + '">' + label + '</a></li>'
+      '<li class="'+ label.toLowerCase().replace(' ', '-') +'"><a class="button" href="#' + tabId + '">' + label + '</a></li>'
     );
   });
 
