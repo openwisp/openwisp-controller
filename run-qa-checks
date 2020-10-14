@@ -19,6 +19,9 @@ stylelint "openwisp_controller/config/static/config/css/*.css"
 stylelint "openwisp_controller/connection/static/connection/css/*.css"
 
 
+# CSS checks
+stylelint "openwisp_controller/connection/static/connection/css/*.css"
+
 openwisp-qa-check \
   --migrations-to-ignore "12 0 0 4" \
   --migration-path "./openwisp_controller/config/migrations

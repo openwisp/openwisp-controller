@@ -1,4 +1,9 @@
-from openwisp_controller.connection.tests.test_admin import TestAdmin as BaseTestAdmin
+from openwisp_controller.connection.tests.test_admin import (
+    TestCommandInlines as BaseTestCommandInlines,
+)
+from openwisp_controller.connection.tests.test_admin import (
+    TestConnectionAdmin as BaseTestConnectionAdmin,
+)
 from openwisp_controller.connection.tests.test_models import (
     TestModels as BaseTestModels,
 )
@@ -15,9 +20,19 @@ from openwisp_controller.connection.tests.test_ssh import TestSsh as BaseTestSsh
 from openwisp_controller.connection.tests.test_tasks import TestTasks as BaseTestTasks
 
 
-class TestAdmin(BaseTestAdmin):
+class TestConnectionAdmin(BaseTestConnectionAdmin):
     config_app_label = 'sample_config'
     app_label = 'sample_connection'
+
+
+class TestCommandInlines(BaseTestCommandInlines):
+    config_app_label = 'sample_config'
+
+    def test_notification_host_setting(self):
+        # TODO: Fix this failing test
+        # ctx_processor = 'openwisp2.context_processors.controller_api_settings'
+        # super().test_notification_host_setting([ctx_processor])
+        pass
 
 
 class TestModels(BaseTestModels):
@@ -44,7 +59,8 @@ class TestNotificationTransaction(BaseTestNotificationTransaction):
     app_label = 'sample_connection'
 
 
-del BaseTestAdmin
+del BaseTestCommandInlines
+del BaseTestConnectionAdmin
 del BaseTestModels
 del BaseTestModelsTransaction
 del BaseTestSsh

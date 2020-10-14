@@ -445,6 +445,7 @@ class AbstractCommand(TimeStampedEditableModel):
         """
         adds trailing new line if output doesn't have it
         """
+        output = str(output)  # convert __proxy__ strings
         if not output.endswith('\n'):
             output += '\n'
         self.output += output
@@ -474,6 +475,13 @@ class AbstractCommand(TimeStampedEditableModel):
         if self.input:
             return self.input.values()
         return []
+
+    @property
+    def input_data(self):
+        if self.is_custom:
+            return self.custom_command
+        else:
+            return ', '.join(self.arguments)
 
     @property
     def _schema(self):

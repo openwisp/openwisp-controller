@@ -20,6 +20,7 @@ class CommandSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         repr = super().to_representation(instance)
         repr['type'] = instance.get_type_display()
+        repr['input'] = instance.input_data
         return repr
 
     class Meta:

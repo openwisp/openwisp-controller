@@ -5,6 +5,7 @@ from django.conf import settings
 from django.test import TestCase
 from swapper import load_model
 
+from ..connectors.ssh import logger as ssh_logger
 from .utils import CreateConnectionsMixin, SshServer
 
 Config = load_model('config', 'Config')
@@ -27,7 +28,8 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         super().tearDownClass()
         cls.mock_ssh_server.__exit__()
 
-    def test_connection_connect(self):
+    @mock.patch.object(ssh_logger, 'debug')
+    def test_connection_connect(self, mocked_debug):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connect()
@@ -38,7 +40,9 @@ class TestSsh(CreateConnectionsMixin, TestCase):
                 [mock.call('Executing command: echo test'), mock.call('test\n')]
             )
 
-    def test_connection_failed_command(self):
+    @mock.patch.object(ssh_logger, 'info')
+    @mock.patch.object(ssh_logger, 'debug')
+    def test_connection_failed_command(self, mocked_debug, mocked_info):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()

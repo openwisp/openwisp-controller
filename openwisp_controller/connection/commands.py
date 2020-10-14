@@ -53,7 +53,7 @@ DEFAULT_COMMANDS = OrderedDict(
                     'definitions': {
                         'password_regex': {
                             'type': 'string',
-                            'minLength': 4,
+                            'minLength': 6,
                             'maxLength': 30,
                             'pattern': '[\S]',
                         }

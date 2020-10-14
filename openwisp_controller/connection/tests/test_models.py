@@ -423,7 +423,7 @@ class TestModels(BaseTestModels, TestCase):
             e = context_manager.exception
             self.assertIn('input', e.message_dict)
             self.assertIn(
-                'has too many properties', e.message_dict['input'][0],
+                'Additional properties are not allowed', e.message_dict['input'][0],
             )
 
         with self.subTest('JSON check on arguments'):

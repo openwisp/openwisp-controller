@@ -2,7 +2,6 @@
 {% if advanced_mode %}
 <input class="button json-editor-btn-edit advanced-mode" type="button" value="{% trans 'Advanced mode (raw JSON)' %}">
 {% endif %}
-<script>django._jsonSchemaWidgetUrl = "{% url schema_view_name %}";</script>
 {% if netjsonconfig_hint %}
 <label id="netjsonconfig-hint">
     Want to learn to use the advanced mode? Consult the

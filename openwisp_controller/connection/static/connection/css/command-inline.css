@@ -1,0 +1,245 @@
+.ow-hide {
+  display: none !important;
+}
+button[disabled] {
+  cursor: not-allowed;
+}
+
+/* Hide elements from Command Inline Add Form */
+#command_set-0 .button.json-editor-btn-edit,
+#command_set-0 div.add-row,
+#command_set-0 h3,
+#command_set-0 h2,
+#command_set-0 label[for="id_command_set-0-input"],
+#command_set-group .add-row,
+#command_set-group #advanced_editor,
+#command_set-group .form-row.field-type,
+li.commands {
+  display: none !important;
+}
+
+/* Styles for elements of "Recent Commands" tab*/
+.field-input_data .readonly,
+.field-output .readonly{
+  font-family: monospace;
+  line-height: 1.5em;
+  white-space: pre;
+}
+.object-updated{
+  transition: background-color 3s ease;
+}
+
+/* Styles for Command button dropdown */
+.ow-device-command-option-container{
+  position: absolute;
+  margin-top: 35px;
+  display: flex;
+  flex-direction: column;
+  z-index: 99;
+  background-color: #efefef;
+  border: 2px solid #464646;
+  border-radius: 5px;
+  box-shadow: 0px 0px 5px 0px black;
+  color: #333333;
+}
+.ow-command-btn{
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 0.2em solid rgba(0, 0, 0, 0.05);
+  font-weight: normal;
+  cursor: pointer;
+}
+.ow-command-btn:hover,
+.ow-command-btn:focus,
+.ow-command-btn:active {
+  background-color: #515151;
+  color: #fff;
+  outline: 0 none;
+}
+
+
+/* Styles for Command execute form overaly */
+#command_set-group,
+#ow-command-confirm-dialog-wrapper {
+  position: absolute;
+  top: 0px;
+  z-index: 100;
+  height: 100%;
+  width: 100%;
+  left: 0px;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+#command_set-group > fieldset,
+#ow-command-confirm-dialog {
+  border: 2px black solid;
+  box-shadow: 0px 0px 20px 10px #464646;
+  position: relative;
+  transform: translateY(30vh);
+  margin: auto;
+  max-width: 600px;
+}
+#command_set-group fieldset{
+  border-radius: 5px;
+}
+.ow-command-submit-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 5px 0px;
+}
+#ow-command-submit-btn,
+#ow-command-confirm-yes, #ow-command-confirm-no {
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.ow-command-errorlist{
+  display: inherit !important;
+}
+.ow-error-input {
+  border: 1px #ba2121 solid;
+}
+#id_command_set-0-input_jsoneditor .errorlist{
+  display: none;
+}
+.ow-command-overlay-errornote{
+  float: left;
+  width: 90%;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  padding: 10px 12px !important;
+}
+#ow-command-overlay-close{
+  float: right;
+  cursor: pointer;
+  padding: 10px 0px;
+  border: none;
+  background: inherit;
+}
+#ow-command-overlay-close:active{ outline: 0 none }
+#ow-command-overlay-close > img{
+  height: 20px;
+}
+
+/* Styles for confirmation dialog element */
+#ow-command-confirm-dialog {
+  text-align: center;
+  background-color: #ffffff;
+}
+#ow-command-confirm-text {
+  color: #666;
+  font-family: "Roboto","Lucida Grande","DejaVu Sans","Bitstream Vera Sans",Verdana,Arial,sans-serif;
+  font-size: 14px;
+  font-weight: normal;
+  margin: 20px;
+}
+#ow-command-confirm-btn-wrapper button {
+  margin-bottom: 20px;
+}
+#ow-command-confirm-btn-wrapper button + button {
+  margin-left: 5px;
+}
+#ow-command-confirm-yes {
+  background-color: #498b26;
+}
+#ow-command-confirm-yes:hover,
+#ow-command-confirm-yes:focus {
+  background-color: #417927;
+}
+#ow-command-confirm-no {
+  background-color: #ba2121;
+}
+#ow-command-confirm-no:hover,
+#ow-command-confirm-no:focus {
+  background-color: #a41515;
+}
+
+@media screen and (max-width: 768px){
+  .object-tools {
+    justify-content: space-between;
+    overflow: visible !important;
+    height: 20px;
+    padding-left: 10px;
+    width: 100%;
+  }
+
+  #command_set-0 .errorlist{
+    padding: 0px 5px;
+    margin-left: 0px;
+  }
+  #command_set-0 .inline-related{
+    padding-left: 15px;
+  }
+  #command_set-0 > fieldset.module.aligned {
+    width: 95% !important;
+    min-width: 320px;
+    margin: auto !important;
+  }
+  #command_set-0 .field-input{
+    display: block !important;
+  }
+
+  #id_command_set-0-input_jsoneditor .form-row label{
+    margin-left: 0px;
+  }
+  #id_command_set-0-input_jsoneditor .form-row{
+    display: block;
+  }
+  .ow-command-overlay-errornote{
+    width: 80%;
+  }
+
+  /* For object notification widget */
+  #ow-object-notify {
+    margin: 0px;
+  }
+}
+
+@media screen and (max-width: 640px){
+  .object-tools {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    height: auto;
+    margin: inherit !important;
+  }
+  .object-tools li + li{
+    margin-left: 0px !important;
+  }
+  .object-tools li{
+    margin: 2px 0px;
+  }
+  .object-tools a{
+    width: 100%;
+  }
+
+  .ow-device-command-option-container{
+    left: 20%;
+    right: 20%;
+  }
+
+  #command_set-0 .inline-group[data-inline-type="stacked"] .inline-related .module{
+    padding: 0px !important;
+  }
+
+  /* For object notification widget */
+  #ow-object-notify {
+    width: 100%;
+    justify-content: center;
+  }
+  .ow-object-notification-container {
+    width: 100%;
+  }
+  .ow-object-notification-option-container {
+    left: 20%;
+    right: 20%;
+    width: unset;
+  }
+  #ow-unsubscribe-label {
+    margin: auto 0px;
+  }
+
+  #container .object-tools a {
+    padding: 5px 0px;
+  }
+}

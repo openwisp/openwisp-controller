@@ -15,9 +15,10 @@ Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
 Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
+Command = load_model('connection', 'Command')
 
 
-class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
+class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = 'config'
     app_label = 'connection'
     operator_permission_filters = [
@@ -98,14 +99,6 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             select_widget=True,
         )
 
-    def test_credentials_jsonschema_widget_presence(self):
-        url = reverse(f'admin:{self.app_label}_credentials_add')
-        schema_url = reverse(CredentialsSchemaWidget.schema_view_name)
-        expected = f'<script>django._jsonSchemaWidgetUrl = "{schema_url}";</script>'
-        self._login()
-        response = self.client.get(url)
-        self.assertContains(response, expected)
-
     def test_credentials_jsonschema_widget_media(self):
         widget = CredentialsSchemaWidget()
         html = widget.media.render()
@@ -123,6 +116,65 @@ class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         response = self.client.get(url)
         ssh_schema = json.dumps(Ssh.schema)
         self.assertIn(ssh_schema, response.content.decode('utf8'))
+
+
+class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
+    config_app_label = 'config'
+
+    def setUp(self):
+        self.admin = self._get_admin()
+        self.client.force_login(self.admin)
+        self.device_connection = self._create_device_connection()
+        self.device = self.device_connection.device
+
+    def _create_custom_command(self):
+        return Command.objects.create(
+            type='custom', input={'command': 'echo hello'}, device=self.device
+        )
+
+    def test_command_inline(self):
+        url = reverse(
+            f'admin:{self.config_app_label}_device_change', args=(self.device.id,)
+        )
+
+        with self.subTest(
+            'Test "Recent Commands" not shown for a device without commands'
+        ):
+            response = self.client.get(url)
+            self.assertNotContains(response, 'Recent Commands')
+
+        with self.subTest('Test "Recent Commands" shown for a device having commands'):
+            self._create_custom_command()
+            response = self.client.get(url)
+            self.assertContains(response, 'Recent Commands')
+
+    def test_command_writable_inline(self):
+        url = reverse(
+            f'admin:{self.config_app_label}_device_change', args=(self.device.id,)
+        )
+
+        with self.subTest(
+            'Test add command form is present for a device without commands'
+        ):
+            response = self.client.get(url)
+            self.assertContains(response, 'id_command_set')
+
+        with self.subTest(
+            'Test add command form is present for a device having commands'
+        ):
+            self._create_custom_command()
+            response = self.client.get(url)
+            self.assertContains(response, 'id_command_set')
+
+    def test_commands_schema_view(self):
+        url = reverse(
+            f'admin:{Command._meta.app_label}_{Command._meta.model_name}_schema'
+        )
+        response = self.client.get(url)
+        result = json.loads(response.content)
+        self.assertIn('custom', result)
+        self.assertIn('change_password', result)
+        self.assertIn('reboot', result)
 
 
 del TestConfigAdmin

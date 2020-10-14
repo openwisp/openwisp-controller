@@ -10,7 +10,8 @@
         "django": true,
         "gettext": true,
         "JSONEditor": true,
-        "ReconnectingWebSocket": true
+        "ReconnectingWebSocket": true,
+        "userLanguage": true
     },
     "browser": true
 }

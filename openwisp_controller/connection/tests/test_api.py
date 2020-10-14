@@ -1,8 +1,10 @@
 import json
+import uuid
 from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
 from openwisp_users.tests.test_api import AuthenticationMixin
@@ -32,6 +34,13 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             query_params.append(f'{key}={value}')
         query_string = '&'.join(query_params)
         return f'{path}?{query_string}'
+
+    def _get_device_not_found_error(self, device_id):
+        return {
+            'detail': ErrorDetail(
+                f'Device with ID "{device_id}" not found.', code='not_found'
+            )
+        }
 
     @patch.object(CommandPaginator, 'page_size', 3)
     def test_command_list_api(self):
@@ -206,3 +215,52 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             response = self.client.get(url, HTTP_AUTHORIZATION=f'Bearer {token}',)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.data['results']), 2)
+
+    def test_endpoints_for_non_existent_device(self):
+        device_id = uuid.uuid4()
+        device_not_found = self._get_device_not_found_error(device_id)
+
+        with self.subTest('Test listing commands'):
+            url = self._get_path('api_device_command_list_create', device_id)
+            response = self.client.get(url,)
+            self.assertEqual(response.status_code, 404)
+            self.assertDictEqual(response.data, device_not_found)
+
+        with self.subTest('Test creating commands'):
+            url = self._get_path('api_device_command_list_create', device_id)
+            payload = {
+                'type': 'custom',
+                'input': {'command': 'echo test'},
+            }
+            response = self.client.post(url, data=payload,)
+            self.assertEqual(response.status_code, 404)
+            self.assertDictEqual(response.data, device_not_found)
+
+        with self.subTest('Test retrieving commands'):
+            url = self._get_path('api_device_command_details', device_id, uuid.uuid4())
+            response = self.client.get(url,)
+            self.assertEqual(response.status_code, 404)
+            self.assertDictEqual(response.data, device_not_found)
+
+    def test_non_superuser(self):
+        list_url = self._get_path('api_device_command_list_create', self.device_id)
+        command = self._create_command(device_conn=self.device_conn)
+        device = command.device
+
+        with self.subTest('Test non organization member'):
+            operator = self._create_operator()
+            self.client.force_login(operator)
+            self.assertNotIn(device.organization, operator.organizations_managed)
+
+            response = self.client.get(list_url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 0)
+
+        with self.subTest('Test with organization member'):
+            org_user = self._create_org_user(is_admin=True)
+            self.client.force_login(org_user.user)
+            self.assertEqual(device.organization, org_user.organization)
+
+            response = self.client.get(list_url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)

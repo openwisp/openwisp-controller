@@ -388,7 +388,7 @@
                         });
                     }
                 }
-                $(document).trigger('jsonschema-schemaloaded');
+                $(`#${el.id}`).trigger('jsonschema-schemaloaded');
             });
         });
     };

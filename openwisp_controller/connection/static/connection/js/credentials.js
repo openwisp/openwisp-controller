@@ -15,7 +15,7 @@ django.jQuery(function ($) {
         showFields();
     });
 
-    $(document).on('jsonschema-schemaloaded', function(){
+    $('#id_params').on('jsonschema-schemaloaded', function(){
         showFields();
     });
 });

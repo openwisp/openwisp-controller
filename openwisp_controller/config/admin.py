@@ -469,7 +469,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return c
 
     def get_urls(self):
-        return [
+        urls = [
             url(
                 r'^config/get-relevant-templates/(?P<organization_id>[^/]+)/$',
                 self.admin_site.admin_view(get_relevant_templates),
@@ -481,6 +481,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 name='get_template_default_values',
             ),
         ] + super().get_urls()
+        for inline in self.inlines + self.conditional_inlines:
+            try:
+                urls.extend(inline(self, self.admin_site).get_urls())
+            except AttributeError:
+                pass
+        return urls
 
     def get_extra_context(self, pk=None):
         ctx = super().get_extra_context(pk)
@@ -506,7 +512,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         inlines = list(inlines)  # copy
         for inline in self.conditional_inlines:
             inline_instance = inline(inline.model, admin.site)
-            if inline_instance._get_conditional_queryset(request):
+            if inline_instance._get_conditional_queryset(request, obj=obj):
                 inlines.append(inline)
         return inlines
 

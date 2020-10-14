@@ -67,6 +67,10 @@ class TestAdmin(
         'deviceconnection_set-INITIAL_FORMS': 0,
         'deviceconnection_set-MIN_NUM_FORMS': 0,
         'deviceconnection_set-MAX_NUM_FORMS': 1000,
+        'command_set-TOTAL_FORMS': 0,
+        'command_set-INITIAL_FORMS': 0,
+        'command_set-MIN_NUM_FORMS': 0,
+        'command_set-MAX_NUM_FORMS': 1000,
     }
     # WARNING - WATCHOUT
     # this class attribute is changed dynamically
