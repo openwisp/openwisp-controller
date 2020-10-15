@@ -5,6 +5,9 @@ from openwisp_controller.connection.tests.test_models import (
 from openwisp_controller.connection.tests.test_models import (
     TestModelsTransaction as BaseTestModelsTransaction,
 )
+from openwisp_controller.connection.tests.test_notifications import (
+    TestNotifications as BaseTestNotifications,
+)
 from openwisp_controller.connection.tests.test_ssh import TestSsh as BaseTestSsh
 
 
@@ -25,7 +28,12 @@ class TestSsh(BaseTestSsh):
     pass
 
 
+class TestNotifications(BaseTestNotifications):
+    app_label = 'sample_connection'
+
+
 del BaseTestAdmin
 del BaseTestModels
 del BaseTestModelsTransaction
 del BaseTestSsh
+del BaseTestNotifications
