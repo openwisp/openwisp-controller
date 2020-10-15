@@ -34,7 +34,6 @@ urlpatterns += [
     url(r'^$', redirect_view, name='index'),
     url(r'^admin/', admin.site.urls),
     url(r'', include('openwisp_controller.urls')),
-    url(r'', include('openwisp_notifications.urls')),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

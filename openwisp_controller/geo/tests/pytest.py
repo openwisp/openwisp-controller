@@ -10,6 +10,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.models import Permission
 from django.http.request import HttpRequest
+from django.utils.module_loading import import_string
 from swapper import load_model
 
 from openwisp_controller.geo.channels.consumers import LocationBroadcast
@@ -107,6 +108,5 @@ class TestChannels(TestGeoMixin):
         await communicator.disconnect()
 
     def test_routing(self):
-        from openwisp_controller.geo.channels.routing import channel_routing
-
-        assert isinstance(channel_routing, ProtocolTypeRouter)
+        application = import_string(getattr(settings, 'ASGI_APPLICATION'))
+        assert isinstance(application, ProtocolTypeRouter)

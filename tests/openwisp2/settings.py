@@ -82,10 +82,18 @@ INTERNAL_IPS = ['127.0.0.1']
 
 ROOT_URLCONF = 'openwisp2.urls'
 
-ASGI_APPLICATION = 'openwisp_controller.geo.channels.routing.channel_routing'
-CHANNEL_LAYERS = {
-    'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
-}
+ASGI_APPLICATION = 'openwisp2.routing.application'
+if not TESTING:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': ['redis://localhost/7']},
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
+    }
 
 TIME_ZONE = 'Europe/Rome'
 LANGUAGE_CODE = 'en-gb'

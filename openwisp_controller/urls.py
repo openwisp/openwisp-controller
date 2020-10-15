@@ -8,6 +8,12 @@ url_metadata = [
         'app': 'openwisp_users',
         'include': {'module': 'openwisp_users.accounts.urls'},
     },
+    # openwisp_notifications
+    {
+        'regexp': '',
+        'app': 'openwisp_notifications',
+        'include': {'module': 'openwisp_notifications.urls'},
+    },
     # openwisp_controller.pki (CRL view)
     {
         'regexp': r'^',
