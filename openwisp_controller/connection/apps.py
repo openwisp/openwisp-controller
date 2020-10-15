@@ -3,9 +3,12 @@ from django.apps import AppConfig
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.utils.translation import ugettext_lazy as _
+from openwisp_notifications.signals import notify
+from openwisp_notifications.types import register_notification_type
 from swapper import load_model
 
 from ..config.signals import config_modified
+from .signals import is_working_changed
 
 _TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
 
@@ -21,6 +24,7 @@ class ConnectionConfig(AppConfig):
         to the ``update_config`` celery task
         which will be executed in the background
         """
+        self.register_notification_types()
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid='connection.update_config'
         )
@@ -30,6 +34,11 @@ class ConnectionConfig(AppConfig):
             Credentials.auto_add_credentials_to_device,
             sender=Config,
             dispatch_uid='connection.auto_add_credentials',
+        )
+        is_working_changed.connect(
+            self.is_working_changed_receiver,
+            sender=load_model('connection', 'DeviceConnection'),
+            dispatch_uid='is_working_changed_receiver',
         )
 
     @classmethod
@@ -64,3 +73,49 @@ class ConnectionConfig(AppConfig):
                 if task['name'] == _TASK_NAME and str(device_pk) in task['args']:
                     return True
         return False
+
+    @classmethod
+    def is_working_changed_receiver(cls, instance, is_working, **kwargs):
+        device = instance.device
+        notification_opts = dict(sender=instance, target=device)
+        if not is_working:
+            notification_opts['type'] = 'connection_is_not_working'
+        else:
+            notification_opts['type'] = 'connection_is_working'
+        notify.send(**notification_opts)
+
+    def register_notification_types(self):
+        register_notification_type(
+            'connection_is_not_working',
+            {
+                'verbose_name': 'Device Connection PROBLEM',
+                'verb': 'not working',
+                'level': 'error',
+                'email_subject': (
+                    '[{site.name}] PROBLEM: Connection to '
+                    'device {notification.target}'
+                ),
+                'message': (
+                    '{notification.actor.credentials} connection to '
+                    'device [{notification.target}]({notification.target_link}) '
+                    'is {notification.verb}. {notification.actor.failure_reason}'
+                ),
+            },
+        )
+        register_notification_type(
+            'connection_is_working',
+            {
+                'verbose_name': 'Device Connection RECOVERY',
+                'verb': 'working',
+                'level': 'info',
+                'email_subject': (
+                    '[{site.name}] RECOVERY: Connection to '
+                    'device {notification.target}'
+                ),
+                'message': (
+                    '{notification.actor.credentials} connection to '
+                    'device [{notification.target}]({notification.target_link}) '
+                    'is {notification.verb}. {notification.actor.failure_reason}'
+                ),
+            },
+        )
