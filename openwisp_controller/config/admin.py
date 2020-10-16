@@ -35,7 +35,6 @@ from ..admin import MultitenantAdminMixin
 from ..pki.base import PkiReversionTemplatesMixin
 from . import settings as app_settings
 from .utils import send_file
-from .views import schema
 from .widgets import JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
@@ -132,7 +131,6 @@ class BaseConfigAdmin(BaseAdmin):
                 self.admin_site.admin_view(self.context_view),
                 name='{0}_context'.format(url_prefix),
             ),
-            url(r'^netjsonconfig/schema\.json$', schema, name='schema'),
         ] + super().get_urls()
 
     def _get_config_model(self):

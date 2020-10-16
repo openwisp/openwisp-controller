@@ -27,7 +27,11 @@ if os.environ.get('SAMPLE_APP', False):
                 namespace='controller',
             ),
         ),
-        url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo'),),
+        url(
+            r'',
+            include(('openwisp_controller.config.urls', 'config'), namespace='config'),
+        ),
+        url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
     ]
 
 urlpatterns += [

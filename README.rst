@@ -1589,9 +1589,10 @@ sample_pki
         # url(r'^controller/', include((get_controller_urls(config_views), 'controller'), namespace='controller'))
 
         # Use only when changing geo API views (discussed below)
-        # url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo'),),
+        # url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
 
         # openwisp-controller urls
+        url(r'', include(('openwisp_controller.config.urls', 'config'), namespace='config')),
         url(r'', include('openwisp_controller.urls')),
     ]
 

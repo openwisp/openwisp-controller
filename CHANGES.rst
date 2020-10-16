@@ -14,6 +14,7 @@ Version 0.8.0 [unreleased]
   but will be removed in the future
 - [api] Added `API documentation <https://github.com/openwisp/openwisp-controller#geo-app>`_
 - improved documentation
+- [change] **Backward incompatible change**: schema url endpoint changed to ``<controller-url>/config/schema.json`` and it's now in config namespace instead of admin namespace.
 
 Version 0.7.0.post1 [2020-07-01]
 --------------------------------

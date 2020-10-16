@@ -9,7 +9,7 @@ class JsonSchemaWidget(AdminTextareaWidget):
     JSON Schema Editor widget
     """
 
-    schema_view_name = 'admin:schema'
+    schema_view_name = 'config:schema'
     netjsonconfig_hint = True
     extra_attrs = {}
     advanced_mode = True
