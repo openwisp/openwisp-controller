@@ -75,7 +75,13 @@ class ConnectionConfig(AppConfig):
         return False
 
     @classmethod
-    def is_working_changed_receiver(cls, instance, is_working, **kwargs):
+    def is_working_changed_receiver(
+        cls, instance, is_working, old_is_working, **kwargs
+    ):
+        # if old_is_working is None, it's a new device connection which wasn't
+        # used yet, so nothing is really changing and we won't notify the user
+        if old_is_working is None:
+            return
         device = instance.device
         notification_opts = dict(sender=instance, target=device)
         if not is_working:

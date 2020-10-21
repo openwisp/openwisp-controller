@@ -1,5 +1,8 @@
+import os
+
 from django.apps.registry import apps
 from django.core import mail
+from django.test import TestCase
 from django.urls import reverse
 from django.utils.html import strip_tags
 from openwisp_notifications.types import unregister_notification_type
@@ -12,7 +15,7 @@ Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
-class TestNotifications(CreateConnectionsMixin):
+class TestNotifications(CreateConnectionsMixin, TestCase):
     app_label = 'connection'
 
     def setUp(self):
@@ -21,7 +24,6 @@ class TestNotifications(CreateConnectionsMixin):
         self.creds = Credentials.objects.create(
             connector='openwisp_controller.connection.connectors.ssh.Ssh'
         )
-        self.dc = DeviceConnection.objects.create(credentials=self.creds, device=self.d)
 
     def _generic_notification_test(
         self, exp_level, exp_type, exp_verb, exp_message, exp_email_subject
@@ -29,7 +31,11 @@ class TestNotifications(CreateConnectionsMixin):
         n = Notification.objects.first()
         url_path = reverse('notifications:notification_read_redirect', args=[n.pk])
         exp_email_link = f'https://example.com{url_path}'
-        exp_target_link = f'https://example.com/admin/config/device/{self.d.id}/change/'
+        config_app = (
+            'config' if not os.environ.get('SAMPLE_APP', False) else 'sample_config'
+        )
+        device_url_path = reverse(f'admin:{config_app}_device_change', args=[self.d.id])
+        exp_target_link = f'https://example.com{device_url_path}'
         exp_email_body = '{message}' f'\n\nFor more information see {exp_email_link}.'
 
         email = mail.outbox.pop()
@@ -37,7 +43,7 @@ class TestNotifications(CreateConnectionsMixin):
         self.assertEqual(n.type, exp_type)
         self.assertEqual(n.level, exp_level)
         self.assertEqual(n.verb, exp_verb)
-        self.assertEqual(n.actor, self.dc)
+        self.assertEqual(n.actor, self.d.deviceconnection_set.first())
         self.assertEqual(n.target, self.d)
         self.assertEqual(
             n.message, exp_message.format(n=n, target_link=exp_target_link)
@@ -51,17 +57,17 @@ class TestNotifications(CreateConnectionsMixin):
         )
         self.assertIn(
             f'<a href="{exp_email_link}">'
-            'For further information see "device: default.test.device".</a>',
+            f'For further information see "device: {n.target}".</a>',
             html_message,
         )
 
     def test_connection_working_notification(self):
         self.assertEqual(Notification.objects.count(), 0)
-        self.dc = DeviceConnection.objects.create(
+        device_connection = DeviceConnection.objects.create(
             credentials=self.creds, device=self.d, is_working=False
         )
-        self.dc.is_working = True
-        self.dc.save()
+        device_connection.is_working = True
+        device_connection.save()
         self.assertEqual(Notification.objects.count(), 1)
         self._generic_notification_test(
             exp_level='info',
@@ -74,10 +80,36 @@ class TestNotifications(CreateConnectionsMixin):
             exp_email_subject='[example.com] RECOVERY: Connection to device {n.target}',
         )
 
-    def test_connection_not_working_notification(self):
+    def test_connection_is_working_none(self):
         self.assertEqual(Notification.objects.count(), 0)
-        self.dc.is_working = False
-        self.dc.save()
+
+        with self.subTest('no problem notification created when is_working=None'):
+            DeviceConnection.objects.all().delete()
+            device_connection = DeviceConnection.objects.create(
+                credentials=self.creds, device=self.d, is_working=None
+            )
+            self.assertIsNone(device_connection.is_working)
+            device_connection.is_working = False
+            device_connection.save()
+            self.assertEqual(Notification.objects.count(), 0)
+
+        with self.subTest('no recovery notification created when is_working=None'):
+            DeviceConnection.objects.all().delete()
+            device_connection = DeviceConnection.objects.create(
+                credentials=self.creds, device=self.d, is_working=None
+            )
+            self.assertIsNone(device_connection.is_working)
+            device_connection.is_working = True
+            device_connection.save()
+            self.assertEqual(Notification.objects.count(), 0)
+
+    def test_connection_not_working_notification(self):
+        device_connection = DeviceConnection.objects.create(
+            credentials=self.creds, device=self.d, is_working=True
+        )
+        self.assertEqual(Notification.objects.count(), 0)
+        device_connection.is_working = False
+        device_connection.save()
         self.assertEqual(Notification.objects.count(), 1)
         self._generic_notification_test(
             exp_level='error',
@@ -91,10 +123,15 @@ class TestNotifications(CreateConnectionsMixin):
         )
 
     def test_unreachable_after_upgrade_notification(self):
+        device_connection = DeviceConnection.objects.create(
+            credentials=self.creds, device=self.d, is_working=True
+        )
         self.assertEqual(Notification.objects.count(), 0)
-        self.dc.is_working = False
-        self.dc.failure_reason = 'Giving up, device not reachable anymore after upgrade'
-        self.dc.save()
+        device_connection.is_working = False
+        device_connection.failure_reason = (
+            'Giving up, device not reachable anymore after upgrade'
+        )
+        device_connection.save()
         self.assertEqual(Notification.objects.count(), 1)
         self._generic_notification_test(
             exp_level='error',
