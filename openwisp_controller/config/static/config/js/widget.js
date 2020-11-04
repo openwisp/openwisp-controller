@@ -80,6 +80,22 @@
         alert("The JSON entered is not valid");
     };
 
+    var getEditorErrors = function (editor) {
+        var value = JSON.parse(JSON.stringify(editor.getValue()));
+        var cleanedData = window.cleanData(value),
+            error = editor.validate(cleanedData);
+        return error;
+    };
+
+    var validateOnDefaultValuesChange = function (editor, advancedEditor) {
+        window.isContextValid();
+        if (inFullScreenMode) {
+            advancedEditor.validate();
+        } else {
+            editor.onChange();
+        }
+    };
+
     var loadUi = function (el, backend, schemas, setInitialValue) {
         var field = $(el),
             form = field.parents('form').eq(0),
@@ -93,7 +109,8 @@
             html, editor, options, wrapper, header,
             getEditorValue, updateRaw, advancedEditor,
             $advancedEl,
-            contextField;
+            contextField,
+            flatJsonField;
         // inject editor unless already present
         if (!editorContainer.length) {
             html = '<div class="jsoneditor-wrapper">';
@@ -134,6 +151,7 @@
             return JSON.stringify(editor.getValue(), null, 4);
         };
         updateRaw = function () {
+            editor.root.showValidationErrors(getEditorErrors(editor));
             field.val(getEditorValue());
         };
 
@@ -149,6 +167,13 @@
 
         // update raw value before form submit
         form.submit(function (e) {
+            // only submit form if the editor is clear of all validation errors
+            if (getEditorErrors(editor).length) {
+                e.preventDefault();
+                var message = 'Please correct all validation errors below';
+                if (gettext) { message = gettext(message); }
+                alert(message);
+            }
             if ($advancedEl.is(':hidden')) { return; }
             // only submit the form if the json in the advanced editor is valid
             if (!isValidJson(advancedEditor)) {
@@ -164,12 +189,14 @@
         contextField = window.getContext();
         if (contextField) {
             contextField.addEventListener('change', function () {
-                window.isContextValid();
-                if (inFullScreenMode) {
-                    advancedEditor.validate();
-                } else {
-                    editor.onChange(JSON.parse(field.val()));
-                }
+                validateOnDefaultValuesChange(editor, advancedEditor);
+            });
+        }
+        // trigger schema-data validation on flat-json-value change
+        flatJsonField = $('.flat-json-rows');
+        if (flatJsonField.length > 0) {
+            flatJsonField.on('change', function () {
+                validateOnDefaultValuesChange(editor, advancedEditor);
             });
         }
         // add advanced edit button
