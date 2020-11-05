@@ -194,7 +194,7 @@
         }
         // trigger schema-data validation on flat-json-value change
         flatJsonField = $('.flat-json-rows');
-        if (flatJsonField.length > 0) {
+        if (flatJsonField.length) {
             flatJsonField.on('change', function () {
                 validateOnDefaultValuesChange(editor, advancedEditor);
             });
