@@ -14,7 +14,6 @@ from django.core.exceptions import (
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
-from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
@@ -65,10 +64,10 @@ class BaseConfigAdmin(BaseAdmin):
     ordering = ['name']
 
     class Media:
-        css = {'all': (static('{0}css/admin.css'.format(prefix)),)}
+        css = {'all': (f'{prefix}css/admin.css',)}
         js = list(UUIDAdmin.Media.js) + [
-            static('{0}js/{1}'.format(prefix, f))
-            for f in ('preview.js', 'unsaved_changes.js', 'switcher.js')
+            f'{prefix}js/{file_}'
+            for file_ in ('preview.js', 'unsaved_changes.js', 'switcher.js')
         ]
 
     def get_extra_context(self, pk=None):
@@ -611,7 +610,7 @@ class VpnAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ]
 
     class Media(BaseConfigAdmin):
-        js = list(BaseConfigAdmin.Media.js) + [static(f'{prefix}js/vpn.js')]
+        js = list(BaseConfigAdmin.Media.js) + [f'{prefix}js/vpn.js']
 
 
 admin.site.register(Device, DeviceAdmin)
