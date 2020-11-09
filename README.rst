@@ -6,7 +6,7 @@ openwisp-controller
    :alt: CI build status
 
 .. image:: https://coveralls.io/repos/openwisp/openwisp-controller/badge.svg
-  :target: https://coveralls.io/r/openwisp/openwisp-controller
+   :target: https://coveralls.io/r/openwisp/openwisp-controller
    :alt: Test Coverage
 
 .. image:: https://requires.io/github/openwisp/openwisp-controller/requirements.svg?branch=master
