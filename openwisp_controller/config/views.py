@@ -1,5 +1,6 @@
 import json
 from copy import deepcopy
+from uuid import UUID
 
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -73,3 +74,26 @@ def schema(request):
         c = login_required_error
         status = 403
     return HttpResponse(c, status=status, content_type='application/json')
+
+
+def get_template_default_values(request):
+    """
+    returns default_values for one or more templates
+    """
+    pk_list = []
+    for pk in request.GET.get('pks', '').split(','):
+        try:
+            UUID(pk, version=4)
+        except ValueError:
+            return JsonResponse(
+                {'error': 'invalid template pks were received'}, status=400
+            )
+        else:
+            pk_list.append(pk)
+    values = Template.objects.filter(pk__in=pk_list).values_list(
+        'default_values', flat=True
+    )
+    default_values = {}
+    for item in values:
+        default_values.update(item)
+    return JsonResponse({'default_values': default_values})

@@ -19,7 +19,10 @@ from django.utils.translation import ugettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from swapper import load_model
 
-from openwisp_controller.config.views import get_default_templates
+from openwisp_controller.config.views import (
+    get_default_templates,
+    get_template_default_values,
+)
 from openwisp_users.models import Organization
 from openwisp_users.multitenancy import (
     MultitenantOrgFilter,
@@ -444,6 +447,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
                 get_default_templates,
                 name='get_default_templates',
+            ),
+            url(
+                r'^get-template-default-values/$',
+                get_template_default_values,
+                name='get_template_default_values',
             ),
         ] + super().get_urls()
 
