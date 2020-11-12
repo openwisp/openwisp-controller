@@ -1,6 +1,70 @@
 'use strict';
 (function ($) {
     var inFullScreenMode = false,
+        prevDefaultValues = {},
+        defaultValuesUrl = window.location.origin + '/admin/config/device/get-template-default-values/',
+    removeDefaultValues = function(contextValue, defaultValues) {
+        // remove default values when template is removed.
+        Object.keys(prevDefaultValues).forEach(function (key) {
+            if (!defaultValues.hasOwnProperty(key)) {
+                delete contextValue[key];
+            }
+        });
+        return contextValue;
+    },
+    removeUnchangedDefaultValues = function(contextValue) {
+        // This method is called on the submit event to remove any template default
+        // value which was not customized which allows to avoid saving redundant data
+        Object.keys(prevDefaultValues).forEach(function (key) {
+            if (prevDefaultValues[key] == contextValue[key]) {
+                delete contextValue[key];
+            }
+        });
+        return contextValue;
+    },
+    updateContext = function (isLoading, defaultValues={}) {
+        var contextField = $('#id_config-0-context');
+        if (contextField.length) {
+            var contextValue = JSON.parse(contextField.val());
+            // add default values to contextValue
+            Object.keys(defaultValues).forEach(function (key) {
+                if (!contextValue.hasOwnProperty(key)) {
+                    contextValue[key] = defaultValues[key];
+                }
+            });
+
+            if (isLoading) {
+                django._njc_initial_values['config-0-context'] = removeDefaultValues(
+                    contextValue,
+                    defaultValues
+                );
+            }
+
+            contextField.val(JSON.stringify(
+                removeDefaultValues(contextValue, defaultValues),
+                null,
+                4
+            ));
+            prevDefaultValues = JSON.parse(JSON.stringify(defaultValues));
+            $('.flat-json-toggle-textarea').trigger('click');
+            $('.flat-json-toggle-textarea').trigger('click');
+        }
+    },
+    getDefaultValues = function (isLoading=false) {
+        var pks = $('input[name="config-0-templates"]').attr('value');
+        if (pks) {
+            $.get(defaultValuesUrl, {pks: pks})
+                .done( function (data) {
+                    updateContext(isLoading, data.default_values);
+                })
+                .fail(function (data) {
+                    window.console.error(data.responseText);
+                });
+        } else {
+            // remove existing default values if no template is selected
+            updateContext(isLoading, {});
+        }
+    },
     toggleFullScreen = function () {
         var advanced = $('#advanced_editor');
         if (!inFullScreenMode) {
@@ -174,6 +238,13 @@
                 if (gettext) { message = gettext(message); }
                 alert(message);
             }
+            var contextField = $('#id_config-0-context');
+            if (contextField.length) {
+                var contextValue = JSON.parse(contextField.val());
+                contextField.val(JSON.stringify(
+                    removeUnchangedDefaultValues(contextValue)
+                ));
+            }
             if ($advancedEl.is(':hidden')) { return; }
             // only submit the form if the json in the advanced editor is valid
             if (!isValidJson(advancedEditor)) {
@@ -247,6 +318,13 @@
                 $(e.target).siblings('input.json-editor-btn-add').trigger('click');
                 $(e.target).val('');
             }
+        });
+
+        // fill device context field with default values of selected templates.
+        getDefaultValues(true);
+
+        $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
         });
     };
 

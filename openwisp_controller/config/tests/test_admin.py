@@ -914,6 +914,39 @@ class TestAdmin(
         response = self.client.post(path, data, follow=True)
         self.assertContains(response, '{} (Clone 3)'.format(t.name))
 
+    def test_get_template_default_values(self):
+        t1 = self._create_template(name='t1', default_values={'name1': 'test1'})
+        path = reverse('admin:get_template_default_values')
+
+        with self.subTest('get default values for one template'):
+            with self.assertNumQueries(1):
+                r = self.client.get(path, {'pks': f'{t1.pk}'})
+                self.assertEqual(r.status_code, 200)
+                expected = {'default_values': {'name1': 'test1'}}
+                self.assertEqual(r.json(), expected)
+
+        with self.subTest('get default values for multiple templates'):
+            t2 = self._create_template(name='t2', default_values={'name2': 'test2'})
+            with self.assertNumQueries(1):
+                r = self.client.get(path, {'pks': f'{t1.pk},{t2.pk}'})
+                self.assertEqual(r.status_code, 200)
+                expected = {'default_values': {'name1': 'test1', 'name2': 'test2'}}
+                self.assertEqual(r.json(), expected)
+
+    def test_get_template_default_values_invalid_pks(self):
+        path = reverse('admin:get_template_default_values')
+        expected = {'error': 'invalid template pks were received'}
+
+        with self.subTest('test with invalid pk'):
+            r = self.client.get(path, {'pks': 'invalid'})
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.json(), expected)
+
+        with self.subTest('test with absent pk'):
+            r = self.client.get(path)
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.json(), expected)
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
