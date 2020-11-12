@@ -38,6 +38,12 @@ url_metadata = [
         'app': 'openwisp_controller.geo',
         'include': {'module': '{app}.api.urls', 'namespace': 'geo'},
     },
+    # openwisp_controller.config
+    {
+        'regexp': r'^',
+        'app': 'openwisp_controller.config',
+        'include': {'module': '{app}.urls', 'namespace': 'config'},
+    },
 ]
 
 urlpatterns = []

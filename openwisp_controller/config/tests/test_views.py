@@ -25,13 +25,13 @@ class TestViews(
         )
 
     def test_schema_403(self):
-        response = self.client.get(reverse('admin:schema'))
+        response = self.client.get(reverse('config:schema'))
         self.assertEqual(response.status_code, 403)
         self.assertIn('error', response.json())
 
     def test_schema_200(self):
         self.client.force_login(User.objects.get(username='admin'))
-        response = self.client.get(reverse('admin:schema'))
+        response = self.client.get(reverse('config:schema'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('netjsonconfig.OpenWrt', response.json())
 

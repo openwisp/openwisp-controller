@@ -1,7 +1,8 @@
-"""
-There are no urls in this file. It has no functional use.
-This file exists only to maintain backward compatibility.
-"""
+from django.urls import path
 
-app_name = 'openwisp_controller'  # pragma: no cover
-urlpatterns = []  # pragma: no cover
+from .views import schema
+
+app_name = 'openwisp_controller'
+urlpatterns = [
+    path('config/schema.json', schema, name='schema'),
+]
