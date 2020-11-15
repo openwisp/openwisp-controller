@@ -118,12 +118,19 @@ class AbstractDevice(OrgMixin, BaseModel):
         attr = getattr(self.config, attr)
         return attr() if callable(attr) else attr
 
-    def get_context(self):
+    def _get_config(self):
         if self._has_config():
-            config = self.config
+            return self.config
         else:
-            config = self.get_config_model()(device=self)
+            return self.get_config_model()(device=self)
+
+    def get_context(self):
+        config = self._get_config()
         return config.get_context()
+
+    def get_system_context(self):
+        config = self._get_config()
+        return config.get_system_context()
 
     def generate_key(self, shared_secret):
         if app_settings.CONSISTENT_REGISTRATION:

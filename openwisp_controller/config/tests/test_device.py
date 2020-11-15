@@ -266,3 +266,10 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         device.full_clean()
         device.save()
         self.assertEqual(config.device.organization_id, org2.pk)
+
+    def test_device_get_system_context(self):
+        d = self._create_device(organization=self._get_org())
+        self._create_config(context={'test': 'name'}, device=d)
+        d.refresh_from_db()
+        system_context = d.get_system_context()
+        self.assertNotIn('test', system_context.keys())

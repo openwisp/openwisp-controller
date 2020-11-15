@@ -1,0 +1,11 @@
+{% load i18n %}
+
+{% for key, value in system_context.items %}
+    {% if new_line in value %}
+        <p><strong>{{key}}: </strong><pre>{{value}}</pre></p>
+    {% else %}
+        <p><strong>{{key}}: </strong> {{value}}</p>
+    {% endif %}
+{% endfor %}
+<textarea name='system_context' id='system_context' style='display:none'>
+    {{context_json}} </textarea>

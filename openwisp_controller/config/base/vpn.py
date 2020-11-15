@@ -142,6 +142,9 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
         c.update(super().get_context())
         return c
 
+    def get_system_context(self):
+        return self.get_context()
+
     def _get_auto_context_keys(self):
         """
         returns a dictionary which indicates the names of

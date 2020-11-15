@@ -336,6 +336,10 @@ class TestVpn(
             mocked_logger.assert_called_once()
         dhparam.assert_called_once()
 
+    def test_vpn_get_system_context(self):
+        vpn = self._create_vpn()
+        self.assertEqual(vpn.get_system_context(), vpn.get_context())
+
 
 class TestVpnTransaction(
     TestOrganizationMixin,

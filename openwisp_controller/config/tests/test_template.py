@@ -374,6 +374,11 @@ class TestTemplate(
         with self.assertRaisesMessage(ValidationError, msg):
             self._create_template(config={})
 
+    def test_template_get_system_context(self):
+        t = self._create_template(default_values={'test': 'value'})
+        system_context = t.get_system_context()
+        self.assertNotIn('test', system_context.keys())
+
 
 class TestTemplateTransaction(
     TestOrganizationMixin,

@@ -585,3 +585,10 @@ class TestConfig(
             c.save()
             handler.assert_called_once()
             self.assertEqual(c.status, 'modified')
+
+    def test_config_get_system_context(self):
+        config = self._create_config(
+            organization=self._get_org(), context={'test': 'value'}
+        )
+        system_context = config.get_system_context()
+        self.assertNotIn('test', system_context.keys())
