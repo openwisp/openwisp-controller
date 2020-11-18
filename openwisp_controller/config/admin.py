@@ -58,14 +58,8 @@ else:  # pragma: nocover
 class SystemDefinedVariableMixin(object):
     def system_context(self, obj):
         system_context = obj.get_system_context()
-        template = get_template('admin/config/system_defined_variables.html')
-        output = template.render(
-            {
-                'system_context': system_context,
-                'new_line': '\n',
-                'context_json': json.dumps(system_context),
-            }
-        )
+        template = get_template('admin/config/system_context.html')
+        output = template.render({'system_context': system_context, 'new_line': '\n'})
         return output
 
     system_context.short_description = _('System Defined Variables')
@@ -428,6 +422,14 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + ['{0}js/tabs.js'.format(prefix)]
 
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if not obj:
+            for field in self.readonly_fields:
+                if field in fields:
+                    fields.remove(field)
+        return fields
+
     def ip(self, obj):
         mngmt_ip = obj.management_ip if app_settings.MANAGEMENT_IP_DEVICE_LIST else None
         return mngmt_ip or obj.last_ip
@@ -624,7 +626,7 @@ class VpnAdmin(
     list_display = ['name', 'organization', 'backend', 'created', 'modified']
     list_filter = [('organization', MultitenantOrgFilter), 'backend', 'created']
     search_fields = ['id', 'name', 'host', 'key']
-    readonly_fields = ['id', 'uuid']
+    readonly_fields = ['id', 'uuid', 'system_context']
     multitenant_shared_relations = ('ca', 'cert')
     fields = [
         'name',
@@ -637,6 +639,7 @@ class VpnAdmin(
         'backend',
         'notes',
         'dh',
+        'system_context',
         'config',
         'created',
         'modified',
@@ -644,18 +647,6 @@ class VpnAdmin(
 
     class Media(BaseConfigAdmin):
         js = list(BaseConfigAdmin.Media.js) + [f'{prefix}js/vpn.js']
-
-    def get_readonly_fields(self, request, obj=None):
-        fields = list(super().get_readonly_fields(request, obj))
-        # added system_context here because UUIDAdmin removes readonly fields.
-        fields.append('system_context')
-        return tuple(fields)
-
-    def get_fields(self, request, obj=None):
-        fields = list(super().get_fields(request, obj))
-        # added system_context here because UUIDAdmin removes readonly fields.
-        fields.insert(fields.index('config') - 1, 'system_context')
-        return tuple(fields)
 
 
 admin.site.register(Device, DeviceAdmin)

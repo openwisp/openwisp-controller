@@ -56,7 +56,7 @@ evaluateVars = function (data, context) {
 
 getAllContext = function () {
     var userContextField = getContext(),
-        systemContext = JSON.parse(document.getElementById('system_context').value),
+        systemContext = JSON.parse(document.getElementById('system_context').textContent),
         value;
     if (userContextField) {
         var defaultValues = JSON.parse(userContextField.value);

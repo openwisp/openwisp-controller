@@ -951,9 +951,9 @@ class TestAdmin(
         r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'System Defined Variables')
-        self.assertContains(r, '<textarea name=\'system_context\'')
+        self.assertContains(r, '<script id="system_context" type="application/json">')
 
-    def test_system_context_field_presence(self):
+    def test_system_context(self):
         t = self._create_template()
         d = self._create_device()
         v = self._create_vpn()
@@ -967,6 +967,7 @@ class TestAdmin(
         with self.subTest('test field present in template change form'):
             path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
             self._test_system_context_field_helper(path)
+
         with self.subTest('test field present in vpn add form'):
             path = reverse(f'admin:{self.app_label}_vpn_add')
             self._test_system_context_field_helper(path)

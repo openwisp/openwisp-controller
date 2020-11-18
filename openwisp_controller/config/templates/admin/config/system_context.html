@@ -1,0 +1,8 @@
+{% for key, value in system_context.items %}
+    {% if new_line in value %}
+        <p><strong>{{ key }}:</strong><pre>{{ value }}</pre></p>
+    {% else %}
+        <p><strong>{{ key }}:</strong> {{ value }}</p>
+    {% endif %}
+{% endfor %}
+{{system_context|json_script:"system_context"}}
