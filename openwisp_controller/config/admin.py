@@ -405,6 +405,17 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + ['{0}js/tabs.js'.format(prefix)]
 
+    def get_fields(self, request, obj=None):
+        """
+        Do not show readonly fields in add form
+        """
+        fields = list(super().get_fields(request, obj))
+        if not obj:
+            for field in self.readonly_fields:
+                if field in fields:
+                    fields.remove(field)
+        return fields
+
     def ip(self, obj):
         mngmt_ip = obj.management_ip if app_settings.MANAGEMENT_IP_DEVICE_LIST else None
         return mngmt_ip or obj.last_ip
