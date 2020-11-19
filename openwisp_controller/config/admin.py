@@ -423,6 +423,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         js = BaseConfigAdmin.Media.js + ['{0}js/tabs.js'.format(prefix)]
 
     def get_fields(self, request, obj=None):
+        """
+        Do not show readonly fields in add form
+        """
         fields = list(super().get_fields(request, obj))
         if not obj:
             for field in self.readonly_fields:

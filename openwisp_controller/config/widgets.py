@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.admin.widgets import AdminTextareaWidget
 from django.template.loader import get_template
-from django.templatetags.static import static
 
 
 class JsonSchemaWidget(AdminTextareaWidget):
@@ -17,7 +16,7 @@ class JsonSchemaWidget(AdminTextareaWidget):
     @property
     def media(self):
         js = [
-            static(f'config/js/{path}')
+            f'config/js/{path}'
             for path in (
                 'utils.js',
                 'lib/advanced-mode.js',
@@ -28,7 +27,7 @@ class JsonSchemaWidget(AdminTextareaWidget):
         ]
         css = {
             'all': [
-                static(f'config/css/{path}')
+                f'config/css/{path}'
                 for path in ('lib/jsonschema-ui.css', 'lib/advanced-mode.css')
             ]
         }
