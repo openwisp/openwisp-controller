@@ -5,6 +5,7 @@ var cleanedData,
     getContext,
     evaluateVars,
     cleanData,
+    getAllContext,
     isContextValid,
     span = document.createElement('span');
 
@@ -53,10 +54,25 @@ evaluateVars = function (data, context) {
     return data;
 };
 
+getAllContext = function () {
+    var userContextField = getContext(),
+        systemContext = JSON.parse(document.getElementById('system_context').textContent),
+        value;
+    if (userContextField) {
+        var defaultValues = JSON.parse(userContextField.value);
+        value = Object.assign(
+            {},
+            systemContext,
+            defaultValues
+        );
+    }
+    return value;
+};
+
 cleanData = function (data) {
-    var json = getContext();
+    var json = getAllContext();
     if (json && data && isContextValid()) {
-        cleanedData = evaluateVars(data, JSON.parse(json.value));
+        cleanedData = evaluateVars(data, json);
         return cleanedData;
     } else {
         return data;

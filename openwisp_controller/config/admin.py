@@ -13,6 +13,7 @@ from django.core.exceptions import (
 )
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.template.loader import get_template
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -52,6 +53,16 @@ if 'reversion' in settings.INSTALLED_APPS:
     from reversion.admin import VersionAdmin as ModelAdmin
 else:  # pragma: nocover
     from django.contrib.admin import ModelAdmin
+
+
+class SystemDefinedVariableMixin(object):
+    def system_context(self, obj):
+        system_context = obj.get_system_context()
+        template = get_template('admin/config/system_context.html')
+        output = template.render({'system_context': system_context, 'new_line': '\n'})
+        return output
+
+    system_context.short_description = _('System Defined Variables')
 
 
 class BaseAdmin(TimeReadonlyAdminMixin, PkiReversionTemplatesMixin, ModelAdmin):
@@ -331,15 +342,21 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         }
 
 
-class ConfigInline(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.StackedInline):
+class ConfigInline(
+    MultitenantAdminMixin,
+    TimeReadonlyAdminMixin,
+    SystemDefinedVariableMixin,
+    admin.StackedInline,
+):
     model = Config
     form = ConfigForm
     verbose_name_plural = _('Device configuration details')
-    readonly_fields = ['status']
+    readonly_fields = ['status', 'system_context']
     fields = [
         'backend',
         'status',
         'templates',
+        'system_context',
         'context',
         'config',
         'created',
@@ -503,7 +520,7 @@ class TemplateForm(BaseForm):
         }
 
 
-class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin):
+class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariableMixin):
     form = TemplateForm
     list_display = [
         'name',
@@ -532,11 +549,13 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin):
         'auto_cert',
         'tags',
         'default',
+        'system_context',
         'default_values',
         'config',
         'created',
         'modified',
     ]
+    readonly_fields = ['system_context']
 
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
@@ -603,12 +622,14 @@ class VpnForm(forms.ModelForm):
         exclude = []
 
 
-class VpnAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+class VpnAdmin(
+    MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin, SystemDefinedVariableMixin
+):
     form = VpnForm
     list_display = ['name', 'organization', 'backend', 'created', 'modified']
     list_filter = [('organization', MultitenantOrgFilter), 'backend', 'created']
     search_fields = ['id', 'name', 'host', 'key']
-    readonly_fields = ['id', 'uuid']
+    readonly_fields = ['id', 'uuid', 'system_context']
     multitenant_shared_relations = ('ca', 'cert')
     fields = [
         'name',
@@ -621,6 +642,7 @@ class VpnAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'backend',
         'notes',
         'dh',
+        'system_context',
         'config',
         'created',
         'modified',

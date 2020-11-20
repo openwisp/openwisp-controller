@@ -947,6 +947,43 @@ class TestAdmin(
             self.assertEqual(r.status_code, 400)
             self.assertEqual(r.json(), expected)
 
+    def _test_system_context_field_helper(self, path):
+        r = self.client.get(path)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'System Defined Variables')
+        self.assertContains(r, '<script id="system_context" type="application/json">')
+
+    def test_system_context(self):
+        t = self._create_template()
+        d = self._create_device()
+        v = self._create_vpn()
+        self._create_config(device=d, config=t.config)
+        d.refresh_from_db()
+
+        with self.subTest('test field present in template add form'):
+            path = reverse(f'admin:{self.app_label}_template_add')
+            self._test_system_context_field_helper(path)
+
+        with self.subTest('test field present in template change form'):
+            path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
+            self._test_system_context_field_helper(path)
+
+        with self.subTest('test field present in vpn add form'):
+            path = reverse(f'admin:{self.app_label}_vpn_add')
+            self._test_system_context_field_helper(path)
+
+        with self.subTest('test field present in vpn change form'):
+            path = reverse(f'admin:{self.app_label}_vpn_change', args=[v.pk])
+            self._test_system_context_field_helper(path)
+
+        with self.subTest('test field present in device add form'):
+            path = reverse(f'admin:{self.app_label}_device_add')
+            self._test_system_context_field_helper(path)
+
+        with self.subTest('test field present in device change form'):
+            path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+            self._test_system_context_field_helper(path)
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()

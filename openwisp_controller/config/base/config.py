@@ -389,6 +389,12 @@ class AbstractConfig(BaseConfig):
             c.update({'hardware_id': str(self.device.hardware_id)})
         return c
 
+    def get_system_context(self):
+        system_context = self.get_context()
+        for key in self.context:
+            del system_context[key]
+        return collections.OrderedDict(sorted(system_context.items()))
+
 
 AbstractConfig._meta.get_field('config').blank = True
 

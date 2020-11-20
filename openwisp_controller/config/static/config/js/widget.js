@@ -232,7 +232,8 @@
         // update raw value before form submit
         form.submit(function (e) {
             // only submit form if the editor is clear of all validation errors
-            if (getEditorErrors(editor).length) {
+            // eliminating vpn because it's UI is not yet using default values
+            if (getEditorErrors(editor).length && !$('.model-vpn').length) {
                 e.preventDefault();
                 var message = 'Please correct all validation errors below';
                 if (gettext) { message = gettext(message); }
