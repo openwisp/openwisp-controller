@@ -725,11 +725,6 @@ Each device gets the following attributes passed as configuration variables:
 * ``name``
 * ``mac_address``
 
-These predefined variables are displayed in the admin UI as *System Defined Variables*:
-
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/system-defined-variables.png
-   :alt: system defined variables
-
 User defined device variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -766,6 +761,17 @@ Global variables
 
 Variables can also be defined globally using the
 `OPENWISP_CONTROLLER_CONTEXT <#openwisp-controller-context>`_ setting.
+
+System defined variables
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Predefined device variables, global variables and other variables that
+are automatically managed by the system (eg: when using templates of
+type VPN-client) are displayed in the admin UI as *System Defined Variables*
+in read-only mode.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/system-defined-variables.png
+   :alt: system defined variables
 
 Example usage of variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
