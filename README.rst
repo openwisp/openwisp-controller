@@ -725,7 +725,7 @@ Each device gets the following attributes passed as configuration variables:
 * ``name``
 * ``mac_address``
 
-These predefined variables are displayed at the admin UI as *System Defined Variables*
+These predefined variables are displayed in the admin UI as *System Defined Variables*:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/system-defined-variables.png
    :alt: system defined variables
