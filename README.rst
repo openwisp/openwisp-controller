@@ -1,8 +1,8 @@
 openwisp-controller
 ===================
 
-.. image:: https://travis-ci.org/openwisp/openwisp-controller.svg
-   :target: https://travis-ci.org/openwisp/openwisp-controller
+.. image:: https://github.com/openwisp/openwisp-controller/workflows/OpenWISP%20CI%20Build/badge.svg?branch=master
+   :target: https://github.com/openwisp/openwisp-controller/actions?query=workflow%3A%22OpenWISP+CI+Build%22
    :alt: CI build status
 
 .. image:: https://coveralls.io/repos/openwisp/openwisp-controller/badge.svg
