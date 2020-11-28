@@ -1,4 +1,5 @@
 from copy import deepcopy
+from unittest.mock import patch
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -229,13 +230,14 @@ class TestConfig(
                     'the supplied value is not a JSON object', message_dict['context']
                 )
 
+    @patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
     def test_context_setting(self):
         config = {'general': {'vpnserver1': '{{ vpnserver1 }}'}}
         c = Config(
             device=self._create_device(), backend='netjsonconfig.OpenWrt', config=config
         )
         output = c.backend_instance.render()
-        vpnserver1 = settings.OPENWISP_CONTROLLER_CONTEXT['vpnserver1']
+        vpnserver1 = app_settings.CONTEXT['vpnserver1']
         self.assertIn(vpnserver1, output)
 
     def test_mac_address_as_hostname(self):

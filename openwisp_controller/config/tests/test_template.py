@@ -145,6 +145,7 @@ class TestTemplate(
         self.assertEqual(len(t.config['files']), 1)
         self.assertIn('ca_path', t.config['files'][0]['path'])
 
+    @mock.patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
     def test_template_context_var(self):
         org = self._get_org()
         t = self._create_template(
@@ -164,13 +165,14 @@ class TestTemplate(
         # clear cache
         del c.backend_instance
         output = c.backend_instance.render()
-        vpnserver1 = settings.OPENWISP_CONTROLLER_CONTEXT['vpnserver1']
+        vpnserver1 = app_settings.CONTEXT['vpnserver1']
         self.assertIn(vpnserver1, output)
 
+    @mock.patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
     def test_get_context(self):
         t = self._create_template()
         expected = {}
-        expected.update(settings.OPENWISP_CONTROLLER_CONTEXT)
+        expected.update(app_settings.CONTEXT)
         self.assertEqual(t.get_context(), expected)
 
     def test_tamplates_clone(self):

@@ -180,8 +180,6 @@ if not TESTING and SHELL:
 OPENWISP_CONTROLLER_CONTEXT = {'vpnserver1': 'vpn.testdomain.com'}
 
 TEST_RUNNER = 'openwisp_utils.tests.TimeLoggingTestRunner'
-if TESTING:
-    OPENWISP_CONTROLLER_HARDWARE_ID_ENABLED = True
 
 if os.environ.get('SAMPLE_APP', False):
     # Replace Config
