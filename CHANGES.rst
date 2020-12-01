@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Version 0.8.1 [2020-12-02]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed tests that were dependent on specific settings of the Django project.
+
 Version 0.8.0 [2020-11-23]
 --------------------------
 
