@@ -1,6 +1,6 @@
 ---
 
-name: OpenWISP CI Build
+name: OpenWISP Controller CI Build
 
 on:
   push:
