@@ -28,6 +28,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         d = Device(name='test')
         self.assertEqual(str(d), 'test')
 
+    @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_ENABLED', True)
     @mock.patch('openwisp_controller.config.settings.HARDWARE_ID_AS_NAME', True)
     def test_str_hardware_id(self):
         d = Device(name='test', hardware_id='123')

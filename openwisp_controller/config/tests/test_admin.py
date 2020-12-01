@@ -445,6 +445,7 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 
+    @patch('openwisp_controller.config.settings.HARDWARE_ID_ENABLED', True)
     def test_preview_device_config(self):
         templates = Template.objects.all()
         path = reverse(f'admin:{self.app_label}_device_preview')
@@ -807,6 +808,7 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertContains(response, 'last_ip')
 
+    @patch('openwisp_controller.config.settings.HARDWARE_ID_ENABLED', True)
     def test_hardware_id_in_change_device(self):
         d = self._create_device()
         t = Template.objects.first()

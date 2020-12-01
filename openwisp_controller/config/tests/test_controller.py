@@ -705,6 +705,7 @@ class TestController(
         self.assertEqual(response.status_code, 403)
 
     @patch('openwisp_controller.config.settings.REGISTRATION_SELF_CREATION', False)
+    @patch('openwisp_controller.config.settings.HARDWARE_ID_ENABLED', True)
     def test_self_creation_disabled(self):
         self._create_org()
         options = {

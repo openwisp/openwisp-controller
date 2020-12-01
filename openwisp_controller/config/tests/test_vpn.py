@@ -1,7 +1,6 @@
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
@@ -225,6 +224,7 @@ class TestVpn(
         }
         self.assertEqual(keys, control)
 
+    @mock.patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
     def test_get_context(self):
         v = self._create_vpn()
         expected = {
@@ -233,7 +233,7 @@ class TestVpn(
             'key': v.cert.private_key,
             'dh': v.dh,
         }
-        expected.update(settings.OPENWISP_CONTROLLER_CONTEXT)
+        expected.update(app_settings.CONTEXT)
         self.assertEqual(v.get_context(), expected)
         self.assertNotEqual(v.get_context(), app_settings.CONTEXT)
 
@@ -248,9 +248,10 @@ class TestVpn(
         self.assertTrue(v.dh.startswith('-----BEGIN DH PARAMETERS-----'))
         self.assertTrue(v.dh.endswith('-----END DH PARAMETERS-----\n'))
 
+    @mock.patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
     def test_get_context_empty_vpn(self):
         v = Vpn()
-        self.assertEqual(v.get_context(), settings.OPENWISP_CONTROLLER_CONTEXT)
+        self.assertEqual(v.get_context(), app_settings.CONTEXT)
 
     def test_key_validator(self):
         v = self._create_vpn()
