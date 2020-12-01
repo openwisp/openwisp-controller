@@ -1,7 +1,6 @@
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model

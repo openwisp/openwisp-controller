@@ -2,7 +2,6 @@ import uuid
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase

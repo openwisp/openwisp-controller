@@ -1,7 +1,6 @@
 from copy import deepcopy
 from unittest.mock import patch
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.transaction import atomic
 from django.test import TestCase
