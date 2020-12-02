@@ -9,8 +9,8 @@ developmentStatus: stable
 platforms:
   - linux
 softwareType: standalone/web
-releaseDate: '2020-11-23'
-softwareVersion: 0.8.0
+releaseDate: '2020-12-02'
+softwareVersion: 0.8.1
 logo: 'openwisp.org.svg'
 categories:
   - network-management
@@ -18,7 +18,7 @@ maintenance:
   type: community
   contacts:
     - name: Federico Capoano
-      email: federico.capoano@gmail.com
+      email: f.capoano@openwisp.io
     - name: Marco Cappellacci
       email: marco.cappellacci@uniurb.it
 legal:
@@ -49,6 +49,7 @@ description:
       network infrastructure of communities that most need it.
     videos:
       - 'https://www.youtube.com/watch?v=MY097Y2cPQ0'
+      - 'https://www.youtube.com/watch?v=n531yTtJimU&t=4s'
     features:
       - Network Management & Automation
       - Special focus on wireless networks (public wifi, mesh networks, community networks, IoT)
