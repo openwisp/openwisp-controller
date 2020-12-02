@@ -58,14 +58,14 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
         choices=TYPE_CHOICES,
         default='generic',
         db_index=True,
-        help_text=_('template type, determines which ' 'features are available'),
+        help_text=_('template type, determines which features are available'),
     )
     default = models.BooleanField(
         _('enabled by default'),
         default=False,
         db_index=True,
         help_text=_(
-            'whether new configurations will have ' 'this template enabled by default'
+            'whether new configurations will have this template enabled by default'
         ),
     )
     auto_cert = models.BooleanField(

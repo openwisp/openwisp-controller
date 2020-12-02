@@ -15,7 +15,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
     registration_enabled = models.BooleanField(
         _('auto-registration enabled'),
         default=True,
-        help_text=_('Whether automatic registration of ' 'devices is enabled or not'),
+        help_text=_('Whether automatic registration of devices is enabled or not'),
     )
     shared_secret = KeyField(
         max_length=32,

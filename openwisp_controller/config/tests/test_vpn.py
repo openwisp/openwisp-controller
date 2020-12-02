@@ -149,7 +149,7 @@ class TestVpn(
         except ValidationError as e:
             self.assertIn('cert', e.message_dict)
         else:
-            self.fail('Mismatch between ca and cert but ' 'ValidationError not raised')
+            self.fail('Mismatch between ca and cert but ValidationError not raised')
 
     def test_auto_client(self):
         vpn = self._create_vpn()

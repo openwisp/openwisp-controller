@@ -72,7 +72,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         blank=True,
         null=True,
         db_index=True,
-        help_text=_('ip address of the management interface, ' 'if available'),
+        help_text=_('ip address of the management interface, if available'),
     )
     hardware_id = models.CharField(**(app_settings.HARDWARE_ID_OPTIONS))
 

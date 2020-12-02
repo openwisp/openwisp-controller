@@ -176,10 +176,10 @@ class DeviceReportStatusView(ActiveOrgMixin, CsrfExtemptMixin, BaseConfigView):
         # ("running" was changed to "applied")
         status = status if status != 'running' else 'applied'
         # call set_status_{status} method on Config model
-        method_name = 'set_status_{}'.format(status)
+        method_name = f'set_status_{status}'
         getattr(config, method_name)()
         return ControllerResponse(
-            'report-result: success\n' 'current-status: {}\n'.format(config.status),
+            f'report-result: success\ncurrent-status: {config.status}\n',
             content_type='text/plain',
         )
 

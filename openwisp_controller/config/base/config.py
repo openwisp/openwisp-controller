@@ -39,7 +39,7 @@ class AbstractConfig(BaseConfig):
         verbose_name=_('templates'),
         base_class=TemplatesThrough,
         blank=True,
-        help_text=_('configuration templates, applied from ' 'first to last'),
+        help_text=_('configuration templates, applied from first to last'),
     )
     vpn = models.ManyToManyField(
         get_model_name('config', 'Vpn'),
