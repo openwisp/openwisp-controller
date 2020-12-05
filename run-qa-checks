@@ -2,6 +2,12 @@
 
 set -e
 
+rm -rf ./openwisp_controller/geo/tests/.pytest_cache \
+       ./openwisp_controller/.pytest_cache/ \
+       ./tests/openwisp2/sample_geo/.pytest_cache \
+       ./tests/openwisp2/.pytest_cache/ \
+       ./htmlcov/ 2> /dev/null || true
+
 # JSHint check
 jshint openwisp_controller/pki/static/admin/pki/js/*.js
 jshint openwisp_controller/config/static/config/js/*.js
