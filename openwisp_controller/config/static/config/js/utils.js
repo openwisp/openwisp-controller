@@ -56,10 +56,11 @@ evaluateVars = function (data, context) {
 
 getAllContext = function () {
     var userContextField = getContext(),
-        systemContext = JSON.parse(document.getElementById('system_context').textContent),
+        systemContextField = document.getElementById('system_context'),
         value;
     if (userContextField) {
-        var defaultValues = JSON.parse(userContextField.value);
+        var defaultValues = JSON.parse(userContextField.value),
+            systemContext = JSON.parse(systemContextField.textContent);
         value = Object.assign(
             {},
             systemContext,
