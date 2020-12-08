@@ -650,8 +650,7 @@ Run tests with:
 
 .. code-block:: shell
 
-    pytest -c pytest.ini
-    ./runtests.py
+    ./runtests.py --parallel
 
 Run quality assurance tests with:
 
