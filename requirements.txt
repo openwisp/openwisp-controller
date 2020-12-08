@@ -6,7 +6,7 @@ django-x509~=0.9.0
 django-taggit~=1.3.0
 django-loci~=0.4.0
 django-flat-json-widget~=0.1.2
-https://github.com/openwisp/openwisp-users/tarball/master
+git+git://github.com/openwisp/openwisp-users.git@fabef8d63912c0c492248079e82fb3092f9b8ab8
 openwisp-utils[rest]~=0.7.1
 openwisp-notifications~=0.3
 djangorestframework-gis>=0.12.0,<0.17.0
