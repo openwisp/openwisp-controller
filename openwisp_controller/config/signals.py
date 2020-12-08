@@ -6,3 +6,6 @@ config_status_changed = Signal(providing_args=['instance'])
 # device and config args are maintained for backward compatibility
 config_modified = Signal(providing_args=['instance', 'device', 'config'])
 device_registered = Signal(providing_args=['instance', 'is_new'])
+management_ip_changed = Signal(
+    providing_args=['instance', 'management_ip', 'old_management_ip']
+)

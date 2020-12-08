@@ -6,8 +6,10 @@ from django.test import TestCase
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from ..signals import management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .utils import CreateConfigTemplateMixin
 
@@ -272,3 +274,22 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         d.refresh_from_db()
         system_context = d.get_system_context()
         self.assertNotIn('test', system_context.keys())
+
+    def test_management_ip_changed_not_emitted_on_creation(self):
+        with catch_signal(management_ip_changed) as handler:
+            self._create_device(organization=self._get_org())
+        handler.assert_not_called()
+
+    def test_management_ip_changed_emitted(self):
+        device = self._create_device(organization=self._get_org())
+
+        with catch_signal(management_ip_changed) as handler:
+            device.management_ip = "0.0.0.0"
+            device.save()
+        handler.assert_called_once_with(
+            management_ip="0.0.0.0",
+            old_management_ip=None,
+            sender=Device,
+            signal=management_ip_changed,
+            instance=device,
+        )

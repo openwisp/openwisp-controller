@@ -991,6 +991,21 @@ This signal is emitted every time ``DeviceConnection.is_working`` changes.
 
 It is not triggered when the device is created for the first time.
 
+``management_ip_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.management_ip_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``
+- ``management_ip``: value of ``Device.management_ip``
+- ``old_management_ip``: previous value of ``Device.management_ip``
+
+This signal is emitted every time ``Device.management_ip`` changes.
+
+It is not triggered when the device is created for the first time.
+
 ``device_registered``
 ~~~~~~~~~~~~~~~~~~~~~
 

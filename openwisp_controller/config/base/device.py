@@ -8,6 +8,7 @@ from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
+from ..signals import management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -90,6 +91,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         verbose_name = app_settings.DEVICE_VERBOSE_NAME[0]
         verbose_name_plural = app_settings.DEVICE_VERBOSE_NAME[1]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_management_ip = self.management_ip
+
     def __str__(self):
         return (
             self.hardware_id
@@ -160,6 +165,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         super().save(*args, **kwargs)
 
+        self.check_management_ip_changed()
+
     @property
     def backend(self):
         """
@@ -202,3 +209,14 @@ class AbstractDevice(OrgMixin, BaseModel):
         can be overridden with custom logic if needed
         """
         return self.config.status != 'applied'
+
+    def check_management_ip_changed(self):
+        if self.management_ip != self._initial_management_ip:
+            management_ip_changed.send(
+                sender=self.__class__,
+                management_ip=self.management_ip,
+                old_management_ip=self._initial_management_ip,
+                instance=self,
+            )
+
+        self._initial_management_ip = self.management_ip
