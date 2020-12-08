@@ -251,6 +251,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterUniqueTogether(
-            name='floorplan', unique_together=set([('location', 'floor')]),
+            name='floorplan', unique_together=set([('location', 'floor')])
         ),
     ]

@@ -60,14 +60,14 @@ class UpdateLastIpMixin(object):
             # with two devices having the same management_ip, which will
             # cause OpenWISP to be confused
             self.model.objects.filter(
-                organization=device.organization, management_ip=device.management_ip,
+                organization=device.organization, management_ip=device.management_ip
             ).exclude(pk=device.pk).update(management_ip='')
             # in the case of last_ip, we take a different approach,
             # because it may be a public IP. If it's a public IP we will
             # allow it to be duplicated
             if ip_address(device.last_ip).is_private:
                 Device.objects.filter(
-                    organization=device.organization, last_ip=device.last_ip,
+                    organization=device.organization, last_ip=device.last_ip
                 ).exclude(pk=device.pk).update(last_ip='')
         return result
 

@@ -8,9 +8,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0017_template_name_organization_unique_together'),
-    ]
+    dependencies = [('config', '0017_template_name_organization_unique_together')]
 
     operations = [
         migrations.AddField(
@@ -27,5 +25,5 @@ class Migration(migrations.Migration):
                 load_kwargs={'object_pairs_hook': collections.OrderedDict},
                 null=True,
             ),
-        ),
+        )
     ]

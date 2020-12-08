@@ -8,9 +8,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0028_template_default_values'),
-    ]
+    dependencies = [('config', '0028_template_default_values')]
 
     operations = [
         migrations.AlterField(

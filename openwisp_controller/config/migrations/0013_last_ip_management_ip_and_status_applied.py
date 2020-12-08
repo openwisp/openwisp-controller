@@ -42,9 +42,7 @@ def migrate_status_backward(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0012_auto_20180219_1501'),
-    ]
+    dependencies = [('config', '0012_auto_20180219_1501')]
 
     operations = [
         migrations.AddField(
@@ -60,7 +58,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(migrate_last_ip_forward, migrate_last_ip_backward),
-        migrations.RemoveField(model_name='config', name='last_ip',),
+        migrations.RemoveField(model_name='config', name='last_ip'),
         migrations.AddField(
             model_name='device',
             name='management_ip',

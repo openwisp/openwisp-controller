@@ -10,12 +10,10 @@ def update_legacy_vpn_backend(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0031_update_vpn_dh_param'),
-    ]
+    dependencies = [('config', '0031_update_vpn_dh_param')]
 
     operations = [
         migrations.RunPython(
             update_legacy_vpn_backend, reverse_code=migrations.RunPython.noop
-        ),
+        )
     ]

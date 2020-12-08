@@ -29,10 +29,6 @@ def forward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ('config', '0004_add_device_model'),
-    ]
+    dependencies = [('config', '0004_add_device_model')]
 
-    operations = [
-        migrations.RunPython(forward, reverse_code=migrations.RunPython.noop),
-    ]
+    operations = [migrations.RunPython(forward, reverse_code=migrations.RunPython.noop)]

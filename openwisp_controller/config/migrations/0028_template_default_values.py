@@ -8,9 +8,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0027_add_indexes_on_ip_fields'),
-    ]
+    dependencies = [('config', '0027_add_indexes_on_ip_fields')]
 
     operations = [
         migrations.AddField(
@@ -28,5 +26,5 @@ class Migration(migrations.Migration):
                 load_kwargs={'object_pairs_hook': collections.OrderedDict},
                 verbose_name='Default Values',
             ),
-        ),
+        )
     ]

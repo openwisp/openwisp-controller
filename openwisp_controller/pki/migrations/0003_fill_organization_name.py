@@ -25,10 +25,6 @@ def forward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ('pki', '0002_add_organization_name'),
-    ]
+    dependencies = [('pki', '0002_add_organization_name')]
 
-    operations = [
-        migrations.RunPython(forward, reverse_code=migrations.RunPython.noop),
-    ]
+    operations = [migrations.RunPython(forward, reverse_code=migrations.RunPython.noop)]

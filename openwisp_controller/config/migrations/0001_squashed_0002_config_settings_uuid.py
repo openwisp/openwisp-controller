@@ -23,10 +23,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('pki', '0001_initial'),
-        ('openwisp_users', '0001_initial'),
-    ]
+    dependencies = [('pki', '0001_initial'), ('openwisp_users', '0001_initial')]
 
     operations = [
         migrations.CreateModel(
@@ -505,6 +502,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterUniqueTogether(
-            name='vpnclient', unique_together=set([('config', 'vpn')]),
+            name='vpnclient', unique_together=set([('config', 'vpn')])
         ),
     ]

@@ -5,12 +5,10 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0006_config_device_not_null'),
-    ]
+    dependencies = [('config', '0006_config_device_not_null')]
 
     operations = [
-        migrations.RemoveField(model_name='config', name='name',),
-        migrations.RemoveField(model_name='config', name='key',),
-        migrations.RemoveField(model_name='config', name='mac_address',),
+        migrations.RemoveField(model_name='config', name='name'),
+        migrations.RemoveField(model_name='config', name='key'),
+        migrations.RemoveField(model_name='config', name='mac_address'),
     ]

@@ -9,5 +9,5 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunPython(
             assign_permissions_to_groups, reverse_code=migrations.RunPython.noop
-        ),
+        )
     ]
