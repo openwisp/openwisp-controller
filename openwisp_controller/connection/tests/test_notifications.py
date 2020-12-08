@@ -48,9 +48,7 @@ class TestNotifications(CreateConnectionsMixin, TestCase):
         self.assertEqual(
             n.message, exp_message.format(n=n, target_link=exp_target_link)
         )
-        self.assertEqual(
-            n.email_subject, exp_email_subject.format(n=n),
-        )
+        self.assertEqual(n.email_subject, exp_email_subject.format(n=n))
         self.assertEqual(email.subject, n.email_subject)
         self.assertEqual(
             email.body, exp_email_body.format(message=strip_tags(n.message))

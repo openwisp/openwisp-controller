@@ -7,14 +7,12 @@ from openwisp_controller.config import settings as app_settings
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0025_update_device_key'),
-    ]
+    dependencies = [('config', '0025_update_device_key')]
 
     operations = [
         migrations.AlterField(
             model_name='device',
             name='hardware_id',
             field=models.CharField(**app_settings.HARDWARE_ID_OPTIONS),
-        ),
+        )
     ]

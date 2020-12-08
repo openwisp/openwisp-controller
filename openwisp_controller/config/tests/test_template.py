@@ -65,7 +65,7 @@ class TestTemplate(
             c.templates.add(t)
             c.refresh_from_db()
             handler.assert_called_once_with(
-                sender=Config, signal=config_status_changed, instance=c,
+                sender=Config, signal=config_status_changed, instance=c
             )
 
     def test_no_auto_hostname(self):
@@ -328,8 +328,8 @@ class TestTemplate(
         organization = self._get_org()
         vpn = self._create_vpn()
         template = self._create_template(type='vpn', auto_cert=True, vpn=vpn)
-        corresponding_device = self._create_device(organization=organization,)
-        config = self._create_config(device=corresponding_device,)
+        corresponding_device = self._create_device(organization=organization)
+        config = self._create_config(device=corresponding_device)
         config.templates.add(template)
         vpn_clients = config.vpnclient_set.all()
         for vpn_client in vpn_clients:
@@ -409,7 +409,7 @@ class TestTemplateTransaction(
                 t.save()
                 c.refresh_from_db()
                 handler.assert_called_once_with(
-                    sender=Config, signal=config_status_changed, instance=c,
+                    sender=Config, signal=config_status_changed, instance=c
                 )
                 self.assertEqual(c.status, 'modified')
 

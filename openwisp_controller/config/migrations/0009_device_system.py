@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0008_update_indexes'),
-    ]
+    dependencies = [('config', '0008_update_indexes')]
 
     operations = [
         migrations.AddField(
@@ -20,5 +18,5 @@ class Migration(migrations.Migration):
                 max_length=128,
                 verbose_name='SOC / CPU',
             ),
-        ),
+        )
     ]

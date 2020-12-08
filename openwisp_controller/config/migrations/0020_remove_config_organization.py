@@ -6,9 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('config', '0019_organization_mac_add_hardware_id_name_unique_together'),
+        ('config', '0019_organization_mac_add_hardware_id_name_unique_together')
     ]
 
-    operations = [
-        migrations.RemoveField(model_name='config', name='organization',),
-    ]
+    operations = [migrations.RemoveField(model_name='config', name='organization')]

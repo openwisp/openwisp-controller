@@ -106,11 +106,11 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     def test_get_default_templates(self):
         d = self._create_device()
         self.assertEqual(
-            d.get_default_templates().count(), Config().get_default_templates().count(),
+            d.get_default_templates().count(), Config().get_default_templates().count()
         )
         self._create_config(device=d)
         self.assertEqual(
-            d.get_default_templates().count(), Config().get_default_templates().count(),
+            d.get_default_templates().count(), Config().get_default_templates().count()
         )
 
     def test_bad_hostnames(self):
@@ -241,9 +241,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
     def test_device_hardwareid_unique_together(self):
         org = self._get_org()
         self._create_device(
-            organization=org,
-            hardware_id='098H52ST479QE053V2',
-            name='test.device3.name',
+            organization=org, hardware_id='098H52ST479QE053V2', name='test.device3.name'
         )
         kwargs = {
             'organization': org,

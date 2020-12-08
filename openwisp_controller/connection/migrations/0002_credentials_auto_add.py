@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('connection', '0001_initial'),
-    ]
+    dependencies = [('connection', '0001_initial')]
 
     operations = [
         migrations.AddField(
@@ -22,5 +20,5 @@ class Migration(migrations.Migration):
                 ),
                 verbose_name='auto add',
             ),
-        ),
+        )
     ]

@@ -15,9 +15,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('openwisp_users', '0001_initial'),
-    ]
+    dependencies = [('openwisp_users', '0001_initial')]
 
     operations = [
         migrations.CreateModel(
@@ -342,6 +340,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.AlterUniqueTogether(
-            name='cert', unique_together=set([('ca', 'serial_number')]),
+            name='cert', unique_together=set([('ca', 'serial_number')])
         ),
     ]

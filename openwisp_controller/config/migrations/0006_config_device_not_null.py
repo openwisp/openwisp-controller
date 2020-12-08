@@ -6,9 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0005_populate_device'),
-    ]
+    dependencies = [('config', '0005_populate_device')]
 
     operations = [
         migrations.AlterField(
@@ -17,5 +15,5 @@ class Migration(migrations.Migration):
             field=models.OneToOneField(
                 on_delete=django.db.models.deletion.CASCADE, to='config.Device'
             ),
-        ),
+        )
     ]

@@ -11,9 +11,7 @@ def truncate_failure_reason(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('connection', '0004_django3_1_upgrade'),
-    ]
+    dependencies = [('connection', '0004_django3_1_upgrade')]
 
     operations = [
         migrations.AlterField(
@@ -21,5 +19,5 @@ class Migration(migrations.Migration):
             name='failure_reason',
             field=models.TextField(blank=True, verbose_name='reason of failure'),
         ),
-        migrations.RunPython(migrations.RunPython.noop, truncate_failure_reason,),
+        migrations.RunPython(migrations.RunPython.noop, truncate_failure_reason),
     ]

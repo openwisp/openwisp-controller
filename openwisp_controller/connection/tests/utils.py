@@ -45,10 +45,7 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
     def _create_device(self, *args, **kwargs):
         if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
             kwargs.update(
-                {
-                    'last_ip': self.ssh_server.host,
-                    'management_ip': self.ssh_server.host,
-                }
+                {'last_ip': self.ssh_server.host, 'management_ip': self.ssh_server.host}
             )
         return super()._create_device(*args, **kwargs)
 

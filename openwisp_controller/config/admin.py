@@ -335,15 +335,13 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
     class Meta(BaseForm.Meta):
         model = Config
         widgets = {'config': JsonSchemaWidget, 'context': FlatJsonWidget}
-        labels = {
-            'context': _('Configuration Variables'),
-        }
+        labels = {'context': _('Configuration Variables')}
         help_texts = {
             'context': _(
                 "In this section it's possible to override the default values of "
                 "variables defined in templates. If you're not using configuration "
                 "variables you can safely ignore this section."
-            ),
+            )
         }
 
 
@@ -509,9 +507,7 @@ class TemplateForm(BaseForm):
     class Meta(BaseForm.Meta):
         model = Template
         widgets = {'config': JsonSchemaWidget, 'default_values': FlatJsonWidget}
-        labels = {
-            'default_values': _('Configuration variables'),
-        }
+        labels = {'default_values': _('Configuration variables')}
         help_texts = {
             'default_values': _(
                 "If you want to use configuration variables in this template, "

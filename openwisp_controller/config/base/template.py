@@ -16,10 +16,7 @@ from ..settings import DEFAULT_AUTO_CERT
 from ..tasks import update_template_related_config_status
 from .base import BaseConfig
 
-TYPE_CHOICES = (
-    ('generic', _('Generic')),
-    ('vpn', _('VPN-client')),
-)
+TYPE_CHOICES = (('generic', _('Generic')), ('vpn', _('VPN-client')))
 
 
 def default_auto_cert():

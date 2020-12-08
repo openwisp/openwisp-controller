@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('pki', '0008_serial_number_length'),
-    ]
+    dependencies = [('pki', '0008_serial_number_length')]
 
     operations = [
         migrations.AlterField(

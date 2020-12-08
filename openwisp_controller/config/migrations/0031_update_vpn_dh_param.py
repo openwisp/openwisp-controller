@@ -7,12 +7,10 @@ from . import update_vpn_dhparam_length
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0030_django_taggit_update'),
-    ]
+    dependencies = [('config', '0030_django_taggit_update')]
 
     operations = [
         migrations.RunPython(
             update_vpn_dhparam_length, reverse_code=migrations.RunPython.noop
-        ),
+        )
     ]

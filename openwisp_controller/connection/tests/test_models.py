@@ -188,7 +188,7 @@ class TestModels(BaseTestModels, TestCase):
 
     def test_address_list_with_device_ip(self):
         dc = self._prepare_address_list_test(
-            management_ip='10.0.0.2', last_ip='84.32.46.153',
+            management_ip='10.0.0.2', last_ip='84.32.46.153'
         )
         self.assertEqual(dc.get_addresses(), ['10.0.0.2', '84.32.46.153'])
 

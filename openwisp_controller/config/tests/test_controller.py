@@ -481,7 +481,7 @@ class TestController(
             )
             d.config.refresh_from_db()
             handler.assert_called_once_with(
-                sender=Config, signal=config_status_changed, instance=d.config,
+                sender=Config, signal=config_status_changed, instance=d.config
             )
         self._check_header(response)
         d.config.refresh_from_db()
@@ -496,7 +496,7 @@ class TestController(
             )
             d.config.refresh_from_db()
             handler.assert_called_once_with(
-                sender=Config, signal=config_status_changed, instance=d.config,
+                sender=Config, signal=config_status_changed, instance=d.config
             )
         self._check_header(response)
         d.config.refresh_from_db()

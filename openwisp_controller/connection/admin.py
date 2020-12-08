@@ -54,7 +54,7 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
                 r'^ui/schema.json$',
                 self.admin_site.admin_view(self.schema_view),
                 name=f'{url_prefix}_schema',
-            ),
+            )
         ] + super().get_urls()
 
     def schema_view(self, request):

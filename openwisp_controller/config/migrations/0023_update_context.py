@@ -8,9 +8,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0022_vpn_format_dh'),
-    ]
+    dependencies = [('config', '0022_vpn_format_dh')]
 
     operations = [
         migrations.AlterField(
@@ -27,5 +25,5 @@ class Migration(migrations.Migration):
                 ),
                 load_kwargs={'object_pairs_hook': collections.OrderedDict},
             ),
-        ),
+        )
     ]

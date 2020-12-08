@@ -539,7 +539,7 @@ class TestConfig(
         with catch_signal(config_status_changed) as handler:
             c.save()
             handler.assert_called_once_with(
-                sender=Config, signal=config_status_changed, instance=c,
+                sender=Config, signal=config_status_changed, instance=c
             )
             self.assertEqual(c.status, 'modified')
 

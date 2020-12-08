@@ -20,7 +20,7 @@ geo_routes = get_routes()
 channel_routing = ProtocolTypeRouter(
     {
         'websocket': AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(get_notification_routes() + geo_routes)),
+            AuthMiddlewareStack(URLRouter(get_notification_routes() + geo_routes))
         )
     }
 )
