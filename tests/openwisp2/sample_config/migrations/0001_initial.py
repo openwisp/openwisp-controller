@@ -8,11 +8,11 @@ import django.db.models.deletion
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
-import sortedm2m.fields
 import taggit.managers
 from django.db import migrations, models
 
 import openwisp_controller.config.base.template
+import openwisp_controller.config.sortedm2m.fields
 import openwisp_users.mixins
 import openwisp_utils.base
 import openwisp_utils.utils
@@ -428,6 +428,20 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    'required',
+                    models.BooleanField(
+                        db_index=True,
+                        default=False,
+                        help_text=(
+                            'if checked, will force the assignment of this template to '
+                            'all the devices of the organization (if no organization '
+                            'is selected, it will be required for every device '
+                            'in the system)'
+                        ),
+                        verbose_name='required',
+                    ),
+                ),
+                (
                     'auto_cert',
                     models.BooleanField(
                         db_index=True,
@@ -752,7 +766,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='config',
             name='templates',
-            field=sortedm2m.fields.SortedManyToManyField(
+            field=openwisp_controller.config.sortedm2m.fields.SortedManyToManyField(
                 blank=True,
                 help_text='configuration templates, applied from first to last',
                 related_name='config_relations',

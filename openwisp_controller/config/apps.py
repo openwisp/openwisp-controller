@@ -56,6 +56,11 @@ class ConfigConfig(AppConfig):
             sender=self.config_model.templates.through,
             dispatch_uid='config.manage_vpn_clients',
         )
+        m2m_changed.connect(
+            self.config_model.enforce_required_templates,
+            sender=self.config_model.templates.through,
+            dispatch_uid='template.enforce_required_template',
+        )
         post_delete.connect(
             self.vpnclient_model.post_delete,
             sender=self.vpnclient_model,

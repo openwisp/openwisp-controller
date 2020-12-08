@@ -193,7 +193,7 @@ def get_default_templates_queryset(
     if organization_id:
         queryset = queryset.filter(
             Q(organization_id=organization_id) | Q(organization_id=None)
-        )
+        ).order_by('-required', 'name')
     if backend:
         queryset = queryset.filter(backend=backend)
     return queryset

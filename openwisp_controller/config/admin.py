@@ -531,6 +531,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'type',
         'backend',
         'default',
+        'required',
         'created',
         'modified',
     ]
@@ -539,6 +540,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'backend',
         'type',
         'default',
+        'required',
         'created',
     ]
     search_fields = ['name']
@@ -552,6 +554,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'auto_cert',
         'tags',
         'default',
+        'required',
         'system_context',
         'default_values',
         'config',

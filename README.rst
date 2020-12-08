@@ -921,6 +921,43 @@ Once you have performed the 3 steps above, you can test it as follows:
 5. Shortly after you change the name in OpenWISP, you should see some output in the
    SSH console indicating another SSH access and the configuration update being performed.
 
+Default Templates
+-----------------
+
+When templates are flagged as default, they will be automatically assigned to new devices.
+
+If there are multiple default templates, these are assigned to the device in alphabetical
+order based on their names, for example, given the following default templates:
+
+- Access
+- Interfaces
+- SSH Keys
+
+They will be assigned to devices in exactly that order.
+
+If for some technical reason (eg: one default template depends on the presence of another
+default template which must be assigned earlier) you need to change the ordering, you can
+simply rename the templates by prefixing them with numbers, eg:
+
+- 1 Interfaces
+- 2. SSH Keys
+- 3. Access
+
+Required Templates
+------------------
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/required-templates.png
+  :alt: Required template example
+
+Required templates are similar to `Default templates <#default-templates>`__
+but cannot be unassigned from a device configuration, they can only be overridden.
+
+They will be always assigned earlier than default templates,
+so they can be overridden if needed.
+
+In the example above, the "SSID" template is flagged as "(required)"
+and its checkbox is always checked and disabled.
+
 Signals
 -------
 
