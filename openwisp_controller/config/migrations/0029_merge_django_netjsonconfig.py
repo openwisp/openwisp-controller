@@ -30,6 +30,7 @@ class Migration(migrations.Migration):
                         message='Must be either a valid hostname or mac address.',
                     )
                 ],
+                help_text=('must be either a valid hostname or mac address'),
             ),
         ),
         migrations.AlterField(

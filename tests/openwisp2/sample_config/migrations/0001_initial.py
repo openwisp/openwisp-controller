@@ -618,6 +618,7 @@ class Migration(migrations.Migration):
                                 ),
                             )
                         ],
+                        help_text=('must be either a valid hostname or mac address'),
                     ),
                 ),
                 (

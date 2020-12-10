@@ -20,7 +20,11 @@ class AbstractDevice(OrgMixin, BaseModel):
     """
 
     name = models.CharField(
-        max_length=64, unique=False, validators=[device_name_validator], db_index=True
+        max_length=64,
+        unique=False,
+        validators=[device_name_validator],
+        db_index=True,
+        help_text=_('must be either a valid hostname or mac address'),
     )
     mac_address = models.CharField(
         max_length=17,
