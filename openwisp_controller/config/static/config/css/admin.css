@@ -245,6 +245,10 @@ div.tabs-divider{
 .form-row.field-system_context p:first-child { margin-top: 0 }
 .form-row.field-system_context p:last-child { margin-top: 0 }
 
+.submit-row .previewlink { background: #778898 }
+.submit-row .previewlink:hover,
+.submit-row .previewlink:focus { background: #576a7c }
+
 @media (max-width: 767px) {
   ul.tabs li {
       display: block;
