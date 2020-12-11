@@ -10,7 +10,7 @@ platforms:
   - linux
 softwareType: standalone/web
 releaseDate: '2020-12-02'
-softwareVersion: 0.8.1
+softwareVersion: 0.8.2
 logo: 'openwisp.org.svg'
 categories:
   - network-management
