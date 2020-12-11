@@ -1,6 +1,25 @@
 Changelog
 =========
 
+Version 0.8.2 [2020-12-12]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed the `bug <https://github.com/openwisp/openwisp-controller/issues/334>`_
+  that prevented users from adding/editing access credentials.
+
+Changes
+~~~~~~~
+
+- Increased `django-x509 <https://github.com/openwisp/django-x509#django-x509>`_
+  version to 0.9.2
+- Increased `django-flat-json-widget <https://github.com/openwisp/django-flat-json-widget#django-flat-json-widget>`_
+  version to 0.1.2
+- Changed the `preview` button colors for better readability
+- Added *help text* for *device name* field
+
 Version 0.8.1 [2020-12-02]
 --------------------------
 
