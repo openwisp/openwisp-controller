@@ -368,7 +368,7 @@ class AbstractConfig(BaseConfig):
                 )
         return c
 
-    def get_context(self):
+    def get_context(self, system=False):
         """
         additional context passed to netjsonconfig
         """
@@ -382,7 +382,7 @@ class AbstractConfig(BaseConfig):
                     'mac_address': self.mac_address,
                 }
             )
-            if self.context:
+            if self.context and not system:
                 c.update(self.context)
         c.update(self.get_vpn_context())
         if app_settings.HARDWARE_ID_ENABLED and self._has_device():
@@ -390,9 +390,7 @@ class AbstractConfig(BaseConfig):
         return c
 
     def get_system_context(self):
-        system_context = self.get_context()
-        for key in self.context:
-            del system_context[key]
+        system_context = self.get_context(system=True)
         return collections.OrderedDict(sorted(system_context.items()))
 
 
