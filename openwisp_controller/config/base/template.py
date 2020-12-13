@@ -158,17 +158,15 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
         if not self.config:
             raise ValidationError(_('The configuration field cannot be empty.'))
 
-    def get_context(self):
+    def get_context(self, system=False):
         context = {}
-        if self.default_values:
+        if self.default_values and not system:
             context = copy(self.default_values)
         context.update(super().get_context())
         return context
 
     def get_system_context(self):
-        system_context = self.get_context()
-        for key in self.default_values:
-            del system_context[key]
+        system_context = self.get_context(system=True)
         return OrderedDict(sorted(system_context.items()))
 
     def clone(self, user):
