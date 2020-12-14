@@ -489,8 +489,8 @@ detail page.
 You may set this to ``False`` if for some reason the majority of your user
 doesn't care about the management ip address.
 
-``OPENWISP_CONTROLLER_BACKEND_DEVICE_LIST``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``OPENWISP_CONTROLLER_CONFIG_BACKEND_FIELD_SHOWN``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------+------------------------------+
 | **type**:    | ``bool``                     |
@@ -498,13 +498,12 @@ doesn't care about the management ip address.
 | **default**: | ``True``                     |
 +--------------+------------------------------+
 
-In the device list page, the column ``backend`` and the backend filter are
-shown by default.
+This setting toggles the ``backend`` fields in add/edit pages in Device and Template configuration,
+as well as the ``backend`` field/filter in Device list and Template list.
 
 If this setting is set to ``False`` these items will be removed from the UI.
 
-You may set this to ``False`` if you are using only one configuration backend
-and having this UI element doesn't add any value to your users.
+Note: This setting affects only the configuration backend and NOT the VPN backend.
 
 ``OPENWISP_CONTROLLER_HARDWARE_ID_ENABLED``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

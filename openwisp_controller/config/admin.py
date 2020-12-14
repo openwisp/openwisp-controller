@@ -411,7 +411,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
 
-    if app_settings.BACKEND_DEVICE_LIST:
+    if app_settings.CONFIG_BACKEND_FIELD_SHOWN:
         list_filter.insert(1, 'config__backend')
     if app_settings.HARDWARE_ID_ENABLED:
         list_display.insert(1, 'hardware_id')
@@ -489,10 +489,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = self.get_extra_context()
         return super().add_view(request, form_url, extra_context)
-
-
-if not app_settings.BACKEND_DEVICE_LIST:  # pragma: nocover
-    DeviceAdmin.list_display.remove('backend')
 
 
 class CloneOrganizationForm(forms.Form):
@@ -602,6 +598,14 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 clone.save()
 
     actions = ['clone_selected_templates']
+
+
+if not app_settings.CONFIG_BACKEND_FIELD_SHOWN:  # pragma: nocover
+    DeviceAdmin.list_display.remove('backend')
+    ConfigInline.fields.remove('backend')
+    TemplateAdmin.list_display.remove('backend')
+    TemplateAdmin.list_filter.remove('backend')
+    TemplateAdmin.fields.remove('backend')
 
 
 class VpnForm(forms.ModelForm):
