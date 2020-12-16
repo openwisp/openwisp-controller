@@ -97,7 +97,8 @@ class BaseConfigAdmin(BaseAdmin):
                     'value': text,
                     'title': '{0} (ALT+P)'.format(text),
                 }
-            ]
+            ],
+            'CONFIG_BACKEND_FIELD_SHOWN': app_settings.CONFIG_BACKEND_FIELD_SHOWN,
         }
         if pk:
             ctx['download_url'] = reverse('{0}_download'.format(prefix), args=[pk])
@@ -600,9 +601,8 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     actions = ['clone_selected_templates']
 
 
-if not app_settings.CONFIG_BACKEND_FIELD_SHOWN:  # pragma: nocover
+if app_settings.CONFIG_BACKEND_FIELD_SHOWN is False:  # pragma: nocover
     DeviceAdmin.list_display.remove('backend')
-    ConfigInline.fields.remove('backend')
     TemplateAdmin.list_display.remove('backend')
     TemplateAdmin.list_filter.remove('backend')
     TemplateAdmin.fields.remove('backend')
