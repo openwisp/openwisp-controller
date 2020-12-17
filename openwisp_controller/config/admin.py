@@ -98,8 +98,10 @@ class BaseConfigAdmin(BaseAdmin):
                     'title': '{0} (ALT+P)'.format(text),
                 }
             ],
-            'CONFIG_BACKEND_FIELD_SHOWN': app_settings.CONFIG_BACKEND_FIELD_SHOWN,
         }
+        # Do not pass CONFIG_BACKEND_FIELD_SHOWN for Vpn model
+        if self.model.__name__ != 'Vpn':
+            ctx['CONFIG_BACKEND_FIELD_SHOWN'] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
         if pk:
             ctx['download_url'] = reverse('{0}_download'.format(prefix), args=[pk])
             try:
@@ -605,7 +607,6 @@ if not app_settings.CONFIG_BACKEND_FIELD_SHOWN:  # pragma: nocover
     DeviceAdmin.list_display.remove('backend')
     TemplateAdmin.list_display.remove('backend')
     TemplateAdmin.list_filter.remove('backend')
-    TemplateAdmin.fields.remove('backend')
 
 
 class VpnForm(forms.ModelForm):
