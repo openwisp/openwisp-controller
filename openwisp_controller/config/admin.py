@@ -601,7 +601,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     actions = ['clone_selected_templates']
 
 
-if app_settings.CONFIG_BACKEND_FIELD_SHOWN is False:  # pragma: nocover
+if not app_settings.CONFIG_BACKEND_FIELD_SHOWN:  # pragma: nocover
     DeviceAdmin.list_display.remove('backend')
     TemplateAdmin.list_display.remove('backend')
     TemplateAdmin.list_filter.remove('backend')
