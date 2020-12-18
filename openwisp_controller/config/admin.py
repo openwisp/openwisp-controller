@@ -38,6 +38,7 @@ from openwisp_utils.admin import (
 from ..admin import MultitenantAdminMixin
 from ..pki.base import PkiReversionTemplatesMixin
 from . import settings as app_settings
+from .base.vpn import AbstractVpn
 from .utils import send_file
 from .widgets import JsonSchemaWidget
 
@@ -99,8 +100,9 @@ class BaseConfigAdmin(BaseAdmin):
                 }
             ],
         }
-        # Do not pass CONFIG_BACKEND_FIELD_SHOWN for Vpn model
-        if self.model.__name__ != 'Vpn':
+        # do not pass CONFIG_BACKEND_FIELD_SHOWN in VpnAdmin
+        # since we don't need to hide the VPN backend there
+        if not issubclass(self.model, AbstractVpn):
             ctx['CONFIG_BACKEND_FIELD_SHOWN'] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
         if pk:
             ctx['download_url'] = reverse('{0}_download'.format(prefix), args=[pk])
