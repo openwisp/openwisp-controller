@@ -1,6 +1,16 @@
 Changelog
 =========
 
+Version 0.8.3 [2020-12-18]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Increased minimum `openwisp-users version to ~=0.5.1
+  <https://github.com/openwisp/openwisp-users/blob/master/CHANGES.rst#version-051-2020-12-13>`_,
+  which fixes an `issue in the production setup <https://github.com/openwisp/ansible-openwisp2/issues/233>`_
+
 Version 0.8.2 [2020-12-11]
 --------------------------
 
