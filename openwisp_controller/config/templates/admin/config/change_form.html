@@ -1,6 +1,15 @@
 {% extends "admin/change_form.html" %}
 {% load i18n admin_modify %}
 
+{% block extrastyle %}
+{{ block.super }}
+{% if CONFIG_BACKEND_FIELD_SHOWN is False %}
+<style type="text/css">
+.form-row.field-backend{ display: none }
+</style>
+{% endif %}
+{% endblock %}
+
 {% block object-tools-items %}
 <li>
     {% if download_url %}
