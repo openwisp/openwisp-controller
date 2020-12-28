@@ -6,7 +6,7 @@
     removeDefaultValues = function(contextValue, defaultValues) {
         // remove default values when template is removed.
         Object.keys(prevDefaultValues).forEach(function (key) {
-            if (!defaultValues.hasOwnProperty(key)) {
+            if (!defaultValues.hasOwnProperty(key) && contextValue.hasOwnProperty(key)) {
                 delete contextValue[key];
             }
         });
@@ -23,12 +23,13 @@
         return contextValue;
     },
     updateContext = function (isLoading, defaultValues={}) {
-        var contextField = $('#id_config-0-context');
+        var contextField = $('#id_config-0-context'),
+            systemVariable = JSON.parse($('#system_context').text());
         if (contextField.length) {
             var contextValue = JSON.parse(contextField.val());
             // add default values to contextValue
             Object.keys(defaultValues).forEach(function (key) {
-                if (!contextValue.hasOwnProperty(key)) {
+                if (!contextValue.hasOwnProperty(key) && !systemVariable.hasOwnProperty(key)) {
                     contextValue[key] = defaultValues[key];
                 }
             });
