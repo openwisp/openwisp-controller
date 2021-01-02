@@ -290,6 +290,24 @@ class TestController(
     def test_register_with_management_ip(self):
         self.test_register(management_ip='10.0.0.2')
 
+    def test_default_template_selection_with_backend_filtering(self):
+        self._create_template(
+            name='t1',
+            backend='netjsonconfig.OpenWisp',
+            organization=self._get_org(),
+            default=True,
+        )
+        t2 = self._create_template(
+            name='t2',
+            backend='netjsonconfig.OpenWrt',
+            organization=self._get_org(),
+            default=True,
+        )
+        d = self.test_register()
+        qs = d.config.templates.all()
+        self.assertEqual(len(qs), 1)
+        self.assertEqual(qs.first().pk, t2.pk)
+
     def test_register_device_info(self):
         device_model_name = 'TP-Link TL-WDR4300 v1'
         os = 'LEDE Reboot 17.01-SNAPSHOT r3270-09a8183'

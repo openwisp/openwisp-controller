@@ -177,7 +177,9 @@ def get_controller_urls(views_module):
     return urls
 
 
-def get_default_templates_queryset(organization_id, queryset=None, model=None):
+def get_default_templates_queryset(
+    organization_id, backend=None, queryset=None, model=None
+):
     """
     Adds organization filtering to default template queryset:
         filter only templates belonging to same organization
@@ -191,4 +193,6 @@ def get_default_templates_queryset(organization_id, queryset=None, model=None):
     queryset = queryset.filter(
         Q(organization_id=organization_id) | Q(organization_id=None)
     )
+    if backend:
+        queryset = queryset.filter(backend=backend)
     return queryset

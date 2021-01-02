@@ -61,29 +61,69 @@
         // enable default templates - do not remove this comment
         (function ($) {
             var urls = {{ default_template_urls| safe }},
-                firstRun = true;
+                firstRun = true,
+                backendField = $('#id_config-0-backend'),
+                addChangeEventToBackend = function () {
+                    $('#id_config-0-backend').change(function () {
+                        setTimeout(function () {
+                            // ensures getDefaultTemplates execute only after other
+                            // onChange event handlers attached this field has been
+                            // executed.
+                            getDefaultTemplates();
+                        });
+                    });
+                },
+                unCheckInputs = function () {
+                    $('input.sortedm2m').prop('checked', false);
+                    $('input[name="config-0-templates"]').attr('value', "");
+                    if (window.hasOwnProperty('updateContext')) {
+                        window.updateContext();
+                    }
+                },
+                getDefaultTemplates = function () {
+                    var orgID = $('#id_organization').val(),
+                        backend = $('#id_config-0-backend').val();
+                    // proceed only if an organization and a backend have been selected
+                    if (orgID.length === 0 || backend.length === 0) {
+                        unCheckInputs();
+                        return;
+                    }
+                    var url = urls[orgID],
+                        isNew = $('#id_config-0-id').length == 0;
+                    // if device is not new, do not execute on page load
+                    if (!isNew && firstRun) {
+                        return;
+                    }
+                    // if no url
+                    if (!url) {
+                        unCheckInputs();
+                        return;
+                    }
+                    // get default templates of selected org and backend
+                    url = url + '?backend=' + backend;
+                    $.get(url).done(function (data) {
+                        unCheckInputs();
+                        $.each(data['default_templates'], function (i, uuid) {
+                            $('input.sortedm2m[value=' + uuid + ']').trigger('click');
+                        });
+                    });
+                };
             $('#id_organization').change(function () {
-                var url = urls[$(this).val()],
-                    isNew = $('#id_config-0-id').length == 0;
-                // if device is not new, do not execute on page load
-                if (!isNew && firstRun) {
-                    return
+                if ($('#id_config-0-backend').length > 0) {
+                    getDefaultTemplates();
                 }
-                firstRun = false;
-                // if no organization
-                if (!url) {
-                    $('input.sortedm2m').prop('checked', false);
-                    return
-                }
-                firstRun = false;
-                // get default templates of selected org
-                $.get(url).done(function (data) {
-                    $('input.sortedm2m').prop('checked', false);
-                    $.each(data['default_templates'], function (i, uuid) {
-                        $('input.sortedm2m[value=' + uuid + ']').trigger('click');
+            });
+            if (backendField.length > 0) {
+                addChangeEventToBackend();
+            } else {
+                $('#config-group > fieldset.module').ready(function () {
+                    $('div.add-row > a').click(function () {
+                        addChangeEventToBackend();
+                        getDefaultTemplates();
                     });
                 });
-            });
+            }
+            firstRun = false;
         }) (django.jQuery);
     </script>
     {% endif %}
