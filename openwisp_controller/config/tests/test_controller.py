@@ -7,6 +7,8 @@ from django.urls import reverse
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.tests import capture_stdout
+
 from openwisp_utils.tests import catch_signal
 
 from ..signals import (
@@ -101,12 +103,14 @@ class TestController(
                 request=response.wsgi_request,
             )
 
+    @capture_stdout()
     def test_device_checksum_400(self):
         d = self._create_device_config()
         response = self.client.get(reverse('controller:device_checksum', args=[d.pk]))
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_device_checksum_403(self):
         d = self._create_device_config()
         response = self.client.get(
@@ -159,6 +163,8 @@ class TestController(
                 request=response.wsgi_request,
             )
 
+
+    @capture_stdout()
     def test_device_download_config_400(self):
         d = self._create_device_config()
         response = self.client.get(
@@ -167,6 +173,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_device_download_config_403(self):
         d = self._create_device_config()
         path = reverse('controller:device_download_config', args=[d.pk])
@@ -196,12 +203,14 @@ class TestController(
         )
         self.assertEqual(response.status_code, 404)
 
+    @capture_stdout()
     def test_vpn_checksum_400(self):
         v = self._create_vpn()
         response = self.client.get(reverse('controller:vpn_checksum', args=[v.pk]))
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_vpn_checksum_403(self):
         v = self._create_vpn()
         response = self.client.get(
@@ -234,6 +243,7 @@ class TestController(
         )
         self.assertEqual(response.status_code, 404)
 
+    @capture_stdout()
     def test_vpn_download_config_400(self):
         v = self._create_vpn()
         response = self.client.get(
@@ -242,6 +252,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_vpn_download_config_403(self):
         v = self._create_vpn()
         path = reverse('controller:vpn_download_config', args=[v.pk])
@@ -312,6 +323,7 @@ class TestController(
         )
         self.assertContains(response, 'already exists', status_code=400)
 
+    @capture_stdout()
     def test_register_failed_creation_wrong_backend(self):
         self.test_register()
         response = self.client.post(
@@ -510,6 +522,7 @@ class TestController(
         )
         self.assertEqual(response.status_code, 404)
 
+    @capture_stdout()
     def test_device_report_status_400(self):
         d = self._create_device_config()
         response = self.client.post(
@@ -528,6 +541,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_device_report_status_403(self):
         d = self._create_device_config()
         response = self.client.post(
@@ -601,6 +615,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_device_update_info_403(self):
         d = self._create_device_config()
         params = {
@@ -667,7 +682,8 @@ class TestController(
             self.assertEqual(response.status_code, 400)
             self.assertEqual(Device.objects.count(), 0)
 
-    @patch('openwisp_controller.config.settings.CONSISTENT_REGISTRATION', False)
+    patch('openwisp_controller.config.settings.CONSISTENT_REGISTRATION', False)
+    @capture_stdout()
     def test_consistent_registration_disabled(self):
         self._create_org()
         response = self.client.post(
@@ -691,7 +707,8 @@ class TestController(
         self.assertEqual(Device.objects.filter(key=TEST_CONSISTENT_KEY).count(), 0)
         self.assertEqual(Device.objects.filter(key=key).count(), 1)
 
-    @patch('openwisp_controller.config.settings.REGISTRATION_ENABLED', False)
+    patch('openwisp_controller.config.settings.REGISTRATION_ENABLED', False)
+    @capture_stdout()
     def test_registration_disabled(self):
         response = self.client.post(
             self.register_url,
@@ -704,7 +721,8 @@ class TestController(
         )
         self.assertEqual(response.status_code, 403)
 
-    @patch('openwisp_controller.config.settings.REGISTRATION_SELF_CREATION', False)
+    patch('openwisp_controller.config.settings.REGISTRATION_SELF_CREATION', False)
+    @capture_stdout()
     def test_self_creation_disabled(self):
         self._create_org()
         options = {
@@ -762,6 +780,7 @@ class TestController(
         self.assertEqual(d.config.templates.filter(pk=t_shared.pk).count(), 1)
         self.assertEqual(d.config.templates.filter(pk=t2.pk).count(), 0)
 
+    @capture_stdout()
     def test_register_400(self):
         self._get_org()
         # missing secret
@@ -810,6 +829,7 @@ class TestController(
         self.assertContains(response, 'mac_address', status_code=400)
         self._check_header(response)
 
+    @capture_stdout()
     def test_register_403(self):
         self._get_org()
         # wrong secret
@@ -838,6 +858,7 @@ class TestController(
         self.assertContains(response, 'wrong backend', status_code=403)
         self._check_header(response)
 
+    @capture_stdout()
     def test_register_403_disabled_registration(self):
         org = self._get_org()
         org.config_settings.registration_enabled = False
@@ -858,6 +879,7 @@ class TestController(
         ).count()
         self.assertEqual(count, 0)
 
+    @capture_stdout()
     def test_register_403_disabled_org(self):
         self._create_org(is_active=False)
         response = self.client.post(
@@ -906,7 +928,8 @@ class TestController(
         )
         self.assertEqual(response.status_code, 200)
 
-    @patch('openwisp_controller.config.settings.REGISTRATION_ENABLED', False)
+    patch('openwisp_controller.config.settings.REGISTRATION_ENABLED', False)
+    @capture_stdout()
     def test_register_403_disabled_registration_setting(self):
         org = self._get_org()
         response = self.client.post(
@@ -957,7 +980,8 @@ class TestController(
 
     # simulate public IP by mocking the
     # method which tells us if the ip is private or not
-    @patch('ipaddress.IPv4Address.is_private', False)
+    patch('ipaddress.IPv4Address.is_private', False)
+    @capture_stdout()
     def test_last_ip_public_can_be_duplicated(self):
         org1 = self._create_org()
         d1 = self._create_device(
