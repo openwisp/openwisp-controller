@@ -9,6 +9,7 @@ from swapper import load_model
 
 from openwisp_users.models import Group, Organization
 from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import capture_any_output
 
 from .. import settings as app_settings
 from ..apps import _TASK_NAME
@@ -262,6 +263,7 @@ class TestModels(BaseTestModels, TestCase):
         self.assertEqual(Credentials.objects.count(), 1)
 
     @mock.patch(_connect_path)
+    @capture_any_output()
     def test_ssh_exec_exit_code(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
@@ -274,6 +276,7 @@ class TestModels(BaseTestModels, TestCase):
             mocked.assert_called_once()
 
     @mock.patch(_connect_path)
+    @capture_any_output()
     def test_ssh_exec_timeout(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
@@ -286,6 +289,7 @@ class TestModels(BaseTestModels, TestCase):
             mocked.assert_called_once()
 
     @mock.patch(_connect_path)
+    @capture_any_output()
     def test_ssh_exec_exception(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)

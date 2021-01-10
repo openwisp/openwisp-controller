@@ -8,6 +8,7 @@ from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import capture_any_output
 
 from ..signals import (
     checksum_requested,
@@ -101,12 +102,14 @@ class TestController(
                 request=response.wsgi_request,
             )
 
+    @capture_any_output()
     def test_device_checksum_400(self):
         d = self._create_device_config()
         response = self.client.get(reverse('controller:device_checksum', args=[d.pk]))
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_device_checksum_403(self):
         d = self._create_device_config()
         response = self.client.get(
@@ -159,6 +162,7 @@ class TestController(
                 request=response.wsgi_request,
             )
 
+    @capture_any_output()
     def test_device_download_config_400(self):
         d = self._create_device_config()
         response = self.client.get(
@@ -167,6 +171,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_device_download_config_403(self):
         d = self._create_device_config()
         path = reverse('controller:device_download_config', args=[d.pk])
@@ -196,12 +201,14 @@ class TestController(
         )
         self.assertEqual(response.status_code, 404)
 
+    @capture_any_output()
     def test_vpn_checksum_400(self):
         v = self._create_vpn()
         response = self.client.get(reverse('controller:vpn_checksum', args=[v.pk]))
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_vpn_checksum_403(self):
         v = self._create_vpn()
         response = self.client.get(
@@ -234,6 +241,7 @@ class TestController(
         )
         self.assertEqual(response.status_code, 404)
 
+    @capture_any_output()
     def test_vpn_download_config_400(self):
         v = self._create_vpn()
         response = self.client.get(
@@ -242,6 +250,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_vpn_download_config_403(self):
         v = self._create_vpn()
         path = reverse('controller:vpn_download_config', args=[v.pk])
@@ -312,6 +321,7 @@ class TestController(
         )
         self.assertContains(response, 'already exists', status_code=400)
 
+    @capture_any_output()
     def test_register_failed_creation_wrong_backend(self):
         self.test_register()
         response = self.client.post(
@@ -510,6 +520,7 @@ class TestController(
         )
         self.assertEqual(response.status_code, 404)
 
+    @capture_any_output()
     def test_device_report_status_400(self):
         d = self._create_device_config()
         response = self.client.post(
@@ -528,6 +539,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_device_report_status_403(self):
         d = self._create_device_config()
         response = self.client.post(
@@ -601,6 +613,7 @@ class TestController(
         self.assertEqual(response.status_code, 400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_device_update_info_403(self):
         d = self._create_device_config()
         params = {
@@ -763,6 +776,7 @@ class TestController(
         self.assertEqual(d.config.templates.filter(pk=t_shared.pk).count(), 1)
         self.assertEqual(d.config.templates.filter(pk=t2.pk).count(), 0)
 
+    @capture_any_output()
     def test_register_400(self):
         self._get_org()
         # missing secret
@@ -811,6 +825,7 @@ class TestController(
         self.assertContains(response, 'mac_address', status_code=400)
         self._check_header(response)
 
+    @capture_any_output()
     def test_register_403(self):
         self._get_org()
         # wrong secret
@@ -839,6 +854,7 @@ class TestController(
         self.assertContains(response, 'wrong backend', status_code=403)
         self._check_header(response)
 
+    @capture_any_output()
     def test_register_403_disabled_registration(self):
         org = self._get_org()
         org.config_settings.registration_enabled = False
@@ -859,6 +875,7 @@ class TestController(
         ).count()
         self.assertEqual(count, 0)
 
+    @capture_any_output()
     def test_register_403_disabled_org(self):
         self._create_org(is_active=False)
         response = self.client.post(
