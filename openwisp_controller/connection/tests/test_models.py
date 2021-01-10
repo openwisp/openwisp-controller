@@ -8,8 +8,7 @@ from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
 from openwisp_users.models import Group, Organization
-from openwisp_utils.tests import catch_signal
-from openwisp_utils.tests import capture_any_output
+from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
 from ..apps import _TASK_NAME

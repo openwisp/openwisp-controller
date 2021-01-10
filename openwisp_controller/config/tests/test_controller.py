@@ -7,8 +7,7 @@ from django.urls import reverse
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
-from openwisp_utils.tests import catch_signal
-from openwisp_utils.tests import capture_any_output
+from openwisp_utils.tests import capture_any_output, catch_signal
 
 from ..signals import (
     checksum_requested,
