@@ -63,8 +63,8 @@ getAllContext = function () {
             systemContext = JSON.parse(systemContextField.textContent);
         value = Object.assign(
             {},
-            systemContext,
-            defaultValues
+            defaultValues,
+            systemContext
         );
     }
     return value;
