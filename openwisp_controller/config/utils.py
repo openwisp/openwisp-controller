@@ -190,9 +190,10 @@ def get_default_templates_queryset(
     """
     if queryset is None:
         queryset = model.objects.filter(default=True)
-    queryset = queryset.filter(
-        Q(organization_id=organization_id) | Q(organization_id=None)
-    )
+    if organization_id:
+        queryset = queryset.filter(
+            Q(organization_id=organization_id) | Q(organization_id=None)
+        )
     if backend:
         queryset = queryset.filter(backend=backend)
     return queryset

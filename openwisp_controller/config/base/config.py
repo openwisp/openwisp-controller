@@ -236,16 +236,13 @@ class AbstractConfig(BaseConfig):
         """
 
         queryset = self.templates.model.objects.filter(default=True)
-        if self.backend:
-            queryset = queryset.filter(backend=self.backend)
         try:
-            assert self.device
+            org_id = self.device.organization_id
         except ObjectDoesNotExist:
-            return queryset
-        else:
-            return get_default_templates_queryset(
-                self.device.organization_id, queryset=queryset
-            )
+            org_id = None
+        return get_default_templates_queryset(
+            organization_id=org_id, queryset=queryset, backend=self.backend
+        )
 
     def clean(self):
         """
