@@ -402,6 +402,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         conf.full_clean()
         return conf
 
+    @capture_any_output()
     @mock.patch(_connect_path)
     @mock.patch('time.sleep')
     def test_device_config_update(self, mocked_sleep, mocked_connect):
