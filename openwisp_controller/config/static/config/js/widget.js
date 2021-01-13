@@ -328,6 +328,8 @@
         $('.sortedm2m-items').on('change', function() {
             getDefaultValues();
         });
+        // so that other files can use updateContext
+        window.updateContext = updateContext;
     };
 
     var bindLoadUi = function () {
