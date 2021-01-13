@@ -418,7 +418,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     list_select_related = ('config', 'organization')
 
     class Media(BaseConfigAdmin.Media):
-        js = BaseConfigAdmin.Media.js + ['{0}js/tabs.js'.format(prefix)]
+        js = BaseConfigAdmin.Media.js + [
+            '{0}js/tabs.js'.format(prefix),
+            '{0}/js/default_templates.js'.format(prefix),
+        ]
 
     def get_fields(self, request, obj=None):
         """

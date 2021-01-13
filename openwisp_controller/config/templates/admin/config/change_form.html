@@ -51,30 +51,9 @@
     <script>
         // enable default templates - do not remove this comment
         (function ($) {
-            var urls = {{ default_template_urls| safe }},
-                firstRun = true;
-            $('#id_organization').change(function () {
-                var url = urls[$(this).val()],
-                    isNew = $('#id_config-0-id').length == 0;
-                // if device is not new, do not execute on page load
-                if (!isNew && firstRun) {
-                    return
-                }
-                firstRun = false;
-                // if no organization
-                if (!url) {
-                    $('input.sortedm2m').prop('checked', false);
-                    return
-                }
-                firstRun = false;
-                // get default templates of selected org
-                $.get(url).done(function (data) {
-                    $('input.sortedm2m').prop('checked', false);
-                    $.each(data['default_templates'], function (i, uuid) {
-                        $('input.sortedm2m[value=' + uuid + ']').trigger('click');
-                    });
-                });
-            });
+            $(document).ready( function () {
+                window.bindDefaultTemplateLoading({{ default_template_urls| safe }});
+            })
         }) (django.jQuery);
     </script>
     {% endif %}

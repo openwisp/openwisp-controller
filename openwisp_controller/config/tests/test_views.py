@@ -84,6 +84,25 @@ class TestViews(
         self.assertIn(str(t2.pk), templates)
         self.assertIn(str(t3.pk), templates)
 
+    def test_get_default_templates_with_backend_filtering(self):
+        org1 = self._create_org(name='org1')
+        t1 = self._create_template(
+            name='t1', organization=org1, default=True, backend='netjsonconfig.OpenWrt'
+        )
+        t2 = self._create_template(
+            name='t2', organization=org1, default=True, backend='netjsonconfig.OpenWisp'
+        )
+        self._login()
+
+        r = self.client.get(
+            reverse('admin:get_default_templates', args=[org1.pk]),
+            {'backend': 'netjsonconfig.OpenWrt'},
+        )
+        templates = r.json()['default_templates']
+        self.assertEqual(len(templates), 1)
+        self.assertIn(str(t1.pk), templates)
+        self.assertNotIn(str(t2.pk), templates)
+
     def test_get_default_templates_403(self):
         org1 = self._create_org(name='org1')
         response = self.client.get(
