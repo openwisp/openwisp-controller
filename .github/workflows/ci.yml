@@ -72,7 +72,7 @@ jobs:
         SAMPLE_APP=1 ./runtests.py --parallel --keepdb
 
     - name: Upload Coverage
-      run: coveralls
+      run: coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COVERALLS_FLAG_NAME: python-${{ matrix.python-version }}-${{ matrix.django-version }}
