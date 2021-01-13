@@ -8,7 +8,7 @@ from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
 from openwisp_users.models import Group, Organization
-from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
 from ..apps import _TASK_NAME
@@ -261,6 +261,7 @@ class TestModels(BaseTestModels, TestCase):
         self._create_credentials(auto_add=True, organization=None)
         self.assertEqual(Credentials.objects.count(), 1)
 
+    @capture_any_output()
     @mock.patch(_connect_path)
     def test_ssh_exec_exit_code(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
@@ -273,6 +274,7 @@ class TestModels(BaseTestModels, TestCase):
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
+    @capture_any_output()
     @mock.patch(_connect_path)
     def test_ssh_exec_timeout(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
@@ -285,6 +287,7 @@ class TestModels(BaseTestModels, TestCase):
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
+    @capture_any_output()
     @mock.patch(_connect_path)
     def test_ssh_exec_exception(self, *args):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
@@ -399,6 +402,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         conf.full_clean()
         return conf
 
+    @capture_any_output()
     @mock.patch(_connect_path)
     @mock.patch('time.sleep')
     def test_device_config_update(self, mocked_sleep, mocked_connect):
