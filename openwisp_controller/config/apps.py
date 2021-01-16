@@ -9,6 +9,8 @@ from openwisp_notifications.types import (
 )
 from swapper import get_model_name, load_model
 
+from openwisp_utils.admin_theme import register_dashboard_element
+
 from . import settings as app_settings
 from .signals import config_modified
 
@@ -29,6 +31,7 @@ class ConfigConfig(AppConfig):
         self.register_notification_types()
         self.add_ignore_notification_widget()
         self.enable_cache_invalidation()
+        self.register_dashboard_element()
 
     def __setmodels__(self):
         self.device_model = load_model('config', 'Device')
@@ -160,4 +163,18 @@ class ConfigConfig(AppConfig):
         config_modified.connect(
             DeviceChecksumView.invalidate_checksum_cache,
             dispatch_uid='invalidate_checksum_cache',
+        )
+
+    def register_dashboard_element(self):
+        register_dashboard_element(
+            position=1,
+            element_config={
+                'name': 'Configuration Status',
+                'query_params': {
+                    'app_label': 'config',
+                    'model': 'device',
+                    'group_by': 'config__status',
+                },
+                'colors': {'applied': 'green', 'modified': 'orange', 'error': 'red'},
+            },
         )

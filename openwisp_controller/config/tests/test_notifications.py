@@ -1,6 +1,7 @@
+from unittest.mock import patch
+
 from django.apps.registry import apps
 from django.test import TestCase
-from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import CreateConfigMixin
@@ -65,14 +66,11 @@ class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
             notification = notification_qs.first()
             self.assertIn('The existing device', notification.message)
 
+    @patch('openwisp_notifications.types.NOTIFICATION_TYPES', {})
+    @patch('openwisp_utils.admin_theme.dashboard.DASHBOARD_CONFIG', {})
     def test_default_notification_type_already_unregistered(self):
         # Simulates if 'default notification type is already unregistered
         # by some other module
-
-        # Unregister "config_error" and "device_registered" notification
-        # types to avoid getting rasing ImproperlyConfigured exceptions
-        unregister_notification_type('config_error')
-        unregister_notification_type('device_registered')
 
         # This will try to unregister 'default' notification type
         # which is already got unregistered when Django loaded.

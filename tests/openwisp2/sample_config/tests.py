@@ -1,4 +1,7 @@
 from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdmin
+from openwisp_controller.config.tests.test_app import (
+    TestCustomAdminDashboard as BaseTestCustomAdminDashboard,
+)
 from openwisp_controller.config.tests.test_config import TestConfig as BaseTestConfig
 from openwisp_controller.config.tests.test_controller import (
     TestController as BaseTestController,
@@ -65,6 +68,10 @@ class TestVpnTransaction(BaseTestVpnTransaction):
     pass
 
 
+class TestCustomAdminDashboard(BaseTestCustomAdminDashboard):
+    pass
+
+
 del BaseTestAdmin
 del BaseTestConfig
 del BaseTestController
@@ -76,3 +83,4 @@ del BaseTestNotifications
 del BaseTestViews
 del BaseTestVpn
 del BaseTestVpnTransaction
+del BaseTestCustomAdminDashboard
