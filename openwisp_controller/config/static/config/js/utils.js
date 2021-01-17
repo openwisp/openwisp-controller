@@ -79,3 +79,29 @@ cleanData = function (data) {
         return data;
     }
 };
+
+document.addEventListener('DOMContentLoaded', function () {
+    var systemContext =  document.querySelector('.system-context');
+    var systemContextBtn = document.querySelector('.system-context-btn');    
+    function set_sc_height(){
+        // Hides System Defined Variables when
+        // its height is > 150px
+
+        if (systemContext.offsetHeight > 150) {
+            systemContext.classList.add('hide-sc');
+            systemContextBtn.classList.add('show-sc-btn');
+        }
+    }
+    systemContextBtn.addEventListener('click', function () {
+        systemContext.classList.toggle('hide-sc');
+        if (systemContext.classList.contains('hide-sc')) {
+            systemContextBtn.innerText = "show";
+        } else {
+            systemContextBtn.innerText = "hide";
+        }
+    });
+    window.addEventListener('tabchange', function () {
+        set_sc_height();
+    });
+    set_sc_height();
+});

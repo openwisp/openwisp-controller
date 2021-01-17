@@ -1,8 +1,18 @@
-{% for key, value in system_context.items %}
-    {% if new_line in value %}
-        <p><strong>{{ key }}:</strong><pre>{{ value }}</pre></p>
-    {% else %}
-        <p><strong>{{ key }}:</strong> {{ value }}</p>
-    {% endif %}
-{% endfor %}
+{% load static %}
+<div> 
+    <div class="system-context">
+        {% if  system_context|length > 0%}
+        {% for key, value in system_context.items %}
+            {% if new_line in value %}
+                <p><strong>{{ key }}:</strong><pre>{{ value }}</pre></p>
+            {% else %}
+                <p><strong>{{ key }}:</strong> {{ value }}</p>
+            {% endif %}
+        {% endfor %}
+        {% else %}
+        <p><strong>There are no system defined variables available right now.</strong></p>
+        {% endif %}
+    </div>
+    <span class="system-context-btn">show</span>
+</div>
 {{system_context|json_script:"system_context"}}

@@ -372,26 +372,27 @@ class AbstractConfig(BaseConfig):
         """
         additional context passed to netjsonconfig
         """
-        c = {}
+        c = collections.OrderedDict()
+        extra = {}
         if self._has_device():
             c.update(
-                {
-                    'id': str(self.device.id),
-                    'key': self.key,
-                    'name': self.name,
-                    'mac_address': self.mac_address,
-                }
+                [
+                    ('name', self.name),
+                    ('mac_address', self.mac_address),
+                    ('id', str(self.device.id)),
+                    ('key', self.key),
+                ]
             )
             if self.context and not system:
-                c.update(self.context)
-        c.update(self.get_vpn_context())
+                extra.update(self.context)
+        extra.update(self.get_vpn_context())
         if app_settings.HARDWARE_ID_ENABLED and self._has_device():
-            c.update({'hardware_id': str(self.device.hardware_id)})
+            extra.update({'hardware_id': str(self.device.hardware_id)})
+        c.update(sorted(extra.items()))
         return c
 
     def get_system_context(self):
-        system_context = self.get_context(system=True)
-        return collections.OrderedDict(sorted(system_context.items()))
+        return self.get_context(system=True)
 
 
 AbstractConfig._meta.get_field('config').blank = True
