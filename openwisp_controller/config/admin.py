@@ -424,8 +424,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + [
-            '{0}js/tabs.js'.format(prefix),
-            '{0}/js/default_templates.js'.format(prefix),
+            f'{prefix}js/tabs.js',
+            f'{prefix}js/default_templates.js',
         ]
 
     def get_fields(self, request, obj=None):
