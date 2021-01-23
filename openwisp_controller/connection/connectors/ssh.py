@@ -118,7 +118,7 @@ class Ssh(object):
         - aborts on exceptions
         - raises socket.timeout exceptions
         """
-        print('$:> {0}'.format(command))
+        logger.info('Executing command: {0}'.format(command))
         # execute commmand
         try:
             stdin, stdout, stderr = self.shell.exec_command(command, timeout=timeout)
@@ -133,17 +133,19 @@ class Ssh(object):
         # store command exit status
         exit_status = stdout.channel.recv_exit_status()
         # log standard output
-        output = stdout.read().decode('utf8').strip()
+        # try to decode to UTF-8, ignoring unconvertible characters
+        # https://docs.python.org/3/howto/unicode.html#the-string-type
+        output = stdout.read().decode('utf-8', 'ignore')
         if output:
-            print(output)
+            logger.info(output)
         # log standard error
-        error = stderr.read().decode('utf8').strip()
+        error = stderr.read().decode('utf-8', 'ignore')
         if error:
-            print(error)
+            logger.error(error)
         # abort the operation if any of the command
         # returned with a non-zero exit status
         if exit_status not in exit_codes and raise_unexpected_exit:
-            print('# Previous command failed, aborting...')
+            logger.error('Unexpected exit code: {0}'.format(exit_status))
             message = error if error else output
             raise CommandFailedException(message)
         return output, exit_status
