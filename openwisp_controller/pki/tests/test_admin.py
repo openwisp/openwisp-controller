@@ -14,11 +14,6 @@ Cert = load_model('django_x509', 'Cert')
 class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     app_label = 'pki'
 
-    operator_permission_filters = [
-        {'codename__endswith': 'ca'},
-        {'codename__endswith': 'cert'},
-    ]
-
     def _create_multitenancy_test_env(self, cert=False):
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')

@@ -20,14 +20,6 @@ DeviceConnection = load_model('connection', 'DeviceConnection')
 class TestAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = 'config'
     app_label = 'connection'
-    operator_permission_filters = [
-        {'codename__endswith': 'config'},
-        {'codename__endswith': 'device'},
-        {'codename__endswith': 'template'},
-        {'codename__endswith': 'connection'},
-        {'codename__endswith': 'credentials'},
-        {'codename__endswith': 'device_connection'},
-    ]
     _device_params = TestConfigAdmin._device_params.copy()
 
     def _get_device_params(self, org):

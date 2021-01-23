@@ -36,12 +36,6 @@ class TestAdmin(
     app_label = 'config'
     fixtures = ['test_templates']
     maxDiff = None
-    operator_permission_filters = [
-        {'codename__endswith': 'config'},
-        {'codename__endswith': 'device'},
-        {'codename__endswith': 'template'},
-        {'codename__endswith': 'vpn'},
-    ]
     _device_params = {
         'name': 'test-device',
         'hardware_id': '1234',

@@ -21,16 +21,6 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
     object_location_model = DeviceLocation
     user_model = get_user_model()
 
-    operator_permission_filters = [
-        {'codename__endswith': 'config'},
-        {'codename__endswith': 'device'},
-        {'codename__endswith': 'template'},
-        {'codename__endswith': 'vpn'},
-        {'codename__endswith': 'location'},
-        {'codename__endswith': 'floorplan'},
-        {'codename__endswith': 'devicelocation'},
-    ]
-
     def setUp(self):
         """ override TestAdminMixin.setUp """
         pass
