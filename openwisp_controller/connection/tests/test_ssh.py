@@ -1,6 +1,4 @@
-import io
 import os
-from contextlib import redirect_stdout
 from unittest import mock
 
 from django.conf import settings
@@ -34,23 +32,25 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         dc = self._create_device_connection(credentials=ckey)
         dc.connect()
         self.assertTrue(dc.is_working)
-        stdout = io.StringIO()
-        with redirect_stdout(stdout):
+        with mock.patch('logging.Logger.info') as mocked_logger:
             dc.connector_instance.exec_command('echo test')
-        output = stdout.getvalue()
-        self.assertIn('$:> echo test\ntest', output)
+            mocked_logger.assert_has_calls(
+                [mock.call('Executing command: echo test'), mock.call('test\n')]
+            )
 
     def test_connection_failed_command(self):
         ckey = self._create_credentials_with_key(port=self.ssh_server.port)
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
-        stdout = io.StringIO()
-        with redirect_stdout(stdout):
-            with self.assertRaises(Exception):
+        with self.assertRaises(Exception):
+            with mock.patch('logging.Logger.error') as mocked_logger:
                 dc.connector_instance.exec_command('wrongcommand')
-        output = stdout.getvalue()
-        self.assertIn('/bin/sh: 1: wrongcommand: not found', output)
-        self.assertIn('# Previous command failed, aborting...', output)
+                mocked_logger.assert_has_calls(
+                    [
+                        mock.call('/bin/sh: 1: wrongcommand: not found'),
+                        mock.call('Unexpected exit code: 127'),
+                    ]
+                )
 
     @mock.patch('scp.SCPClient.putfo')
     def test_connection_upload(self, putfo_mocked):
