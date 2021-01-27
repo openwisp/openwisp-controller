@@ -249,32 +249,26 @@ div.tabs-divider{
 .submit-row .previewlink:hover,
 .submit-row .previewlink:focus { background: #576a7c }
 
-.system-context{
+#system-context{
   overflow: hidden;
 }
 
-.hide-sc{
-  height: 150px;
+#system-context div {
+  margin-bottom: 5px;
 }
 
-.system-context-btn{
-  padding: 5px 25px;
-  margin-top: 5px;
-  text-transform: capitalize;
-  font-size: 13px;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  background: #E6E6E6;
-  cursor: pointer;
+.hide-sc{
+  height: 180px;
+}
+
+button.system-context{
+  padding: 6px 12px;
   display: none;
 }
 
-.system-context-btn:hover{
-  color: #000;
-  background: #cdcdcd;
-}
-
-.show-sc-btn{
-  display: inline-block;
+button.show-sc{
+  display: block;
+  margin-top: 10px;
 }
 
 @media (max-width: 767px) {

@@ -1,17 +1,18 @@
+{% load i18n %}
 <div> 
-    <div class="system-context">
+    <div id="system-context">
         {% if  system_context|length > 0%}
         {% for key, value in system_context.items %}
             {% if new_line in value %}
-                <p><strong>{{ key }}:</strong><pre>{{ value }}</pre></p>
+                <div><strong>{{ key }}:</strong><pre>{{ value }}</pre></div>
             {% else %}
-                <p><strong>{{ key }}:</strong> {{ value }}</p>
+                <div><strong>{{ key }}:</strong> {{ value }}</div>
             {% endif %}
         {% endfor %}
         {% else %}
-        <p><strong>There are no system defined variables available right now.</strong></p>
+        <div><strong>{% trans "There are no system defined variables available right now." %}</strong></div>
         {% endif %}
     </div>
-    <span class="system-context-btn">show</span>
+    <button class="button system-context">{% trans "Show" %}</button>
 </div>
 {{system_context|json_script:"system_context"}}

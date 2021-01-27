@@ -23,7 +23,6 @@ django.jQuery(function ($) {
         type: 'tabshown',
         tabId: tabId,
       });
-      window.dispatchEvent(new Event('tabchange'));
       return tabId;
     },
     showFragment = function (fragment) {

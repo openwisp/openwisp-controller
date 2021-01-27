@@ -80,28 +80,32 @@ cleanData = function (data) {
     }
 };
 
-document.addEventListener('DOMContentLoaded', function () {
-    var systemContext =  document.querySelector('.system-context');
-    var systemContextBtn = document.querySelector('.system-context-btn');    
-    function set_sc_height(){
-        // Hides System Defined Variables when
-        // its height is > 150px
-
-        if (systemContext.offsetHeight > 150) {
-            systemContext.classList.add('hide-sc');
-            systemContextBtn.classList.add('show-sc-btn');
+(function ($) {
+    $(document).ready(function($){
+        var systemContext = $('#system-context');
+        var systemContextBtn = $('.system-context');
+        var btnText;
+        function setSystemContextHeight() {
+            // Hides System Defined Variables when
+            // its height is > 180px
+            if (systemContext.height() > 180) {
+                systemContext.addClass('hide-sc');
+                systemContextBtn.addClass('show-sc');
+            }
         }
-    }
-    systemContextBtn.addEventListener('click', function () {
-        systemContext.classList.toggle('hide-sc');
-        if (systemContext.classList.contains('hide-sc')) {
-            systemContextBtn.innerText = "show";
-        } else {
-            systemContextBtn.innerText = "hide";
-        }
+        systemContextBtn.on('click', function (event) {
+            event.preventDefault();
+            systemContext.toggleClass('hide-sc');
+            btnText = "Hide";
+            if (systemContext.hasClass('hide-sc')) {
+                btnText = "Show";
+            }
+            if (gettext) { btnText = gettext(btnText); }
+            systemContextBtn.text(btnText);
+        });
+        $(window).on('resize', function () {
+            setSystemContextHeight();
+        });
+        setSystemContextHeight();
     });
-    window.addEventListener('tabchange', function () {
-        set_sc_height();
-    });
-    set_sc_height();
-});
+}(django.jQuery));
