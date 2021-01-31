@@ -18,11 +18,11 @@ class JsonSchemaWidget(AdminTextareaWidget):
         js = [
             f'config/js/{path}'
             for path in (
-                'utils.js',
                 'lib/advanced-mode.js',
                 'lib/tomorrow_night_bright.js',
                 'lib/jsonschema-ui.js',
                 'widget.js',
+                'utils.js',
             )
         ]
         css = {

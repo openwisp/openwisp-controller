@@ -1,3 +1,4 @@
+import collections
 import subprocess
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -132,14 +133,14 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
         prepares context for netjsonconfig VPN backend
         """
         try:
-            c = {'ca': self.ca.certificate}
+            c = collections.OrderedDict([('ca', self.ca.certificate)])
         except ObjectDoesNotExist:
-            c = {}
+            c = collections.OrderedDict()
         if self.cert:
-            c.update({'cert': self.cert.certificate, 'key': self.cert.private_key})
+            c.update([('cert', self.cert.certificate), ('key', self.cert.private_key)])
         if self.dh:
-            c.update({'dh': self.dh})
-        c.update(super().get_context())
+            c.update([('dh', self.dh)])
+        c.update(sorted(super().get_context().items()))
         return c
 
     def get_system_context(self):

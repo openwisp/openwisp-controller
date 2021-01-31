@@ -249,6 +249,28 @@ div.tabs-divider{
 .submit-row .previewlink:hover,
 .submit-row .previewlink:focus { background: #576a7c }
 
+#system-context{
+  overflow: hidden;
+}
+
+#system-context div {
+  margin-bottom: 5px;
+}
+
+.hide-sc{
+  height: 180px;
+}
+
+button.system-context{
+  padding: 6px 12px;
+  display: none;
+}
+
+button.show-sc{
+  display: block;
+  margin-top: 10px;
+}
+
 @media (max-width: 767px) {
   ul.tabs li {
       display: block;
@@ -257,7 +279,6 @@ div.tabs-divider{
   ul.tabs a:hover,
   ul.tabs a:focus {
       display: block;
-      border-radius 0;
       width: 100%;
       padding-left: 0;
       padding-right: 0;

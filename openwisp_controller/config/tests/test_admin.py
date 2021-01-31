@@ -10,6 +10,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...tests.utils import TestAdminMixin
+from .. import settings as app_settings
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
 devnull = open(os.devnull, 'w')
@@ -985,6 +986,17 @@ class TestAdmin(
         with self.subTest('test field present in device change form'):
             path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
             self._test_system_context_field_helper(path)
+
+    def test_no_system_context(self):
+        self._create_template()
+        old_context = app_settings.CONTEXT.copy()
+        app_settings.CONTEXT = {}
+        path = reverse(f'admin:{self.app_label}_template_add')
+        r = self.client.get(path)
+        self.assertContains(
+            r, 'There are no system defined variables available right now'
+        )
+        app_settings.CONTEXT = old_context
 
     @classmethod
     def tearDownClass(cls):
