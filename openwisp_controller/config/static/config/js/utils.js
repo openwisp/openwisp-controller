@@ -87,8 +87,8 @@ cleanData = function (data) {
         var btnText;
         function setSystemContextHeight() {
             // Hides System Defined Variables when
-            // its height is > 180px
-            if (systemContext.height() > 180) {
+            // its height is > 182px
+            if (systemContext.height() > 182) {
                 systemContext.addClass('hide-sc');
                 systemContextBtn.addClass('show-sc');
             }
