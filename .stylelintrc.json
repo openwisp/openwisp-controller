@@ -23,6 +23,6 @@
 				"ignore": ["after-comment", "inside-block"]
 			}
 		],
-		"unit-whitelist": ["em", "rem", "%", "s", "px", "vh", "deg"]
+		"unit-allowed-list": ["em", "rem", "%", "s", "px", "vh", "deg", "pt"]
 	}
 }
