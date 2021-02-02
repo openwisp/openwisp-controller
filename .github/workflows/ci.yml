@@ -50,7 +50,7 @@ jobs:
 
     - name: Install python dependencies
       run: |
-        pip install -U pip wheel
+        pip install -U "pip==20.2.4" wheel setuptools
         pip install -U -r requirements-test.txt
 
     - name: Install npm dependencies
