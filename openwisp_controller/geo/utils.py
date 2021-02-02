@@ -10,7 +10,7 @@ def get_geo_urls(geo_views):
         ),
         url(r'^api/v1/device/geojson$', geo_views.geojson, name='api_geojson',),
         url(
-            r'^api/v1/location/(?P<location_pk>[^/]+)/device/$',
+            r'^api/v1/location/(?P<pk>[^/]+)/device/$',
             geo_views.location_device_list,
             name='api_location_device_list',
         ),

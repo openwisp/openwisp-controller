@@ -101,14 +101,12 @@ class LocationDeviceList(FilterByParentManaged, generics.ListAPIView):
     queryset = Device.objects.none()
 
     def get_parent_queryset(self):
-        qs = Location.objects.filter(pk=self.kwargs['location_pk'])
+        qs = Location.objects.filter(pk=self.kwargs['pk'])
         return qs
 
     def get_queryset(self):
         super().get_queryset()
-        qs = Device.objects.filter(
-            devicelocation__location_id=self.kwargs['location_pk']
-        )
+        qs = Device.objects.filter(devicelocation__location_id=self.kwargs['pk'])
         return qs
 
 
