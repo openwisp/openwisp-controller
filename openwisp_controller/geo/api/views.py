@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
 from django.urls import reverse
 from rest_framework import generics
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.serializers import IntegerField, SerializerMethodField
 from rest_framework_gis import serializers as gis_serializers
 from rest_framework_gis.pagination import GeoJsonPagination
@@ -89,6 +89,7 @@ class DeviceLocationView(generics.RetrieveUpdateAPIView):
 
 class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
     GeoJsonPagination.page_size = 1000
+    permission_classes = (IsAuthenticated,)
     pagination_class = GeoJsonPagination
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
         device_count=Count('devicelocation')
@@ -98,6 +99,7 @@ class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
 
 class LocationDeviceList(FilterByParentManaged, generics.ListAPIView):
     serializer_class = DeviceSerializer
+    permission_classes = (IsAuthenticated,)
     queryset = Device.objects.none()
 
     def get_parent_queryset(self):

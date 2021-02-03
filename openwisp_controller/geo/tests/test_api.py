@@ -144,6 +144,11 @@ class TestMultitenantApi(
             r = self.client.get(reverse(url, args=[location_b.id]))
             self.assertContains(r, str(device_b.id))
 
+        with self.subTest('Test location device list for unauthenticated user'):
+            self.client.logout()
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(r.status_code, 403)
+
     @capture_any_output()
     def test_geojson_list(self):
         url = 'geo:api_geojson'
@@ -166,3 +171,8 @@ class TestMultitenantApi(
             r = self.client.get(reverse(url))
             self.assertContains(r, str(location_a.pk))
             self.assertContains(r, str(location_b.pk))
+
+        with self.subTest('Test geojson list unauthenticated user'):
+            self.client.logout()
+            r = self.client.get(reverse(url))
+            self.assertEqual(r.status_code, 403)
