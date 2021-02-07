@@ -6,6 +6,8 @@ from django.conf import settings
 from django.conf.urls import url
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
+from django.contrib.admin.models import ADDITION, LogEntry
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import (
     FieldDoesNotExist,
     ObjectDoesNotExist,
@@ -566,6 +568,17 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
         user = request.user
+
+        def create_log_entry(user, clone):
+            ct = ContentType.objects.get(model='template')
+            LogEntry.objects.log_action(
+                user_id=user.id,
+                content_type_id=ct.pk,
+                object_id=clone.pk,
+                object_repr=clone.name,
+                action_flag=ADDITION,
+            )
+
         if user.is_superuser:
             all_orgs = Organization.objects.all()
             if all_orgs.count() > 1:
@@ -581,6 +594,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     clone.organization = Organization.objects.get(
                         pk=request.POST.get('organization')
                     )
+                    create_log_entry(user, clone)
                     clone.save()
                 self.message_user(
                     request,
@@ -605,6 +619,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         else:
             for template in queryset:
                 clone = template.clone(user)
+                create_log_entry(user, clone)
                 clone.save()
 
     actions = ['clone_selected_templates']

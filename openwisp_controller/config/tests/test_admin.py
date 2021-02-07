@@ -2,6 +2,7 @@ import json
 import os
 from unittest.mock import patch
 
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -973,6 +974,12 @@ class TestAdmin(
         self.assertContains(response, '{} (Clone 2)'.format(t.name))
         response = self.client.post(path, data, follow=True)
         self.assertContains(response, '{} (Clone 3)'.format(t.name))
+        path = reverse('admin:index')
+        response = self.client.get(path)
+        self.assertIn('test-template (Clone 3)', str(response.content))
+        self.assertIn('test-template (Clone 2)', str(response.content))
+        self.assertIn('test-template (Clone)', str(response.content))
+        self.assertEqual(LogEntry.objects.all().count(), 3)
 
     def test_get_template_default_values(self):
         t1 = self._create_template(name='t1', default_values={'name1': 'test1'})

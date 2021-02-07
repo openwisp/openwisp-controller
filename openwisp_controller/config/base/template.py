@@ -1,8 +1,6 @@
 from collections import OrderedDict
 from copy import copy
 
-from django.contrib.admin.models import ADDITION, LogEntry
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
@@ -189,14 +187,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         clone.default = False
         clone.full_clean()
         clone.save()
-        ct = ContentType.objects.get(model='template')
-        LogEntry.objects.log_action(
-            user_id=user.id,
-            content_type_id=ct.pk,
-            object_id=clone.pk,
-            object_repr=clone.name,
-            action_flag=ADDITION,
-        )
         return clone
 
     def __get_clone_name(self):
