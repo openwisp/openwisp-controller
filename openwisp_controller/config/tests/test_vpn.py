@@ -73,9 +73,15 @@ class TestVpn(
             backend='openwisp_controller.vpn_backends.OpenVpn',
             config=config,
         )
-        # ensure django ValidationError is raised
-        with self.assertRaises(ValidationError):
-            v.full_clean()
+        with self.subTest('test invalid openvpn key'):
+            with self.assertRaises(ValidationError):
+                v.full_clean()
+
+        with self.subTest('test missing openvpn key'):
+            del v.backend_instance
+            v.config = {'files': []}
+            with self.assertRaises(ValidationError):
+                v.full_clean()
 
     def test_json(self):
         v = self._create_vpn()
@@ -143,6 +149,7 @@ class TestVpn(
             ca=different_ca,
             cert=cert,
             backend='openwisp_controller.vpn_backends.OpenVpn',
+            config=self._vpn_config,
         )
         try:
             vpn.full_clean()
