@@ -7,15 +7,15 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from swapper import get_model_name
 
-from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import KeyField
 
+from ...base import ShareableOrgMixinUniqueName
 from .. import settings as app_settings
 from ..tasks import create_vpn_dh
 from .base import BaseConfig
 
 
-class AbstractVpn(ShareableOrgMixin, BaseConfig):
+class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     """
     Abstract VPN model
     """
@@ -66,6 +66,7 @@ class AbstractVpn(ShareableOrgMixin, BaseConfig):
     class Meta:
         verbose_name = _('VPN server')
         verbose_name_plural = _('VPN servers')
+        unique_together = ('organization', 'name')
         abstract = True
 
     def clean(self, *args, **kwargs):

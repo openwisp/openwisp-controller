@@ -12,9 +12,9 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
 from openwisp_controller.config.base.base import BaseModel
-from openwisp_users.mixins import ShareableOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
+from ...base import ShareableOrgMixinUniqueName
 from .. import settings as app_settings
 from ..signals import is_working_changed
 
@@ -61,7 +61,7 @@ class ConnectorMixin(object):
         )
 
 
-class AbstractCredentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
+class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel):
     """
     Credentials for access
     """
@@ -93,6 +93,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixin, BaseModel):
     class Meta:
         verbose_name = _('Access credentials')
         verbose_name_plural = verbose_name
+        unique_together = ('name', 'organization')
         abstract = True
 
     def __str__(self):

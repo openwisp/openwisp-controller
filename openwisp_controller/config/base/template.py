@@ -10,8 +10,7 @@ from jsonfield import JSONField
 from swapper import get_model_name
 from taggit.managers import TaggableManager
 
-from openwisp_users.mixins import ShareableOrgMixin
-
+from ...base import ShareableOrgMixinUniqueName
 from ..settings import DEFAULT_AUTO_CERT
 from ..tasks import update_template_related_config_status
 from .base import BaseConfig
@@ -27,7 +26,7 @@ def default_auto_cert():
     return DEFAULT_AUTO_CERT
 
 
-class AbstractTemplate(ShareableOrgMixin, BaseConfig):
+class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     """
     Abstract model implementing a
     netjsonconfig template
