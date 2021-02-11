@@ -635,7 +635,7 @@ Launch celery worker (for background jobs):
 
 .. code-block:: shell
 
-    celery -A openwisp2 worker -l info
+    celery --app openwisp2 worker
 
 Launch development server:
 
