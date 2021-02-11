@@ -8,11 +8,10 @@ RUN apt update && \
     sqlite3 libsqlite3-dev openssl libssl-dev && \
     rm -rf /var/lib/apt/lists/* /root/.cache/pip/* /tmp/*
 
-COPY install-dev.sh requirements-test.txt requirements.txt /opt/openwisp/
+COPY requirements-test.txt requirements.txt /opt/openwisp/
 RUN pip install -r /opt/openwisp/requirements.txt && \
     pip install -r /opt/openwisp/requirements-test.txt && \
     pip install redis && \
-    bash /opt/openwisp/install-dev.sh && \
     rm -rf /var/lib/apt/lists/* /root/.cache/pip/* /tmp/*
 
 ADD . /opt/openwisp

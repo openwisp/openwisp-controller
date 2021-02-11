@@ -626,13 +626,12 @@ Install your forked repo:
 
     git clone git://github.com/<your_fork>/openwisp-controller
     cd openwisp-controller/
-    python setup.py develop
+    pip install -e .
 
 Install development dependencies:
 
 .. code-block:: shell
 
-    ./install-dev.sh
     pip install -r requirements-test.txt
     npm install -g jslint
 

@@ -67,7 +67,7 @@ class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
             self.assertIn('The existing device', notification.message)
 
     @patch('openwisp_notifications.types.NOTIFICATION_TYPES', {})
-    @patch('openwisp_utils.admin_theme.dashboard.DASHBOARD_CONFIG', {})
+    @patch('openwisp_utils.admin_theme.dashboard.DASHBOARD_CHARTS', {})
     def test_default_notification_type_already_unregistered(self):
         # Simulates if 'default notification type is already unregistered
         # by some other module
