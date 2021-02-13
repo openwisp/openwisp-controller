@@ -51,7 +51,10 @@ INSTALLED_APPS = [
     'flat_json_widget',
     # rest framework
     'rest_framework',
+    'rest_framework.authtoken',
     'rest_framework_gis',
+    'django_filters',
+    'drf_yasg',
     # channels
     'channels',
     # 'debug_toolbar',
@@ -132,6 +135,8 @@ LOGIN_REDIRECT_URL = 'admin:index'
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
 OPENWISP_ORGANIZATION_USER_ADMIN = True  # tests will fail without this setting
 OPENWISP_ADMIN_DASHBOARD_ENABLED = True
+
+OPENWISP_CONTROLLER_API = True
 
 # during development only
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
