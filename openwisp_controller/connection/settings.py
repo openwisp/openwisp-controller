@@ -6,6 +6,10 @@ CONNECTORS = getattr(settings, 'OPENWISP_CONNECTORS', DEFAULT_CONNECTORS)
 
 DEFAULT_UPDATE_STRATEGIES = (
     ('openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt', 'OpenWRT SSH'),
+    (
+        'openwisp_controller.connection.connectors.openwrt.ssh.OpenWisp1',
+        'OpenWISP 1.x SSH',
+    ),
 )
 
 UPDATE_STRATEGIES = getattr(
@@ -15,7 +19,10 @@ UPDATE_STRATEGIES = getattr(
 CONFIG_UPDATE_MAPPING = getattr(
     settings,
     'OPENWISP_CONFIG_UPDATE_MAPPING',
-    {'netjsonconfig.OpenWrt': DEFAULT_UPDATE_STRATEGIES[0][0]},
+    {
+        'netjsonconfig.OpenWrt': DEFAULT_UPDATE_STRATEGIES[0][0],
+        'netjsonconfig.OpenWisp': DEFAULT_UPDATE_STRATEGIES[1][0],
+    },
 )
 
 SSH_AUTH_TIMEOUT = getattr(settings, 'OPENWISP_SSH_AUTH_TIMEOUT', 2)

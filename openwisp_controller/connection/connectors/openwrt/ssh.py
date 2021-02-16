@@ -14,3 +14,13 @@ class OpenWrt(Ssh):
             self.exec_command('/etc/init.d/openwisp_config restart')
         else:
             logger.info('Configuration already being applied')
+
+
+class OpenWisp1(Ssh):
+    """
+    Dummy legacy backend.
+    Used for migrating OpenWISP 1 systems to OpenWISP 2.
+    """
+
+    def update_config(self):  # pragma: no cover
+        pass

@@ -11,6 +11,7 @@ from django.db import migrations, models
 
 import openwisp_controller.connection.base.models
 import openwisp_users.mixins
+from openwisp_controller.connection import settings as connection_settings
 
 
 class Migration(migrations.Migration):
@@ -55,9 +56,7 @@ class Migration(migrations.Migration):
                 (
                     'connector',
                     models.CharField(
-                        choices=[
-                            ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH')
-                        ],
+                        choices=connection_settings.CONNECTORS,
                         db_index=True,
                         max_length=128,
                         verbose_name='connection type',
@@ -140,15 +139,7 @@ class Migration(migrations.Migration):
                     'update_strategy',
                     models.CharField(
                         blank=True,
-                        choices=[
-                            (
-                                (
-                                    'openwisp_controller.connection.connectors.'
-                                    'openwrt.ssh.OpenWrt'
-                                ),
-                                'OpenWRT SSH',
-                            )
-                        ],
+                        choices=connection_settings.UPDATE_STRATEGIES,
                         db_index=True,
                         help_text='leave blank to determine automatically',
                         max_length=128,
