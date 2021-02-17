@@ -1,3 +1,4 @@
+import swapper
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
@@ -7,7 +8,7 @@ from openwisp_utils.base import KeyField, UUIDModel
 class AbstractOrganizationConfigSettings(UUIDModel):
 
     organization = models.OneToOneField(
-        'openwisp_users.Organization',
+        swapper.get_model_name('openwisp_users', 'Organization'),
         verbose_name=_('organization'),
         related_name='config_settings',
         on_delete=models.CASCADE,
