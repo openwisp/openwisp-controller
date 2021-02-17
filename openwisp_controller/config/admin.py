@@ -191,6 +191,9 @@ class BaseConfigAdmin(BaseAdmin):
         # this object is instanciated only to generate the preview
         # it won't be saved to the database
         instance = config_model(**kwargs)
+        # turn off special name validation
+        # (see ``ShareableOrgMixinUniqueName``)
+        instance._validate_name = False
         instance.full_clean(exclude=['device'], validate_unique=False)
         return instance
 

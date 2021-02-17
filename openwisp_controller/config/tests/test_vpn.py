@@ -73,9 +73,15 @@ class TestVpn(
             backend='openwisp_controller.vpn_backends.OpenVpn',
             config=config,
         )
-        # ensure django ValidationError is raised
-        with self.assertRaises(ValidationError):
-            v.full_clean()
+        with self.subTest('test invalid openvpn key'):
+            with self.assertRaises(ValidationError):
+                v.full_clean()
+
+        with self.subTest('test missing openvpn key'):
+            del v.backend_instance
+            v.config = {'files': []}
+            with self.assertRaises(ValidationError):
+                v.full_clean()
 
     def test_json(self):
         v = self._create_vpn()
@@ -143,6 +149,7 @@ class TestVpn(
             ca=different_ca,
             cert=cert,
             backend='openwisp_controller.vpn_backends.OpenVpn',
+            config=self._vpn_config,
         )
         try:
             vpn.full_clean()
@@ -340,6 +347,51 @@ class TestVpn(
     def test_vpn_get_system_context(self):
         vpn = self._create_vpn()
         self.assertEqual(vpn.get_system_context(), vpn.get_context())
+
+    def test_vpn_name_unique_validation(self):
+        org = self._get_org()
+        vpn1 = self._create_vpn(name='test', organization=org)
+        self.assertEqual(vpn1.name, 'test')
+        org2 = self._create_org(name='test org2', slug='test-org2')
+
+        with self.subTest('vpn of other org can have the same name'):
+            try:
+                vpn2 = self._create_vpn(name='test', organization=org2)
+            except Exception as e:
+                self.fail(f'Unexpected exception: {e}')
+            self.assertEqual(vpn2.name, 'test')
+
+        with self.subTest('vpn of shared org cannot have the same name'):
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_vpn(name='test', organization=None)
+            message_dict = context_manager.exception.message_dict
+            self.assertIn('name', message_dict)
+            self.assertIn(
+                'There is already a vpn of another organization',
+                message_dict['name'][0],
+            )
+
+        with self.subTest('new vpn of org cannot have the same name as shared vpn'):
+            shared = self._create_vpn(name='new', organization=None)
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_vpn(name='new', organization=org2)
+            message_dict = context_manager.exception.message_dict
+            self.assertIn('name', message_dict)
+            self.assertIn(
+                'There is already another shared vpn', message_dict['name'][0],
+            )
+
+        with self.subTest('ensure object itself is excluded'):
+            try:
+                shared.full_clean()
+            except Exception as e:
+                self.fail(f'Unexpected exception {e}')
+
+        with self.subTest('cannot have two shared vpns with same name'):
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_vpn(name='new', organization=None)
+            message_dict = context_manager.exception.message_dict
+            self.assertIn('name', message_dict)
 
 
 class TestVpnTransaction(

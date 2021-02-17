@@ -293,3 +293,23 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             signal=management_ip_changed,
             instance=device,
         )
+
+    def test_name_unique_validation(self):
+        org = self._get_org()
+        device = self._create_device(name='test', organization=org)
+        self.assertEqual(device.name, 'test')
+        org2 = self._create_org(name='test org2', slug='test-org2')
+        device2 = self._create_device(
+            name='test', organization=org2, mac_address='0a:1b:3c:4d:5e:6f'
+        )
+        self.assertEqual(device2.name, 'test')
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_device(
+                name='test', organization=org2, mac_address='0a:1b:3c:4d:5e:1a'
+            )
+        message_dict = context_manager.exception.message_dict
+        self.assertIn('__all__', message_dict)
+        self.assertIn(
+            'Device with this Name and Organization already exists.',
+            message_dict['__all__'],
+        )

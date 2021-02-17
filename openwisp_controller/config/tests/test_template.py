@@ -380,6 +380,53 @@ class TestTemplate(
         system_context = t.get_system_context()
         self.assertNotIn('test', system_context.keys())
 
+    def test_template_name_unique_validation(self):
+        org = self._get_org()
+        template1 = self._create_template(name='test', organization=org)
+        self.assertEqual(template1.name, 'test')
+        org2 = self._create_org(name='test org2', slug='test-org2')
+
+        with self.subTest('template of other org can have the same name'):
+            try:
+                template2 = self._create_template(name='test', organization=org2)
+            except Exception as e:
+                self.fail(f'Unexpected exception: {e}')
+            self.assertEqual(template2.name, 'test')
+
+        with self.subTest('template of shared org cannot have the same name'):
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_template(name='test', organization=None)
+            message_dict = context_manager.exception.message_dict
+            self.assertIn('name', message_dict)
+            self.assertIn(
+                'There is already a template of another organization',
+                message_dict['name'][0],
+            )
+
+        with self.subTest(
+            'new template of org cannot have the same name as shared template'
+        ):
+            shared = self._create_template(name='new', organization=None)
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_template(name='new', organization=org2)
+            message_dict = context_manager.exception.message_dict
+            self.assertIn('name', message_dict)
+            self.assertIn(
+                'There is already another shared template', message_dict['name'][0]
+            )
+
+        with self.subTest('ensure object itself is excluded'):
+            try:
+                shared.full_clean()
+            except Exception as e:
+                self.fail(f'Unexpected exception {e}')
+
+        with self.subTest('cannot have two shared templates with same name'):
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_template(name='new', organization=None)
+            message_dict = context_manager.exception.message_dict
+            self.assertIn('name', message_dict)
+
 
 class TestTemplateTransaction(
     TestOrganizationMixin,

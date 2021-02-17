@@ -79,3 +79,33 @@ cleanData = function (data) {
         return data;
     }
 };
+
+(function ($) {
+    $(document).ready(function($){
+        var systemContext = $('#system-context');
+        var systemContextBtn = $('.system-context');
+        var btnText;
+        function setSystemContextHeight() {
+            // Hides System Defined Variables when
+            // its height is > 182px
+            if (systemContext.height() > 182) {
+                systemContext.addClass('hide-sc');
+                systemContextBtn.addClass('show-sc');
+            }
+        }
+        systemContextBtn.on('click', function (event) {
+            event.preventDefault();
+            systemContext.toggleClass('hide-sc');
+            btnText = "Hide";
+            if (systemContext.hasClass('hide-sc')) {
+                btnText = "Show";
+            }
+            if (gettext) { btnText = gettext(btnText); }
+            systemContextBtn.text(btnText);
+        });
+        $(window).on('resize', function () {
+            setSystemContextHeight();
+        });
+        setSystemContextHeight();
+    });
+}(django.jQuery));

@@ -17,6 +17,8 @@ limited_schema['properties']['openvpn']['items'].update(
         ]
     }
 )
+limited_schema['required'] = limited_schema.get('required', [])
+limited_schema['required'].append('openvpn')
 
 # default values for ca, cert and key
 limited_schema['definitions']['tunnel']['properties']['ca']['default'] = 'ca.pem'
