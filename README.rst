@@ -182,7 +182,7 @@ endpoint, which provides a paginated list of such locations in GeoJSON format:
 
 .. code-block:: text
 
-    GET /api/v1/device/geojson
+    GET /api/v1/device/geojson/
 
 Settings
 --------
