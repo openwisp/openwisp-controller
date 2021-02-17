@@ -92,7 +92,7 @@ class DeviceLocationView(generics.RetrieveUpdateAPIView):
         dl.save()
         return location
 
-    
+
 class GeoJsonLocationListPagination(GeoJsonPagination):
     page_size = 1000
 
