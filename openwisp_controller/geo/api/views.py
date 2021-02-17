@@ -92,20 +92,21 @@ class DeviceLocationView(generics.RetrieveUpdateAPIView):
         dl.save()
         return location
 
+    
+class GeoJsonLocationListPagination(GeoJsonPagination):
+    page_size = 1000
+
 
 class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
-    GeoJsonPagination.page_size = 1000
-    permission_classes = (IsAuthenticated,)
-    pagination_class = GeoJsonPagination
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
         device_count=Count('devicelocation')
     )
     serializer_class = GeoJsonLocationSerializer
+    pagination_class = GeoJsonLocationListPagination
 
 
 class LocationDeviceList(FilterByParentManaged, generics.ListAPIView):
     serializer_class = DeviceSerializer
-    permission_classes = (IsAuthenticated,)
     pagination_class = ListViewPagination
     queryset = Device.objects.none()
 
