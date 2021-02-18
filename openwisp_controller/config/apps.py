@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models.signals import m2m_changed, post_delete
+from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.utils.translation import ugettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -10,6 +10,7 @@ from openwisp_notifications.types import (
 from swapper import get_model_name, load_model
 
 from . import settings as app_settings
+from .signals import config_modified
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -27,8 +28,10 @@ class ConfigConfig(AppConfig):
         self.add_default_menu_items()
         self.register_notification_types()
         self.add_ignore_notification_widget()
+        self.enable_cache_invalidation()
 
     def __setmodels__(self):
+        self.device_model = load_model('config', 'Device')
         self.config_model = load_model('config', 'Config')
         self.vpnclient_model = load_model('config', 'VpnClient')
 
@@ -36,8 +39,10 @@ class ConfigConfig(AppConfig):
         """
         * handlers for creating notifications
         * m2m validation before templates are added/removed to a config
+        * enforcement of required templates
         * automatic vpn client management on m2m_changed
         * automatic vpn client removal
+        * cache invalidation
         """
         from . import handlers  # noqa
 
@@ -56,6 +61,7 @@ class ConfigConfig(AppConfig):
             sender=self.config_model.templates.through,
             dispatch_uid='config.manage_vpn_clients',
         )
+        # the order of the following connect() call
         m2m_changed.connect(
             self.config_model.enforce_required_templates,
             sender=self.config_model.templates.through,
@@ -138,3 +144,20 @@ class ConfigConfig(AppConfig):
                 'OPENWISP_NOTIFICATIONS_IGNORE_ENABLED_ADMIN',
                 obj_notification_widget,
             )
+
+    def enable_cache_invalidation(self):
+        """
+        Triggers the cache invalidation for the
+        device config checksum (view and model method)
+        """
+        from .controller.views import DeviceChecksumView
+
+        post_save.connect(
+            DeviceChecksumView.invalidate_get_device_cache,
+            sender=self.device_model,
+            dispatch_uid='invalidate_get_device_cache',
+        )
+        config_modified.connect(
+            DeviceChecksumView.invalidate_checksum_cache,
+            dispatch_uid='invalidate_checksum_cache',
+        )

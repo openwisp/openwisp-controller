@@ -67,16 +67,18 @@ def update_last_ip(device, request):
     """
     ip = request.META.get('REMOTE_ADDR')
     management_ip = request.GET.get('management_ip')
-    changed = False
+    update_fields = []
+
     if device.last_ip != ip:
         device.last_ip = ip
-        changed = True
+        update_fields.append('last_ip')
     if device.management_ip != management_ip:
         device.management_ip = management_ip
-        changed = True
-    if changed:
-        device.save()
-    return changed
+        update_fields.append('management_ip')
+    if update_fields:
+        device.save(update_fields=update_fields)
+
+    return bool(update_fields)
 
 
 def forbid_unallowed(request, param_group, param, allowed_values=None):
