@@ -1,16 +1,16 @@
 import collections
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
-from sortedm2m.fields import SortedManyToManyField
 from swapper import get_model_name
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
+from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
 
@@ -113,13 +113,11 @@ class AbstractConfig(BaseConfig):
         return cls.templates.rel.model
 
     @classmethod
-    def get_templates_from_pk_set(cls, action, pk_set):
+    def _get_templates_from_pk_set(cls, pk_set):
         """
         Retrieves templates from pk_set
         Called in ``clean_templates``, may be reused in third party apps
         """
-        if action != 'pre_add':
-            return False
         # coming from signal
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
@@ -198,9 +196,9 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
-        templates = cls.get_templates_from_pk_set(action, pk_set)
-        if not templates:
-            return templates
+        if action != 'pre_add':
+            return False
+        templates = cls._get_templates_from_pk_set(pk_set)
         # when using the admin, templates will be a list
         # we need to get the queryset from this list in order to proceed
         if not isinstance(templates, models.QuerySet):
@@ -228,6 +226,41 @@ class AbstractConfig(BaseConfig):
         # return valid templates in order to save computation
         # in the following operations
         return templates
+
+    @classmethod
+    def enforce_required_templates(cls, action, instance, pk_set, **kwargs):
+        """
+        This method is called from a django signal (m2m_changed),
+        see config.apps.ConfigConfig.connect_signals.
+        It raises a PermissionDenied if a required template
+        is unassigned from a config.
+        It adds back required templates on post_clear events
+        (post-clear is used by sortedm2m to assign templates).
+        """
+        if action not in ['pre_remove', 'post_clear']:
+            return False
+        # trying to remove a required template will raise PermissionDenied
+        if action == 'pre_remove':
+            templates = cls._get_templates_from_pk_set(pk_set)
+            if templates.filter(required=True).exists():
+                raise PermissionDenied(
+                    _('Required templates cannot be removed from the configuration')
+                )
+        if action == 'post_clear':
+            # retrieve required templates related to this
+            # device and ensure they're always present
+            required_templates = (
+                cls.get_template_model()
+                .objects.filter(required=True)
+                .filter(
+                    models.Q(organization=instance.device.organization)
+                    | models.Q(organization=None)
+                )
+            )
+            if required_templates.exists():
+                instance.templates.add(
+                    *required_templates.order_by('name').values_list('pk', flat=True)
+                )
 
     def get_default_templates(self):
         """
