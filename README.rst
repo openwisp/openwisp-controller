@@ -170,6 +170,19 @@ their coordinates. See below for further details:
     GET /api/v1/device/{id}/location/
     PUT /api/v1/device/{id}/location/
 
+If a location has multiple devices, then the list of all such devices and related
+information can be accessed via the following endpoint:
+
+.. code-block:: text
+
+    GET /api/v1/location/{pk}/device/
+
+To access all the locations that have devices deployed in them, use the following
+endpoint, which provides a paginated list of such locations in GeoJSON format:
+
+.. code-block:: text
+
+    GET /api/v1/device/geojson/
 
 Settings
 --------
