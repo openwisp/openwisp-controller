@@ -151,7 +151,7 @@ class TestMultitenantApi(
 
     @capture_any_output()
     def test_geojson_list(self):
-        url = 'geo:api_geojson'
+        url = 'geo:api_location_geojson'
         # create 2 devices and 2 device location for each org
         device_a = self._create_device(organization=self._get_org('org_a'))
         device_b = self._create_device(organization=self._get_org('org_b'))

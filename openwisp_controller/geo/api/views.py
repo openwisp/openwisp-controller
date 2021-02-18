@@ -29,7 +29,7 @@ class LocationSerializer(gis_serializers.GeoFeatureModelSerializer):
         read_only_fields = ('name',)
 
 
-class DeviceSerializer(ValidatedModelSerializer):
+class LocationDeviceSerializer(ValidatedModelSerializer):
     admin_edit_url = SerializerMethodField('get_admin_edit_url')
 
     def get_admin_edit_url(self, obj):
@@ -106,7 +106,7 @@ class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
 
 
 class LocationDeviceList(FilterByParentManaged, generics.ListAPIView):
-    serializer_class = DeviceSerializer
+    serializer_class = LocationDeviceSerializer
     pagination_class = ListViewPagination
     queryset = Device.objects.none()
 
