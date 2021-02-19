@@ -100,7 +100,7 @@ class BaseConfigAdmin(BaseAdmin):
                     'value': text,
                     'title': '{0} (ALT+P)'.format(text),
                 }
-            ],
+            ]
         }
         # do not pass CONFIG_BACKEND_FIELD_SHOWN in VpnAdmin
         # since we don't need to hide the VPN backend there
