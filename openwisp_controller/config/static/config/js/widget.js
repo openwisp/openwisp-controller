@@ -24,12 +24,13 @@
     },
     updateContext = function (isLoading, defaultValues={}) {
         var contextField = $('#id_config-0-context'),
-            systemVariable = JSON.parse($('#system_context').text());
-        if (contextField.length) {
-            var contextValue = JSON.parse(contextField.val());
+            systemContextField = $('#system_context');
+        if (contextField.length && systemContextField.length) {
+            var contextValue = JSON.parse(contextField.val()),
+                systemContextValue = JSON.parse(systemContextField.text());
             // add default values to contextValue
             Object.keys(defaultValues).forEach(function (key) {
-                if (!contextValue.hasOwnProperty(key) && !systemVariable.hasOwnProperty(key)) {
+                if (!contextValue.hasOwnProperty(key) && !systemContextValue.hasOwnProperty(key)) {
                     contextValue[key] = defaultValues[key];
                 }
             });
@@ -202,9 +203,19 @@
             startval: startval,
             keep_oneof_values: false,
             show_errors: 'change',
-            // if no backend selected use empty schema
             schema: backend ? schemas[backend] : {}
         };
+        if (backend) {
+            options.schema = schemas[backend];
+        }
+        // single schema mode
+        else if (backend === false) {
+            options.schema = schemas;
+        }
+        // if no backend selected use empty schema
+        else {
+            options.schema = {};
+        }
         if (field.attr("data-options") !== undefined) {
             $.extend(options, JSON.parse(field.attr("data-options")));
         }
@@ -344,13 +355,16 @@
                     if (schemaSelector === undefined) {
                         schemaSelector = '#id_backend, #id_config-0-backend';
                     }
-                    var selector = $(schemaSelector);
+                    var selector = $(schemaSelector),
+                        schemaKey = selector.val() || false;
                     // load first time
-                    loadUi(el, selector.val(), schemas, true);
+                    loadUi(el, schemaKey, schemas, true);
                     // reload when selector is changed
-                    selector.change(function () {
-                        loadUi(el, selector.val(), schemas);
-                    });
+                    if (selector.length) {
+                        selector.change(function () {
+                            loadUi(el, selector.val(), schemas);
+                        });
+                    }
                 }
                 $(document).trigger('jsonschema-schemaloaded');
             });
@@ -358,10 +372,10 @@
     };
 
     $(function () {
-        var add_config = $('#config-group.inline-group .add-row');
+        var addConfig = $('#config-group.inline-group .add-row');
         // if configuration is admin inline
         // load it when add button is clicked
-        add_config.click(bindLoadUi);
+        addConfig.click(bindLoadUi);
         // otherwise load immediately
         bindLoadUi();
     });
