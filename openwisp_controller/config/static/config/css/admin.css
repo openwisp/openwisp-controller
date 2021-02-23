@@ -270,24 +270,19 @@ div.tabs-divider {
 .submit-row .previewlink:focus {
   background: #576a7c;
 }
-
 #system-context{
   overflow: hidden;
 }
-
 #system-context div {
   margin-bottom: 5px;
 }
-
 .hide-sc{
   height: 182px;
 }
-
 button.system-context{
   padding: 6px 12px;
   display: none;
 }
-
 button.show-sc{
   display: block;
   margin-top: 10px;
