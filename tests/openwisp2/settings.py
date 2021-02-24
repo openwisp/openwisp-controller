@@ -190,6 +190,8 @@ if os.environ.get('SAMPLE_APP', False):
     connection_index = INSTALLED_APPS.index('openwisp_controller.connection')
     INSTALLED_APPS.remove('openwisp_controller.connection')
     INSTALLED_APPS.insert(connection_index, 'openwisp2.sample_connection')
+    INSTALLED_APPS.remove('openwisp_users')
+    INSTALLED_APPS.append('openwisp2.sample_users')
     # Extended apps
     EXTENDED_APPS = (
         'django_x509',
@@ -200,6 +202,11 @@ if os.environ.get('SAMPLE_APP', False):
         'openwisp_controller.connection',
     )
     # Swapper
+    AUTH_USER_MODEL = 'sample_users.User'
+    OPENWISP_USERS_GROUP_MODEL = 'sample_users.Group'
+    OPENWISP_USERS_ORGANIZATION_MODEL = 'sample_users.Organization'
+    OPENWISP_USERS_ORGANIZATIONUSER_MODEL = 'sample_users.OrganizationUser'
+    OPENWISP_USERS_ORGANIZATIONOWNER_MODEL = 'sample_users.OrganizationOwner'
     CONFIG_DEVICE_MODEL = 'sample_config.Device'
     CONFIG_CONFIG_MODEL = 'sample_config.Config'
     CONFIG_TEMPLATETAG_MODEL = 'sample_config.TemplateTag'

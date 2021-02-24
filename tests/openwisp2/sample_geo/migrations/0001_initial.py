@@ -7,6 +7,7 @@ import django.db.models.deletion
 import django.utils.timezone
 import django_loci.storage
 import model_utils.fields
+import swapper
 from django.db import migrations, models
 
 import openwisp_users.mixins
@@ -18,7 +19,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('sample_config', '0002_default_groups_permissions'),
-        ('openwisp_users', '0007_unique_email'),
+        swapper.dependency('openwisp_users', 'Organization'),
     ]
 
     operations = [
@@ -116,7 +117,7 @@ class Migration(migrations.Migration):
                     'organization',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -174,7 +175,7 @@ class Migration(migrations.Migration):
                     'organization',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),

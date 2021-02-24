@@ -7,6 +7,7 @@ import django.utils.timezone
 import django_x509.base.models
 import jsonfield.fields
 import model_utils.fields
+import swapper
 from django.db import migrations, models
 
 import openwisp_users.mixins
@@ -16,7 +17,9 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [('openwisp_users', '0007_unique_email')]
+    dependencies = [
+        swapper.dependency('openwisp_users', 'Organization'),
+    ]
 
     operations = [
         migrations.CreateModel(
@@ -185,7 +188,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -378,7 +381,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
