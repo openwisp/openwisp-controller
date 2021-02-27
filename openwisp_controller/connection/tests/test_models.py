@@ -7,7 +7,6 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
-from openwisp_users.models import Group, Organization
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
@@ -20,6 +19,8 @@ Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
 Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
+Group = load_model('openwisp_users', 'Group')
+Organization = load_model('openwisp_users', 'Organization')
 
 _connect_path = 'paramiko.SSHClient.connect'
 _exec_command_path = 'paramiko.SSHClient.exec_command'

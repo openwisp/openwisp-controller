@@ -200,6 +200,7 @@ if os.environ.get('SAMPLE_APP', False):
         'openwisp_controller.pki',
         'openwisp_controller.geo',
         'openwisp_controller.connection',
+        'openwisp_users',
     )
     # Swapper
     AUTH_USER_MODEL = 'sample_users.User'
