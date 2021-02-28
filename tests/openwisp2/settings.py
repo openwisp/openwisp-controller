@@ -190,8 +190,10 @@ if os.environ.get('SAMPLE_APP', False):
     connection_index = INSTALLED_APPS.index('openwisp_controller.connection')
     INSTALLED_APPS.remove('openwisp_controller.connection')
     INSTALLED_APPS.insert(connection_index, 'openwisp2.sample_connection')
+    # Replace Openwisp_Users
+    users_index = INSTALLED_APPS.index('openwisp_users')
     INSTALLED_APPS.remove('openwisp_users')
-    INSTALLED_APPS.append('openwisp2.sample_users')
+    INSTALLED_APPS.insert(users_index, 'openwisp2.sample_users')
     # Extended apps
     EXTENDED_APPS = (
         'django_x509',
@@ -228,6 +230,12 @@ else:
     # DJANGO_X509_CA_MODEL = 'pki.Ca'
     # DJANGO_X509_CERT_MODEL = 'pki.Cert'
     pass
+
+if os.environ.get('SAMPLE_APP', False) and TESTING:
+    # Required for openwisp-users tests
+    OPENWISP_ORGANIZATION_USER_ADMIN = True
+    OPENWISP_ORGANIZATION_OWNER_ADMIN = True
+    OPENWISP_USERS_AUTH_API = True
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
