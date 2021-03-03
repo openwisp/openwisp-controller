@@ -127,14 +127,22 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             )
 
     def _update_related_config_status(self):
-        changing_status = list(self.config_relations.exclude(status='modified').values_list('pk', flat=True))
-        self.config_relations.update(status='modified')
-        for config in self.config_relations.select_related('device').iterator():
-            # config modified signal sent regardless
-            config._send_config_modified_signal()
-            # config status changed signal sent only if status changed
-            if config.pk in changing_status:
-                config._send_config_status_changed_signal()
+        # use atomic to ensure any code bound to
+        # be executed via transaction.on_commit
+        # is executed after the whole block
+        with transaction.atomic():
+            changing_status = list(
+                self.config_relations.exclude(status='modified').values_list(
+                    'pk', flat=True
+                )
+            )
+            for config in self.config_relations.select_related('device').iterator():
+                # config modified signal sent regardless
+                config._send_config_modified_signal(action='related_template_changed')
+                # config status changed signal sent only if status changed
+                if config.pk in changing_status:
+                    config._send_config_status_changed_signal()
+            self.config_relations.exclude(status='modified').update(status='modified')
 
     def clean(self, *args, **kwargs):
         """

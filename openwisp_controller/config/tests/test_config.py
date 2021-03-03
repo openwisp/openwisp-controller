@@ -576,15 +576,26 @@ class TestConfig(
                 instance=c,
                 device=c.device,
                 config=c,
+                previous_status='applied',
+                action='config_changed',
             )
             self.assertEqual(c.status, 'modified')
 
         with catch_signal(config_modified) as handler:
             c.config = {'general': {'description': 'changed again'}}
             c.full_clean()
+            # repeated on purpose
             c.full_clean()
             c.save()
-            handler.assert_called_once()
+            handler.assert_called_once_with(
+                sender=Config,
+                signal=config_modified,
+                instance=c,
+                device=c.device,
+                config=c,
+                previous_status='modified',
+                action='config_changed',
+            )
             self.assertEqual(c.status, 'modified')
 
     def test_config_get_system_context(self):
@@ -593,3 +604,12 @@ class TestConfig(
         )
         system_context = config.get_system_context()
         self.assertNotIn('test', system_context.keys())
+
+    def test_initial_status(self):
+        config = self._create_config(
+            organization=self._get_org(), context={'test': 'value'}
+        )
+        self.assertEqual(config._initial_status, config.status)
+        config.status = 'modified'
+        config.save()
+        self.assertEqual(config._initial_status, 'modified')

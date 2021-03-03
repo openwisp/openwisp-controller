@@ -969,16 +969,39 @@ Signals
 **Arguments**:
 
 - ``instance``: instance of ``Config`` which got its ``config`` modified
+- ``previous_status``: indicates the status of the config object before the
+  signal was emitted
+- ``action``: action which emitted the signal, can be any of the list below:
+  - ``config_changed``: the configuration of the config object was changed
+  - ``related_template_changed``: the configuration of a related template was changed
+  - ``m2m_templates_changed``: the assigned templates were changed
+  (either templates were added, removed or their order was changed)
 
 This signal is emitted every time the configuration of a device is modified.
 
 It does not matter if ``Config.status`` is already modified, this signal will
 be emitted anyway because it signals that the device configuration has changed.
 
-It is not triggered when the device is created for the first time.
-
 This signal is used to trigger the update of the configuration on devices,
 when the push feature is enabled (requires Device credentials).
+
+The signal is also emitted when one of the templates used by the device
+is modified or if the templates assigned to the device are changed.
+
+Special cases in which ``config_modified`` is not emitted
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This signal is not emitted when the device is created for the first time.
+
+It is also not emitted when templates assigned to a config object are
+cleared (``post_clear`` m2m signal), this is necessary because
+`sortedm2m <https://github.com/jazzband/django-sortedm2m>`_, the package
+we use to implement ordered templates, uses the clear action to
+reorder templates (m2m relationships are first cleared and then added back),
+therefore we ignore ``post_clear`` to avoid emitting signals twice
+(one for the clear action and one for the add action).
+Please keep this in mind if you plan on using the clear method
+of the m2m manager.
 
 ``config_status_changed``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -990,6 +1013,11 @@ when the push feature is enabled (requires Device credentials).
 - ``instance``: instance of ``Config`` which got its ``status`` changed
 
 This signal is emitted only when the configuration status of a device has changed.
+
+The signal is emitted also when the m2m template relationships of a config
+object are changed, but only on ``post_add`` or ``post_remove`` actions,
+``post_clear`` is ignored for the same reason explained
+in the previous section.
 
 ``checksum_requested``
 ~~~~~~~~~~~~~~~~~~~~~~

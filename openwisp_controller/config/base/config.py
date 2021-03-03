@@ -1,7 +1,7 @@
 import collections
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
@@ -69,13 +69,19 @@ class AbstractConfig(BaseConfig):
         load_kwargs={'object_pairs_hook': collections.OrderedDict},
         dump_kwargs={'indent': 4},
     )
-    # for internal usage
-    _just_created = False
 
     class Meta:
         abstract = True
         verbose_name = _('configuration')
         verbose_name_plural = _('configurations')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # for internal usage
+        self._just_created = False
+        self._initial_status = self.status
+        self._send_config_modified_after_save = False
+        self._send_config_status_changed = False
 
     def __str__(self):
         if self._has_device():
@@ -152,11 +158,26 @@ class AbstractConfig(BaseConfig):
         """
         this method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
+
+        NOTE: post_clear is ignored because it is used by the
+        sortedm2m package to reorder templates
+        (m2m relationships are first cleared and then added back),
+        there fore we need to ignore it to avoid emitting signals twice
         """
-        if action not in ['post_add', 'post_remove', 'post_clear']:
+        if action not in ['post_add', 'post_remove']:
             return
-        if instance.status != 'modified':
-            instance.set_status_modified()
+        # use atomic to ensure any code bound to
+        # be executed via transaction.on_commit
+        # is executed after the whole block
+        with transaction.atomic():
+            # do not send config modified signal if
+            # config instance has just been created
+            if not instance._just_created:
+                # sends only config modified signal
+                instance._send_config_modified_signal(action='m2m_templates_changed')
+            if instance.status != 'modified':
+                # sends both status modified and config modified signals
+                instance.set_status_modified(send_config_modified_signal=False)
 
     @classmethod
     def manage_vpn_clients(cls, action, instance, pk_set, **kwargs):
@@ -311,22 +332,30 @@ class AbstractConfig(BaseConfig):
             default_templates = self.get_default_templates()
             if default_templates:
                 self.templates.add(*default_templates)
-        if not created and getattr(self, '_send_config_modified_after_save', False):
-            self._send_config_modified_signal()
-            self._send_config_modified_after_save = None
-        if getattr(self, '_send_config_status_changed', False):
+        if not created and self._send_config_modified_after_save:
+            self._send_config_modified_signal(action='config_changed')
+            self._send_config_modified_after_save = False
+        if self._send_config_status_changed:
             self._send_config_status_changed_signal()
-            self._send_config_status_changed = None
+            self._send_config_status_changed = False
+        self._initial_status = self.status
         return result
 
-    def _send_config_modified_signal(self):
+    def _send_config_modified_signal(self, action):
         """
         Emits ``config_modified`` signal.
         Called also by Template when templates of a device are modified
         """
+        assert action in [
+            'config_changed',
+            'related_template_changed',
+            'm2m_templates_changed',
+        ]
         config_modified.send(
             sender=self.__class__,
             instance=self,
+            previous_status=self._initial_status,
+            action=action,
             # kept for backward compatibility
             config=self,
             device=self.device,
@@ -343,10 +372,11 @@ class AbstractConfig(BaseConfig):
         self.status = status
         self._send_config_status_changed = True
         if save:
-            self.save()
+            self.save(update_fields=['status'])
 
-    def set_status_modified(self, save=True):
-        self._send_config_modified_after_save = True
+    def set_status_modified(self, save=True, send_config_modified_signal=True):
+        if send_config_modified_signal:
+            self._send_config_modified_after_save = True
         self._set_status('modified', save)
 
     def set_status_applied(self, save=True):
