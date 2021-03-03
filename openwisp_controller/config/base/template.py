@@ -118,13 +118,17 @@ class AbstractTemplate(ShareableOrgMixin, BaseConfig):
             )
 
     def _update_related_config_status(self):
-        changing_status = list(self.config_relations.exclude(status='modified'))
+        changing_status = list(
+            self.config_relations.exclude(status='modified').values_list(
+                'pk', flat=True
+            )
+        )
         self.config_relations.update(status='modified')
         for config in self.config_relations.select_related('device').iterator():
             # config modified signal sent regardless
             config._send_config_modified_signal()
             # config status changed signal sent only if status changed
-            if config in changing_status:
+            if config.pk in changing_status:
                 config._send_config_status_changed_signal()
 
     def clean(self, *args, **kwargs):
