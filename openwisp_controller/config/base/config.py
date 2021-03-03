@@ -426,8 +426,3 @@ class AbstractConfig(BaseConfig):
 
 
 AbstractConfig._meta.get_field('config').blank = True
-
-# kept for backward compatibility to avoid
-# breaking openwisp-controller 0.2.x
-# TODO: remove in 0.7.x
-sortedm2m__str__ = TemplatesThrough.__str__
