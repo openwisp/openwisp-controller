@@ -24,6 +24,7 @@ from swapper import load_model
 
 from openwisp_controller.config.views import (
     get_default_templates,
+    get_relevant_templates,
     get_template_default_values,
 )
 from openwisp_users.models import Organization
@@ -484,6 +485,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
                 get_default_templates,
                 name='get_default_templates',
+            ),
+            url(
+                r'^config/get-relevant-templates/(?P<organization_id>[^/]+)/$',
+                get_relevant_templates,
+                name='get_relavant_templates',
             ),
             url(
                 r'^get-template-default-values/$',

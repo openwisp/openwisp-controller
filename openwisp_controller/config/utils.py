@@ -199,3 +199,18 @@ def get_default_templates_queryset(
     if backend:
         queryset = queryset.filter(backend=backend)
     return queryset
+
+
+def get_relevant_templates_queryset(organization_id, backend, model=None):
+    """
+    It filters template as:
+        * Shared templates (organization==None), belonging to the
+          same config backend of the device.
+        * Templates belonging to the same organization and config backend
+          of the device
+    """
+    queryset = model.objects.filter(backend=backend)
+    queryset = queryset.filter(
+        Q(organization_id=organization_id) | Q(organization_id=None)
+    )
+    return queryset
