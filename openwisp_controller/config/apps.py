@@ -61,7 +61,7 @@ class ConfigConfig(AppConfig):
             sender=self.config_model.templates.through,
             dispatch_uid='config.manage_vpn_clients',
         )
-        # the order of the following connect() call
+        # the order of the following connect() call must be maintained
         m2m_changed.connect(
             self.config_model.enforce_required_templates,
             sender=self.config_model.templates.through,

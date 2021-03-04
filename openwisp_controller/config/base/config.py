@@ -81,6 +81,8 @@ class AbstractConfig(BaseConfig):
         dump_kwargs={'indent': 4},
     )
 
+    _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
+
     class Meta:
         abstract = True
         verbose_name = _('configuration')
@@ -125,7 +127,9 @@ class AbstractConfig(BaseConfig):
         """
         return self.device.key
 
-    @cache_memoize(timeout=None, args_rewrite=get_cached_checksum_args_rewrite)
+    @cache_memoize(
+        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_checksum_args_rewrite
+    )
     def get_cached_checksum(self):
         """
         Handles caching,

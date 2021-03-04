@@ -27,6 +27,7 @@ from ..utils import (
 )
 
 Device = load_model('config', 'Device')
+Config = load_model('config', 'Config')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 Vpn = load_model('config', 'Vpn')
 
@@ -142,14 +143,8 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
             device.config.get_cached_checksum(), content_type='text/plain'
         )
 
-    # while Config.get_cached_checksum() does not have a cache timeout
-    # in this case, since this view is reachable from the public internet,
-    # we avoid not setting a timeout to avoid
-    # the possibility of a Denial of Service attack
-    GET_DEVICE_CACHE_TIMEOUT = 60 * 60 * 24  # 24 hours
-
     @cache_memoize(
-        timeout=GET_DEVICE_CACHE_TIMEOUT, args_rewrite=get_device_args_rewrite
+        timeout=Config._CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_device_args_rewrite
     )
     def get_device(self):
         pk = self.kwargs['pk']
