@@ -126,7 +126,7 @@ class DeviceUpdateInfoView(ActiveOrgMixin, CsrfExtemptMixin, BaseConfigView):
 
     model = Device
 
-    UPDATABLE_FIELDS = ['os', 'model', 'system']
+    UPDATABLE_FIELDS = ['os', 'model', 'system', 'name']
 
     def post(self, request, *args, **kwargs):
         device = self.get_object(*args, **kwargs)
