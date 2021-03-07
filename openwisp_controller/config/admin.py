@@ -489,7 +489,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             url(
                 r'^config/get-relevant-templates/(?P<organization_id>[^/]+)/$',
                 get_relevant_templates,
-                name='get_relavant_templates',
+                name='get_relevant_templates',
             ),
             url(
                 r'^get-template-default-values/$',

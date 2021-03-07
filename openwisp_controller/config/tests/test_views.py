@@ -141,3 +141,43 @@ class TestViews(
             reverse('admin:get_default_templates', args=['wrong'])
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_get_relevant_templates(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        t1 = self._create_template(
+            name='t1', organization=org1, backend='netjsonconfig.OpenWrt'
+        )
+        _ = self._create_template(
+            name='t2', organization=org2, backend='netjsonconfig.OpenWrt'
+        )
+        # shared template
+        t3 = self._create_template(
+            organization=None, name='t3', default=True, backend='netjsonconfig.OpenWrt'
+        )
+        self._login()
+
+        r = self.client.get(
+            reverse('admin:get_relevant_templates', args=[org1.pk]),
+            {'backend': 'netjsonconfig.OpenWrt'},
+        )
+        templates = r.json()['templates']
+        self.assertEqual(len(templates), 2)
+        self.assertIn(str(t1.pk), templates)
+        self.assertIn(str(t3.pk), templates)
+
+    def test_get_relevant_templates_403(self):
+        org1 = self._create_org(name='org1')
+        response = self.client.get(
+            reverse('admin:get_relevant_templates', args=[org1.pk]),
+            {'backend': 'netjsonconfig.OpenWrt'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_relevant_templates_404(self):
+        self._login()
+        response = self.client.get(
+            reverse('admin:get_relevant_templates', args=['wrong']),
+            {'backend': 'netjsonconfig.OpenWrt'},
+        )
+        self.assertEqual(response.status_code, 404)

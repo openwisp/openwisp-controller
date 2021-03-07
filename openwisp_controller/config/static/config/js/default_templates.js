@@ -68,6 +68,9 @@ django.jQuery(function ($) {
                 $('input.sortedm2m').each(function () {
                     if (($(this).val() in relevantTemplates) === false) {
                         // hide templates which are not relevant
+                        // also removed disabled attribute and uncheck it
+                        $(this).prop("disabled", false);
+                        $(this).prop("checked", false);
                         $(this).parent().parent().hide();
                     } else {
                         // show templates which are relevant
