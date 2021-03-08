@@ -184,6 +184,18 @@ endpoint, which provides a paginated list of such locations in GeoJSON format:
 
     GET /api/v1/location/geojson/
 
+Subnet Division App
+~~~~~~~~~~~~~~~~~~~
+
+This app allows to automatically provision subnets and IP addresses which will be
+available as `system defined configuration variables <#system-defined-variables>`_
+that can be used in templates. The purpose of this app is to allow users to automatically
+provision and configure specific
+subnets and IP addresses to the devices without the need of manual intervention.
+
+Refer to `"How to configure automatic provisioning of subnets and IPs" section of this documentation <#how-to-configure-automatic-provisioning-of-subnets-and-ips>`_
+to learn about features provided by this app.
+
 Settings
 --------
 
@@ -607,6 +619,35 @@ For example, if we want to change the verbose name to "Hotspot", we could write:
 
     OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Hotspot', 'Hotspots')
 
+``OPENWISP_CONTROLLER_HIDE_AUTOMATICALLY_GENERATED_SUBNETS_AND_IPS``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    | ``bool``  |
++--------------+-----------+
+| **default**: | ``False`` |
++--------------+-----------+
+
+Setting this to ``True`` will hide subnets and IPs generated using `subnet division rules <#subnet-division-app>`_
+from being displayed on the changelist view of Subnet and IP admin.
+
+``OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+------------------------------------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                                                      |
++--------------+------------------------------------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                                                         |
+|              |                                                                                                |
+|              |    (                                                                                           |
+|              |       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'), |
+|              |    )                                                                                           |
+|              |                                                                                                |
++--------------+------------------------------------------------------------------------------------------------+
+
+Available types for Subject Division Rule objects. For more information on how
+to write your own types, read `"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
+
 Default Alerts / Notifications
 ------------------------------
 
@@ -990,6 +1031,80 @@ so they can be overridden if needed.
 In the example above, the "SSID" template is flagged as "(required)"
 and its checkbox is always checked and disabled.
 
+How to configure automatic provisioning of subnets and IPs
+----------------------------------------------------------
+
+The following steps will help you configure automatic provisioning of subnets and IPs
+for devices:
+
+1. Create a Subnet and a Subnet Division Rule
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create a master subnet under which automatically generated subnets will be provisioned.
+
+**Note**: Choose the size of the subnet appropriately considering your use case.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet.png
+  :alt: Creating a master subnet example
+
+On the same page, add a **subnet division rule** that will be used to provision subnets
+under the master subnet.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
+  :alt: Creating a subnet division rule example
+
+2. Create a VPN Server
+~~~~~~~~~~~~~~~~~~~~~~
+
+Now create a VPN Server and choose the previously created **master subnet** as the subnet for
+this VPN Server.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/vpn-server.png
+  :alt: Creating a VPN Server example
+
+3. Create a VPN Client Template
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create a template, setting the **Type** field to **VPN Client** and **VPN** field to use the
+previously created VPN Server.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/vpn-client.png
+  :alt: Creating a VPN Client template example
+
+**Note**: You can also check the **Enable by default** field if you want to automatically
+apply this template to devices that will register in future.
+
+4. Apply VPN Client Template to Devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With everything in place, you can now apply the VPN Client Template to devices.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/apply-template-to-device.png
+  :alt: Adding template to device example
+
+After saving the device, you should see all provisioned Subnets and IPs for this device
+under the `System Defined Variables <#system-defined-variables>`_.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/system-defined-variables.png
+  :alt: Provisioned Subnets and IPs available as System Defined Variables example
+
+Voila! You can now use these variables in configuration of the device. Refer to `How to use configuration variables <#how-to-use-configuration-variables>`_
+section of this documentation to learn how to use configuration variables.
+
+Important Notes
+~~~~~~~~~~~~~~~
+
+- In the above example Subnet, VPN Server, and VPN Client Template belonged to the **default** organization.
+  You can use **Systemwide Shared** Subnet, VPN Server, or VPN Client Template too, but
+  Subnet Division Rule will be always related to an organization. The Subnet Division Rule will only be
+  triggered when such VPN Client Template will be applied to a Device having the same organization as Subnet Division Rule.
+
+- You can also use the configuration variables for provisioned subnets and IPs in the Template.
+  Each variable will be resolved differently for different devices. E.g. ``OW_subnet1_ip1`` will resolve to
+  ``10.0.0.1`` for one device and ``10.0.0.55`` for another. Every device gets its own set of subnets and IPs.
+  But don't forget to provide the default fall back values in the "default values" template field
+  (used mainly for validation).
+
 Signals
 -------
 
@@ -1254,7 +1369,7 @@ Configure celery (you may use a different broker if you want):
     EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
 
 If you decide to use redis (as shown in these examples),
-install the requierd python packages::
+install the required python packages::
 
     pip install redis django-redis
 
@@ -1307,13 +1422,14 @@ You'll need to create 4 apps in your project for each app in openwisp_controller
 A django app is nothing more than a
 `python package <https://docs.python.org/3/tutorial/modules.html#packages>`_
 (a directory of python scripts), in the following examples we'll call these django app
-``sample_config``, ``sample_pki``, ``sample_connection`` & ``sample_geo``
-but you can name it how you want::
+``sample_config``, ``sample_pki``, ``sample_connection``, ``sample_geo``
+& ``sample_subnet_division``. but you can name it how you want::
 
     django-admin startapp sample_config
     django-admin startapp sample_pki
     django-admin startapp sample_connection
     django-admin startapp sample_geo
+    django-admin startapp sample_subnet_division
 
 Keep in mind that the command mentioned above must be called from a directory
 which is available in your `PYTHON_PATH <https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH>`_
@@ -1333,10 +1449,12 @@ Install (and add to the requirement of your project) openwisp-controller::
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now you need to add ``mycontroller.sample_config``,
-``mycontroller.sample_pki``, ``mycontroller.sample_connection``
-& ``mycontroller.sample_geo`` to ``INSTALLED_APPS`` in your ``settings.py``,
-ensuring also that ``openwisp_controller.config``, ``openwisp_controller.geo``,
-``openwisp_controller.pki``, ``openwisp_controller.connnection`` have been removed:
+``mycontroller.sample_pki``, ``mycontroller.sample_connection``,
+``mycontroller.sample_geo`` & ``mycontroller.sample_subnet_division`` to
+``INSTALLED_APPS`` in your ``settings.py``, ensuring also that
+``openwisp_controller.config``, ``openwisp_controller.geo``,
+``openwisp_controller.pki``, ``openwisp_controller.connnection`` &
+``openwisp_controller.subnet_division`` have been removed:
 
 .. code-block:: python
 
@@ -1354,10 +1472,12 @@ ensuring also that ``openwisp_controller.config``, ``openwisp_controller.geo``,
         # 'openwisp_controller.pki', <-- comment out or delete this line
         # 'openwisp_controller.geo', <-- comment out or delete this line
         # 'openwisp_controller.connection', <-- comment out or delete this line
+        # 'openwisp_controller.subnet_division', <-- comment out or delete this line
         'mycontroller.sample_config',
         'mycontroller.sample_pki',
         'mycontroller.sample_geo',
         'mycontroller.sample_connection',
+        'mycontroller.sample_subnet_division',
         'openwisp_users',
         # admin
         'django.contrib.admin',
@@ -1372,8 +1492,8 @@ ensuring also that ``openwisp_controller.config``, ``openwisp_controller.geo``,
         'channels',
     ]
 
-Substitute ``mycontroller``, ``sample_config``, ``sample_pki``, ``sample_connection`` &
-``sample_geo`` with the name you chose in step 1.
+Substitute ``mycontroller``, ``sample_config``, ``sample_pki``, ``sample_connection``,
+``sample_geo`` & ``sample_subnet_division`` with the name you chose in step 1.
 
 4. Add ``EXTENDED_APPS``
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1389,6 +1509,7 @@ Add the following to your ``settings.py``:
         'openwisp_controller.pki',
         'openwisp_controller.geo',
         'openwisp_controller.connection',
+        'openwisp_controller.subnet_division',
     )
 
 5. Add ``openwisp_utils.staticfiles.DependencyFinder``
@@ -1495,6 +1616,10 @@ Please refer to the following files in the sample app of the test project:
     - `sample_connection/__init__.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/__init__.py>`_.
     - `sample_connection/apps.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/apps.py>`_.
 
+- sample_subnet_division:
+    - `sample_subnet_division/__init__.py <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/__init__.py>`_.
+    - `sample_subnet_division/apps.py <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/apps.py>`_.
+
 You have to replicate and adapt that code in your project.
 
 For more information regarding the concept of ``AppConfig`` please refer to
@@ -1510,6 +1635,7 @@ to the models of the sample app in the test project.
 - `sample_geo models <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/models.py>`_
 - `sample_pki models <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/models.py>`_
 - `sample_connection models <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/models.py>`_
+- `sample_subnet_division <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/models.py>`_
 
 You can add fields in a similar way in your ``models.py`` file.
 
@@ -1539,9 +1665,11 @@ Once you have created the models, add the following to your ``settings.py``:
     GEO_DEVICELOCATION_MODEL = 'sample_geo.DeviceLocation'
     CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
     CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
+    SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = 'sample_subnet_division.SubnetDivisionRule'
+    SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = 'sample_subnet_division.SubnetDivisionIndex'
 
-Substitute ``sample_config``, ``sample_pki``, ``sample_connection`` &
-``sample_geo`` with the name you chose in step 1.
+Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
+``sample_geo`` & ``sample_subnet_division`` with the name you chose in step 1.
 
 9. Create database migrations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1555,9 +1683,10 @@ like the used in the openwisp_controller module, you'll manually need to make a
 migrations file which would look like:
 
 - `sample_config/migrations/0002_default_groups_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/migrations/0002_default_groups_permissions.py>`_
-- `sample_geo/migrations/0002_default_groups_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/migrations/0002_default_groups_permissions.py>`_
-- `sample_pki/migrations/0002_default_groups_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/migrations/0002_default_groups_permissions.py>`_
-- `sample_connection/migrations/0002_default_groups_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/migrations/0002_default_groups_permissions.py>`_
+- `sample_geo/migrations/0002_default_group_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/migrations/0002_default_group_permissions.py>`_
+- `sample_pki/migrations/0002_default_group_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/migrations/0002_default_group_permissions.py>`_
+- `sample_connection/migrations/0002_default_group_permissions.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/migrations/0002_default_group_permissions.py>`_
+- `sample_subnet_division/migrations/0002_default_group_permissions.py <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/migrations/0002_default_group_permissions.py>`_
 
 Create database migrations::
 
@@ -1575,6 +1704,7 @@ Refer to the ``admin.py`` file of the sample app.
 - `sample_geo admin.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/admin.py>`_.
 - `sample_pki admin.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/admin.py>`_.
 - `sample_connection admin.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/admin.py>`_.
+- `sample_subnet_division admin.py <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/admin.py>`_.
 
 To introduce changes to the admin, you can do it in two main ways which are described below.
 
@@ -1620,9 +1750,18 @@ sample_pki
 
 .. code-block:: python
 
-    from openwisp_controller.geo.admin import CaAdmin, CertAdmin
+    from openwisp_controller.pki.admin import CaAdmin, CertAdmin
 
     # CaAdmin.fields += ['example'] <-- monkey patching example
+
+sample_subnet_division
+""""""""""""""""""""""
+
+.. code-block:: python
+
+    from openwisp_controller.subnet_division.admin import SubnetDivisionRuleInlineAdmin
+
+    # SubnetDivisionRuleInlineAdmin.fields += ['example'] <-- monkey patching example
 
 2. Inheriting admin classes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1732,6 +1871,40 @@ sample_pki
     class CertAdmin(BaseCertAdmin):
         # add your changes here
 
+sample_subnet_division
+""""""""""""""""""""""
+
+.. code-block:: python
+
+    from openwisp_controller.subnet_division.admin import (
+        SubnetAdmin as BaseSubnetAdmin,
+        IpAddressAdmin as BaseIpAddressAdmin,
+        SubnetDivisionRuleInlineAdmin as BaseSubnetDivisionRuleInlineAdmin,
+    )
+    from django.contrib import admin
+    from swapper import load_model
+
+    Subnet = load_model('openwisp_ipam', 'Subnet')
+    IpAddress = load_model('openwisp_ipam', 'IpAddress')
+    SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
+
+    admin.site.unregister(Subnet)
+    admin.site.unregister(IpAddress)
+    admin.site.unregister(SubnetDivisionRule)
+
+    @admin.register(Subnet)
+    class SubnetAdmin(BaseSubnetAdmin):
+        # add your changes here
+
+    @admin.register(IpAddress)
+    class IpAddressAdmin(BaseIpAddressAdmin):
+        # add your changes here
+
+    @admin.register(SubnetDivisionRule)
+    class SubnetDivisionRuleInlineAdmin(BaseSubnetDivisionRuleInlineAdmin):
+        # add your changes here
+
+
 11. Create root URL configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1777,6 +1950,7 @@ See the tests in sample_app to find out how to do this.
 - `sample_geo pytest.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/pytest.py>`_
 - `sample_pki tests.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/tests.py>`_
 - `sample_connection tests.py <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/tests.py>`_
+- `sample_subnet_division tests.py <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/tests.py>`_
 
 For running the tests, you need to copy fixtures as well:
 
@@ -1814,6 +1988,72 @@ is required only when you want to make changes in the geo API,
 Remember to change ``geo_views`` location in ``urls.py`` in point 11 for extending views.
 
 For more information about django views, please refer to the `views section in the django documentation <https://docs.djangoproject.com/en/dev/topics/http/views/>`_.
+
+Custom Subnet Division Rule Types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to create your own `subnet division rule types <#subnet-division-app>`_.
+The rule type determines when subnets and IPs will be provisioned and when they
+will be destroyed.
+
+You can create your custom rule types by extending
+``openwisp_controller.subnet_division.rule_types.base.BaseSubnetDivisionRuleType``.
+
+Below is an example to create a subnet division rule type that will provision
+subnets and IPs when a new device is created and will delete them upon deletion
+for that device.
+
+.. code-block:: python
+
+    # In mycontroller/sample_subnet_division/rules_types/custom.py
+
+    from django.db.models.signals import post_delete, post_save
+    from swapper import load_model
+
+    from openwisp_controller.subnet_division.rule_types.base import (
+        BaseSubnetDivisionRuleType,
+    )
+
+    Device = load_model('config', 'Device')
+
+    class CustomRuleType(BaseSubnetDivisionRuleType):
+        # The signal on which provisioning should be triggered
+        provision_signal = post_save
+        # The sender of the provision_signal
+        provision_sender = Device
+        # Dispatch UID for connecting provision_signal to provision_receiver
+        provision_dispatch_uid = 'some_unique_identifier_string'
+
+        # The signal on which deletion should be triggered
+        destroyer_signal = post_delete
+        # The sender of the destroyer_signal
+        destroyer_sender = Device
+        # Dispatch UID for connecting destroyer_signal to destroyer_receiver
+        destroyer_dispatch_uid = 'another_unique_identifier_string'
+
+        # Attribute path to organization_id
+        # Example 1: If organization_id is direct attribute of provision_signal
+        #            sender instance, then
+        #   organization_id_path = 'organization_id'
+        # Example 2: If organization_id is indirect attribute of provision signal
+        #            sender instance, then
+        #   organization_id_path = 'some_attribute.another_intermediate.organization_id'
+        organization_id_path = 'organization_id'
+
+        # Similar to organization_id_path but for the required subnet attribute
+        subnet_path = 'subnet'
+
+
+After creating a class for your custom rule type, you will need to set
+`OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES <#openwisp-controller-subnet-division-types>`_
+setting as follows:
+
+.. code-block:: python
+
+    OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES = (                                                                                           |
+       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),
+       ('mycontroller.sample_subnet_division.rules_types.custom.CustomRuleType', 'Custom Rule'),
+    )
 
 Registering new notification types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
