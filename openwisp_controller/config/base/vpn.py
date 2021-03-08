@@ -45,6 +45,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         help_text=_('Select VPN configuration backend'),
     )
     notes = models.TextField(blank=True)
+    subnet = models.ForeignKey(
+        get_model_name('openwisp_ipam', 'Subnet'),
+        verbose_name=_('Subnet'),
+        help_text=_('Subnet IP addresses used by VPN clients, if applicable'),
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+    )
     # diffie hellman parameters are required
     # in some VPN solutions (eg: OpenVPN)
     dh = models.TextField(blank=True)
@@ -142,6 +150,13 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             c.update([('cert', self.cert.certificate), ('key', self.cert.private_key)])
         if self.dh:
             c.update([('dh', self.dh)])
+        if self.subnet:
+            c.update(
+                {
+                    'subnet': str(self.subnet.subnet),
+                    'subnet_prefixlen': str(self.subnet.subnet.prefixlen),
+                }
+            )
         c.update(sorted(super().get_context().items()))
         return c
 
