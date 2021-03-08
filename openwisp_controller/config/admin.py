@@ -723,6 +723,7 @@ class VpnAdmin(
         'organization',
         'uuid',
         'key',
+        'subnet',
         'ca',
         'cert',
         'backend',

@@ -11,6 +11,8 @@ openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 # TODO: change this when next point version of openwisp-notifications is released
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
+# TODO: change this when next version of openwisp-ipam is released
+openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/ipaddress-admin-form-fix
 djangorestframework-gis @ https://github.com/openwisp/django-rest-framework-gis/tarball/master
 netjsonconfig~=0.9.0
 paramiko[ed25519]~=2.7.2
@@ -18,3 +20,4 @@ scp>=0.13.0,<0.14.0
 celery~=5.2.3
 django-cache-memoize~=0.1
 shortuuid~=1.0.1
+netaddr~=0.8.0
