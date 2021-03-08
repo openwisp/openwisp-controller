@@ -38,9 +38,11 @@ INSTALLED_APPS = [
     'openwisp_controller.pki',
     'openwisp_controller.geo',
     'openwisp_controller.connection',
+    'openwisp_controller.subnet_division',
     'openwisp_users',
     'openwisp_users.accounts',
     'openwisp_notifications',
+    'openwisp_ipam',
     # openwisp2 admin theme
     # (must be loaded here)
     'openwisp_utils.admin_theme',
@@ -211,6 +213,10 @@ if os.environ.get('SAMPLE_APP', False):
     users_index = INSTALLED_APPS.index('openwisp_users')
     INSTALLED_APPS.remove('openwisp_users')
     INSTALLED_APPS.insert(users_index, 'openwisp2.sample_users')
+    # Replace Subnet Division
+    subnet_division_index = INSTALLED_APPS.index('openwisp_controller.subnet_division')
+    INSTALLED_APPS.remove('openwisp_controller.subnet_division')
+    INSTALLED_APPS.insert(subnet_division_index, 'openwisp2.sample_subnet_division')
     # Extended apps
     EXTENDED_APPS = (
         'django_x509',
@@ -219,6 +225,7 @@ if os.environ.get('SAMPLE_APP', False):
         'openwisp_controller.pki',
         'openwisp_controller.geo',
         'openwisp_controller.connection',
+        'openwisp_controller.subnet_division',
         'openwisp_users',
     )
     # Swapper
@@ -245,6 +252,12 @@ if os.environ.get('SAMPLE_APP', False):
     CONNECTION_CREDENTIALS_MODEL = 'sample_connection.Credentials'
     CONNECTION_DEVICECONNECTION_MODEL = 'sample_connection.DeviceConnection'
     CONNECTION_COMMAND_MODEL = 'sample_connection.Command'
+    SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = (
+        'sample_subnet_division.SubnetDivisionRule'
+    )
+    SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = (
+        'sample_subnet_division.SubnetDivisionIndex'
+    )
 else:
     # not needed, these are the default values, left here only for example purposes
     # DJANGO_X509_CA_MODEL = 'pki.Ca'

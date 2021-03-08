@@ -274,7 +274,7 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse('config_api:download_device_config', args=[d1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(8):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
