@@ -132,7 +132,7 @@ class TestController(
         url = reverse('controller:device_checksum', args=[d.pk])
 
         with self.subTest('first request does not return value from cache'):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(5):
                 with patch.object(
                     controller_views_logger, 'debug'
                 ) as mocked_view_debug:
@@ -1105,12 +1105,12 @@ class TestController(
         c2 = self._create_config(device=d2)
         org2 = self._create_org(name='org2', shared_secret='123456')
         c3 = self._create_config(organization=org2)
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(8):
             self.client.get(
                 reverse('controller:device_checksum', args=[c3.device.pk]),
                 {'key': c3.device.key, 'management_ip': '192.168.1.99'},
             )
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(8):
             self.client.get(
                 reverse('controller:device_checksum', args=[c1.device.pk]),
                 {'key': c1.device.key, 'management_ip': '192.168.1.99'},
@@ -1123,7 +1123,7 @@ class TestController(
             )
         # triggers more queries because devices with conflicting addresses
         # need to be updated, luckily it does not happen often
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(10):
             self.client.get(
                 reverse('controller:device_checksum', args=[c2.device.pk]),
                 {'key': c2.device.key, 'management_ip': '192.168.1.99'},
