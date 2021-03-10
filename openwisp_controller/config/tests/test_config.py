@@ -11,6 +11,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from ..base.config import logger as config_model_logger
 from ..signals import config_modified, config_status_changed
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
@@ -126,6 +127,56 @@ class TestConfig(
     def test_checksum(self):
         c = self._create_config(organization=self._get_org())
         self.assertEqual(len(c.checksum), 32)
+
+    def test_get_cached_checksum(self):
+        c = self._create_config(organization=self._get_org())
+
+        with self.subTest('check cache set'):
+            with patch('django.core.cache.cache.set') as mocked_set:
+                checksum = c.get_cached_checksum()
+                self.assertEqual(len(checksum), 32)
+                mocked_set.assert_called_once()
+
+        with self.subTest('check cache get'):
+            with patch(
+                'django.core.cache.cache.get', return_value=checksum
+            ) as mocked_get:
+                self.assertEqual(len(c.get_cached_checksum()), 32)
+                mocked_get.assert_called_once()
+
+        with self.subTest('ensure fresh checksum is calculated when cache is clear'):
+            with patch.object(config_model_logger, 'debug') as mocked_debug:
+                c.get_cached_checksum.invalidate(c)
+                self.assertEqual(len(c.get_cached_checksum()), 32)
+                mocked_debug.assert_called_once()
+
+        with self.subTest(
+            'ensure fresh checksum is NOT calculated when cache is present'
+        ):
+            with patch.object(config_model_logger, 'debug') as mocked_debug:
+                self.assertEqual(len(c.get_cached_checksum()), 32)
+                mocked_debug.assert_not_called()
+
+        with self.subTest('ensure cache invalidation works'):
+            with patch.object(config_model_logger, 'debug') as mocked_debug:
+                old_checksum = c.checksum
+                c.config['general']['timezone'] = 'Europe/Rome'
+                c.full_clean()
+                c.save()
+                del c.backend_instance
+                self.assertNotEqual(c.checksum, old_checksum)
+                self.assertEqual(c.get_cached_checksum(), c.checksum)
+                mocked_debug.assert_called_once()
+
+        with self.subTest('test cache invalidation when config templates are changed'):
+            with patch.object(config_model_logger, 'debug') as mocked_debug:
+                old_checksum = c.checksum
+                template = self._create_template()
+                c.templates.add(template)
+                del c.backend_instance
+                self.assertNotEqual(c.checksum, old_checksum)
+                self.assertEqual(c.get_cached_checksum(), c.checksum)
+                mocked_debug.assert_called_once()
 
     def test_backend_import_error(self):
         """

@@ -1,6 +1,10 @@
 import json
+import logging
+import uuid
 from ipaddress import ip_address
 
+from cache_memoize import cache_memoize
+from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -23,19 +27,36 @@ from ..utils import (
 )
 
 Device = load_model('config', 'Device')
+Config = load_model('config', 'Config')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 Vpn = load_model('config', 'Vpn')
 
+logger = logging.getLogger(__name__)
 
-class BaseConfigView(SingleObjectMixin, View):
+
+class GetDeviceView(SingleObjectMixin, View):
     """
     Base view that implements a ``get_object`` method
-    Subclassed by all views dealing with existing objects
+    Subclassed by all device views which deal with existing objects
     """
 
+    model = Device
+
     def get_object(self, *args, **kwargs):
-        kwargs['config__isnull'] = False
-        return get_object_or_404(self.model, *args, **kwargs)
+        kwargs.update({'organization__is_active': True, 'config__isnull': False})
+        defer = (
+            'notes',
+            'organization__name',
+            'organization__description',
+            'organization__email',
+            'organization__url',
+            'organization__created',
+            'organization__modified',
+        )
+        queryset = self.model.objects.select_related('organization', 'config').defer(
+            *defer
+        )
+        return get_object_or_404(queryset, *args, **kwargs)
 
 
 class CsrfExtemptMixin(object):
@@ -52,61 +73,110 @@ class UpdateLastIpMixin(object):
     def update_last_ip(self, device, request):
         result = update_last_ip(device, request)
         if result:
-            # avoid that any other device in the
-            # same org stays with the same management_ip
-            # This can happen when management interfaces are using DHCP
-            # and they get a new address which was previously used by another
-            # device that may now be offline, without this fix, we will end up
-            # with two devices having the same management_ip, which will
-            # cause OpenWISP to be confused
-            self.model.objects.filter(
-                organization=device.organization, management_ip=device.management_ip
-            ).exclude(pk=device.pk).update(management_ip='')
-            # in the case of last_ip, we take a different approach,
-            # because it may be a public IP. If it's a public IP we will
-            # allow it to be duplicated
-            if ip_address(device.last_ip).is_private:
-                Device.objects.filter(
-                    organization=device.organization, last_ip=device.last_ip
-                ).exclude(pk=device.pk).update(last_ip='')
+            self._remove_duplicated_management_ip(device)
+            self._remove_duplicated_last_ip(device)
         return result
 
+    def _remove_duplicated_management_ip(self, device):
+        # avoid that any other device in the
+        # same org stays with the same management_ip
+        # This can happen when management interfaces are using DHCP
+        # and they get a new address which was previously used by another
+        # device that may now be offline, without this fix, we will end up
+        # with two devices having the same management_ip, which will
+        # cause OpenWISP to be confused
+        if not device.management_ip:
+            return
+        queryset = self.model.objects.filter(
+            organization_id=device.organization_id, management_ip=device.management_ip
+        ).exclude(pk=device.pk)
+        for dupe in queryset.only('pk', 'key', 'management_ip'):
+            dupe.management_ip = ''
+            dupe.save(update_fields=['management_ip'])
 
-class ActiveOrgMixin(object):
+    def _remove_duplicated_last_ip(self, device):
+        # in the case of last_ip, we take a different approach,
+        # because it may be a public IP. If it's a public IP we will
+        # allow it to be duplicated
+        if not device.last_ip or not ip_address(device.last_ip).is_private:
+            return
+        queryset = Device.objects.filter(
+            organization_id=device.organization_id, last_ip=device.last_ip
+        ).exclude(pk=device.pk)
+        for dupe in queryset.only('pk', 'key', 'last_ip', 'management_ip'):
+            dupe.last_ip = ''
+            dupe.save(update_fields=['last_ip'])
+
+
+def get_device_args_rewrite(view):
     """
-    adds check to organization.is_active to ``get_object`` method
+    Use only the PK parameter for calculating the cache key
     """
+    # avoid ambiguity between hex format and dashed string
+    # return view.kwargs['pk']
+    pk = view.kwargs['pk']
+    try:
+        pk = uuid.UUID(pk)
+    except ValueError:
+        return pk
+    return pk.hex
 
-    def get_object(self, *args, **kwargs):
-        kwargs['organization__is_active'] = True
-        return super().get_object(*args, **kwargs)
 
-
-class DeviceChecksumView(ActiveOrgMixin, UpdateLastIpMixin, BaseConfigView):
+class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
     """
     returns device's configuration checksum
     """
 
-    model = Device
-
-    def get(self, request, *args, **kwargs):
-        device = self.get_object(*args, **kwargs)
+    def get(self, request, pk):
+        device = self.get_device()
         bad_request = forbid_unallowed(request, 'GET', 'key', device.key)
         if bad_request:
             return bad_request
-        self.update_last_ip(device, request)
+        updated = self.update_last_ip(device, request)
+        # updates cache if ip addresses changed
+        if updated:
+            self.update_device_cache(device)
         checksum_requested.send(
             sender=device.__class__, instance=device, request=request
         )
-        return ControllerResponse(device.config.checksum, content_type='text/plain')
+        return ControllerResponse(
+            device.config.get_cached_checksum(), content_type='text/plain'
+        )
+
+    @cache_memoize(
+        timeout=Config._CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_device_args_rewrite
+    )
+    def get_device(self):
+        pk = self.kwargs['pk']
+        logger.debug(f'retrieving device ID {pk} from DB')
+        return self.get_object(pk=pk)
+
+    def update_device_cache(self, device):
+        cache.set(self.get_device.get_cache_key(self), device)
+
+    @classmethod
+    def invalidate_get_device_cache(cls, instance, **kwargs):
+        """
+        Called from signal receiver which performs cache invalidation
+        """
+        view = cls()
+        pk = str(instance.pk.hex)
+        view.kwargs = {'pk': pk}
+        view.get_device.invalidate(view)
+        logger.debug(f'invalidated view cache for device ID {pk}')
+
+    @classmethod
+    def invalidate_checksum_cache(cls, instance, device, **kwargs):
+        """
+        Called from signal receiver which performs cache invalidation
+        """
+        instance.get_cached_checksum.invalidate(instance)
 
 
-class DeviceDownloadConfigView(ActiveOrgMixin, BaseConfigView):
+class DeviceDownloadConfigView(GetDeviceView):
     """
     returns configuration archive as attachment
     """
-
-    model = Device
 
     def get(self, request, *args, **kwargs):
         device = self.get_object(*args, **kwargs)
@@ -119,12 +189,10 @@ class DeviceDownloadConfigView(ActiveOrgMixin, BaseConfigView):
         return send_device_config(device.config, request)
 
 
-class DeviceUpdateInfoView(ActiveOrgMixin, CsrfExtemptMixin, BaseConfigView):
+class DeviceUpdateInfoView(CsrfExtemptMixin, GetDeviceView):
     """
     updates general information about the device
     """
-
-    model = Device
 
     UPDATABLE_FIELDS = ['os', 'model', 'system']
 
@@ -153,12 +221,10 @@ class DeviceUpdateInfoView(ActiveOrgMixin, CsrfExtemptMixin, BaseConfigView):
         return ControllerResponse('update-info: success', content_type='text/plain')
 
 
-class DeviceReportStatusView(ActiveOrgMixin, CsrfExtemptMixin, BaseConfigView):
+class DeviceReportStatusView(CsrfExtemptMixin, GetDeviceView):
     """
     updates status of config objects
     """
-
-    model = Device
 
     def post(self, request, *args, **kwargs):
         device = self.get_object(*args, **kwargs)
@@ -359,12 +425,25 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         )
 
 
-class VpnChecksumView(BaseConfigView):
+class GetVpnView(SingleObjectMixin, View):
     """
-    returns vpn's configuration checksum
+    Base view that implements a ``get_object`` method
+    Subclassed by all vpn views which deal with existing objects
     """
 
     model = Vpn
+
+    def get_object(self, *args, **kwargs):
+        queryset = self.model.objects.select_related('organization').filter(
+            Q(organization__is_active=True) | Q(organization__isnull=True)
+        )
+        return get_object_or_404(queryset, *args, **kwargs)
+
+
+class VpnChecksumView(GetVpnView):
+    """
+    returns vpn's configuration checksum
+    """
 
     def get(self, request, *args, **kwargs):
         vpn = self.get_object(*args, **kwargs)
@@ -375,12 +454,10 @@ class VpnChecksumView(BaseConfigView):
         return ControllerResponse(vpn.checksum, content_type='text/plain')
 
 
-class VpnDownloadConfigView(BaseConfigView):
+class VpnDownloadConfigView(GetVpnView):
     """
     returns configuration archive as attachment
     """
-
-    model = Vpn
 
     def get(self, request, *args, **kwargs):
         vpn = self.get_object(*args, **kwargs)

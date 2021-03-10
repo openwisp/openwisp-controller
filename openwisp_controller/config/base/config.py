@@ -1,5 +1,7 @@
 import collections
+import logging
 
+from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
@@ -14,6 +16,8 @@ from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
 
+logger = logging.getLogger(__name__)
+
 
 class TemplatesThrough(object):
     """
@@ -22,6 +26,13 @@ class TemplatesThrough(object):
 
     def __str__(self):
         return _('Relationship with {0}').format(self.template.name)
+
+
+def get_cached_checksum_args_rewrite(config):
+    """
+    Use only the PK parameter for calculating the cache key
+    """
+    return config.pk.hex
 
 
 class AbstractConfig(BaseConfig):
@@ -70,6 +81,8 @@ class AbstractConfig(BaseConfig):
         dump_kwargs={'indent': 4},
     )
 
+    _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
+
     class Meta:
         abstract = True
         verbose_name = _('configuration')
@@ -113,6 +126,18 @@ class AbstractConfig(BaseConfig):
         (kept for backward compatibility with pre 0.6 versions)
         """
         return self.device.key
+
+    @cache_memoize(
+        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_checksum_args_rewrite
+    )
+    def get_cached_checksum(self):
+        """
+        Handles caching,
+        timeout=None means value is cached indefinitely
+        (invalidation handled on post_save/post_delete signal)
+        """
+        logger.debug(f'calculating checksum for config ID {self.pk}')
+        return self.checksum
 
     @classmethod
     def get_template_model(cls):
