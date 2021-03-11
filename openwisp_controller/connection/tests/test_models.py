@@ -379,12 +379,13 @@ class TestModels(BaseTestModels, TestCase):
 
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
-    def _prepare_conf_object(self):
-        org1 = self._create_org(name='org1')
+    def _prepare_conf_object(self, organization=None):
+        if not organization:
+            organization = self._create_org(name='org1')
         cred = self._create_credentials_with_key(
-            organization=org1, port=self.ssh_server.port
+            organization=organization, port=self.ssh_server.port
         )
-        device = self._create_device(organization=org1)
+        device = self._create_device(organization=organization)
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
         conf = self._create_config(device=device, status='applied')
         self._create_device_connection(
@@ -401,6 +402,20 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         }
         conf.full_clean()
         return conf
+
+    @capture_any_output()
+    @mock.patch(_connect_path)
+    @mock.patch('time.sleep')
+    def test_device_config_created(self, mocked_sleep, mocked_connect):
+        """
+        The update_config task must not be initiated when
+        the device has just been created
+        """
+        test_org = self._get_org()
+        self._create_credentials(auto_add=True, organization=test_org)
+        self._create_template(default=True, organization=test_org)
+        self._prepare_conf_object(organization=test_org)
+        mocked_connect.assert_not_called()
 
     @capture_any_output()
     @mock.patch(_connect_path)
