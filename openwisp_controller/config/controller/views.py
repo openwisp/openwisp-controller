@@ -240,9 +240,9 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         # retrieve tags and add them to current config
         tags = tags.split()
         queryset = self.get_template_queryset(config)
-        templates = queryset.filter(tags__name__in=tags).only('id').distinct()
-        for template in templates:
-            config.templates.add(template)
+        tagged_templates = queryset.filter(tags__name__in=tags).only('id').distinct()
+        if tagged_templates:
+            config.templates.add(*tagged_templates)
 
     def invalid(self, request):
         """
