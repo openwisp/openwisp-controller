@@ -479,6 +479,17 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             urls[str(org.pk)] = reverse('admin:get_default_templates', args=[org.pk])
         return json.dumps(urls)
 
+    def _get_relevant_template_urls(self):
+        """
+        returns URLs to get relevant templates
+        used in change_form.html template
+        """
+        organizations = Organization.active.all()
+        urls = {}
+        for org in organizations:
+            urls[str(org.pk)] = reverse('admin:get_relevant_templates', args=[org.pk])
+        return json.dumps(urls)
+
     def get_urls(self):
         return [
             url(
@@ -501,6 +512,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def get_extra_context(self, pk=None):
         ctx = super().get_extra_context(pk)
         ctx.update({'default_template_urls': self._get_default_template_urls()})
+        ctx.update({'relevant_template_urls': self._get_relevant_template_urls()})
         return ctx
 
     def add_view(self, request, form_url='', extra_context=None):

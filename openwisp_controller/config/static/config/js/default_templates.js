@@ -1,14 +1,15 @@
 'use strict';
 django.jQuery(function ($) {
     var firstRun = true,
-        addChangeEventToBackend = function (urls) {
+        addChangeEventToBackend = function (default_urls, relevant_urls) {
+            console.log(default_urls,relevant_urls);
             $('#id_config-0-backend').change(function () {
                 setTimeout(function () {
                     // ensures getDefaultTemplates execute only after other
                     // onChange event handlers attached this field has been
                     // executed.
-                    getRelevantTemplates();
-                    getDefaultTemplates(urls);
+                    getRelevantTemplates(relevant_urls);
+                    getDefaultTemplates(default_urls);
                 });
             });
         },
@@ -20,6 +21,7 @@ django.jQuery(function ($) {
             }
         },
         getDefaultTemplates = function (urls) {
+            console.log("def");
             var orgID = $('#id_organization').val(),
                 backend = $('#id_config-0-backend').val();
             // proceed only if an organization and a backend have been selected
@@ -47,7 +49,7 @@ django.jQuery(function ($) {
                 });
             });
         },
-        getRelevantTemplates = function () {
+        getRelevantTemplates = function (urls) {
             var orgID = $('#id_organization').val(),
                 backend = $('#id_config-0-backend').val();
             if (!orgID || !backend) {
@@ -57,30 +59,44 @@ django.jQuery(function ($) {
             if (orgID.length === 0 || backend.length === 0) {
                 return;
             }
-            var url = '/admin/config/device/config/get-relevant-templates/';
+
+            var url = urls[orgID];
             // get relevant templates of selected org and backend
-            url = url + orgID + '/' + '?backend=' + backend;
+            url = url + '?backend=' + backend;
             $.get(url).done(function (data) {
                 var relevantTemplates = {};
                 $.each(data.templates, function (i, uuid) {
                     relevantTemplates[uuid] = uuid;
                 });
+                var disabledTemplates =
+                    localStorage.getItem('ow-disabled-templates', null);
+                disabledTemplates = JSON.parse(disabledTemplates) || {};
                 $('input.sortedm2m').each(function () {
                     if (($(this).val() in relevantTemplates) === false) {
                         // hide templates which are not relevant
                         // also removed disabled attribute and uncheck it
-                        $(this).prop("disabled", false);
-                        $(this).prop("checked", false);
+                        if ($(this).prop('disabled')){
+                            disabledTemplates[$(this).val()] = $(this).val();
+                            $(this).prop('disabled', false);
+                            $(this).prop('checked', false);
+                        }
                         $(this).parent().parent().hide();
                     } else {
                         // show templates which are relevant
+                        if ($(this).val() in disabledTemplates){
+                            $(this).prop('disabled', true);
+                            $(this).prop('checked', true);
+                            delete disabledTemplates[$(this).val()];
+                        }
                         $(this).parent().parent().show();
                     }
                 });
+                disabledTemplates = JSON.stringify(disabledTemplates)
+                localStorage.setItem('ow-disabled-templates', disabledTemplates);
                 // change help text if no relevant template
-                var msg = "Choose items and order by drag & drop.";
+                var msg = 'Choose items and order by drag & drop.';
                 if (Object.keys(relevantTemplates).length === 0) {
-                    msg = "No Template available";
+                    msg = 'No Template available';
                 }
                 if (gettext) {
                     msg = gettext(msg);
@@ -88,29 +104,27 @@ django.jQuery(function ($) {
                 $('.sortedm2m-container > .help').text(msg);
             });
         },
-        bindDefaultTemplateLoading = function (urls) {
+        bindDefaultTemplateLoading = function (default_urls, relevant_urls) {
             var backendField = $('#id_config-0-backend');
             $('#id_organization').change(function () {
                 if ($('#id_config-0-backend').length > 0) {
-                    getRelevantTemplates();
-                    getDefaultTemplates(urls);
+                    getRelevantTemplates(relevant_urls);
+                    getDefaultTemplates(default_urls);
                 }
             });
             if (backendField.length > 0) {
-                addChangeEventToBackend(urls);
+                addChangeEventToBackend(default_urls, relevant_urls);
             } else {
                 $('#config-group > fieldset.module').ready(function () {
                     $('div.add-row > a').click(function () {
-                        addChangeEventToBackend(urls);
-                        getRelevantTemplates();
-                        getDefaultTemplates(urls);
+                        addChangeEventToBackend(default_urls, relevant_urls);
+                        getRelevantTemplates(relevant_urls);
+                        getDefaultTemplates(default_urls);
                     });
                 });
             }
+            getRelevantTemplates(relevant_urls);
             firstRun = false;
         };
     window.bindDefaultTemplateLoading = bindDefaultTemplateLoading;
-    $(document).ready(function () {
-        getRelevantTemplates();
-    });
 });

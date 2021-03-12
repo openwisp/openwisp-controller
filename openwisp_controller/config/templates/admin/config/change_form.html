@@ -61,7 +61,10 @@
         // enable default templates - do not remove this comment
         (function ($) {
             $(document).ready( function () {
-                window.bindDefaultTemplateLoading({{ default_template_urls| safe }});
+                window.bindDefaultTemplateLoading(
+                    {{ default_template_urls| safe }},
+                    {{relevant_template_urls| safe}}
+                );
             })
         }) (django.jQuery);
     </script>
