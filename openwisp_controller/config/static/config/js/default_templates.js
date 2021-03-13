@@ -2,7 +2,6 @@
 django.jQuery(function ($) {
     var firstRun = true,
         addChangeEventToBackend = function (default_urls, relevant_urls) {
-            console.log(default_urls,relevant_urls);
             $('#id_config-0-backend').change(function () {
                 setTimeout(function () {
                     // ensures getDefaultTemplates execute only after other
@@ -21,7 +20,6 @@ django.jQuery(function ($) {
             }
         },
         getDefaultTemplates = function (urls) {
-            console.log("def");
             var orgID = $('#id_organization').val(),
                 backend = $('#id_config-0-backend').val();
             // proceed only if an organization and a backend have been selected
@@ -69,13 +67,13 @@ django.jQuery(function ($) {
                     relevantTemplates[uuid] = uuid;
                 });
                 var disabledTemplates =
-                    localStorage.getItem('ow-disabled-templates', null);
+                    localStorage.getItem('config-disabled-templates', null);
                 disabledTemplates = JSON.parse(disabledTemplates) || {};
                 $('input.sortedm2m').each(function () {
                     if (($(this).val() in relevantTemplates) === false) {
                         // hide templates which are not relevant
                         // also removed disabled attribute and uncheck it
-                        if ($(this).prop('disabled')){
+                        if ($(this).prop('disabled')) {
                             disabledTemplates[$(this).val()] = $(this).val();
                             $(this).prop('disabled', false);
                             $(this).prop('checked', false);
@@ -83,7 +81,7 @@ django.jQuery(function ($) {
                         $(this).parent().parent().hide();
                     } else {
                         // show templates which are relevant
-                        if ($(this).val() in disabledTemplates){
+                        if ($(this).val() in disabledTemplates) {
                             $(this).prop('disabled', true);
                             $(this).prop('checked', true);
                             delete disabledTemplates[$(this).val()];
@@ -91,8 +89,8 @@ django.jQuery(function ($) {
                         $(this).parent().parent().show();
                     }
                 });
-                disabledTemplates = JSON.stringify(disabledTemplates)
-                localStorage.setItem('ow-disabled-templates', disabledTemplates);
+                disabledTemplates = JSON.stringify(disabledTemplates);
+                localStorage.setItem('config-disabled-templates', disabledTemplates);
                 // change help text if no relevant template
                 var msg = 'Choose items and order by drag & drop.';
                 if (Object.keys(relevantTemplates).length === 0) {
