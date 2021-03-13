@@ -12,7 +12,9 @@
                     name == 'csrfmiddlewaretoken' ||
                     // ignore hidden inline helper fields
                     name.indexOf('__prefix__') >= 0 ||
-                    name.indexOf('root') === 0) {
+                    name.indexOf('root') === 0 ||
+                    // ignore device location field
+                    name.substr(0, 14) == 'devicelocation') {
                     return;
                 }
                 // fix checkbox values inconsistency
