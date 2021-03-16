@@ -657,11 +657,27 @@ class TestTemplateTransaction(
             conf.set_status_applied()
             mocked_task.assert_not_called()
 
-        with self.subTest('task is called when template is assigned to conf'):
+        with self.subTest('task is called when template conf is changed'):
             template.config['interfaces'][0]['name'] = 'eth1'
             template.full_clean()
             template.save()
             mocked_task.assert_called_with(template.pk)
+
+        mocked_task.reset_mock()
+
+        with self.subTest('task is called when template default_values are changed'):
+            template.refresh_from_db()
+            template.default_values = {'a': 'a'}
+            template.full_clean()
+            template.save()
+            mocked_task.assert_called_with(template.pk)
+
+        mocked_task.reset_mock()
+
+        with self.subTest('task is not called when there are no changes'):
+            template.full_clean()
+            template.save()
+            mocked_task.assert_not_called()
 
     @mock.patch.object(task_logger, 'warning')
     def test_task_failure(self, mocked_warning):
