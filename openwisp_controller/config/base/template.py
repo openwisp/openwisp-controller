@@ -1,3 +1,4 @@
+import json
 from collections import OrderedDict
 from copy import copy
 
@@ -112,8 +113,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         update_related_config_status = False
         if not self._state.adding:
             current = self.__class__.objects.get(pk=self.pk)
-            for attr in ['backend', 'config']:
-                if getattr(self, attr) != getattr(current, attr):
+            for attr in ['backend', 'config', 'default_values']:
+                new_value = _get_value_for_comparison(getattr(self, attr))
+                current_value = _get_value_for_comparison(getattr(current, attr))
+                if new_value != current_value:
                     update_related_config_status = True
                     break
         # save current changes
@@ -209,3 +212,13 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 # It's allowed to be blank because VPN client templates can be
 # automatically generated via the netjsonconfig library if left empty.
 AbstractTemplate._meta.get_field('config').blank = True
+
+
+def _get_value_for_comparison(value):
+    """
+    if value is a nested OrderedDict, convert it to dict
+    so two simple dicts can be compared
+    """
+    if not isinstance(value, OrderedDict):
+        return value
+    return json.loads(json.dumps(value))

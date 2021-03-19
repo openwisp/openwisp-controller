@@ -47,19 +47,20 @@ jobs:
         sudo apt update
         sudo apt-get -qq -y install sqlite3 gdal-bin libproj-dev libgeos-dev libspatialite-dev spatialite-bin libsqlite3-mod-spatialite
 
-    - name: Install python dependencies
-      run: |
-        pip install -U "pip==20.2.4" wheel setuptools
-        pip install -U -r requirements-test.txt
-
     - name: Install npm dependencies
       run: sudo npm install -g jshint stylelint
+
+    - name: Upgrade python system packages
+      run: pip install -U "pip==20.2.4" wheel setuptools
 
     - name: Install openwisp-controller
       run: |
         pip install -e .
+
+    - name: Install test dependencies
+      run: |
         pip install ${{ matrix.django-version }}
-        ./install-dev.sh
+        pip install -U -r requirements-test.txt
 
     - name: QA checks
       run: |

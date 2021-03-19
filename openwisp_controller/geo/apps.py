@@ -1,7 +1,10 @@
 import swapper
 from django.conf import settings
+from django.db.models import Case, Count, Sum, When
 from django.utils.translation import ugettext_lazy as _
 from django_loci.apps import LociConfig
+
+from openwisp_utils.admin_theme import register_dashboard_chart
 
 
 class GeoConfig(LociConfig):
@@ -14,6 +17,7 @@ class GeoConfig(LociConfig):
 
     def ready(self):
         super().ready()
+        self.register_dashboard_charts()
         if getattr(settings, 'TESTING', False):
             self._add_params_to_test_config()
 
@@ -40,3 +44,37 @@ class GeoConfig(LociConfig):
         for key in delete_keys:
             del params[key]
         TestConfigAdmin._additional_params.update(params)
+
+    def register_dashboard_charts(self):
+        register_dashboard_chart(
+            position=2,
+            config={
+                'name': _('Geographic positioning'),
+                'query_params': {
+                    'app_label': 'config',
+                    'model': 'device',
+                    'annotate': {
+                        'with_geo': Count(
+                            Case(When(devicelocation__isnull=False, then=1,))
+                        ),
+                        'without_geo': Count(
+                            Case(When(devicelocation__isnull=True, then=1,))
+                        ),
+                    },
+                    'aggregate': {
+                        'with_geo__sum': Sum('with_geo'),
+                        'without_geo__sum': Sum('without_geo'),
+                    },
+                },
+                'colors': {'with_geo__sum': '#267126', 'without_geo__sum': '#353c44'},
+                'labels': {
+                    'with_geo__sum': _('With geographic position'),
+                    'without_geo__sum': _('Without geographic position'),
+                },
+                'filters': {
+                    'key': 'with_geo',
+                    'with_geo__sum': 'true',
+                    'without_geo__sum': 'false',
+                },
+            },
+        )

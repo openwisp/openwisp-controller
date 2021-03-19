@@ -81,5 +81,22 @@ admin.site.register(FloorPlan, FloorPlanAdmin)
 admin.site.register(Location, LocationAdmin)
 
 
+class DeviceLocationFilter(admin.SimpleListFilter):
+    title = _('has geographic position set?')
+    parameter_name = 'with_geo'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('true', _('Yes')),
+            ('false', _('No')),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(devicelocation__isnull=self.value() == 'false')
+        return queryset
+
+
 # Prepend DeviceLocationInline to config.DeviceAdmin
 DeviceAdmin.inlines.insert(1, DeviceLocationInline)
+DeviceAdmin.list_filter.append(DeviceLocationFilter)

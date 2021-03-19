@@ -1,3 +1,4 @@
+from openwisp_controller.config.tests.test_apps import TestApps as BaseTestApps
 from openwisp_controller.geo.tests.test_admin import TestAdmin as BaseTestAdmin
 from openwisp_controller.geo.tests.test_admin_inline import (
     TestAdminInline as BaseTestAdminInline,
@@ -18,6 +19,10 @@ class TestApi(BaseTestApi):
     pass
 
 
+class TestApps(BaseTestApps):
+    pass
+
+
 class TestModels(BaseTestModels):
     pass
 
@@ -25,4 +30,5 @@ class TestModels(BaseTestModels):
 del BaseTestAdmin
 del BaseTestAdminInline
 del BaseTestApi
+del BaseTestApps
 del BaseTestModels
