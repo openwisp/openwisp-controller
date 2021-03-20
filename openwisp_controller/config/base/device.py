@@ -167,6 +167,17 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         self.check_management_ip_changed()
 
+    def _check_management_ip_changed(self):
+        if self.management_ip != self._initial_management_ip:
+            management_ip_changed.send(
+                sender=self.__class__,
+                management_ip=self.management_ip,
+                old_management_ip=self._initial_management_ip,
+                instance=self,
+            )
+
+        self._initial_management_ip = self.management_ip
+
     @property
     def backend(self):
         """
@@ -209,14 +220,3 @@ class AbstractDevice(OrgMixin, BaseModel):
         can be overridden with custom logic if needed
         """
         return self.config.status != 'applied'
-
-    def check_management_ip_changed(self):
-        if self.management_ip != self._initial_management_ip:
-            management_ip_changed.send(
-                sender=self.__class__,
-                management_ip=self.management_ip,
-                old_management_ip=self._initial_management_ip,
-                instance=self,
-            )
-
-        self._initial_management_ip = self.management_ip
