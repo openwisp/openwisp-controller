@@ -336,27 +336,20 @@ class AbstractConfig(BaseConfig):
             raise ValidationError(
                 {'context': _('the supplied value is not a JSON object')}
             )
-        if self._state.adding:
-            return
-        current = self.__class__.objects.get(pk=self.pk)
-        for attr in ['backend', 'config', 'context']:
-            if getattr(self, attr) != getattr(current, attr):
-                if self.status != 'modified':
-                    self.set_status_modified(save=False)
-                else:
-                    # config modified signal is always sent
-                    # regardless of the current status
-                    self._send_config_modified_after_save = True
-                break
 
     def save(self, *args, **kwargs):
         created = self._state.adding
+        # check if config has been modified (so we can emit signals)
+        if not created:
+            self._check_changes()
         self._just_created = created
         result = super().save(*args, **kwargs)
+        # add default templates if config has just been created
         if created:
             default_templates = self.get_default_templates()
             if default_templates:
                 self.templates.add(*default_templates)
+        # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
             self._send_config_modified_signal(action='config_changed')
             self._send_config_modified_after_save = False
@@ -365,6 +358,21 @@ class AbstractConfig(BaseConfig):
             self._send_config_status_changed = False
         self._initial_status = self.status
         return result
+
+    def _check_changes(self):
+        current = self._meta.model.objects.only(
+            'backend', 'config', 'context', 'status'
+        ).get(pk=self.pk)
+        for attr in ['backend', 'config', 'context']:
+            if getattr(self, attr) == getattr(current, attr):
+                continue
+            if self.status != 'modified':
+                self.set_status_modified(save=False)
+            else:
+                # config modified signal is always sent
+                # regardless of the current status
+                self._send_config_modified_after_save = True
+            break
 
     def _send_config_modified_signal(self, action):
         """

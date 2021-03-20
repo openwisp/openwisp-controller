@@ -584,10 +584,6 @@ class TestConfig(
         with catch_signal(config_status_changed) as handler:
             c.config = {'general': {'description': 'test'}}
             c.full_clean()
-            self.assertEqual(c.status, 'modified')
-            handler.assert_not_called()
-
-        with catch_signal(config_status_changed) as handler:
             c.save()
             handler.assert_called_once_with(
                 sender=Config, signal=config_status_changed, instance=c
@@ -611,15 +607,6 @@ class TestConfig(
         with catch_signal(config_modified) as handler:
             c.config = {'general': {'description': 'test'}}
             c.full_clean()
-            handler.assert_not_called()
-            self.assertEqual(c.status, 'modified')
-
-        with catch_signal(config_modified) as handler:
-            c.config = {'general': {'description': 'hey'}}
-            c.full_clean()
-            handler.assert_not_called()
-
-        with catch_signal(config_modified) as handler:
             c.save()
             handler.assert_called_once_with(
                 sender=Config,
@@ -648,6 +635,11 @@ class TestConfig(
                 action='config_changed',
             )
             self.assertEqual(c.status, 'modified')
+
+    def test_check_changes_query(self):
+        config = self._create_config(organization=self._get_org())
+        with self.assertNumQueries(1):
+            config._check_changes()
 
     def test_config_get_system_context(self):
         config = self._create_config(

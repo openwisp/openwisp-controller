@@ -102,18 +102,6 @@ class AbstractDevice(OrgMixin, BaseModel):
             else self.name
         )
 
-    def clean(self):
-        """
-        modifies related config status if name
-        attribute is changed (queries the database)
-        """
-        super().clean()
-        if self._state.adding:
-            return
-        current = self.__class__.objects.get(pk=self.pk)
-        if self.name != current.name and self._has_config():
-            self.config.set_status_modified()
-
     def _has_config(self):
         return hasattr(self, 'config')
 
@@ -163,9 +151,26 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = KeyField.default_callable()
             else:
                 self.key = self.generate_key(shared_secret)
+        # update the status of the config object if the device name
+        # changed, but skip if the save operation is not touching the name
+        update_fields = kwargs.get('update_fields')
+        if not update_fields or 'name' in update_fields:
+            self._check_name_changed()
         super().save(*args, **kwargs)
+        self._check_management_ip_changed()
 
-        self.check_management_ip_changed()
+    def _check_name_changed(self):
+        if self._state.adding:
+            return
+        current = (
+            self._meta.model.objects.only(
+                'id', 'name', 'management_ip', 'config__id', 'config__status'
+            )
+            .select_related('config')
+            .get(pk=self.pk)
+        )
+        if self.name != current.name and self._has_config():
+            self.config.set_status_modified()
 
     def _check_management_ip_changed(self):
         if self.management_ip != self._initial_management_ip:

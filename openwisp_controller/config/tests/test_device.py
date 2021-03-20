@@ -65,7 +65,6 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         self.assertEqual(c.status, 'modified')
 
     def test_key_validator(self):
-
         d = Device(
             organization=self._get_org(),
             name='test',
@@ -313,3 +312,13 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             'Device with this Name and Organization already exists.',
             message_dict['__all__'],
         )
+
+    def test_check_name_changed_query(self):
+        org = self._get_org()
+        device = self._create_device(name='test', organization=org)
+        device.refresh_from_db()
+        with self.assertNumQueries(1):
+            device._check_name_changed()
+        with self.assertNumQueries(2):
+            device.name = 'changed'
+            device._check_name_changed()
