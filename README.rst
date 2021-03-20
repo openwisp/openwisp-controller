@@ -614,26 +614,45 @@ Install the system dependencies:
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
 
+Fork and clone the forked repository:
+
+.. code-block:: shell
+
+    git clone git://github.com/<your_fork>/openwisp-controller
+
+Navigate into the cloned repository:
+
+.. code-block:: shell
+
+    cd openwisp-controller/
+
 Launch Redis:
 
 .. code-block:: shell
 
     docker-compose up -d redis
 
-Install your forked repo:
+Setup and activate a virtual-environment. (we'll be using  `virtualenv <https://pypi.org/project/virtualenv/>`_)
 
 .. code-block:: shell
 
-    git clone git://github.com/<your_fork>/openwisp-controller
-    cd openwisp-controller/
-    pip install -e .
+    python -m virtualenv env
+    source env/bin/activate
+
+Make sure that you are using pip version 20.2.4 before moving to the next step:
+
+.. code-block:: shell
+
+    pip install -U "pip==20.2.4" wheel setuptools
+
 
 Install development dependencies:
 
 .. code-block:: shell
 
+    pip install -e .
     pip install -r requirements-test.txt
-    npm install -g jslint
+    npm install -g jslint stylelint
 
 Create database:
 
