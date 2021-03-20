@@ -650,9 +650,8 @@ Install development dependencies:
 
 .. code-block:: shell
 
-    pip install -U -e .
-    pip install -U -r requirements.txt
-    pip install -U -r requirements-test.txt
+    pip install -e .
+    pip install -r requirements-test.txt
     npm install -g jslint stylelint
 
 Create database:
