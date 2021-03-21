@@ -1,15 +1,8 @@
 import subprocess
 
-import swapper
 from django.contrib.auth.models import Permission
 
-from ...migrations import create_default_permissions
-
-
-def get_swapped_model(apps, app_name, model_name):
-    model_path = swapper.get_model_name(app_name, model_name)
-    app, model = swapper.split(model_path)
-    return apps.get_model(app, model)
+from ...migrations import create_default_permissions, get_swapped_model
 
 
 def update_vpn_dhparam_length(apps, schema_editor):

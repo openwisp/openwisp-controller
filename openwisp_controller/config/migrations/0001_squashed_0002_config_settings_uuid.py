@@ -11,6 +11,7 @@ import jsonfield.fields
 import model_utils.fields
 import sortedm2m.fields
 from django.db import migrations, models
+from swapper import get_model_name
 
 import openwisp_controller.config.base.template
 import openwisp_utils.base
@@ -152,7 +153,7 @@ class Migration(migrations.Migration):
                     'organization',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -212,7 +213,7 @@ class Migration(migrations.Migration):
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name='config_settings',
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -323,7 +324,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -417,7 +418,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
