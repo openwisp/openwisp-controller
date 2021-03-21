@@ -12,7 +12,7 @@ from swapper import get_model_name, load_model
 from openwisp_utils.admin_theme import register_dashboard_chart
 
 from . import settings as app_settings
-from .signals import config_modified
+from .signals import config_modified, device_name_changed
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -32,6 +32,7 @@ class ConfigConfig(AppConfig):
         self.add_ignore_notification_widget()
         self.enable_cache_invalidation()
         self.register_dashboard_charts()
+        self.notification_cache_update()
 
     def __setmodels__(self):
         self.device_model = load_model('config', 'Device')
@@ -231,4 +232,13 @@ class ConfigConfig(AppConfig):
                 'colors': {'': '#353c44'},
                 'labels': {'': _('undefined')},
             },
+        )
+
+    def notification_cache_update(self):
+        from openwisp_notifications.handlers import register_notification_cache_update
+
+        register_notification_cache_update(
+            self.device_model,
+            device_name_changed,
+            dispatch_uid='notification_device_cache_invalidation',
         )

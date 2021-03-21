@@ -1117,6 +1117,19 @@ It is not triggered when the device is created for the first time.
 This signal is emitted when a device registers automatically through the controller
 HTTP API.
 
+``device_name_changed``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_name_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``.
+
+The signal is emitted when the device name changes.
+
+It is not emitted when the device is created.
+
 Setup (integrate in an existing django project)
 -----------------------------------------------
 

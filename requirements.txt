@@ -9,7 +9,8 @@ django-flat-json-widget~=0.1.2
 openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
 # TODO: change this when next point version of openwisp-users is released
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
-openwisp-notifications~=0.3
+# TODO: change this when next point version of openwisp-notifications is released
+openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 djangorestframework-gis>=0.12.0,<0.17.0
 netjsonconfig~=0.9.0
 paramiko~=2.7.2

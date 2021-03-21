@@ -8,7 +8,7 @@ from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
-from ..signals import management_ip_changed
+from ..signals import device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -169,6 +169,12 @@ class AbstractDevice(OrgMixin, BaseModel):
             .select_related('config')
             .get(pk=self.pk)
         )
+
+        if self.name != current.name:
+            device_name_changed.send(
+                sender=self.__class__, instance=self,
+            )
+
         if self.name != current.name and self._has_config():
             self.config.set_status_modified()
 
