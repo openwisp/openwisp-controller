@@ -153,6 +153,13 @@
         return error;
     };
 
+    var handleMaxLengthAttr = function() {
+        $('.jsoneditor input[maxlength]:not(.has-max-length)').map((i, field) => {
+            $(field).attr('data-maxlength', $(field).attr('maxLength'));
+        });
+        $('.jsoneditor input[maxlength]:not(.has-max-length)').addClass('has-max-length');   
+    };
+
     var validateOnDefaultValuesChange = function (editor, advancedEditor) {
         window.isContextValid();
         if (inFullScreenMode) {
@@ -240,7 +247,7 @@
         }
         // update raw value on change event
         editor.on('change', updateRaw);
-
+        editor.on('change', handleMaxLengthAttr);
         // update raw value before form submit
         form.submit(function (e) {
             // only submit form if the editor is clear of all validation errors
@@ -335,6 +342,26 @@
 
         // so that other files can use updateContext
         window.updateContext = updateContext;
+
+        $('.jsoneditor').on('input paste', '.has-max-length:visible', function(e){
+            var field = $(e.target),
+            value;
+
+            if (e.originalEvent.type === 'paste') {
+                value = e.originalEvent.clipboardData.getData('text');
+                if (field.val().indexOf('{{') > -1){
+                    value += '{{';
+                }
+            } else {
+                value = field.val();
+            }
+
+            if (value.indexOf('{{') > -1) {
+                field.removeAttr('maxlength');
+            } else {
+                field.attr('maxlength', field.data('maxlength'));
+            }
+        });
     };
 
     var bindLoadUi = function () {
