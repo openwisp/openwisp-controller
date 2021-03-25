@@ -136,7 +136,7 @@ class AbstractConfig(BaseConfig):
         raises a ValidationError if invalid
         must be called from forms or APIs
         this method is called from a django signal (m2m_changed)
-        see config.apps.DjangoNetjsonconfigApp.connect_signals
+        see config.apps.ConfigConfig.connect_signals
         """
         templates = cls.clean_templates_org(action, instance, pk_set, **kwargs)
         if not templates:
@@ -167,7 +167,7 @@ class AbstractConfig(BaseConfig):
         instance is using templates which have type set to "VPN"
         and "auto_cert" set to True.
         This method is called from a django signal (m2m_changed)
-        see config.apps.DjangoNetjsonconfigApp.connect_signals
+        see config.apps.ConfigConfig.connect_signals
         """
         if action not in ['post_add', 'post_remove', 'post_clear']:
             return
