@@ -593,6 +593,227 @@ For example, if we want to change the verbose name to "Hotspot", we could write:
 
     OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Hotspot', 'Hotspots')
 
+``OPENWISP_CONTROLLER_API``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    | ``bool``  |
++--------------+-----------+
+| **default**: | ``True``  |
++--------------+-----------+
+
+Indicates whether the API for Openwisp Controller is enabled or not.
+
+REST API
+--------
+
+To enable the API the setting `OPENWISP_CONTROLLER_API <#openwisp-controller-api>`_
+must be set to ``True``.
+
+Live documentation
+~~~~~~~~~~~~~~~~~~
+
+.. image:: https://raw.githubusercontent.com/ManishShah120/openwisp-controller/issues/379-REST_API-for-main-controller/docs/live-docu-api.png
+
+A general live API documentation (following the OpenAPI specification) at ``/api/v1/docs/``.
+
+Browsable web interface
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: https://raw.githubusercontent.com/ManishShah120/openwisp-controller/issues/379-REST_API-for-main-controller/docs/browsable-api-ui.png
+
+Additionally, opening any of the endpoints `listed below <#list-of-endpoints>`_
+directly in the browser will show the `browsable API interface of Django-REST-Framework
+<https://www.django-rest-framework.org/topics/browsable-api/>`_,
+which makes it even easier to find out the details of each endpoint.
+
+Authentication
+~~~~~~~~~~~~~~
+
+See openwisp-users: `authenticating with the user token
+<https://github.com/openwisp/openwisp-users#authenticating-with-the-user-token>`_.
+
+When browsing the API via the `Live documentation <#live-documentation>`_
+or the `Browsable web page <#browsable-web-interface>`_, you can also use
+the session authentication by logging in the django admin.
+
+Pagination
+~~~~~~~~~~
+
+All *list* endpoints support the ``page_size`` parameter that allows paginating
+the results in conjunction with the ``page`` parameter.
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/?page_size=10
+    GET /api/v1/controller/template/?page_size=10&page=2
+
+List of endpoints
+~~~~~~~~~~~~~~~~~
+
+Since the detailed explanation is contained in the `Live documentation <#live-documentation>`_
+and in the `Browsable web page <#browsable-web-interface>`_ of each point,
+here we'll provide just a list of the available endpoints,
+for further information please open the URL of the endpoint in your browser.
+
+List devices
+^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/
+
+Create device
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/device/
+
+Get device detail
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{pk}/
+
+Download device configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{pk}/configuration/
+
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific device.
+
+Change details of device
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{pk}/
+
+Patch details of device
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/device/{pk}/
+
+**Note**: To assign, unassign, and change the order of the assigned templates add, 
+remove, and change the order of the ``{pk}`` of the templates under the ``config`` field in the JSON response respectively.
+Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
+*Trying to remove the assigned required templates will raise an exception.*
+
+Delete device
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/device/{pk}/
+
+List templates
+^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/
+
+Create template
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/template/
+
+Get template detail
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/{pk}/
+
+Download template configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/{pk}/configuration/
+
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific template.
+
+Change details of template
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/template/{pk}/
+
+Patch details of template
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/template/{pk}/
+
+Delete template
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/template/{pk}/
+
+List VPNs
+^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/
+
+Create VPN
+^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/vpn/
+
+Get VPN detail
+^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/{pk}/
+
+Download VPN configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/{pk}/configuration/
+
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific VPN.
+
+Change details of VPN
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/vpn/{pk}/
+
+Patch details of VPN
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/vpn/{pk}/
+
+Delete VPN
+^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/vpn/{pk}/
+
 Default Alerts / Notifications
 ------------------------------
 
