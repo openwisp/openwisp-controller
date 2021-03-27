@@ -1,3 +1,4 @@
+# Used in migrations of apps
 import swapper
 from django.contrib.auth.management import create_permissions
 
