@@ -11,3 +11,4 @@ device_registered = Signal(providing_args=['instance', 'is_new'])
 management_ip_changed = Signal(
     providing_args=['instance', 'management_ip', 'old_management_ip']
 )
+device_name_changed = Signal(providing_args=['instance'])

@@ -9,7 +9,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
-from ..signals import management_ip_changed
+from ..signals import device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .utils import CreateConfigTemplateMixin
 
@@ -283,10 +283,10 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         device = self._create_device(organization=self._get_org())
 
         with catch_signal(management_ip_changed) as handler:
-            device.management_ip = "0.0.0.0"
+            device.management_ip = '0.0.0.0'
             device.save()
         handler.assert_called_once_with(
-            management_ip="0.0.0.0",
+            management_ip='0.0.0.0',
             old_management_ip=None,
             sender=Device,
             signal=management_ip_changed,
@@ -322,3 +322,20 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         with self.assertNumQueries(2):
             device.name = 'changed'
             device._check_name_changed()
+
+    def test_device_name_changed_emitted(self):
+        org = self._get_org()
+        device = self._create_device(name='test', organization=org)
+
+        with catch_signal(device_name_changed) as handler:
+            device.name = 'newtestdevice'
+            device.save()
+            self.assertEqual(device.name, 'newtestdevice')
+            handler.assert_called_once_with(
+                sender=Device, instance=device, signal=device_name_changed
+            )
+
+    def test_device_name_changed_not_emitted_on_creation(self):
+        with catch_signal(device_name_changed) as handler:
+            self._create_device(organization=self._get_org())
+        handler.assert_not_called()
