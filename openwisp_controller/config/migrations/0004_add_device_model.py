@@ -8,6 +8,7 @@ import django.db.models.deletion
 import django.utils.timezone
 import model_utils.fields
 from django.db import migrations, models
+from swapper import get_model_name
 
 import openwisp_utils.base
 import openwisp_utils.utils
@@ -111,7 +112,7 @@ class Migration(migrations.Migration):
                     'organization',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),

@@ -110,8 +110,8 @@ TEMPLATES = [
         'OPTIONS': {
             'loaders': [
                 'django.template.loaders.filesystem.Loader',
-                'django.template.loaders.app_directories.Loader',
                 'openwisp_utils.loaders.DependencyLoader',
+                'django.template.loaders.app_directories.Loader',
             ],
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -190,6 +190,10 @@ if os.environ.get('SAMPLE_APP', False):
     connection_index = INSTALLED_APPS.index('openwisp_controller.connection')
     INSTALLED_APPS.remove('openwisp_controller.connection')
     INSTALLED_APPS.insert(connection_index, 'openwisp2.sample_connection')
+    # Replace Openwisp_Users
+    users_index = INSTALLED_APPS.index('openwisp_users')
+    INSTALLED_APPS.remove('openwisp_users')
+    INSTALLED_APPS.insert(users_index, 'openwisp2.sample_users')
     # Extended apps
     EXTENDED_APPS = (
         'django_x509',
@@ -198,8 +202,14 @@ if os.environ.get('SAMPLE_APP', False):
         'openwisp_controller.pki',
         'openwisp_controller.geo',
         'openwisp_controller.connection',
+        'openwisp_users',
     )
     # Swapper
+    AUTH_USER_MODEL = 'sample_users.User'
+    OPENWISP_USERS_GROUP_MODEL = 'sample_users.Group'
+    OPENWISP_USERS_ORGANIZATION_MODEL = 'sample_users.Organization'
+    OPENWISP_USERS_ORGANIZATIONUSER_MODEL = 'sample_users.OrganizationUser'
+    OPENWISP_USERS_ORGANIZATIONOWNER_MODEL = 'sample_users.OrganizationOwner'
     CONFIG_DEVICE_MODEL = 'sample_config.Device'
     CONFIG_CONFIG_MODEL = 'sample_config.Config'
     CONFIG_TEMPLATETAG_MODEL = 'sample_config.TemplateTag'
@@ -220,6 +230,12 @@ else:
     # DJANGO_X509_CA_MODEL = 'pki.Ca'
     # DJANGO_X509_CERT_MODEL = 'pki.Cert'
     pass
+
+if os.environ.get('SAMPLE_APP', False) and TESTING:
+    # Required for openwisp-users tests
+    OPENWISP_ORGANIZATION_USER_ADMIN = True
+    OPENWISP_ORGANIZATION_OWNER_ADMIN = True
+    OPENWISP_USERS_AUTH_API = True
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:

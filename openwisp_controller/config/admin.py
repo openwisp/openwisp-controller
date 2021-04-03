@@ -26,7 +26,6 @@ from openwisp_controller.config.views import (
     get_default_templates,
     get_template_default_values,
 )
-from openwisp_users.models import Organization
 from openwisp_users.multitenancy import (
     MultitenantOrgFilter,
     MultitenantRelatedOrgFilter,
@@ -50,6 +49,7 @@ Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
+Organization = load_model('openwisp_users', 'Organization')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
 if 'reversion' in settings.INSTALLED_APPS:
@@ -100,7 +100,7 @@ class BaseConfigAdmin(BaseAdmin):
                     'value': text,
                     'title': '{0} (ALT+P)'.format(text),
                 }
-            ],
+            ]
         }
         # do not pass CONFIG_BACKEND_FIELD_SHOWN in VpnAdmin
         # since we don't need to hide the VPN backend there

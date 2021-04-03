@@ -8,9 +8,7 @@ import openwisp_controller.config.sortedm2m.fields
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('config', '0033_name_unique_per_organization'),
-    ]
+    dependencies = [('config', '0033_name_unique_per_organization')]
 
     operations = [
         migrations.AddField(

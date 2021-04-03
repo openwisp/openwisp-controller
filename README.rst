@@ -1253,6 +1253,12 @@ When in doubt, the code in the
 will serve you as source of truth: just replicate and adapt that code
 to get a basic derivative of *openwisp-controller* working.
 
+If you want to add new users fields, please follow the `tutorial to extend the
+openwisp-users <https://github.com/openwisp/openwisp-users/#extend-openwisp-users>`_.
+As an example, we have extended *openwisp-users* to *sample_users* app and
+added a field ``social_security_number`` in the `sample_users/models.py
+<https://github.com/openwisp/openwisp-controller/blob/master/tests/openwisp2/sample_users/models.py>`_.
+
 **Premise**: if you plan on using a customized version of this module,
 we suggest to start with it since the beginning, because migrating your data
 from the default module to your extended version may be time consuming.
@@ -1375,7 +1381,9 @@ Add ``openwisp_utils.staticfiles.DependencyFinder`` to
 6. Add ``openwisp_utils.loaders.DependencyLoader``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``settings.py``:
+Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES``
+in your ``settings.py``, but ensure it comes before
+``django.template.loaders.app_directories.Loader``:
 
 .. code-block:: python
 
@@ -1385,8 +1393,8 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your ``setti
             'OPTIONS': {
                 'loaders': [
                     'django.template.loaders.filesystem.Loader',
-                    'django.template.loaders.app_directories.Loader',
                     'openwisp_utils.loaders.DependencyLoader',
+                    'django.template.loaders.app_directories.Loader',
                 ],
                 'context_processors': [
                     'django.template.context_processors.debug',
