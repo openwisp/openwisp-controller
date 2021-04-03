@@ -41,7 +41,7 @@ class ProtectedAPIMixin(FilterByOrganizationManaged):
 
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = TemplateSerializer
-    queryset = Template.objects.all()
+    queryset = Template.objects.order_by('-created')
     pagination_class = ListViewPagination
 
 
@@ -61,7 +61,7 @@ class DownloadTemplateconfiguration(ProtectedAPIMixin, RetrieveAPIView):
 
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
-    queryset = Vpn.objects.all()
+    queryset = Vpn.objects.order_by('-created')
     pagination_class = ListViewPagination
 
 
@@ -81,7 +81,7 @@ class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
 
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = DeviceListSerializer
-    queryset = Device.objects.all()
+    queryset = Device.objects.order_by('-created')
     pagination_class = ListViewPagination
 
 

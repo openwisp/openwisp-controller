@@ -2,10 +2,12 @@ import ast
 import collections
 import json
 
+from django.db import transaction
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterSerializerByOrgOwned
+from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 Template = load_model('config', 'Template')
@@ -20,10 +22,14 @@ class BaseMeta:
     read_only_fields = ['created', 'modified']
 
 
-class TemplateSerializer(FilterSerializerByOrgOwned, ValidatedModelSerializer):
-    config = serializers.JSONField()
+class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
+    pass
+
+
+class TemplateSerializer(BaseSerializer):
+    config = serializers.JSONField(initial={})
     tags = serializers.StringRelatedField(many=True, read_only=True)
-    default_values = serializers.JSONField(required=False, default={})
+    default_values = serializers.JSONField(required=False, initial={})
 
     class Meta(BaseMeta):
         model = Template
@@ -43,8 +49,8 @@ class TemplateSerializer(FilterSerializerByOrgOwned, ValidatedModelSerializer):
         ]
 
 
-class VpnSerializer(FilterSerializerByOrgOwned, ValidatedModelSerializer):
-    config = serializers.JSONField()
+class VpnSerializer(BaseSerializer):
+    config = serializers.JSONField(initial={})
 
     class Meta(BaseMeta):
         model = Vpn
@@ -63,36 +69,34 @@ class VpnSerializer(FilterSerializerByOrgOwned, ValidatedModelSerializer):
         ]
 
 
-class JsonConfigField(serializers.Field):
+class BaseJsonField(serializers.Field):
+    def to_internal_value(self, data):
+        if type(data) is str:
+            if len(data) < 2:
+                data = '{}'
+            return ast.literal_eval(data)
+        else:
+            return data
+
+
+class JsonConfigField(BaseJsonField):
     def to_representation(self, value):
         return json.loads(json.dumps(value))
 
-    def to_internal_value(self, data):
-        if type(data) is str:
-            return ast.literal_eval(data)
-        else:
-            return data
 
-
-class JsonContextField(serializers.Field):
+class JsonContextField(BaseJsonField):
     def to_representation(self, value):
         return dict(value)
-
-    def to_internal_value(self, data):
-        if type(data) is str:
-            return ast.literal_eval(data)
-        else:
-            return data
 
 
 class DeviceConfigSerializer(serializers.ModelSerializer):
     config = JsonConfigField(
-        help_text='''<i>config</i> field in HTML form
-        accepts values in dictionary format'''
+        help_text='Configuration in NetJSON format',
+        style={'base_template': 'textarea.html', 'placeholder': '{}'},
     )
     context = JsonContextField(
-        help_text='''<i>context</i> field in HTML form
-        accepts values in dictionary format'''
+        help_text='Configuration in NetJSON format',
+        style={'base_template': 'textarea.html', 'placeholder': '{}'},
     )
 
     class Meta:
@@ -101,8 +105,8 @@ class DeviceConfigSerializer(serializers.ModelSerializer):
         extra_kwargs = {'status': {'read_only': True}}
 
 
-class DeviceListSerializer(serializers.ModelSerializer):
-    config = DeviceConfigSerializer(write_only=True)
+class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
+    config = DeviceConfigSerializer(write_only=True, required=False)
 
     class Meta(BaseMeta):
         model = Device
@@ -122,16 +126,24 @@ class DeviceListSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        config_data = validated_data.pop('config')
-        device = Device.objects.create(**validated_data)
-        config_templates = [template.pk for template in config_data.pop('templates')]
-        config = Config.objects.create(device=device, **config_data)
-        config.templates.add(*config_templates)
+        if validated_data.get('config'):
+            config_data = validated_data.pop('config')
+            with transaction.atomic():
+                new_device = Device.objects.create(**validated_data)
+                config_templates = [
+                    template.pk for template in config_data.pop('templates')
+                ]
+                config = Config.objects.create(device=new_device, **config_data)
+                config.templates.add(*config_templates)
+            device = new_device
+        else:
+            with transaction.atomic():
+                device = Device.objects.create(**validated_data)
         return device
 
 
-class DeviceDetailSerializer(FilterSerializerByOrgOwned, ValidatedModelSerializer):
-    config = DeviceConfigSerializer()
+class DeviceDetailSerializer(BaseSerializer):
+    config = DeviceConfigSerializer(allow_null=True)
 
     class Meta(BaseMeta):
         model = Device
@@ -140,13 +152,14 @@ class DeviceDetailSerializer(FilterSerializerByOrgOwned, ValidatedModelSerialize
     def update(self, instance, validated_data):
         config_data = None
 
-        if self.initial_data.get('config.backend') and instance.backend is None:
+        if self.initial_data.get('config.backend') and instance._has_config() is False:
             new_config_data = dict(validated_data.pop('config'))
             config_templates = [
                 template.pk for template in new_config_data.pop('templates')
             ]
-            config = Config.objects.create(device=instance, **new_config_data)
-            config.templates.add(*config_templates)
+            with transaction.atomic():
+                config = Config.objects.create(device=instance, **new_config_data)
+                config.templates.add(*config_templates)
             return super().update(instance, validated_data)
 
         if validated_data.get('config'):
@@ -165,8 +178,9 @@ class DeviceDetailSerializer(FilterSerializerByOrgOwned, ValidatedModelSerialize
                 for template in instance.config.templates.values_list('pk', flat=True)
             ]
             if new_config_templates != old_config_templates:
-                instance.config.templates.clear()
-                instance.config.templates.add(*new_config_templates)
+                with transaction.atomic():
+                    instance.config.templates.clear()
+                    instance.config.templates.add(*new_config_templates)
 
             instance.config.context = json.loads(
                 json.dumps(config_data.get('context')),
@@ -183,7 +197,7 @@ class DeviceDetailSerializer(FilterSerializerByOrgOwned, ValidatedModelSerialize
     # Raise Exception when removing templates flagged as required
     def validate_config(self, value):
         instance = self.instance
-        if instance.backend:
+        if instance._has_config():
             prev_req_templates = [
                 required_status
                 for required_status in instance.config.templates.values_list(
@@ -198,8 +212,6 @@ class DeviceDetailSerializer(FilterSerializerByOrgOwned, ValidatedModelSerialize
             ]
             if prev_req_templates != incoming_req_templates:
                 raise serializers.ValidationError(
-                    {'templates': 'Required templates cannot be Unassigned.'}
+                    {'templates': _('Required templates cannot be Unassigned.')}
                 )
-            return value
-        else:
-            return value
+        return value

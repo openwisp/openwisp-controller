@@ -593,17 +593,6 @@ For example, if we want to change the verbose name to "Hotspot", we could write:
 
     OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Hotspot', 'Hotspots')
 
-``OPENWISP_CONTROLLER_API``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-+--------------+-----------+
-| **type**:    | ``bool``  |
-+--------------+-----------+
-| **default**: | ``True``  |
-+--------------+-----------+
-
-Indicates whether the API for Openwisp Controller is enabled or not.
-
 REST API
 --------
 
@@ -704,6 +693,125 @@ Patch details of device
 remove, and change the order of the ``{pk}`` of the templates under the ``config`` field in the JSON response respectively.
 Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
 *Trying to remove the assigned required templates will raise an exception.*
+
+**Example usage**: For assigning template(s) add the/their {pk} to the config of a device,
+
+.. code-block:: shell
+
+    echo '{"config":{"backend":"netjsonconfig.OpenWrt","config":{},"context":{},"status":"modified","templates": ["4791fa4c-2cef-4f42-8bb4-c86018d71bd3"]}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/device/9051e08c-5819-4aec-8b8b-20787cae6304/ \
+    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+
+    HTTP/1.1 200 OK
+    Allow: GET, PUT, PATCH, DELETE, HEAD, OPTIONS
+    Content-Length: 423
+    Content-Type: application/json
+    Referrer-Policy: same-origin
+    Vary: Accept
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+
+    {
+        "config": {
+            "backend": "netjsonconfig.OpenWrt",
+            "config": {},
+            "context": {},
+            "status": "modified",
+            "templates": [
+                "4791fa4c-2cef-4f42-8bb4-c86018d71bd3"
+            ]
+        },
+        "id": "9051e08c-5819-4aec-8b8b-20787cae6304",
+        "key": "911c02ab5784a835e021a6ecdca3d540",
+        "last_ip": null,
+        "mac_address": "7b:01:b4:52:97:74",
+        "management_ip": null,
+        "model": "",
+        "name": "test-device",
+        "notes": "",
+        "organization": "d4163a1c-22cb-498e-991a-33c99a3b023b",
+        "os": "",
+        "system": ""
+    }
+
+**Example usage**: For removing assigned templates, simply remove the/their {pk} from the config of a device,
+
+.. code-block:: shell
+
+    echo '{"config":{"backend":"netjsonconfig.OpenWrt","config":{},"context":{},"status":"modified","templates": []}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/device/9051e08c-5819-4aec-8b8b-20787cae6304/ \
+    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+
+    HTTP/1.1 200 OK
+    Allow: GET, PUT, PATCH, DELETE, HEAD, OPTIONS
+    Content-Length: 385
+    Content-Type: application/json
+    Referrer-Policy: same-origin
+    Vary: Accept
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+
+    {
+        "config": {
+            "backend": "netjsonconfig.OpenWrt",
+            "config": {},
+            "context": {},
+            "status": "modified",
+            "templates": []
+        },
+        "id": "9051e08c-5819-4aec-8b8b-20787cae6304",
+        "key": "911c02ab5784a835e021a6ecdca3d540",
+        "last_ip": null,
+        "mac_address": "7b:01:b4:52:97:74",
+        "management_ip": null,
+        "model": "",
+        "name": "test-device",
+        "notes": "",
+        "organization": "d4163a1c-22cb-498e-991a-33c99a3b023b",
+        "os": "",
+        "system": ""
+    }
+
+**Example usage**: For reordering the templates simply change their order from the config of a device,
+
+.. code-block:: shell
+
+    echo '{"config":{"backend":"netjsonconfig.OpenWrt","config":{},"context":{},"status":"modified","templates":["4791fa4c-2cef-4f42-8bb4-c86018d71bd3","c5bbc697-170e-44bc-8eb7-b944b55ee88f"]}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/device/9051e08c-5819-4aec-8b8b-20787cae6304/ \
+    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+
+    HTTP/1.1 200 OK
+    Allow: GET, PUT, PATCH, DELETE, HEAD, OPTIONS
+    Content-Length: 462
+    Content-Type: application/json
+    Referrer-Policy: same-origin
+    Vary: Accept
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+
+    {
+        "config": {
+            "backend": "netjsonconfig.OpenWrt",
+            "config": {},
+            "context": {},
+            "status": "modified",
+            "templates": [
+                "4791fa4c-2cef-4f42-8bb4-c86018d71bd3",
+                "c5bbc697-170e-44bc-8eb7-b944b55ee88f"
+            ]
+        },
+        "id": "9051e08c-5819-4aec-8b8b-20787cae6304",
+        "key": "911c02ab5784a835e021a6ecdca3d540",
+        "last_ip": null,
+        "mac_address": "7b:01:b4:52:97:74",
+        "management_ip": null,
+        "model": "",
+        "name": "test-device-httpie",
+        "notes": "",
+        "organization": "d4163a1c-22cb-498e-991a-33c99a3b023b",
+        "os": "",
+        "system": ""
+    }
 
 Delete device
 ^^^^^^^^^^^^^
