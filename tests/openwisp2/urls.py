@@ -5,7 +5,7 @@ from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from django.urls import reverse_lazy
+from django.urls import path, reverse_lazy
 from django.views.generic import RedirectView
 
 from openwisp_controller.config.utils import get_controller_urls
@@ -38,6 +38,7 @@ urlpatterns += [
     url(r'^$', redirect_view, name='index'),
     url(r'^admin/', admin.site.urls),
     url(r'', include('openwisp_controller.urls')),
+    path('accounts/', include('openwisp_users.accounts.urls')),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

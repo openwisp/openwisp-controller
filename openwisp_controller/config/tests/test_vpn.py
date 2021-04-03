@@ -378,7 +378,7 @@ class TestVpn(
             message_dict = context_manager.exception.message_dict
             self.assertIn('name', message_dict)
             self.assertIn(
-                'There is already another shared vpn', message_dict['name'][0],
+                'There is already another shared vpn', message_dict['name'][0]
             )
 
         with self.subTest('ensure object itself is excluded'):

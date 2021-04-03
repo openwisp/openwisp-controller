@@ -9,11 +9,10 @@ from django.utils.translation import ugettext as _
 from django.views.decorators.http import last_modified
 from swapper import load_model
 
-from openwisp_users.models import Organization
-
 from .settings import BACKENDS, VPN_BACKENDS
 from .utils import get_default_templates_queryset, get_object_or_404
 
+Organization = load_model('openwisp_users', 'Organization')
 Template = load_model('config', 'Template')
 
 

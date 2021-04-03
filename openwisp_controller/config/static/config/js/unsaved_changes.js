@@ -5,7 +5,8 @@
             $('input, select, textarea', form).each(function (i, el) {
                 var field = $(el),
                     name = field.attr('name'),
-                    value = field.val();
+                    value = field.val(),
+                    jsonValues = ['config', 'config-0-config', 'config-0-context', 'devicelocation-0-geometry'];
                 // ignore fields that have no name attribute, begin with "_" or "initial-"
                 if (!name || name.substr(0, 1) == '_' || name.substr(0, 8) == 'initial-' ||
                     // ignore hidden fields
@@ -24,7 +25,7 @@
                 }
                 // convert JSON string to Javascript object in order
                 // to perform object comparison with `objectIsEqual`
-                if (name == 'config' || name == 'config-0-config' || name == 'config-0-context') {
+                if (jsonValues.indexOf(name) > -1) {
                     try {
                         object[name] = JSON.parse(value);
                     }
@@ -33,26 +34,20 @@
             });
         };
 
-    var unsaved_changes = function (e) {
+    var unsavedChanges = function (e) {
         // get current values
-        var current_values = {};
-        mapValues(current_values);
+        var currentValues = {};
+        mapValues(currentValues);
         var changed = false,
             message = 'You haven\'t saved your changes yet!',
-            initialField, initialValue,
+            initialValue,
             name;
         if (gettext) { message = gettext(message); }  // i18n if enabled
         // compare initial with current values
-        for (name in django._njc_initial_values) {
-            // use initial values from initial fields if present
-            initialField = $('#initial-id_' + name);
-            initialValue = initialField.length ? initialField.val() : django._njc_initial_values[name];
-            // fix checkbox value inconsistency
-            if (initialValue == 'True') { initialValue = true; }
-            else if (initialValue == 'False') { initialValue = false; }
-            if (name == 'config') { initialValue = JSON.parse(initialValue); }
+        for (name in django._owcInitialValues) {
+            initialValue = django._owcInitialValues[name];
 
-            if (!objectIsEqual(initialValue, current_values[name])) {
+            if (!objectIsEqual(initialValue, currentValues[name])) {
                 changed = true;
                 break;
             }
@@ -94,13 +89,13 @@
     $(function ($) {
         if (!$('.submit-row').length) { return; }
         // populate initial map of form values
-        django._njc_initial_values = {};
-        mapValues(django._njc_initial_values);
-        // do not perform unsaved_changes if submitting form
+        django._owcInitialValues = {};
+        mapValues(django._owcInitialValues);
+        // do not perform unsavedChanges if submitting form
         $(form).submit(function () {
-            $(window).unbind('beforeunload', unsaved_changes);
+            $(window).unbind('beforeunload', unsavedChanges);
         });
         // bind unload event
-        $(window).bind('beforeunload', unsaved_changes);
+        $(window).bind('beforeunload', unsavedChanges);
     });
 }(django.jQuery));

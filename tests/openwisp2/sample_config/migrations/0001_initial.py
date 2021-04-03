@@ -8,6 +8,7 @@ import django.db.models.deletion
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
+import swapper
 import taggit.managers
 from django.db import migrations, models
 
@@ -26,7 +27,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('contenttypes', '0002_remove_content_type_name'),
         ('sample_pki', '0002_default_group_permissions'),
-        ('openwisp_users', '0007_unique_email'),
+        swapper.dependency('openwisp_users', 'Organization'),
     ]
 
     operations = [
@@ -290,7 +291,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -478,7 +479,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -574,7 +575,7 @@ class Migration(migrations.Migration):
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name='config_settings',
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -739,7 +740,7 @@ class Migration(migrations.Migration):
                     'organization',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),

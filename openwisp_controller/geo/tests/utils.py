@@ -1,7 +1,8 @@
 from django.utils.text import slugify
 from django_loci.tests import TestLociMixin
+from swapper import load_model
 
-from openwisp_users.models import Organization
+Organization = load_model('openwisp_users', 'Organization')
 
 
 class TestGeoMixin(TestLociMixin):

@@ -109,7 +109,7 @@ class TestMultitenantApi(
         ou.is_admin = True
         ou.save()
         # create a superuser
-        self._create_admin(is_superuser=True,)
+        self._create_admin(is_superuser=True)
 
     def _create_device_location(self, **kwargs):
         options = dict()

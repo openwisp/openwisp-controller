@@ -9,6 +9,7 @@ import django_x509.base.models
 import jsonfield.fields
 import model_utils.fields
 from django.db import migrations, models
+from swapper import get_model_name
 
 
 class Migration(migrations.Migration):
@@ -160,7 +161,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
@@ -328,7 +329,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.Organization',
+                        to=get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
