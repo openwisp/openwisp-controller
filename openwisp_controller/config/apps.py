@@ -13,7 +13,12 @@ from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
-from .signals import config_modified, device_group_changed, device_name_changed
+from .signals import (
+    config_modified,
+    device_group_changed,
+    device_name_changed,
+    vpn_peers_changed,
+)
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -39,7 +44,11 @@ class ConfigConfig(AppConfig):
         self.device_model = load_model('config', 'Device')
         self.devicegroup_model = load_model('config', 'DeviceGroup')
         self.config_model = load_model('config', 'Config')
+        self.vpn_model = load_model('config', 'Vpn')
         self.vpnclient_model = load_model('config', 'VpnClient')
+        self.subnet_division_rule_model = load_model(
+            'subnet_division', 'SubnetDivisionRule'
+        )
         self.cert_model = load_model('django_x509', 'Cert')
 
     def connect_signals(self):
@@ -74,10 +83,20 @@ class ConfigConfig(AppConfig):
             sender=self.config_model.templates.through,
             dispatch_uid='template.enforce_required_template',
         )
+        post_save.connect(
+            self.vpnclient_model.post_save,
+            sender=self.vpnclient_model,
+            dispatch_uid='vpnclient.post_save',
+        )
         post_delete.connect(
             self.vpnclient_model.post_delete,
             sender=self.vpnclient_model,
             dispatch_uid='vpnclient.post_delete',
+        )
+        vpn_peers_changed.connect(
+            self.vpn_model.update_vpn_server_configuration,
+            sender=self.vpn_model,
+            dispatch_uid='vpn.update_vpn_server_configuration',
         )
         post_save.connect(
             self.config_model.certificate_updated,

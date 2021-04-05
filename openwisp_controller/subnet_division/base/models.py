@@ -193,7 +193,11 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         from ..tasks import provision_subnet_ip_for_existing_devices
 
         if created:
-            provision_subnet_ip_for_existing_devices.delay(rule_id=instance.id)
+            transaction.on_commit(
+                lambda: provision_subnet_ip_for_existing_devices.delay(
+                    rule_id=instance.id
+                )
+            )
         else:
             transaction.on_commit(instance.update_related_objects)
 
@@ -208,18 +212,23 @@ class AbstractSubnetDivisionIndex(models.Model):
         swapper.get_model_name('openwisp_ipam', 'Subnet'),
         on_delete=models.CASCADE,
         null=True,
+        blank=True,
     )
     ip = models.ForeignKey(
         swapper.get_model_name('openwisp_ipam', 'IpAddress'),
         on_delete=models.CASCADE,
         null=True,
+        blank=True,
     )
     rule = models.ForeignKey(
         swapper.get_model_name('subnet_division', 'SubnetDivisionRule'),
         on_delete=models.CASCADE,
     )
     config = models.ForeignKey(
-        swapper.get_model_name('config', 'Config'), on_delete=models.CASCADE, null=True
+        swapper.get_model_name('config', 'Config'),
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
 
     class Meta:

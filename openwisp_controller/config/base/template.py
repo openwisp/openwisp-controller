@@ -2,7 +2,7 @@ import json
 from collections import OrderedDict
 from copy import copy
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
@@ -73,15 +73,15 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             'be required for every device in the system)'
         ),
     )
+    # auto_cert naming kept for backward compatibility
     auto_cert = models.BooleanField(
-        _('auto certificate'),
+        _('automatic tunnel provisioning'),
         default=default_auto_cert,
         db_index=True,
         help_text=_(
-            'whether x509 client certificates should '
-            'be automatically managed behind the scenes '
-            'for each configuration using this template, '
-            'valid only for the VPN type'
+            'whether tunnel specific configuration (cryptographic keys, ip addresses, '
+            'etc) should be automatically generated and managed behind the scenes '
+            'for each configuration using this template, valid only for the VPN type'
         ),
     )
     default_values = JSONField(
@@ -169,7 +169,9 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             self.vpn = None
             self.auto_cert = False
         if self.type == 'vpn' and not self.config:
-            self.config = self.vpn.auto_client(auto_cert=self.auto_cert)
+            self.config = self.vpn.auto_client(
+                auto_cert=self.auto_cert, template_backend_class=self.backend_class
+            )
         if self.required and not self.default:
             self.default = True
         super().clean(*args, **kwargs)
@@ -185,6 +187,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 
     def get_system_context(self):
         system_context = self.get_context(system=True)
+        try:
+            system_context.update(self.vpn.get_vpn_server_context())
+        except (ObjectDoesNotExist, AttributeError):
+            pass
         return OrderedDict(sorted(system_context.items()))
 
     def clone(self, user):

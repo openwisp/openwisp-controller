@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.db.models import Q
 from django.db.models.signals import post_delete, post_save
 from swapper import load_model
@@ -43,12 +42,12 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @staticmethod
     def post_provision_handler(instance, provisioned, **kwargs):
-        def _assign_vpnclient_ip():
-            if provisioned['ip_addresses']:
-                instance.ip = provisioned['ip_addresses'][0]
-                instance.full_clean()
-                instance.save()
-
-        if not provisioned:
-            return
-        transaction.on_commit(_assign_vpnclient_ip)
+        # Assign the first provisioned IP address to the VPNClient
+        # only when subnets and IPs have been provisioned
+        if provisioned and provisioned['ip_addresses']:
+            # Delete any previously assigned IP address
+            if instance.ip:
+                instance.ip.delete()
+            instance.ip = provisioned['ip_addresses'][0]
+            instance.full_clean()
+            instance.save()

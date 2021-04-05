@@ -13,3 +13,4 @@ management_ip_changed = Signal(
 )
 device_name_changed = Signal(providing_args=['instance'])
 device_group_changed = Signal(providing_args=['instance', 'group', 'old_group'])
+vpn_peers_changed = Signal(providing_args=['instance'])
