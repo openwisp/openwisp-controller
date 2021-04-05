@@ -322,8 +322,8 @@ class TestConfig(
         c.templates.clear()
         c.save()
         vpnclient = c.vpnclient_set.first()
-        self.assertIsNone(vpnclient)
-        self.assertEqual(c.vpnclient_set.count(), 0)
+        self.assertIsNotNone(vpnclient)
+        self.assertNotEqual(c.vpnclient_set.count(), 0)
 
     def test_create_cert(self):
         vpn = self._create_vpn()
@@ -345,15 +345,15 @@ class TestConfig(
         expected_cn = app_settings.COMMON_NAME_FORMAT.format(**c.device.__dict__)
         self.assertEqual(vpnclient.cert.common_name, expected_cn)
 
-    def test_automatically_created_cert_deleted_post_clear(self):
+    def test_automatically_created_cert_not_deleted_post_clear(self):
         self.test_create_cert()
         c = Config.objects.get(device__name='test-create-cert')
         vpnclient = c.vpnclient_set.first()
         cert = vpnclient.cert
         cert_model = cert.__class__
         c.templates.clear()
-        self.assertEqual(c.vpnclient_set.count(), 0)
-        self.assertEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
+        self.assertNotEqual(c.vpnclient_set.count(), 0)
+        self.assertNotEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
 
     def test_automatically_created_cert_deleted_post_remove(self):
         self.test_create_cert()
@@ -377,6 +377,36 @@ class TestConfig(
         self.assertFalse(vpnclient.auto_cert)
         self.assertIsNone(vpnclient.cert)
         self.assertEqual(c.vpnclient_set.count(), 1)
+
+    def test_cert_not_deleted_on_config_change(self):
+        vpn = self._create_vpn()
+        t = self._create_template(type='vpn', auto_cert=True, vpn=vpn)
+        c = self._create_config(device=self._create_device(name='test-device'))
+        c.templates.add(t)
+        c.save()
+        vpnclient = c.vpnclient_set.first()
+        cert = vpnclient.cert
+        cert_model = cert.__class__
+
+        with self.subTest(
+            "Ensure that the VpnClient and x509 Cert instance is created"
+        ):
+            self.assertIsNotNone(vpnclient)
+            self.assertTrue(vpnclient.auto_cert)
+            self.assertIsNotNone(vpnclient.cert)
+
+        c.templates.clear()
+        with self.subTest("Ensure that VpnClient and Cert instance are not deleted"):
+            self.assertIsNotNone(c.vpnclient_set.first())
+            self.assertNotEqual(c.vpnclient_set.count(), 0)
+            self.assertNotEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
+
+        # add the template again
+        c.templates.add(t)
+        c.save()
+        with self.subTest("Ensure no additional VpnClients are created"):
+            self.assertEqual(c.vpnclient_set.count(), 1)
+            self.assertEqual(c.vpnclient_set.first(), vpnclient)
 
     def _get_vpn_context(self):
         self.test_create_cert()
