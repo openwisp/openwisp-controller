@@ -1,7 +1,9 @@
 import logging
 
+import requests
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from swapper import load_model
 
@@ -82,4 +84,21 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
     elif model_name == Cert._meta.model_name:
         DeviceGroupCommonName.certificate_delete_invalidates_cache(
             kwargs['organization_id'], kwargs['common_name']
+        )
+
+
+@shared_task(soft_time_limit=1200)
+def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
+    response = requests.post(
+        endpoint,
+        params={'key': auth_token},
+        verify=False if getattr(settings, 'DEBUG') else True,
+    )
+    if response.status_code == 200:
+        logger.info(f'Triggered update webhook of VPN Server UUID: {vpn_id}')
+    else:
+        logger.error(
+            'Failed to update VPN Server configuration. '
+            f'Response status code: {response.status_code}, '
+            f'VPN Server UUID: {vpn_id}',
         )

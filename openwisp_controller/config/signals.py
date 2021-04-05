@@ -33,3 +33,7 @@ device_group_changed = Signal()
 device_group_changed.__doc__ = """
 Providing arguments: ['instance']
 """
+vpn_peers_changed = Signal()
+vpn_peers_changed.__doc__ = """
+providing arguments: ['instance']
+"""

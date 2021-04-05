@@ -141,14 +141,14 @@ class BaseConfig(BaseModel):
         """
         return self.get_backend_instance()
 
-    def get_backend_instance(self, template_instances=None):
+    def get_backend_instance(self, template_instances=None, context=None):
         """
         allows overriding config and templates
         needed for pre validation of m2m
         """
         backend = self.backend_class
         kwargs = {'config': self.get_config()}
-        context = {}
+        context = context or {}
         # determine if we can pass templates
         # expecting a many2many relationship
         if hasattr(self, 'templates'):
