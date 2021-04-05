@@ -37,6 +37,10 @@ class TestSubnetDivisionRule(
         )
         self.config = self._create_config(organization=self.org)
 
+    @property
+    def ip_query(self):
+        return IpAddress.objects.exclude(id=self.vpn_server.ip_id)
+
     def test_field_validations(self):
         default_options = {
             'label': 'OW',
@@ -140,7 +144,7 @@ class TestSubnetDivisionRule(
             subnet_query.count(), rule.number_of_subnets,
         )
         self.assertEqual(
-            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
         # Verify context of config
@@ -211,7 +215,7 @@ class TestSubnetDivisionRule(
         subnet_query = self.subnet_query.exclude(id=self.master_subnet.id).filter(
             organization=rule.organization
         )
-        ip_query = IpAddress.objects
+        ip_query = self.ip_query
         index_query = rule.subnetdivisionindex_set
 
         self.assertEqual(subnet_query.count(), rule.number_of_subnets)
@@ -240,15 +244,17 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             subnet_query.count(), rule.number_of_subnets,
         )
+        # 1 IP is automatically assigned to VPN server and client each,
+        # hence add two in below assertion
         self.assertEqual(
-            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
         self.config.templates.remove(self.template)
         self.assertEqual(
             subnet_query.count(), 0,
         )
-        self.assertEqual(IpAddress.objects.count(), 0)
+        self.assertEqual(self.ip_query.count(), 0)
 
     @patch('logging.Logger.error')
     def test_subnets_exhausted(self, mocked_logger):
@@ -276,7 +282,7 @@ class TestSubnetDivisionRule(
 
         self.assertEqual(rule.subnetdivisionindex_set.count(), 0)
         self.assertEqual(self.subnet_query.exclude(id=self.master_subnet.id).count(), 0)
-        self.assertEqual(IpAddress.objects.count(), 0)
+        self.assertEqual(self.ip_query.count(), 0)
 
     def test_vpn_subnet_no_rule(self):
         # Tests the scenario where a SubDivisionRule does not exist
@@ -320,12 +326,12 @@ class TestSubnetDivisionRule(
         self.assertEqual(subnet_query.count(), rule.number_of_subnets)
 
     def test_sharable_vpn_vpnclient_subnet_multiple_rules(self):
+        self.master_subnet.organization = None
+        self.master_subnet.save()
+
         vpn_server = self._create_vpn(name='vpn-server', subnet=self.master_subnet)
 
         template = self._create_template(name='vpn-client', type='vpn', vpn=vpn_server)
-
-        self.master_subnet.organization = None
-        self.master_subnet.save()
 
         org1 = self._create_org(name='org1')
         org2 = self._create_org(name='org2')
@@ -412,7 +418,7 @@ class TestSubnetDivisionRule(
             subnet_query.count(), rule.number_of_subnets,
         )
         self.assertEqual(
-            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
         # Verify context of config
@@ -429,7 +435,7 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             subnet_query.count(), 0,
         )
-        self.assertEqual(IpAddress.objects.count(), 0)
+        self.assertEqual(self.ip_query.count(), 0)
 
     def test_device_subnet_division_rule_existing_devices(self):
         subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
@@ -441,7 +447,7 @@ class TestSubnetDivisionRule(
             subnet_query.count(), rule.number_of_subnets,
         )
         self.assertEqual(
-            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
     def test_vpn_subnet_division_rule_existing_devices(self):
@@ -455,14 +461,14 @@ class TestSubnetDivisionRule(
             subnet_query.count(), rule.number_of_subnets,
         )
         self.assertEqual(
-            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
     def test_vpn_subnet_division_rule_existing_devices_different_orgs(self):
-        vpn_server = self._create_vpn(name='vpn-server', subnet=self.master_subnet)
-        template = self._create_template(name='vpn-client', type='vpn', vpn=vpn_server)
         self.master_subnet.organization = None
         self.master_subnet.save()
+        vpn_server = self._create_vpn(name='vpn-server', subnet=self.master_subnet)
+        template = self._create_template(name='vpn-client', type='vpn', vpn=vpn_server)
         org1 = self._create_org(name='org1')
         org2 = self._create_org(name='org2')
         config1 = self._create_config(organization=org1)
@@ -502,6 +508,42 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             subnet_query.count(), rule.number_of_subnets,
         )
+
+    def test_vpn_rule_assigns_vpnclient_ip(self):
+        rule = self._get_vpn_subdivision_rule()
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.config.templates.add(self.template)
+        expected_assigned_ip = self.config.subnetdivisionindex_set.get(
+            keyword=f'{rule.label}_subnet1_ip1'
+        ).ip
+        vpn_client = self.config.vpnclient_set.first()
+        self.assertEqual(vpn_client.ip, expected_assigned_ip)
+        self.assertEqual(
+            subnet_query.count(), rule.number_of_subnets,
+        )
+
+    def test_subnet_division_index_validation(self):
+        rule = self._get_vpn_subdivision_rule()
+        index = SubnetDivisionIndex(rule=rule, keyword='test')
+        subnet = Subnet.objects.create(subnet='10.0.0.0/16')
+        ip = IpAddress.objects.create(subnet=subnet, ip_address='10.0.0.1')
+
+        with self.subTest('ip, subnet and config are missing'):
+            index.full_clean()
+
+        with self.subTest('subnet and config are missing'):
+            index.ip = ip
+            index.full_clean()
+
+        with self.subTest('config is missing'):
+            index.subnet = subnet
+            index.full_clean()
+
+        with self.subTest('All related fields are present'):
+            index.config = self.config
+            index.full_clean()
 
 
 class TestCeleryTasks(TestCase):

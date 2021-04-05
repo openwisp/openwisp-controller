@@ -51,6 +51,8 @@ class BaseSubnetDivisionRuleType(object):
     @classmethod
     def provision_receiver(cls, instance, **kwargs):
         def _provision_receiver():
+            # If any of following operations fail, the database transaction
+            # should fail/rollback.
             provisioned = cls.create_subnets_ips(instance, rule_type, **kwargs)
             cls.post_provision_handler(instance, provisioned, **kwargs)
             cls.subnet_provisioned_signal_emitter(instance, provisioned)

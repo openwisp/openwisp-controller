@@ -156,7 +156,7 @@ class Migration(migrations.Migration):
                     'credentials',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='connection.Credentials',
+                        to=swapper.get_model_name('connection', 'Credentials'),
                     ),
                 ),
                 (
