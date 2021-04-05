@@ -163,10 +163,11 @@ class BaseConfigAdmin(BaseAdmin):
 
     def _get_preview_instance(self, request):
         """
-        returns a temporary preview instance used for preview
+        returns a temporary instance used for preview
         """
         kwargs = {}
         config_model = self._get_config_model()
+        instance = config_model()
         for key, value in request.POST.items():
             # skip keys that are not model fields
             try:
@@ -191,9 +192,14 @@ class BaseConfigAdmin(BaseAdmin):
         # default context to None to avoid exception
         if 'context' in kwargs:
             kwargs['context'] = kwargs['context'] or None
-        # this object is instanciated only to generate the preview
-        # it won't be saved to the database
-        instance = config_model(**kwargs)
+        try:
+            instance = config_model.objects.get(pk=request.POST['id'])
+            for key, value in kwargs.items():
+                setattr(instance, key, value)
+        except (KeyError, ValidationError, config_model.DoesNotExist):
+            # this object is instanciated only to generate the preview
+            # it won't be saved to the database
+            instance = config_model(**kwargs)
         # turn off special name validation
         # (see ``ShareableOrgMixinUniqueName``)
         instance._validate_name = False
@@ -235,7 +241,10 @@ class BaseConfigAdmin(BaseAdmin):
         else:
             templates = None
         if not error:
-            backend = instance.get_backend_instance(template_instances=templates)
+            context = instance.get_context()
+            backend = instance.get_backend_instance(
+                template_instances=templates, context=context
+            )
             try:
                 instance.clean_netjsonconfig_backend(backend)
                 output = backend.render()
@@ -472,12 +481,17 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     def _get_preview_instance(self, request):
         c = super()._get_preview_instance(request)
-        c.device = self.model(
-            id=request.POST.get('id'),
-            name=request.POST.get('name'),
-            mac_address=request.POST.get('mac_address'),
-            key=request.POST.get('key'),
-        )
+        id_ = request.POST.get('id')
+        # instantiate new device if it's a new config
+        try:
+            c.device
+        except ObjectDoesNotExist:
+            c.device = self.model()
+        # fill attributes with up to date data
+        c.device.id = id_
+        c.device.name = request.POST.get('name')
+        c.device.mac_address = request.POST.get('mac_address')
+        c.device.key = request.POST.get('key')
         if 'hardware_id' in request.POST:
             c.device.hardware_id = request.POST.get('hardware_id')
         return c
@@ -690,17 +704,21 @@ class VpnAdmin(
     list_filter = [('organization', MultitenantOrgFilter), 'backend', 'created']
     search_fields = ['id', 'name', 'host', 'key']
     readonly_fields = ['id', 'uuid', 'system_context']
-    multitenant_shared_relations = ('ca', 'cert')
+    multitenant_shared_relations = ('ca', 'cert', 'subnet')
+    autocomplete_fields = ['ip', 'subnet']
     fields = [
+        'organization',
         'name',
         'host',
-        'organization',
         'uuid',
         'key',
-        'subnet',
+        'backend',
         'ca',
         'cert',
-        'backend',
+        'subnet',
+        'ip',
+        'webhook_endpoint',
+        'auth_token',
         'notes',
         'dh',
         'system_context',

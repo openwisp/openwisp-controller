@@ -41,7 +41,7 @@ class CreateDeviceMixin(object):
     def _create_device_config(self, device_opts=None, config_opts=None):
         device_opts = device_opts or {}
         config_opts = config_opts or {}
-        device_opts['name'] = 'test'
+        device_opts.setdefault('name', 'test')
         d = self._create_device(**device_opts)
         config_opts['device'] = d
         self._create_config(**config_opts)
@@ -81,6 +81,11 @@ class CreateTemplateMixin(object):
 class CreateVpnMixin(object):
     ca_model = Ca
     cert_model = Cert
+    _BACKENDS = {
+        'openvpn': 'openwisp_controller.vpn_backends.OpenVpn',
+        'wireguard': 'openwisp_controller.vpn_backends.Wireguard',
+        'vxlan': 'openwisp_controller.vpn_backends.VxlanWireguard',
+    }
 
     _dh = """-----BEGIN DH PARAMETERS-----
 MIIBCAKCAQEAqzVRdXJ/R4L/sq0bhgCXnFy9M5lOYkux9SIoe8hvrcqNAvJu/V+g
@@ -104,7 +109,8 @@ UqzLuoNWCyj8KCicbA7tiBxX+2zgQpch8wIBAg==
                 'proto': 'udp',
                 'tls_server': True,
             }
-        ]
+        ],
+        'wireguard': [{'name': 'wg0', 'port': 51820}],
     }
 
     @mock.patch(
@@ -115,18 +121,87 @@ UqzLuoNWCyj8KCicbA7tiBxX+2zgQpch8wIBAg==
         options = dict(
             name='test',
             host='vpn1.test.com',
-            ca=None,
-            backend='openwisp_controller.vpn_backends.OpenVpn',
+            backend=self._BACKENDS['openvpn'],
             config=self._vpn_config,
             dh=self._dh,
         )
         options.update(**kwargs)
-        if not options['ca']:
+        if 'ca' not in options:
             options['ca'] = self._create_ca(**ca_options)
         vpn = Vpn(**options)
         vpn.full_clean()
         vpn.save()
         return vpn
+
+
+class TestWireguardVpnMixin:
+    def _create_wireguard_vpn(self, config=None):
+        if config is None:
+            config = {'wireguard': [{'name': 'wg0', 'port': 51820}]}
+        org1 = self._get_org()
+        subnet = self._create_subnet(
+            name='wireguard test', subnet='10.0.0.0/16', organization=org1
+        )
+        subnet.refresh_from_db()
+        vpn = self._create_vpn(
+            organization=org1,
+            backend=self._BACKENDS['wireguard'],
+            config=config,
+            subnet=subnet,
+            ca=None,
+            cert=None,
+        )
+        self.assertIsNone(vpn.ca)
+        self.assertIsNone(vpn.cert)
+        self.assertIsNotNone(vpn.ip)
+        self.assertEqual(vpn.ip.ip_address, '10.0.0.1')
+        return vpn
+
+    def _create_wireguard_vpn_template(self, auto_cert=True):
+        vpn = self._create_wireguard_vpn()
+        org1 = vpn.organization
+        template = self._create_template(
+            name='wireguard',
+            type='vpn',
+            vpn=vpn,
+            organization=org1,
+            auto_cert=auto_cert,
+        )
+        device = self._create_device_config()
+        device.config.templates.add(template)
+        return device, vpn, template
+
+
+class TestVxlanWireguardVpnMixin:
+    def _create_vxlan_tunnel(self, config=None):
+        if config is None:
+            config = {'wireguard': [{'name': 'wg0', 'port': 51820}]}
+        org = self._get_org()
+        subnet = self._create_subnet(
+            name='wireguard test', subnet='10.0.0.0/16', organization=org
+        )
+        tunnel = self._create_vpn(
+            organization=org,
+            backend=self._BACKENDS['vxlan'],
+            config=config,
+            subnet=subnet,
+            ca=None,
+        )
+        return tunnel, subnet
+
+    def _create_vxlan_vpn_template(self):
+        vpn, subnet = self._create_vxlan_tunnel()
+        org1 = vpn.organization
+        template = self._create_template(
+            name='vxlan-wireguard',
+            type='vpn',
+            vpn=vpn,
+            organization=org1,
+            auto_cert=True,
+        )
+        device = self._create_device_config()
+        device.config.templates.add(template)
+        return device, vpn, template
 
 
 class TestVpnX509Mixin(CreateVpnMixin, TestPkiMixin):

@@ -5,6 +5,8 @@ import re
 import django.core.validators
 from django.db import migrations, models
 
+from .. import settings as app_settings
+
 
 class Migration(migrations.Migration):
 
@@ -35,7 +37,7 @@ class Migration(migrations.Migration):
             model_name='vpn',
             name='backend',
             field=models.CharField(
-                choices=[('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN')],
+                choices=app_settings.VPN_BACKENDS,
                 help_text='Select VPN configuration backend',
                 max_length=128,
                 verbose_name='VPN backend',

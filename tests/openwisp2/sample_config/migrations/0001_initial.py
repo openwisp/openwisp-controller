@@ -10,6 +10,7 @@ import jsonfield.fields
 import model_utils.fields
 import swapper
 import taggit.managers
+from django.conf import settings
 from django.db import migrations, models
 
 import openwisp_controller.config.base.template
@@ -17,6 +18,7 @@ import openwisp_users.mixins
 import openwisp_utils.base
 import openwisp_utils.utils
 from openwisp_controller.config import settings as app_settings
+from openwisp_controller.config.base.template import default_auto_cert
 
 
 class Migration(migrations.Migration):
@@ -24,9 +26,10 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('contenttypes', '0002_remove_content_type_name'),
-        ('sample_pki', '0002_default_group_permissions'),
         swapper.dependency('openwisp_users', 'Organization'),
+        ('sample_pki', '0002_default_group_permissions'),
+        swapper.dependency('openwisp_ipam', 'Subnet'),
+        swapper.dependency('openwisp_ipam', 'Ip'),
     ]
 
     operations = [
@@ -66,8 +69,8 @@ class Migration(migrations.Migration):
                             ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
                         ],
                         help_text=(
-                            'Select <a href="http://netjsonconfig.openwisp.org'
-                            '/en/stable/" target="_blank">netjsonconfig</a> backend'
+                            'Select <a href="http://netjsonconfig.openwisp.org/en/'
+                            'stable/" target="_blank">netjsonconfig</a> backend'
                         ),
                         max_length=128,
                         verbose_name='backend',
@@ -94,10 +97,11 @@ class Migration(migrations.Migration):
                         ],
                         default='modified',
                         help_text=(
-                            '"modified" means the configuration is not applied yet; '
-                            '\n"applied" means the configuration is applied '
-                            'successfully; \n"error" means the configuration '
-                            'caused issues and it was rolled back;'
+                            '"modified" means the configuration is not applied yet; \n'
+                            '"applied" means the configuration is applied successfully;'
+                            ' \n'
+                            '"error" means the configuration caused issues '
+                            'and it was rolled back;'
                         ),
                         max_length=100,
                         no_check_for_status=True,
@@ -148,7 +152,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name='sample_config_taggedtemplate_tagged_items',
-                        to='contenttypes.ContentType',
+                        to='contenttypes.contenttype',
                         verbose_name='content type',
                     ),
                 ),
@@ -255,7 +259,12 @@ class Migration(migrations.Migration):
                     'backend',
                     models.CharField(
                         choices=[
-                            ('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN')
+                            ('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN'),
+                            ('openwisp_controller.vpn_backends.Wireguard', 'WireGuard'),
+                            (
+                                'openwisp_controller.vpn_backends.VxlanWireguard',
+                                'VXLAN over WireGuard',
+                            ),
                         ],
                         help_text='Select VPN configuration backend',
                         max_length=128,
@@ -264,12 +273,16 @@ class Migration(migrations.Migration):
                 ),
                 ('notes', models.TextField(blank=True)),
                 ('dh', models.TextField(blank=True)),
+                ('public_key', models.CharField(blank=True, max_length=44)),
+                ('private_key', models.CharField(blank=True, max_length=44)),
                 ('details', models.CharField(blank=True, max_length=64, null=True)),
                 (
                     'ca',
                     models.ForeignKey(
+                        blank=True,
+                        null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_pki.Ca',
+                        to='sample_pki.ca',
                         verbose_name='Certification Authority',
                     ),
                 ),
@@ -280,8 +293,22 @@ class Migration(migrations.Migration):
                         help_text='leave blank to create automatically',
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_pki.Cert',
+                        to='sample_pki.cert',
                         verbose_name='x509 Certificate',
+                    ),
+                ),
+                (
+                    'ip',
+                    models.ForeignKey(
+                        blank=True,
+                        help_text=(
+                            'Internal IP address of the VPN '
+                            'server interface, if applicable'
+                        ),
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.OPENWISP_IPAM_IPADDRESS_MODEL,
+                        verbose_name='Internal IP',
                     ),
                 ),
                 (
@@ -292,6 +319,44 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.CASCADE,
                         to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
+                    ),
+                ),
+                (
+                    'subnet',
+                    models.ForeignKey(
+                        blank=True,
+                        help_text=(
+                            'Subnet IP addresses used by VPN clients, if applicable'
+                        ),
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.OPENWISP_IPAM_SUBNET_MODEL,
+                        verbose_name='Subnet',
+                    ),
+                ),
+                (
+                    'auth_token',
+                    models.CharField(
+                        blank=True,
+                        help_text=(
+                            'Authentication token for triggering "Webhook Endpoint"'
+                        ),
+                        max_length=128,
+                        null=True,
+                        verbose_name='Webhook AuthToken',
+                    ),
+                ),
+                (
+                    'webhook_endpoint',
+                    models.CharField(
+                        blank=True,
+                        help_text=(
+                            'Webhook to trigger for updating server configuration '
+                            '(e.g. https://openwisp2.mydomain.com:8081/trigger-update)'
+                        ),
+                        max_length=128,
+                        null=True,
+                        verbose_name='Webhook Endpoint',
                     ),
                 ),
             ],
@@ -315,6 +380,20 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ('auto_cert', models.BooleanField(default=False)),
+                ('public_key', models.CharField(blank=True, max_length=44)),
+                ('private_key', models.CharField(blank=True, max_length=44)),
+                (
+                    'vni',
+                    models.PositiveIntegerField(
+                        blank=True,
+                        db_index=True,
+                        null=True,
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(16777216),
+                        ],
+                    ),
+                ),
                 ('details', models.CharField(blank=True, max_length=64, null=True)),
                 (
                     'cert',
@@ -322,21 +401,30 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_pki.Cert',
+                        to='sample_pki.cert',
                     ),
                 ),
                 (
                     'config',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_config.Config',
+                        to='sample_config.config',
+                    ),
+                ),
+                (
+                    'ip',
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to='openwisp_ipam.ipaddress',
                     ),
                 ),
                 (
                     'vpn',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_config.Vpn',
+                        to='sample_config.vpn',
                     ),
                 ),
             ],
@@ -344,7 +432,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'VPN client',
                 'verbose_name_plural': 'VPN clients',
                 'abstract': False,
-                'unique_together': {('config', 'vpn')},
+                'unique_together': {('vpn', 'vni'), ('config', 'vpn')},
             },
         ),
         migrations.CreateModel(
@@ -384,8 +472,8 @@ class Migration(migrations.Migration):
                             ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
                         ],
                         help_text=(
-                            'Select <a href="http://netjsonconfig.openwisp.org'
-                            '/en/stable/" target="_blank">netjsonconfig</a> backend'
+                            'Select <a href="http://netjsonconfig.openwisp.org/en/'
+                            'stable/" target="_blank">netjsonconfig</a> backend'
                         ),
                         max_length=128,
                         verbose_name='backend',
@@ -421,8 +509,8 @@ class Migration(migrations.Migration):
                         db_index=True,
                         default=False,
                         help_text=(
-                            'whether new configurations will have '
-                            'this template enabled by default'
+                            'whether new configurations will have this '
+                            'template enabled by default'
                         ),
                         verbose_name='enabled by default',
                     ),
@@ -445,15 +533,15 @@ class Migration(migrations.Migration):
                     'auto_cert',
                     models.BooleanField(
                         db_index=True,
-                        default=(
-                            openwisp_controller.config.base.template.default_auto_cert
-                        ),
+                        default=default_auto_cert,
                         help_text=(
-                            'whether x509 client certificates should be automatically '
-                            'managed behind the scenes for each configuration using '
-                            'this template, valid only for the VPN type'
+                            'whether tunnel specific configuration (cryptographic '
+                            'keys, ip addresses, etc) should be automatically '
+                            'generated and managed behind the scenes for each '
+                            'configuration using this template, valid only for '
+                            'the VPN type'
                         ),
-                        verbose_name='auto certificate',
+                        verbose_name='automatic tunnel provisioning',
                     ),
                 ),
                 (
@@ -463,9 +551,9 @@ class Migration(migrations.Migration):
                         default=dict,
                         dump_kwargs={'ensure_ascii': False, 'indent': 4},
                         help_text=(
-                            'A dictionary containing the default values for '
-                            'the variables used by this template; these default '
-                            'variables will be used during schema validation.'
+                            'A dictionary containing the default values for the '
+                            'variables used by this template; these default variables '
+                            'will be used during schema validation.'
                         ),
                         load_kwargs={'object_pairs_hook': collections.OrderedDict},
                         verbose_name='Default Values',
@@ -487,9 +575,9 @@ class Migration(migrations.Migration):
                     taggit.managers.TaggableManager(
                         blank=True,
                         help_text=(
-                            'A comma-separated list of template tags, may '
-                            'be used to ease auto configuration with specific '
-                            'settings (eg: 4G, mesh, WDS, VPN, ecc.)'
+                            'A comma-separated list of template tags, may be used '
+                            'to ease auto configuration with specific settings '
+                            '(eg: 4G, mesh, WDS, VPN, ecc.)'
                         ),
                         through='sample_config.TaggedTemplate',
                         to='sample_config.TemplateTag',
@@ -502,7 +590,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_config.Vpn',
+                        to='sample_config.vpn',
                         verbose_name='VPN',
                     ),
                 ),
@@ -521,7 +609,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='sample_config_taggedtemplate_items',
-                to='sample_config.TemplateTag',
+                to='sample_config.templatetag',
             ),
         ),
         migrations.CreateModel(
@@ -541,8 +629,8 @@ class Migration(migrations.Migration):
                     models.BooleanField(
                         default=True,
                         help_text=(
-                            'Whether automatic registration of devices '
-                            'is enabled or not'
+                            'Whether automatic registration of '
+                            'devices is enabled or not'
                         ),
                         verbose_name='auto-registration enabled',
                     ),
@@ -832,7 +920,7 @@ class Migration(migrations.Migration):
             model_name='config',
             name='device',
             field=models.OneToOneField(
-                on_delete=django.db.models.deletion.CASCADE, to='sample_config.Device'
+                on_delete=django.db.models.deletion.CASCADE, to='sample_config.device'
             ),
         ),
         migrations.AddField(

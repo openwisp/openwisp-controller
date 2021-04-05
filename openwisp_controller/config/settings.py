@@ -34,7 +34,12 @@ BACKENDS = get_settings_value(
 )
 
 VPN_BACKENDS = get_settings_value(
-    'VPN_BACKENDS', (('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN'),)
+    'VPN_BACKENDS',
+    (
+        ('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN'),
+        ('openwisp_controller.vpn_backends.Wireguard', 'WireGuard'),
+        ('openwisp_controller.vpn_backends.VxlanWireguard', 'VXLAN over WireGuard'),
+    ),
 )
 DEFAULT_BACKEND = get_settings_value('DEFAULT_BACKEND', BACKENDS[0][0])
 DEFAULT_VPN_BACKEND = get_settings_value('DEFAULT_VPN_BACKEND', VPN_BACKENDS[0][0])
