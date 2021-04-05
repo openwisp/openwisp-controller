@@ -127,6 +127,7 @@ class Migration(migrations.Migration):
                     'config',
                     models.ForeignKey(
                         null=True,
+                        blank=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         to='sample_config.config',
                     ),
@@ -135,6 +136,7 @@ class Migration(migrations.Migration):
                     'ip',
                     models.ForeignKey(
                         null=True,
+                        blank=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         to=settings.OPENWISP_IPAM_IPADDRESS_MODEL,
                     ),
@@ -150,6 +152,7 @@ class Migration(migrations.Migration):
                     'subnet',
                     models.ForeignKey(
                         null=True,
+                        blank=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         to=settings.OPENWISP_IPAM_SUBNET_MODEL,
                     ),

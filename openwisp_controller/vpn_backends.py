@@ -1,6 +1,8 @@
 from copy import deepcopy
 
 from netjsonconfig import OpenVpn as BaseOpenVpn
+from netjsonconfig import VxlanWireguard as BaseVxlanWireguard
+from netjsonconfig import Wireguard as BaseWireguard
 
 # adapt OpenVPN schema in order to limit it to 1 item only
 limited_schema = deepcopy(BaseOpenVpn.schema)
@@ -43,3 +45,27 @@ class OpenVpn(BaseOpenVpn):
     """
 
     schema = limited_schema
+
+
+limited_wireguard_schema = deepcopy(BaseWireguard.schema)
+wireguard_properties = limited_wireguard_schema['properties']['wireguard']
+wireguard_properties.update({'maxItems': 1, 'minItems': 1})
+# private key is handled automatically without the need of user input
+del wireguard_properties['items']['properties']['private_key']
+wireguard_properties['items']['required'].remove('private_key')
+
+
+class Wireguard(BaseWireguard):
+    """
+    WireGuard
+    """
+
+    schema = limited_wireguard_schema
+
+
+class VxlanWireguard(BaseVxlanWireguard):
+    """
+    VXLAN over WireGuard
+    """
+
+    schema = limited_wireguard_schema

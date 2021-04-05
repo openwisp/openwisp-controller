@@ -17,6 +17,7 @@ import openwisp_controller.config.base.template
 import openwisp_utils.base
 import openwisp_utils.utils
 
+from .. import settings as app_settings
 from ..sortedm2m.fields import SortedManyToManyField
 
 
@@ -388,9 +389,7 @@ class Migration(migrations.Migration):
                 (
                     'backend',
                     models.CharField(
-                        choices=[
-                            ('django_netjsonconfig.vpn_backends.OpenVpn', 'OpenVPN')
-                        ],
+                        choices=app_settings.VPN_BACKENDS,
                         help_text='Select VPN configuration backend',
                         max_length=128,
                         verbose_name='VPN backend',
