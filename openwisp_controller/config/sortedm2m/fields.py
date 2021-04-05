@@ -13,6 +13,7 @@ from sortedm2m.forms import (
     SortedCheckboxSelectMultiple as BaseSortedCheckboxSelectMultiple,
 )
 from sortedm2m.forms import SortedMultipleChoiceField as BaseSortedMultipleChoiceField
+from swapper import load_model
 
 
 class SortedCheckboxSelectMultiple(BaseSortedCheckboxSelectMultiple):
@@ -75,7 +76,9 @@ class SortedCheckboxSelectMultiple(BaseSortedCheckboxSelectMultiple):
         return mark_safe(html)
 
     def modify_checkbox(self, cb, option_label, option_value):
-        if option_value.instance.required:
+        Template = load_model('config', 'Template')
+        template = Template.objects.get(id=str(option_value))
+        if template.required:
             cb.attrs['disabled'] = 'disabled'
             cb.attrs['checked'] = 'checked'
             option_label = f'{option_label} (required)'
