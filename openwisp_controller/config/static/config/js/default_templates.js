@@ -1,13 +1,13 @@
 'use strict';
 django.jQuery(function ($) {
     var firstRun = true,
-        addChangeEventToBackend = function (urls) {
+        addChangeEventToBackend = function (urlSchema) {
             $('#id_config-0-backend').change(function () {
                 setTimeout(function () {
                     // ensures getDefaultTemplates execute only after other
                     // onChange event handlers attached this field has been
                     // executed.
-                    getDefaultTemplates(urls);
+                    getDefaultTemplates(urlSchema);
                 });
             });
         },
@@ -18,7 +18,7 @@ django.jQuery(function ($) {
                 window.updateContext();
             }
         },
-        getDefaultTemplates = function (urls) {
+        getDefaultTemplates = function (urlSchema) {
             var orgID = $('#id_organization').val(),
                 backend = $('#id_config-0-backend').val();
             // proceed only if an organization and a backend have been selected
@@ -26,7 +26,7 @@ django.jQuery(function ($) {
                 unCheckInputs();
                 return;
             }
-            var url = urls[orgID],
+            var url = urlSchema.replace('org_id', orgID),
                 isNew = $('#id_config-0-id').length == 0;
             // if device is not new, do not execute on page load
             if (!isNew && firstRun) {
@@ -46,20 +46,20 @@ django.jQuery(function ($) {
                 });
             });
         },
-        bindDefaultTemplateLoading = function (urls) {
+        bindDefaultTemplateLoading = function (urlSchema) {
             var backendField = $('#id_config-0-backend');
             $('#id_organization').change(function () {
                 if ($('#id_config-0-backend').length > 0) {
-                    getDefaultTemplates(urls);
+                    getDefaultTemplates(urlSchema);
                 }
             });
             if (backendField.length > 0) {
-                addChangeEventToBackend(urls);
+                addChangeEventToBackend(urlSchema);
             } else {
                 $('#config-group > fieldset.module').ready(function () {
                     $('div.add-row > a').click(function () {
-                        addChangeEventToBackend(urls);
-                        getDefaultTemplates(urls);
+                        addChangeEventToBackend(urlSchema);
+                        getDefaultTemplates(urlSchema);
                     });
                 });
             }
