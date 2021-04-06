@@ -471,7 +471,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return [
             url(
                 r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
-                get_default_templates,
+                self.admin_site.admin_view(get_default_templates),
                 name='get_default_templates',
             ),
             url(
