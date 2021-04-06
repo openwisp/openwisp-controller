@@ -47,12 +47,12 @@
         {% endfor %}
     </script>
     {% endif %}
-    {% if default_template_urls %}
+    {% if default_template_url %}
     <script>
         // enable default templates - do not remove this comment
         (function ($) {
             $(document).ready( function () {
-                window.bindDefaultTemplateLoading({{ default_template_urls| safe }});
+                window.bindDefaultTemplateLoading("{{ default_template_url }}");
             })
         }) (django.jQuery);
     </script>
