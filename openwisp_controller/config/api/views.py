@@ -87,7 +87,7 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
 class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = DeviceDetailSerializer
-    queryset = Device.objects.all()
+    queryset = Device.objects.select_related('config')
 
 
 class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):

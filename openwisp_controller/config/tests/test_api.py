@@ -88,17 +88,30 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
 
+    def test_device_create_with_invalid_name_api(self):
+        path = reverse('controller_config:api_device_list')
+        data = self._get_device_data.copy()
+        org = self._get_org()
+        data.pop('config')
+        data['name'] = 'T E S T'
+        data['organization'] = org.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Must be either a valid hostname or mac address.", str(r.content))
+
     def test_device_list_api(self):
         self._create_device()
         path = reverse('controller_config:api_device_list')
-        r = self.client.get(path)
+        with self.assertNumQueries(5):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     # Device detail having no config
     def test_device_detail_api(self):
         d1 = self._create_device()
         path = reverse('controller_config:api_device_detail', args=[d1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(3):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['config'], None)
 
@@ -107,7 +120,8 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse('controller_config:api_device_detail', args=[d1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(4):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertNotEqual(r.data['config'], None)
 
@@ -160,7 +174,8 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse('controller_config:api_download_device_config', args=[d1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(6):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_device_delete_api(self):
@@ -196,7 +211,8 @@ class TestConfigApi(
         org1 = self._get_org()
         self._create_template(name='t1', organization=org1)
         path = reverse('controller_config:api_template_list')
-        r = self.client.get(path)
+        with self.assertNumQueries(5):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Template.objects.count(), 1)
 
@@ -204,7 +220,8 @@ class TestConfigApi(
     def test_template_detail_api(self):
         t1 = self._create_template(name='t1')
         path = reverse('controller_config:api_template_detail', args=[t1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(4):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['organization'], None)
 
@@ -236,7 +253,8 @@ class TestConfigApi(
     def test_template_download_api(self):
         t1 = self._create_template(name='t1')
         path = reverse('controller_config:api_download_template_config', args=[t1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(3):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_template_delete_api(self):
@@ -260,14 +278,16 @@ class TestConfigApi(
         org = self._get_org()
         self._create_vpn(organization=org)
         path = reverse('controller_config:api_vpn_list')
-        r = self.client.get(path)
+        with self.assertNumQueries(4):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     # VPN detail having no Org
     def test_vpn_detail_no_org_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
         path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(3):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['organization'], None)
 
@@ -276,7 +296,8 @@ class TestConfigApi(
         org = self._get_org()
         vpn1 = self._create_vpn(name='test-vpn', organization=org)
         path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(3):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['organization'], org.pk)
 
@@ -310,7 +331,8 @@ class TestConfigApi(
     def test_vpn_download_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
         path = reverse('controller_config:api_download_vpn_config', args=[vpn1.pk])
-        r = self.client.get(path)
+        with self.assertNumQueries(5):
+            r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_vpn_delete_api(self):

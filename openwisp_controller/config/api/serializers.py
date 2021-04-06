@@ -91,11 +91,13 @@ class JsonContextField(BaseJsonField):
 
 class DeviceConfigSerializer(serializers.ModelSerializer):
     config = JsonConfigField(
-        help_text='Configuration in NetJSON format',
+        help_text='''<i>config</i> field in HTML form
+        displays values in dictionary format''',
         style={'base_template': 'textarea.html', 'placeholder': '{}'},
     )
     context = JsonContextField(
-        help_text='Configuration in NetJSON format',
+        help_text='''<i>context</i> field in HTML form
+        displays values in dictionary format''',
         style={'base_template': 'textarea.html', 'placeholder': '{}'},
     )
 
@@ -107,6 +109,8 @@ class DeviceConfigSerializer(serializers.ModelSerializer):
 
 class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
     config = DeviceConfigSerializer(write_only=True, required=False)
+    status = serializers.SerializerMethodField()
+    backend = serializers.SerializerMethodField()
 
     class Meta(BaseMeta):
         model = Device
@@ -122,8 +126,18 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'os',
             'system',
             'notes',
+            'status',
+            'backend',
             'config',
         ]
+
+    def get_status(self, obj):
+        if obj._has_config():
+            return obj.status
+
+    def get_backend(self, obj):
+        if obj._has_config():
+            return obj.backend
 
     def create(self, validated_data):
         if validated_data.get('config'):
@@ -194,8 +208,11 @@ class DeviceDetailSerializer(BaseSerializer):
 
         return super().update(instance, validated_data)
 
-    # Raise Exception when removing templates flagged as required
     def validate_config(self, value):
+        """
+            Raise Exception when removing
+            templates flagged as required.
+        """
         instance = self.instance
         if instance._has_config():
             prev_req_templates = [
