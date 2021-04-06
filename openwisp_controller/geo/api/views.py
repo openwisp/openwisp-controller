@@ -1,15 +1,17 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
-from django.urls import reverse
 from rest_framework import generics, pagination
 from rest_framework.permissions import BasePermission
-from rest_framework.serializers import IntegerField, SerializerMethodField
-from rest_framework_gis import serializers as gis_serializers
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
-from openwisp_utils.api.serializers import ValidatedModelSerializer
+
+from .serializers import (
+    GeoJsonLocationSerializer,
+    LocationDeviceSerializer,
+    LocationSerializer,
+)
 
 Device = load_model('config', 'Device')
 Location = load_model('geo', 'Location')
@@ -19,36 +21,6 @@ DeviceLocation = load_model('geo', 'DeviceLocation')
 class DevicePermission(BasePermission):
     def has_object_permission(self, request, view, obj):
         return request.query_params.get('key') == obj.key
-
-
-class LocationSerializer(gis_serializers.GeoFeatureModelSerializer):
-    class Meta:
-        model = Location
-        geo_field = 'geometry'
-        fields = ('name', 'geometry')
-        read_only_fields = ('name',)
-
-
-class LocationDeviceSerializer(ValidatedModelSerializer):
-    admin_edit_url = SerializerMethodField('get_admin_edit_url')
-
-    def get_admin_edit_url(self, obj):
-        return self.context['request'].build_absolute_uri(
-            reverse(f'admin:{obj._meta.app_label}_device_change', args=(obj.id,))
-        )
-
-    class Meta:
-        model = Device
-        fields = '__all__'
-
-
-class GeoJsonLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
-    device_count = IntegerField()
-
-    class Meta:
-        model = Location
-        geo_field = 'geometry'
-        fields = '__all__'
 
 
 class ListViewPagination(pagination.PageNumberPagination):
