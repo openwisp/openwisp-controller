@@ -23,8 +23,7 @@ def get_default_templates(request, organization_id):
     """
     backend = request.GET.get("backend", None)
     user = request.user
-    authenticated = user.is_authenticated
-    if not authenticated and not user.is_staff:
+    if not user.is_superuser and not user.is_manager(organization_id):
         return HttpResponse(status=403)
     org = get_object_or_404(Organization, pk=organization_id, is_active=True)
     templates = get_default_templates_queryset(org.pk, backend, model=Template).only(
