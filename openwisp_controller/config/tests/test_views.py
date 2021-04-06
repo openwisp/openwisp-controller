@@ -103,12 +103,46 @@ class TestViews(
         self.assertIn(str(t1.pk), templates)
         self.assertNotIn(str(t2.pk), templates)
 
-    def test_get_default_templates_403(self):
+    def test_get_default_templates_authorization(self):
         org1 = self._create_org(name='org1')
-        response = self.client.get(
-            reverse('admin:get_default_templates', args=[org1.pk])
-        )
-        self.assertEqual(response.status_code, 403)
+        with self.subTest('Unauthenticated user'):
+            # Unauthenticated users will be redirected to login page
+            response = self.client.get(
+                reverse('admin:get_default_templates', args=[org1.pk])
+            )
+            self.assertEqual(response.status_code, 302)
+
+        with self.subTest('Authenticated non-staff user'):
+            # Non-staff users will be redirected to login page of admin
+            # and will be asked to login with a staff account
+            user = self._create_user()
+            self.client.force_login(user)
+            response = self.client.get(
+                reverse('admin:get_default_templates', args=[org1.pk])
+            )
+            self.assertEqual(response.status_code, 302)
+            response = self.client.get(
+                reverse('admin:get_default_templates', args=[org1.pk]), follow=True
+            )
+            self.assertContains(response, 'not authorized')
+
+        with self.subTest('User requests data of other organization'):
+            org_owner = self._create_org_owner()
+            user = org_owner.organization_user.user
+            user.is_staff = True
+            user.save()
+            self.client.force_login(user)
+            response = self.client.get(
+                reverse('admin:get_default_templates', args=[org1.pk])
+            )
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest('Superuser requests data for any organization'):
+            self._login()
+            response = self.client.get(
+                reverse('admin:get_default_templates', args=[org1.pk])
+            )
+            self.assertEqual(response.status_code, 200)
 
     def test_get_default_templates_404(self):
         self._login()
