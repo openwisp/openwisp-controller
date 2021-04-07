@@ -204,7 +204,10 @@ class DeviceUpdateInfoView(CsrfExtemptMixin, GetDeviceView):
         # update device information
         for attr in self.UPDATABLE_FIELDS:
             if attr in request.POST:
-                setattr(device, attr, request.POST.get(attr))
+                # ignore empty values
+                value = request.POST.get(attr).strip()
+                if value:
+                    setattr(device, attr, value)
         # validate and save everything or fail otherwise
         try:
             device.full_clean()

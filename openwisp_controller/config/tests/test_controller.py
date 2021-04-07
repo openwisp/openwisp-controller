@@ -705,6 +705,7 @@ class TestController(
 
     def test_device_update_info(self):
         d = self._create_device_config()
+        url = reverse('controller:device_update_info', args=[d.pk])
         params = {
             'key': d.key,
             'model': 'TP-Link TL-WDR4300 v2',
@@ -714,15 +715,27 @@ class TestController(
         self.assertNotEqual(d.os, params['os'])
         self.assertNotEqual(d.system, params['system'])
         self.assertNotEqual(d.model, params['model'])
-        response = self.client.post(
-            reverse('controller:device_update_info', args=[d.pk]), params
-        )
+        response = self.client.post(url, params)
         self.assertEqual(response.status_code, 200)
         self._check_header(response)
         d.refresh_from_db()
         self.assertEqual(d.os, params['os'])
         self.assertEqual(d.system, params['system'])
         self.assertEqual(d.model, params['model'])
+
+        with self.subTest('ignore empty values'):
+            response = self.client.post(
+                url, {'key': d.key, 'model': '', 'os': '', 'system': ''}
+            )
+            self.assertEqual(response.status_code, 200)
+            self._check_header(response)
+            d.refresh_from_db()
+            self.assertNotEqual(d.os, '')
+            self.assertNotEqual(d.system, '')
+            self.assertNotEqual(d.model, '')
+            self.assertEqual(d.os, params['os'])
+            self.assertEqual(d.system, params['system'])
+            self.assertEqual(d.model, params['model'])
 
     def test_device_update_info_bad_uuid(self):
         d = self._create_device_config()
