@@ -29,9 +29,9 @@ jobs:
           - 3.6
           - 3.7
         django-version:
-          - django~=2.2
-          - django~=3.0
-          - django~=3.1
+          - django~=2.2.0
+          - django~=3.0.0
+          - django~=3.1.0
 
     steps:
     - uses: actions/checkout@v2
