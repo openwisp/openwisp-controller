@@ -466,7 +466,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             ),
             url(
                 r'^get-template-default-values/$',
-                get_template_default_values,
+                self.admin_site.admin_view(get_template_default_values),
                 name='get_template_default_values',
             ),
         ] + super().get_urls()

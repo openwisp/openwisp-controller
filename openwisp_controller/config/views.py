@@ -2,6 +2,7 @@ import json
 from copy import deepcopy
 from uuid import UUID
 
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -82,6 +83,7 @@ def get_template_default_values(request):
     """
     returns default_values for one or more templates
     """
+    user = request.user
     pk_list = []
     for pk in request.GET.get('pks', '').split(','):
         try:
@@ -92,9 +94,13 @@ def get_template_default_values(request):
             )
         else:
             pk_list.append(pk)
-    values = Template.objects.filter(pk__in=pk_list).values_list(
-        'default_values', flat=True
-    )
+    where = Q(organization=None)
+    if not user.is_superuser:
+        where |= Q(organization__in=user.organizations_managed)
+    if user.is_superuser:
+        where = Q()
+    where &= Q(pk__in=pk_list)
+    values = Template.objects.filter(where).values_list('default_values', flat=True)
     default_values = {}
     for item in values:
         default_values.update(item)

@@ -921,7 +921,7 @@ class TestAdmin(
         path = reverse('admin:get_template_default_values')
 
         with self.subTest('get default values for one template'):
-            with self.assertNumQueries(1):
+            with self.assertNumQueries(3):
                 r = self.client.get(path, {'pks': f'{t1.pk}'})
                 self.assertEqual(r.status_code, 200)
                 expected = {'default_values': {'name1': 'test1'}}
@@ -929,7 +929,7 @@ class TestAdmin(
 
         with self.subTest('get default values for multiple templates'):
             t2 = self._create_template(name='t2', default_values={'name2': 'test2'})
-            with self.assertNumQueries(1):
+            with self.assertNumQueries(3):
                 r = self.client.get(path, {'pks': f'{t1.pk},{t2.pk}'})
                 self.assertEqual(r.status_code, 200)
                 expected = {'default_values': {'name1': 'test1', 'name2': 'test2'}}
