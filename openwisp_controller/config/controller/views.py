@@ -139,9 +139,8 @@ class DeviceUpdateInfoView(ActiveOrgMixin, CsrfExtemptMixin, BaseConfigView):
                 setattr(device, attr, request.POST.get(attr))
         # validate and save everything or fail otherwise
         try:
-            with transaction.atomic():
-                device.full_clean()
-                device.save()
+            device.full_clean()
+            device.save()
         except ValidationError as e:
             # dump message_dict as JSON,
             # this should make it easy to debug
