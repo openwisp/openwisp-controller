@@ -175,3 +175,57 @@ class TestViews(
             reverse('admin:get_default_templates', args=['wrong'])
         )
         self.assertEqual(response.status_code, 404)
+
+    def get_template_default_values_authorization(self):
+        org1 = self._get_org()
+        org1_template = self._create_template(
+            organization=org1, default_values={'org1': 'secret1'}
+        )
+        org2 = self._create_org(name='org2')
+        org2_template = self._create_template(
+            organization=org2, default_values={'org2': 'secret2'}
+        )
+        shared_template = self._create_template(
+            name='shared-template', default_values={'key': 'value'}
+        )
+        url = (
+            reverse('admin:get_template_default_values')
+            + f'?pks={org1_template.pk},{org2_template.pk},{shared_template.pk}'
+        )
+
+        with self.subTest('Unauthenticated user'):
+            # Unauthenticated users will be redirected to login page
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 302)
+
+        with self.subTest('Authenticated non-staff user'):
+            # Non-staff users will be redirected to login page of admin
+            # and will be asked to login with a staff account
+            user = self._create_user()
+            self.client.force_login(user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 302)
+            response = self.client.get(
+                reverse('admin:get_default_templates', args=[org1.pk]), follow=True
+            )
+            self.assertContains(response, 'not authorized')
+
+        with self.subTest('Org admin requests data of other organization'):
+            org1_admin = self._create_org_user(organization=org1, is_admin=True)
+            org1_user = org1_admin.user
+            org1_user.is_staff = True
+            org1_user.save()
+            self.client.force_login(org1_user)
+            expected_response = {'default_values': {'org1': 'secret1', 'key': 'value'}}
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertJSONEqual(response.content, expected_response)
+
+        with self.subTest('Superuser requests data for any organization'):
+            self._login()
+            response = self.client.get(url)
+            expected_response = {
+                'default_values': {'org1': 'secret1', 'org2': 'secret2', 'key': 'value'}
+            }
+            self.assertEqual(response.status_code, 200)
+            self.assertJSONEqual(response.content, expected_response)
