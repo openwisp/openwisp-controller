@@ -333,12 +333,6 @@
             }
         });
 
-        // fill device context field with default values of selected templates.
-        getDefaultValues(true);
-
-        $('.sortedm2m-items').on('change', function() {
-            getDefaultValues();
-        });
         // so that other files can use updateContext
         window.updateContext = updateContext;
     };
@@ -368,6 +362,11 @@
                 }
                 $(document).trigger('jsonschema-schemaloaded');
             });
+        });
+        // fill device context field with default values of selected templates.
+        getDefaultValues(true);
+        $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
         });
     };
 
