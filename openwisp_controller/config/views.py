@@ -93,12 +93,11 @@ def get_template_default_values(request):
             )
         else:
             pk_list.append(pk)
-    where = Q(organization=None)
+    where = Q(pk__in=pk_list)
     if not user.is_superuser:
-        where |= Q(organization__in=user.organizations_managed)
-    if user.is_superuser:
-        where = Q()
-    where &= Q(pk__in=pk_list)
+        where = where & (
+            Q(organization=None) | Q(organization__in=user.organizations_managed)
+        )
     values = Template.objects.filter(where).values_list('default_values', flat=True)
     default_values = {}
     for item in values:
