@@ -58,7 +58,7 @@ class TestViews(
         )
         return org1, org2, t1, t2, t3, inactive_org, inactive_t
 
-    def test_get_default_templates(self):
+    def test_get_relevant_templates_without_backend_filter(self):
         (
             org1,
             org2,
@@ -70,45 +70,57 @@ class TestViews(
         ) = self._create_template_test_data()
         self._login()
         response = self.client.get(
-            reverse('admin:get_default_templates', args=[org1.pk])
+            reverse('admin:get_relevant_templates', args=[org1.pk])
         )
-        templates = response.json()['default_templates']
-        self.assertEqual(len(templates), 2)
-        self.assertIn(str(t1.pk), templates)
-        self.assertIn(str(t3.pk), templates)
-        response = self.client.get(
-            reverse('admin:get_default_templates', args=[org2.pk])
-        )
-        templates = response.json()['default_templates']
-        self.assertEqual(len(templates), 2)
-        self.assertIn(str(t2.pk), templates)
-        self.assertIn(str(t3.pk), templates)
+        template = response.json()
+        self.assertEqual(template, {})
 
-    def test_get_default_templates_with_backend_filtering(self):
+    def test_get_relevant_templates_with_backend_filtering(self):
         org1 = self._create_org(name='org1')
         t1 = self._create_template(
-            name='t1', organization=org1, default=True, backend='netjsonconfig.OpenWrt'
+            name='t1',
+            organization=org1,
+            default=True,
+            backend='netjsonconfig.OpenWrt',
+            required=True,
         )
         t2 = self._create_template(
-            name='t2', organization=org1, default=True, backend='netjsonconfig.OpenWisp'
+            name='t2',
+            organization=org1,
+            default=True,
+            backend='netjsonconfig.OpenWisp',
+            required=True,
         )
         self._login()
 
-        r = self.client.get(
-            reverse('admin:get_default_templates', args=[org1.pk]),
+        response = self.client.get(
+            reverse('admin:get_relevant_templates', args=[org1.pk]),
             {'backend': 'netjsonconfig.OpenWrt'},
         )
-        templates = r.json()['default_templates']
+        templates = response.json()
         self.assertEqual(len(templates), 1)
-        self.assertIn(str(t1.pk), templates)
+        self.assertEqual(
+            templates, {str(t1.pk): {'required': t1.required, 'default': t1.default}}
+        )
         self.assertNotIn(str(t2.pk), templates)
 
-    def test_get_default_templates_authorization(self):
+        response = self.client.get(
+            reverse('admin:get_relevant_templates', args=[org1.pk]),
+            {'backend': 'netjsonconfig.OpenWisp'},
+        )
+        templates = response.json()
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(
+            templates, {str(t2.pk): {'required': t2.required, 'default': t2.default}}
+        )
+        self.assertNotIn(str(t1.pk), templates)
+
+    def test_get_relevant_templates_authorization(self):
         org1 = self._create_org(name='org1')
         with self.subTest('Unauthenticated user'):
             # Unauthenticated users will be redirected to login page
             response = self.client.get(
-                reverse('admin:get_default_templates', args=[org1.pk])
+                reverse('admin:get_relevant_templates', args=[org1.pk])
             )
             self.assertEqual(response.status_code, 302)
 
@@ -118,11 +130,11 @@ class TestViews(
             user = self._create_user()
             self.client.force_login(user)
             response = self.client.get(
-                reverse('admin:get_default_templates', args=[org1.pk])
+                reverse('admin:get_relevant_templates', args=[org1.pk])
             )
             self.assertEqual(response.status_code, 302)
             response = self.client.get(
-                reverse('admin:get_default_templates', args=[org1.pk]), follow=True
+                reverse('admin:get_relevant_templates', args=[org1.pk]), follow=True
             )
             self.assertContains(response, 'not authorized')
 
@@ -133,27 +145,28 @@ class TestViews(
             user.save()
             self.client.force_login(user)
             response = self.client.get(
-                reverse('admin:get_default_templates', args=[org1.pk])
+                reverse('admin:get_relevant_templates', args=[org1.pk])
             )
             self.assertEqual(response.status_code, 403)
 
         with self.subTest('Superuser requests data for any organization'):
             self._login()
             response = self.client.get(
-                reverse('admin:get_default_templates', args=[org1.pk])
+                reverse('admin:get_relevant_templates', args=[org1.pk])
             )
             self.assertEqual(response.status_code, 200)
 
-    def test_get_default_templates_404(self):
+    def test_get_relevant_templates_404(self):
         self._login()
         response = self.client.get(
             reverse(
-                'admin:get_default_templates', args=['d80a60a1415e4836b8f4bc588b084c29']
+                'admin:get_relevant_templates',
+                args=['d80a60a1415e4836b8f4bc588b084c29'],
             )
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_get_default_templates_404_inactive(self):
+    def test_get_relevant_templates_404_inactive(self):
         (
             org1,
             org2,
@@ -165,14 +178,14 @@ class TestViews(
         ) = self._create_template_test_data()
         self._login()
         response = self.client.get(
-            reverse('admin:get_default_templates', args=[inactive_org.pk])
+            reverse('admin:get_relevant_templates', args=[inactive_org.pk])
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_get_default_templates_400(self):
+    def test_get_relevant_templates_400(self):
         self._login()
         response = self.client.get(
-            reverse('admin:get_default_templates', args=['wrong'])
+            reverse('admin:get_relevant_templates', args=['wrong'])
         )
         self.assertEqual(response.status_code, 404)
 
@@ -206,7 +219,7 @@ class TestViews(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 302)
             response = self.client.get(
-                reverse('admin:get_default_templates', args=[org1.pk]), follow=True
+                reverse('admin:get_relevant_templates', args=[org1.pk]), follow=True
             )
             self.assertContains(response, 'not authorized')
 

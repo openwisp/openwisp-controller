@@ -8,11 +8,11 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
+from sortedm2m.fields import SortedManyToManyField
 from swapper import get_model_name
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
-from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
 
@@ -241,9 +241,9 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
+        templates = cls._get_templates_from_pk_set(pk_set)
         if action != 'pre_add':
             return False
-        templates = cls._get_templates_from_pk_set(pk_set)
         # when using the admin, templates will be a list
         # we need to get the queryset from this list in order to proceed
         if not isinstance(templates, models.QuerySet):

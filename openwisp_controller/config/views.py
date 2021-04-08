@@ -11,13 +11,13 @@ from django.views.decorators.http import last_modified
 from swapper import load_model
 
 from .settings import BACKENDS, VPN_BACKENDS
-from .utils import get_default_templates_queryset, get_object_or_404
+from .utils import get_object_or_404
 
 Organization = load_model('openwisp_users', 'Organization')
 Template = load_model('config', 'Template')
 
 
-def get_default_templates(request, organization_id):
+def get_relevant_templates(request, organization_id):
     """
     returns default templates of specified organization
     """
@@ -26,11 +26,15 @@ def get_default_templates(request, organization_id):
     if not user.is_superuser and not user.is_manager(organization_id):
         return HttpResponse(status=403)
     org = get_object_or_404(Organization, pk=organization_id, is_active=True)
-    templates = get_default_templates_queryset(org.pk, backend, model=Template).only(
-        'id'
+    queryset = (
+        Template.objects.filter(backend=backend)
+        .filter(Q(organization_id=org.pk) | Q(organization_id=None))
+        .values('id', 'required', 'default')
     )
-    uuids = [str(t.pk) for t in templates]
-    return JsonResponse({'default_templates': uuids})
+    relevant_templates = {}
+    for template in queryset:
+        relevant_templates[str(template.pop('id'))] = template
+    return JsonResponse(relevant_templates)
 
 
 ALL_BACKENDS = BACKENDS + VPN_BACKENDS
