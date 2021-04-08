@@ -333,12 +333,6 @@
             }
         });
 
-        // fill device context field with default values of selected templates.
-        getDefaultValues(true);
-
-        $('.sortedm2m-items').on('change', function() {
-            getDefaultValues();
-        });
         // so that other files can use updateContext
         window.updateContext = updateContext;
     };
@@ -378,6 +372,11 @@
         addConfig.click(bindLoadUi);
         // otherwise load immediately
         bindLoadUi();
+        // fill device context field with default values of selected templates.
+        getDefaultValues(true);
+        $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
+        });
     });
 }(django.jQuery));
 
