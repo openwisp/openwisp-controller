@@ -363,11 +363,6 @@
                 $(document).trigger('jsonschema-schemaloaded');
             });
         });
-        // fill device context field with default values of selected templates.
-        getDefaultValues(true);
-        $('.sortedm2m-items').on('change', function() {
-            getDefaultValues();
-        });
     };
 
     $(function () {
@@ -377,6 +372,11 @@
         addConfig.click(bindLoadUi);
         // otherwise load immediately
         bindLoadUi();
+        // fill device context field with default values of selected templates.
+        getDefaultValues(true);
+        $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
+        });
     });
 }(django.jQuery));
 
