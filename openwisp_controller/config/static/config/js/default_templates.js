@@ -42,8 +42,11 @@ django.jQuery(function ($) {
             $.get(url).done(function (data) {
                 unCheckInputs();
                 $.each(data.default_templates, function (i, uuid) {
-                    $('input.sortedm2m[value=' + uuid + ']').trigger('click');
+                    $('input.sortedm2m[value=' + uuid + ']').prop('checked', true);
                 });
+                $('input[name="config-0-templates"]').attr('value', data.default_templates.join(','));
+                $('.sortedm2m-items:first').trigger('change');
+
             });
         },
         bindDefaultTemplateLoading = function (urlSchema) {
