@@ -99,10 +99,21 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
         self.assertIn("Must be either a valid hostname or mac address.", str(r.content))
 
+    def test_device_create_with_templates_of_different_org(self):
+        path = reverse('controller_config:api_device_list')
+        data = self._get_device_data.copy()
+        org_1 = self._get_org()
+        data['organization'] = org_1.pk
+        org_2 = self._create_org(name='test org2', slug='test-org2')
+        t1 = self._create_template(name='t1', organization=org_2)
+        data['config']['templates'] += [str(t1.pk)]
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+
     def test_device_list_api(self):
         self._create_device()
         path = reverse('controller_config:api_device_list')
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -206,6 +217,15 @@ class TestConfigApi(
         self.assertEqual(Template.objects.count(), 1)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data['organization'], org.pk)
+
+    def test_template_creation_with_no_org_by_operator(self):
+        path = reverse('controller_config:api_template_list')
+        data = self._get_template_data.copy()
+        test_user = self._create_operator(organizations=[self._get_org()])
+        self.client.force_login(test_user)
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Shared Template can only be created by Admin", str(r.content))
 
     def test_template_list_api(self):
         org1 = self._get_org()

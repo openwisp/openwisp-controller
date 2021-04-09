@@ -3,6 +3,7 @@ import collections
 import json
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from swapper import load_model
@@ -14,7 +15,6 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
 Config = load_model('config', 'Config')
-TemplateTag = load_model('config', 'TemplateTag')
 Organization = load_model('openwisp_users', 'Organization')
 
 
@@ -47,6 +47,14 @@ class TemplateSerializer(BaseSerializer):
             'created',
             'modified',
         ]
+
+    def validate_organization(self, value):
+        user = self.context['request'].user
+        if user.is_superuser is False and value is None:
+            raise serializers.ValidationError(
+                'Shared Template can only be created by Admin'
+            )
+        return value
 
 
 class VpnSerializer(BaseSerializer):
@@ -89,6 +97,19 @@ class JsonContextField(BaseJsonField):
         return dict(value)
 
 
+class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):
+        user = self.context['request'].user
+        if user.is_superuser:
+            org_id = Organization.objects.get(name='default').id
+        else:
+            org_id = next(iter(user.organizations_dict))
+        queryset = Template.objects.filter(
+            Q(organization=None) | Q(organization=org_id)
+        )
+        return queryset
+
+
 class DeviceConfigSerializer(serializers.ModelSerializer):
     config = JsonConfigField(
         help_text='''<i>config</i> field in HTML form
@@ -100,6 +121,7 @@ class DeviceConfigSerializer(serializers.ModelSerializer):
         displays values in dictionary format''',
         style={'base_template': 'textarea.html', 'placeholder': '{}'},
     )
+    templates = FilterTemplatesByOrganization(many=True)
 
     class Meta:
         model = Config
@@ -130,6 +152,10 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'backend',
             'config',
         ]
+        extra_kwargs = {
+            'last_ip': {'allow_blank': True},
+            'management_ip': {'allow_blank': True},
+        }
 
     def get_status(self, obj):
         if obj._has_config():

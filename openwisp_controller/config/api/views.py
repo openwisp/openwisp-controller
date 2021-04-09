@@ -81,7 +81,7 @@ class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
 
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = DeviceListSerializer
-    queryset = Device.objects.order_by('-created')
+    queryset = Device.objects.select_related('config').order_by('-created')
     pagination_class = ListViewPagination
 
 
