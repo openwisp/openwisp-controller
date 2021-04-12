@@ -101,12 +101,12 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         user = self.context['request'].user
         if user.is_superuser:
-            org_id = Organization.objects.get(name='default').id
+            queryset = Template.objects.all()
         else:
             org_id = next(iter(user.organizations_dict))
-        queryset = Template.objects.filter(
-            Q(organization=None) | Q(organization=org_id)
-        )
+            queryset = Template.objects.filter(
+                Q(organization=None) | Q(organization=org_id)
+            )
         return queryset
 
 

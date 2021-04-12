@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
@@ -99,6 +100,7 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
         self.assertIn("Must be either a valid hostname or mac address.", str(r.content))
 
+    # POST request should fail with validation error
     def test_device_create_with_templates_of_different_org(self):
         path = reverse('controller_config:api_device_list')
         data = self._get_device_data.copy()
@@ -107,8 +109,14 @@ class TestConfigApi(
         org_2 = self._create_org(name='test org2', slug='test-org2')
         t1 = self._create_template(name='t1', organization=org_2)
         data['config']['templates'] += [str(t1.pk)]
-        r = self.client.post(path, data, content_type='application/json')
-        self.assertEqual(r.status_code, 400)
+        with self.assertRaises(ValidationError) as error:
+            self.client.post(path, data, content_type='application/json')
+        validation_msg = '''
+                            The following templates are owned by
+                            organizations which do not match the
+                            organization of this configuration: t1
+                        '''
+        self.assertTrue(' '.join(validation_msg.split()) in error.exception.message)
 
     def test_device_list_api(self):
         self._create_device()
