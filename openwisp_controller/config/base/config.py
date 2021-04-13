@@ -241,9 +241,9 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
-        templates = cls._get_templates_from_pk_set(pk_set)
         if action != 'pre_add':
             return False
+        templates = cls._get_templates_from_pk_set(pk_set)
         # when using the admin, templates will be a list
         # we need to get the queryset from this list in order to proceed
         if not isinstance(templates, models.QuerySet):

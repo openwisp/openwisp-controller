@@ -69,9 +69,10 @@ class TestViews(
             inactive_t,
         ) = self._create_template_test_data()
         self._login()
-        response = self.client.get(
-            reverse('admin:get_relevant_templates', args=[org1.pk])
-        )
+        with self.assertNumQueries(4):
+            response = self.client.get(
+                reverse('admin:get_relevant_templates', args=[org1.pk])
+            )
         template = response.json()
         self.assertEqual(template, {})
 
@@ -93,14 +94,22 @@ class TestViews(
         )
         self._login()
 
-        response = self.client.get(
-            reverse('admin:get_relevant_templates', args=[org1.pk]),
-            {'backend': 'netjsonconfig.OpenWrt'},
-        )
+        with self.assertNumQueries(4):
+            response = self.client.get(
+                reverse('admin:get_relevant_templates', args=[org1.pk]),
+                {'backend': 'netjsonconfig.OpenWrt'},
+            )
         templates = response.json()
         self.assertEqual(len(templates), 1)
         self.assertEqual(
-            templates, {str(t1.pk): {'required': t1.required, 'default': t1.default}}
+            templates,
+            {
+                str(t1.pk): {
+                    'required': t1.required,
+                    'default': t1.default,
+                    'name': t1.name,
+                }
+            },
         )
         self.assertNotIn(str(t2.pk), templates)
 
@@ -111,7 +120,14 @@ class TestViews(
         templates = response.json()
         self.assertEqual(len(templates), 1)
         self.assertEqual(
-            templates, {str(t2.pk): {'required': t2.required, 'default': t2.default}}
+            templates,
+            {
+                str(t2.pk): {
+                    'required': t2.required,
+                    'default': t2.default,
+                    'name': t2.name,
+                }
+            },
         )
         self.assertNotIn(str(t1.pk), templates)
 

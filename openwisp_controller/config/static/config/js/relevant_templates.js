@@ -1,6 +1,24 @@
 'use strict';
 django.jQuery(function ($) {
-    var firstRun = true,
+    var selectedTemplates = django._owcInitialValues["config-0-templates"].split(','),
+        isFirstRun = function () {
+            return selectedTemplates.length !== 0;
+        },
+        getTemplateOptionElement = function (index, templateId, templateName, isPrefix=false) {
+            var prefix = isPrefix ? '__prefix__-' : '';
+            return $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateName}</label></li>`);
+        },
+        resetTemplateOptions = function () {
+            $('fieldset ul.sortedm2m-items').empty();
+        },
+        updateTemplateSelection = function () {
+            // Marks currently applied templates from database as selected
+            // Only executed at page load.
+            selectedTemplates.forEach( function(templateId){
+                $(`li.sortedm2m-item:visible input[type="checkbox"][value="${templateId}"]`).prop('checked', true);
+            });
+            selectedTemplates.length = 0;
+        },
         updateTemplateHelpText = function () {
             var helpText = 'Choose items and order by drag & drop.';
             if ($('li.sortedm2m-item:visible').length === 0) {
@@ -10,10 +28,6 @@ django.jQuery(function ($) {
                 helpText = gettext(helpText);
             }
             $('.sortedm2m-container > .help').text(helpText);
-        },
-        resetCheckboxInput = function (element) {
-            element.prop('checked', false);
-            element.prop('disabled', false);
         },
         addChangeEventHandlerToBackendField = function () {
             $('#id_config-0-backend').change(function () {
@@ -39,9 +53,7 @@ django.jQuery(function ($) {
 
             // Hide templates if no organization or backend is selected
             if (orgID.length === 0 || backend.length === 0) {
-                $('li.sortedm2m-item').hide();
-                var elements = $('li.sortedm2m-item input[type="checkbox"]:visible');
-                resetCheckboxInput(elements);
+                resetTemplateOptions();
                 updateTemplateHelpText();
                 return;
             }
@@ -49,31 +61,29 @@ django.jQuery(function ($) {
             // Get relevant templates of selected org and backend
             url = url + '?backend=' + backend;
             $.get(url).done(function (data) {
-                updateTemplateHelpText();
+                resetTemplateOptions();
                 var enabledTemplates = [];
-                // Loop over all input elements fo  the templates field.
-                // If value(templateId) of an element is not in data, then
-                //      uncheck, enable and hide the element
-                // else.
-                //      check, the element and disable if if a required template
-                $('input.sortedm2m').each(function () {
-                    var templateId = $(this).val();
-                    if (data[templateId] === undefined) {
-                        resetCheckboxInput($(this));
-                        $(this).parent().parent().hide();
-                        return;
-                    }
+                Object.keys(data).map(function (templateId, index){
+                    var element = getTemplateOptionElement(index, templateId, data[templateId].name),
+                        prefixElement = getTemplateOptionElement(index, templateId, data[templateId].name, true),
+                        inputField = element.children().children('input');
 
-                    if (data[templateId].required || data[templateId].default) {
+                    if (data[templateId].default && (isFirstRun() !== true)) {
+                        inputField.prop('checked', true);
                         enabledTemplates.push(templateId);
-                        $(this).prop('checked', true);
-
-                        if (data[templateId].required) {
-                            $(this).prop('disabled', true);
-                        }
                     }
-                    $(this).parent().parent().show();
+
+                    if (data[templateId].required) {
+                        inputField.prop('disabled', true);
+                        inputField.prop('checked', true);
+                        enabledTemplates.push(templateId);
+                    }
+
+                    $('fieldset ul.sortedm2m-items:visible').append(element);
+                    $('fieldset ul.sortedm2m-items:not(:visible)').append(prefixElement);
                 });
+                updateTemplateSelection();
+                updateTemplateHelpText();
                 updateConfigTemplateField(enabledTemplates);
             });
         },
@@ -96,7 +106,6 @@ django.jQuery(function ($) {
                     });
                 });
             }
-            firstRun = false;
         };
     window.bindDefaultTemplateLoading = bindDefaultTemplateLoading;
 });
