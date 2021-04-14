@@ -1,27 +1,23 @@
 'use strict';
 django.jQuery(function ($) {
-    var selectedTemplates = django._owcInitialValues["config-0-templates"].split(','),
-        isFirstRun = function () {
-            return selectedTemplates.length !== 0;
-        },
+    var firstRun = true,
         getTemplateOptionElement = function (index, templateId, templateName, isPrefix = false) {
             var prefix = isPrefix ? '__prefix__-' : '';
             return $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateName}</label></li>`);
         },
         resetTemplateOptions = function () {
-            $('fieldset ul.sortedm2m-items').empty();
+            $('ul.sortedm2m-items').empty();
         },
-        updateTemplateSelection = function () {
+        updateTemplateSelection = function (selectedTemplates) {
             // Marks currently applied templates from database as selected
             // Only executed at page load.
             selectedTemplates.forEach(function (templateId) {
-                $(`li.sortedm2m-item:visible input[type="checkbox"][value="${templateId}"]`).prop('checked', true);
+                $(`li.sortedm2m-item:first input[type="checkbox"][value="${templateId}"]`).prop('checked', true);
             });
-            selectedTemplates.length = 0;
         },
         updateTemplateHelpText = function () {
             var helpText = 'Choose items and order by drag & drop.';
-            if ($('li.sortedm2m-item:visible').length === 0) {
+            if ($('li.sortedm2m-item:first').length === 0) {
                 helpText = 'No Template available';
             }
             if (gettext) {
@@ -49,7 +45,8 @@ django.jQuery(function ($) {
         },
         showRelevantTemplates = function () {
             var orgID = $('#id_organization').val(),
-                backend = $('#id_config-0-backend').val();
+                backend = $('#id_config-0-backend').val(),
+                selectedTemplates = [];
 
             // Hide templates if no organization or backend is selected
             if (orgID.length === 0 || backend.length === 0) {
@@ -57,32 +54,39 @@ django.jQuery(function ($) {
                 updateTemplateHelpText();
                 return;
             }
+
+            if (firstRun) {
+                selectedTemplates = django._owcInitialValues["config-0-templates"].split(',');
+            }
+
             var url = window._relevantTemplateUrl.replace('org_id', orgID);
             // Get relevant templates of selected org and backend
             url = url + '?backend=' + backend;
             $.get(url).done(function (data) {
                 resetTemplateOptions();
-                var enabledTemplates = [];
+                var enabledTemplates = [],
+                    sortedm2mUl = $('ul.sortedm2m-items:first'),
+                    sortedm2mPrefixUl = $('ul.sortedm2m-items:last');
                 Object.keys(data).map(function (templateId, index) {
                     var element = getTemplateOptionElement(index, templateId, data[templateId].name),
                         prefixElement = getTemplateOptionElement(index, templateId, data[templateId].name, true),
                         inputField = element.children().children('input');
 
-                    if (data[templateId].default && (isFirstRun() !== true)) {
-                        inputField.prop('checked', true);
-                        enabledTemplates.push(templateId);
-                    }
-
                     if (data[templateId].required) {
                         inputField.prop('disabled', true);
                         inputField.prop('checked', true);
                         enabledTemplates.push(templateId);
+                    } else {
+                        if (data[templateId].default && (selectedTemplates.length === 0)) {
+                            inputField.prop('checked', true);
+                            enabledTemplates.push(templateId);
+                        }
                     }
 
-                    $('fieldset ul.sortedm2m-items:visible').append(element);
-                    $('fieldset ul.sortedm2m-items:not(:visible)').append(prefixElement);
+                    sortedm2mUl.append(element);
+                    sortedm2mPrefixUl.append(prefixElement);
                 });
-                updateTemplateSelection();
+                updateTemplateSelection(selectedTemplates);
                 updateTemplateHelpText();
                 updateConfigTemplateField(enabledTemplates);
             });
@@ -106,6 +110,7 @@ django.jQuery(function ($) {
                     });
                 });
             }
+            firstRun = false;
         };
     window.bindDefaultTemplateLoading = bindDefaultTemplateLoading;
 });
