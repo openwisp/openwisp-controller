@@ -4,7 +4,7 @@ django.jQuery(function ($) {
         isFirstRun = function () {
             return selectedTemplates.length !== 0;
         },
-        getTemplateOptionElement = function (index, templateId, templateName, isPrefix=false) {
+        getTemplateOptionElement = function (index, templateId, templateName, isPrefix = false) {
             var prefix = isPrefix ? '__prefix__-' : '';
             return $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateName}</label></li>`);
         },
@@ -14,7 +14,7 @@ django.jQuery(function ($) {
         updateTemplateSelection = function () {
             // Marks currently applied templates from database as selected
             // Only executed at page load.
-            selectedTemplates.forEach( function(templateId){
+            selectedTemplates.forEach(function (templateId) {
                 $(`li.sortedm2m-item:visible input[type="checkbox"][value="${templateId}"]`).prop('checked', true);
             });
             selectedTemplates.length = 0;
@@ -63,7 +63,7 @@ django.jQuery(function ($) {
             $.get(url).done(function (data) {
                 resetTemplateOptions();
                 var enabledTemplates = [];
-                Object.keys(data).map(function (templateId, index){
+                Object.keys(data).map(function (templateId, index) {
                     var element = getTemplateOptionElement(index, templateId, data[templateId].name),
                         prefixElement = getTemplateOptionElement(index, templateId, data[templateId].name, true),
                         inputField = element.children().children('input');
