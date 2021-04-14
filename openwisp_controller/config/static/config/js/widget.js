@@ -373,7 +373,9 @@
         // otherwise load immediately
         bindLoadUi();
         // fill device context field with default values of selected templates.
-        getDefaultValues(true);
+        setTimeout(function () {
+            getDefaultValues(true);
+        }, 500);
         $('.sortedm2m-items').on('change', function() {
             getDefaultValues();
         });

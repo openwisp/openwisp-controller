@@ -30,6 +30,7 @@ def get_relevant_templates(request, organization_id):
         Template.objects.filter(backend=backend)
         .filter(Q(organization_id=org.pk) | Q(organization_id=None))
         .values('id', 'required', 'default', 'name')
+        .order_by('-required', 'name')
     )
     relevant_templates = {}
     for template in queryset:

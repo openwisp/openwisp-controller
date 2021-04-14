@@ -12,7 +12,7 @@ django.jQuery(function ($) {
             // Marks currently applied templates from database as selected
             // Only executed at page load.
             selectedTemplates.forEach(function (templateId) {
-                $(`li.sortedm2m-item:first input[type="checkbox"][value="${templateId}"]`).prop('checked', true);
+                $(`li.sortedm2m-item input[type="checkbox"][value="${templateId}"]:first`).prop('checked', true);
             });
         },
         updateTemplateHelpText = function () {
