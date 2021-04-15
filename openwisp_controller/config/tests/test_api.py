@@ -98,7 +98,7 @@ class TestConfigApi(
         data['organization'] = org.pk
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 400)
-        self.assertIn("Must be either a valid hostname or mac address.", str(r.content))
+        self.assertIn('Must be either a valid hostname or mac address.', str(r.content))
 
     # POST request should fail with validation error
     def test_device_create_with_templates_of_different_org(self):
@@ -145,7 +145,7 @@ class TestConfigApi(
         self.assertNotEqual(r.data['config'], None)
 
     def test_device_put_api(self):
-        d1 = self._create_device(name="test-device")
+        d1 = self._create_device(name='test-device')
         self._create_config(device=d1)
         path = reverse('controller_config:api_device_detail', args=[d1.pk])
         org = self._get_org()
@@ -168,7 +168,7 @@ class TestConfigApi(
         self.assertEqual(r.data['organization'], org.pk)
 
     def test_device_patch_api(self):
-        d1 = self._create_device(name="test-device")
+        d1 = self._create_device(name='test-device')
         path = reverse('controller_config:api_device_detail', args=[d1.pk])
         data = dict(name='change-test-device')
         r = self.client.patch(path, data, content_type='application/json')
@@ -177,7 +177,7 @@ class TestConfigApi(
 
     # Cannot remove/unasign Required templates
     def test_device_template_remove_api(self):
-        d1 = self._create_device(name="test-device")
+        d1 = self._create_device(name='test-device')
         c1 = self._create_config(device=d1)
         self.assertEqual(d1.config.templates.count(), 0)
         t1 = self._create_template(name='t1', required=True)
@@ -186,7 +186,7 @@ class TestConfigApi(
         path = reverse('controller_config:api_device_detail', args=[d1.pk])
         r = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 400)
-        self.assertIn("Required templates cannot be Unassigned", str(r.content))
+        self.assertIn('Required templates cannot be Unassigned', str(r.content))
         self.assertEqual(d1.config.templates.count(), 1)
 
     def test_device_download_api(self):
@@ -233,7 +233,7 @@ class TestConfigApi(
         self.client.force_login(test_user)
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 400)
-        self.assertIn("Shared Template can only be created by Admin", str(r.content))
+        self.assertIn('Shared Template can only be created by Admin', str(r.content))
 
     def test_template_list_api(self):
         org1 = self._get_org()
