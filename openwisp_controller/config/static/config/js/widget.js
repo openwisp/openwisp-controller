@@ -35,7 +35,7 @@
                 }
             });
 
-            if (isLoading) {
+            if (isLoading && django._owcInitialValues) {
                 django._owcInitialValues['config-0-context'] = removeDefaultValues(
                     contextValue,
                     defaultValues
