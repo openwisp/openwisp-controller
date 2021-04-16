@@ -32,6 +32,7 @@
                     catch (ignore) { }
                 }
             });
+        $(document).trigger('owcInitialValuesLoaded');
         };
 
     var unsavedChanges = function (e) {

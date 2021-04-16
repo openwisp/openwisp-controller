@@ -8,11 +8,11 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
+from sortedm2m.fields import SortedManyToManyField
 from swapper import get_model_name
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
-from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
 

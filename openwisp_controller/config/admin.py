@@ -23,7 +23,7 @@ from flat_json_widget.widgets import FlatJsonWidget
 from swapper import load_model
 
 from openwisp_controller.config.views import (
-    get_default_templates,
+    get_relevant_templates,
     get_template_default_values,
 )
 from openwisp_users.multitenancy import (
@@ -430,7 +430,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + [
             f'{prefix}js/tabs.js',
-            f'{prefix}js/default_templates.js',
+            f'{prefix}js/relevant_templates.js',
         ]
 
     def get_fields(self, request, obj=None):
@@ -470,9 +470,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def get_urls(self):
         return [
             url(
-                r'^config/get-default-templates/(?P<organization_id>[^/]+)/$',
-                self.admin_site.admin_view(get_default_templates),
-                name='get_default_templates',
+                r'^config/get-relevant-templates/(?P<organization_id>[^/]+)/$',
+                self.admin_site.admin_view(get_relevant_templates),
+                name='get_relevant_templates',
             ),
             url(
                 r'^get-template-default-values/$',
@@ -485,9 +485,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         ctx = super().get_extra_context(pk)
         ctx.update(
             {
-                'default_template_url': reverse(
-                    'admin:get_default_templates', args=['org_id']
-                )
+                'relevant_template_url': reverse(
+                    'admin:get_relevant_templates', args=['org_id']
+                ),
             }
         )
         return ctx

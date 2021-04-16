@@ -445,12 +445,6 @@ class TestAdmin(
         c = self._create_config(device=d, backend=t.backend, config=t.config)
         path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
 
-        with self.subTest('required template uses a disabled/checked checkbox'):
-            response = self.client.get(path)
-            self.assertContains(
-                response, 'disabled="disabled" checked> Empty (required)'
-            )
-
         with self.subTest(
             'POST request without a required template is ineffective in removing it'
         ):
