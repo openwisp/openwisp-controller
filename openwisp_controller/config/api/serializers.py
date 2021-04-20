@@ -48,14 +48,6 @@ class TemplateSerializer(BaseSerializer):
             'modified',
         ]
 
-    def validate_organization(self, value):
-        user = self.context['request'].user
-        if user.is_superuser is False and value is None:
-            raise serializers.ValidationError(
-                _('Shared Template can only be created by Admin')
-            )
-        return value
-
 
 class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})

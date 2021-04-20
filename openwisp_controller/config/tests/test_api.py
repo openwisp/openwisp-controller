@@ -233,7 +233,7 @@ class TestConfigApi(
         self.client.force_login(test_user)
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 400)
-        self.assertIn('Shared Template can only be created by Admin', str(r.content))
+        self.assertIn('This field may not be null.', str(r.content))
 
     def test_template_list_api(self):
         org1 = self._get_org()

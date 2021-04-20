@@ -9,7 +9,7 @@ django-flat-json-widget~=0.1.2
 # TODO: change this when next point version of openwisp-utils is released
 openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
 # TODO: change this when next point version of openwisp-users is released
-openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
+openwisp-users @ https://github.com/ManishShah120/openwisp-users/tarball/issues/235-restrict-shared-objects-creation
 # TODO: change this when next point version of openwisp-notifications is released
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 djangorestframework-gis>=0.12.0,<0.17.0
