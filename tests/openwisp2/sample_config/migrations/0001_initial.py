@@ -8,7 +8,6 @@ import django.db.models.deletion
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
-import sortedm2m.fields
 import swapper
 import taggit.managers
 from django.db import migrations, models
@@ -767,7 +766,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='config',
             name='templates',
-            field=sortedm2m.fields.SortedManyToManyField(
+            field=openwisp_controller.config.sortedm2m.fields.SortedManyToManyField(
                 blank=True,
                 help_text='configuration templates, applied from first to last',
                 related_name='config_relations',

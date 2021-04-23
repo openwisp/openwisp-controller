@@ -8,11 +8,11 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
-from sortedm2m.fields import SortedManyToManyField
 from swapper import get_model_name
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
+from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
 
@@ -213,9 +213,14 @@ class AbstractConfig(BaseConfig):
         This method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
         """
-        if action not in ['post_add', 'post_remove']:
+        if action not in ['custom_openwisp', 'post_add', 'post_remove']:
             return
         vpn_client_model = cls.vpn.through
+        # Delete VpnClients when their related template gets removed
+        if action == 'custom_openwisp':
+            vpn_list = instance.templates.filter(type='vpn').values_list('vpn')
+            instance.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+            return
         # coming from signal
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
