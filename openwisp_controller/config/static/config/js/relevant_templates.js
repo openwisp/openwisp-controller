@@ -3,12 +3,12 @@ django.jQuery(function ($) {
     var firstRun = true,
         getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
             var prefix = isPrefix ? '__prefix__-' : '',
-                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateConfig.name}</label></li>`),
+                requiredString = templateConfig.required ? ' (required)' : '',
+                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateConfig.name}${requiredString}</label></li>`),
                 inputField = element.children().children('input');
 
             if (templateConfig.required) {
                 inputField.prop('disabled', true);
-                inputField.prop('checked', true);
             }
 
             if (isSelected === true) {
@@ -97,7 +97,7 @@ django.jQuery(function ($) {
                 }
 
                 Object.keys(data).map(function (templateId, index) {
-                    var isSelected = (data[templateId].default && (selectedTemplates === undefined)) || data[templateId].required,
+                    var isSelected = (data[templateId].default && (selectedTemplates === undefined)) && (!data[templateId].required),
                         element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
                         prefixElement = getTemplateOptionElement(index, templateId, data[templateId], isSelected, true);
                     if (isSelected == true) {
