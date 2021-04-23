@@ -1,9 +1,20 @@
 'use strict';
 django.jQuery(function ($) {
     var firstRun = true,
-        getTemplateOptionElement = function (index, templateId, templateName, isPrefix = false) {
-            var prefix = isPrefix ? '__prefix__-' : '';
-            return $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateName}</label></li>`);
+        getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
+            var prefix = isPrefix ? '__prefix__-' : '',
+                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateConfig.name}</label></li>`),
+                inputField = element.children().children('input');
+
+            if (templateConfig.required) {
+                inputField.prop('disabled', true);
+                inputField.prop('checked', true);
+            }
+
+            if (isSelected === true) {
+                inputField.prop('checked', true);
+            }
+            return element;
         },
         resetTemplateOptions = function () {
             $('ul.sortedm2m-items').empty();
@@ -11,7 +22,7 @@ django.jQuery(function ($) {
         updateTemplateSelection = function (selectedTemplates) {
             // Marks currently applied templates from database as selected
             // Only executed at page load.
-            selectedTemplates.forEach(function (templateId) {
+            selectedTemplates.map(function (templateId) {
                 $(`li.sortedm2m-item input[type="checkbox"][value="${templateId}"]:first`).prop('checked', true);
             });
         },
@@ -46,7 +57,7 @@ django.jQuery(function ($) {
         showRelevantTemplates = function () {
             var orgID = $('#id_organization').val(),
                 backend = $('#id_config-0-backend').val(),
-                selectedTemplates = [];
+                selectedTemplates;
 
             // Hide templates if no organization or backend is selected
             if (orgID.length === 0 || backend.length === 0) {
@@ -56,7 +67,14 @@ django.jQuery(function ($) {
             }
 
             if (firstRun) {
-                selectedTemplates = django._owcInitialValues["config-0-templates"].split(',');
+                selectedTemplates = django._owcInitialValues["config-0-templates"];
+                if (selectedTemplates !== undefined) {
+                    if (selectedTemplates !== "") {
+                        selectedTemplates = selectedTemplates.split(',');
+                    } else {
+                        selectedTemplates = [];
+                    }
+                }
             }
 
             var url = window._relevantTemplateUrl.replace('org_id', orgID);
@@ -67,26 +85,30 @@ django.jQuery(function ($) {
                 var enabledTemplates = [],
                     sortedm2mUl = $('ul.sortedm2m-items:first'),
                     sortedm2mPrefixUl = $('ul.sortedm2m-items:last');
+
+                if (selectedTemplates !== undefined) {
+                    selectedTemplates.map(function (templateId, index) {
+                        var element = getTemplateOptionElement(index, templateId, data[templateId], true, false),
+                            prefixElement = getTemplateOptionElement(index, templateId, data[templateId], true, true);
+                        sortedm2mUl.append(element);
+                        sortedm2mPrefixUl.append(prefixElement);
+                        delete data[templateId];
+                    });
+                }
+
                 Object.keys(data).map(function (templateId, index) {
-                    var element = getTemplateOptionElement(index, templateId, data[templateId].name),
-                        prefixElement = getTemplateOptionElement(index, templateId, data[templateId].name, true),
-                        inputField = element.children().children('input');
-
-                    if (data[templateId].required) {
-                        inputField.prop('disabled', true);
-                        inputField.prop('checked', true);
+                    var isSelected = (data[templateId].default && (selectedTemplates === undefined)) || data[templateId].required,
+                        element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
+                        prefixElement = getTemplateOptionElement(index, templateId, data[templateId], isSelected, true);
+                    if (isSelected == true) {
                         enabledTemplates.push(templateId);
-                    } else {
-                        if (data[templateId].default && (selectedTemplates.length === 0)) {
-                            inputField.prop('checked', true);
-                            enabledTemplates.push(templateId);
-                        }
                     }
-
                     sortedm2mUl.append(element);
                     sortedm2mPrefixUl.append(prefixElement);
                 });
-                updateTemplateSelection(selectedTemplates);
+                if (selectedTemplates !== undefined && firstRun === true) {
+                    updateTemplateSelection(selectedTemplates);
+                }
                 updateTemplateHelpText();
                 updateConfigTemplateField(enabledTemplates);
             });
