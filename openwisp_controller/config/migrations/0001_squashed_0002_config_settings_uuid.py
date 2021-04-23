@@ -9,13 +9,14 @@ import django.core.validators
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
-import sortedm2m.fields
 from django.db import migrations, models
 from swapper import get_model_name
 
 import openwisp_controller.config.base.template
 import openwisp_utils.base
 import openwisp_utils.utils
+
+from ..sortedm2m.fields import SortedManyToManyField
 
 
 class Migration(migrations.Migration):
@@ -484,7 +485,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='config',
             name='templates',
-            field=sortedm2m.fields.SortedManyToManyField(
+            field=SortedManyToManyField(
                 blank=True,
                 help_text='configuration templates, applied from first to last',
                 related_name='config_relations',

@@ -848,6 +848,80 @@ class TestAdmin(
             response, 'value="openwisp_controller.vpn_backends.OpenVpn" selected'
         )
 
+    def test_vpn_clients_deleted(self):
+        def _update_template(templates):
+            params.update(
+                {
+                    'config-0-templates': ','.join(
+                        [str(template.pk) for template in templates]
+                    )
+                }
+            )
+            response = self.client.post(path, data=params, follow=True)
+            self.assertEqual(response.status_code, 200)
+            for template in templates:
+                self.assertContains(
+                    response, f'class="sortedm2m" checked> {template.name}'
+                )
+            return response
+
+        vpn = self._create_vpn()
+        template = self._create_template()
+        vpn_template = self._create_template(
+            name='vpn-test', type='vpn', vpn=vpn, auto_cert=True,
+        )
+        cert_query = Cert.objects.exclude(pk=vpn.cert_id)
+
+        # Add a new device
+        path = reverse(f'admin:{self.app_label}_device_add')
+        params = self._get_device_params(org=self._get_org())
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        config = Device.objects.get(name=params['name']).config
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        self.assertEqual(config.templates.count(), 0)
+
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
+        params.update(
+            {
+                'config-0-id': str(config.pk),
+                'config-0-device': str(config.device_id),
+                'config-INITIAL_FORMS': 1,
+                '_continue': True,
+            }
+        )
+
+        with self.subTest('Adding only VpnClient template'):
+            # Adding VpnClient template to the device
+            _update_template(templates=[vpn_template])
+
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+            self.assertEqual(cert_query.count(), 1)
+
+            # Remove VpnClient template from the device
+            _update_template(templates=[])
+
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.vpnclient_set.count(), 0)
+            self.assertEqual(cert_query.count(), 0)
+
+        with self.subTest('Add VpnClient template along with another template'):
+            # Adding templates to the device
+            _update_template(templates=[template, vpn_template])
+
+            self.assertEqual(config.templates.count(), 2)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+            self.assertEqual(cert_query.count(), 1)
+
+            # Remove VpnClient template from the device
+            _update_template(templates=[template])
+
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 0)
+            self.assertEqual(cert_query.count(), 0)
+
     def test_ip_not_in_add_device(self):
         path = reverse(f'admin:{self.app_label}_device_add')
         response = self.client.get(path)
