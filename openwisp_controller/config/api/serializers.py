@@ -1,4 +1,3 @@
-import ast
 import collections
 import json
 
@@ -69,26 +68,6 @@ class VpnSerializer(BaseSerializer):
         ]
 
 
-class BaseJsonField(serializers.Field):
-    def to_internal_value(self, data):
-        if type(data) is str:
-            if len(data) < 2:
-                data = '{}'
-            return ast.literal_eval(data)
-        else:
-            return data
-
-
-class JsonConfigField(BaseJsonField):
-    def to_representation(self, value):
-        return json.loads(json.dumps(value))
-
-
-class JsonContextField(BaseJsonField):
-    def to_representation(self, value):
-        return dict(value)
-
-
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         user = self.context['request'].user
@@ -103,15 +82,11 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
 
 
 class DeviceConfigSerializer(serializers.ModelSerializer):
-    config = JsonConfigField(
-        help_text='''<i>config</i> field in HTML form
-        displays values in dictionary format''',
-        style={'base_template': 'textarea.html', 'placeholder': '{}'},
+    config = serializers.JSONField(
+        initial={}, help_text='Configuration in NetJSON format'
     )
-    context = JsonContextField(
-        help_text='''<i>context</i> field in HTML form
-        displays values in dictionary format''',
-        style={'base_template': 'textarea.html', 'placeholder': '{}'},
+    context = serializers.JSONField(
+        initial={}, help_text='Configuration variables in JSON format'
     )
     templates = FilterTemplatesByOrganization(many=True)
 
