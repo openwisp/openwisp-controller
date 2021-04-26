@@ -9,7 +9,7 @@ import django.core.validators
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
-import sortedm2m.fields
+from ..sortedm2m.fields import SortedManyToManyField
 from django.db import migrations, models
 from swapper import get_model_name
 
@@ -484,7 +484,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='config',
             name='templates',
-            field=sortedm2m.fields.SortedManyToManyField(
+            field=SortedManyToManyField(
                 blank=True,
                 help_text='configuration templates, applied from first to last',
                 related_name='config_relations',
