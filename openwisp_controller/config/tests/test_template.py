@@ -715,7 +715,7 @@ class TestTemplateTransaction(
 
         signals.m2m_changed.send(
             sender=Config.templates.through,
-            action='custom_openwisp',
+            action='post_add',
             instance=config,
             pk_set=set(),
             model=Template,

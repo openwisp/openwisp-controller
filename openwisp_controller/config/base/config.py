@@ -213,14 +213,9 @@ class AbstractConfig(BaseConfig):
         This method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
         """
-        if action not in ['custom_openwisp', 'post_add', 'post_remove']:
+        if action not in ['post_add', 'post_remove']:
             return
         vpn_client_model = cls.vpn.through
-        # Delete VpnClients when their related template gets removed
-        if action == 'custom_openwisp':
-            vpn_list = instance.templates.filter(type='vpn').values_list('vpn')
-            instance.vpnclient_set.exclude(vpn__in=vpn_list).delete()
-            return
         # coming from signal
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
@@ -228,6 +223,11 @@ class AbstractConfig(BaseConfig):
         # coming from admin ModelForm
         else:
             templates = pk_set
+        # delete VPN clients which have been cleared
+        # by sortedm2m and have not been added back
+        if action == 'post_add':
+            vpn_list = instance.templates.filter(type='vpn').values_list('vpn')
+            instance.vpnclient_set.exclude(vpn__in=vpn_list).delete()
         # when adding or removing specific templates
         for template in templates.filter(type='vpn'):
             if action == 'post_add':

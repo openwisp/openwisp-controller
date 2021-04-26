@@ -26,7 +26,7 @@ def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
             if not objs:
                 signals.m2m_changed.send(
                     sender=self.through,
-                    action='custom_openwisp',
+                    action='post_add',
                     instance=self.instance,
                     reverse=self.reverse,
                     model=self.model,
