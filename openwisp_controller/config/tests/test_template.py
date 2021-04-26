@@ -4,8 +4,7 @@ from unittest import mock
 from celery.exceptions import SoftTimeLimitExceeded
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import router, transaction
-from django.db.models import signals
+from django.db import transaction
 from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
@@ -696,30 +695,3 @@ class TestTemplateTransaction(
             template.save()
             mocked_error.assert_called_once()
         mocked_update_related_config_status.assert_called_once()
-
-    def test_required_vpn_client_deleted(self):
-        org = self._get_org()
-        vpn = self._create_vpn()
-        template = self._create_template(
-            name='vpn-test', type='vpn', vpn=vpn, auto_cert=True,
-        )
-        config = self._create_config(organization=org)
-        config.templates.add(template)
-        vpn_client = config.vpnclient_set.first()
-        self.assertIsNotNone(vpn_client)
-
-        db = router.db_for_write(vpn_client._meta.model, instance=config)
-        template.delete()
-        vpn_client.refresh_from_db()
-        self.assertEqual(config.templates.count(), 0)
-
-        signals.m2m_changed.send(
-            sender=Config.templates.through,
-            action='post_add',
-            instance=config,
-            pk_set=set(),
-            model=Template,
-            reverse=False,
-            using=db,
-        )
-        self.assertEqual(config.vpnclient_set.count(), 0)

@@ -9,13 +9,14 @@ import django.core.validators
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
-from ..sortedm2m.fields import SortedManyToManyField
 from django.db import migrations, models
 from swapper import get_model_name
 
 import openwisp_controller.config.base.template
 import openwisp_utils.base
 import openwisp_utils.utils
+
+from ..sortedm2m.fields import SortedManyToManyField
 
 
 class Migration(migrations.Migration):
