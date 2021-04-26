@@ -359,6 +359,56 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertNotContains(response, '// enable default templates')
 
+    def test_configuration_templates_removed(self):
+        def _update_template(templates):
+            params.update(
+                {
+                    'config-0-templates': ','.join(
+                        [str(template.pk) for template in templates]
+                    )
+                }
+            )
+            response = self.client.post(path, data=params, follow=True)
+            self.assertEqual(response.status_code, 200)
+            for template in templates:
+                self.assertContains(
+                    response, f'class="sortedm2m" checked> {template.name}'
+                )
+            return response
+
+        template = self._create_template()
+
+        # Add a new device
+        path = reverse(f'admin:{self.app_label}_device_add')
+        params = self._get_device_params(org=self._get_org())
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        config = Device.objects.get(name=params['name']).config
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
+        params.update(
+            {
+                'config-0-id': str(config.pk),
+                'config-0-device': str(config.device_id),
+                'config-INITIAL_FORMS': 1,
+                '_continue': True,
+            }
+        )
+
+        # Add template to the device
+        _update_template(templates=[template])
+        config.refresh_from_db()
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.status, 'modified')
+        config.set_status_applied()
+        self.assertEqual(config.status, 'applied')
+
+        # Remove template from the device
+        _update_template(templates=[])
+        config.refresh_from_db()
+        self.assertEqual(config.templates.count(), 0)
+        self.assertEqual(config.status, 'modified')
+
     def test_vpn_not_contains_default_templates_js(self):
         vpn = self._create_vpn()
         path = reverse(f'admin:{self.app_label}_vpn_change', args=[vpn.pk])
