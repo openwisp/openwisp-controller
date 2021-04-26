@@ -343,20 +343,15 @@
         // so that other files can use updateContext
         window.updateContext = updateContext;
 
-        $('.jsoneditor').on('input paste', '.has-max-length:visible', function(e){
+        $('.jsoneditor').on('input paste', '.has-max-length:visible', function(e) {
             var field = $(e.target),
-            value;
-
+                pasteValue = '';
+        
             if (e.originalEvent.type === 'paste') {
-                value = e.originalEvent.clipboardData.getData('text');
-                if (field.val().indexOf('{{') > -1){
-                    value += '{{';
-                }
-            } else {
-                value = field.val();
+                pasteValue = e.originalEvent.clipboardData.getData('text');
             }
-
-            if (value.indexOf('{{') > -1) {
+        
+            if (field.val().indexOf('{{') > -1 || pasteValue.indexOf('{{') > -1) {
                 field.removeAttr('maxlength');
             } else {
                 field.attr('maxlength', field.data('maxlength'));
