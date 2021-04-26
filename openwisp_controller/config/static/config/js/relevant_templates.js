@@ -7,10 +7,12 @@ django.jQuery(function ($) {
                 element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateConfig.name}${requiredString}</label></li>`),
                 inputField = element.children().children('input');
 
+            // Required templates should not be marked as "checked".
+            // Doing so will break validation in the backend.
+            // See https://git.io/JObJR
             if (templateConfig.required) {
                 inputField.prop('disabled', true);
             }
-
             if (isSelected === true) {
                 inputField.prop('checked', true);
             }
@@ -67,12 +69,16 @@ django.jQuery(function ($) {
             }
 
             if (firstRun) {
+                // selectedTemplates will be undefined on device add page or
+                // when the user has changed any of organization or backend field.
+                // selectedTemplates will be an empty string if no template is selected
+                // ''.split(',') returns [''] hence, this case requires special handling
                 selectedTemplates = django._owcInitialValues["config-0-templates"];
                 if (selectedTemplates !== undefined) {
-                    if (selectedTemplates !== "") {
-                        selectedTemplates = selectedTemplates.split(',');
-                    } else {
+                    if (selectedTemplates === '') {
                         selectedTemplates = [];
+                    } else {
+                        selectedTemplates = selectedTemplates.split(',');
                     }
                 }
             }
@@ -86,6 +92,10 @@ django.jQuery(function ($) {
                     sortedm2mUl = $('ul.sortedm2m-items:first'),
                     sortedm2mPrefixUl = $('ul.sortedm2m-items:last');
 
+                // Configuration already has applied templates.
+                // Select these templates and remove their key from "data"
+                // This maintains the order of the templates and keep
+                // enabled templates on the top
                 if (selectedTemplates !== undefined) {
                     selectedTemplates.map(function (templateId, index) {
                         var element = getTemplateOptionElement(index, templateId, data[templateId], true, false),
@@ -100,13 +110,16 @@ django.jQuery(function ($) {
                     var isSelected = (data[templateId].default && (selectedTemplates === undefined)) && (!data[templateId].required),
                         element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
                         prefixElement = getTemplateOptionElement(index, templateId, data[templateId], isSelected, true);
-                    if (isSelected == true) {
+                    // Default templates should only be enabled for new
+                    // device or when user has changed any of organization
+                    // or backend field
+                    if (isSelected === true) {
                         enabledTemplates.push(templateId);
                     }
                     sortedm2mUl.append(element);
                     sortedm2mPrefixUl.append(prefixElement);
                 });
-                if (selectedTemplates !== undefined && firstRun === true) {
+                if (firstRun === true && selectedTemplates !== undefined) {
                     updateTemplateSelection(selectedTemplates);
                 }
                 updateTemplateHelpText();
