@@ -23,7 +23,7 @@ def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
         def _add_items(self, source_field_name, target_field_name, *objs, **kwargs):
             db = router.db_for_write(self.through, instance=self.instance)
             super()._add_items(source_field_name, target_field_name, *objs, **kwargs)
-            if not objs:
+            if not objs and self.reverse or source_field_name == self.source_field_name:
                 signals.m2m_changed.send(
                     sender=self.through,
                     action='pre_add',

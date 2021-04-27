@@ -416,7 +416,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         self._create_credentials(auto_add=True, organization=test_org)
         self._create_template(default=True, organization=test_org)
         self._prepare_conf_object(organization=test_org)
-        mocked_connect.assert_not_called()
+        mocked_connect.assert_called_once()
 
     @capture_any_output()
     @mock.patch(_connect_path)

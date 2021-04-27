@@ -546,7 +546,7 @@ class TestTemplateTransaction(
         with self.subTest('signal sent if config status is already modified'):
             with catch_signal(config_modified) as handler:
                 conf.templates.add(template1, template2)
-                handler.assert_called_once_with(
+                handler.assert_called_with(
                     sender=Config,
                     signal=config_modified,
                     instance=conf,
@@ -555,6 +555,7 @@ class TestTemplateTransaction(
                     previous_status='modified',
                     action='m2m_templates_changed',
                 )
+            self.assertEqual(handler.call_count, 2)
 
         # reset status
         conf.set_status_applied()
@@ -587,15 +588,16 @@ class TestTemplateTransaction(
         with self.subTest('post_add and previous_status=applied'):
             with catch_signal(config_modified) as handler:
                 conf.templates.add(template1, template2)
-                handler.assert_called_once_with(
+                handler.assert_called_with(
                     sender=Config,
                     signal=config_modified,
                     instance=conf,
                     device=conf.device,
                     config=conf,
-                    previous_status='applied',
+                    previous_status='modified',
                     action='m2m_templates_changed',
                 )
+            self.assertEqual(handler.call_count, 2)
             conf.refresh_from_db()
             self.assertEqual(conf.status, 'modified')
 
@@ -606,7 +608,7 @@ class TestTemplateTransaction(
             with catch_signal(config_modified) as handler:
                 conf.templates.remove(template1, template2)
                 conf.templates.add(template1, template2)
-                self.assertEqual(handler.call_count, 2)
+                self.assertEqual(handler.call_count, 3)
             conf.refresh_from_db()
             self.assertEqual(conf.status, 'modified')
 
