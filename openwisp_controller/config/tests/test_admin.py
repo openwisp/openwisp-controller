@@ -359,7 +359,7 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertNotContains(response, '// enable default templates')
 
-    def test_configuration_modified(self):
+    def test_configuration_templates_removed(self):
         def _update_template(templates):
             params.update(
                 {
@@ -408,15 +408,6 @@ class TestAdmin(
         config.refresh_from_db()
         self.assertEqual(config.templates.count(), 0)
         self.assertEqual(config.status, 'modified')
-
-        # Corner case: Saving a device without any templates
-        # does not change configuration status to 'modified'
-        config.set_status_applied()
-        self.assertEqual(config.status, 'applied')
-        _update_template(templates=[])
-        config.refresh_from_db()
-        self.assertEqual(config.templates.count(), 0)
-        self.assertEqual(config.status, 'applied')
 
     def test_vpn_not_contains_default_templates_js(self):
         vpn = self._create_vpn()
