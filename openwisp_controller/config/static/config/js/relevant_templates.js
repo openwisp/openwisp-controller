@@ -24,7 +24,7 @@ django.jQuery(function ($) {
         updateTemplateSelection = function (selectedTemplates) {
             // Marks currently applied templates from database as selected
             // Only executed at page load.
-            selectedTemplates.map(function (templateId) {
+            selectedTemplates.forEach(function (templateId) {
                 $(`li.sortedm2m-item input[type="checkbox"][value="${templateId}"]:first`).prop('checked', true);
             });
         },
@@ -92,12 +92,12 @@ django.jQuery(function ($) {
                     sortedm2mUl = $('ul.sortedm2m-items:first'),
                     sortedm2mPrefixUl = $('ul.sortedm2m-items:last');
 
-                // Configuration already has applied templates.
-                // Select these templates and remove their key from "data"
+                // Adds "li" elements for templates that are already selected
+                // in the database. Select these templates and remove their key from "data"
                 // This maintains the order of the templates and keep
                 // enabled templates on the top
                 if (selectedTemplates !== undefined) {
-                    selectedTemplates.map(function (templateId, index) {
+                    selectedTemplates.forEach(function (templateId, index) {
                         var element = getTemplateOptionElement(index, templateId, data[templateId], true, false),
                             prefixElement = getTemplateOptionElement(index, templateId, data[templateId], true, true);
                         sortedm2mUl.append(element);
@@ -106,7 +106,10 @@ django.jQuery(function ($) {
                     });
                 }
 
-                Object.keys(data).map(function (templateId, index) {
+                // Adds "li" elements for templates that are not selected
+                // in the database.
+                Object.keys(data).forEach(function (templateId, index) {
+                    index = index + selectedTemplates.length;
                     var isSelected = (data[templateId].default && (selectedTemplates === undefined)) && (!data[templateId].required),
                         element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
                         prefixElement = getTemplateOptionElement(index, templateId, data[templateId], isSelected, true);
