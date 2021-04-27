@@ -96,6 +96,17 @@ class DeviceConfigSerializer(serializers.ModelSerializer):
         extra_kwargs = {'status': {'read_only': True}}
 
 
+def get_required_templates(org_id=None):
+    '''
+        Returns a list of all the required
+        templates of an organization
+    '''
+    return [
+        template.id
+        for template in Template.objects.filter(organization=org_id, required=True)
+    ]
+
+
 class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
     config = DeviceConfigSerializer(write_only=True, required=False)
     status = serializers.SerializerMethodField()
@@ -136,12 +147,7 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
         if validated_data.get('config'):
             config_data = validated_data.pop('config')
             org_id = str(validated_data.get('organization').id)
-            required_templates = [
-                template.id
-                for template in Template.objects.filter(
-                    organization=org_id, required=True
-                )
-            ]
+            required_templates = get_required_templates(org_id)
             with transaction.atomic():
                 new_device = Device.objects.create(**validated_data)
                 config_templates = required_templates + [
@@ -169,12 +175,7 @@ class DeviceDetailSerializer(BaseSerializer):
         if self.initial_data.get('config.backend') and instance._has_config() is False:
             new_config_data = dict(validated_data.pop('config'))
             org_id = str(validated_data.get('organization').id)
-            required_templates = [
-                template.id
-                for template in Template.objects.filter(
-                    organization=org_id, required=True
-                )
-            ]
+            required_templates = get_required_templates(org_id)
             config_templates = required_templates + [
                 template.pk for template in new_config_data.pop('templates')
             ]
@@ -211,6 +212,7 @@ class DeviceDetailSerializer(BaseSerializer):
                 json.dumps(config_data.get('config')),
                 object_pairs_hook=collections.OrderedDict,
             )
+            instance.config.full_clean()
             instance.config.save()
 
         return super().update(instance, validated_data)
@@ -222,20 +224,34 @@ class DeviceDetailSerializer(BaseSerializer):
         """
         instance = self.instance
         if instance._has_config():
-            prev_req_templates = [
-                required_status
-                for required_status in instance.config.templates.values_list(
-                    'required', flat=True
-                )
-                if required_status is True
+            org_id = str(instance.organization.id)
+            req_templates = get_required_templates(org_id)
+            assigned_templates = [
+                template
+                for template in instance.config.templates.values_list('id', flat=True)
             ]
-            incoming_req_templates = [
-                template.required
-                for template in value.get('templates')
-                if template.required is True
-            ]
-            if prev_req_templates != incoming_req_templates:
-                raise serializers.ValidationError(
-                    {'templates': _('Required templates cannot be Unassigned.')}
-                )
+            # If any new required templates are introduced to an organization
+            # add that to the device
+            check = all(item in assigned_templates for item in req_templates)
+            if check is False:
+                with transaction.atomic():
+                    instance.config.templates.add(*req_templates)
+            else:
+                prev_req_templates_status = [
+                    required_status
+                    for required_status in instance.config.templates.values_list(
+                        'required', flat=True
+                    )
+                    if required_status is True
+                ]
+
+                incoming_req_templates_status = [
+                    template.required
+                    for template in value.get('templates')
+                    if template.required is True
+                ]
+                if prev_req_templates_status != incoming_req_templates_status:
+                    raise serializers.ValidationError(
+                        {'templates': _('Required templates cannot be Unassigned.')}
+                    )
         return value

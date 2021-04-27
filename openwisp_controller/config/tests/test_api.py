@@ -101,7 +101,7 @@ class TestConfigApi(
         self.assertIn('Must be either a valid hostname or mac address.', str(r.content))
 
     # POST request should fail with validation error
-    def test_device_create_with_templates_of_different_org(self):
+    def test_device_post_with_templates_of_different_org(self):
         path = reverse('controller_config:api_device_list')
         data = self._get_device_data.copy()
         org_1 = self._get_org()
@@ -124,6 +124,22 @@ class TestConfigApi(
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
+
+    def test_device_filter_templates(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        test_user = self._create_operator(organizations=[org1])
+        self.client.force_login(test_user)
+        self._create_template(name='t0', organization=None)
+        self._create_template(name='t1', organization=org1)
+        self._create_template(name='t11', organization=org1)
+        self._create_template(name='t2', organization=org2)
+        path = reverse('controller_config:api_device_list')
+        r = self.client.get(path, {'format': 'api'})
+        self.assertContains(r, 't0</option>')
+        self.assertContains(r, 't1</option>')
+        self.assertContains(r, 't11</option>')
+        self.assertNotContains(r, 't2</option>')
 
     # Device detail having no config
     def test_device_detail_api(self):
@@ -166,6 +182,41 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'change-test-device')
         self.assertEqual(r.data['organization'], org.pk)
+
+    def test_device_patch_with_templates_of_same_org(self):
+        org1 = self._create_org(name='testorg')
+        d1 = self._create_device(name='org1-config', organization=org1)
+        self._create_config(device=d1)
+        self.assertEqual(d1.config.templates.count(), 0)
+        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        t1 = self._create_template(name='t1', organization=None)
+        t2 = self._create_template(name='t2', organization=org1)
+        data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
+        r = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(d1.config.templates.count(), 2)
+        self.assertEqual(r.data['config']['templates'], [t1.id, t2.id])
+
+    def test_device_patch_with_templates_of_different_org(self):
+        org1 = self._create_org(name='testorg')
+        d1 = self._create_device(name='org1-config', organization=org1)
+        self._create_config(device=d1)
+        self.assertEqual(d1.config.templates.count(), 0)
+        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        t1 = self._create_template(name='t1', organization=None)
+        t2 = self._create_template(name='t2', organization=org1)
+        t3 = self._create_template(
+            name='t3', organization=self._create_org(name='org2')
+        )
+        data = {'config': {'templates': [str(t1.id), str(t2.id), str(t3.id)]}}
+        with self.assertRaises(ValidationError) as error:
+            self.client.patch(path, data, content_type='application/json')
+        validation_msg = '''
+                            The following templates are owned by
+                            organizations which do not match the
+                            organization of this configuration: t3
+                        '''
+        self.assertTrue(' '.join(validation_msg.split()) in error.exception.message)
 
     def test_device_patch_api(self):
         d1 = self._create_device(name='test-device')

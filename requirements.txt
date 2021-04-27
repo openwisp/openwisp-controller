@@ -7,7 +7,7 @@ django-taggit~=1.3.0
 django-loci @ https://github.com/openwisp/django-loci/tarball/master
 django-flat-json-widget~=0.1.2
 # TODO: change this when next point version of openwisp-utils is released
-openwisp-utils[rest] @ https://github.com/ManishShah120/openwisp-utils/tarball/issues/164-update-drf
+openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
 # TODO: change this when next point version of openwisp-users is released
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 # TODO: change this when next point version of openwisp-notifications is released
