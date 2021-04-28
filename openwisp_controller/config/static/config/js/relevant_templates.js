@@ -1,9 +1,22 @@
 'use strict';
 django.jQuery(function ($) {
     var firstRun = true,
-        getTemplateOptionElement = function (index, templateId, templateName, isPrefix = false) {
-            var prefix = isPrefix ? '__prefix__-' : '';
-            return $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateName}</label></li>`);
+        getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
+            var prefix = isPrefix ? '__prefix__-' : '',
+                requiredString = templateConfig.required ? ' (required)' : '',
+                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateConfig.name}${requiredString}</label></li>`),
+                inputField = element.children().children('input');
+
+            // Required templates should not be marked as "checked".
+            // Doing so will break validation in the backend.
+            // See https://git.io/JObJR
+            if (templateConfig.required) {
+                inputField.prop('disabled', true);
+            }
+            if (isSelected === true) {
+                inputField.prop('checked', true);
+            }
+            return element;
         },
         resetTemplateOptions = function () {
             $('ul.sortedm2m-items').empty();
@@ -46,7 +59,7 @@ django.jQuery(function ($) {
         showRelevantTemplates = function () {
             var orgID = $('#id_organization').val(),
                 backend = $('#id_config-0-backend').val(),
-                selectedTemplates = [];
+                selectedTemplates;
 
             // Hide templates if no organization or backend is selected
             if (orgID.length === 0 || backend.length === 0) {
@@ -56,7 +69,18 @@ django.jQuery(function ($) {
             }
 
             if (firstRun) {
-                selectedTemplates = django._owcInitialValues["config-0-templates"].split(',');
+                // selectedTemplates will be undefined on device add page or
+                // when the user has changed any of organization or backend field.
+                // selectedTemplates will be an empty string if no template is selected
+                // ''.split(',') returns [''] hence, this case requires special handling
+                selectedTemplates = django._owcInitialValues["config-0-templates"];
+                if (selectedTemplates !== undefined) {
+                    if (selectedTemplates === '') {
+                        selectedTemplates = [];
+                    } else {
+                        selectedTemplates = selectedTemplates.split(',');
+                    }
+                }
             }
 
             var url = window._relevantTemplateUrl.replace('org_id', orgID);
@@ -67,26 +91,40 @@ django.jQuery(function ($) {
                 var enabledTemplates = [],
                     sortedm2mUl = $('ul.sortedm2m-items:first'),
                     sortedm2mPrefixUl = $('ul.sortedm2m-items:last');
-                Object.keys(data).map(function (templateId, index) {
-                    var element = getTemplateOptionElement(index, templateId, data[templateId].name),
-                        prefixElement = getTemplateOptionElement(index, templateId, data[templateId].name, true),
-                        inputField = element.children().children('input');
 
-                    if (data[templateId].required) {
-                        inputField.prop('disabled', true);
-                        inputField.prop('checked', true);
+                // Adds "li" elements for templates that are already selected
+                // in the database. Select these templates and remove their key from "data"
+                // This maintains the order of the templates and keep
+                // enabled templates on the top
+                if (selectedTemplates !== undefined) {
+                    selectedTemplates.forEach(function (templateId, index) {
+                        var element = getTemplateOptionElement(index, templateId, data[templateId], true, false),
+                            prefixElement = getTemplateOptionElement(index, templateId, data[templateId], true, true);
+                        sortedm2mUl.append(element);
+                        sortedm2mPrefixUl.append(prefixElement);
+                        delete data[templateId];
+                    });
+                }
+
+                // Adds "li" elements for templates that are not selected
+                // in the database.
+                Object.keys(data).forEach(function (templateId, index) {
+                    index = index + selectedTemplates.length;
+                    var isSelected = (data[templateId].default && (selectedTemplates === undefined)) && (!data[templateId].required),
+                        element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
+                        prefixElement = getTemplateOptionElement(index, templateId, data[templateId], isSelected, true);
+                    // Default templates should only be enabled for new
+                    // device or when user has changed any of organization
+                    // or backend field
+                    if (isSelected === true) {
                         enabledTemplates.push(templateId);
-                    } else {
-                        if (data[templateId].default && (selectedTemplates.length === 0)) {
-                            inputField.prop('checked', true);
-                            enabledTemplates.push(templateId);
-                        }
                     }
-
                     sortedm2mUl.append(element);
                     sortedm2mPrefixUl.append(prefixElement);
                 });
-                updateTemplateSelection(selectedTemplates);
+                if (firstRun === true && selectedTemplates !== undefined) {
+                    updateTemplateSelection(selectedTemplates);
+                }
                 updateTemplateHelpText();
                 updateConfigTemplateField(enabledTemplates);
             });
