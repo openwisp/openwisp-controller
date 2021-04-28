@@ -169,6 +169,21 @@
         }
     };
 
+    var getNestedValue = function(obj, ...args) {
+        return args.reduce((obj, level) => obj && obj[level], obj);
+    };
+    
+    var order_array = function(arr, old_index, new_index) {
+        if (new_index >= arr.length) {
+            var k = new_index - arr.length + 1;
+            while (k--) {
+                arr.push(undefined);
+            }
+        }
+        arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
+        return arr;
+    };
+
     var loadUi = function (el, backend, schemas, setInitialValue) {
         var field = $(el),
             form = field.parents('form').eq(0),
@@ -226,6 +241,17 @@
         if (field.attr("data-options") !== undefined) {
             $.extend(options, JSON.parse(field.attr("data-options")));
         }
+        if (getNestedValue(startval, 'interfaces', 0, 'addresses', 0, 'proto') === 'static') {
+            try {
+                var address_array = schemas[backend].definitions.interface_settings.properties.addresses.items.oneOf;
+                if (getNestedValue(startval, 'interfaces', 0, 'addresses', 0, 'family') === 'ipv4') {
+                    schemas[backend].definitions.interface_settings.properties.addresses.items.oneOf = order_array(address_array, 0, 1);
+                } else {
+                    schemas[backend].definitions.interface_settings.properties.addresses.items.oneOf = order_array(address_array, 0, 2);
+                }
+            } catch (ignore) {}
+        }
+
         editor = new JSONEditor(document.getElementById(id), options);
         // initialise advanced json editor here (disable schema validation in VPN admin)
         advancedEditor = initAdvancedEditor(field, value, options.schema, $('#vpn_form').length === 1);
