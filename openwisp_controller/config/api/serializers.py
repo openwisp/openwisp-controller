@@ -83,10 +83,10 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
 
 class DeviceConfigSerializer(serializers.ModelSerializer):
     config = serializers.JSONField(
-        initial={}, help_text='Configuration in NetJSON format'
+        initial={}, help_text=_('Configuration in NetJSON format')
     )
     context = serializers.JSONField(
-        initial={}, help_text='Configuration variables in JSON format'
+        initial={}, help_text=_('Configuration variables in JSON format')
     )
     templates = FilterTemplatesByOrganization(many=True)
 
@@ -97,10 +97,10 @@ class DeviceConfigSerializer(serializers.ModelSerializer):
 
 
 def get_required_templates(org_id=None):
-    '''
-        Returns a list of all the required
-        templates of an organization
-    '''
+    """
+    Returns a list of all the required
+    templates of an organization.
+    """
     return [
         template.id
         for template in Template.objects.filter(organization=org_id, required=True)
@@ -129,10 +129,12 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'status',
             'backend',
             'config',
+            'created',
+            'modified',
         ]
         extra_kwargs = {
-            'last_ip': {'allow_blank': True},
-            'management_ip': {'allow_blank': True},
+            'last_ip': {'read_only': True},
+            'management_ip': {'read_only': True},
         }
 
     def get_status(self, obj):
@@ -168,6 +170,10 @@ class DeviceDetailSerializer(BaseSerializer):
     class Meta(BaseMeta):
         model = Device
         fields = DeviceListSerializer.Meta.fields
+        extra_kwargs = {
+            'last_ip': {'read_only': True},
+            'management_ip': {'read_only': True},
+        }
 
     def update(self, instance, validated_data):
         config_data = None
@@ -219,8 +225,8 @@ class DeviceDetailSerializer(BaseSerializer):
 
     def validate_config(self, value):
         """
-            Raise Exception when removing
-            templates flagged as required.
+        Raise Exception when removing
+        templates flagged as required.
         """
         instance = self.instance
         if instance._has_config():
