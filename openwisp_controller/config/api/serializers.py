@@ -65,6 +65,8 @@ class VpnSerializer(BaseSerializer):
             'notes',
             'dh',
             'config',
+            'created',
+            'modified',
         ]
 
 
@@ -109,8 +111,7 @@ def get_required_templates(org_id=None):
 
 class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
     config = DeviceConfigSerializer(write_only=True, required=False)
-    status = serializers.SerializerMethodField()
-    backend = serializers.SerializerMethodField()
+    configuration = serializers.SerializerMethodField()
 
     class Meta(BaseMeta):
         model = Device
@@ -126,24 +127,15 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'os',
             'system',
             'notes',
-            'status',
-            'backend',
             'config',
+            'configuration',
             'created',
             'modified',
         ]
-        extra_kwargs = {
-            'last_ip': {'read_only': True},
-            'management_ip': {'read_only': True},
-        }
 
-    def get_status(self, obj):
+    def get_configuration(self, obj):
         if obj._has_config():
-            return obj.status
-
-    def get_backend(self, obj):
-        if obj._has_config():
-            return obj.backend
+            return {'status': obj.config.status, 'backend': obj.config.backend}
 
     def create(self, validated_data):
         if validated_data.get('config'):
@@ -169,11 +161,22 @@ class DeviceDetailSerializer(BaseSerializer):
 
     class Meta(BaseMeta):
         model = Device
-        fields = DeviceListSerializer.Meta.fields
-        extra_kwargs = {
-            'last_ip': {'read_only': True},
-            'management_ip': {'read_only': True},
-        }
+        fields = [
+            'id',
+            'name',
+            'organization',
+            'mac_address',
+            'key',
+            'last_ip',
+            'management_ip',
+            'model',
+            'os',
+            'system',
+            'notes',
+            'config',
+            'created',
+            'modified',
+        ]
 
     def update(self, instance, validated_data):
         config_data = None
