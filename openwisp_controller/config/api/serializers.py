@@ -132,6 +132,10 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'created',
             'modified',
         ]
+        extra_kwargs = {
+            'last_ip': {'allow_blank': True},
+            'management_ip': {'allow_blank': True},
+        }
 
     def get_configuration(self, obj):
         if obj._has_config():
