@@ -142,21 +142,18 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             return {'status': obj.config.status, 'backend': obj.config.backend}
 
     def create(self, validated_data):
+        config_data = None
         if validated_data.get('config'):
             config_data = validated_data.pop('config')
-            org_id = str(validated_data.get('organization').id)
-            required_templates = get_required_templates(org_id)
-            with transaction.atomic():
-                new_device = Device.objects.create(**validated_data)
-                config_templates = required_templates + [
-                    template.pk for template in config_data.pop('templates')
-                ]
-                config = Config.objects.create(device=new_device, **config_data)
+            config_templates = [
+                template.pk for template in config_data.pop('templates')
+            ]
+
+        with transaction.atomic():
+            device = Device.objects.create(**validated_data)
+            if config_data:
+                config = Config.objects.create(device=device, **config_data)
                 config.templates.add(*config_templates)
-            device = new_device
-        else:
-            with transaction.atomic():
-                device = Device.objects.create(**validated_data)
         return device
 
 
