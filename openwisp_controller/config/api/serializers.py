@@ -35,10 +35,11 @@ class TemplateSerializer(BaseSerializer):
         fields = [
             'id',
             'name',
-            'tags',
             'organization',
             'type',
             'backend',
+            'vpn',
+            'tags',
             'default',
             'required',
             'default_values',
@@ -46,6 +47,17 @@ class TemplateSerializer(BaseSerializer):
             'created',
             'modified',
         ]
+
+    def validate_vpn(self, value):
+        """
+        Ensure that VPN can't be added when
+        template `Type` is set to `Generic`.
+        """
+        if self.context['request'].data['type'] == 'generic':
+            raise serializers.ValidationError(
+                _("To select a VPN, set the template type to 'VPN-client'")
+            )
+        return value
 
 
 class VpnSerializer(BaseSerializer):
