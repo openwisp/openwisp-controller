@@ -608,9 +608,6 @@ To disable the API by default add `OPENWISP_CONTROLLER_API = False` in `settings
 REST API
 --------
 
-To enable the API the setting `OPENWISP_CONTROLLER_API <#openwisp-controller-api>`_
-must be set to ``True``.
-
 Live documentation
 ~~~~~~~~~~~~~~~~~~
 
@@ -704,7 +701,9 @@ Patch details of device
 **Note**: To assign, unassign, and change the order of the assigned templates add, 
 remove, and change the order of the ``{pk}`` of the templates under the ``config`` field in the JSON response respectively.
 Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
-*Trying to remove the assigned required templates will raise an exception.*
+
+The required template(s) from the organization(s) of the device will added automatically 
+to the ``config`` and cannot be removed.
 
 **Example usage**: For assigning template(s) add the/their {pk} to the config of a device,
 

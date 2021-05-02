@@ -226,20 +226,6 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'change-test-device')
 
-    # Cannot remove/unasign Required templates
-    def test_device_template_remove_api(self):
-        d1 = self._create_device(name='test-device')
-        c1 = self._create_config(device=d1)
-        self.assertEqual(d1.config.templates.count(), 0)
-        t1 = self._create_template(name='t1', required=True)
-        c1.templates.add(t1.pk)
-        data = {'config': {'templates': []}}
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
-        r = self.client.patch(path, data, content_type='application/json')
-        self.assertEqual(r.status_code, 400)
-        self.assertIn('Required templates cannot be Unassigned', str(r.content))
-        self.assertEqual(d1.config.templates.count(), 1)
-
     def test_device_download_api(self):
         d1 = self._create_device()
         self._create_config(device=d1)

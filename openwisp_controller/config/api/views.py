@@ -80,12 +80,22 @@ class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
 
 
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+    """
+    Templates: Templates flagged as required will be added automatically 
+               to the `config` of a device and cannot be unassigned.
+    """
+
     serializer_class = DeviceListSerializer
     queryset = Device.objects.select_related('config').order_by('-created')
     pagination_class = ListViewPagination
 
 
 class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+    """
+    Templates: Templates flagged as _required_ will be added automatically 
+               to the `config` of a device and cannot be unassigned.
+    """
+
     serializer_class = DeviceDetailSerializer
     queryset = Device.objects.select_related('config')
 
