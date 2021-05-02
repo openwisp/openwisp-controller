@@ -200,21 +200,39 @@ class DeviceDetailSerializer(BaseSerializer):
             instance.config.context = config_data.get(
                 'context', instance.config.context
             )
-            instance.config.config = config_data.get('config', instance.config.context)
-            if config_data.get('templates'):
-                new_config_templates = [
-                    template.pk for template in config_data.get('templates')
-                ]
-                old_config_templates = [
-                    template
-                    for template in instance.config.templates.values_list(
-                        'pk', flat=True
+            instance.config.config = config_data.get('config', instance.config.config)
+
+            if 'templates' in config_data:
+                if config_data.get('templates'):
+                    new_config_templates = [
+                        template.pk for template in config_data.get('templates')
+                    ]
+                    old_config_templates = [
+                        template
+                        for template in instance.config.templates.values_list(
+                            'pk', flat=True
+                        )
+                    ]
+                    if new_config_templates != old_config_templates:
+                        with transaction.atomic():
+                            vpn_list = instance.config.templates.filter(
+                                type='vpn'
+                            ).values_list('vpn')
+                            if vpn_list:
+                                instance.config.vpnclient_set.exclude(
+                                    vpn__in=vpn_list
+                                ).delete()
+                            instance.config.templates.clear()
+                            instance.config.templates.add(*new_config_templates)
+                else:
+                    vpn_list = instance.config.templates.filter(type='vpn').values_list(
+                        'vpn'
                     )
-                ]
-                if new_config_templates != old_config_templates:
-                    with transaction.atomic():
-                        instance.config.templates.clear()
-                        instance.config.templates.add(*new_config_templates)
+                    if vpn_list:
+                        instance.config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+                    instance.config.templates.clear()
+                    instance.config.templates.add(*[])
+
             instance.config.full_clean()
             instance.config.save()
         return super().update(instance, validated_data)

@@ -183,6 +183,23 @@ class TestConfigApi(
         self.assertEqual(r.data['name'], 'change-test-device')
         self.assertEqual(r.data['organization'], org.pk)
 
+    # test device with VPN-client type template assigned to it
+    def test_device_with_vpn_client_template_assigned(self):
+        org1 = self._create_org(name='testorg')
+        v1 = self._create_vpn(name='vpn1org', organization=org1)
+        t1 = self._create_template(name='t1', organization=org1, type='vpn', vpn=v1)
+        t2 = self._create_template(name='t2', organization=org1)
+        d1 = self._create_device(name='d1', organization=org1)
+        self._create_config(device=d1)
+        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        self.assertEqual(d1.config.vpnclient_set.count(), 0)
+        data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
+        self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(d1.config.vpnclient_set.count(), 1)
+        data1 = {'config': {'templates': []}}
+        self.client.patch(path, data1, content_type='application/json')
+        self.assertEqual(d1.config.vpnclient_set.count(), 0)
+
     def test_device_patch_with_templates_of_same_org(self):
         org1 = self._create_org(name='testorg')
         d1 = self._create_device(name='org1-config', organization=org1)
