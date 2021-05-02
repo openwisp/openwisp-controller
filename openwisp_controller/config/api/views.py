@@ -81,7 +81,7 @@ class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
 
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     """
-    Templates: Templates flagged as required will be added automatically 
+    Templates: Templates flagged as required will be added automatically
                to the `config` of a device and cannot be unassigned.
     """
 
@@ -92,7 +92,7 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
 class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     """
-    Templates: Templates flagged as _required_ will be added automatically 
+    Templates: Templates flagged as _required_ will be added automatically
                to the `config` of a device and cannot be unassigned.
     """
 
