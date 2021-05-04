@@ -85,9 +85,9 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
         if user.is_superuser:
             queryset = Template.objects.all()
         else:
-            userOrgList = user.organizations_dict.keys()
+            org_list = user.organizations_dict.keys()
             query = Q(organization=None)
-            for org in userOrgList:
+            for org in org_list:
                 query |= Q(organization=org)
             queryset = Template.objects.filter(query)
         return queryset
