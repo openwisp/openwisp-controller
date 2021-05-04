@@ -93,24 +93,27 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
         return queryset
 
 
-class DeviceConfigSerializer(serializers.ModelSerializer):
-    config = serializers.JSONField(
-        initial={}, help_text=_('Configuration in NetJSON format')
-    )
-    context = serializers.JSONField(
-        initial={}, help_text=_('Configuration variables in JSON format')
-    )
-    templates = FilterTemplatesByOrganization(many=True)
-
+class BaseConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = Config
-        fields = ['backend', 'status', 'templates', 'context', 'config']
+        fields = ['status', 'backend', 'templates', 'context', 'config']
         extra_kwargs = {'status': {'read_only': True}}
 
 
+class DeviceListConfigSerializer(BaseConfigSerializer):
+    config = serializers.JSONField(
+        initial={}, help_text=_('Configuration in NetJSON format'), write_only=True
+    )
+    context = serializers.JSONField(
+        initial={},
+        help_text=_('Configuration variables in JSON format'),
+        write_only=True,
+    )
+    templates = FilterTemplatesByOrganization(many=True, write_only=True)
+
+
 class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
-    config = DeviceConfigSerializer(write_only=True, required=False)
-    configuration = serializers.SerializerMethodField()
+    config = DeviceListConfigSerializer(required=False)
 
     class Meta(BaseMeta):
         model = Device
@@ -127,7 +130,6 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'system',
             'notes',
             'config',
-            'configuration',
             'created',
             'modified',
         ]
@@ -135,10 +137,6 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'last_ip': {'allow_blank': True},
             'management_ip': {'allow_blank': True},
         }
-
-    def get_configuration(self, obj):
-        if obj._has_config():
-            return {'status': obj.config.status, 'backend': obj.config.backend}
 
     def create(self, validated_data):
         config_data = None
@@ -156,8 +154,18 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
         return device
 
 
+class DeviceDetailConfigSerializer(BaseConfigSerializer):
+    config = serializers.JSONField(
+        initial={}, help_text=_('Configuration in NetJSON format')
+    )
+    context = serializers.JSONField(
+        initial={}, help_text=_('Configuration variables in JSON format')
+    )
+    templates = FilterTemplatesByOrganization(many=True)
+
+
 class DeviceDetailSerializer(BaseSerializer):
-    config = DeviceConfigSerializer(allow_null=True)
+    config = DeviceDetailConfigSerializer(allow_null=True)
 
     class Meta(BaseMeta):
         model = Device
