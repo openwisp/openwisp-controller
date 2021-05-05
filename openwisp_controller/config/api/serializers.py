@@ -50,7 +50,7 @@ class TemplateSerializer(BaseSerializer):
         Ensure that VPN can't be added when
         template `Type` is set to `Generic`.
         """
-        if self.context['request'].data['type'] == 'generic':
+        if self.initial_data.get('type') == 'generic' and value is not None:
             raise serializers.ValidationError(
                 _("To select a VPN, set the template type to 'VPN-client'")
             )
