@@ -151,7 +151,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 ~Q(id=self.id), organization=self.organization, name__iexact=self.name
             ).exists():
                 raise ValidationError(
-                    _("Device with this Name and Organization already exists.")
+                    _("'Device with this Name and Organization already exists.'")
                 )
 
     def clean(self, *args, **kwargs):

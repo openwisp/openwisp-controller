@@ -239,7 +239,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             d = Device(**kwargs)
             d.full_clean()
         except ValidationError:
-            self.fail("Validation error was raised")
+            self.fail('Validation error was raised')
 
     def test_device_macaddress_organization_unique_together(self):
         org = self._get_org()
