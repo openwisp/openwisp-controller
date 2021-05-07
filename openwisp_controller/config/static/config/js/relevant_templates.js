@@ -108,8 +108,9 @@ django.jQuery(function ($) {
 
                 // Adds "li" elements for templates that are not selected
                 // in the database.
+                var counter = selectedTemplates !== undefined ? selectedTemplates.length : 0;
                 Object.keys(data).forEach(function (templateId, index) {
-                    index = index + selectedTemplates.length;
+                    index = index + counter;
                     var isSelected = (data[templateId].default && (selectedTemplates === undefined)) && (!data[templateId].required),
                         element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
                         prefixElement = getTemplateOptionElement(index, templateId, data[templateId], isSelected, true);
