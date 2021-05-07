@@ -143,9 +143,14 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     def _validate_unique_name(self):
         if app_settings.DEVICE_NAME_UNIQUE:
-            if hasattr(self, 'organization') and self.__class__.objects.filter(
-                ~Q(id=self.id), organization=self.organization, name__iexact=self.name
-            ).exists():
+            if (
+                hasattr(self, 'organization')
+                and self.__class__.objects.filter(
+                    ~Q(id=self.id),
+                    organization=self.organization,
+                    name__iexact=self.name,
+                ).exists()
+            ):
                 raise ValidationError(
                     _('Device with this Name and Organization already exists.')
                 )
