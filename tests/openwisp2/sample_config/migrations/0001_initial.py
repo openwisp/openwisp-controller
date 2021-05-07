@@ -749,7 +749,6 @@ class Migration(migrations.Migration):
                 'unique_together': {
                     ('mac_address', 'organization'),
                     ('hardware_id', 'organization'),
-                    ('name', 'organization'),
                 },
                 'verbose_name': app_settings.DEVICE_VERBOSE_NAME[0],
                 'verbose_name_plural': app_settings.DEVICE_VERBOSE_NAME[1],
