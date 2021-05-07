@@ -141,23 +141,18 @@ class AbstractDevice(OrgMixin, BaseModel):
         else:
             return KeyField.default_callable()
 
-    def _assert_org_not_null(self):
-        if not hasattr(self, 'organization'):
-            raise ValidationError({'organization': _('This field cannot be null.')})
-
-    def _assert_name_unique(self):
+    def _validate_unique_name(self):
         if app_settings.DEVICE_NAME_UNIQUE:
-            if self.__class__.objects.filter(
+            if hasattr(self, 'organization') and self.__class__.objects.filter(
                 ~Q(id=self.id), organization=self.organization, name__iexact=self.name
             ).exists():
                 raise ValidationError(
-                    _("'Device with this Name and Organization already exists.'")
+                    _('Device with this Name and Organization already exists.')
                 )
 
     def clean(self, *args, **kwargs):
         cleaned_data = super().clean(*args, **kwargs)
-        self._assert_org_not_null()
-        self._assert_name_unique()
+        self._validate_unique_name()
         return cleaned_data
 
     def save(self, *args, **kwargs):
