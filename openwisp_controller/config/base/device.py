@@ -1,7 +1,8 @@
 from hashlib import md5
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 
 from openwisp_users.mixins import OrgMixin
@@ -83,7 +84,6 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     class Meta:
         unique_together = (
-            ('name', 'organization'),
             ('mac_address', 'organization'),
             ('hardware_id', 'organization'),
         )
@@ -140,6 +140,25 @@ class AbstractDevice(OrgMixin, BaseModel):
             return hash_key.hexdigest()
         else:
             return KeyField.default_callable()
+
+    def _assert_org_not_null(self):
+        if not hasattr(self, 'organization'):
+            raise ValidationError({'organization': _('This field cannot be null.')})
+
+    def _assert_name_unique(self):
+        if app_settings.DEVICE_NAME_UNIQUE:
+            if self.__class__.objects.filter(
+                ~Q(id=self.id), organization=self.organization, name__iexact=self.name
+            ).exists():
+                raise ValidationError(
+                    _("Device with this Name and Organization already exists.")
+                )
+
+    def clean(self, *args, **kwargs):
+        cleaned_data = super().clean(*args, **kwargs)
+        self._assert_org_not_null()
+        self._assert_name_unique()
+        return cleaned_data
 
     def save(self, *args, **kwargs):
         if not self.key:
