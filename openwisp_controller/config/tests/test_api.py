@@ -268,6 +268,19 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data['organization'], None)
 
+    def test_template_create_vpn_with_type_as_generic(self):
+        path = reverse('controller_config:api_template_list')
+        test_user = self._create_operator(organizations=[self._get_org()])
+        self.client.force_login(test_user)
+        vpn1 = self._create_vpn(name='vpn1', organization=self._get_org())
+        data = self._get_template_data.copy()
+        data['organization'] = self._get_org().pk
+        data['type'] = 'generic'
+        data['vpn'] = vpn1.id
+        response = self.client.post(path, data, content_type='application/json')
+        validation_msg = "To select a VPN, set the template type to 'VPN-client'"
+        self.assertIn(validation_msg, response.data['vpn'])
+
     def test_template_create_api(self):
         self.assertEqual(Template.objects.count(), 0)
         org = self._get_org()
@@ -279,6 +292,18 @@ class TestConfigApi(
         self.assertEqual(Template.objects.count(), 1)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data['organization'], org.pk)
+
+    def test_template_create_of_vpn_type(self):
+        org = self._get_org()
+        vpn1 = self._create_vpn(name='vpn1', organization=org)
+        path = reverse('controller_config:api_template_list')
+        data = self._get_template_data.copy()
+        data['type'] = 'vpn'
+        data['vpn'] = vpn1.id
+        data['organization'] = org.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(r.status_code, 201)
 
     def test_template_creation_with_no_org_by_operator(self):
         path = reverse('controller_config:api_template_list')
