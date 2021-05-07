@@ -26,6 +26,7 @@ class TemplateSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
     tags = serializers.StringRelatedField(many=True, read_only=True)
     default_values = serializers.JSONField(required=False, initial={})
+    include_shared = True
 
     class Meta(BaseMeta):
         model = Template
@@ -59,6 +60,7 @@ class TemplateSerializer(BaseSerializer):
 
 class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
+    include_shared = True
 
     class Meta(BaseMeta):
         model = Vpn

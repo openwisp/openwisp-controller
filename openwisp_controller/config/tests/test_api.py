@@ -305,6 +305,21 @@ class TestConfigApi(
         self.assertEqual(Template.objects.count(), 1)
         self.assertEqual(r.status_code, 201)
 
+    def test_template_create_with_shared_vpn(self):
+        org1 = self._get_org()
+        test_user = self._create_operator(organizations=[org1])
+        self.client.force_login(test_user)
+        vpn1 = self._create_vpn(name='vpn1', organization=None)
+        path = reverse('controller_config:api_template_list')
+        data = self._get_template_data.copy()
+        data['type'] = 'vpn'
+        data['vpn'] = vpn1.id
+        data['organization'] = org1.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(r.data['vpn'], vpn1.id)
+
     def test_template_creation_with_no_org_by_operator(self):
         path = reverse('controller_config:api_template_list')
         data = self._get_template_data.copy()
@@ -322,6 +337,15 @@ class TestConfigApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Template.objects.count(), 1)
+
+    def test_template_list_for_shared_objects(self):
+        org1 = self._get_org()
+        self._create_vpn(name='shared-vpn', organization=None)
+        test_user = self._create_operator(organizations=[org1])
+        self.client.force_login(test_user)
+        path = reverse('controller_config:api_template_list')
+        r = self.client.get(path, {'format': 'api'})
+        self.assertContains(r, 'shared-vpn</option>')
 
     # template-detail having no Org
     def test_template_detail_api(self):
@@ -381,6 +405,20 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Vpn.objects.count(), 1)
 
+    def test_vpn_create_with_shared_objects(self):
+        org1 = self._get_org()
+        shared_ca = self._create_ca(name='shared_ca', organization=None)
+        test_user = self._create_operator(organizations=[org1])
+        self.client.force_login(test_user)
+        data = self._get_vpn_data.copy()
+        data['organization'] = org1.pk
+        data['ca'] = shared_ca.pk
+        path = reverse('controller_config:api_vpn_list')
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(Vpn.objects.count(), 1)
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data['ca'], shared_ca.pk)
+
     def test_vpn_list_api(self):
         org = self._get_org()
         self._create_vpn(organization=org)
@@ -388,6 +426,17 @@ class TestConfigApi(
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
+
+    def test_vpn_list_for_shared_objects(self):
+        self._create_ca(name='shared_ca', organization=None)
+        self._create_cert(name='shared_cert', organization=None)
+        org1 = self._get_org()
+        test_user = self._create_operator(organizations=[org1])
+        self.client.force_login(test_user)
+        path = reverse('controller_config:api_vpn_list')
+        r = self.client.get(path, {'format': 'api'})
+        self.assertContains(r, 'shared_ca</option>')
+        self.assertContains(r, 'shared_cert</option>')
 
     # VPN detail having no Org
     def test_vpn_detail_no_org_api(self):
