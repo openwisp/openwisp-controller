@@ -145,7 +145,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         if app_settings.DEVICE_NAME_UNIQUE:
             if (
                 hasattr(self, 'organization')
-                and self.__class__.objects.filter(
+                and self._meta.model.objects.filter(
                     ~Q(id=self.id),
                     organization=self.organization,
                     name__iexact=self.name,
@@ -156,9 +156,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 )
 
     def clean(self, *args, **kwargs):
-        cleaned_data = super().clean(*args, **kwargs)
+        super().clean(*args, **kwargs)
         self._validate_unique_name()
-        return cleaned_data
 
     def save(self, *args, **kwargs):
         if not self.key:
