@@ -528,6 +528,8 @@ Note: This setting affects only the configuration backend and NOT the VPN backen
 +--------------+-------------+
 
 This setting conditionally enforces unique Device names in an Organization.
+The query to enforce this is case-insensitive.
+Note: For this constraint to be optional, it is enforced on an application level and not on database.
 
 ``OPENWISP_CONTROLLER_HARDWARE_ID_ENABLED``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
