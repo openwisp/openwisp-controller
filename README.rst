@@ -518,6 +518,20 @@ If this setting is set to ``False`` these items will be removed from the UI.
 
 Note: This setting affects only the configuration backend and NOT the VPN backend.
 
+``OPENWISP_CONTROLLER_DEVICE_NAME_UNIQUE``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-------------+
+| **type**:    | ``bool``    |
++--------------+-------------+
+| **default**: | ``True``    |
++--------------+-------------+
+
+This setting conditionally enforces unique Device names in an Organization.
+The query to enforce this is case-insensitive.
+
+Note: For this constraint to be optional, it is enforced on an application level and not on database.
+
 ``OPENWISP_CONTROLLER_HARDWARE_ID_ENABLED``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

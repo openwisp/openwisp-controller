@@ -37,7 +37,7 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         self.assertEqual(str(d), '123')
 
     def test_mac_address_validator(self):
-        d = Device(name='test', key=self.TEST_KEY)
+        d = Device(name='test', key=self.TEST_KEY, organization=self._get_org())
         bad_mac_addresses_list = [
             '{0}:BB:CC'.format(self.TEST_MAC_ADDRESS),
             'AA:BB:CC:11:22033',
@@ -226,6 +226,21 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         with self.assertRaises(ValidationError):
             self._create_device(**kwargs)
 
+    @mock.patch('openwisp_controller.config.settings.DEVICE_NAME_UNIQUE', False)
+    def test_device_name_organization_not_unique(self):
+        org = self._get_org()
+        self._create_device(organization=org, name='test.device.name')
+        kwargs = {
+            'name': 'test.device.name',
+            'organization': org,
+            'mac_address': '0a-1b-3c-4d-5e-6f',
+        }
+        try:
+            d = Device(**kwargs)
+            d.full_clean()
+        except ValidationError:
+            self.fail('Validation error was raised')
+
     def test_device_macaddress_organization_unique_together(self):
         org = self._get_org()
         self._create_device(
@@ -308,8 +323,8 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             )
         message_dict = context_manager.exception.message_dict
         self.assertIn('__all__', message_dict)
-        self.assertIn(
-            'Device with this Name and Organization already exists.',
+        self.assertEqual(
+            ['Device with this Name and Organization already exists.'],
             message_dict['__all__'],
         )
 
