@@ -136,6 +136,7 @@ class TestConfigApi(
         self._create_template(name='t2', organization=org2)
         path = reverse('controller_config:api_device_list')
         r = self.client.get(path, {'format': 'api'})
+        self.assertEqual(r.status_code, 200)
         self.assertContains(r, 't0</option>')
         self.assertContains(r, 't1</option>')
         self.assertContains(r, 't11</option>')
@@ -277,9 +278,10 @@ class TestConfigApi(
         data['organization'] = self._get_org().pk
         data['type'] = 'generic'
         data['vpn'] = vpn1.id
-        response = self.client.post(path, data, content_type='application/json')
+        r = self.client.post(path, data, content_type='application/json')
         validation_msg = "To select a VPN, set the template type to 'VPN-client'"
-        self.assertIn(validation_msg, response.data['vpn'])
+        self.assertIn(validation_msg, r.data['vpn'])
+        self.assertEqual(r.status_code, 400)
 
     def test_template_create_api(self):
         self.assertEqual(Template.objects.count(), 0)
@@ -345,6 +347,7 @@ class TestConfigApi(
         self.client.force_login(test_user)
         path = reverse('controller_config:api_template_list')
         r = self.client.get(path, {'format': 'api'})
+        self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'shared-vpn</option>')
 
     # template-detail having no Org
@@ -435,6 +438,7 @@ class TestConfigApi(
         self.client.force_login(test_user)
         path = reverse('controller_config:api_vpn_list')
         r = self.client.get(path, {'format': 'api'})
+        self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'shared_ca</option>')
         self.assertContains(r, 'shared_cert</option>')
 
