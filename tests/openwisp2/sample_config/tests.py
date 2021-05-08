@@ -1,4 +1,5 @@
 from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdmin
+from openwisp_controller.config.tests.test_api import TestConfigApi as BaseTestConfigApi
 from openwisp_controller.config.tests.test_apps import TestApps as BaseTestApps
 from openwisp_controller.config.tests.test_config import TestConfig as BaseTestConfig
 from openwisp_controller.config.tests.test_controller import (
@@ -70,6 +71,10 @@ class TestApps(BaseTestApps):
     pass
 
 
+class TestConfigApi(BaseTestConfigApi):
+    pass
+
+
 del BaseTestAdmin
 del BaseTestConfig
 del BaseTestController
@@ -82,3 +87,4 @@ del BaseTestViews
 del BaseTestVpn
 del BaseTestVpnTransaction
 del BaseTestApps
+del BaseTestConfigApi
