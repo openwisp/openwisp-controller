@@ -74,7 +74,7 @@ class TestSubnetDivisionRule(
 
     def test_provisioned_subnets(self):
         rule = self._get_vpn_subdivision_rule()
-        subnet_query = Subnet.objects.filter(organization_id=self.org.id).exclude(
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
             id=self.master_subnet.id
         )
         self.assertEqual(subnet_query.count(), 0)
@@ -101,7 +101,7 @@ class TestSubnetDivisionRule(
         rule = self._get_vpn_subdivision_rule()
         self.config.templates.add(self.template)
         index_queryset = rule.subnetdivisionindex_set.filter(config_id=self.config.id)
-        subnet_queryset = Subnet.objects.filter(
+        subnet_queryset = self.subnet_query.filter(
             id__in=index_queryset.filter(
                 ip__isnull=True, subnet__isnull=False
             ).values_list('subnet_id', flat=True)
@@ -153,7 +153,7 @@ class TestSubnetDivisionRule(
     def test_rule_deleted(self):
         rule = self._get_vpn_subdivision_rule()
         self.config.templates.add(self.template)
-        subnet_query = Subnet.objects.exclude(id=self.master_subnet.id).filter(
+        subnet_query = self.subnet_query.exclude(id=self.master_subnet.id).filter(
             organization=rule.organization
         )
         ip_query = IpAddress.objects
@@ -176,7 +176,7 @@ class TestSubnetDivisionRule(
     def test_vpnclient_deleted(self):
         rule = self._get_vpn_subdivision_rule()
         self.config.templates.add(self.template)
-        subnet_query = Subnet.objects.filter(organization_id=self.org.id).exclude(
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
             id=self.master_subnet.id
         )
 
@@ -220,7 +220,7 @@ class TestSubnetDivisionRule(
         rule = self._get_vpn_subdivision_rule()
 
         self.assertEqual(rule.subnetdivisionindex_set.count(), 0)
-        self.assertEqual(Subnet.objects.exclude(id=self.master_subnet.id).count(), 0)
+        self.assertEqual(self.subnet_query.exclude(id=self.master_subnet.id).count(), 0)
         self.assertEqual(IpAddress.objects.count(), 0)
 
     def test_vpn_subnet_no_rule(self):
@@ -258,7 +258,7 @@ class TestSubnetDivisionRule(
 
         # Following query asserts that subnet created belongs to the
         # organization of the related config.device
-        subnet_query = Subnet.objects.filter(
+        subnet_query = self.subnet_query.filter(
             organization_id=self.org.id, master_subnet_id=self.master_subnet.id
         ).exclude(id=self.master_subnet.id)
 
@@ -285,7 +285,7 @@ class TestSubnetDivisionRule(
         config2.templates.add(template)
 
         self.assertEqual(
-            Subnet.objects.exclude(id=self.master_subnet.id).count(),
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
             rule1.number_of_subnets + rule2.number_of_subnets,
         )
         config1_subnets = config1.subnetdivisionindex_set.filter(
@@ -299,7 +299,7 @@ class TestSubnetDivisionRule(
 
     def test_device_deleted(self):
         rule = self._get_vpn_subdivision_rule()
-        subnet_query = Subnet.objects.filter(organization_id=self.org.id).exclude(
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
             id=self.master_subnet.id
         )
         self.config.templates.add(self.template)
@@ -311,6 +311,24 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             subnet_query.count(), 0,
         )
+
+    def test_reserved_subnet(self):
+        # An IP is already provisioned
+        ip = self.master_subnet.request_ip()
+
+        rule = self._get_vpn_subdivision_rule()
+        subnet_query = Subnet.objects.exclude(id=self.master_subnet.id)
+        self.config.templates.add(self.template)
+
+        # Check reserved subnet is created
+        self.assertEqual(
+            subnet_query.filter(
+                name__contains='Reserved Subnet', subnet=f'10.0.0.0/{rule.size}'
+            ).count(),
+            1,
+        )
+        # Check 10.0.0.1 is not provisioned again
+        self.assertEqual(SubnetDivisionIndex.objects.filter(ip_id=ip.id).count(), 0)
 
 
 class TestCeleryTasks(TestCase):
