@@ -13,7 +13,7 @@ openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 # TODO: change this when next point version of openwisp-notifications is released
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 # TODO: change this when next version of openwisp-ipam is released
-openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/ipaddress-admin-form-fix
+openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
 djangorestframework-gis>=0.12.0,<0.17.0
 netjsonconfig~=0.9.0
 paramiko~=2.7.2
