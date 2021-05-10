@@ -23,7 +23,7 @@ class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
 
 
 class TemplateSerializer(BaseSerializer):
-    config = serializers.JSONField(initial={})
+    config = serializers.JSONField(initial={}, required=False)
     tags = serializers.StringRelatedField(many=True, read_only=True)
     default_values = serializers.JSONField(required=False, initial={})
     include_shared = True
@@ -54,6 +54,16 @@ class TemplateSerializer(BaseSerializer):
         if self.initial_data.get('type') == 'generic' and value is not None:
             raise serializers.ValidationError(
                 _("To select a VPN, set the template type to 'VPN-client'")
+            )
+        return value
+
+    def validate_config(self, value):
+        """
+        Display appropriate field name.
+        """
+        if self.initial_data.get('type') == 'generic' and value == {}:
+            raise serializers.ValidationError(
+                _('The configuration field cannot be empty.')
             )
         return value
 

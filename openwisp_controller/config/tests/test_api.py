@@ -331,6 +331,15 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
         self.assertIn('This field may not be null.', str(r.content))
 
+    def test_template_create_with_empty_config(self):
+        path = reverse('controller_config:api_template_list')
+        data = self._get_template_data.copy()
+        data['config'] = {}
+        data['organization'] = self._get_org().pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('The configuration field cannot be empty.', str(r.content))
+
     def test_template_list_api(self):
         org1 = self._get_org()
         self._create_template(name='t1', organization=org1)
