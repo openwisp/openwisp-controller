@@ -1105,9 +1105,10 @@ Important Notes
   But don't forget to provide the default fall back values in the "default values" template field
   (used mainly for validation).
 
-- The Subnet Division Rule will automatically create a reserved subnet. You can use this subnet to
-  provision any additional IP addresses but the rest of the master subnet **should not** be interfered with.
-  Doing so can create conflicts with automatically provisioned IPs.
+- The Subnet Division Rule will automatically create a reserved subnet, this subnet can be used
+  to provision any IP addresses that have to be created manually. The rest of the master subnet
+  address space **must not** be interfered with or the automation implemented in this module
+  will not work.
 
 Signals
 -------
