@@ -157,7 +157,7 @@
         $('.jsoneditor input[maxlength]:not(.has-max-length)').map((i, field) => {
             $(field).attr('data-maxlength', $(field).attr('maxLength'));
         });
-        $('.jsoneditor input[maxlength]:not(.has-max-length)').addClass('has-max-length');   
+        $('.jsoneditor input[maxlength]:not(.has-max-length)').addClass('has-max-length');
     };
 
     var validateOnDefaultValuesChange = function (editor, advancedEditor) {
@@ -167,21 +167,6 @@
         } else {
             editor.onChange();
         }
-    };
-
-    var getNestedValue = function(obj, ...args) {
-        return args.reduce((obj, level) => obj && obj[level], obj);
-    };
-    
-    var order_array = function(arr, old_index, new_index) {
-        if (new_index >= arr.length) {
-            var k = new_index - arr.length + 1;
-            while (k--) {
-                arr.push(undefined);
-            }
-        }
-        arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
-        return arr;
     };
 
     var loadUi = function (el, backend, schemas, setInitialValue) {
@@ -240,16 +225,6 @@
         }
         if (field.attr("data-options") !== undefined) {
             $.extend(options, JSON.parse(field.attr("data-options")));
-        }
-        if (getNestedValue(startval, 'interfaces', 0, 'addresses', 0, 'proto') === 'static') {
-            try {
-                var address_array = schemas[backend].definitions.interface_settings.properties.addresses.items.oneOf;
-                if (getNestedValue(startval, 'interfaces', 0, 'addresses', 0, 'family') === 'ipv4') {
-                    schemas[backend].definitions.interface_settings.properties.addresses.items.oneOf = order_array(address_array, 0, 1);
-                } else {
-                    schemas[backend].definitions.interface_settings.properties.addresses.items.oneOf = order_array(address_array, 0, 2);
-                }
-            } catch (ignore) {}
         }
 
         editor = new JSONEditor(document.getElementById(id), options);
@@ -372,11 +347,11 @@
         $('.jsoneditor').on('input paste', '.has-max-length:visible', function(e) {
             var field = $(e.target),
                 pasteValue = '';
-        
+
             if (e.originalEvent.type === 'paste') {
                 pasteValue = e.originalEvent.clipboardData.getData('text');
             }
-        
+
             if (field.val().indexOf('{{') > -1 || pasteValue.indexOf('{{') > -1) {
                 field.removeAttr('maxlength');
             } else {
@@ -779,3 +754,29 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
         link.appendChild(image);
     }
 });
+
+// Override setValue method to allow using variables for fields with maxLength
+JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial) {
+    // Determine type by getting the first one that validates
+    var self = this;
+    window._$each(this.validators, function (i, validator) {
+        if ((val) && typeof val === 'object') {
+            Object.entries(val).forEach(function (entry) {
+                if (typeof entry[1] === 'string' && entry[1].indexOf('{{') > -1) {
+                    delete validator.schema.properties[entry[0]];
+                }
+            });
+        }
+        if (!validator.validate(val).length) {
+            self.type = i;
+            self.switcher.value = self.display_text[i];
+            return false;
+        }
+    });
+    this.switchEditor(this.type);
+
+    this.editors[this.type].setValue(val, initial);
+
+    this.refreshValue();
+    self.onChange();
+};
