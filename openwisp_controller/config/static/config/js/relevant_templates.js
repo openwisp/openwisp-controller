@@ -4,16 +4,13 @@ django.jQuery(function ($) {
         getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
             var prefix = isPrefix ? '__prefix__-' : '',
                 requiredString = templateConfig.required ? ' (required)' : '',
-                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m"> ${templateConfig.name}${requiredString}</label></li>`),
+                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m" data-required=${templateConfig.required}> ${templateConfig.name}${requiredString}</label></li>`),
                 inputField = element.children().children('input');
 
-            // Required templates should not be marked as "checked".
-            // Doing so will break validation in the backend.
-            // See https://git.io/JObJR
             if (templateConfig.required) {
                 inputField.prop('disabled', true);
             }
-            if (isSelected === true) {
+            if (isSelected || templateConfig.required) {
                 inputField.prop('checked', true);
             }
             return element;
@@ -150,6 +147,9 @@ django.jQuery(function ($) {
                 });
             }
             firstRun = false;
+            $('#content-main form').submit(function () {
+                $('ul.sortedm2m-items:first input[type="checkbox"][data-required="true"]').prop('checked', false);
+            });
         };
     window.bindDefaultTemplateLoading = bindDefaultTemplateLoading;
 });
