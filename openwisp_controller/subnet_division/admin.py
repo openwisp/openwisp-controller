@@ -84,8 +84,11 @@ class SubnetAdmin(BaseSubnetAdmin):
                 f'<a href="{url}?subnet={str(obj.subnet)}">{msg_string}</a>'
             )
         else:
-            device = self._lookup[obj.id]
-            return mark_safe(f'<a href="{url}?subnet={str(obj.subnet)}">{device}</a>')
+            if obj.id in self._lookup:
+                device = self._lookup[obj.id]
+                return mark_safe(
+                    f'<a href="{url}?subnet={str(obj.subnet)}">{device}</a>'
+                )
 
     def has_change_permission(self, request, obj=None):
         permission = super().has_change_permission(request, obj)
