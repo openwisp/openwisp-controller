@@ -755,11 +755,43 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
     }
 });
 
+JSONEditor.defaults.editors.multiple.prototype.$each = function (obj, callback) {
+    if (!obj || typeof obj !== "object") {
+        return;
+    }
+    var i;
+    if (Array.isArray(obj) || (typeof obj.length === 'number' && obj.length > 0 && (obj.length - 1) in obj)) {
+        for (i = 0; i < obj.length; i++) {
+            if (callback(i, obj[i]) === false) {
+                return;
+            }
+        }
+    } else {
+        if (Object.keys) {
+            var keys = Object.keys(obj);
+            for (i = 0; i < keys.length; i++) {
+                if (callback(keys[i], obj[keys[i]]) === false) {
+                    return;
+                }
+            }
+        } else {
+            for (i in obj) {
+                if (!obj.hasOwnProperty(i)) {
+                    continue;
+                }
+                if (callback(i, obj[i]) === false) {
+                    return;
+                }
+            }
+        }
+    }
+};
+
 // Override setValue method to allow using variables for fields with maxLength
 JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial) {
     // Determine type by getting the first one that validates
     var self = this;
-    window._$each(this.validators, function (i, validator) {
+    this.$each(this.validators, function (i, validator) {
         if ((val) && typeof val === 'object') {
             Object.entries(val).forEach(function (entry) {
                 if (typeof entry[1] === 'string' && entry[1].indexOf('{{') > -1) {
