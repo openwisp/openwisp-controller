@@ -607,6 +607,251 @@ For example, if we want to change the verbose name to "Hotspot", we could write:
 
     OPENWISP_CONTROLLER_DEVICE_VERBOSE_NAME = ('Hotspot', 'Hotspots')
 
+``OPENWISP_CONTROLLER_API``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    | ``bool``  |
++--------------+-----------+
+| **default**: | ``True``  |
++--------------+-----------+
+
+Indicates whether the API for Openwisp Controller is enabled or not.
+To disable the API by default add `OPENWISP_CONTROLLER_API = False` in `settings.py` file.
+
+REST API
+--------
+
+Live documentation
+~~~~~~~~~~~~~~~~~~
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/live-docu-api.png
+
+A general live API documentation (following the OpenAPI specification) at ``/api/v1/docs/``.
+
+Browsable web interface
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/browsable-api-ui.png
+
+Additionally, opening any of the endpoints `listed below <#list-of-endpoints>`_
+directly in the browser will show the `browsable API interface of Django-REST-Framework
+<https://www.django-rest-framework.org/topics/browsable-api/>`_,
+which makes it even easier to find out the details of each endpoint.
+
+Authentication
+~~~~~~~~~~~~~~
+
+See openwisp-users: `authenticating with the user token
+<https://github.com/openwisp/openwisp-users#authenticating-with-the-user-token>`_.
+
+When browsing the API via the `Live documentation <#live-documentation>`_
+or the `Browsable web page <#browsable-web-interface>`_, you can also use
+the session authentication by logging in the django admin.
+
+Pagination
+~~~~~~~~~~
+
+All *list* endpoints support the ``page_size`` parameter that allows paginating
+the results in conjunction with the ``page`` parameter.
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/?page_size=10
+    GET /api/v1/controller/template/?page_size=10&page=2
+
+List of endpoints
+~~~~~~~~~~~~~~~~~
+
+Since the detailed explanation is contained in the `Live documentation <#live-documentation>`_
+and in the `Browsable web page <#browsable-web-interface>`_ of each point,
+here we'll provide just a list of the available endpoints,
+for further information please open the URL of the endpoint in your browser.
+
+List devices
+^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/
+
+Create device
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/device/
+
+Get device detail
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{pk}/
+
+Download device configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{pk}/configuration/
+
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific device.
+
+Change details of device
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{pk}/
+
+Patch details of device
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/device/{pk}/
+
+**Note**: To assign, unassign, and change the order of the assigned templates add, 
+remove, and change the order of the ``{pk}`` of the templates under the ``config`` field in the JSON response respectively.
+Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
+
+The required template(s) from the organization(s) of the device will added automatically 
+to the ``config`` and cannot be removed.
+
+**Example usage**: For assigning template(s) add the/their {pk} to the config of a device,
+
+.. code-block:: shell
+
+    echo '{"config":{"templates": ["4791fa4c-2cef-4f42-8bb4-c86018d71bd3"]}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
+    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+
+**Example usage**: For removing assigned templates, simply remove the/their {pk} from the config of a device,
+
+.. code-block:: shell
+
+    echo '{"config":{"templates": []}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
+    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+
+**Example usage**: For reordering the templates simply change their order from the config of a device,
+
+.. code-block:: shell
+
+    echo '{"config":{"templates": ["c5bbc697-170e-44bc-8eb7-b944b55ee88f","4791fa4c-2cef-4f42-8bb4-c86018d71bd3"]}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
+    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+
+Delete device
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/device/{pk}/
+
+List templates
+^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/
+
+Create template
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/template/
+
+Get template detail
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/{pk}/
+
+Download template configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/{pk}/configuration/
+
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific template.
+
+Change details of template
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/template/{pk}/
+
+Patch details of template
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/template/{pk}/
+
+Delete template
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/template/{pk}/
+
+List VPNs
+^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/
+
+Create VPN
+^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/vpn/
+
+Get VPN detail
+^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/{pk}/
+
+Download VPN configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/{pk}/configuration/
+
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific VPN.
+
+Change details of VPN
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/vpn/{pk}/
+
+Patch details of VPN
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/vpn/{pk}/
+
+Delete VPN
+^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/vpn/{pk}/
+
 Default Alerts / Notifications
 ------------------------------
 

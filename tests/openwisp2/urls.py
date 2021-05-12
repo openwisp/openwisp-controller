@@ -1,17 +1,19 @@
 import os
 
 from django.conf import settings
-from django.conf.urls import include, url
+from django.conf.urls import url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from django.urls import path, reverse_lazy
+from django.urls import include, path, reverse_lazy
 from django.views.generic import RedirectView
 
+from openwisp_controller.config.api.urls import get_api_urls
 from openwisp_controller.config.utils import get_controller_urls
 from openwisp_controller.geo.utils import get_geo_urls
 
 from .sample_config import views as config_views
+from .sample_config.api import views as api_views
 from .sample_geo import views as geo_views
 
 redirect_view = RedirectView.as_view(url=reverse_lazy('admin:index'))
@@ -32,6 +34,13 @@ if os.environ.get('SAMPLE_APP', False):
             include(('openwisp_controller.config.urls', 'config'), namespace='config'),
         ),
         url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
+        url(
+            r'^api/v1/',
+            include(
+                (get_api_urls(api_views), 'controller_config'),
+                namespace='controller_config',
+            ),
+        ),
     ]
 
 urlpatterns += [
@@ -39,6 +48,7 @@ urlpatterns += [
     url(r'^admin/', admin.site.urls),
     url(r'', include('openwisp_controller.urls')),
     path('accounts/', include('openwisp_users.accounts.urls')),
+    path('api/v1/', include('openwisp_utils.api.urls')),
 ]
 
 urlpatterns += staticfiles_urlpatterns()
