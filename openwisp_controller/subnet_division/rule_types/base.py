@@ -71,7 +71,7 @@ class BaseSubnetDivisionRuleType(object):
             return
 
         master_subnet = division_rule.master_subnet
-        max_subnet = cls.get_max_subnet(master_subnet)
+        max_subnet = cls.get_max_subnet(master_subnet, division_rule)
         generated_indexes = []
         generated_subnets = cls.create_subnets(
             instance, division_rule, max_subnet, generated_indexes
@@ -88,35 +88,40 @@ class BaseSubnetDivisionRuleType(object):
         return attrgetter(cls.subnet_path)(instance)
 
     @staticmethod
-    def get_max_subnet(master_subnet):
+    def get_max_subnet(master_subnet, division_rule):
         try:
             max_subnet = (
                 # Get the highest subnet created for this master_subnet
-                SubnetDivisionIndex.objects.select_related(
-                    'subnet', 'subnet__master_subnet'
-                )
-                .filter(subnet__master_subnet_id=master_subnet.id)
-                .order_by('-subnet__created')
+                Subnet.objects.filter(master_subnet_id=master_subnet.id)
+                .order_by('-created')
                 .first()
                 .subnet
             )
         except AttributeError:
-            max_subnet = None
+            # If there is no existing subnet, create a reserved subnet
+            # and use it as starting point
+            required_subnet = next(
+                IPNetwork(str(master_subnet.subnet)).subnet(
+                    prefixlen=division_rule.size
+                )
+            )
+            subnet_obj = Subnet(
+                name=f'Reserved Subnet {required_subnet}',
+                subnet=str(required_subnet),
+                description=_('Automatically generated reserved subnet.'),
+                master_subnet_id=master_subnet.id,
+                organization_id=master_subnet.organization_id,
+            )
+            subnet_obj.full_clean()
+            subnet_obj.save()
+            max_subnet = subnet_obj.subnet
         finally:
             return max_subnet
 
     @staticmethod
     def create_subnets(instance, division_rule, max_subnet, generated_indexes):
         master_subnet = division_rule.master_subnet
-        if max_subnet is None:
-            required_subnet = next(
-                IPNetwork(str(master_subnet.subnet)).subnet(
-                    prefixlen=division_rule.size
-                )
-            )
-        else:
-            required_subnet = IPNetwork(str(max_subnet.subnet)).next()
-
+        required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
 
         for subnet_id in range(1, division_rule.number_of_subnets + 1):
