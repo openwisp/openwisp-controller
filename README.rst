@@ -611,14 +611,14 @@ REST API
 Live documentation
 ~~~~~~~~~~~~~~~~~~
 
-.. image:: https://raw.githubusercontent.com/ManishShah120/openwisp-controller/issues/379-REST_API-for-main-controller/docs/live-docu-api.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/live-docu-api.png
 
 A general live API documentation (following the OpenAPI specification) at ``/api/v1/docs/``.
 
 Browsable web interface
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. image:: https://raw.githubusercontent.com/ManishShah120/openwisp-controller/issues/379-REST_API-for-main-controller/docs/browsable-api-ui.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/browsable-api-ui.png
 
 Additionally, opening any of the endpoints `listed below <#list-of-endpoints>`_
 directly in the browser will show the `browsable API interface of Django-REST-Framework
