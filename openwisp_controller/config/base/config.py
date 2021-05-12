@@ -294,10 +294,11 @@ class AbstractConfig(BaseConfig):
         """
         if action not in ['pre_remove', 'post_clear']:
             return False
+        template_query = models.Q(required=True, backend=instance.backend)
         # trying to remove a required template will raise PermissionDenied
         if action == 'pre_remove':
             templates = cls._get_templates_from_pk_set(pk_set)
-            if templates.filter(required=True).exists():
+            if templates.filter(template_query).exists():
                 raise PermissionDenied(
                     _('Required templates cannot be removed from the configuration')
                 )
@@ -306,7 +307,7 @@ class AbstractConfig(BaseConfig):
             # device and ensure they're always present
             required_templates = (
                 cls.get_template_model()
-                .objects.filter(required=True)
+                .objects.filter(template_query)
                 .filter(
                     models.Q(organization=instance.device.organization)
                     | models.Q(organization=None)

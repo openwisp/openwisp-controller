@@ -466,6 +466,20 @@ class TestTemplate(
             self.assertTrue(config.templates.filter(pk=t1.pk).exists())
             self.assertTrue(config.templates.filter(pk=t2.pk).exists())
 
+        with self.subTest('required template honours backend of config'):
+            config.backend = 'netjsonconfig.OpenWisp'
+            config.save()
+            self.assertEqual(config.templates.count(), 3)
+
+            # This should not raise an exception since backends of
+            # t5 and config is not same. Also t5 should not be added back
+            config.templates.remove(t1)
+            self.assertEqual(config.templates.count(), 2)
+
+            # Similarly, clearing all templates should be possible
+            config.templates.clear()
+            self.assertEqual(config.templates.count(), 0)
+
     def test_required_vpn_template_corner_case(self):
         org = self._get_org()
         vpn = self._create_vpn()
