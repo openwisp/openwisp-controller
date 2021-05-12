@@ -12,6 +12,10 @@ Subnet = load_model('openwisp_ipam', 'Subnet')
 class SubnetDivisionTestMixin(
     CreateConfigTemplateMixin, TestVpnX509Mixin, SubnetIpamMixin
 ):
+    @property
+    def subnet_query(self):
+        return Subnet.objects.exclude(name__contains='Reserved')
+
     def _create_subnet_division_rule(self, **kwargs):
         options = dict()
         options.update(self._get_extra_fields(**kwargs))

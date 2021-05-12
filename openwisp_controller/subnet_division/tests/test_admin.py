@@ -33,7 +33,7 @@ class TestSubnetAdmin(
 
     def test_related_links(self):
         device_changelist = reverse(f'admin:{self.config_label}_device_changelist')
-        subnet = self.master_subnet.child_subnet_set.first()
+        subnet = self.config.subnetdivisionindex_set.first().subnet
         url = f'{device_changelist}?subnet={subnet.subnet}'
         with self.subTest('Test changelist view'):
             response = self.client.get(
@@ -176,7 +176,7 @@ class TestDeviceAdmin(
     def test_subnet_filter(self):
         device_changelist = reverse(f'admin:{self.config_label}_device_changelist')
         device2 = self._create_device(name='device-2', mac_address='00:11:22:33:44:56')
-        subnet = self.master_subnet.child_subnet_set.first()
+        subnet = self.config.subnetdivisionindex_set.first().subnet
         url = (
             f'{device_changelist}?subnet={subnet.subnet}'
             '&config__backend__exact=netjsonconfig.OpenWrt'
@@ -230,11 +230,10 @@ class TestDeviceAdmin(
         )
         self.assertEqual(device_response.status_code, 302)
         self.assertEqual(Device.objects.count(), 0)
-        self.assertEqual(Subnet.objects.exclude(id=self.master_subnet.id).count(), 0)
+        self.assertEqual(self.subnet_query.exclude(id=self.master_subnet.id).count(), 0)
 
         subnet_response = self.client.get(
             reverse(f'admin:{self.ipam_label}_subnet_changelist')
         )
         self.assertEqual(subnet_response.status_code, 200)
-        print(subnet_response.content)
         self.assertContains(subnet_response, self.config.device.name, 1)
