@@ -755,6 +755,8 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
     }
 });
 
+// This method has been copied from jdorn/json-editor library to facilitate
+// overriding JSONEditor.defaults.editors.multiple.prototype.setValue
 JSONEditor.defaults.editors.multiple.prototype.$each = function (obj, callback) {
     if (!obj || typeof obj !== "object") {
         return;
@@ -787,18 +789,31 @@ JSONEditor.defaults.editors.multiple.prototype.$each = function (obj, callback) 
     }
 };
 
-// Override setValue method to allow using variables for fields with maxLength
+// Override setValue method to allow using variables for fields with maxLength.
+// The code is copied from jdorn/json-editor library but contains customization
+// to remove maxLength attribute from schema of the a that has a variable value.
+// This customization is required for validation to pass. Later, the maxLength
+// attribute is added back to restore validator to it's original form.
 JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial) {
     // Determine type by getting the first one that validates
-    var self = this;
+    var self = this,
+        validatorModification = {};
     this.$each(this.validators, function (i, validator) {
+        // Customization to modify validators starts here
         if ((val) && typeof val === 'object') {
             Object.entries(val).forEach(function (entry) {
                 if (typeof entry[1] === 'string' && entry[1].indexOf('{{') > -1) {
-                    delete validator.schema.properties[entry[0]];
+                    if (validator.schema.properties[entry[0]]) {
+                        validatorModification[i] = {
+                            propertyName: entry[0],
+                            maxLength: validator.schema.properties[entry[0]].maxLength
+                        };
+                        delete validator.schema.properties[entry[0]].maxLength;
+                    }
                 }
             });
         }
+        // Customization to modify validators ends here
         if (!validator.validate(val).length) {
             self.type = i;
             self.switcher.value = self.display_text[i];
@@ -808,6 +823,12 @@ JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial
     this.switchEditor(this.type);
 
     this.editors[this.type].setValue(val, initial);
+
+    // Customization to restore validators starts here
+    Object.entries(validatorModification).forEach(function (entry) {
+        self.validators[entry[0]].schema.properties[entry[1].propertyName].maxLength = entry[1].maxLength;
+    });
+    // Customization to restore validators ends here
 
     this.refreshValue();
     self.onChange();
