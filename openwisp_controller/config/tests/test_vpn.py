@@ -419,3 +419,15 @@ class TestVpnTransaction(
         vpn.refresh_from_db()
         self.assertNotEqual(vpn.dh, Vpn._placeholder_dh)
         dhparam.assert_called_once()
+
+    def test_multiple_vpn_clients(self):
+        vpn1 = self._create_vpn(name='vpn1')
+        vpn2 = self._create_vpn(name='vpn2')
+        template1 = self._create_template(name='vpn1-template', type='vpn', vpn=vpn1)
+        template2 = self._create_template(name='vpn2-template', type='vpn', vpn=vpn2)
+        config = self._create_config(device=self._create_device())
+
+        config.templates.add(template1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        config.templates.set((template1, template2))
+        self.assertEqual(config.vpnclient_set.count(), 2)
