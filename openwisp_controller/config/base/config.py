@@ -239,7 +239,7 @@ class AbstractConfig(BaseConfig):
                 if vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn
                 ).exists():
-                    return
+                    continue
                 client = vpn_client_model(
                     config=instance, vpn=template.vpn, auto_cert=template.auto_cert
                 )
