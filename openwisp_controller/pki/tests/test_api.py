@@ -23,6 +23,15 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         'digest': 'sha256',
     }
 
+    _get_cert_data = {
+        'name': 'Test Cert',
+        'organization': None,
+        'ca': None,
+        'key_length': '2048',
+        'digest': 'sha256',
+        'serial_number': "",
+    }
+
     def test_ca_post_api(self):
         self.assertEqual(Ca.objects.count(), 0)
         path = reverse('controller_pki:api_ca_list')
@@ -83,3 +92,62 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Ca.objects.count(), 0)
+
+    def test_cert_post_api(self):
+        path = reverse('controller_pki:api_cert_list')
+        data = self._get_cert_data.copy()
+        data['ca'] = self._create_ca().pk
+        with self.assertNumQueries(8):
+            respone = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(respone.status_code, 201)
+        self.assertEqual(Cert.objects.count(), 1)
+
+    def test_cert_list_api(self):
+        self._create_cert(name='cert1')
+        path = reverse('controller_pki:api_cert_list')
+        with self.assertNumQueries(4):
+            response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Cert.objects.count(), 1)
+
+    def test_cert_detail_api(self):
+        cert1 = self._create_cert(name='cert1')
+        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        response = self.client.get(path)
+        with self.assertNumQueries(4):
+            response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], cert1.pk)
+
+    def test_cert_put_api(self):
+        cert1 = self._create_cert(name='cert1')
+        org2 = self._create_org()
+        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        data = {
+            'name': 'cert1-change',
+            'organization': org2.pk,
+            'notes': 'new-notes',
+        }
+        with self.assertNumQueries(8):
+            response = self.client.put(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['name'], 'cert1-change')
+        self.assertEqual(response.data['organization'], org2.pk)
+        self.assertEqual(response.data['notes'], 'new-notes')
+
+    def test_cert_patch_api(self):
+        cert1 = self._create_cert(name='cert1')
+        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        data = {'name': 'cert1-change'}
+        with self.assertNumQueries(7):
+            response = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['name'], 'cert1-change')
+
+    def test_cert_delete_api(self):
+        cert1 = self._create_cert(name='cert1')
+        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        with self.assertNumQueries(8):
+            response = self.client.delete(path)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(Cert.objects.count(), 0)
