@@ -273,7 +273,7 @@ in which OpenWISP can connect to devices in order to launch commands.
 
 Available update strategies. An update strategy is a subclass of a
 connector class which defines an ``update_config`` method which is
-in charge of updating the configuratio of the device.
+in charge of updating the configuration of the device.
 
 This operation is launched in a background worker when the configuration
 of a device is changed.
