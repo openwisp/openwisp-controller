@@ -791,9 +791,9 @@ JSONEditor.defaults.editors.multiple.prototype.$each = function (obj, callback) 
 
 // Override setValue method to allow using variables for fields with maxLength.
 // The code is copied from jdorn/json-editor library but contains customization
-// to remove maxLength attribute from schema of the a that has a variable value.
-// This customization is required for validation to pass. Later, the maxLength
-// attribute is added back to restore validator to it's original form.
+// to remove maxLength attribute from schema of the a field that has a variable
+// value. This customization is required for validation to pass. Later, the
+// maxLength attribute is added back to restore validator to it's original form.
 JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial) {
     // Determine type by getting the first one that validates
     var self = this,
