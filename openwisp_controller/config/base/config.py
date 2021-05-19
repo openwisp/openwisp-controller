@@ -219,7 +219,12 @@ class AbstractConfig(BaseConfig):
         # coming from signal
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
-            templates = template_model.objects.filter(pk__in=list(pk_set))
+            # Ordering the queryset here doesn't affect the functionality
+            # since pk_set is a set. Though ordering the queryset is required
+            # for tests.
+            templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
+                'created'
+            )
         # coming from admin ModelForm
         else:
             templates = pk_set
@@ -234,7 +239,7 @@ class AbstractConfig(BaseConfig):
                 if vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn
                 ).exists():
-                    return
+                    continue
                 client = vpn_client_model(
                     config=instance, vpn=template.vpn, auto_cert=template.auto_cert
                 )

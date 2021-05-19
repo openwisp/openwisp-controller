@@ -325,6 +325,18 @@ class TestConfig(
         self.assertIsNotNone(vpnclient)
         self.assertNotEqual(c.vpnclient_set.count(), 0)
 
+    def test_multiple_vpn_clients(self):
+        vpn1 = self._create_vpn(name='vpn1')
+        vpn2 = self._create_vpn(name='vpn2')
+        template1 = self._create_template(name='vpn1-template', type='vpn', vpn=vpn1)
+        template2 = self._create_template(name='vpn2-template', type='vpn', vpn=vpn2)
+        config = self._create_config(device=self._create_device())
+
+        config.templates.add(template1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        config.templates.set((template1, template2))
+        self.assertEqual(config.vpnclient_set.count(), 2)
+
     def test_create_cert(self):
         vpn = self._create_vpn()
         t = self._create_template(
