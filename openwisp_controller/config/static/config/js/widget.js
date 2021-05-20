@@ -153,6 +153,13 @@
         return error;
     };
 
+    var handleMaxLengthAttr = function() {
+        $('.jsoneditor input[maxlength]:not(.has-max-length)').map((i, field) => {
+            $(field).attr('data-maxlength', $(field).attr('maxLength'));
+        });
+        $('.jsoneditor input[maxlength]:not(.has-max-length)').addClass('has-max-length');
+    };
+
     var validateOnDefaultValuesChange = function (editor, advancedEditor) {
         window.isContextValid();
         if (inFullScreenMode) {
@@ -219,6 +226,7 @@
         if (field.attr("data-options") !== undefined) {
             $.extend(options, JSON.parse(field.attr("data-options")));
         }
+
         editor = new JSONEditor(document.getElementById(id), options);
         // initialise advanced json editor here (disable schema validation in VPN admin)
         advancedEditor = initAdvancedEditor(field, value, options.schema, $('#vpn_form').length === 1);
@@ -240,7 +248,7 @@
         }
         // update raw value on change event
         editor.on('change', updateRaw);
-
+        editor.on('change', handleMaxLengthAttr);
         // update raw value before form submit
         form.submit(function (e) {
             // only submit form if the editor is clear of all validation errors
@@ -335,6 +343,21 @@
 
         // so that other files can use updateContext
         window.updateContext = updateContext;
+
+        $('.jsoneditor').on('input paste', '.has-max-length:visible', function(e) {
+            var field = $(e.target),
+                pasteValue = '';
+
+            if (e.originalEvent.type === 'paste') {
+                pasteValue = e.originalEvent.clipboardData.getData('text');
+            }
+
+            if (field.val().indexOf('{{') > -1 || pasteValue.indexOf('{{') > -1) {
+                field.removeAttr('maxlength');
+            } else {
+                field.attr('maxlength', field.data('maxlength'));
+            }
+        });
     };
 
     var bindLoadUi = function () {
@@ -731,3 +754,83 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
         link.appendChild(image);
     }
 });
+
+// This method has been copied from jdorn/json-editor library to facilitate
+// overriding JSONEditor.defaults.editors.multiple.prototype.setValue
+JSONEditor.defaults.editors.multiple.prototype.$each = function (obj, callback) {
+    if (!obj || typeof obj !== "object") {
+        return;
+    }
+    var i;
+    if (Array.isArray(obj) || (typeof obj.length === 'number' && obj.length > 0 && (obj.length - 1) in obj)) {
+        for (i = 0; i < obj.length; i++) {
+            if (callback(i, obj[i]) === false) {
+                return;
+            }
+        }
+    } else {
+        if (Object.keys) {
+            var keys = Object.keys(obj);
+            for (i = 0; i < keys.length; i++) {
+                if (callback(keys[i], obj[keys[i]]) === false) {
+                    return;
+                }
+            }
+        } else {
+            for (i in obj) {
+                if (!obj.hasOwnProperty(i)) {
+                    continue;
+                }
+                if (callback(i, obj[i]) === false) {
+                    return;
+                }
+            }
+        }
+    }
+};
+
+// Override setValue method to allow using variables for fields with maxLength.
+// The code is copied from jdorn/json-editor library but contains customization
+// to remove maxLength attribute from schema of a field that has a value which
+// contains a variable: this customization is required for validation to pass
+// (the variable name could be longer than maxlength and may not fit).
+// Later, the maxLength attribute is added back to restore validator to it's original form.
+JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial) {
+    // Determine type by getting the first one that validates
+    var self = this,
+        validatorModification = {};
+    this.$each(this.validators, function (i, validator) {
+        // Customization to modify validators starts here
+        if ((val) && typeof val === 'object') {
+            Object.entries(val).forEach(function (entry) {
+                if (typeof entry[1] === 'string' && entry[1].indexOf('{{') > -1) {
+                    if (validator.schema.properties[entry[0]]) {
+                        validatorModification[i] = {
+                            propertyName: entry[0],
+                            maxLength: validator.schema.properties[entry[0]].maxLength
+                        };
+                        delete validator.schema.properties[entry[0]].maxLength;
+                    }
+                }
+            });
+        }
+        // Customization to modify validators ends here
+        if (!validator.validate(val).length) {
+            self.type = i;
+            self.switcher.value = self.display_text[i];
+            return false;
+        }
+    });
+    this.switchEditor(this.type);
+
+    this.editors[this.type].setValue(val, initial);
+
+    // Customization to restore validators starts here
+    Object.entries(validatorModification).forEach(function (entry) {
+        self.validators[entry[0]].schema.properties[entry[1].propertyName].maxLength = entry[1].maxLength;
+    });
+    // Customization to restore validators ends here
+
+    this.refreshValue();
+    self.onChange();
+};
