@@ -990,7 +990,7 @@ Delete Cert
 
 .. code-block:: text
 
-    DELETE /api/v1/pki/ca/{id}/
+    DELETE /api/v1/pki/cert/{id}/
 
 Default Alerts / Notifications
 ------------------------------

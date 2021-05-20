@@ -13,7 +13,7 @@ def get_pki_api_urls(api_views):
     if getattr(settings, 'OPENWISP_CONTROLLER_PKI_API', True):
         return [
             path('ca/', api_views.ca_list, name='api_ca_list'),
-            path('ca/<str:pk>', api_views.ca_detail, name='api_ca_detail'),
+            path('ca/<str:pk>/', api_views.ca_detail, name='api_ca_detail'),
             path(
                 'ca/<str:pk>/crl', api_views.crl_download_view, name='api_ca_download'
             ),
