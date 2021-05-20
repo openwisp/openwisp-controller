@@ -898,6 +898,100 @@ Delete VPN
 
     DELETE /api/v1/controller/vpn/{pk}/
 
+List CA
+^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/pki/ca/
+
+Create CA
+^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/pki/ca/
+
+Get CA Detail
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/pki/ca/{id}/
+
+Change details of CA
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/pki/ca/{id}/
+
+Patch details of CA
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/pki/ca/{id}/
+
+Download CA(crl)
+^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/pki/ca/{id}/crl
+
+The above endpoint triggers the download of ``{id}.crl`` file containing 
+up to date CRL of that specific CA.
+
+Delete CA
+^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/pki/ca/{id}/
+
+List Cert
+^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/pki/cert/
+
+Create Cert
+^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/pki/cert/
+
+Get Cert Detail
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/pki/ca/{id}/
+
+Change details of Cert
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/pki/cert/{id}/
+
+Patch details of Cert
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/pki/cert/{id}/
+
+Delete Cert
+^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/pki/ca/{id}/
+
 Default Alerts / Notifications
 ------------------------------
 
