@@ -255,7 +255,7 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, **kwargs):
-        if action != 'pre_add':
+        if action != 'post_add':
             return False
         templates = cls._get_templates_from_pk_set(pk_set)
         # when using the admin, templates will be a list

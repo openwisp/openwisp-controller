@@ -551,6 +551,29 @@ class TestAdmin(
             self.assertEqual(c.name, 'test-device-templates-cleared')
             self.assertTrue(c.templates.filter(pk=t.pk).exists())
 
+    def test_change_device_org_required_templates(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        template = self._create_template(organization=org1, config={'interfaces': []})
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        params = self._get_device_params(org=org1)
+        params.update(
+            {
+                'name': 'test-device-changed',
+                'config-0-id': str(config.pk),
+                'config-0-device': str(device.pk),
+                'config-0-templates': str(template.pk),
+                'config-INITIAL_FORMS': 1,
+                'organization': str(org2.pk),
+            }
+        )
+        response = self.client.post(path, params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertEqual(config.templates.count(), 0)
+
     def test_download_device_config(self):
         d = self._create_device(name='download')
         self._create_config(device=d)
