@@ -182,16 +182,19 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         context = {}
         if self.default_values and not system:
             context = copy(self.default_values)
+        context.update(self.get_vpn_server_context())
         context.update(super().get_context())
         return context
 
     def get_system_context(self):
         system_context = self.get_context(system=True)
-        try:
-            system_context.update(self.vpn.get_vpn_server_context())
-        except (ObjectDoesNotExist, AttributeError):
-            pass
         return OrderedDict(sorted(system_context.items()))
+
+    def get_vpn_server_context(self):
+        try:
+            return self.vpn.get_vpn_server_context()
+        except (ObjectDoesNotExist, AttributeError):
+            return {}
 
     def clone(self, user):
         clone = copy(self)
