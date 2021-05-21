@@ -357,7 +357,7 @@ class TestTemplate(
             template_qs = Template.objects.filter(type='vpn')
             self.assertEqual(template_qs.count(), 1)
             t = template_qs.first()
-            self.assertEqual(t.get_context(), _original_context)
+            self.assertDictContainsSubset(_original_context, t.get_context())
             self.assertEqual(app_settings.CONTEXT, _original_context)
 
         with self.subTest(
