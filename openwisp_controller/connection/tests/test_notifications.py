@@ -2,7 +2,7 @@ import os
 
 from django.apps.registry import apps
 from django.core import mail
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils.html import strip_tags
 from openwisp_notifications.types import unregister_notification_type
@@ -15,7 +15,7 @@ Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
-class TestNotifications(CreateConnectionsMixin, TestCase):
+class BaseTestNotification:
     app_label = 'connection'
 
     def setUp(self):
@@ -59,6 +59,8 @@ class TestNotifications(CreateConnectionsMixin, TestCase):
             html_message,
         )
 
+
+class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
     def test_connection_working_notification(self):
         self.assertEqual(Notification.objects.count(), 0)
         device_connection = DeviceConnection.objects.create(
@@ -157,3 +159,27 @@ class TestNotifications(CreateConnectionsMixin, TestCase):
         # No exception should be raised as the exception is already handled.
         app = apps.get_app_config(self.app_label)
         app.register_notification_types()
+
+
+class TestNotificationTransaction(
+    CreateConnectionsMixin, BaseTestNotification, TransactionTestCase
+):
+    def test_unreachable_after_upgrade_notification(self):
+        failure_reason = 'A failure reason'
+        device_connection = DeviceConnection.objects.create(
+            credentials=self.creds, device=self.d, is_working=True
+        )
+        self.assertEqual(Notification.objects.count(), 0)
+        device_connection.is_working = False
+        device_connection.failure_reason = failure_reason
+        device_connection.save()
+        self.assertEqual(Notification.objects.count(), 1)
+        notification = Notification.objects.get(type='connection_is_not_working')
+        self.assertIn(failure_reason, notification.message)
+
+        device_connection.is_working = True
+        device_connection.failure_reason = ''
+        device_connection.save()
+        self.assertEqual(Notification.objects.count(), 2)
+        notification = Notification.objects.get(type='connection_is_working')
+        self.assertNotIn(failure_reason, notification.message)

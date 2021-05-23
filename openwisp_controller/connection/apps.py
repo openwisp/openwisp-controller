@@ -25,6 +25,7 @@ class ConnectionConfig(AppConfig):
         which will be executed in the background
         """
         self.register_notification_types()
+        self.notification_cache_update()
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid='connection.update_config'
         )
@@ -124,4 +125,13 @@ class ConnectionConfig(AppConfig):
                     'is {notification.verb}. {notification.actor.failure_reason}'
                 ),
             },
+        )
+
+    def notification_cache_update(self):
+        from openwisp_notifications.handlers import register_notification_cache_update
+
+        register_notification_cache_update(
+            model=load_model('connection', 'DeviceConnection'),
+            signal=is_working_changed,
+            dispatch_uid='notification_device_cache_invalidation',
         )
