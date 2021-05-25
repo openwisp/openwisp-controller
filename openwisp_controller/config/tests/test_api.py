@@ -70,7 +70,7 @@ class TestConfigApi(
 
     def test_device_create_with_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
-        path = reverse('controller_config:api_device_list')
+        path = reverse('config_api:device_list')
         data = self._get_device_data.copy()
         org = self._get_org()
         data['organization'] = org.pk
@@ -80,7 +80,7 @@ class TestConfigApi(
 
     def test_device_create_no_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
-        path = reverse('controller_config:api_device_list')
+        path = reverse('config_api:device_list')
         data = self._get_device_data.copy()
         org = self._get_org()
         data['organization'] = org.pk
@@ -90,7 +90,7 @@ class TestConfigApi(
         self.assertEqual(Device.objects.count(), 1)
 
     def test_device_create_with_invalid_name_api(self):
-        path = reverse('controller_config:api_device_list')
+        path = reverse('config_api:device_list')
         data = self._get_device_data.copy()
         org = self._get_org()
         data.pop('config')
@@ -102,7 +102,7 @@ class TestConfigApi(
 
     # POST request should fail with validation error
     def test_device_post_with_templates_of_different_org(self):
-        path = reverse('controller_config:api_device_list')
+        path = reverse('config_api:device_list')
         data = self._get_device_data.copy()
         org_1 = self._get_org()
         data['organization'] = org_1.pk
@@ -120,7 +120,7 @@ class TestConfigApi(
 
     def test_device_list_api(self):
         self._create_device()
-        path = reverse('controller_config:api_device_list')
+        path = reverse('config_api:device_list')
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -134,7 +134,7 @@ class TestConfigApi(
         self._create_template(name='t1', organization=org1)
         self._create_template(name='t11', organization=org1)
         self._create_template(name='t2', organization=org2)
-        path = reverse('controller_config:api_device_list')
+        path = reverse('config_api:device_list')
         r = self.client.get(path, {'format': 'api'})
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 't0</option>')
@@ -145,7 +145,7 @@ class TestConfigApi(
     # Device detail having no config
     def test_device_detail_api(self):
         d1 = self._create_device()
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -155,7 +155,7 @@ class TestConfigApi(
     def test_device_detail_config_api(self):
         d1 = self._create_device()
         self._create_config(device=d1)
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -164,7 +164,7 @@ class TestConfigApi(
     def test_device_put_api(self):
         d1 = self._create_device(name='test-device')
         self._create_config(device=d1)
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         org = self._get_org()
         data = {
             'name': 'change-test-device',
@@ -192,7 +192,7 @@ class TestConfigApi(
         t2 = self._create_template(name='t2', organization=org1)
         d1 = self._create_device(name='d1', organization=org1)
         self._create_config(device=d1)
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         self.assertEqual(d1.config.vpnclient_set.count(), 0)
         data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
         self.client.patch(path, data, content_type='application/json')
@@ -206,7 +206,7 @@ class TestConfigApi(
         d1 = self._create_device(name='org1-config', organization=org1)
         self._create_config(device=d1)
         self.assertEqual(d1.config.templates.count(), 0)
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         t1 = self._create_template(name='t1', organization=None)
         t2 = self._create_template(name='t2', organization=org1)
         data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
@@ -220,7 +220,7 @@ class TestConfigApi(
         d1 = self._create_device(name='org1-config', organization=org1)
         self._create_config(device=d1)
         self.assertEqual(d1.config.templates.count(), 0)
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         t1 = self._create_template(name='t1', organization=None)
         t2 = self._create_template(name='t2', organization=org1)
         t3 = self._create_template(
@@ -238,7 +238,7 @@ class TestConfigApi(
 
     def test_device_patch_api(self):
         d1 = self._create_device(name='test-device')
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         data = dict(name='change-test-device')
         r = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
@@ -247,7 +247,7 @@ class TestConfigApi(
     def test_device_download_api(self):
         d1 = self._create_device()
         self._create_config(device=d1)
-        path = reverse('controller_config:api_download_device_config', args=[d1.pk])
+        path = reverse('config_api:download_device_config', args=[d1.pk])
         with self.assertNumQueries(6):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -255,14 +255,14 @@ class TestConfigApi(
     def test_device_delete_api(self):
         d1 = self._create_device()
         self._create_config(device=d1)
-        path = reverse('controller_config:api_device_detail', args=[d1.pk])
+        path = reverse('config_api:device_detail', args=[d1.pk])
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Device.objects.count(), 0)
 
     def test_template_create_no_org_api(self):
         self.assertEqual(Template.objects.count(), 0)
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         data = self._get_template_data.copy()
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(Template.objects.count(), 1)
@@ -270,7 +270,7 @@ class TestConfigApi(
         self.assertEqual(r.data['organization'], None)
 
     def test_template_create_vpn_with_type_as_generic(self):
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         test_user = self._create_operator(organizations=[self._get_org()])
         self.client.force_login(test_user)
         vpn1 = self._create_vpn(name='vpn1', organization=self._get_org())
@@ -286,7 +286,7 @@ class TestConfigApi(
     def test_template_create_api(self):
         self.assertEqual(Template.objects.count(), 0)
         org = self._get_org()
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         data = self._get_template_data.copy()
         data['organization'] = org.pk
         data['required'] = True
@@ -298,7 +298,7 @@ class TestConfigApi(
     def test_template_create_of_vpn_type(self):
         org = self._get_org()
         vpn1 = self._create_vpn(name='vpn1', organization=org)
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         data = self._get_template_data.copy()
         data['type'] = 'vpn'
         data['vpn'] = vpn1.id
@@ -312,7 +312,7 @@ class TestConfigApi(
         test_user = self._create_operator(organizations=[org1])
         self.client.force_login(test_user)
         vpn1 = self._create_vpn(name='vpn1', organization=None)
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         data = self._get_template_data.copy()
         data['type'] = 'vpn'
         data['vpn'] = vpn1.id
@@ -323,7 +323,7 @@ class TestConfigApi(
         self.assertEqual(r.data['vpn'], vpn1.id)
 
     def test_template_creation_with_no_org_by_operator(self):
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         data = self._get_template_data.copy()
         test_user = self._create_operator(organizations=[self._get_org()])
         self.client.force_login(test_user)
@@ -332,7 +332,7 @@ class TestConfigApi(
         self.assertIn('This field may not be null.', str(r.content))
 
     def test_template_create_with_empty_config(self):
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         data = self._get_template_data.copy()
         data['config'] = {}
         data['organization'] = self._get_org().pk
@@ -343,7 +343,7 @@ class TestConfigApi(
     def test_template_list_api(self):
         org1 = self._get_org()
         self._create_template(name='t1', organization=org1)
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         with self.assertNumQueries(5):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -354,7 +354,7 @@ class TestConfigApi(
         self._create_vpn(name='shared-vpn', organization=None)
         test_user = self._create_operator(organizations=[org1])
         self.client.force_login(test_user)
-        path = reverse('controller_config:api_template_list')
+        path = reverse('config_api:template_list')
         r = self.client.get(path, {'format': 'api'})
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'shared-vpn</option>')
@@ -362,7 +362,7 @@ class TestConfigApi(
     # template-detail having no Org
     def test_template_detail_api(self):
         t1 = self._create_template(name='t1')
-        path = reverse('controller_config:api_template_detail', args=[t1.pk])
+        path = reverse('config_api:template_detail', args=[t1.pk])
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -370,7 +370,7 @@ class TestConfigApi(
 
     def test_template_put_api(self):
         t1 = self._create_template(name='t1', organization=None)
-        path = reverse('controller_config:api_template_detail', args=[t1.pk])
+        path = reverse('config_api:template_detail', args=[t1.pk])
         org = self._get_org()
         data = {
             'name': 'New t1',
@@ -387,7 +387,7 @@ class TestConfigApi(
 
     def test_template_patch_api(self):
         t1 = self._create_template(name='t1')
-        path = reverse('controller_config:api_template_detail', args=[t1.pk])
+        path = reverse('config_api:template_detail', args=[t1.pk])
         data = dict(name='New t1')
         r = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
@@ -395,21 +395,21 @@ class TestConfigApi(
 
     def test_template_download_api(self):
         t1 = self._create_template(name='t1')
-        path = reverse('controller_config:api_download_template_config', args=[t1.pk])
+        path = reverse('config_api:download_template_config', args=[t1.pk])
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_template_delete_api(self):
         t1 = self._create_template(name='t1')
-        path = reverse('controller_config:api_template_detail', args=[t1.pk])
+        path = reverse('config_api:template_detail', args=[t1.pk])
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Template.objects.count(), 0)
 
     def test_vpn_create_api(self):
         self.assertEqual(Vpn.objects.count(), 0)
-        path = reverse('controller_config:api_vpn_list')
+        path = reverse('config_api:vpn_list')
         ca1 = self._create_ca()
         data = self._get_vpn_data.copy()
         data['ca'] = ca1.pk
@@ -425,7 +425,7 @@ class TestConfigApi(
         data = self._get_vpn_data.copy()
         data['organization'] = org1.pk
         data['ca'] = shared_ca.pk
-        path = reverse('controller_config:api_vpn_list')
+        path = reverse('config_api:vpn_list')
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(Vpn.objects.count(), 1)
         self.assertEqual(r.status_code, 201)
@@ -434,7 +434,7 @@ class TestConfigApi(
     def test_vpn_list_api(self):
         org = self._get_org()
         self._create_vpn(organization=org)
-        path = reverse('controller_config:api_vpn_list')
+        path = reverse('config_api:vpn_list')
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -445,7 +445,7 @@ class TestConfigApi(
         org1 = self._get_org()
         test_user = self._create_operator(organizations=[org1])
         self.client.force_login(test_user)
-        path = reverse('controller_config:api_vpn_list')
+        path = reverse('config_api:vpn_list')
         r = self.client.get(path, {'format': 'api'})
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'shared_ca</option>')
@@ -454,7 +454,7 @@ class TestConfigApi(
     # VPN detail having no Org
     def test_vpn_detail_no_org_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
-        path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
+        path = reverse('config_api:vpn_detail', args=[vpn1.pk])
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -464,7 +464,7 @@ class TestConfigApi(
     def test_vpn_detail_with_org_api(self):
         org = self._get_org()
         vpn1 = self._create_vpn(name='test-vpn', organization=org)
-        path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
+        path = reverse('config_api:vpn_detail', args=[vpn1.pk])
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
@@ -472,7 +472,7 @@ class TestConfigApi(
 
     def test_vpn_put_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
-        path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
+        path = reverse('config_api:vpn_detail', args=[vpn1.pk])
         org = self._get_org()
         ca1 = self._create_ca()
         data = {
@@ -491,7 +491,7 @@ class TestConfigApi(
 
     def test_vpn_patch_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
-        path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
+        path = reverse('config_api:vpn_detail', args=[vpn1.pk])
         data = dict(name='test-vpn-change')
         r = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
@@ -499,14 +499,14 @@ class TestConfigApi(
 
     def test_vpn_download_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
-        path = reverse('controller_config:api_download_vpn_config', args=[vpn1.pk])
+        path = reverse('config_api:download_vpn_config', args=[vpn1.pk])
         with self.assertNumQueries(5):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_vpn_delete_api(self):
         vpn1 = self._create_vpn(name='test-vpn')
-        path = reverse('controller_config:api_vpn_detail', args=[vpn1.pk])
+        path = reverse('config_api:vpn_detail', args=[vpn1.pk])
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Vpn.objects.count(), 0)

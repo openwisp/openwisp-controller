@@ -36,10 +36,7 @@ if os.environ.get('SAMPLE_APP', False):
         url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
         url(
             r'^api/v1/',
-            include(
-                (get_api_urls(api_views), 'controller_config'),
-                namespace='controller_config',
-            ),
+            include((get_api_urls(api_views), 'config_api'), namespace='config_api',),
         ),
     ]
 
