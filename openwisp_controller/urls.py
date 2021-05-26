@@ -14,6 +14,12 @@ url_metadata = [
         'app': 'openwisp_notifications',
         'include': {'module': 'openwisp_notifications.urls'},
     },
+    # openwisp_ipam
+    {
+        'regexp': '',
+        'app': 'openwisp_ipam',
+        'include': {'module': 'openwisp_ipam.urls'},
+    },
     # openwisp_controller.pki (CRL view)
     {
         'regexp': r'^',
