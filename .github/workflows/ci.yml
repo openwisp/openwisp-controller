@@ -69,7 +69,7 @@ jobs:
       run: |
         coverage run --source=openwisp_controller runtests.py
         # SAMPLE tests do not influence coverage, so we can speed up tests with --parallel
-        SAMPLE_APP=1 ./runtests.py --parallel --keepdb
+        SAMPLE_APP=1 ./runtests.py --keepdb
 
     - name: Upload Coverage
       run: coveralls --service=github
