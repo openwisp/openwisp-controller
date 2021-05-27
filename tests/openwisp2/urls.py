@@ -65,7 +65,7 @@ urlpatterns += [
     path('api/v1/', include(('openwisp_users.api.urls', 'users'), namespace='users')),
     path(
         'api/v1/pki/',
-        include(('openwisp_controller.pki.api.urls'), namespace='controller_pki'),
+        include(('openwisp_controller.pki.api.urls'), namespace='pki_api'),
     ),
 ]
 

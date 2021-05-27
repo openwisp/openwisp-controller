@@ -34,7 +34,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_ca_post_api(self):
         self.assertEqual(Ca.objects.count(), 0)
-        path = reverse('controller_pki:api_ca_list')
+        path = reverse('pki_api:ca_list')
         data = self._get_ca_data.copy()
         with self.assertNumQueries(4):
             r = self.client.post(path, data, content_type='application/json')
@@ -43,14 +43,14 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_ca_list_api(self):
         self._create_ca()
-        path = reverse('controller_pki:api_ca_list')
+        path = reverse('pki_api:ca_list')
         with self.assertNumQueries(4):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
 
     def test_ca_detail_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
-        path = reverse('controller_pki:api_ca_detail', args=[ca1.pk])
+        path = reverse('pki_api:ca_detail', args=[ca1.pk])
         with self.assertNumQueries(3):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
@@ -58,7 +58,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_ca_put_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
-        path = reverse('controller_pki:api_ca_detail', args=[ca1.pk])
+        path = reverse('pki_api:ca_detail', args=[ca1.pk])
         org2 = self._create_org()
         data = {'name': 'change-ca1', 'organization': org2.pk, 'notes': 'change-notes'}
         with self.assertNumQueries(6):
@@ -70,7 +70,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_ca_patch_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
-        path = reverse('controller_pki:api_ca_detail', args=[ca1.pk])
+        path = reverse('pki_api:ca_detail', args=[ca1.pk])
         data = {
             'name': 'change-ca1',
         }
@@ -81,20 +81,20 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_ca_download_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
-        path = reverse('controller_pki:api_ca_download', args=[ca1.pk])
+        path = reverse('pki_api:ca_download', args=[ca1.pk])
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_ca_delete_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
-        path = reverse('controller_pki:api_ca_detail', args=[ca1.pk])
+        path = reverse('pki_api:ca_detail', args=[ca1.pk])
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Ca.objects.count(), 0)
 
     def test_cert_post_api(self):
-        path = reverse('controller_pki:api_cert_list')
+        path = reverse('pki_api:cert_list')
         data = self._get_cert_data.copy()
         data['ca'] = self._create_ca().pk
         with self.assertNumQueries(8):
@@ -104,7 +104,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_cert_list_api(self):
         self._create_cert(name='cert1')
-        path = reverse('controller_pki:api_cert_list')
+        path = reverse('pki_api:cert_list')
         with self.assertNumQueries(4):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
@@ -112,7 +112,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_cert_detail_api(self):
         cert1 = self._create_cert(name='cert1')
-        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        path = reverse('pki_api:cert_detail', args=[cert1.pk])
         response = self.client.get(path)
         with self.assertNumQueries(4):
             response = self.client.get(path)
@@ -122,7 +122,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
     def test_cert_put_api(self):
         cert1 = self._create_cert(name='cert1')
         org2 = self._create_org()
-        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        path = reverse('pki_api:cert_detail', args=[cert1.pk])
         data = {
             'name': 'cert1-change',
             'organization': org2.pk,
@@ -137,7 +137,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_cert_patch_api(self):
         cert1 = self._create_cert(name='cert1')
-        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        path = reverse('pki_api:cert_detail', args=[cert1.pk])
         data = {'name': 'cert1-change'}
         with self.assertNumQueries(7):
             response = self.client.patch(path, data, content_type='application/json')
@@ -146,7 +146,7 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
 
     def test_cert_delete_api(self):
         cert1 = self._create_cert(name='cert1')
-        path = reverse('controller_pki:api_cert_detail', args=[cert1.pk])
+        path = reverse('pki_api:cert_detail', args=[cert1.pk])
         with self.assertNumQueries(8):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
