@@ -18,7 +18,7 @@ OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class TestApi(TestGeoMixin, TestCase):
-    url_name = 'geo:api_device_location'
+    url_name = 'geo_api:device_location'
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
@@ -121,7 +121,7 @@ class TestMultitenantApi(
 
     @capture_any_output()
     def test_location_device_list(self):
-        url = 'geo:api_location_device_list'
+        url = 'geo_api:location_device_list'
         # create 2 devices and 2 device location for each org
         device_a = self._create_device(organization=self._get_org('org_a'))
         device_b = self._create_device(organization=self._get_org('org_b'))
@@ -151,7 +151,7 @@ class TestMultitenantApi(
 
     @capture_any_output()
     def test_geojson_list(self):
-        url = 'geo:api_location_geojson'
+        url = 'geo_api:location_geojson'
         # create 2 devices and 2 device location for each org
         device_a = self._create_device(organization=self._get_org('org_a'))
         device_b = self._create_device(organization=self._get_org('org_b'))
