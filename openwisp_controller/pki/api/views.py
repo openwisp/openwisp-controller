@@ -1,6 +1,8 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.translation import ugettext_lazy as _
+from django.views import View
+from django_x509.base.mixin import CrlDownloadMixin
 from django_x509.settings import CRL_PROTECTED
 from rest_framework import pagination
 from rest_framework.authentication import SessionAuthentication
@@ -47,16 +49,11 @@ class CaDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Ca.objects.all()
 
 
-def crl_download_view(request, pk):
-    authenticated = request.user.is_authenticated
-    if CRL_PROTECTED or not authenticated:
-        return HttpResponse(_('Forbidden'), status=403, content_type='text/plain')
-    instance = get_object_or_404(Ca, pk=pk)
-    response = HttpResponse(
-        instance.crl, status=200, content_type='application/x-pem-file'
-    )
-    response['Content-Disposition'] = f'attachment; filename={pk}.crl'
-    return response
+class CrlDownloadMixinView(View, CrlDownloadMixin):
+    model = Ca
+
+    def get(self, request, pk):
+        return self.crl_view(request, pk)
 
 
 class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
@@ -74,3 +71,4 @@ ca_list = CaListCreateView.as_view()
 ca_detail = CaDetailView.as_view()
 cert_list = CertListCreateView.as_view()
 cert_detail = CertDetailView.as_view()
+crl_download = CrlDownloadMixinView.as_view()
