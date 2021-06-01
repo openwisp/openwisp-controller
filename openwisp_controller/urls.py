@@ -48,7 +48,7 @@ url_metadata = [
     {
         'regexp': r'^api/v1/',
         'app': 'openwisp_controller.config',
-        'include': {'module': '{app}.api.urls', 'namespace': 'controller_config'},
+        'include': {'module': '{app}.api.urls', 'namespace': 'config_api'},
     },
 ]
 
