@@ -33,7 +33,9 @@ if os.environ.get('SAMPLE_APP', False):
             r'',
             include(('openwisp_controller.config.urls', 'config'), namespace='config'),
         ),
-        url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
+        url(
+            r'^geo/', include((get_geo_urls(geo_views), 'geo_api'), namespace='geo_api')
+        ),
         url(
             r'^api/v1/',
             include((get_api_urls(api_views), 'config_api'), namespace='config_api',),
