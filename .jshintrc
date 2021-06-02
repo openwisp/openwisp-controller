@@ -12,7 +12,8 @@
         "JSONEditor": true,
         "ReconnectingWebSocket": true,
         "userLanguage": true,
-        "owControllerApiHost": true
+        "owControllerApiHost": true,
+        "owCommandApiEndpoint": true
     },
     "browser": true
 }

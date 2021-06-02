@@ -18,7 +18,12 @@ from openwisp_utils.base import TimeStampedEditableModel
 
 from ...base import ShareableOrgMixinUniqueName
 from .. import settings as app_settings
-from ..commands import COMMAND_CHOICES, get_command_schema
+from ..commands import (
+    COMMAND_CHOICES,
+    DEFAULT_COMMANDS,
+    get_command_callable,
+    get_command_schema,
+)
 from ..signals import is_working_changed
 from ..tasks import launch_command
 
@@ -364,6 +369,10 @@ class AbstractCommand(TimeStampedEditableModel):
     def is_custom(self):
         return self.type == 'custom'
 
+    @property
+    def is_default_command(self):
+        return self.type in DEFAULT_COMMANDS.keys()
+
     def save(self, *args, **kwargs):
         """
         Automatically schedules execution of
@@ -417,13 +426,19 @@ class AbstractCommand(TimeStampedEditableModel):
         # if couldn't connect to device, stop here
         if not self.connection.is_working:
             return None
-        # predefined command
-        if not self.is_custom:
+        # custom commands, perform each one separately and save output incrementally
+        if self.is_custom:
+            command = self.custom_command
+            output, exit_code = self.connection.connector_instance.exec_command(
+                command, raise_unexpected_exit=False
+            )
+        # default commands
+        elif self.is_default_command:
             output, exit_code = self._execute_predefined_command()
             command = self.get_type_display()
-        # custom commands, perform each one separately and save output incrementally
+        # user registered command
         else:
-            command = self.custom_command
+            command = self._callable(**self.input)
             output, exit_code = self.connection.connector_instance.exec_command(
                 command, raise_unexpected_exit=False
             )
@@ -486,6 +501,16 @@ class AbstractCommand(TimeStampedEditableModel):
     @property
     def _schema(self):
         return get_command_schema(self.type)
+
+    @property
+    def _callable(self):
+        """
+        Returns callable of user registered command
+        """
+        method = get_command_callable(self.type)
+        if callable(method):
+            return method
+        return import_string(method)
 
     def _enforce_not_custom(self):
         if self.is_custom:

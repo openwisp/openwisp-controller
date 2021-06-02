@@ -17,7 +17,7 @@ command_qs = Command.objects.order_by('-created')
 
 
 class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
-    url_namespace = 'connection'
+    url_namespace = 'connection_api'
 
     def setUp(self):
         self.admin = self._get_admin()
@@ -45,7 +45,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
     @patch.object(CommandPaginator, 'page_size', 3)
     def test_command_list_api(self):
         number_of_commands = 6
-        url = self._get_path('api_device_command_list_create', self.device_id)
+        url = self._get_path('device_command_list', self.device_id)
         for _ in range(number_of_commands):
             self._create_command(device_conn=self.device_conn)
         self.assertEqual(command_qs.count(), number_of_commands)
@@ -57,9 +57,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], number_of_commands)
             self.assertIn(
-                self._get_path(
-                    'api_device_command_list_create', self.device_id, page=2
-                ),
+                self._get_path('device_command_list', self.device_id, page=2),
                 response.data['next'],
             )
             self.assertEqual(response.data['previous'], None)
@@ -72,7 +70,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 next_response.data['next'], None,
             )
             self.assertIn(
-                self._get_path('api_device_command_list_create', self.device_id),
+                self._get_path('device_command_list', self.device_id),
                 next_response.data['previous'],
             )
             self.assertEqual(len(next_response.data['results']), 3)
@@ -85,10 +83,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.data['count'], number_of_commands)
             self.assertIn(
                 self._get_path(
-                    'api_device_command_list_create',
-                    self.device_id,
-                    page=2,
-                    page_size=page_size,
+                    'device_command_list', self.device_id, page=2, page_size=page_size,
                 ),
                 response.data['next'],
             )
@@ -101,9 +96,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(next_response.data['next'], None)
             self.assertIn(
                 self._get_path(
-                    'api_device_command_list_create',
-                    self.device_id,
-                    page_size=page_size,
+                    'device_command_list', self.device_id, page_size=page_size,
                 ),
                 next_response.data['previous'],
             )
@@ -130,7 +123,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(command_obj.input, payload['input'])
             command_qs.delete()
 
-        url = self._get_path('api_device_command_list_create', self.device_id)
+        url = self._get_path('device_command_list', self.device_id)
 
         with self.subTest('Test "reboot" command'):
             payload = {
@@ -167,9 +160,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
 
     def test_command_details_api(self):
         command_obj = self._create_command(device_conn=self.device_conn)
-        url = self._get_path(
-            'api_device_command_details', self.device_id, command_obj.id
-        )
+        url = self._get_path('device_command_details', self.device_id, command_obj.id)
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -188,7 +179,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         token = self._obtain_auth_token(username='admin', password='tester')
 
         with self.subTest('Test creating command'):
-            url = self._get_path('api_device_command_list_create', self.device_id)
+            url = self._get_path('device_command_list', self.device_id)
             payload = {
                 'type': 'custom',
                 'input': {'command': 'echo test'},
@@ -204,14 +195,14 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
 
         with self.subTest('Test retrieving command'):
             url = self._get_path(
-                'api_device_command_details', self.device_id, command_obj.id
+                'device_command_details', self.device_id, command_obj.id
             )
             response = self.client.get(url, HTTP_AUTHORIZATION=f'Bearer {token}',)
             self.assertEqual(response.status_code, 200)
             self.assertIn('id', response.data)
 
         with self.subTest('Test listing command'):
-            url = self._get_path('api_device_command_list_create', self.device_id)
+            url = self._get_path('device_command_list', self.device_id)
             response = self.client.get(url, HTTP_AUTHORIZATION=f'Bearer {token}',)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.data['results']), 2)
@@ -221,13 +212,13 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         device_not_found = self._get_device_not_found_error(device_id)
 
         with self.subTest('Test listing commands'):
-            url = self._get_path('api_device_command_list_create', device_id)
+            url = self._get_path('device_command_list', device_id)
             response = self.client.get(url,)
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
 
         with self.subTest('Test creating commands'):
-            url = self._get_path('api_device_command_list_create', device_id)
+            url = self._get_path('device_command_list', device_id)
             payload = {
                 'type': 'custom',
                 'input': {'command': 'echo test'},
@@ -237,13 +228,13 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertDictEqual(response.data, device_not_found)
 
         with self.subTest('Test retrieving commands'):
-            url = self._get_path('api_device_command_details', device_id, uuid.uuid4())
+            url = self._get_path('device_command_details', device_id, uuid.uuid4())
             response = self.client.get(url,)
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
 
     def test_non_superuser(self):
-        list_url = self._get_path('api_device_command_list_create', self.device_id)
+        list_url = self._get_path('device_command_list', self.device_id)
         command = self._create_command(device_conn=self.device_conn)
         device = command.device
 

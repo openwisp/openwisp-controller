@@ -113,3 +113,10 @@ class CreateCommandMixin(CreateConnectionsMixin):
             'input': {'command': 'echo test'},
         }
         return Command.objects.create(**opts)
+
+
+def _ping_command_callable(destination_address, interface_name=None):
+    command = f'ping -c 4 {destination_address}'
+    if interface_name:
+        command += f' -I {interface_name}'
+    return command

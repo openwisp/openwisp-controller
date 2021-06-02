@@ -4,8 +4,9 @@ var gettext = window.gettext || function (word) { return word; };
 var interpolate = interpolate || function(){};
 
 const deviceId = getObjectIdFromUrl();
+const commandApiUrl = `${owControllerApiHost.origin}${owCommandApiEndpoint.replace('00000000-0000-0000-0000-000000000000', deviceId)}`;
 const commandWebSocket = new ReconnectingWebSocket(
-    `${getWebSocketProtocol()}${owControllerApiHost.host}/ws/device/${getObjectIdFromUrl()}/command`,
+    `${getWebSocketProtocol()}${owControllerApiHost.host}/ws/controller/device/${deviceId}/command`,
     null, {
         debug: false
     }
@@ -326,7 +327,7 @@ function initCommandOverlay($) {
         };
         $.ajax({
             type: 'POST',
-            url: `${owControllerApiHost.origin}/api/v1/device/${deviceId}/command/`,
+            url: commandApiUrl,
             headers: {
                 'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
             },

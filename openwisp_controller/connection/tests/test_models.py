@@ -6,12 +6,14 @@ from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
+from django.utils.module_loading import import_string
 from swapper import load_model
 
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
 from ..apps import _TASK_NAME
+from ..commands import register_command, unregister_command
 from ..signals import is_working_changed
 from ..tasks import update_config
 from .utils import CreateConnectionsMixin
@@ -376,6 +378,19 @@ class TestModels(BaseTestModels, TestCase):
             self.assertIn('«Reboot» sent on', str(command))
             self.assertIn(created, str(command))
 
+    def test_command_arguments(self):
+        with self.subTest('Test arguments for a custom command'):
+            command = Command(type='custom', input={'command': 'echo test'})
+            with self.assertRaises(TypeError):
+                command.arguments
+
+        with self.subTest('Test arguments for change password command'):
+            command = Command(
+                type='change_password',
+                input={'password': 'Pass@1234', 'confirm_password': 'Pass@1234'},
+            )
+            self.assertEqual(list(command.arguments), ['Pass@1234', 'Pass@1234'])
+
     def test_command_is_custom(self):
         command = Command(type='custom', input={'command': 'echo test'})
         self.assertTrue(command.is_custom)
@@ -585,6 +600,79 @@ class TestModels(BaseTestModels, TestCase):
         self.assertEqual(command.status, 'success')
         self.assertEqual(command.output, 'Changed password for user root.\n')
         self.assertEqual(list(command.arguments), ['********'])
+
+    @mock.patch(_connect_path)
+    def test_execute_user_registered_command(self, connect_mocked):
+        @mock.patch(_exec_command_path)
+        def _command_assertions(destination_address, mocked_exec_command):
+            command.full_clean()
+            mocked_exec_command.return_value = self._exec_command_return_value(
+                stdout='Destination host unreachable'
+            )
+            command.save()
+            # must call this explicitly because lack of transactions in this test case
+            command.execute()
+            connect_mocked.assert_called()
+            mocked_exec_command.assert_called_once()
+            mocked_exec_command.assert_called_with(
+                f'ping -c 4 {destination_address} -I eth0',
+                timeout=app_settings.SSH_COMMAND_TIMEOUT,
+            )
+            command.refresh_from_db()
+            self.assertEqual(command.status, 'success')
+            self.assertEqual(command.output, stderr + '\n')
+
+        ping_command_schema = {
+            'label': 'Ping',
+            'schema': {
+                'title': 'Ping',
+                'type': 'object',
+                'required': ['destination_address'],
+                'properties': {
+                    'destination_address': {
+                        'type': 'string',
+                        'title': 'Destination Address',
+                        'pattern': '.',
+                    },
+                    'interface_name': {'type': 'string', 'title': 'Interface Name'},
+                },
+                'message': 'Destination Address cannot be empty',
+                'additionalProperties': False,
+            },
+        }
+        callable_path = (
+            'openwisp_controller.connection.tests.utils.' '_ping_command_callable'
+        )
+        dc = self._create_device_connection()
+        stderr = 'Destination host unreachable'
+
+        with self.subTest('Callable is a method'):
+            ping_command_schema['callable'] = import_string(callable_path)
+            register_command('callable_ping', ping_command_schema)
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type='callable_ping',
+                input={'destination_address': 'example.com', 'interface_name': 'eth0'},
+            )
+            _command_assertions('example.com')
+
+        with self.subTest('Callable is dotted path'):
+            ping_command_schema['callable'] = callable_path
+            register_command('path_ping', ping_command_schema)
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type='path_ping',
+                input={
+                    'destination_address': 'subdomain.example.com',
+                    'interface_name': 'eth0',
+                },
+            )
+            _command_assertions('subdomain.example.com')
+
+        unregister_command('callable_ping')
+        unregister_command('path_ping')
 
     def test_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(

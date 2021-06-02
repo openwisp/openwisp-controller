@@ -54,7 +54,7 @@ url_metadata = [
     {
         'regexp': r'^',
         'app': 'openwisp_controller.connection',
-        'include': {'module': '{app}.api.urls', 'namespace': 'connection'},
+        'include': {'module': '{app}.api.urls', 'namespace': 'connection_api'},
     },
 ]
 

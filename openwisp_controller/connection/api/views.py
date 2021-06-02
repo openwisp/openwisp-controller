@@ -45,28 +45,28 @@ class BaseCommandView(GenericAPIView):
         try:
             assert self.get_parent_queryset().exists()
         except (AssertionError, ValidationError):
-            device_pk = self.kwargs['device_pk']
-            raise NotFound(detail=f'Device with ID "{device_pk}" not found.')
+            device_id = self.kwargs['id']
+            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['device_pk'])
+        return Device.objects.filter(pk=self.kwargs['id'])
 
 
 class CommandListCreateView(BaseCommandView, ListCreateAPIView):
     pagination_class = CommandPaginator
 
     def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs['device_pk'])
+        return super().get_queryset().filter(device_id=self.kwargs['id'])
 
     def perform_create(self, serializer):
-        serializer.save(device_id=self.kwargs['device_pk'])
+        serializer.save(device_id=self.kwargs['id'])
 
 
 class CommandDetailsView(BaseCommandView, RetrieveAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['command_pk'],
+            'id': self.kwargs['command_id'],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         # May raise a permission denied

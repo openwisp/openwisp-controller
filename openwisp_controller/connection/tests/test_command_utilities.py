@@ -12,12 +12,21 @@ class TestCommandUtilities(TestCase):
             schema = commands.get_command_schema('reboot')
             self.assertEqual(schema, self.REBOOT_SCHEMA)
 
-        with self.subTest('Test existing command option'):
+        with self.subTest('Test non-existing command option'):
             with self.assertRaises(ImproperlyConfigured):
-                schema = commands.get_command_schema('restart')
+                commands.get_command_schema('restart')
+
+    def test_get_command_callable(self):
+        with self.subTest('Test non-existing command option'):
+            with self.assertRaises(ImproperlyConfigured):
+                commands.get_command_callable('restart')
 
     def test_register_unregister_command(self):
-        command = {'label': 'New Reboot Command', 'schema': self.REBOOT_SCHEMA}
+        command = {
+            'label': 'New Reboot Command',
+            'schema': self.REBOOT_SCHEMA,
+            'callable': None,
+        }
         with self.subTest('Test registering command'):
             # Test command name is not instance of str
             with self.assertRaises(ImproperlyConfigured):

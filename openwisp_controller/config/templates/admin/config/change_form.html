@@ -17,6 +17,7 @@
     {% else %}
         const owControllerApiHost = window.location;
     {% endif %}
+        const owCommandApiEndpoint = '{{ commands_api_endpoint | safe }}';
     </script>
    {{ block.super}}
 {% endblock extrahead %}

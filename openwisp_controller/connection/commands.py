@@ -4,6 +4,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 from jsonschema import Draft4Validator
 
+from .settings import USER_COMMANDS
+
 DEFAULT_COMMANDS = OrderedDict(
     (
         (
@@ -63,16 +65,23 @@ DEFAULT_COMMANDS = OrderedDict(
         ),
     )
 )
+COMMANDS = DEFAULT_COMMANDS.copy()
 
 COMMAND_CHOICES = [
-    (command, command_config['label'])
-    for command, command_config in DEFAULT_COMMANDS.items()
+    (command, command_config['label']) for command, command_config in COMMANDS.items()
 ]
 
 
 def get_command_schema(command):
     try:
-        return DEFAULT_COMMANDS[command]['schema']
+        return COMMANDS[command]['schema']
+    except KeyError:
+        raise ImproperlyConfigured(f'No such Command, {command}')
+
+
+def get_command_callable(command):
+    try:
+        return COMMANDS[command]['callable']
     except KeyError:
         raise ImproperlyConfigured(f'No such Command, {command}')
 
@@ -81,6 +90,7 @@ def _validate_command(command_config):
     options = command_config.keys()
     assert 'label' in options
     assert 'schema' in options
+    assert 'callable' in options
     Draft4Validator(command_config['schema'])
 
 
@@ -93,21 +103,21 @@ def register_command(command_name, command_config):
         raise ImproperlyConfigured('Command name should be type `str`.')
     if not isinstance(command_config, dict):
         raise ImproperlyConfigured('Command configuration should be type `dict`.')
-    if command_name in DEFAULT_COMMANDS:
+    if command_name in COMMANDS:
         raise ImproperlyConfigured(f'{command_name} is an already registered Command.')
 
     _validate_command(command_config)
-    DEFAULT_COMMANDS.update({command_name: command_config})
+    COMMANDS.update({command_name: command_config})
     _register_command_choice(command_name, command_config)
 
 
 def unregister_command(command_name):
     if not isinstance(command_name, str):
         raise ImproperlyConfigured('Command name should be type `str`')
-    if command_name not in DEFAULT_COMMANDS:
+    if command_name not in COMMANDS:
         raise ImproperlyConfigured(f'No such Command, {command_name}')
 
-    DEFAULT_COMMANDS.pop(command_name)
+    COMMANDS.pop(command_name)
     _unregister_command_choice(command_name)
 
 
@@ -122,3 +132,8 @@ def _unregister_command_choice(command):
             COMMAND_CHOICES.pop(index)
             return
     raise ImproperlyConfigured(f'No such Command choice {command}')
+
+
+# Add USER_COMMANDS
+for command_name, command_config in USER_COMMANDS:
+    register_command(command_name, command_config)

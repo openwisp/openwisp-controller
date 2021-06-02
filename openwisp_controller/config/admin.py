@@ -495,6 +495,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 'relevant_template_url': reverse(
                     'admin:get_relevant_templates', args=['org_id']
                 ),
+                'commands_api_endpoint': reverse(
+                    'connection_api:device_command_list',
+                    args=['00000000-0000-0000-0000-000000000000'],
+                ),
             }
         )
         return ctx

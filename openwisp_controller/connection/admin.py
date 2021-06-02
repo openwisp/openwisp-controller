@@ -14,7 +14,7 @@ from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin
-from .commands import DEFAULT_COMMANDS
+from .commands import COMMANDS
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
@@ -160,7 +160,7 @@ class CommandWritableInline(admin.StackedInline):
 
     def schema_view(self, request):
         result = {}
-        for key, value in DEFAULT_COMMANDS.items():
+        for key, value in COMMANDS.items():
             result.update({key: value['schema']})
         return JsonResponse(result)
 
