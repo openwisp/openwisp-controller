@@ -5,11 +5,12 @@ from rest_framework.generics import (
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from swapper import load_model
 
 from openwisp_users.api.authentication import BearerAuthentication
 from openwisp_users.api.mixins import FilterByOrganizationManaged
+from openwisp_users.api.permissions import DjangoModelPermissions
 
 from ..admin import BaseConfigAdmin
 from .serializers import (

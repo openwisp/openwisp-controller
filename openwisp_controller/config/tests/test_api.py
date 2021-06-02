@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -11,6 +12,7 @@ from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
+OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class TestConfigApi(
@@ -510,3 +512,20 @@ class TestConfigApi(
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Vpn.objects.count(), 0)
+
+    def test_get_request_with_change_perm(self):
+        change_perm = Permission.objects.filter(codename='change_template')
+        user = self._get_user()
+        user.user_permissions.add(*change_perm)
+        org1 = self._get_org()
+        OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
+        self.client.force_login(user)
+        t1 = self._create_template(name='t1', organization=self._get_org())
+        with self.subTest('Get Template List'):
+            path = reverse('config_api:template_list')
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+        with self.subTest('Get Template Detail'):
+            path = reverse('config_api:template_detail', args=[t1.pk])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
