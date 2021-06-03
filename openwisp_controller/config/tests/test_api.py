@@ -529,3 +529,20 @@ class TestConfigApi(
             path = reverse('config_api:template_detail', args=[t1.pk])
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
+
+    def test_get_request_with_view_perm(self):
+        view_perm = Permission.objects.filter(codename='view_template')
+        user = self._get_user()
+        user.user_permissions.add(*view_perm)
+        org1 = self._get_org()
+        OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
+        self.client.force_login(user)
+        t1 = self._create_template(name='t1', organization=self._get_org())
+        with self.subTest('Get Template List'):
+            path = reverse('config_api:template_list')
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+        with self.subTest('Get Template Detail'):
+            path = reverse('config_api:template_detail', args=[t1.pk])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
