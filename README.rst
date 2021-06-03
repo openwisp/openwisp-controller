@@ -918,6 +918,7 @@ Install the system dependencies:
 
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
+    sudo snap install -y chromium
 
 Fork and clone the forked repository:
 
@@ -958,6 +959,9 @@ Install development dependencies:
     pip install -e .
     pip install -r requirements-test.txt
     npm install -g jslint stylelint
+
+Install WebDriver for Chromium for your browser version from `<https://chromedriver.chromium.org/home>`_
+and Extract ``chromedriver`` to one of directories from your ``$PATH``. (example: ``~/.local/bin/``)
 
 Create database:
 
