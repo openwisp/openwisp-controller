@@ -1,8 +1,12 @@
-from django.views import View
-from django_x509.base.mixin import CrlDownloadMixin
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import pagination
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    ListCreateAPIView,
+    RetrieveAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
 from swapper import load_model
 
@@ -45,11 +49,15 @@ class CaDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Ca.objects.all()
 
 
-class CrlDownloadMixinView(View, CrlDownloadMixin):
-    model = Ca
+class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
+    serializer_class = CaDetailSerializer
+    queryset = Ca.objects.none()
 
-    def get(self, request, pk):
-        return self.crl_view(request, pk)
+    def retrieve(self, request, *args, **kwargs):
+        instance = get_object_or_404(Ca, pk=kwargs['pk'])
+        return HttpResponse(
+            instance.crl, status=200, content_type='application/x-pem-file'
+        )
 
 
 class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
@@ -67,4 +75,4 @@ ca_list = CaListCreateView.as_view()
 ca_detail = CaDetailView.as_view()
 cert_list = CertListCreateView.as_view()
 cert_detail = CertDetailView.as_view()
-crl_download = CrlDownloadMixinView.as_view()
+crl_download = CrlDownloadView.as_view()

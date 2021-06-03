@@ -79,9 +79,9 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'change-ca1')
 
-    def test_ca_download_api(self):
+    def test_crl_download_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
-        path = reverse('pki_api:ca_download', args=[ca1.pk])
+        path = reverse('pki_api:crl_download', args=[ca1.pk])
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
