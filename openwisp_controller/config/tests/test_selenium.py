@@ -1,7 +1,11 @@
 from django.conf import settings
 from django.urls.base import reverse
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    TimeoutException,
+    UnexpectedAlertPresentException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
@@ -77,6 +81,15 @@ class TestDeviceAdmin(
         self.web_driver.find_element_by_xpath(
             '//*[@id="config-group"]/fieldset/div[2]/a'
         ).click()
+
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, f'//*[@value="{default_template.id}"]')
+                )
+            )
+        except TimeoutException:
+            self.fail('Default template clickable timed out')
 
         required_template_element = self.web_driver.find_element_by_xpath(
             f'//*[@value="{required_template.id}"]'
@@ -161,7 +174,7 @@ class TestDeviceAdmin(
                     (By.XPATH, f'//*[@value="{org2_default_template.id}"]')
                 )
             )
-        except TimeoutException:
+        except (TimeoutException, StaleElementReferenceException):
             self.fail()
 
         # org1 and shared templates should be visible
@@ -196,7 +209,7 @@ class TestDeviceAdmin(
         )
         config_backend_select.select_by_visible_text('OpenWISP Firmware 1.x')
         try:
-            WebDriverWait(self.web_driver, 0.5).until(
+            WebDriverWait(self.web_driver, 1).until(
                 EC.invisibility_of_element_located(
                     (By.XPATH, f'//*[@value="{template.id}"]')
                 )
@@ -218,10 +231,13 @@ class TestDeviceAdmin(
         )
         try:
             WebDriverWait(self.web_driver, 2).until(
-                lambda driver: driver.find_element_by_xpath(
-                    '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]'
-                ).get_attribute('value')
-                == 'vni'
+                EC.text_to_be_present_in_element_value(
+                    (
+                        By.XPATH,
+                        '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]',
+                    ),
+                    'vni',
+                )
             )
         except TimeoutException:
             self.fail()
