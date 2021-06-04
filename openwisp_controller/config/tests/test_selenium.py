@@ -203,3 +203,35 @@ class TestDeviceAdmin(
             )
         except TimeoutException:
             self.fail()
+
+    def test_template_context_variables(self):
+        self._create_template(
+            name='Template1', default_values={'vni': '1'}, required=True
+        )
+        self._create_template(
+            name='Template2', default_values={'vni': '2'}, required=True
+        )
+        device = self._create_config(organization=self._get_org()).device
+        self.login()
+        self.open(
+            reverse('admin:config_device_change', args=[device.id]) + '#config-group'
+        )
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                lambda driver: driver.find_element_by_xpath(
+                    '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]'
+                ).get_attribute('value')
+                == 'vni'
+            )
+        except TimeoutException:
+            self.fail()
+        self.web_driver.find_element_by_xpath(
+            '//*[@id="container"]/div[2]/a[3]'
+        ).click()
+        try:
+            WebDriverWait(self.web_driver, 2).until(EC.alert_is_present())
+        except TimeoutException:
+            pass
+        else:
+            self.web_driver.switch_to_alert().accept()
+            self.fail()
