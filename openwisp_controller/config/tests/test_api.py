@@ -546,3 +546,10 @@ class TestConfigApi(
             path = reverse('config_api:template_detail', args=[t1.pk])
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
+
+    def test_get_request_with_no_perm(self):
+        user = self._get_user()
+        self.client.force_login(user)
+        path = reverse('config_api:template_list')
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 403)
