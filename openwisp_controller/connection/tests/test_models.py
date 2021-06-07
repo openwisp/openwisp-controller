@@ -739,30 +739,79 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     @mock.patch(_connect_path)
     @mock.patch('time.sleep')
     def test_device_config_update(self, mocked_sleep, mocked_connect):
+        def _assert_version_check_command(mocked_exec):
+            args, _ = mocked_exec.call_args_list[0]
+            self.assertEqual(args[0], 'openwisp_config --version')
+
+        def _assert_applying_conf_test_command(mocked_exec):
+            args, _ = mocked_exec_command.call_args_list[1]
+            self.assertEqual(
+                args[0], 'test -f /tmp/openwisp/applying_conf',
+            )
+
         conf = self._prepare_conf_object()
 
-        with self.subTest('exit_code 0'):
-            with mock.patch(_exec_command_path) as mocked_exec_command:
-                mocked_exec_command.return_value = self._exec_command_return_value()
-                conf.save()
-                mocked_exec_command.assert_called_once()
-
-            conf.refresh_from_db()
-            self.assertEqual(conf.status, 'applied')
-
-        with self.subTest('exit_code 1'):
-            conf.config = '{"interfaces": []}'
-            conf.full_clean()
+        with self.subTest('Unable to get openwisp_config version'):
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
                     exit_code=1
                 )
                 conf.save()
-                self.assertEqual(mocked_exec_command.call_count, 2)
-
+                self.assertEqual(mocked_exec_command.call_count, 1)
+                _assert_version_check_command(mocked_exec_command)
             conf.refresh_from_db()
-            # exit code 1 considers the update not successful
             self.assertEqual(conf.status, 'modified')
+
+        with self.subTest('openwisp_config >= 0.6.0a'):
+            conf.config = '{"dns_servers": []}'
+            conf.full_clean()
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                mocked_exec_command.return_value = self._exec_command_return_value(
+                    stdout='openwisp_config 0.6.0a'
+                )
+                conf.save()
+                self.assertEqual(mocked_exec_command.call_count, 2)
+                _assert_version_check_command(mocked_exec_command)
+                args, _ = mocked_exec_command.call_args_list[1]
+                self.assertIn('OW_CONFIG_PID', args[0])
+            conf.refresh_from_db()
+            self.assertEqual(conf.status, 'applied')
+
+        with self.subTest('openwisp_config < 0.6.0a: exit_code 0'):
+            conf.config = '{"interfaces": []}'
+            conf.full_clean()
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                mocked_exec_command.return_value = self._exec_command_return_value(
+                    stdout='openwisp_config 0.5.0'
+                )
+                conf.save()
+                self.assertEqual(mocked_exec_command.call_count, 2)
+                _assert_version_check_command(mocked_exec_command)
+                _assert_applying_conf_test_command(mocked_exec_command)
+            conf.refresh_from_db()
+            self.assertEqual(conf.status, 'applied')
+
+        with self.subTest('openwisp_config < 0.6.0a: exit_code 1'):
+            conf.config = '{"radios": []}'
+            conf.full_clean()
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                stdin, stdout, stderr = self._exec_command_return_value(
+                    stdout='openwisp_config 0.5.0'
+                )
+                # An iterable side effect is required for different return exit codes:
+                # 1. Checking openwisp_config returns with 0
+                # 2. Testing presence of /tmp/openwisp/applying_conf returns with 1
+                # 3. Restarting openwisp_config returns with 0 exit code
+                stdout.channel.recv_exit_status.side_effect = [0, 1, 0]
+                mocked_exec_command.return_value = (stdin, stdout, stderr)
+                conf.save()
+                self.assertEqual(mocked_exec_command.call_count, 3)
+                _assert_version_check_command(mocked_exec_command)
+                _assert_applying_conf_test_command(mocked_exec_command)
+                args, _ = mocked_exec_command.call_args_list[2]
+                self.assertEqual(args[0], '/etc/init.d/openwisp_config restart')
+            conf.refresh_from_db()
+            self.assertEqual(conf.status, 'applied')
 
     @mock.patch.object(update_config, 'delay')
     def test_device_update_config_in_progress(self, mocked_update_config):
