@@ -18,38 +18,8 @@ class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
     pass
 
 
-class CaListSerializer(BaseSerializer):
-    key_length = serializers.ChoiceField(
-        allow_blank=False,
-        choices=(('512', '512'), ('1024', '1024'), ('2048', '2048'), ('4096', '4096')),
-        help_text=_('bits'),
-        initial='2048',
-        required=True,
-    )
-    digest = serializers.ChoiceField(
-        allow_blank=False,
-        choices=(
-            ('sha1', 'SHA1'),
-            ('sha224', 'SHA224'),
-            ('sha256', 'SHA256'),
-            ('sha384', 'SHA384'),
-            ('sha512', 'SHA512'),
-        ),
-        help_text=_('bits'),
-        initial='sha256',
-        label='Digest algorithm',
-        required=True,
-    )
-    validity_start = serializers.DateTimeField(
-        allow_null=False,
-        initial=default_validity_start(),
-        default=default_validity_start(),
-    )
-    validity_end = serializers.DateTimeField(
-        allow_null=False,
-        initial=default_ca_validity_end(),
-        default=default_ca_validity_end(),
-    )
+class CaListSerializer(serializers.ModelSerializer):
+
     extensions = serializers.JSONField(
         initial=[],
         help_text=_('additional x509 certificate extensions'),
@@ -84,6 +54,16 @@ class CaListSerializer(BaseSerializer):
         read_only_fields = ['created', 'modified']
         extra_kwargs = {
             'organization': {'required': True},
+            'key_length': {'initial': '2048'},
+            'digest': {'initial': 'sha256'},
+            'validity_start': {
+                'initial': default_validity_start(),
+                'default': default_validity_start(),
+            },
+            'validity_end': {
+                'initial': default_ca_validity_end(),
+                'default': default_ca_validity_end(),
+            },
         }
 
 
@@ -115,37 +95,7 @@ def CertList_fields(fields=None):
 
 
 class CertListSerializer(BaseSerializer):
-    key_length = serializers.ChoiceField(
-        allow_blank=False,
-        choices=(('512', '512'), ('1024', '1024'), ('2048', '2048'), ('4096', '4096')),
-        help_text=_('bits'),
-        initial='2048',
-        required=True,
-    )
-    digest = serializers.ChoiceField(
-        allow_blank=False,
-        choices=(
-            ('sha1', 'SHA1'),
-            ('sha224', 'SHA224'),
-            ('sha256', 'SHA256'),
-            ('sha384', 'SHA384'),
-            ('sha512', 'SHA512'),
-        ),
-        help_text=_('bits'),
-        initial='sha256',
-        label='Digest algorithm',
-        required=True,
-    )
-    validity_start = serializers.DateTimeField(
-        allow_null=False,
-        initial=default_validity_start(),
-        default=default_validity_start(),
-    )
-    validity_end = serializers.DateTimeField(
-        allow_null=False,
-        initial=default_cert_validity_end(),
-        default=default_cert_validity_end(),
-    )
+
     extensions = serializers.JSONField(
         initial=[],
         help_text=_('additional x509 certificate extensions'),
@@ -160,6 +110,16 @@ class CertListSerializer(BaseSerializer):
         read_only_fields = ['created', 'modified']
         extra_kwargs = {
             'revoked': {'read_only': True},
+            'key_length': {'initial': '2048'},
+            'digest': {'initial': 'sha256'},
+            'validity_start': {
+                'initial': default_validity_start(),
+                'default': default_validity_start(),
+            },
+            'validity_end': {
+                'initial': default_cert_validity_end(),
+                'default': default_cert_validity_end(),
+            },
         }
 
 
