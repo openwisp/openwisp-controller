@@ -4,6 +4,7 @@ from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.tests import AssertNumQueriesSubTestMixin
 
 from .utils import TestPkiMixin
 
@@ -11,7 +12,13 @@ Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 
 
-class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
+class TestPkiApi(
+    AssertNumQueriesSubTestMixin,
+    TestAdminMixin,
+    TestPkiMixin,
+    TestOrganizationMixin,
+    TestCase,
+):
     def setUp(self):
         super().setUp()
         self._login()
@@ -89,7 +96,8 @@ class TestPkiApi(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
     def test_ca_delete_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
         path = reverse('pki_api:ca_detail', args=[ca1.pk])
-        r = self.client.delete(path)
+        with self.assertNumQueries(8):
+            r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Ca.objects.count(), 0)
 
