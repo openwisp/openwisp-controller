@@ -961,7 +961,7 @@ Install development dependencies:
     npm install -g jslint stylelint
 
 Install WebDriver for Chromium for your browser version from `<https://chromedriver.chromium.org/home>`_
-and Extract ``chromedriver`` to one of directories from your ``$PATH``. (example: ``~/.local/bin/``)
+and Extract ``chromedriver`` to one of directories from your ``$PATH`` (example: ``~/.local/bin/``).
 
 Create database:
 

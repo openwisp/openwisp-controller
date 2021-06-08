@@ -119,7 +119,7 @@ class TestDeviceAdmin(
             except TimeoutException:
                 pass
             else:
-                self.fail()
+                self.fail('Unsaved changes alert displayed without any change')
 
         with self.subTest('Alert should be displayed after making changes'):
             self.web_driver.find_element_by_name('name').send_keys('new.device.name')
@@ -127,7 +127,7 @@ class TestDeviceAdmin(
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
-                self.fail()
+                self.fail('Timed out wating for unsaved changes alert')
             else:
                 self.web_driver.switch_to_alert().accept()
 
@@ -175,7 +175,7 @@ class TestDeviceAdmin(
                 )
             )
         except (TimeoutException, StaleElementReferenceException):
-            self.fail()
+            self.fail('Template belonging to other organization found')
 
         # org1 and shared templates should be visible
         wait.until(
@@ -215,7 +215,7 @@ class TestDeviceAdmin(
                 )
             )
         except TimeoutException:
-            self.fail()
+            self.fail('Template for other config backend found')
 
     def test_template_context_variables(self):
         self._create_template(
@@ -240,7 +240,7 @@ class TestDeviceAdmin(
                 )
             )
         except TimeoutException:
-            self.fail()
+            self.fail('Timed out wating for configuration variabled to get loaded')
         self.web_driver.find_element_by_xpath(
             '//*[@id="container"]/div[2]/a[3]'
         ).click()
@@ -250,4 +250,4 @@ class TestDeviceAdmin(
             pass
         else:
             self.web_driver.switch_to_alert().accept()
-            self.fail()
+            self.fail('Unsaved changes alert displayed without any change')
