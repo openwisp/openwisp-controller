@@ -18,7 +18,7 @@ class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
     pass
 
 
-class CaListSerializer(serializers.ModelSerializer):
+class CaListSerializer(BaseSerializer):
 
     extensions = serializers.JSONField(
         initial=[],
