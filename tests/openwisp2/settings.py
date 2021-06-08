@@ -4,6 +4,7 @@ import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
 TESTING = sys.argv[1:2] == ['test']
+SELENIUM_HEADLESS = True if os.environ.get('SELENIUM_HEADLESS', False) else False
 SHELL = 'shell' in sys.argv or 'shell_plus' in sys.argv
 
 ALLOWED_HOSTS = ['*']
