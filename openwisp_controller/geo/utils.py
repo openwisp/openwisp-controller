@@ -18,4 +18,22 @@ def get_geo_urls(geo_views):
             geo_views.location_device_list,
             name='location_device_list',
         ),
+        path(
+            'api/v1/controller/floorplan/',
+            geo_views.list_floorplan,
+            name='list_floorplan',
+        ),
+        path(
+            'api/v1/controller/floorplan/<str:pk>/',
+            geo_views.detail_floorplan,
+            name='detail_floorplan',
+        ),
+        path(
+            'api/v1/controller/location/', geo_views.list_location, name='list_location'
+        ),
+        path(
+            'api/v1/controller/location/<str:pk>/',
+            geo_views.detail_location,
+            name='detail_location',
+        ),
     ]
