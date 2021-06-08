@@ -798,11 +798,11 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 stdin, stdout, stderr = self._exec_command_return_value(
                     stdout='openwisp_config 0.5.0'
                 )
-                # An iterable side effect is required for different return exit codes:
+                # An iterable side effect is required for different exit codes:
                 # 1. Checking openwisp_config returns with 0
                 # 2. Testing presence of /tmp/openwisp/applying_conf returns with 1
                 # 3. Restarting openwisp_config returns with 0 exit code
-                stdout.channel.recv_exit_status.side_effect = [0, 1, 0]
+                stdout.channel.recv_exit_status.side_effect = [0, 1, 1]
                 mocked_exec_command.return_value = (stdin, stdout, stderr)
                 conf.save()
                 self.assertEqual(mocked_exec_command.call_count, 3)
@@ -811,7 +811,8 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 args, _ = mocked_exec_command.call_args_list[2]
                 self.assertEqual(args[0], '/etc/init.d/openwisp_config restart')
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'applied')
+            # exit code 1 considers the update not successful
+            self.assertEqual(conf.status, 'modified')
 
     @mock.patch.object(update_config, 'delay')
     def test_device_update_config_in_progress(self, mocked_update_config):
