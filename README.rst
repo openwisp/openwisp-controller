@@ -690,14 +690,14 @@ Get device detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{pk}/
+    GET /api/v1/controller/device/{id}/
 
 Download device configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{pk}/configuration/
+    GET /api/v1/controller/device/{id}/configuration/
 
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific device.
 
@@ -706,23 +706,23 @@ Change details of device
 
 .. code-block:: text
 
-    PUT /api/v1/controller/device/{pk}/
+    PUT /api/v1/controller/device/{id}/
 
 Patch details of device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/device/{pk}/
+    PATCH /api/v1/controller/device/{id}/
 
 **Note**: To assign, unassign, and change the order of the assigned templates add,
-remove, and change the order of the ``{pk}`` of the templates under the ``config`` field in the JSON response respectively.
+remove, and change the order of the ``{id}`` of the templates under the ``config`` field in the JSON response respectively.
 Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
 
 The required template(s) from the organization(s) of the device will added automatically
 to the ``config`` and cannot be removed.
 
-**Example usage**: For assigning template(s) add the/their {pk} to the config of a device,
+**Example usage**: For assigning template(s) add the/their {id} to the config of a device,
 
 .. code-block:: shell
 
@@ -730,7 +730,7 @@ to the ``config`` and cannot be removed.
     http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
     "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
 
-**Example usage**: For removing assigned templates, simply remove the/their {pk} from the config of a device,
+**Example usage**: For removing assigned templates, simply remove the/their {id} from the config of a device,
 
 .. code-block:: shell
 
@@ -751,49 +751,49 @@ Delete device
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/device/{pk}/
+    DELETE /api/v1/controller/device/{id}/
 
 List commands of a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{device_pk}/command
+    GET /api/v1/controller/device/{id}/command/
 
 Execute a command a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/controller/device/{device_pk}/command
+    POST /api/v1/controller/device/{id}/command/
 
 Get command details
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{device_pk}/command/{command_pk}
+    GET /api/v1/controller/device/{device_id}/command/{command_id}/
 
 Get device coordinates
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{pk}/location/
+    GET /api/v1/controller/device/{id}/location/
 
 Update device coordinates
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PUT /api/v1/controller/device/{pk}/location/
+    PUT /api/v1/controller/device/{id}/location/
 
 List of devices in a location
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: text
 
-    GET api/v1/controller/location/{pk}/device/
+    GET api/v1/controller/location/{id}/device/
 
 List locations with devices deployed (in GeoJSON format)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -821,14 +821,14 @@ Get template detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/template/{pk}/
+    GET /api/v1/controller/template/{id}/
 
 Download template configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/template/{pk}/configuration/
+    GET /api/v1/controller/template/{id}/configuration/
 
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific template.
 
@@ -837,21 +837,21 @@ Change details of template
 
 .. code-block:: text
 
-    PUT /api/v1/controller/template/{pk}/
+    PUT /api/v1/controller/template/{id}/
 
 Patch details of template
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/template/{pk}/
+    PATCH /api/v1/controller/template/{id}/
 
 Delete template
 ^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/template/{pk}/
+    DELETE /api/v1/controller/template/{id}/
 
 List VPNs
 ^^^^^^^^^
@@ -872,14 +872,14 @@ Get VPN detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/vpn/{pk}/
+    GET /api/v1/controller/vpn/{id}/
 
 Download VPN configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/vpn/{pk}/configuration/
+    GET /api/v1/controller/vpn/{id}/configuration/
 
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific VPN.
 
@@ -888,21 +888,21 @@ Change details of VPN
 
 .. code-block:: text
 
-    PUT /api/v1/controller/vpn/{pk}/
+    PUT /api/v1/controller/vpn/{id}/
 
 Patch details of VPN
 ^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/vpn/{pk}/
+    PATCH /api/v1/controller/vpn/{id}/
 
 Delete VPN
 ^^^^^^^^^^
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/vpn/{pk}/
+    DELETE /api/v1/controller/vpn/{id}/
 
 Default Alerts / Notifications
 ------------------------------
