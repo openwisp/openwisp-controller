@@ -164,28 +164,6 @@ The geographic app is based on `django-loci <https://github.com/openwisp/django-
 and allows to define the geographic coordinates of the devices,
 as well as their indoor coordinates on floorplan images.
 
-This module also provides an API through which mobile devices can update
-their coordinates. See below for further details:
-
-.. code-block:: text
-
-    GET /api/v1/device/{id}/location/
-    PUT /api/v1/device/{id}/location/
-
-If a location has multiple devices, then the list of all such devices and related
-information can be accessed via the following endpoint:
-
-.. code-block:: text
-
-    GET /api/v1/location/{pk}/device/
-
-To access all the locations that have devices deployed in them, use the following
-endpoint, which provides a paginated list of such locations in GeoJSON format:
-
-.. code-block:: text
-
-    GET /api/v1/location/geojson/
-
 Settings
 --------
 
@@ -795,6 +773,34 @@ Get command details
 .. code-block:: text
 
     GET /api/v1/connection/device/{device_pk}/command/{command_pk}
+
+Get device coordinates
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{pk}/location/
+
+Update device coordinates
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{pk}/location/
+
+List of devices in a location
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    GET api/v1/controller/location/{pk}/device/
+
+List locations with devices deployed (in GeoJSON format)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    GET api/v1/controller/location/geojson/
 
 List templates
 ^^^^^^^^^^^^^^
