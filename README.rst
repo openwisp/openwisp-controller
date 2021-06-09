@@ -2310,12 +2310,6 @@ Once a new notification type is registered, you have to use the `"notify" signal
 openwisp-notifications <https://github.com/openwisp/openwisp-notifications#sending-notifications>`_
 to send notifications for this type.
 
-Talks
------
-
-- `OpenWISP2 - a self hosted solution to control OpenWRT/LEDE devices
-  <https://fosdem.org/2017/schedule/event/openwisp2/>`_ (FOSDEM 2017)
-
 Contributing
 ------------
 
