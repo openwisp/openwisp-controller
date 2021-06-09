@@ -758,21 +758,21 @@ List commands of a device
 
 .. code-block:: text
 
-    GET /api/v1/connection/device/{device_pk}/command
+    GET /api/v1/controller/device/{device_pk}/command
 
 Execute a command a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/connection/device/{device_pk}/command
+    POST /api/v1/controller/device/{device_pk}/command
 
 Get command details
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/connection/device/{device_pk}/command/{command_pk}
+    GET /api/v1/controller/device/{device_pk}/command/{command_pk}
 
 Get device coordinates
 ^^^^^^^^^^^^^^^^^^^^^^
