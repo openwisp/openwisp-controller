@@ -795,8 +795,8 @@ List of devices in a location
 
     GET api/v1/controller/location/{pk}/device/
 
-List locations with devices deployed
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+List locations with devices deployed (in GeoJSON format)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: text
 
