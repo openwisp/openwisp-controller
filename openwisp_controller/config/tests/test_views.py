@@ -258,3 +258,19 @@ class TestViews(
             }
             self.assertEqual(response.status_code, 200)
             self.assertJSONEqual(response.content, expected_response)
+
+    def get_template_default_values_same_keys(self):
+        self._login()
+        # Atleast 4 templates are required to create enough entropy in database
+        # to make the test fail consistently without patch
+        template1 = self._create_template(name='VNI 1', default_values={'vn1': '1'})
+        template2 = self._create_template(name='VNI 2', default_values={'vn1': '2'})
+        template3 = self._create_template(name='VNI 3', default_values={'vn1': '3'})
+        template4 = self._create_template(name='VNI 4', default_values={'vn1': '4'})
+        url = (
+            reverse('admin:get_template_default_values')
+            + f'?pks={template4.pk},{template3.pk},{template2.pk},{template1.pk}'
+        )
+        response = self.client.get(url)
+        default_values = response.json()['default_values']
+        self.assertEqual(default_values['vn1'], '1')

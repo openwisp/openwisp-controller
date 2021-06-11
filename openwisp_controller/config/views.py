@@ -102,8 +102,16 @@ def get_template_default_values(request):
         where = where & (
             Q(organization=None) | Q(organization__in=user.organizations_managed)
         )
-    values = Template.objects.filter(where).values_list('default_values', flat=True)
+    qs = Template.objects.filter(where).values('id', 'default_values')
+    qs_dict = {}
+    # Create a mapping of UUID to default values of the templates in qs_dict.
+    # Iterate over received pk_list and retrieve default_values for corresponding
+    # template from qs_dict.
+    # This ensures that default_values of templates that come later in the order
+    # will override default_values of any previous template if same keys are present.
+    for template in qs:
+        qs_dict[str(template['id'])] = template['default_values']
     default_values = {}
-    for item in values:
-        default_values.update(item)
+    for pk in pk_list:
+        default_values.update(qs_dict[pk])
     return JsonResponse({'default_values': default_values})
