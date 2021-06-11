@@ -25,7 +25,7 @@ from ..commands import (
     get_command_schema,
 )
 from ..signals import is_working_changed
-from ..tasks import launch_command
+from ..tasks import auto_add_credentials_to_devices, launch_command
 
 logger = logging.getLogger(__name__)
 
@@ -110,27 +110,42 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.auto_add_to_devices()
+        if self.auto_add:
+            transaction.on_commit(
+                lambda: auto_add_credentials_to_devices.delay(
+                    credential_id=self.pk, organization_id=self.organization_id
+                )
+            )
 
-    def auto_add_to_devices(self):
+    @classmethod
+    def auto_add_to_devices(cls, credential_id, organization_id):
         """
         When ``auto_add`` is ``True``, adds the credentials
         to each relevant ``Device`` and ``DeviceConnection`` objects
         """
-        if not self.auto_add:
-            return
-        device_model = load_model('config', 'Device')
-        devices = device_model.objects.exclude(config=None)
-        org = self.organization
-        if org:
-            devices = devices.filter(organization=org)
+        DeviceConnection = load_model('connection', 'DeviceConnection')
+        Device = load_model('config', 'Device')
+
+        devices = Device.objects.exclude(config=None)
+        if organization_id:
+            devices = devices.filter(organization_id=organization_id)
         # exclude devices which have been already added
-        devices = devices.exclude(deviceconnection__credentials=self)
-        for device in devices:
-            DeviceConnection = load_model('connection', 'DeviceConnection')
-            conn = DeviceConnection(device=device, credentials=self, enabled=True)
+        devices = devices.exclude(deviceconnection__credentials_id=credential_id)
+        device_connections = []
+        chunk_size = 1000
+        for device in devices.iterator():
+            conn = DeviceConnection(
+                device=device, credentials_id=credential_id, enabled=True
+            )
             conn.full_clean()
-            conn.save()
+            device_connections.append(conn)
+            # Send create query when chunk_size is reached
+            # and reset the device_connections list
+            if len(device_connections) >= chunk_size:
+                DeviceConnection.objects.bulk_create(device_connections)
+                device_connections = []
+        if len(device_connections):
+            DeviceConnection.objects.bulk_create(device_connections)
 
     @classmethod
     def auto_add_credentials_to_device(cls, instance, created, **kwargs):
