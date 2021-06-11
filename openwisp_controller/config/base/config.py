@@ -319,7 +319,7 @@ class AbstractConfig(BaseConfig):
                 )
 
     @classmethod
-    def certificate_renewed(cls, instance, created, **kwargs):
+    def certificate_updated(cls, instance, created, **kwargs):
         if created:
             return
         try:

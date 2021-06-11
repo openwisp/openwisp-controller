@@ -707,10 +707,6 @@ class TestTransactionConfig(
     TestVpnX509Mixin,
     TransactionTestCase,
 ):
-    """
-    tests for Config model
-    """
-
     def test_certificate_renew_invalidates_checksum_cache(self):
         config = self._create_config(organization=self._get_org())
         vpn_template = self._create_template(

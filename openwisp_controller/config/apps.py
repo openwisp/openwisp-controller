@@ -78,9 +78,9 @@ class ConfigConfig(AppConfig):
             dispatch_uid='vpnclient.post_delete',
         )
         post_save.connect(
-            self.config_model.certificate_renewed,
+            self.config_model.certificate_updated,
             sender=self.cert_model,
-            dispatch_uid='cert_renew_invalidate_checksum_cache',
+            dispatch_uid='cert_update_invalidate_checksum_cache',
         )
 
     def add_default_menu_items(self):
