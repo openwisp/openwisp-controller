@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.db.transaction import atomic
 from django.test import TestCase
+from django.test.testcases import TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
 
@@ -698,3 +699,29 @@ class TestConfig(
         config.status = 'modified'
         config.save()
         self.assertEqual(config._initial_status, 'modified')
+
+
+class TestTransactionConfig(
+    CreateConfigTemplateMixin,
+    TestOrganizationMixin,
+    TestVpnX509Mixin,
+    TransactionTestCase,
+):
+    def test_certificate_renew_invalidates_checksum_cache(self):
+        config = self._create_config(organization=self._get_org())
+        vpn_template = self._create_template(
+            name='vpn1-template', type='vpn', vpn=self._create_vpn(), config={}
+        )
+        config.templates.add(vpn_template)
+        config.refresh_from_db()
+        with patch('django.core.cache.cache.delete') as mocked_delete:
+            # Comparing checksum values after deleting backend instance
+            # makes the test bogus. Hence assertion for cache.delete is required
+            old_checksum = config.checksum
+            vpnclient_cert = config.vpnclient_set.first().cert
+            vpnclient_cert.renew()
+            mocked_delete.assert_called_once()
+            del config.backend_instance
+            self.assertNotEqual(config.get_cached_checksum(), old_checksum)
+            config.refresh_from_db()
+            self.assertEqual(config.status, 'modified')

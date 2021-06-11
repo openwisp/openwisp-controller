@@ -318,6 +318,17 @@ class AbstractConfig(BaseConfig):
                     *required_templates.order_by('name').values_list('pk', flat=True)
                 )
 
+    @classmethod
+    def certificate_updated(cls, instance, created, **kwargs):
+        if created:
+            return
+        try:
+            config = instance.vpnclient.config
+        except ObjectDoesNotExist:
+            return
+        else:
+            transaction.on_commit(config.set_status_modified)
+
     def get_default_templates(self):
         """
         retrieves default templates of a Config object
