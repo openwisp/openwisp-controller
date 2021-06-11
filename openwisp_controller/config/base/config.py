@@ -327,15 +327,7 @@ class AbstractConfig(BaseConfig):
         except ObjectDoesNotExist:
             return
         else:
-            transaction.on_commit(
-                lambda: config_modified.send(
-                    sender=cls.__class__,
-                    instance=config,
-                    previous_status=config._initial_status,
-                    action='VPNClient Cert renewed',
-                    device=config.device,
-                )
-            )
+            transaction.on_commit(config.set_status_modified)
 
     def get_default_templates(self):
         """

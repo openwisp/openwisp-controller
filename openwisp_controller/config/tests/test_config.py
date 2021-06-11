@@ -727,3 +727,5 @@ class TestTransactionConfig(
             mocked_delete.assert_called_once()
             del config.backend_instance
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
+            config.refresh_from_db()
+            self.assertEqual(config.status, 'modified')
