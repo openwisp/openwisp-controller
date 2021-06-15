@@ -4,12 +4,13 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
+from swapper import get_model_name
 
 from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
-from ..signals import device_name_changed, management_ip_changed
+from ..signals import device_group_changed, device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -63,6 +64,13 @@ class AbstractDevice(OrgMixin, BaseModel):
         help_text=_('system on chip or CPU info'),
     )
     notes = models.TextField(blank=True, help_text=_('internal notes'))
+    group = models.ForeignKey(
+        get_model_name('config', 'DeviceGroup'),
+        verbose_name=_('Device Group'),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     # these fields are filled automatically
     # with data received from devices
     last_ip = models.GenericIPAddressField(
@@ -174,22 +182,47 @@ class AbstractDevice(OrgMixin, BaseModel):
         update_fields = kwargs.get('update_fields')
         if not update_fields or 'name' in update_fields:
             self._check_name_changed()
+        if not update_fields or 'group' in update_fields:
+            self._check_group_changed()
         super().save(*args, **kwargs)
         self._check_management_ip_changed()
 
-    def _check_name_changed(self):
-        if self._state.adding:
-            return
-        current = (
+    @property
+    def _current_instance(self):
+        # Returns the instance current value from database
+        return (
             self._meta.model.objects.only(
-                'id', 'name', 'management_ip', 'config__id', 'config__status'
+                'id',
+                'name',
+                'management_ip',
+                'group_id',
+                'config__id',
+                'config__status',
             )
             .select_related('config')
             .get(pk=self.pk)
         )
 
+    def _check_name_changed(self):
+        if self._state.adding:
+            return
+        current = self._current_instance
+
         if self.name != current.name:
             device_name_changed.send(
+                sender=self.__class__, instance=self,
+            )
+
+        if self.name != current.name and self._has_config():
+            self.config.set_status_modified()
+
+    def _check_group_changed(self):
+        if self._state.adding:
+            return
+        current = self._current_instance
+
+        if self.group_id != current.group_id:
+            device_group_changed.send(
                 sender=self.__class__, instance=self,
             )
 

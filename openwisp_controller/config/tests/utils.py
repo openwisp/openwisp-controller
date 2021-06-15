@@ -13,6 +13,7 @@ from ...pki.tests.utils import TestPkiMixin
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
@@ -145,6 +146,22 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
                 name='test-device', organization=kwargs.pop('organization')
             )
         return super()._create_config(**kwargs)
+
+
+class CreateDeviceGroupMixin:
+    def _create_device_group(self, **kwargs):
+        options = {
+            'name': 'Routers',
+            'description': 'Group for all routers',
+            'context': {},
+        }
+        options.update(kwargs)
+        if 'organization' not in options:
+            options['organization'] = self._get_org()
+        device_group = DeviceGroup(**options)
+        device_group.full_clean()
+        device_group.save()
+        return device_group
 
 
 class SeleniumTestCase(StaticLiveServerTestCase):

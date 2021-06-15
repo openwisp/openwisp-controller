@@ -39,6 +39,16 @@ def get_api_urls(api_views):
                 name='device_detail',
             ),
             path(
+                'controller/group/',
+                api_views.devicegroup_list,
+                name='devicegroup_list',
+            ),
+            path(
+                'controller/group/<str:pk>/',
+                api_views.devicegroup_detail,
+                name='devicegroup_detail',
+            ),
+            path(
                 'controller/device/<str:pk>/configuration/',
                 api_views.download_device_config,
                 name='download_device_config',

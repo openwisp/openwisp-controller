@@ -6,21 +6,28 @@ from django.test import TestCase
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
-from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
-from ..signals import device_name_changed, management_ip_changed
+from ..signals import device_group_changed, device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
-from .utils import CreateConfigTemplateMixin
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
 
 TEST_ORG_SHARED_SECRET = 'functional_testing_secret'
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 _original_context = app_settings.CONTEXT.copy()
 
 
-class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
+class TestDevice(
+    CreateConfigTemplateMixin,
+    TestOrganizationMixin,
+    AssertNumQueriesSubTestMixin,
+    CreateDeviceGroupMixin,
+    TestCase,
+):
     """
     tests for Device model
     """
@@ -352,5 +359,22 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
 
     def test_device_name_changed_not_emitted_on_creation(self):
         with catch_signal(device_name_changed) as handler:
+            self._create_device(organization=self._get_org())
+        handler.assert_not_called()
+
+    def test_device_group_changed_emitted(self):
+        org = self._get_org()
+        device = self._create_device(name='test', organization=org)
+        device_group = self._create_device_group()
+
+        with catch_signal(device_group_changed) as handler, self.assertNumQueries(3):
+            device.group = device_group
+            device.save()
+            handler.assert_called_once_with(
+                signal=device_group_changed, sender=Device, instance=device,
+            )
+
+    def test_device_group_changed_not_emitted_on_creation(self):
+        with catch_signal(device_group_changed) as handler:
             self._create_device(organization=self._get_org())
         handler.assert_not_called()

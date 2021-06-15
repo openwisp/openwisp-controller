@@ -586,6 +586,66 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='DeviceGroup',
+            fields=[
+                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                (
+                    'id',
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    'created',
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='created',
+                    ),
+                ),
+                (
+                    'modified',
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name='modified',
+                    ),
+                ),
+                ('name', models.CharField(max_length=60, unique=True)),
+                (
+                    'description',
+                    models.TextField(blank=True, help_text='internal notes'),
+                ),
+                (
+                    'context',
+                    jsonfield.fields.JSONField(
+                        blank=True,
+                        default=dict,
+                        dump_kwargs={'ensure_ascii': False, 'indent': 4},
+                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                    ),
+                ),
+                (
+                    'organization',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
+                        verbose_name='organization',
+                    ),
+                ),
+            ],
+            options={
+                'verbose_name': 'Device Group',
+                'verbose_name_plural': 'Device Groups',
+                'abstract': False,
+                'swappable': 'CONFIG_DEVICEGROUP_MODEL',
+            },
+            bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
+        ),
+        migrations.CreateModel(
             name='Device',
             fields=[
                 (
@@ -648,6 +708,16 @@ class Migration(migrations.Migration):
                                 message='Must be a valid mac address.',
                             )
                         ],
+                    ),
+                ),
+                (
+                    'group',
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=swapper.get_model_name('config', 'DeviceGroup'),
+                        verbose_name='Device Group',
                     ),
                 ),
                 (

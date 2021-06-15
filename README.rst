@@ -134,6 +134,7 @@ Config App
 * **configuration templates**: reduce repetition to the minimum
 * `configuration variables <#how-to-use-configuration-variables>`_: reference ansible-like variables in the configuration and templates
 * **template tags**: tag templates to automate different types of auto-configurations (eg: mesh, WDS, 4G)
+* **device groups**: add `devices to dedicated groups <#device-groups>`_ for easy management
 * **simple HTTP resources**: allow devices to automatically download configuration updates
 * **VPN management**: automatically provision VPN tunnels with unique x509 certificates
 
@@ -625,7 +626,18 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 +--------------+----------+
 
 Allows to specify a `list` of tuples for adding commands as described in
-`'How to add commands"   <#how-to-add-commands>`_ section.
+`'How to add commands" <#how-to-add-commands>`_ section.
+
+``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+----------+
+| **type**:    | ``dict`` |
++--------------+----------+
+| **default**: | ``{}``   |
++--------------+----------+
+
+Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`_.
 
 REST API
 --------
@@ -806,6 +818,27 @@ List locations with devices deployed (in GeoJSON format)
 .. code:: text
 
     GET api/v1/controller/location/geojson/
+
+List device groups
+^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    GET api/v1/controller/group/
+
+Create device group
+^^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    POST api/v1/controller/group/
+
+Get device group detail
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/group/{id}/
 
 List templates
 ^^^^^^^^^^^^^^
@@ -1049,6 +1082,18 @@ Having Issues with other geospatial libraries?
 Please refer
 `troubleshooting issues related to geospatial libraries
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
+
+Device Groups
+-------------
+
+Device Groups provide an easy way to organize devices of a particular organization.
+You can achieve following by using Device Groups:
+
+- Group similar devices by having dedicated groups for access points, routers, etc.
+- Store additional information regarding a group in the structured metadata field.
+- Customize structure and validation of metadata field of DeviceGroup to standardize
+  information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
+  setting.
 
 How to use configuration variables
 ----------------------------------
@@ -1632,6 +1677,19 @@ The signal is emitted when the device name changes.
 
 It is not emitted when the device is created.
 
+``device_group_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_group_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``.
+
+The signal is emitted when the device group changes.
+
+It is not emitted when the device is created.
+
 Setup (integrate in an existing django project)
 -----------------------------------------------
 
@@ -2013,6 +2071,7 @@ Once you have created the models, add the following to your ``settings.py``:
 
     # Setting models for swapper module
     CONFIG_DEVICE_MODEL = 'sample_config.Device'
+    CONFIG_DEVICEGROUP_MODEL = 'sample_config.DeviceGroup'
     CONFIG_CONFIG_MODEL = 'sample_config.Config'
     CONFIG_TEMPLATETAG_MODEL = 'sample_config.TemplateTag'
     CONFIG_TAGGEDTEMPLATE_MODEL = 'sample_config.TaggedTemplate'
@@ -2082,7 +2141,12 @@ sample_config
 
 .. code-block:: python
 
-    from openwisp_controller.config.admin import DeviceAdmin, TemplateAdmin, VpnAdmin
+    from openwisp_controller.config.admin import (
+        DeviceAdmin,
+        DeviceGroupAdmin,
+        TemplateAdmin,
+        VpnAdmin,
+    )
 
     # DeviceAdmin.fields += ['example'] <-- monkey patching example
 
@@ -2129,14 +2193,17 @@ sample_config
         DeviceAdmin as BaseDeviceAdmin,
         TemplateAdmin as BaseTemplateAdmin,
         VpnAdmin as BaseVpnAdmin,
+        DeviceGroupAdmin as BaseDeviceGroupAdmin,
     from swapper import load_model
 
     Vpn = load_model('openwisp_controller', 'Vpn')
     Device = load_model('openwisp_controller', 'Device')
+    DeviceGroup = load_model('openwisp_controller', 'DeviceGroup')
     Template = load_model('openwisp_controller', 'Template')
 
     admin.site.unregister(Vpn)
     admin.site.unregister(Device)
+    admin.site.unregister(DeviceGroup)
     admin.site.unregister(Template)
 
     @admin.register(Vpn)
@@ -2145,6 +2212,10 @@ sample_config
 
     @admin.register(Device)
     class DeviceAdmin(BaseDeviceAdmin):
+        # add your changes here
+
+    @admin.register(DeviceGroup)
+    class DeviceGroupAdmin(BaseDeviceGroupAdmin):
         # add your changes here
 
     @admin.register(Template)
