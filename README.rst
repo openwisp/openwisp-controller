@@ -1095,6 +1095,9 @@ You can achieve following by using Device Groups:
   information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
   setting.
 
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-groups.png
+  :alt: Device Group example
+
 How to use configuration variables
 ----------------------------------
 
