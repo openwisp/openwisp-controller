@@ -335,16 +335,6 @@ class TestDevice(
             message_dict['__all__'],
         )
 
-    def test_check_name_changed_query(self):
-        org = self._get_org()
-        device = self._create_device(name='test', organization=org)
-        device.refresh_from_db()
-        with self.assertNumQueries(1):
-            device._check_name_changed()
-        with self.assertNumQueries(2):
-            device.name = 'changed'
-            device._check_name_changed()
-
     def test_device_name_changed_emitted(self):
         org = self._get_org()
         device = self._create_device(name='test', organization=org)
@@ -367,7 +357,7 @@ class TestDevice(
         device = self._create_device(name='test', organization=org)
         device_group = self._create_device_group()
 
-        with catch_signal(device_group_changed) as handler, self.assertNumQueries(3):
+        with catch_signal(device_group_changed) as handler:
             device.group = device_group
             device.save()
             handler.assert_called_once_with(

@@ -101,7 +101,21 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._initial_management_ip = self.management_ip
+        self._set_initial_values()
+
+    def _set_initial_values(self):
+        if self._is_field_deferred('management_ip'):
+            self._initial_management_ip = models.DEFERRED
+        else:
+            self._initial_management_ip = self.management_ip
+        if self._is_field_deferred('group_id'):
+            self._initial_group_id = models.DEFERRED
+        else:
+            self._initial_group_id = self.group_id
+        if self._is_field_deferred('name'):
+            self._initial_name = models.DEFERRED
+        else:
+            self._initial_name = self.name
 
     def __str__(self):
         return (
@@ -177,62 +191,64 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = KeyField.default_callable()
             else:
                 self.key = self.generate_key(shared_secret)
-        # update the status of the config object if the device name
-        # changed, but skip if the save operation is not touching the name
-        update_fields = kwargs.get('update_fields')
-        if not update_fields or 'name' in update_fields:
-            self._check_name_changed()
-        if not update_fields or 'group' in update_fields:
-            self._check_group_changed()
         super().save(*args, **kwargs)
-        self._check_management_ip_changed()
+        self._check_changed_fields()
 
-    @property
-    def _current_instance(self):
-        # Returns the instance current value from database
-        return (
-            self._meta.model.objects.only(
-                'id',
-                'name',
-                'management_ip',
-                'group_id',
-                'config__id',
-                'config__status',
-            )
-            .select_related('config')
-            .get(pk=self.pk)
-        )
+    def _check_changed_fields(self):
+        # self._load_deferred_fields(fields=['name', 'group_id', 'management_ip'])
+        self._check_management_ip_changed()
+        self._check_name_changed()
+        self._check_group_changed()
+
+    def _load_deferred_fields(self, fields=[]):
+        for field in fields:
+            try:
+                getattr(self, f'_initial_{field}')
+            except AttributeError:
+                current = []
+                for field_ in fields:
+                    current.append(getattr(self,))
+                self.refresh_from_db(fields=set(fields))
+                break
+
+    def _is_field_deferred(self, field_name):
+        return field_name in self.get_deferred_fields()
 
     def _check_name_changed(self):
-        if self._state.adding:
+        if self._state.adding or (
+            self._initial_name == models.DEFERRED and self._is_field_deferred('name')
+        ):
             return
-        current = self._current_instance
 
-        if self.name != current.name:
+        if self._initial_name != self.name:
             device_name_changed.send(
                 sender=self.__class__, instance=self,
             )
 
-        if self.name != current.name and self._has_config():
-            self.config.set_status_modified()
+            if self._has_config():
+                self.config.set_status_modified()
 
     def _check_group_changed(self):
-        if self._state.adding:
+        if self._state.adding or (
+            self._initial_group_id == models.DEFERRED
+            and self._is_field_deferred('group_id')
+        ):
             return
-        current = self._current_instance
 
-        if self.group_id != current.group_id:
+        if self._initial_group_id != self.group_id:
             device_group_changed.send(
                 sender=self.__class__,
                 instance=self,
                 group_id=self.group_id,
-                old_group_id=current.group_id,
+                old_group_id=self._initial_group_id,
             )
 
-        if self.name != current.name and self._has_config():
-            self.config.set_status_modified()
-
     def _check_management_ip_changed(self):
+        if self._state.adding or (
+            self._initial_management_ip == models.DEFERRED
+            and self._is_field_deferred('management_ip')
+        ):
+            return
         if self.management_ip != self._initial_management_ip:
             management_ip_changed.send(
                 sender=self.__class__,
