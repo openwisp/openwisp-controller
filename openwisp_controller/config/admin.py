@@ -714,27 +714,30 @@ class VpnAdmin(
 class DeviceGroupForm(BaseForm):
     class Meta(BaseForm.Meta):
         model = DeviceGroup
-        widgets = {'context': DeviceGroupJsonSchemaWidget}
-        labels = {'context': _('Metadata')}
+        widgets = {'meta_data': DeviceGroupJsonSchemaWidget}
+        labels = {'meta_data': _('Metadata')}
         help_texts = {
-            'context': _(
+            'meta_data': _(
                 'Group meta data, use this field to store data which is related'
                 'to this group and can be retrieved via the REST API.'
             )
         }
 
 
-class DeviceGroupAdmin(BaseAdmin):
+class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     form = DeviceGroupForm
     fields = [
         'name',
         'organization',
         'description',
-        'context',
+        'meta_data',
         'created',
         'modified',
     ]
     search_fields = ['name']
+    list_filter = [
+        ('organization', MultitenantOrgFilter),
+    ]
 
     class Media:
         css = {'all': (f'{prefix}css/admin.css',)}

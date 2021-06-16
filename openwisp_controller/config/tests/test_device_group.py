@@ -14,7 +14,9 @@ DeviceGroup = load_model('config', 'DeviceGroup')
 
 class TestDeviceGroup(TestOrganizationMixin, CreateDeviceGroupMixin, TestCase):
     def test_device_group(self):
-        self._create_device_group(context={'captive_portal_url': 'https//example.com'})
+        self._create_device_group(
+            meta_data={'captive_portal_url': 'https//example.com'}
+        )
         self.assertEqual(DeviceGroup.objects.count(), 1)
 
     def test_device_group_schema_validation(self):
@@ -35,5 +37,5 @@ class TestDeviceGroup(TestOrganizationMixin, CreateDeviceGroupMixin, TestCase):
 
             with self.subTest('Test for passing validation'):
                 self._create_device_group(
-                    context={'captive_portal_url': 'https://example.com'}
+                    meta_data={'captive_portal_url': 'https://example.com'}
                 )

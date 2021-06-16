@@ -76,7 +76,7 @@ class TestConfigApi(
         'name': 'Access Points',
         'description': 'Group for APs of default organization',
         'organization': 'None',
-        'context': {'captive_portal_url': 'https://example.com'},
+        'meta_data': {'captive_portal_url': 'https://example.com'},
     }
 
     def test_device_create_with_config_api(self):
@@ -587,7 +587,7 @@ class TestConfigApi(
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['name'], data['name'])
         self.assertEqual(response.data['description'], data['description'])
-        self.assertEqual(response.data['context'], data['context'])
+        self.assertEqual(response.data['meta_data'], data['meta_data'])
         self.assertEqual(response.data['organization'], org.pk)
 
     def test_devicegroup_list_api(self):
@@ -605,5 +605,5 @@ class TestConfigApi(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data[0]['name'], device_group.name)
         self.assertEqual(response.data[0]['description'], device_group.description)
-        self.assertDictEqual(response.data[0]['context'], device_group.context)
+        self.assertDictEqual(response.data[0]['meta_data'], device_group.meta_data)
         self.assertEqual(response.data[0]['organization'], device_group.organization.pk)

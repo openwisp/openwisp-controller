@@ -13,7 +13,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
-from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX509Mixin
 
 devnull = open(os.devnull, 'w')
 Config = load_model('config', 'Config')
@@ -25,6 +25,7 @@ Cert = load_model('django_x509', 'Cert')
 User = get_user_model()
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
+Group = load_model('openwisp_users', 'Group')
 
 
 class TestAdmin(
@@ -1207,3 +1208,46 @@ class TestAdmin(
     def tearDownClass(cls):
         super().tearDownClass()
         devnull.close()
+
+
+class TestDeviceGroupAdmin(
+    CreateDeviceGroupMixin, TestOrganizationMixin, TestAdminMixin, TestCase
+):
+    app_label = 'config'
+
+    def setUp(self):
+        self.client.force_login(self._get_admin())
+
+    def test_multitenant_admin(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        user = self._create_org_user(
+            organization=org1, is_admin=True, user=self._get_operator()
+        ).user
+        user.groups.add(Group.objects.get(name='Operator'))
+
+        self._create_device_group(name='Org1 APs', organization=org1)
+        self._create_device_group(name='Org2 APs', organization=org2)
+        self.client.logout()
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse(f'admin:{self.app_label}_devicegroup_changelist')
+        )
+        self.assertContains(response, 'Org1 APs')
+        self.assertNotContains(response, 'Org2 APs')
+
+    def test_organization_filter(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org1')
+        self._create_device_group(name='Org1 APs', organization=org1)
+        self._create_device_group(name='Org2 APs', organization=org2)
+        url = reverse(f'admin:{self.app_label}_devicegroup_changelist')
+        query = f'?organization__id__exact={org1.pk}'
+        response = self.client.get(url)
+        self.assertContains(response, 'Org1 APs')
+        self.assertContains(response, 'Org2 APs')
+
+        response = self.client.get(f'{url}{query}')
+        self.assertContains(response, 'Org1 APs')
+        self.assertNotContains(response, 'Org2 APs')

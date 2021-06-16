@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
                     models.TextField(blank=True, help_text='internal notes'),
                 ),
                 (
-                    'context',
+                    'meta_data',
                     jsonfield.fields.JSONField(
                         blank=True,
                         default=dict,

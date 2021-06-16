@@ -153,7 +153,7 @@ class CreateDeviceGroupMixin:
         options = {
             'name': 'Routers',
             'description': 'Group for all routers',
-            'context': {},
+            'meta_data': {},
         }
         options.update(kwargs)
         if 'organization' not in options:

@@ -26,7 +26,7 @@ class DeviceGroup(AbstractDeviceGroup):
 
     class Meta(AbstractDeviceGroup.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'devicegroup')
+        swappable = swapper.swappable_setting('config', 'DeviceGroup')
 
 
 class Config(AbstractConfig):

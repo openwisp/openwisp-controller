@@ -262,8 +262,8 @@ class DeviceDetailSerializer(BaseSerializer):
 
 
 class DeviceGroupSerializer(BaseSerializer):
-    context = serializers.JSONField(required=False, initial={})
+    meta_data = serializers.JSONField(required=False, initial={})
 
     class Meta(BaseMeta):
         model = DeviceGroup
-        fields = ['name', 'organization', 'description', 'context']
+        fields = ['name', 'organization', 'description', 'meta_data']
