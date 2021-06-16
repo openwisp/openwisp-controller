@@ -195,21 +195,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         self._check_changed_fields()
 
     def _check_changed_fields(self):
-        # self._load_deferred_fields(fields=['name', 'group_id', 'management_ip'])
         self._check_management_ip_changed()
         self._check_name_changed()
         self._check_group_changed()
-
-    def _load_deferred_fields(self, fields=[]):
-        for field in fields:
-            try:
-                getattr(self, f'_initial_{field}')
-            except AttributeError:
-                current = []
-                for field_ in fields:
-                    current.append(getattr(self,))
-                self.refresh_from_db(fields=set(fields))
-                break
 
     def _is_field_deferred(self, field_name):
         return field_name in self.get_deferred_fields()

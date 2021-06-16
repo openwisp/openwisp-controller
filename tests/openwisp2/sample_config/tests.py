@@ -97,6 +97,7 @@ class TestConfigApi(BaseTestConfigApi):
 
 
 del BaseTestAdmin
+del BaseTestDeviceGroupAdmin
 del BaseTestConfig
 del BaseTestTransactionConfig
 del BaseTestController
