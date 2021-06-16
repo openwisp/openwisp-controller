@@ -371,7 +371,11 @@ class TestDevice(
             device.group = device_group
             device.save()
             handler.assert_called_once_with(
-                signal=device_group_changed, sender=Device, instance=device,
+                signal=device_group_changed,
+                sender=Device,
+                instance=device,
+                old_group_id=None,
+                group_id=device_group.id,
             )
 
     def test_device_group_changed_not_emitted_on_creation(self):

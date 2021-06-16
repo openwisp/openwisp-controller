@@ -76,7 +76,7 @@ class TestConfigApi(
         'name': 'Access Points',
         'description': 'Group for APs of default organization',
         'organization': 'None',
-        'context': {'captive_portal_urls': 'https://example.com'},
+        'context': {'captive_portal_url': 'https://example.com'},
     }
 
     def test_device_create_with_config_api(self):

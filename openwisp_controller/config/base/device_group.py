@@ -14,7 +14,7 @@ from .. import settings as app_settings
 
 
 class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
-    name = models.CharField(max_length=60, unique=True, null=False, blank=False)
+    name = models.CharField(max_length=60, null=False, blank=False)
     description = models.TextField(blank=True, help_text=_('internal notes'))
     context = context = JSONField(
         blank=True,
@@ -30,6 +30,7 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         abstract = True
         verbose_name = _('Device Group')
         verbose_name_plural = _('Device Groups')
+        unique_together = (('organization', 'name'),)
 
     def clean(self):
         try:

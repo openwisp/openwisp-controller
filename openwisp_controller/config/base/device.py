@@ -223,7 +223,10 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         if self.group_id != current.group_id:
             device_group_changed.send(
-                sender=self.__class__, instance=self,
+                sender=self.__class__,
+                instance=self,
+                group_id=self.group_id,
+                old_group_id=current.group_id,
             )
 
         if self.name != current.name and self._has_config():

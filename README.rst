@@ -1685,6 +1685,8 @@ It is not emitted when the device is created.
 **Arguments**:
 
 - ``instance``: instance of ``Device``.
+- ``group_id``: primary key of ``DeviceGroup`` of ``Device``
+- ``old_group_id``: primary key of previous ``DeviceGroup`` of ``Device``
 
 The signal is emitted when the device group changes.
 

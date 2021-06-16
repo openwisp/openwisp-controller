@@ -718,8 +718,8 @@ class DeviceGroupForm(BaseForm):
         labels = {'context': _('Metadata')}
         help_texts = {
             'context': _(
-                # TODO: Rephrase this
-                'In this section you can add metadata of the DeviceGroup'
+                'Group meta data, use this field to store data which is related'
+                'to this group and can be retrieved via the REST API.'
             )
         }
 

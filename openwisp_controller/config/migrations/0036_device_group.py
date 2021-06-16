@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
                         verbose_name='modified',
                     ),
                 ),
-                ('name', models.CharField(max_length=60, unique=True)),
+                ('name', models.CharField(max_length=60)),
                 (
                     'description',
                     models.TextField(blank=True, help_text='internal notes'),
@@ -81,6 +81,9 @@ class Migration(migrations.Migration):
                 'swappable': 'CONFIG_DEVICEGROUP_MODEL',
             },
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
+        ),
+        migrations.AlterUniqueTogether(
+            name='devicegroup', unique_together={('organization', 'name')},
         ),
         migrations.AddField(
             model_name='device',
