@@ -68,6 +68,7 @@ class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
 
     @patch('openwisp_notifications.types.NOTIFICATION_TYPES', {})
     @patch('openwisp_utils.admin_theme.dashboard.DASHBOARD_CHARTS', {})
+    @patch('openwisp_utils.admin_theme.menu.MENU', {})
     def test_default_notification_type_already_unregistered(self):
         # Simulates if 'default notification type is already unregistered
         # by some other module
