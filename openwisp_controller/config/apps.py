@@ -7,9 +7,10 @@ from openwisp_notifications.types import (
     register_notification_type,
     unregister_notification_type,
 )
-from swapper import get_model_name, load_model
+from swapper import load_model
 
 from openwisp_utils.admin_theme import register_dashboard_chart
+from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
 from .signals import config_modified, device_group_changed, device_name_changed
@@ -27,11 +28,11 @@ class ConfigConfig(AppConfig):
     def ready(self, *args, **kwargs):
         self.__setmodels__()
         self.connect_signals()
-        self.add_default_menu_items()
         self.register_notification_types()
         self.add_ignore_notification_widget()
         self.enable_cache_invalidation()
         self.register_dashboard_charts()
+        self.register_menu_groups()
         self.notification_cache_update()
 
     def __setmodels__(self):
@@ -84,6 +85,7 @@ class ConfigConfig(AppConfig):
             dispatch_uid='cert_update_invalidate_checksum_cache',
         )
 
+<<<<<<< HEAD
     def add_default_menu_items(self):
         menu_setting = 'OPENWISP_DEFAULT_ADMIN_MENU_ITEMS'
         items = [
@@ -97,6 +99,36 @@ class ConfigConfig(AppConfig):
         else:
             current_menu = getattr(settings, menu_setting)
             current_menu += items
+=======
+    def register_menu_groups(self):
+        register_menu_group(
+            position=11,
+            config={
+                'label': 'Configurations',
+                'items': {
+                    1: {
+                        'label': 'Devices',
+                        'model': 'config.Device',
+                        'name': 'changelist',
+                        'icon': 'device',
+                    },
+                    2: {
+                        'label': 'Templates',
+                        'model': 'config.Template',
+                        'name': 'changelist',
+                        'icon': 'template',
+                    },
+                    3: {
+                        'label': 'Vpns',
+                        'model': 'config.Vpn',
+                        'name': 'changelist',
+                        'icon': 'vpn',
+                    },
+                },
+                'icon': 'configuration',
+            },
+        )
+>>>>>>> [enhancement] Registered menu groups #472
 
     def register_notification_types(self):
         register_notification_type(
