@@ -753,6 +753,48 @@ Delete device
 
     DELETE /api/v1/controller/device/{id}/
 
+List credentials
+^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET api/v1/connection/credential/
+
+Create credential
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST api/v1/connection/credential/
+
+Get credential detail
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET api/v1/connection/credential/{id}/
+
+Change credential detail
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT api/v1/connection/credential/{id}/
+
+Patch credential detail
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH api/v1/connection/credential/{id}/
+
+Delete credential
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE api/v1/connection/credential/{id}/
+
 List commands of a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 

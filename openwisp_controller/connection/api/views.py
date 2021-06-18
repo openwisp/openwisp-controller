@@ -1,24 +1,29 @@
 from django.core.exceptions import ValidationError
+from rest_framework import pagination
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
+    RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
 from swapper import load_model
 
 from openwisp_users.api.authentication import BearerAuthentication
+from openwisp_users.api.mixins import FilterByOrganizationManaged
+from openwisp_users.api.permissions import DjangoModelPermissions
 
-from .serializer import CommandSerializer
+from .serializer import CommandSerializer, CredentialSerializer
 
 Command = load_model('connection', 'Command')
 Device = load_model('config', 'Device')
+Credentials = load_model('connection', 'Credentials')
 
 
-class CommandPaginator(PageNumberPagination):
+class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
@@ -53,7 +58,7 @@ class BaseCommandView(GenericAPIView):
 
 
 class CommandListCreateView(BaseCommandView, ListCreateAPIView):
-    pagination_class = CommandPaginator
+    pagination_class = ListViewPagination
 
     def get_queryset(self):
         return super().get_queryset().filter(device_id=self.kwargs['id'])
@@ -74,5 +79,26 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
         return obj
 
 
+class ProtectedAPIMixin(FilterByOrganizationManaged):
+    authentication_classes = [BearerAuthentication, SessionAuthentication]
+    permission_classes = [
+        IsAuthenticated,
+        DjangoModelPermissions,
+    ]
+
+
+class CredentialListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+    queryset = Credentials.objects.order_by('-created')
+    serializer_class = CredentialSerializer
+    pagination_class = ListViewPagination
+
+
+class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+    queryset = Credentials.objects.all()
+    serializer_class = CredentialSerializer
+
+
 command_list_create_view = CommandListCreateView.as_view()
 command_details_view = CommandDetailsView.as_view()
+credential_list_create_view = CredentialListCreateView.as_view()
+credential_detail_view = CredentialDetailView.as_view()
