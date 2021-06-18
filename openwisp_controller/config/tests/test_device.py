@@ -372,3 +372,19 @@ class TestDevice(
         with catch_signal(device_group_changed) as handler:
             self._create_device(organization=self._get_org())
         handler.assert_not_called()
+
+    def test_device_field_changed_checks(self):
+        self._create_device()
+        device_group = self._create_device_group()
+        with self.subTest('Deferred fields remained deferred'):
+            device = Device.objects.only('id', 'created').first()
+            device._check_changed_fields()
+
+        with self.subTest('Deferred fields becomes non-deferred'):
+            device.name = 'new-name'
+            device.management_ip = '10.0.0.1'
+            device.group_id = device_group.id
+            # Another query is generated due to "config,set_status_modified"
+            # on name change
+            with self.assertNumQueries(2):
+                device._check_changed_fields()
