@@ -264,13 +264,24 @@ class TestViews(
         # Atleast 4 templates are required to create enough entropy in database
         # to make the test fail consistently without patch
         template1 = self._create_template(name='VNI 1', default_values={'vn1': '1'})
-        template2 = self._create_template(name='VNI 2', default_values={'vn1': '2'})
-        template3 = self._create_template(name='VNI 3', default_values={'vn1': '3'})
-        template4 = self._create_template(name='VNI 4', default_values={'vn1': '4'})
+        template2 = self._create_template(
+            name='VNI 2', default_values={'vn1': '2', 'vn2': '20'}
+        )
+        template3 = self._create_template(
+            name='VNI 3', default_values={'vn1': '3', 'vn2': '30', 'vn3': '300'}
+        )
+        template4 = self._create_template(
+            name='VNI 4', default_values={'vn1': '4', 'vn2': '40', 'vn3': '400'}
+        )
+        template5 = self._create_template(
+            name='VNI 5', default_values={'vn1': '5', 'vn2': '50', 'vn3': '500'}
+        )
         url = (
             reverse('admin:get_template_default_values')
-            + f'?pks={template4.pk},{template3.pk},{template2.pk},{template1.pk}'
+            + f'?pks={template5.pk},{template4.pk},{template3.pk},{template2.pk},{template1.pk}'
         )
         response = self.client.get(url)
         default_values = response.json()['default_values']
         self.assertEqual(default_values['vn1'], '1')
+        self.assertEqual(default_values['vn2'], '20')
+        self.assertEqual(default_values['vn3'], '300')
