@@ -48,6 +48,20 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
 
+    def test_ca_post_with_date_none_api(self):
+        self.assertEqual(Ca.objects.count(), 0)
+        path = reverse('pki_api:ca_list')
+        data = {
+            'name': 'test-ca',
+            'organization': None,
+            'validity_start': None,
+            'validity_end': None,
+        }
+        with self.assertNumQueries(4):
+            response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Ca.objects.count(), 1)
+
     def test_ca_list_api(self):
         self._create_ca()
         path = reverse('pki_api:ca_list')
@@ -108,6 +122,20 @@ class TestPkiApi(
         with self.assertNumQueries(8):
             respone = self.client.post(path, data, content_type='application/json')
         self.assertEqual(respone.status_code, 201)
+        self.assertEqual(Cert.objects.count(), 1)
+
+    def test_cert_post_with_date_none(self):
+        path = reverse('pki_api:cert_list')
+        data = {
+            'name': 'test-cert',
+            'ca': self._create_ca().pk,
+            'serial_number': "",
+            'validity_start': None,
+            'validity_end': None,
+        }
+        with self.assertNumQueries(8):
+            response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
 
     def test_cert_list_api(self):

@@ -66,6 +66,16 @@ class CaListSerializer(BaseSerializer):
             },
         }
 
+    def validate_validity_start(self, value):
+        if value is None:
+            value = default_validity_start()
+        return value
+
+    def validate_validity_end(self, value):
+        if value is None:
+            value = default_ca_validity_end()
+        return value
+
 
 def CaDetail_fields(fields=None):
     """
@@ -121,6 +131,16 @@ class CertListSerializer(BaseSerializer):
                 'default': default_cert_validity_end(),
             },
         }
+
+    def validate_validity_start(self, value):
+        if value is None:
+            value = default_validity_start()
+        return value
+
+    def validate_validity_end(self, value):
+        if value is None:
+            value = default_cert_validity_end()
+        return value
 
 
 def CertDetail_fields(fields=None):
