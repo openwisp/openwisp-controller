@@ -58,8 +58,8 @@ class TestPkiApi(
             'validity_end': None,
         }
         with self.assertNumQueries(4):
-            response = self.client.post(path, data, content_type='application/json')
-        self.assertEqual(response.status_code, 201)
+            r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
 
     def test_ca_list_api(self):
@@ -134,8 +134,8 @@ class TestPkiApi(
             'validity_end': None,
         }
         with self.assertNumQueries(8):
-            response = self.client.post(path, data, content_type='application/json')
-        self.assertEqual(response.status_code, 201)
+            r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
 
     def test_cert_list_api(self):
