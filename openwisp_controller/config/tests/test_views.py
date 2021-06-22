@@ -276,11 +276,10 @@ class TestViews(
         template5 = self._create_template(
             name='VNI 5', default_values={'vn1': '5', 'vn2': '50', 'vn3': '500'}
         )
-        url = (
-            reverse('admin:get_template_default_values')
-            + f'?pks={template5.pk},{template4.pk},{template3.pk},{template2.pk},{template1.pk}'
-        )
-        response = self.client.get(url)
+        url = reverse('admin:get_template_default_values')
+        templates = [template5, template4, template3, template2, template1]
+        template_pks = ','.join([str(template.pk) for template in templates])
+        response = self.client.get(url, {'pks': template_pks})
         default_values = response.json()['default_values']
         self.assertEqual(default_values['vn1'], '1')
         self.assertEqual(default_values['vn2'], '20')
