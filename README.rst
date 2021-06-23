@@ -157,6 +157,11 @@ in order perform `push operations <#how-to-configure-push-updates>`__:
 The default connection protocol implemented is SSH, but other protocol
 mechanism is extensible and custom protocols can be implemented as well.
 
+Access via SSH key is recommended, the SSH key algorithms supported are:
+
+- RSA
+- Ed25519
+
 Geo App
 ~~~~~~~
 

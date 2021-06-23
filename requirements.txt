@@ -14,7 +14,7 @@ openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 djangorestframework-gis>=0.12.0,<0.17.0
 netjsonconfig~=0.9.0
-paramiko~=2.7.2
+paramiko[ed25519]~=2.7.2
 scp>=0.13.0,<0.14.0
 celery>=4.4.3,<4.5.0
 swapper~=1.1.0
