@@ -94,7 +94,7 @@ class TestModels(BaseTestModels, TestCase):
         dc = self._create_device_connection()
         self.assertIsInstance(dc.connector_instance, dc.connector_class)
 
-    def test_device_connection_ssh_key_param(self):
+    def test_device_connection_ssh_rsa_key_param(self):
         ckey = self._create_credentials_with_key()
         dc = self._create_device_connection(credentials=ckey)
         self.assertIn('pkey', dc.connector_instance.params)
@@ -102,6 +102,56 @@ class TestModels(BaseTestModels, TestCase):
             dc.connector_instance.params['pkey'], paramiko.rsakey.RSAKey
         )
         self.assertNotIn('key', dc.connector_instance.params)
+
+    def test_device_connection_ssh_ed22519_key_param(self):
+        ckey = self._create_credentials_with_ed_key()
+        dc = self._create_device_connection(credentials=ckey)
+        self.assertIn('pkey', dc.connector_instance.params)
+        self.assertIsInstance(
+            dc.connector_instance.params['pkey'], paramiko.ed25519key.Ed25519Key
+        )
+        self.assertNotIn('key', dc.connector_instance.params)
+
+    def test_credentials_invalid_ssh_key(self):
+        invalid_keys = [
+            """-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABsQAAAAdzc2gtZH
+NzAAAAgQCPS4iiaXzTs+VST1o1w6oU2c0IBIAjaM/gmdpuj45F5KKbNuoHxDHxXS7KagML
+Lg6Lv7B4I290HR9S2aUVpSW1JhswO28LJz5+zVAIpSjp+aCGv0GqQdFKcZ9gUejZcg1ZTK
+OTVDTfojbraBBJDQVJH8IfoPTuQ8R+SEoAgM8euwAAABUAxKPeMdsQKah4zJNjiMkUi4gN
+5FkAAACACE33nYpHu+O4naJMIIH62L7i2yKWkccPMk32pq1Iin9dOIjVAUv7U/HKovqqyt
+kzvhjCHIZsZBPlR319gw//ywRUbvSbDBZWV16SOMFJNyH8Wcx73FpjokxtTTu83DQMnx37
+KpEdLBD3I1BpjWlOY+Hpu4lwsnPWAoNsp4m78dkAAACACFnPy97iwr1ZuimrjcK7aRAOBf
+g2gDpb4UKbEIp/kCFgjNhDEirIJrN3syuMLBKjEQ/BaSmAJcOZchclKb9YaJIElljs2ran
+C1/KFzpov5rdj4s+asafCNix2ptkj4GKGSQgeV5dR2NK/b7t4B2Wdy6U0vaM6/IWQhqvvM
++mMY4AAAHom2XawZtl2sEAAAAHc3NoLWRzcwAAAIEAj0uIoml807PlUk9aNcOqFNnNCASA
+I2jP4Jnabo+OReSimzbqB8Qx8V0uymoDCy4Oi7+weCNvdB0fUtmlFaUltSYbMDtvCyc+fs
+1QCKUo6fmghr9BqkHRSnGfYFHo2XINWUyjk1Q036I262gQSQ0FSR/CH6D07kPEfkhKAIDP
+HrsAAAAVAMSj3jHbECmoeMyTY4jJFIuIDeRZAAAAgAhN952KR7vjuJ2iTCCB+ti+4tsilp
+HHDzJN9qatSIp/XTiI1QFL+1PxyqL6qsrZM74YwhyGbGQT5Ud9fYMP/8sEVG70mwwWVlde
+kjjBSTch/FnMe9xaY6JMbU07vNw0DJ8d+yqRHSwQ9yNQaY1pTmPh6buJcLJz1gKDbKeJu/
+HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS
+oxEPwWkpgCXDmXIXJSm/WGiSBJZY7Nq2pwtfyhc6aL+a3Y+LPmrGnwjYsdqbZI+BihkkIH
+leXUdjSv2+7eAdlnculNL2jOvyFkIar7zPpjGOAAAAFHFcD3oAPq5orH1/9tdihL2Gn4Iu
+AAAADG5lbWVzaXNAZW52eQECAwQFBgc=
+-----END OPENSSH PRIVATE KEY-----""",
+            """+mMY4AAAHom2XawZtl2sEAAAAHc3NoLWRzcwAAAIEAj0uIoml807PlUk9aNcOqFNnNCASA
+leXUdjSv2+7eAdlnculNL2jOvyFkIar7zPpjGOAAAAFHFcD3oAPq5orH1/9tdihL2Gn4Iu
+HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
+        ]
+        for invalid_key in invalid_keys:
+            opts = dict(
+                name='Test SSH Key',
+                params={'username': 'root', 'key': invalid_key, 'port': 22},
+            )
+            with self.subTest(f'Testing key {invalid_key}'):
+                with self.assertRaises(ValidationError) as ctx:
+                    self._create_credentials(**opts)
+                self.assertIn('params', ctx.exception.message_dict)
+                self.assertIn(
+                    'Unrecognized or unsupported SSH key algorithm',
+                    str(ctx.exception.message_dict['params']),
+                )
 
     @mock.patch(_connect_path)
     def test_ssh_connect(self, mocked_connect):

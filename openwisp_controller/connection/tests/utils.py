@@ -32,6 +32,10 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
 
     _TEST_RSA_PRIVATE_KEY_PATH = os.path.join(os.path.dirname(__file__), 'test-key.rsa')
     _TEST_RSA_PRIVATE_KEY_VALUE = None
+    _TEST_ED_PRIVATE_KEY_PATH = os.path.join(
+        os.path.dirname(__file__), 'test-key.ed25519'
+    )
+    _TEST_ED_PRIVATE_KEY_VALUE = None
 
     class ssh_server:
         host = '127.0.0.1'
@@ -42,6 +46,8 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         super().setUpClass()
         with open(cls._TEST_RSA_PRIVATE_KEY_PATH, 'r') as f:
             cls._TEST_RSA_PRIVATE_KEY_VALUE = f.read()
+        with open(cls._TEST_ED_PRIVATE_KEY_PATH, 'r') as f:
+            cls._TEST_ED_PRIVATE_KEY_VALUE = f.read()
 
     def _create_device(self, *args, **kwargs):
         if 'last_ip' not in kwargs and 'management_ip' not in kwargs:
@@ -78,6 +84,18 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
             params={
                 'username': username,
                 'key': self._TEST_RSA_PRIVATE_KEY_VALUE,
+                'port': port,
+            },
+        )
+        opts.update(kwargs)
+        return self._create_credentials(**opts)
+
+    def _create_credentials_with_ed_key(self, username='root', port=22, **kwargs):
+        opts = dict(
+            name='Test SSH Key',
+            params={
+                'username': username,
+                'key': self._TEST_ED_PRIVATE_KEY_VALUE,
                 'port': port,
             },
         )

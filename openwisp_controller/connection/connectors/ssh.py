@@ -4,6 +4,7 @@ from io import BytesIO, StringIO
 
 import paramiko
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
 from scp import SCPClient
@@ -63,6 +64,8 @@ class Ssh(object):
     def validate(cls, params):
         validate(params, cls.schema)
         cls.custom_validation(params)
+        # trigger SSH key algorithm check
+        cls(params, ['127.0.0.1']).params
 
     @classmethod
     def custom_validation(cls, params):
@@ -73,9 +76,28 @@ class Ssh(object):
     def params(self):
         params = self._params.copy()
         if 'key' in params:
-            key_fileobj = StringIO(params.pop('key'))
-            params['pkey'] = paramiko.RSAKey.from_private_key(key_fileobj)
+            params['pkey'] = self._get_ssh_key(params.pop('key'))
         return params
+
+    def _get_ssh_key(self, key):
+        key_fileobj = StringIO(key)
+        key_algorithms = [
+            paramiko.RSAKey,
+            paramiko.Ed25519Key,
+        ]
+        for key_algo in key_algorithms:
+            try:
+                return getattr(key_algo, 'from_private_key')(key_fileobj)
+            except (paramiko.ssh_exception.SSHException, ValueError):
+                key_fileobj.seek(0)
+                continue
+        else:
+            raise SchemaError(
+                _(
+                    'Unrecognized or unsupported SSH key algorithm, '
+                    'only RSA and ED25519 are currently supported.'
+                )
+            )
 
     def connect(self):
         success = False
