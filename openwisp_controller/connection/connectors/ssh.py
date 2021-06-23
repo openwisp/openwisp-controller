@@ -95,7 +95,7 @@ class Ssh(object):
             raise SchemaError(
                 _(
                     'Unrecognized or unsupported SSH key algorithm, '
-                    'OpenWISP only supports RSA and ED25519.'
+                    'only RSA and ED25519 are currently supported.'
                 )
             )
 
