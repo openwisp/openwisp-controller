@@ -62,6 +62,21 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
 
+    def test_post_ca_import_api(self):
+        self.assertEqual(Ca.objects.count(), 0)
+        ca1 = self._create_ca()
+        path = reverse('pki_api:ca_import')
+        data = {
+            'name': 'test-import-ca',
+            'organization': self._get_org().pk,
+            'certificate': ca1.certificate,
+            'private_key': ca1.private_key,
+        }
+        with self.assertNumQueries(5):
+            response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Ca.objects.count(), 2)
+
     def test_ca_list_api(self):
         self._create_ca()
         path = reverse('pki_api:ca_list')

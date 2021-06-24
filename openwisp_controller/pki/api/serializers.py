@@ -95,6 +95,40 @@ class CaDetailSerializer(BaseSerializer):
         read_only_fields = fields[4:]
 
 
+class CaImportSerializer(BaseSerializer):
+    class Meta:
+        model = Ca
+        fields = ('id', 'name', 'organization', 'certificate', 'private_key')
+
+    def validate(self, data):
+        instance = self.instance or self.Meta.model(**data)
+        instance.full_clean()
+        data = {
+            'name': instance.name,
+            'organization': instance.organization,
+            'notes': instance.notes,
+            'key_length': instance.key_length,
+            'digest': instance.digest,
+            'validity_start': instance.validity_start,
+            'validity_end': instance.validity_end,
+            'country_code': instance.country_code,
+            'state': instance.state,
+            'city': instance.city,
+            'organization_name': instance.organization_name,
+            'organizational_unit_name': instance.organizational_unit_name,
+            'email': instance.email,
+            'common_name': instance.common_name,
+            'extensions': instance.extensions,
+            'serial_number': instance.serial_number,
+            'certificate': instance.certificate,
+            'private_key': instance.private_key,
+            'passphrase': instance.passphrase,
+            'created': instance.created,
+            'modified': instance.modified,
+        }
+        return data
+
+
 def CertList_fields(fields=None):
     """
     Returns the fields for the `CertListSerializer`.
