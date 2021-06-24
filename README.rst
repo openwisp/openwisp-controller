@@ -912,6 +912,13 @@ Create CA
 
     POST /api/v1/pki/ca/
 
+Import existing CA
+^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/pki/ca/import/
+
 Get CA Detail
 ^^^^^^^^^^^^^
 
