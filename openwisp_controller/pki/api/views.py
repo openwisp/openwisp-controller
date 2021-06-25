@@ -19,6 +19,7 @@ from .serializers import (
     CaImportSerializer,
     CaListSerializer,
     CertDetailSerializer,
+    CertImportSerializer,
     CertListSerializer,
 )
 
@@ -78,9 +79,15 @@ class ImportExistingCaView(ProtectedAPIMixin, CreateAPIView):
     queryset = Ca.objects.all()
 
 
+class ImportExistingCertView(ProtectedAPIMixin, CreateAPIView):
+    serializer_class = CertImportSerializer
+    queryset = Cert.objects.all()
+
+
 ca_list = CaListCreateView.as_view()
 ca_detail = CaDetailView.as_view()
 cert_list = CertListCreateView.as_view()
 cert_detail = CertDetailView.as_view()
 crl_download = CrlDownloadView.as_view()
 import_existing_ca = ImportExistingCaView.as_view()
+import_existing_cert = ImportExistingCertView.as_view()

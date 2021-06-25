@@ -971,6 +971,13 @@ Create Cert
 
     POST /api/v1/pki/cert/
 
+Import existing Cert
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/pki/cert/import/
+
 Get Cert Detail
 ^^^^^^^^^^^^^^^
 
