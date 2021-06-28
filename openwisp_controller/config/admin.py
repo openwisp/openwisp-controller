@@ -431,7 +431,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'system',
         'devicelocation__location__address',
     ]
-    readonly_fields = ['last_ip', 'management_ip', 'uuid']
+    readonly_fields = ['last_ip', 'uuid']
     autocomplete_fields = ['group']
     fields = [
         'name',

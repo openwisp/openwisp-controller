@@ -1,5 +1,6 @@
 import collections
 import logging
+import operator
 
 import jsonschema
 from django.core.exceptions import ValidationError
@@ -44,7 +45,7 @@ class ConnectorMixin(object):
         self._validate_connector_schema()
 
     def _get_connector(self):
-        return getattr(self, self._connector_field)
+        return operator.attrgetter(self._connector_field)(self)
 
     def _validate_connector_schema(self):
         try:
@@ -140,6 +141,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
             conn = DeviceConnection(
                 device=device, credentials_id=credential_id, enabled=True
             )
+            conn._connector_field = 'credentials.connector'
             conn.full_clean()
             device_connections.append(conn)
             # Send create query when chunk_size is reached
@@ -203,6 +205,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         for cred in credentials:
             DeviceConnection = load_model('connection', 'DeviceConnection')
             conn = DeviceConnection(device=device, credentials=cred, enabled=True)
+            conn.set_connector(cred.connector_instance)
             conn.full_clean()
             conn.save()
 
