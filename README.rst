@@ -917,7 +917,7 @@ Import existing CA
 
 .. code-block:: text
 
-    POST /api/v1/pki/ca/import/
+    POST /api/v1/pki/ca/
 
 Get CA Detail
 ^^^^^^^^^^^^^
@@ -976,7 +976,7 @@ Import existing Cert
 
 .. code-block:: text
 
-    POST /api/v1/pki/cert/import/
+    POST /api/v1/pki/cert/
 
 Get Cert Detail
 ^^^^^^^^^^^^^^^

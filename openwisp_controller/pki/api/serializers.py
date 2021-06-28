@@ -47,6 +47,8 @@ class CaListSerializer(BaseSerializer):
             'common_name',
             'extensions',
             'serial_number',
+            'certificate',
+            'private_key',
             'passphrase',
             'created',
             'modified',
@@ -66,6 +68,13 @@ class CaListSerializer(BaseSerializer):
             },
         }
 
+    def validate(self, data):
+        instance = self.instance or self.Meta.model(**data)
+        instance.full_clean()
+        if data.get('certificate') and data.get('private_key'):
+            data = get_import_data(instance)
+        return data
+
     def validate_validity_start(self, value):
         if value is None:
             value = default_validity_start()
@@ -83,8 +92,6 @@ def CaDetail_fields(fields=None):
     """
     fields.remove('extensions')
     fields.remove('passphrase')
-    fields.insert(16, 'certificate')
-    fields.insert(17, 'private_key')
     return fields
 
 
@@ -99,7 +106,6 @@ def get_import_data(instance):
     data = {
         'name': instance.name,
         'organization': instance.organization,
-        'notes': instance.notes,
         'key_length': instance.key_length,
         'digest': instance.digest,
         'validity_start': instance.validity_start,
@@ -116,29 +122,8 @@ def get_import_data(instance):
         'certificate': instance.certificate,
         'private_key': instance.private_key,
         'passphrase': instance.passphrase,
-        'created': instance.created,
-        'modified': instance.modified,
     }
     return data
-
-
-class CaImportSerializer(BaseSerializer):
-    class Meta:
-        model = Ca
-        fields = (
-            'id',
-            'name',
-            'organization',
-            'certificate',
-            'private_key',
-            'passphrase',
-        )
-
-    def validate(self, data):
-        instance = self.instance or self.Meta.model(**data)
-        instance.full_clean()
-        data = get_import_data(instance)
-        return data
 
 
 def CertList_fields(fields=None):
@@ -147,6 +132,7 @@ def CertList_fields(fields=None):
     """
     fields.insert(3, 'ca')
     fields.insert(5, 'revoked')
+    fields.insert(6, 'revoked_at')
     return fields
 
 
@@ -166,6 +152,7 @@ class CertListSerializer(BaseSerializer):
         read_only_fields = ['created', 'modified']
         extra_kwargs = {
             'revoked': {'read_only': True},
+            'revoked_at': {'read_only': True},
             'key_length': {'initial': '2048'},
             'digest': {'initial': 'sha256'},
             'validity_start': {
@@ -177,6 +164,14 @@ class CertListSerializer(BaseSerializer):
                 'default': default_cert_validity_end(),
             },
         }
+
+    def validate(self, data):
+        instance = self.instance or self.Meta.model(**data)
+        instance.full_clean()
+        if data.get('certificate') and data.get('private_key'):
+            data = get_import_data(instance)
+            data.update({'ca': instance.ca})
+        return data
 
     def validate_validity_start(self, value):
         if value is None:
@@ -195,9 +190,6 @@ def CertDetail_fields(fields=None):
     """
     fields.remove('extensions')
     fields.remove('passphrase')
-    fields.insert(6, 'revoked_at')
-    fields.insert(19, 'certificate')
-    fields.insert(20, 'private_key')
     return fields
 
 
@@ -208,24 +200,3 @@ class CertDetailSerializer(BaseSerializer):
         model = Cert
         fields = CertDetail_fields(CertListSerializer.Meta.fields[:])
         read_only_fields = fields[5:]
-
-
-class CertImportSerializer(BaseSerializer):
-    class Meta:
-        model = Cert
-        fields = (
-            'id',
-            'name',
-            'organization',
-            'ca',
-            'certificate',
-            'private_key',
-            'passphrase',
-        )
-
-    def validate(self, data):
-        instance = self.instance or self.Meta.model(**data)
-        instance.full_clean()
-        data = get_import_data(instance)
-        data.update({'ca': instance.ca})
-        return data
