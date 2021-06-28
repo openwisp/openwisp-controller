@@ -1,6 +1,9 @@
 from django.conf import settings
 
-DEFAULT_CONNECTORS = (('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),)
+DEFAULT_CONNECTORS = (
+    ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),
+    ('openwisp_controller.connection.connectors.snmp.Snmp', 'SNMP'),
+)
 
 CONNECTORS = getattr(settings, 'OPENWISP_CONNECTORS', DEFAULT_CONNECTORS)
 
