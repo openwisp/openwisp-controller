@@ -75,6 +75,10 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
     Credentials for access
     """
 
+    # Controls the number of objects which can be stored in memory
+    # before commiting them to database during bulk auto add operation.
+    chunk_size = 1000
+
     connector = models.CharField(
         _('connection type'),
         choices=app_settings.CONNECTORS,
@@ -132,7 +136,6 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         # exclude devices which have been already added
         devices = devices.exclude(deviceconnection__credentials_id=credential_id)
         device_connections = []
-        chunk_size = 1000
         for device in devices.iterator():
             conn = DeviceConnection(
                 device=device, credentials_id=credential_id, enabled=True
@@ -141,7 +144,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
             device_connections.append(conn)
             # Send create query when chunk_size is reached
             # and reset the device_connections list
-            if len(device_connections) >= chunk_size:
+            if len(device_connections) >= cls.chunk_size:
                 DeviceConnection.objects.bulk_create(device_connections)
                 device_connections = []
         if len(device_connections):

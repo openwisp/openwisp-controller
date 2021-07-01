@@ -856,3 +856,26 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_chunk_size(self):
+        org = self._get_org()
+        self._create_config(device=self._create_device(organization=org))
+        self._create_config(
+            device=self._create_device(
+                organization=org, name='device2', mac_address='22:22:22:22:22:22'
+            )
+        )
+        self._create_config(
+            device=self._create_device(
+                organization=org, name='device3', mac_address='33:33:33:33:33:33'
+            )
+        )
+        with self.assertNumQueries(28):
+            credential = self._create_credentials(auto_add=True, organization=org)
+        self.assertEqual(credential.deviceconnection_set.count(), 3)
+
+        with mock.patch.object(Credentials, 'chunk_size', 2):
+            with self.assertNumQueries(30):
+                credential = self._create_credentials(
+                    name='Mocked Credential', auto_add=True, organization=org
+                )
