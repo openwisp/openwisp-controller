@@ -10,6 +10,7 @@ from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
+from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
@@ -22,9 +23,12 @@ Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 User = get_user_model()
+Location = load_model('geo', 'Location')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 class TestAdmin(
+    TestGeoMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     TestAdminMixin,
@@ -37,6 +41,9 @@ class TestAdmin(
 
     app_label = 'config'
     fixtures = ['test_templates']
+    location_model = Location
+    object_model = Device
+    object_location_model = DeviceLocation
     maxDiff = None
     operator_permission_filters = [
         {'codename__endswith': 'config'},
@@ -798,6 +805,18 @@ class TestAdmin(
         self.assertContains(response, 'admin-search-test')
         response = self.client.get(path, {'q': 'ZERO-RESULTS-PLEASE'})
         self.assertNotContains(response, 'admin-search-test')
+
+        with self.subTest('test device location search'):
+            response = self.client.get(path, {'q': 'Estonia'})
+            self.assertNotContains(response, 'admin-search-test')
+            location = self._create_location(
+                name='OW2',
+                address='Sepapaja 35, Tallinn, Estonia',
+                organization=self._get_org(),
+            )
+            self._create_object_location(content_object=d, location=location)
+            response = self.client.get(path, {'q': 'Estonia'})
+            self.assertContains(response, 'admin-search-test')
 
     def test_default_template_backend(self):
         path = reverse(f'admin:{self.app_label}_template_add')

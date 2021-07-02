@@ -397,7 +397,16 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'config__status',
         'created',
     ]
-    search_fields = ['id', 'name', 'mac_address', 'key', 'model', 'os', 'system']
+    search_fields = [
+        'id',
+        'name',
+        'mac_address',
+        'key',
+        'model',
+        'os',
+        'system',
+        'devicelocation__location__address',
+    ]
     readonly_fields = ['last_ip', 'management_ip', 'uuid']
     fields = [
         'name',
