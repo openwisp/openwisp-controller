@@ -272,44 +272,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
 
-    def test_auto_add_to_existing_device_on_creation(self):
-        d = self._create_device(organization=Organization.objects.first())
-        self._create_config(device=d)
-        self.assertEqual(d.deviceconnection_set.count(), 0)
-        c = self._create_credentials(auto_add=True, organization=None)
-        org2 = Organization.objects.create(name='org2', slug='org2')
-        self._create_credentials(name='cred2', auto_add=True, organization=org2)
-        d.refresh_from_db()
-        self.assertEqual(d.deviceconnection_set.count(), 1)
-        self.assertEqual(d.deviceconnection_set.first().credentials, c)
-        self._create_credentials(name='cred3', auto_add=False, organization=None)
-        d.refresh_from_db()
-        self.assertEqual(d.deviceconnection_set.count(), 1)
-        self.assertEqual(d.deviceconnection_set.first().credentials, c)
-
-    def test_auto_add_to_existing_device_on_edit(self):
-        d = self._create_device(organization=Organization.objects.first())
-        self._create_config(device=d)
-        self.assertEqual(d.deviceconnection_set.count(), 0)
-        c = self._create_credentials(auto_add=False, organization=None)
-        org2 = Organization.objects.create(name='org2', slug='org2')
-        self._create_credentials(name='cred2', auto_add=True, organization=org2)
-        d.refresh_from_db()
-        self.assertEqual(d.deviceconnection_set.count(), 0)
-        c.auto_add = True
-        c.full_clean()
-        c.save()
-        d.refresh_from_db()
-        self.assertEqual(d.deviceconnection_set.count(), 1)
-        self.assertEqual(d.deviceconnection_set.first().credentials, c)
-        # ensure further edits are idempotent
-        c.name = 'changed'
-        c.full_clean()
-        c.save()
-        d.refresh_from_db()
-        self.assertEqual(d.deviceconnection_set.count(), 1)
-        self.assertEqual(d.deviceconnection_set.first().credentials, c)
-
     def test_auto_add_device_missing_config(self):
         org = Organization.objects.first()
         self._create_device(organization=org)
@@ -906,3 +868,64 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         command.refresh_from_db()
         self.assertEqual(command.status, 'success')
         self.assertEqual(command.output, 'mocked\n')
+
+    def test_auto_add_to_existing_device_on_edit(self):
+        d = self._create_device(organization=self._get_org())
+        self._create_config(device=d)
+        self.assertEqual(d.deviceconnection_set.count(), 0)
+        c = self._create_credentials(auto_add=False, organization=None)
+        org2 = Organization.objects.create(name='org2', slug='org2')
+        self._create_credentials(name='cred2', auto_add=True, organization=org2)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 0)
+        c.auto_add = True
+        c.full_clean()
+        c.save()
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+        # ensure further edits are idempotent
+        c.name = 'changed'
+        c.full_clean()
+        c.save()
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_auto_add_to_existing_device_on_creation(self):
+        d = self._create_device(organization=self._get_org())
+        self._create_config(device=d)
+        self.assertEqual(d.deviceconnection_set.count(), 0)
+        c = self._create_credentials(auto_add=True, organization=None)
+        org2 = Organization.objects.create(name='org2', slug='org2')
+        self._create_credentials(name='cred2', auto_add=True, organization=org2)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+        self._create_credentials(name='cred3', auto_add=False, organization=None)
+        d.refresh_from_db()
+        self.assertEqual(d.deviceconnection_set.count(), 1)
+        self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_chunk_size(self):
+        org = self._get_org()
+        self._create_config(device=self._create_device(organization=org))
+        self._create_config(
+            device=self._create_device(
+                organization=org, name='device2', mac_address='22:22:22:22:22:22'
+            )
+        )
+        self._create_config(
+            device=self._create_device(
+                organization=org, name='device3', mac_address='33:33:33:33:33:33'
+            )
+        )
+        with self.assertNumQueries(28):
+            credential = self._create_credentials(auto_add=True, organization=org)
+        self.assertEqual(credential.deviceconnection_set.count(), 3)
+
+        with mock.patch.object(Credentials, 'chunk_size', 2):
+            with self.assertNumQueries(30):
+                credential = self._create_credentials(
+                    name='Mocked Credential', auto_add=True, organization=org
+                )
