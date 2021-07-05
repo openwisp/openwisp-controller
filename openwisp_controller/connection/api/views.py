@@ -16,11 +16,16 @@ from openwisp_users.api.authentication import BearerAuthentication
 from openwisp_users.api.mixins import FilterByOrganizationManaged
 from openwisp_users.api.permissions import DjangoModelPermissions
 
-from .serializer import CommandSerializer, CredentialSerializer
+from .serializer import (
+    CommandSerializer,
+    CredentialSerializer,
+    DeviceConnectionSerializer,
+)
 
 Command = load_model('connection', 'Command')
 Device = load_model('config', 'Device')
 Credentials = load_model('connection', 'Credentials')
+DeviceConnection = load_model('connection', 'DeviceConnection')
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -98,7 +103,52 @@ class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CredentialSerializer
 
 
+class BaseDeviceConection(ProtectedAPIMixin, GenericAPIView):
+    model = DeviceConnection
+    serializer_class = DeviceConnectionSerializer
+
+    def get_queryset(self):
+        return DeviceConnection.objects.prefetch_related('device')
+
+    def initial(self, *args, **kwargs):
+        super().initial(*args, **kwargs)
+        self.assert_parent_exists()
+
+    def assert_parent_exists(self):
+        try:
+            assert self.get_parent_queryset().exists()
+        except (AssertionError, ValidationError):
+            device_id = self.kwargs['pk']
+            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
+
+    def get_parent_queryset(self):
+        return Device.objects.filter(pk=self.kwargs['pk'])
+
+
+class DeviceConnenctionListCreateView(BaseDeviceConection, ListCreateAPIView):
+    pagination_class = ListViewPagination
+
+    def get_queryset(self):
+        return super().get_queryset().filter(device_id=self.kwargs['pk'])
+
+    def perform_create(self, serializer):
+        serializer.save(device_id=self.kwargs['pk'])
+
+
+class DeviceConnectionDetailView(BaseDeviceConection, RetrieveUpdateDestroyAPIView):
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        filter_kwargs = {
+            'id': self.kwargs['connection_id'],
+        }
+        obj = get_object_or_404(queryset, **filter_kwargs)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+
 command_list_create_view = CommandListCreateView.as_view()
 command_details_view = CommandDetailsView.as_view()
 credential_list_create_view = CredentialListCreateView.as_view()
 credential_detail_view = CredentialDetailView.as_view()
+deviceconnection_list_create_view = DeviceConnenctionListCreateView.as_view()
+deviceconnection_details_view = DeviceConnectionDetailView.as_view()

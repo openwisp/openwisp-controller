@@ -758,42 +758,42 @@ List credentials
 
 .. code-block:: text
 
-    GET api/v1/connection/credential/
+    GET /api/v1/connection/credential/
 
 Create credential
 ^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST api/v1/connection/credential/
+    POST /api/v1/connection/credential/
 
 Get credential detail
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET api/v1/connection/credential/{id}/
+    GET /api/v1/connection/credential/{id}/
 
 Change credential detail
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PUT api/v1/connection/credential/{id}/
+    PUT /api/v1/connection/credential/{id}/
 
 Patch credential detail
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH api/v1/connection/credential/{id}/
+    PATCH /api/v1/connection/credential/{id}/
 
 Delete credential
 ^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    DELETE api/v1/connection/credential/{id}/
+    DELETE /api/v1/connection/credential/{id}/
 
 List commands of a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -835,14 +835,14 @@ List of devices in a location
 
 .. code:: text
 
-    GET api/v1/controller/location/{id}/device/
+    GET /api/v1/controller/location/{id}/device/
 
 List locations with devices deployed (in GeoJSON format)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: text
 
-    GET api/v1/controller/location/geojson/
+    GET /api/v1/controller/location/geojson/
 
 List templates
 ^^^^^^^^^^^^^^

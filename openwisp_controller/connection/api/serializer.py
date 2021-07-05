@@ -7,6 +7,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 Command = load_model('connection', 'Command')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 Credentials = load_model('connection', 'Credentials')
+Device = load_model('config', 'Device')
 
 
 class CommandSerializer(serializers.ModelSerializer):
@@ -54,4 +55,28 @@ class CredentialSerializer(FilterSerializerByOrgManaged, ValidatedModelSerialize
             'created',
             'modified',
         )
+        read_only_fields = ('created', 'modified')
+
+
+class DeviceConnectionSerializer(
+    FilterSerializerByOrgManaged, ValidatedModelSerializer
+):
+    class Meta:
+        model = DeviceConnection
+        fields = (
+            'id',
+            'device',
+            'credentials',
+            'update_strategy',
+            'enabled',
+            'is_working',
+            'failure_reason',
+            'last_attempt',
+            'created',
+            'modified',
+        )
+        extra_kwargs = {
+            'last_attempt': {'read_only': True},
+            'enabled': {'initial': True},
+        }
         read_only_fields = ('created', 'modified')
