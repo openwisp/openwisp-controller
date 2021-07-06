@@ -60,5 +60,12 @@ class DeviceGroupJsonSchemaWidget(JsonSchemaWidget):
     )
     app_label_model = f'{DeviceGroup._meta.app_label}_{DeviceGroup._meta.model_name}'
     netjsonconfig_hint = False
-    advanced_mode = True
+    advanced_mode = False
     extra_attrs = {}
+
+    @property
+    def media(self):
+        media = super().media
+        css = media._css.copy()
+        css['all'] += ['config/css/devicegroup.css']
+        return forms.Media(js=media._js, css=css)
