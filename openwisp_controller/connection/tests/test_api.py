@@ -11,6 +11,7 @@ from swapper import load_model
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 
+from .. import settings as app_settings
 from ..api.views import ListViewPagination
 from .utils import CreateCommandMixin, CreateConnectionsMixin
 
@@ -349,5 +350,100 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         cred = self._create_credentials()
         path = reverse('connection_api:credential_detail', args=(cred.pk,))
         with self.assertNumQueries(7):
+            response = self.client.delete(path)
+        self.assertEqual(response.status_code, 204)
+
+    def test_get_deviceconnection_list(self):
+        d1 = self._create_device()
+        path = reverse('connection_api:deviceconnection_list', args=(d1.pk,))
+        with self.assertNumQueries(4):
+            response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 0)
+
+    def test_post_deviceconnection_list(self):
+        d1 = self._create_device()
+        self._create_config(device=d1)
+        path = reverse('connection_api:deviceconnection_list', args=(d1.pk,))
+        data = {
+            'device': d1.pk,
+            'credentials': self._get_credentials().pk,
+            'update_strategy': app_settings.UPDATE_STRATEGIES[0][0],
+            'enabled': True,
+            'failure_reason': '',
+        }
+        with self.assertNumQueries(11):
+            response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+
+    def test_post_deviceconenction_with_no_config_device(self):
+        d1 = self._create_device()
+        path = reverse('connection_api:deviceconnection_list', args=(d1.pk,))
+        data = {
+            'device': d1.pk,
+            'credentials': self._get_credentials().pk,
+            'update_strategy': '',
+            'enabled': True,
+            'failure_reason': '',
+        }
+        with self.assertNumQueries(11):
+            response = self.client.post(path, data, content_type='application/json')
+        error_msg = '''
+            the update strategy can be determined automatically only if
+            the device has a configuration specified, because it is
+            inferred from the configuration backend. Please select
+            the update strategy manually.
+        '''
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(
+            ' '.join(error_msg.split()), response.data['update_strategy'][0].title()
+        )
+
+    def test_get_deviceconnection_detail(self):
+        dc = self._create_device_connection()
+        d1 = dc.device.id
+        path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
+        with self.assertNumQueries(5):
+            response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+
+    def test_put_devceconnection_detail(self):
+        dc = self._create_device_connection()
+        d1 = dc.device.id
+        path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
+        self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
+        data = {
+            'device': d1,
+            'credentials': self._get_credentials().pk,
+            'update_strategy': app_settings.UPDATE_STRATEGIES[1][0],
+            'enabled': False,
+            'failure_reason': '',
+        }
+        with self.assertNumQueries(13):
+            response = self.client.put(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data['update_strategy'], app_settings.UPDATE_STRATEGIES[1][0]
+        )
+        self.assertEqual(response.data['credentials'], self._get_credentials().pk)
+
+    def test_patch_deviceconnectoin_detail(self):
+        dc = self._create_device_connection()
+        d1 = dc.device.id
+        path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
+        self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
+        data = {'update_strategy': app_settings.UPDATE_STRATEGIES[1][0]}
+        with self.assertNumQueries(11):
+            response = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data['update_strategy'], app_settings.UPDATE_STRATEGIES[1][0]
+        )
+
+    def test_delete_deviceconnection_detail(self):
+        dc = self._create_device_connection()
+        d1 = dc.device.id
+        path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
+        with self.assertNumQueries(10):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)

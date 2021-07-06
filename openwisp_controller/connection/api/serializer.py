@@ -78,5 +78,6 @@ class DeviceConnectionSerializer(
         extra_kwargs = {
             'last_attempt': {'read_only': True},
             'enabled': {'initial': True},
+            'is_working': {'read_only': True},
         }
         read_only_fields = ('created', 'modified')

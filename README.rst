@@ -753,6 +753,48 @@ Delete device
 
     DELETE /api/v1/controller/device/{id}/
 
+List device connections
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{id}/connection/
+
+Create device connection
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/device/{id}/connection/
+
+Get device connection detail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{id}/connection/{id}/
+
+Change device connection detail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{id}/connection/{id}/
+
+Patch device connection detail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/device/{id}/connection/{id}/
+
+Delete device connection
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/device/{id}/connection/{id}/
+
 List credentials
 ^^^^^^^^^^^^^^^^
 
