@@ -366,7 +366,6 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         self._create_config(device=d1)
         path = reverse('connection_api:deviceconnection_list', args=(d1.pk,))
         data = {
-            'device': d1.pk,
             'credentials': self._get_credentials().pk,
             'update_strategy': app_settings.UPDATE_STRATEGIES[0][0],
             'enabled': True,
@@ -380,7 +379,6 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         d1 = self._create_device()
         path = reverse('connection_api:deviceconnection_list', args=(d1.pk,))
         data = {
-            'device': d1.pk,
             'credentials': self._get_credentials().pk,
             'update_strategy': '',
             'enabled': True,
@@ -413,7 +411,6 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {
-            'device': d1,
             'credentials': self._get_credentials().pk,
             'update_strategy': app_settings.UPDATE_STRATEGIES[1][0],
             'enabled': False,
@@ -433,7 +430,7 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {'update_strategy': app_settings.UPDATE_STRATEGIES[1][0]}
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(12):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(

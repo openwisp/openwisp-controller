@@ -110,6 +110,11 @@ class BaseDeviceConection(ProtectedAPIMixin, GenericAPIView):
     def get_queryset(self):
         return DeviceConnection.objects.prefetch_related('device')
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['device_id'] = self.kwargs['pk']
+        return context
+
     def initial(self, *args, **kwargs):
         super().initial(*args, **kwargs)
         self.assert_parent_exists()
@@ -135,9 +140,6 @@ class DeviceConnenctionListCreateView(BaseDeviceConection, ListCreateAPIView):
             .filter(device_id=self.kwargs['pk'])
             .order_by('-created')
         )
-
-    def perform_create(self, serializer):
-        serializer.save(device_id=self.kwargs['pk'])
 
 
 class DeviceConnectionDetailView(BaseDeviceConection, RetrieveUpdateDestroyAPIView):

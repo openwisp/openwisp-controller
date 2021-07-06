@@ -65,7 +65,6 @@ class DeviceConnectionSerializer(
         model = DeviceConnection
         fields = (
             'id',
-            'device',
             'credentials',
             'update_strategy',
             'enabled',
@@ -81,3 +80,9 @@ class DeviceConnectionSerializer(
             'is_working': {'read_only': True},
         }
         read_only_fields = ('created', 'modified')
+
+    def validate(self, data):
+        data['device'] = Device.objects.get(pk=self.context['device_id'])
+        instance = self.instance or self.Meta.model(**data)
+        instance.full_clean()
+        return data
