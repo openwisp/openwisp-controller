@@ -464,8 +464,8 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 200)
 
     def test_vpn_list_for_shared_objects(self):
-        self._create_ca(name='shared_ca', organization=None)
-        self._create_cert(name='shared_cert', organization=None)
+        ca = self._create_ca(name='shared_ca', organization=None)
+        self._create_cert(ca=ca, name='shared_cert', organization=None)
         org1 = self._get_org()
         test_user = self._create_operator(organizations=[org1])
         self.client.force_login(test_user)

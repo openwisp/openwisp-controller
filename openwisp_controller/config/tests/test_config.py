@@ -356,7 +356,7 @@ class TestConfig(
         c = Config.objects.get(device__name='test-create-cert')
         vpnclient = c.vpnclient_set.first()
         expected_cn = app_settings.COMMON_NAME_FORMAT.format(**c.device.__dict__)
-        self.assertEqual(vpnclient.cert.common_name, expected_cn)
+        self.assertIn(expected_cn, vpnclient.cert.common_name)
 
     def test_automatically_created_cert_not_deleted_post_clear(self):
         self.test_create_cert()

@@ -54,3 +54,11 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         crl = crypto.load_crl(crypto.FILETYPE_PEM, response.content)
         revoked_list = crl.get_revoked()
         self.assertIsNone(revoked_list)
+
+    def test_unique_together_org_none(self):
+        ca = self._create_ca(organization=None, common_name='common_name')
+        with self.assertRaises(ValidationError):
+            self._create_ca(organization=None, common_name='common_name')
+        self._create_cert(ca=ca)
+        with self.assertRaises(ValidationError):
+            self._create_cert(ca=ca)

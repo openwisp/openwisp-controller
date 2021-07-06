@@ -394,4 +394,18 @@ class Migration(migrations.Migration):
             },
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
+        migrations.AddConstraint(
+            model_name='ca',
+            constraint=models.UniqueConstraint(
+                fields=('common_name', 'organization'),
+                name='sample_pki_ca_comman_name_and_organization_is_unique',
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name='cert',
+            constraint=models.UniqueConstraint(
+                fields=('common_name', 'organization'),
+                name='sample_pki_cert_comman_name_and_organization_is_unique',
+            ),
+        ),
     ]

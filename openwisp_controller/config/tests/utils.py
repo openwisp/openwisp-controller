@@ -135,6 +135,7 @@ class TestVpnX509Mixin(CreateVpnMixin, TestPkiMixin):
             org = kwargs.get('organization')
             name = org.name if org else kwargs.get('name') or 'test'
             ca_options['name'] = '{0}-ca'.format(name)
+            ca_options['common_name'] = '{0}-ca-{1}'.format(name, uuid4())
             ca_options['organization'] = org
         return super()._create_vpn(ca_options, **kwargs)
 
