@@ -94,22 +94,22 @@ class ConfigConfig(AppConfig):
                         'label': 'Devices',
                         'model': 'config.Device',
                         'name': 'changelist',
-                        'icon': 'device',
+                        'icon': 'ow-device',
                     },
                     2: {
                         'label': 'Templates',
                         'model': 'config.Template',
                         'name': 'changelist',
-                        'icon': 'template',
+                        'icon': 'ow-template',
                     },
                     3: {
                         'label': 'Vpns',
                         'model': 'config.Vpn',
                         'name': 'changelist',
-                        'icon': 'vpn',
+                        'icon': 'ow-vpn',
                     },
                 },
-                'icon': 'configuration',
+                'icon': 'ow-config',
             },
         )
 
