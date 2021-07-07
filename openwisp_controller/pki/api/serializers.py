@@ -58,14 +58,8 @@ class CaListSerializer(BaseSerializer):
             'organization': {'required': True},
             'key_length': {'initial': '2048'},
             'digest': {'initial': 'sha256'},
-            'validity_start': {
-                'initial': default_validity_start(),
-                'default': default_validity_start(),
-            },
-            'validity_end': {
-                'initial': default_ca_validity_end(),
-                'default': default_ca_validity_end(),
-            },
+            'validity_start': {'default': default_validity_start()},
+            'validity_end': {'default': default_ca_validity_end()},
         }
 
     def validate(self, data):
@@ -155,14 +149,8 @@ class CertListSerializer(BaseSerializer):
             'revoked_at': {'read_only': True},
             'key_length': {'initial': '2048'},
             'digest': {'initial': 'sha256'},
-            'validity_start': {
-                'initial': default_validity_start(),
-                'default': default_validity_start(),
-            },
-            'validity_end': {
-                'initial': default_cert_validity_end(),
-                'default': default_cert_validity_end(),
-            },
+            'validity_start': {'default': default_validity_start()},
+            'validity_end': {'default': default_cert_validity_end()},
         }
 
     def validate(self, data):

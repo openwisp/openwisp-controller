@@ -824,7 +824,8 @@ Download template configuration
 
     GET /api/v1/controller/template/{pk}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific template.
+The above endpoint triggers the download of a ``tar.gz`` file
+containing the generated configuration for that specific template.
 
 Change details of template
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -875,7 +876,8 @@ Download VPN configuration
 
     GET /api/v1/controller/vpn/{pk}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific VPN.
+The above endpoint triggers the download of a ``tar.gz`` file
+containing the generated configuration for that specific VPN.
 
 Change details of VPN
 ^^^^^^^^^^^^^^^^^^^^^
@@ -903,49 +905,53 @@ List CA
 
 .. code-block:: text
 
-    GET /api/v1/pki/ca/
+    GET /api/v1/controller/ca/
 
-Create CA
-^^^^^^^^^
+Create new CA
+^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/pki/ca/
+    POST /api/v1/controller/ca/
 
 Import existing CA
 ^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/pki/ca/
+    POST /api/v1/controller/ca/
+
+**Note**: To import an existing CA, only ``name``, ``certificate``
+and ``private_key`` fields has to be filled in the ``HTML`` form or
+included in the ``JSON`` format.
 
 Get CA Detail
 ^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/pki/ca/{id}/
+    GET /api/v1/controller/ca/{id}/
 
 Change details of CA
 ^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PUT /api/v1/pki/ca/{id}/
+    PUT /api/v1/controller/ca/{id}/
 
 Patch details of CA
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/pki/ca/{id}/
+    PATCH /api/v1/controller/ca/{id}/
 
 Download CA(crl)
 ^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/pki/ca/{id}/crl
+    GET /api/v1/controller/ca/{id}/crl/
 
 The above endpoint triggers the download of ``{id}.crl`` file containing 
 up to date CRL of that specific CA.
@@ -955,56 +961,60 @@ Delete CA
 
 .. code-block:: text
 
-    DELETE /api/v1/pki/ca/{id}/
+    DELETE /api/v1/controller/ca/{id}/
 
 List Cert
 ^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/pki/cert/
+    GET /api/v1/controller/cert/
 
-Create Cert
-^^^^^^^^^^^
+Create new Cert
+^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/pki/cert/
+    POST /api/v1/controller/cert/
 
 Import existing Cert
 ^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/pki/cert/
+    POST /api/v1/controller/cert/
+
+**Note**: To import an existing Cert, only ``name``, ``ca``,
+``certificate`` and ``private_key`` fields has to be filled
+in the ``HTML`` form or included in the ``JSON`` format.
 
 Get Cert Detail
 ^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/pki/ca/{id}/
+    GET /api/v1/controller/cert/{id}/
 
 Change details of Cert
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PUT /api/v1/pki/cert/{id}/
+    PUT /api/v1/controller/cert/{id}/
 
 Patch details of Cert
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/pki/cert/{id}/
+    PATCH /api/v1/controller/cert/{id}/
 
 Delete Cert
 ^^^^^^^^^^^
 
 .. code-block:: text
 
-    DELETE /api/v1/pki/cert/{id}/
+    DELETE /api/v1/controller/cert/{id}/
 
 Default Alerts / Notifications
 ------------------------------
