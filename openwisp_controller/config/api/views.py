@@ -1,3 +1,5 @@
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import Http404
 from rest_framework import pagination
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
@@ -26,6 +28,8 @@ Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 Config = load_model('config', 'Config')
+VpnClient = load_model('config', 'VpnClient')
+Cert = load_model('django_x509', 'Cert')
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -125,6 +129,38 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
 
 
+# TODO: Think of a better identifier
+class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
+    serializer_class = DeviceGroupSerializer
+    queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
+    # Not setting lookup_field makes DRF raise error. but it is not used
+    lookup_field = 'pk'
+
+    def get_object(self):
+        org_slugs = self.kwargs['organization_slug'].split(',')
+        common_name = self.kwargs['common_name']
+        try:
+            cert = (
+                Cert.objects.select_related('organization')
+                .only('id', 'organization')
+                .filter(organization__slug__in=org_slugs, common_name=common_name)
+                .first()
+            )
+            vpnclient = VpnClient.objects.only('config_id').get(cert_id=cert.id)
+            group = (
+                Device.objects.select_related('group')
+                .only('group')
+                .get(config=vpnclient.config_id)
+                .group
+            )
+            assert group is not None
+        except (ObjectDoesNotExist, AssertionError, AttributeError):
+            raise Http404
+        # May raise a permission denied
+        self.check_object_permissions(self.request, group)
+        return group
+
+
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
 download_template_config = DownloadTemplateconfiguration.as_view()
@@ -135,4 +171,5 @@ device_list = DeviceListCreateView.as_view()
 device_detail = DeviceDetailView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
+devicegroup_from_commonname = DeviceGroupFromCommonName.as_view()
 download_device_config = DownloadDeviceView().as_view()

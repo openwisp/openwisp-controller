@@ -49,6 +49,15 @@ def get_api_urls(api_views):
                 name='devicegroup_detail',
             ),
             path(
+                (
+                    'controller/<str:organization_slug>/'
+                    'certificate/<str:common_name>/group/'
+                ),
+                api_views.devicegroup_from_commonname,
+                # TODO: Use better identifier
+                name='devicegroup_x509_commonname',
+            ),
+            path(
                 'controller/device/<str:pk>/configuration/',
                 api_views.download_device_config,
                 name='download_device_config',

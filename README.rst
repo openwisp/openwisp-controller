@@ -924,6 +924,13 @@ Get device group detail
 
     GET /api/v1/controller/group/{id}/
 
+Get device group from organization slug and common name of VpnClient's Certificate
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/{organization_slug}/certificate/{common_name}/group/
+
 List templates
 ^^^^^^^^^^^^^^
 
