@@ -600,10 +600,30 @@ class TestConfigApi(
     def test_devicegroup_detail_api(self):
         device_group = self._create_device_group()
         path = reverse('config_api:devicegroup_detail', args=[device_group.pk])
-        with self.assertNumQueries(3):
-            response = self.client.get(path)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data[0]['name'], device_group.name)
-        self.assertEqual(response.data[0]['description'], device_group.description)
-        self.assertDictEqual(response.data[0]['meta_data'], device_group.meta_data)
-        self.assertEqual(response.data[0]['organization'], device_group.organization.pk)
+
+        with self.subTest('Test GET'):
+            with self.assertNumQueries(3):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['name'], device_group.name)
+            self.assertEqual(response.data['description'], device_group.description)
+            self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
+            self.assertEqual(
+                response.data['organization'], device_group.organization.pk
+            )
+
+        with self.subTest('Test PATCH'):
+            response = self.client.patch(
+                path,
+                data={'meta_data': self._get_devicegroup_data['meta_data']},
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 200)
+            device_group.refresh_from_db()
+            self.assertDictEqual(
+                device_group.meta_data, self._get_devicegroup_data['meta_data']
+            )
+
+        with self.subTest('Test DELETE'):
+            response = self.client.delete(path)
+            self.assertEqual(DeviceGroup.objects.count(), 0)

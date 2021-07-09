@@ -120,7 +120,7 @@ class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     pagination_class = ListViewPagination
 
 
-class DeviceGroupDetailView(ProtectedAPIMixin, ListCreateAPIView):
+class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
 
