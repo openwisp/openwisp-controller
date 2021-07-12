@@ -631,11 +631,11 @@ Allows to specify a `list` of tuples for adding commands as described in
 ``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+----------+
-| **type**:    | ``dict`` |
-+--------------+----------+
-| **default**: | ``{}``   |
-+--------------+----------+
++--------------+------------------------------------------+
+| **type**:    | ``dict``                                 |
++--------------+------------------------------------------+
+| **default**: | ``{'type': 'object', 'properties': {}}`` |
++--------------+------------------------------------------+
 
 Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`_.
 

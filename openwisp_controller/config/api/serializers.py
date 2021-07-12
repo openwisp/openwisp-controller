@@ -266,4 +266,12 @@ class DeviceGroupSerializer(BaseSerializer):
 
     class Meta(BaseMeta):
         model = DeviceGroup
-        fields = ['name', 'organization', 'description', 'meta_data']
+        fields = [
+            'id',
+            'name',
+            'organization',
+            'description',
+            'meta_data',
+            'created',
+            'modified',
+        ]
