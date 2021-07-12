@@ -1226,8 +1226,8 @@ class TestDeviceGroupAdmin(
         ).user
         user.groups.add(Group.objects.get(name='Operator'))
 
-        self._create_device_group(name='Org1 APs', organization=org1)
-        self._create_device_group(name='Org2 APs', organization=org2)
+        self._create_devicegroup(name='Org1 APs', organization=org1)
+        self._create_devicegroup(name='Org2 APs', organization=org2)
         self.client.logout()
         self.client.force_login(user)
 
@@ -1240,8 +1240,8 @@ class TestDeviceGroupAdmin(
     def test_organization_filter(self):
         org1 = self._create_org(name='org1')
         org2 = self._create_org(name='org1')
-        self._create_device_group(name='Org1 APs', organization=org1)
-        self._create_device_group(name='Org2 APs', organization=org2)
+        self._create_devicegroup(name='Org1 APs', organization=org1)
+        self._create_devicegroup(name='Org2 APs', organization=org2)
         url = reverse(f'admin:{self.app_label}_devicegroup_changelist')
         query = f'?organization__id__exact={org1.pk}'
         response = self.client.get(url)

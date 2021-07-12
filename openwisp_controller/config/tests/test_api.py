@@ -134,13 +134,13 @@ class TestConfigApi(
         path = reverse('config_api:device_list')
         data = self._get_device_data.copy()
         org = self._get_org()
-        device_group = self._create_device_group()
+        devicegroup = self._create_devicegroup()
         data['organization'] = org.pk
-        data['group'] = device_group.pk
+        data['group'] = devicegroup.pk
         response = self.client.post(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
-        self.assertEqual(response.data['group'], device_group.pk)
+        self.assertEqual(response.data['group'], devicegroup.pk)
 
     def test_device_list_api(self):
         self._create_device()
@@ -591,26 +591,24 @@ class TestConfigApi(
         self.assertEqual(response.data['organization'], org.pk)
 
     def test_devicegroup_list_api(self):
-        self._create_device_group()
+        self._create_devicegroup()
         path = reverse('config_api:devicegroup_list')
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
     def test_devicegroup_detail_api(self):
-        device_group = self._create_device_group()
-        path = reverse('config_api:devicegroup_detail', args=[device_group.pk])
+        devicegroup = self._create_devicegroup()
+        path = reverse('config_api:devicegroup_detail', args=[devicegroup.pk])
 
         with self.subTest('Test GET'):
             with self.assertNumQueries(3):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data['name'], device_group.name)
-            self.assertEqual(response.data['description'], device_group.description)
-            self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
-            self.assertEqual(
-                response.data['organization'], device_group.organization.pk
-            )
+            self.assertEqual(response.data['name'], devicegroup.name)
+            self.assertEqual(response.data['description'], devicegroup.description)
+            self.assertDictEqual(response.data['meta_data'], devicegroup.meta_data)
+            self.assertEqual(response.data['organization'], devicegroup.organization.pk)
 
         with self.subTest('Test PATCH'):
             response = self.client.patch(
@@ -619,9 +617,9 @@ class TestConfigApi(
                 content_type='application/json',
             )
             self.assertEqual(response.status_code, 200)
-            device_group.refresh_from_db()
+            devicegroup.refresh_from_db()
             self.assertDictEqual(
-                device_group.meta_data, self._get_devicegroup_data['meta_data']
+                devicegroup.meta_data, self._get_devicegroup_data['meta_data']
             )
 
         with self.subTest('Test DELETE'):

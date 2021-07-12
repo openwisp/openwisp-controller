@@ -2,7 +2,7 @@ import swapper
 
 from .base.config import AbstractConfig
 from .base.device import AbstractDevice
-from .base.device_group import AbstractDeviceGroup
+from .base.devicegroup import AbstractDeviceGroup
 from .base.multitenancy import AbstractOrganizationConfigSettings
 from .base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from .base.template import AbstractTemplate

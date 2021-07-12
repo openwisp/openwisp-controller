@@ -149,7 +149,7 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
 
 
 class CreateDeviceGroupMixin:
-    def _create_device_group(self, **kwargs):
+    def _create_devicegroup(self, **kwargs):
         options = {
             'name': 'Routers',
             'description': 'Group for all routers',
@@ -158,10 +158,10 @@ class CreateDeviceGroupMixin:
         options.update(kwargs)
         if 'organization' not in options:
             options['organization'] = self._get_org()
-        device_group = DeviceGroup(**options)
-        device_group.full_clean()
-        device_group.save()
-        return device_group
+        devicegroup = DeviceGroup(**options)
+        devicegroup.full_clean()
+        devicegroup.save()
+        return devicegroup
 
 
 class SeleniumTestCase(StaticLiveServerTestCase):
