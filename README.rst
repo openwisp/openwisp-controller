@@ -922,7 +922,7 @@ Import existing CA
     POST /api/v1/controller/ca/
 
 **Note**: To import an existing CA, only ``name``, ``certificate``
-and ``private_key`` fields has to be filled in the ``HTML`` form or
+and ``private_key`` fields have to be filled in the ``HTML`` form or
 included in the ``JSON`` format.
 
 Get CA Detail
@@ -985,7 +985,7 @@ Import existing Cert
     POST /api/v1/controller/cert/
 
 **Note**: To import an existing Cert, only ``name``, ``ca``,
-``certificate`` and ``private_key`` fields has to be filled
+``certificate`` and ``private_key`` fields have to be filled
 in the ``HTML`` form or included in the ``JSON`` format.
 
 Get Cert Detail
