@@ -720,7 +720,9 @@ class TestTransactionConfig(
             old_checksum = config.checksum
             vpnclient_cert = config.vpnclient_set.first().cert
             vpnclient_cert.renew()
-            mocked_delete.assert_called_once()
+            # An additional call from cacheinvalidation of
+            # DeviceGroupFromCommonName View
+            self.assertEqual(mocked_delete.call_count, 2)
             del config.backend_instance
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()

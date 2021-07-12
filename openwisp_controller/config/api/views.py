@@ -1,5 +1,8 @@
+from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import F
 from django.http import Http404
+from django.urls.base import reverse
 from rest_framework import pagination
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
@@ -129,6 +132,12 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
 
 
+def get_cached_devicegroup_args_rewrite(self, org_slugs, common_name):
+    return reverse(
+        'config_api:devicegroup_x509_commonname', args=[org_slugs, common_name],
+    )
+
+
 # TODO: Think of a better identifier
 class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = DeviceGroupSerializer
@@ -136,9 +145,12 @@ class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
     # Not setting lookup_field makes DRF raise error. but it is not used
     lookup_field = 'pk'
 
-    def get_object(self):
-        org_slugs = self.kwargs['organization_slug'].split(',')
-        common_name = self.kwargs['common_name']
+    @classmethod
+    @cache_memoize(
+        timeout=24 * 60 * 60, args_rewrite=get_cached_devicegroup_args_rewrite
+    )
+    def get_device_group(cls, org_slugs, common_name):
+        org_slugs = org_slugs.split(',')
         try:
             cert = (
                 Cert.objects.select_related('organization')
@@ -156,9 +168,59 @@ class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
             assert group is not None
         except (ObjectDoesNotExist, AssertionError, AttributeError):
             raise Http404
+        return group
+
+    def get_object(self):
+        org_slugs = self.kwargs['organization_slug']
+        common_name = self.kwargs['common_name']
+        group = self.get_device_group(org_slugs, common_name)
         # May raise a permission denied
         self.check_object_permissions(self.request, group)
         return group
+
+    @classmethod
+    def _invalidate_from_queryset(cls, queryset):
+        for obj in queryset.iterator():
+            cls.get_device_group.invalidate(
+                None, obj['organization__slug'], obj['common_name']
+            )
+
+    @classmethod
+    def devicegroup_change_invalidates_cache(cls, device_group_id):
+        qs = (
+            VpnClient.objects.select_related(
+                'config',
+                'config__device',
+                'config__device__group',
+                'organization',
+                'cert',
+            )
+            .filter(config__device__group_id=device_group_id)
+            .annotate(
+                organization__slug=F('cert__organization__slug'),
+                common_name=F('cert__common_name'),
+            )
+            .values('common_name', 'organization__slug')
+        )
+        cls._invalidate_from_queryset(qs)
+
+    @classmethod
+    def organization_change_invalidates_cache(cls, organization_id):
+        qs = (
+            Cert.objects.select_related('organization')
+            .filter(organization_id=organization_id)
+            .values('organization__slug', 'common_name')
+        )
+        cls._invalidate_from_queryset(qs)
+
+    @classmethod
+    def certificate_change_invalidates_cache(cls, cert_id):
+        qs = (
+            Cert.objects.select_related('organization')
+            .filter(id=cert_id)
+            .values('organization__slug', 'common_name')
+        )
+        cls._invalidate_from_queryset(qs)
 
 
 template_list = TemplateListCreateView.as_view()

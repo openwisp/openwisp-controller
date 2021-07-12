@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
@@ -630,7 +631,6 @@ class TestConfigApi(
 
     def test_devicegroup_from_x509_commonname(self):
         org = self._get_org()
-        org2 = self._get_org()
         device_group = self._create_device_group(organization=org)
         ca = self._create_ca(organization=org)
         vpn = self._create_vpn(ca=ca, organization=org)
@@ -645,20 +645,6 @@ class TestConfigApi(
         with self.subTest('Test with single organization slug'):
             path = reverse(
                 'config_api:devicegroup_x509_commonname', args=[org.slug, common_name]
-            )
-            response = self.client.get(path)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data['name'], device_group.name)
-            self.assertEqual(response.data['description'], device_group.description)
-            self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
-            self.assertEqual(
-                response.data['organization'], device_group.organization.pk
-            )
-
-        with self.subTest('Test with multiple organization slug'):
-            path = reverse(
-                'config_api:devicegroup_x509_commonname',
-                args=[','.join([org.slug, org2.slug]), common_name],
             )
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
@@ -699,3 +685,85 @@ class TestConfigApi(
             config.templates.add(template)
             vpnclient = config.vpnclient_set.select_related('cert').first()
             _assert_response(org_slug=org.slug, common_name=vpnclient.cert.common_name)
+
+
+class TestConfigApiTransaction(
+    TestAdminMixin,
+    TestOrganizationMixin,
+    CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
+    CreateDeviceGroupMixin,
+    TransactionTestCase,
+):
+    def setUp(self):
+        super().setUp()
+        self._login()
+
+    def test_devicegroup_from_x509_commonname_caching(self):
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org)
+        ca = self._create_ca(organization=org)
+        vpn = self._create_vpn(ca=ca, organization=org)
+        device = self._create_device(organization=org, group=device_group)
+        config = self._create_config(device=device)
+        template = self._create_template(type='vpn', vpn=vpn, organization=org)
+        config.templates.add(template)
+        cert = config.vpnclient_set.select_related('cert').first().cert
+        path = reverse(
+            'config_api:devicegroup_x509_commonname', args=[org.slug, cert.common_name]
+        )
+
+        with self.subTest('Test caching works'):
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+
+            with self.assertNumQueries(2):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test cache invalidates when DeviceGroup changes'):
+            # Build cache
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+            # Invalidate cache
+            device_group.organization = self._create_org(name='new-org')
+            device_group.save()
+
+            # Test cache is invalidated
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test cache invalidates when organization changes'):
+            # Build cache
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+            # Invalidate cache
+            org.name = 'new-org'
+            org.save()
+
+            # Test cache is invalidated
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test cache invalidates when certificate changes'):
+            # Build cache
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+            # Invalidate cache
+            cert.common_name = 'new-common-name'
+            cert.save()
+
+            # Test cache is invalidated
+            with self.assertNumQueries(5):
+                path = reverse(
+                    'config_api:devicegroup_x509_commonname',
+                    args=[org.slug, cert.common_name],
+                )
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)

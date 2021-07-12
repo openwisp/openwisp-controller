@@ -50,3 +50,18 @@ def create_vpn_dh(vpn_pk):
     else:
         vpn.full_clean()
         vpn.save()
+
+
+@shared_task
+def invalidate_devicegroup_cache(instance_id, model_name):
+    from .api.views import DeviceGroupFromCommonName
+
+    DeviceGroup = load_model('config', 'DeviceGroup')
+    Organization = load_model('openwisp_users', 'Organization')
+    Cert = load_model('django_x509', 'Cert')
+    if model_name == DeviceGroup._meta.model_name:
+        DeviceGroupFromCommonName.devicegroup_change_invalidates_cache(instance_id)
+    elif model_name == Organization._meta.model_name:
+        DeviceGroupFromCommonName.organization_change_invalidates_cache(instance_id)
+    elif model_name == Cert._meta.model_name:
+        DeviceGroupFromCommonName.certificate_change_invalidates_cache(instance_id)

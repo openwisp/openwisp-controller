@@ -1,7 +1,7 @@
 import collections
 import subprocess
-import uuid
 
+import shortuuid
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.utils.text import slugify
@@ -243,7 +243,7 @@ class AbstractVpnClient(models.Model):
         d = self.config.device
         end = 63 - len(d.mac_address)
         d.name = d.name[:end]
-        unique_slug = str(uuid.uuid4())[:8]
+        unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
         if cn_format == '{mac_address}-{name}' and d.name == d.mac_address:
             cn_format = '{mac_address}'
