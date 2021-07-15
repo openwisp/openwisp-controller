@@ -628,8 +628,8 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 Allows to specify a `list` of tuples for adding commands as described in
 `'How to add commands" <#how-to-add-commands>`_ section.
 
-``OPENWISP_CONTROLLER_DEVICEGROUP_SCHEMA``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------+------------------------------------------+
 | **type**:    | ``dict``                                 |
@@ -1092,7 +1092,7 @@ You can achieve following by using Device Groups:
 - Group similar devices by having dedicated groups for access points, routers, etc.
 - Store additional information regarding a group in the structured metadata field.
 - Customize structure and validation of metadata field of DeviceGroup to standardize
-  information across all groups using `"OPENWISP_CONTROLLER_DEVICEGROUP_SCHEMA" <#openwisp-controller-devicegroup-schema>`_
+  information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
   setting.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-groups.png
@@ -1680,10 +1680,10 @@ The signal is emitted when the device name changes.
 
 It is not emitted when the device is created.
 
-``devicegroup_changed``
-~~~~~~~~~~~~~~~~~~~~~~~
+``device_group_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Path**: ``openwisp_controller.config.signals.devicegroup_changed``
+**Path**: ``openwisp_controller.config.signals.device_group_changed``
 
 **Arguments**:
 

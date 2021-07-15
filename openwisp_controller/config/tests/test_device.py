@@ -9,7 +9,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
-from ..signals import device_name_changed, devicegroup_changed, management_ip_changed
+from ..signals import device_group_changed, device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
 
@@ -352,30 +352,30 @@ class TestDevice(
             self._create_device(organization=self._get_org())
         handler.assert_not_called()
 
-    def test_devicegroup_changed_emitted(self):
+    def test_device_group_changed_emitted(self):
         org = self._get_org()
         device = self._create_device(name='test', organization=org)
-        devicegroup = self._create_devicegroup()
+        device_group = self._create_device_group()
 
-        with catch_signal(devicegroup_changed) as handler:
-            device.group = devicegroup
+        with catch_signal(device_group_changed) as handler:
+            device.group = device_group
             device.save()
             handler.assert_called_once_with(
-                signal=devicegroup_changed,
+                signal=device_group_changed,
                 sender=Device,
                 instance=device,
                 old_group_id=None,
-                group_id=devicegroup.id,
+                group_id=device_group.id,
             )
 
-    def test_devicegroup_changed_not_emitted_on_creation(self):
-        with catch_signal(devicegroup_changed) as handler:
+    def test_device_group_changed_not_emitted_on_creation(self):
+        with catch_signal(device_group_changed) as handler:
             self._create_device(organization=self._get_org())
         handler.assert_not_called()
 
     def test_device_field_changed_checks(self):
         self._create_device()
-        devicegroup = self._create_devicegroup()
+        device_group = self._create_device_group()
         with self.subTest('Deferred fields remained deferred'):
             device = Device.objects.only('id', 'created').first()
             device._check_changed_fields()
@@ -383,7 +383,7 @@ class TestDevice(
         with self.subTest('Deferred fields becomes non-deferred'):
             device.name = 'new-name'
             device.management_ip = '10.0.0.1'
-            device.group_id = devicegroup.id
+            device.group_id = device_group.id
             # Another query is generated due to "config,set_status_modified"
             # on name change
             with self.assertNumQueries(2):

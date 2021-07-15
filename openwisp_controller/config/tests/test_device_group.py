@@ -13,12 +13,14 @@ DeviceGroup = load_model('config', 'DeviceGroup')
 
 
 class TestDeviceGroup(TestOrganizationMixin, CreateDeviceGroupMixin, TestCase):
-    def test_devicegroup(self):
-        self._create_devicegroup(meta_data={'captive_portal_url': 'https//example.com'})
+    def test_device_group(self):
+        self._create_device_group(
+            meta_data={'captive_portal_url': 'https//example.com'}
+        )
         self.assertEqual(DeviceGroup.objects.count(), 1)
 
-    def test_devicegroup_schema_validation(self):
-        devicegroup_schema = {
+    def test_device_group_schema_validation(self):
+        device_group_schema = {
             'required': ['captive_portal_url'],
             'properties': {
                 'captive_portal_url': {
@@ -29,11 +31,11 @@ class TestDeviceGroup(TestOrganizationMixin, CreateDeviceGroupMixin, TestCase):
             'additionalProperties': True,
         }
 
-        with patch.object(app_settings, 'DEVICEGROUP_SCHEMA', devicegroup_schema):
+        with patch.object(app_settings, 'DEVICE_GROUP_SCHEMA', device_group_schema):
             with self.subTest('Test for failing validation'):
-                self.assertRaises(ValidationError, self._create_devicegroup)
+                self.assertRaises(ValidationError, self._create_device_group)
 
             with self.subTest('Test for passing validation'):
-                self._create_devicegroup(
+                self._create_device_group(
                     meta_data={'captive_portal_url': 'https://example.com'}
                 )

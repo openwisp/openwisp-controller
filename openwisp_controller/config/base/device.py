@@ -10,7 +10,7 @@ from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
-from ..signals import device_name_changed, devicegroup_changed, management_ip_changed
+from ..signals import device_group_changed, device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -240,7 +240,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             return
 
         if self._initial_group_id != self.group_id:
-            devicegroup_changed.send(
+            device_group_changed.send(
                 sender=self.__class__,
                 instance=self,
                 group_id=self.group_id,

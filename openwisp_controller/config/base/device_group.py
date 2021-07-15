@@ -34,7 +34,7 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
 
     def clean(self):
         try:
-            jsonschema.Draft4Validator(app_settings.DEVICEGROUP_SCHEMA).validate(
+            jsonschema.Draft4Validator(app_settings.DEVICE_GROUP_SCHEMA).validate(
                 self.meta_data
             )
         except SchemaError as e:

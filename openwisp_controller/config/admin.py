@@ -756,7 +756,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         return urls
 
     def schema_view(self, request):
-        return JsonResponse(app_settings.DEVICEGROUP_SCHEMA)
+        return JsonResponse(app_settings.DEVICE_GROUP_SCHEMA)
 
 
 admin.site.register(Device, DeviceAdmin)

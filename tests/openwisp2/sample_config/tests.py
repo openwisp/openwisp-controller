@@ -12,7 +12,7 @@ from openwisp_controller.config.tests.test_controller import (
     TestController as BaseTestController,
 )
 from openwisp_controller.config.tests.test_device import TestDevice as BaseTestDevice
-from openwisp_controller.config.tests.test_devicegroup import (
+from openwisp_controller.config.tests.test_device_group import (
     TestDeviceGroup as BaseTestDeviceGroup,
 )
 from openwisp_controller.config.tests.test_notifications import (
