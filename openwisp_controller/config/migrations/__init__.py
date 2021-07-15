@@ -57,3 +57,24 @@ def assign_permissions_to_groups(apps, schema_editor):
                     codename='{}_{}'.format(operation, model_name)
                 ).pk
             )
+
+
+def assign_devicegroup_permissions_to_groups(apps, schema_editor):
+    create_default_permissions(apps, schema_editor)
+    operator_and_admin_operations = ['add', 'change', 'delete', 'view']
+    Group = get_swapped_model(apps, 'openwisp_users', 'Group')
+
+    try:
+        admin = Group.objects.get(name='Administrator')
+        operator = Group.objects.get(name='Operator')
+    # consider failures custom cases
+    # that do not have to be dealt with
+    except Group.DoesNotExist:
+        return
+
+    for operation in operator_and_admin_operations:
+        permission = Permission.objects.get(
+            codename='{}_{}'.format(operation, 'devicegroup')
+        )
+        admin.permissions.add(permission.pk)
+        operator.permissions.add(permission.pk)

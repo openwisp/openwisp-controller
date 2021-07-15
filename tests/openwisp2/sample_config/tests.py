@@ -1,4 +1,7 @@
 from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdmin
+from openwisp_controller.config.tests.test_admin import (
+    TestDeviceGroupAdmin as BaseTestDeviceGroupAdmin,
+)
 from openwisp_controller.config.tests.test_api import TestConfigApi as BaseTestConfigApi
 from openwisp_controller.config.tests.test_apps import TestApps as BaseTestApps
 from openwisp_controller.config.tests.test_config import TestConfig as BaseTestConfig
@@ -9,6 +12,9 @@ from openwisp_controller.config.tests.test_controller import (
     TestController as BaseTestController,
 )
 from openwisp_controller.config.tests.test_device import TestDevice as BaseTestDevice
+from openwisp_controller.config.tests.test_device_group import (
+    TestDeviceGroup as BaseTestDeviceGroup,
+)
 from openwisp_controller.config.tests.test_notifications import (
     TestNotifications as BaseTestNotifications,
 )
@@ -30,6 +36,10 @@ class TestAdmin(BaseTestAdmin):
     app_label = 'sample_config'
 
 
+class TestDeviceGroupAdmin(BaseTestDeviceGroupAdmin):
+    app_label = 'sample_config'
+
+
 class TestConfig(BaseTestConfig):
     pass
 
@@ -43,6 +53,10 @@ class TestController(BaseTestController):
 
 
 class TestDevice(BaseTestDevice):
+    pass
+
+
+class TestDeviceGroup(BaseTestDeviceGroup):
     pass
 
 
@@ -83,10 +97,12 @@ class TestConfigApi(BaseTestConfigApi):
 
 
 del BaseTestAdmin
+del BaseTestDeviceGroupAdmin
 del BaseTestConfig
 del BaseTestTransactionConfig
 del BaseTestController
 del BaseTestDevice
+del BaseTestDeviceGroup
 del BaseTestTag
 del BaseTestTemplate
 del BaseTestTemplateTransaction

@@ -2,6 +2,9 @@ from django import forms
 from django.contrib.admin.widgets import AdminTextareaWidget
 from django.template.loader import get_template
 from django.urls import reverse
+from swapper import load_model
+
+DeviceGroup = load_model('config', 'DeviceGroup')
 
 
 class JsonSchemaWidget(AdminTextareaWidget):
@@ -49,3 +52,20 @@ class JsonSchemaWidget(AdminTextareaWidget):
         attrs.update({'data-schema-url': reverse(self.schema_view_name)})
         html += super().render(name, value, attrs, renderer)
         return html
+
+
+class DeviceGroupJsonSchemaWidget(JsonSchemaWidget):
+    schema_view_name = (
+        f'admin:{DeviceGroup._meta.app_label}_{DeviceGroup._meta.model_name}_schema'
+    )
+    app_label_model = f'{DeviceGroup._meta.app_label}_{DeviceGroup._meta.model_name}'
+    netjsonconfig_hint = False
+    advanced_mode = False
+    extra_attrs = {}
+
+    @property
+    def media(self):
+        media = super().media
+        css = media._css.copy()
+        css['all'] += ['config/css/devicegroup.css']
+        return forms.Media(js=media._js, css=css)

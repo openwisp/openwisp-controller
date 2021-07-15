@@ -89,6 +89,7 @@ class ConfigConfig(AppConfig):
             {'model': get_model_name('config', 'Device')},
             {'model': get_model_name('config', 'Template')},
             {'model': get_model_name('config', 'Vpn')},
+            {'model': get_model_name('config', 'DeviceGroup')},
         ]
         if not hasattr(settings, menu_setting):
             setattr(settings, menu_setting, items)

@@ -1,0 +1,10 @@
+#id_meta_data_jsoneditor {
+  min-height: 75px;
+}
+#id_meta_data_jsoneditor>div[data-schemaid="root"] {
+  margin-top: 15px;
+}
+.jsoneditor-wrapper div[data-schemaid="root"]>label:first-of-type,
+.jsoneditor-wrapper div[data-schemaid="root"]>select:first-of-type {
+  position: static;
+}
