@@ -20,6 +20,26 @@ def get_api_urls(api_views):
             api_views.command_details_view,
             name='device_command_details',
         ),
+        path(
+            'api/v1/controller/credential/',
+            api_views.credential_list_create_view,
+            name='credential_list',
+        ),
+        path(
+            'api/v1/controller/credential/<str:pk>/',
+            api_views.credential_detail_view,
+            name='credential_detail',
+        ),
+        path(
+            'api/v1/controller/device/<str:pk>/connection/',
+            api_views.deviceconnection_list_create_view,
+            name='deviceconnection_list',
+        ),
+        path(
+            'api/v1/controller/device/<str:pk>/connection/<str:connection_id>/',
+            api_views.deviceconnection_details_view,
+            name='deviceconnection_detail',
+        ),
     ]
 
 
