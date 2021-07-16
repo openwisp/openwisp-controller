@@ -1251,11 +1251,12 @@ class TestDeviceGroupAdmin(
         response = self.client.get(f'{url}{query}')
         self.assertContains(response, 'Org1 APs')
         self.assertNotContains(response, 'Org2 APs')
+
     def test_admin_menu_groups(self):
-        # Test menu group (openwisp-utils menu group) for Device, Template
+        # Test menu group (openwisp-utils menu group) for Device Group, Template
         # and Vpn models
         self.client.force_login(self._get_admin())
-        models = ['device', 'template', 'vpn']
+        models = ['devicegroup', 'template', 'vpn']
         response = self.client.get(reverse('admin:index'))
         for model in models:
             with self.subTest(f'test_admin_group_for_{model}_model'):
@@ -1267,3 +1268,7 @@ class TestDeviceGroupAdmin(
                 '<div class="mg-dropdown-label">Configurations </div>',
                 html=True,
             )
+        # Test Device is registered as menu item
+        with self.subTest('test_device_is_registered_as_menu_item'):
+            url = reverse(f'admin:{self.app_label}_device_changelist')
+            self.assertContains(response, f'<a class="menu-item" href="{url}">')
