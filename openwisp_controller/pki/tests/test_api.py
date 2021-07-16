@@ -188,7 +188,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name='cert1')
         path = reverse('pki_api:cert_detail', args=[cert1.pk])
         response = self.client.get(path)
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], cert1.pk)
@@ -202,7 +202,7 @@ class TestPkiApi(
             'organization': org2.pk,
             'notes': 'new-notes',
         }
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(7):
             response = self.client.put(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['name'], 'cert1-change')
@@ -213,7 +213,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name='cert1')
         path = reverse('pki_api:cert_detail', args=[cert1.pk])
         data = {'name': 'cert1-change'}
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(6):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['name'], 'cert1-change')

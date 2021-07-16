@@ -68,7 +68,7 @@ class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
 class CertDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CertDetailSerializer
-    queryset = Cert.objects.all()
+    queryset = Cert.objects.select_related('ca')
 
 
 ca_list = CaListCreateView.as_view()
