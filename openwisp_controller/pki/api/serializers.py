@@ -23,7 +23,6 @@ class CaListSerializer(BaseSerializer):
     extensions = serializers.JSONField(
         initial=[],
         help_text=_('additional x509 certificate extensions'),
-        write_only=True,
         required=False,
     )
 
@@ -135,7 +134,6 @@ class CertListSerializer(BaseSerializer):
     extensions = serializers.JSONField(
         initial=[],
         help_text=_('additional x509 certificate extensions'),
-        write_only=True,
         required=False,
     )
     include_shared = True
@@ -182,9 +180,7 @@ def CertDetail_fields(fields=None):
 
 
 class CertDetailSerializer(BaseSerializer):
-    ca = serializers.StringRelatedField()
-
     class Meta:
         model = Cert
         fields = CertDetail_fields(CertListSerializer.Meta.fields[:])
-        read_only_fields = fields[5:]
+        read_only_fields = ['ca'] + fields[5:]
