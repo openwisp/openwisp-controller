@@ -7,7 +7,7 @@ from openwisp_notifications.types import (
     register_notification_type,
     unregister_notification_type,
 )
-from swapper import load_model
+from swapper import get_model_name, load_model
 
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
@@ -92,25 +92,34 @@ class ConfigConfig(AppConfig):
                 'label': 'Configurations',
                 'items': {
                     1: {
-                        'label': 'Devices',
-                        'model': 'config.Device',
-                        'name': 'changelist',
-                        'icon': 'ow-device',
-                    },
-                    2: {
                         'label': 'Templates',
-                        'model': 'config.Template',
+                        'model': get_model_name('config', 'Template'),
                         'name': 'changelist',
                         'icon': 'ow-template',
                     },
-                    3: {
+                    2: {
                         'label': 'Vpns',
-                        'model': 'config.Vpn',
+                        'model': get_model_name('config', 'Vpn'),
                         'name': 'changelist',
                         'icon': 'ow-vpn',
                     },
+                    3: {
+                        'label': 'Device Groups',
+                        'model': get_model_name('config', 'DeviceGroup'),
+                        'name': 'changelist',
+                        'icon': 'ow-device-group',
+                    },
                 },
                 'icon': 'ow-config',
+            },
+        )
+        register_menu_group(
+            position=2,
+            config={
+                'label': 'Devices',
+                'model': get_model_name('config', 'Device'),
+                'name': 'changelist',
+                'icon': 'ow-device',
             },
         )
 
