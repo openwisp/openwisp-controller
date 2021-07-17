@@ -148,7 +148,7 @@ class TestPkiApi(
         path = reverse('pki_api:cert_list')
         data = self._get_cert_data.copy()
         data['ca'] = self._create_ca().pk
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -178,7 +178,7 @@ class TestPkiApi(
         data = self._get_cert_data.copy()
         data['ca'] = self._create_ca().pk
         data['extensions'] = []
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -193,7 +193,7 @@ class TestPkiApi(
             'validity_start': None,
             'validity_end': None,
         }
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -223,7 +223,7 @@ class TestPkiApi(
             'organization': org2.pk,
             'notes': 'new-notes',
         }
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             r = self.client.put(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'cert1-change')
@@ -234,7 +234,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name='cert1')
         path = reverse('pki_api:cert_detail', args=[cert1.pk])
         data = {'name': 'cert1-change'}
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             r = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'cert1-change')
