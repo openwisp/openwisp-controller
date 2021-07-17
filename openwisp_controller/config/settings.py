@@ -65,3 +65,6 @@ DEVICE_VERBOSE_NAME = get_settings_value(
     'DEVICE_VERBOSE_NAME', (_('Device'), _('Devices'))
 )
 DEVICE_NAME_UNIQUE = get_settings_value('DEVICE_NAME_UNIQUE', True)
+DEVICE_GROUP_SCHEMA = get_settings_value(
+    'DEVICE_GROUP_SCHEMA', {'type': 'object', 'properties': {}}
+)

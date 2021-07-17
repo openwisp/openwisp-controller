@@ -401,9 +401,15 @@
         // otherwise load immediately
         bindLoadUi();
         // fill device context field with default values of selected templates.
-        $(document).one('owcInitialValuesLoaded', function () {
+        // If unsaved_changes have already mapped values, then fetch defaultValues,
+        // otherwise wait for event to be triggered.
+        if (django._owcInitialValues !== undefined){
             getDefaultValues(true);
-        });
+        } else {
+            $(document).one('owcInitialValuesLoaded', function () {
+                getDefaultValues(true);
+            });
+        }
         $('.sortedm2m-items').on('change', function() {
             getDefaultValues();
         });

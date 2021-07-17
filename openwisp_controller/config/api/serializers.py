@@ -10,6 +10,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Config = load_model('config', 'Config')
 Organization = load_model('openwisp_users', 'Organization')
 
@@ -132,6 +133,7 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'id',
             'name',
             'organization',
+            'group',
             'mac_address',
             'key',
             'last_ip',
@@ -184,6 +186,7 @@ class DeviceDetailSerializer(BaseSerializer):
             'id',
             'name',
             'organization',
+            'group',
             'mac_address',
             'key',
             'last_ip',
@@ -256,3 +259,19 @@ class DeviceDetailSerializer(BaseSerializer):
             instance.config.full_clean()
             instance.config.save()
         return super().update(instance, validated_data)
+
+
+class DeviceGroupSerializer(BaseSerializer):
+    meta_data = serializers.JSONField(required=False, initial={})
+
+    class Meta(BaseMeta):
+        model = DeviceGroup
+        fields = [
+            'id',
+            'name',
+            'organization',
+            'description',
+            'meta_data',
+            'created',
+            'modified',
+        ]

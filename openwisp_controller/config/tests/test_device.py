@@ -6,21 +6,28 @@ from django.test import TestCase
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
-from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
-from ..signals import device_name_changed, management_ip_changed
+from ..signals import device_group_changed, device_name_changed, management_ip_changed
 from ..validators import device_name_validator, mac_address_validator
-from .utils import CreateConfigTemplateMixin
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
 
 TEST_ORG_SHARED_SECRET = 'functional_testing_secret'
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 _original_context = app_settings.CONTEXT.copy()
 
 
-class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
+class TestDevice(
+    CreateConfigTemplateMixin,
+    TestOrganizationMixin,
+    AssertNumQueriesSubTestMixin,
+    CreateDeviceGroupMixin,
+    TestCase,
+):
     """
     tests for Device model
     """
@@ -328,16 +335,6 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
             message_dict['__all__'],
         )
 
-    def test_check_name_changed_query(self):
-        org = self._get_org()
-        device = self._create_device(name='test', organization=org)
-        device.refresh_from_db()
-        with self.assertNumQueries(1):
-            device._check_name_changed()
-        with self.assertNumQueries(2):
-            device.name = 'changed'
-            device._check_name_changed()
-
     def test_device_name_changed_emitted(self):
         org = self._get_org()
         device = self._create_device(name='test', organization=org)
@@ -354,3 +351,40 @@ class TestDevice(CreateConfigTemplateMixin, TestOrganizationMixin, TestCase):
         with catch_signal(device_name_changed) as handler:
             self._create_device(organization=self._get_org())
         handler.assert_not_called()
+
+    def test_device_group_changed_emitted(self):
+        org = self._get_org()
+        device = self._create_device(name='test', organization=org)
+        device_group = self._create_device_group()
+
+        with catch_signal(device_group_changed) as handler:
+            device.group = device_group
+            device.save()
+            handler.assert_called_once_with(
+                signal=device_group_changed,
+                sender=Device,
+                instance=device,
+                old_group_id=None,
+                group_id=device_group.id,
+            )
+
+    def test_device_group_changed_not_emitted_on_creation(self):
+        with catch_signal(device_group_changed) as handler:
+            self._create_device(organization=self._get_org())
+        handler.assert_not_called()
+
+    def test_device_field_changed_checks(self):
+        self._create_device()
+        device_group = self._create_device_group()
+        with self.subTest('Deferred fields remained deferred'):
+            device = Device.objects.only('id', 'created').first()
+            device._check_changed_fields()
+
+        with self.subTest('Deferred fields becomes non-deferred'):
+            device.name = 'new-name'
+            device.management_ip = '10.0.0.1'
+            device.group_id = device_group.id
+            # Another query is generated due to "config,set_status_modified"
+            # on name change
+            with self.assertNumQueries(2):
+                device._check_changed_fields()

@@ -5,15 +5,17 @@ from rest_framework.generics import (
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from swapper import load_model
 
 from openwisp_users.api.authentication import BearerAuthentication
 from openwisp_users.api.mixins import FilterByOrganizationManaged
+from openwisp_users.api.permissions import DjangoModelPermissions
 
 from ..admin import BaseConfigAdmin
 from .serializers import (
     DeviceDetailSerializer,
+    DeviceGroupSerializer,
     DeviceListSerializer,
     TemplateSerializer,
     VpnSerializer,
@@ -22,6 +24,7 @@ from .serializers import (
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Config = load_model('config', 'Config')
 
 
@@ -86,7 +89,9 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     """
 
     serializer_class = DeviceListSerializer
-    queryset = Device.objects.select_related('config').order_by('-created')
+    queryset = Device.objects.select_related(
+        'config', 'group', 'organization'
+    ).order_by('-created')
     pagination_class = ListViewPagination
 
 
@@ -97,7 +102,7 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     """
 
     serializer_class = DeviceDetailSerializer
-    queryset = Device.objects.select_related('config')
+    queryset = Device.objects.select_related('config', 'group', 'organization')
 
 
 class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
@@ -109,6 +114,17 @@ class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
         return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
 
 
+class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+    serializer_class = DeviceGroupSerializer
+    queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
+    pagination_class = ListViewPagination
+
+
+class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+    serializer_class = DeviceGroupSerializer
+    queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
+
+
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
 download_template_config = DownloadTemplateconfiguration.as_view()
@@ -117,4 +133,6 @@ vpn_detail = VpnDetailView.as_view()
 download_vpn_config = DownloadVpnView.as_view()
 device_list = DeviceListCreateView.as_view()
 device_detail = DeviceDetailView.as_view()
+devicegroup_list = DeviceGroupListCreateView.as_view()
+devicegroup_detail = DeviceGroupDetailView.as_view()
 download_device_config = DownloadDeviceView().as_view()

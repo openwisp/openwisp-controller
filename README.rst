@@ -134,6 +134,7 @@ Config App
 * **configuration templates**: reduce repetition to the minimum
 * `configuration variables <#how-to-use-configuration-variables>`_: reference ansible-like variables in the configuration and templates
 * **template tags**: tag templates to automate different types of auto-configurations (eg: mesh, WDS, 4G)
+* **device groups**: add `devices to dedicated groups <#device-groups>`_ for easy management
 * **simple HTTP resources**: allow devices to automatically download configuration updates
 * **VPN management**: automatically provision VPN tunnels with unique x509 certificates
 
@@ -157,34 +158,17 @@ in order perform `push operations <#how-to-configure-push-updates>`__:
 The default connection protocol implemented is SSH, but other protocol
 mechanism is extensible and custom protocols can be implemented as well.
 
+Access via SSH key is recommended, the SSH key algorithms supported are:
+
+- RSA
+- Ed25519
+
 Geo App
 ~~~~~~~
 
 The geographic app is based on `django-loci <https://github.com/openwisp/django-loci>`_
 and allows to define the geographic coordinates of the devices,
 as well as their indoor coordinates on floorplan images.
-
-This module also provides an API through which mobile devices can update
-their coordinates. See below for further details:
-
-.. code-block:: text
-
-    GET /api/v1/device/{id}/location/
-    PUT /api/v1/device/{id}/location/
-
-If a location has multiple devices, then the list of all such devices and related
-information can be accessed via the following endpoint:
-
-.. code-block:: text
-
-    GET /api/v1/location/{pk}/device/
-
-To access all the locations that have devices deployed in them, use the following
-endpoint, which provides a paginated list of such locations in GeoJSON format:
-
-.. code-block:: text
-
-    GET /api/v1/location/geojson/
 
 Settings
 --------
@@ -642,7 +626,18 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 +--------------+----------+
 
 Allows to specify a `list` of tuples for adding commands as described in
-`'How to add commands"   <#how-to-add-commands>`_ section.
+`'How to add commands" <#how-to-add-commands>`_ section.
+
+``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+------------------------------------------+
+| **type**:    | ``dict``                                 |
++--------------+------------------------------------------+
+| **default**: | ``{'type': 'object', 'properties': {}}`` |
++--------------+------------------------------------------+
+
+Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`_.
 
 REST API
 --------
@@ -712,14 +707,14 @@ Get device detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{pk}/
+    GET /api/v1/controller/device/{id}/
 
 Download device configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{pk}/configuration/
+    GET /api/v1/controller/device/{id}/configuration/
 
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific device.
 
@@ -728,23 +723,23 @@ Change details of device
 
 .. code-block:: text
 
-    PUT /api/v1/controller/device/{pk}/
+    PUT /api/v1/controller/device/{id}/
 
 Patch details of device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/device/{pk}/
+    PATCH /api/v1/controller/device/{id}/
 
 **Note**: To assign, unassign, and change the order of the assigned templates add,
-remove, and change the order of the ``{pk}`` of the templates under the ``config`` field in the JSON response respectively.
+remove, and change the order of the ``{id}`` of the templates under the ``config`` field in the JSON response respectively.
 Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
 
 The required template(s) from the organization(s) of the device will added automatically
 to the ``config`` and cannot be removed.
 
-**Example usage**: For assigning template(s) add the/their {pk} to the config of a device,
+**Example usage**: For assigning template(s) add the/their {id} to the config of a device,
 
 .. code-block:: shell
 
@@ -752,7 +747,7 @@ to the ``config`` and cannot be removed.
     http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
     "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
 
-**Example usage**: For removing assigned templates, simply remove the/their {pk} from the config of a device,
+**Example usage**: For removing assigned templates, simply remove the/their {id} from the config of a device,
 
 .. code-block:: shell
 
@@ -773,28 +768,161 @@ Delete device
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/device/{pk}/
+    DELETE /api/v1/controller/device/{id}/
+
+List device connections
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{id}/connection/
+
+Create device connection
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/device/{id}/connection/
+
+Get device connection detail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{id}/connection/{id}/
+
+Change device connection detail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{id}/connection/{id}/
+
+Patch device connection detail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/device/{id}/connection/{id}/
+
+Delete device connection
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/device/{id}/connection/{id}/
+
+List credentials
+^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/connection/credential/
+
+Create credential
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/connection/credential/
+
+Get credential detail
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/connection/credential/{id}/
+
+Change credential detail
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/connection/credential/{id}/
+
+Patch credential detail
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/connection/credential/{id}/
+
+Delete credential
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/connection/credential/{id}/
 
 List commands of a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/connection/device/{device_pk}/command
+    GET /api/v1/controller/device/{id}/command/
 
 Execute a command a device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    POST /api/v1/connection/device/{device_pk}/command
+    POST /api/v1/controller/device/{id}/command/
 
 Get command details
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/connection/device/{device_pk}/command/{command_pk}
+    GET /api/v1/controller/device/{device_id}/command/{command_id}/
+
+Get device coordinates
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{id}/location/
+
+Update device coordinates
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{id}/location/
+
+List of devices in a location
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    GET /api/v1/controller/location/{id}/device/
+
+List locations with devices deployed (in GeoJSON format)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    GET /api/v1/controller/location/geojson/
+
+List device groups
+^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    GET api/v1/controller/group/
+
+Create device group
+^^^^^^^^^^^^^^^^^^^
+
+.. code:: text
+
+    POST api/v1/controller/group/
+
+Get device group detail
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/group/{id}/
 
 List templates
 ^^^^^^^^^^^^^^
@@ -815,14 +943,14 @@ Get template detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/template/{pk}/
+    GET /api/v1/controller/template/{id}/
 
 Download template configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/template/{pk}/configuration/
+    GET /api/v1/controller/template/{id}/configuration/
 
 The above endpoint triggers the download of a ``tar.gz`` file
 containing the generated configuration for that specific template.
@@ -832,21 +960,21 @@ Change details of template
 
 .. code-block:: text
 
-    PUT /api/v1/controller/template/{pk}/
+    PUT /api/v1/controller/template/{id}/
 
 Patch details of template
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/template/{pk}/
+    PATCH /api/v1/controller/template/{id}/
 
 Delete template
 ^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/template/{pk}/
+    DELETE /api/v1/controller/template/{id}/
 
 List VPNs
 ^^^^^^^^^
@@ -867,14 +995,14 @@ Get VPN detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/vpn/{pk}/
+    GET /api/v1/controller/vpn/{id}/
 
 Download VPN configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/vpn/{pk}/configuration/
+    GET /api/v1/controller/vpn/{id}/configuration/
 
 The above endpoint triggers the download of a ``tar.gz`` file
 containing the generated configuration for that specific VPN.
@@ -884,21 +1012,21 @@ Change details of VPN
 
 .. code-block:: text
 
-    PUT /api/v1/controller/vpn/{pk}/
+    PUT /api/v1/controller/vpn/{id}/
 
 Patch details of VPN
 ^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/vpn/{pk}/
+    PATCH /api/v1/controller/vpn/{id}/
 
 Delete VPN
 ^^^^^^^^^^
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/vpn/{pk}/
+    DELETE /api/v1/controller/vpn/{id}/
 
 List CA
 ^^^^^^^
@@ -1036,6 +1164,7 @@ Install the system dependencies:
 
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
+    sudo snap install -y chromium
 
 Fork and clone the forked repository:
 
@@ -1076,6 +1205,9 @@ Install development dependencies:
     pip install -e .
     pip install -r requirements-test.txt
     npm install -g jslint stylelint
+
+Install WebDriver for Chromium for your browser version from `<https://chromedriver.chromium.org/home>`_
+and Extract ``chromedriver`` to one of directories from your ``$PATH`` (example: ``~/.local/bin/``).
 
 Create database:
 
@@ -1152,6 +1284,21 @@ Having Issues with other geospatial libraries?
 Please refer
 `troubleshooting issues related to geospatial libraries
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
+
+Device Groups
+-------------
+
+Device Groups provide an easy way to organize devices of a particular organization.
+You can achieve following by using Device Groups:
+
+- Group similar devices by having dedicated groups for access points, routers, etc.
+- Store additional information regarding a group in the structured metadata field.
+- Customize structure and validation of metadata field of DeviceGroup to standardize
+  information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
+  setting.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-groups.png
+  :alt: Device Group example
 
 How to use configuration variables
 ----------------------------------
@@ -1735,6 +1882,21 @@ The signal is emitted when the device name changes.
 
 It is not emitted when the device is created.
 
+``device_group_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_group_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``.
+- ``group_id``: primary key of ``DeviceGroup`` of ``Device``
+- ``old_group_id``: primary key of previous ``DeviceGroup`` of ``Device``
+
+The signal is emitted when the device group changes.
+
+It is not emitted when the device is created.
+
 Setup (integrate in an existing django project)
 -----------------------------------------------
 
@@ -2116,6 +2278,7 @@ Once you have created the models, add the following to your ``settings.py``:
 
     # Setting models for swapper module
     CONFIG_DEVICE_MODEL = 'sample_config.Device'
+    CONFIG_DEVICEGROUP_MODEL = 'sample_config.DeviceGroup'
     CONFIG_CONFIG_MODEL = 'sample_config.Config'
     CONFIG_TEMPLATETAG_MODEL = 'sample_config.TemplateTag'
     CONFIG_TAGGEDTEMPLATE_MODEL = 'sample_config.TaggedTemplate'
@@ -2185,7 +2348,12 @@ sample_config
 
 .. code-block:: python
 
-    from openwisp_controller.config.admin import DeviceAdmin, TemplateAdmin, VpnAdmin
+    from openwisp_controller.config.admin import (
+        DeviceAdmin,
+        DeviceGroupAdmin,
+        TemplateAdmin,
+        VpnAdmin,
+    )
 
     # DeviceAdmin.fields += ['example'] <-- monkey patching example
 
@@ -2232,14 +2400,17 @@ sample_config
         DeviceAdmin as BaseDeviceAdmin,
         TemplateAdmin as BaseTemplateAdmin,
         VpnAdmin as BaseVpnAdmin,
+        DeviceGroupAdmin as BaseDeviceGroupAdmin,
     from swapper import load_model
 
     Vpn = load_model('openwisp_controller', 'Vpn')
     Device = load_model('openwisp_controller', 'Device')
+    DeviceGroup = load_model('openwisp_controller', 'DeviceGroup')
     Template = load_model('openwisp_controller', 'Template')
 
     admin.site.unregister(Vpn)
     admin.site.unregister(Device)
+    admin.site.unregister(DeviceGroup)
     admin.site.unregister(Template)
 
     @admin.register(Vpn)
@@ -2248,6 +2419,10 @@ sample_config
 
     @admin.register(Device)
     class DeviceAdmin(BaseDeviceAdmin):
+        # add your changes here
+
+    @admin.register(DeviceGroup)
+    class DeviceGroupAdmin(BaseDeviceGroupAdmin):
         # add your changes here
 
     @admin.register(Template)
@@ -2417,12 +2592,6 @@ Notifications. For more information, see the relevant
 Once a new notification type is registered, you have to use the `"notify" signal provided in
 openwisp-notifications <https://github.com/openwisp/openwisp-notifications#sending-notifications>`_
 to send notifications for this type.
-
-Talks
------
-
-- `OpenWISP2 - a self hosted solution to control OpenWRT/LEDE devices
-  <https://fosdem.org/2017/schedule/event/openwisp2/>`_ (FOSDEM 2017)
 
 Contributing
 ------------

@@ -12,3 +12,4 @@ management_ip_changed = Signal(
     providing_args=['instance', 'management_ip', 'old_management_ip']
 )
 device_name_changed = Signal(providing_args=['instance'])
+device_group_changed = Signal(providing_args=['instance', 'group', 'old_group'])

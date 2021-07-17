@@ -6,12 +6,14 @@ change with care.
 from unittest import mock
 from uuid import uuid4
 
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from swapper import load_model
 
 from ...pki.tests.utils import TestPkiMixin
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
@@ -144,3 +146,57 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
                 name='test-device', organization=kwargs.pop('organization')
             )
         return super()._create_config(**kwargs)
+
+
+class CreateDeviceGroupMixin:
+    def _create_device_group(self, **kwargs):
+        options = {
+            'name': 'Routers',
+            'description': 'Group for all routers',
+            'meta_data': {},
+        }
+        options.update(kwargs)
+        if 'organization' not in options:
+            options['organization'] = self._get_org()
+        device_group = DeviceGroup(**options)
+        device_group.full_clean()
+        device_group.save()
+        return device_group
+
+
+class SeleniumTestCase(StaticLiveServerTestCase):
+    """
+    A base test case for Selenium, providing helped methods for generating
+    clients and logging in profiles.
+    """
+
+    def open(self, url, driver=None):
+        """
+        Opens a URL
+        Argument:
+            url: URL to open
+            driver: selenium driver (default: cls.base_driver)
+        """
+        if not driver:
+            driver = self.web_driver
+        driver.get(f'{self.live_server_url}{url}')
+
+    def login(self, username=None, password=None, driver=None):
+        """
+        Log in to the admin dashboard
+        Argument:
+            driver: selenium driver (default: cls.web_driver)
+            username: username to be used for login (default: cls.admin.username)
+            password: password to be used for login (default: cls.admin.password)
+        """
+        if not driver:
+            driver = self.web_driver
+        if not username:
+            username = self.admin_username
+        if not password:
+            password = self.admin_password
+        driver.get(f'{self.live_server_url}/admin/login/')
+        if 'admin/login' in driver.current_url:
+            driver.find_element_by_name('username').send_keys(username)
+            driver.find_element_by_name('password').send_keys(password)
+            driver.find_element_by_xpath('//input[@type="submit"]').click()

@@ -4,6 +4,7 @@ import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
 TESTING = sys.argv[1:2] == ['test']
+SELENIUM_HEADLESS = True if os.environ.get('SELENIUM_HEADLESS', False) else False
 SHELL = 'shell' in sys.argv or 'shell_plus' in sys.argv
 
 ALLOWED_HOSTS = ['*']
@@ -11,7 +12,7 @@ ALLOWED_HOSTS = ['*']
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.spatialite',
-        'NAME': os.path.join(BASE_DIR, 'openwisp-controller-commands.db'),
+        'NAME': os.path.join(BASE_DIR, 'openwisp-controller.db'),
     }
 }
 
@@ -215,6 +216,7 @@ if os.environ.get('SAMPLE_APP', False):
     OPENWISP_USERS_ORGANIZATIONUSER_MODEL = 'sample_users.OrganizationUser'
     OPENWISP_USERS_ORGANIZATIONOWNER_MODEL = 'sample_users.OrganizationOwner'
     CONFIG_DEVICE_MODEL = 'sample_config.Device'
+    CONFIG_DEVICEGROUP_MODEL = 'sample_config.DeviceGroup'
     CONFIG_CONFIG_MODEL = 'sample_config.Config'
     CONFIG_TEMPLATETAG_MODEL = 'sample_config.TemplateTag'
     CONFIG_TAGGEDTEMPLATE_MODEL = 'sample_config.TaggedTemplate'

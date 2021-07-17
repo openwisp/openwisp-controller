@@ -4,6 +4,9 @@ from openwisp_controller.connection.tests.test_admin import (
 from openwisp_controller.connection.tests.test_admin import (
     TestConnectionAdmin as BaseTestConnectionAdmin,
 )
+from openwisp_controller.connection.tests.test_api import (
+    TestConnectionApi as BaseTestConnectionApi,
+)
 from openwisp_controller.connection.tests.test_models import (
     TestModels as BaseTestModels,
 )
@@ -53,6 +56,10 @@ class TestNotificationTransaction(BaseTestNotificationTransaction):
     app_label = 'sample_connection'
 
 
+class TestConnectionApi(BaseTestConnectionApi):
+    pass
+
+
 del BaseTestCommandInlines
 del BaseTestConnectionAdmin
 del BaseTestModels
@@ -61,3 +68,4 @@ del BaseTestSsh
 del BaseTestTasks
 del BaseTestNotifications
 del BaseTestNotificationTransaction
+del BaseTestConnectionApi

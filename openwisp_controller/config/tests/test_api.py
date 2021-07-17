@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -6,11 +7,13 @@ from swapper import load_model
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX509Mixin
 
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
+OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class TestConfigApi(
@@ -18,6 +21,7 @@ class TestConfigApi(
     TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
+    CreateDeviceGroupMixin,
     TestCase,
 ):
     def setUp(self):
@@ -66,6 +70,13 @@ class TestConfigApi(
             'context': '{}',
             'config': '{}',
         },
+    }
+
+    _get_devicegroup_data = {
+        'name': 'Access Points',
+        'description': 'Group for APs of default organization',
+        'organization': 'None',
+        'meta_data': {'captive_portal_url': 'https://example.com'},
     }
 
     def test_device_create_with_config_api(self):
@@ -117,6 +128,19 @@ class TestConfigApi(
                             organization of this configuration: t1
                         '''
         self.assertTrue(' '.join(validation_msg.split()) in error.exception.message)
+
+    def test_device_create_with_devicegroup(self):
+        self.assertEqual(Device.objects.count(), 0)
+        path = reverse('config_api:device_list')
+        data = self._get_device_data.copy()
+        org = self._get_org()
+        device_group = self._create_device_group()
+        data['organization'] = org.pk
+        data['group'] = device_group.pk
+        response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        self.assertEqual(response.data['group'], device_group.pk)
 
     def test_device_list_api(self):
         self._create_device()
@@ -510,3 +534,96 @@ class TestConfigApi(
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Vpn.objects.count(), 0)
+
+    def test_get_request_with_change_perm(self):
+        change_perm = Permission.objects.filter(codename='change_template')
+        user = self._get_user()
+        user.user_permissions.add(*change_perm)
+        org1 = self._get_org()
+        OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
+        self.client.force_login(user)
+        t1 = self._create_template(name='t1', organization=self._get_org())
+        with self.subTest('Get Template List'):
+            path = reverse('config_api:template_list')
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+        with self.subTest('Get Template Detail'):
+            path = reverse('config_api:template_detail', args=[t1.pk])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+    def test_get_request_with_view_perm(self):
+        view_perm = Permission.objects.filter(codename='view_template')
+        user = self._get_user()
+        user.user_permissions.add(*view_perm)
+        org1 = self._get_org()
+        OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
+        self.client.force_login(user)
+        t1 = self._create_template(name='t1', organization=self._get_org())
+        with self.subTest('Get Template List'):
+            path = reverse('config_api:template_list')
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+        with self.subTest('Get Template Detail'):
+            path = reverse('config_api:template_detail', args=[t1.pk])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+    def test_get_request_with_no_perm(self):
+        user = self._get_user()
+        self.client.force_login(user)
+        path = reverse('config_api:template_list')
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 403)
+
+    def test_devicegroup_create_api(self):
+        self.assertEqual(DeviceGroup.objects.count(), 0)
+        org = self._get_org()
+        path = reverse('config_api:devicegroup_list')
+        data = self._get_devicegroup_data.copy()
+        data['organization'] = org.pk
+        response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(DeviceGroup.objects.count(), 1)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['name'], data['name'])
+        self.assertEqual(response.data['description'], data['description'])
+        self.assertEqual(response.data['meta_data'], data['meta_data'])
+        self.assertEqual(response.data['organization'], org.pk)
+
+    def test_devicegroup_list_api(self):
+        self._create_device_group()
+        path = reverse('config_api:devicegroup_list')
+        with self.assertNumQueries(4):
+            r = self.client.get(path)
+        self.assertEqual(r.status_code, 200)
+
+    def test_devicegroup_detail_api(self):
+        device_group = self._create_device_group()
+        path = reverse('config_api:devicegroup_detail', args=[device_group.pk])
+
+        with self.subTest('Test GET'):
+            with self.assertNumQueries(3):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['name'], device_group.name)
+            self.assertEqual(response.data['description'], device_group.description)
+            self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
+            self.assertEqual(
+                response.data['organization'], device_group.organization.pk
+            )
+
+        with self.subTest('Test PATCH'):
+            response = self.client.patch(
+                path,
+                data={'meta_data': self._get_devicegroup_data['meta_data']},
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 200)
+            device_group.refresh_from_db()
+            self.assertDictEqual(
+                device_group.meta_data, self._get_devicegroup_data['meta_data']
+            )
+
+        with self.subTest('Test DELETE'):
+            response = self.client.delete(path)
+            self.assertEqual(DeviceGroup.objects.count(), 0)

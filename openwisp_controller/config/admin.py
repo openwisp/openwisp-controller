@@ -13,11 +13,11 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.translation import ugettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from swapper import load_model
@@ -41,12 +41,13 @@ from ..pki.base import PkiReversionTemplatesMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
 from .utils import send_file
-from .widgets import JsonSchemaWidget
+from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
 prefix = 'config/'
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Organization = load_model('openwisp_users', 'Organization')
@@ -385,6 +386,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     list_display = [
         'name',
         'backend',
+        'group',
         'config_status',
         'mac_address',
         'ip',
@@ -397,14 +399,25 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'config__status',
         'created',
     ]
-    search_fields = ['id', 'name', 'mac_address', 'key', 'model', 'os', 'system']
+    search_fields = [
+        'id',
+        'name',
+        'mac_address',
+        'key',
+        'model',
+        'os',
+        'system',
+        'devicelocation__location__address',
+    ]
     readonly_fields = ['last_ip', 'management_ip', 'uuid']
+    autocomplete_fields = ['group']
     fields = [
         'name',
         'organization',
         'mac_address',
         'uuid',
         'key',
+        'group',
         'last_ip',
         'management_ip',
         'model',
@@ -698,9 +711,58 @@ class VpnAdmin(
         js = list(BaseConfigAdmin.Media.js) + [f'{prefix}js/vpn.js']
 
 
+class DeviceGroupForm(BaseForm):
+    class Meta(BaseForm.Meta):
+        model = DeviceGroup
+        widgets = {'meta_data': DeviceGroupJsonSchemaWidget}
+        labels = {'meta_data': _('Metadata')}
+        help_texts = {
+            'meta_data': _(
+                'Group meta data, use this field to store data which is related'
+                'to this group and can be retrieved via the REST API.'
+            )
+        }
+
+
+class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
+    form = DeviceGroupForm
+    fields = [
+        'name',
+        'organization',
+        'description',
+        'meta_data',
+        'created',
+        'modified',
+    ]
+    search_fields = ['name']
+    list_filter = [
+        ('organization', MultitenantOrgFilter),
+    ]
+
+    class Media:
+        css = {'all': (f'{prefix}css/admin.css',)}
+
+    def get_urls(self):
+        options = self.model._meta
+        url_prefix = f'{options.app_label}_{options.model_name}'
+        urls = super().get_urls()
+        urls += [
+            path(
+                f'{options.app_label}/{options.model_name}/ui/schema.json',
+                self.admin_site.admin_view(self.schema_view),
+                name=f'{url_prefix}_schema',
+            ),
+        ]
+        return urls
+
+    def schema_view(self, request):
+        return JsonResponse(app_settings.DEVICE_GROUP_SCHEMA)
+
+
 admin.site.register(Device, DeviceAdmin)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
+admin.site.register(DeviceGroup, DeviceGroupAdmin)
 
 
 if getattr(app_settings, 'REGISTRATION_ENABLED', True):

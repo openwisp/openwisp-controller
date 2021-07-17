@@ -2,6 +2,7 @@ from django.db import models
 
 from openwisp_controller.config.base.config import AbstractConfig
 from openwisp_controller.config.base.device import AbstractDevice
+from openwisp_controller.config.base.device_group import AbstractDeviceGroup
 from openwisp_controller.config.base.multitenancy import (
     AbstractOrganizationConfigSettings,
 )
@@ -26,6 +27,15 @@ class Device(DetailsModel, AbstractDevice):
     """
 
     class Meta(AbstractDevice.Meta):
+        abstract = False
+
+
+class DeviceGroup(DetailsModel, AbstractDeviceGroup):
+    """
+    Concrete Device model
+    """
+
+    class Meta(AbstractDeviceGroup.Meta):
         abstract = False
 
 

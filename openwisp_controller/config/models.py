@@ -2,6 +2,7 @@ import swapper
 
 from .base.config import AbstractConfig
 from .base.device import AbstractDevice
+from .base.device_group import AbstractDeviceGroup
 from .base.multitenancy import AbstractOrganizationConfigSettings
 from .base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from .base.template import AbstractTemplate
@@ -16,6 +17,16 @@ class Device(AbstractDevice):
     class Meta(AbstractDevice.Meta):
         abstract = False
         swappable = swapper.swappable_setting('config', 'Device')
+
+
+class DeviceGroup(AbstractDeviceGroup):
+    """
+    Concrete DeviceGroup model
+    """
+
+    class Meta(AbstractDeviceGroup.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting('config', 'DeviceGroup')
 
 
 class Config(AbstractConfig):

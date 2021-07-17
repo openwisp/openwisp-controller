@@ -38,6 +38,7 @@ class ConfigConfig(AppConfig):
         self.device_model = load_model('config', 'Device')
         self.config_model = load_model('config', 'Config')
         self.vpnclient_model = load_model('config', 'VpnClient')
+        self.cert_model = load_model('django_x509', 'Cert')
 
     def connect_signals(self):
         """
@@ -76,6 +77,11 @@ class ConfigConfig(AppConfig):
             sender=self.vpnclient_model,
             dispatch_uid='vpnclient.post_delete',
         )
+        post_save.connect(
+            self.config_model.certificate_updated,
+            sender=self.cert_model,
+            dispatch_uid='cert_update_invalidate_checksum_cache',
+        )
 
     def add_default_menu_items(self):
         menu_setting = 'OPENWISP_DEFAULT_ADMIN_MENU_ITEMS'
@@ -83,6 +89,7 @@ class ConfigConfig(AppConfig):
             {'model': get_model_name('config', 'Device')},
             {'model': get_model_name('config', 'Template')},
             {'model': get_model_name('config', 'Vpn')},
+            {'model': get_model_name('config', 'DeviceGroup')},
         ]
         if not hasattr(settings, menu_setting):
             setattr(settings, menu_setting, items)

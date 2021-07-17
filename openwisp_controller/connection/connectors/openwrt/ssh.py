@@ -1,5 +1,7 @@
 import logging
 
+from packaging import version
+
 from ..ssh import Ssh
 
 logger = logging.getLogger(__name__)
@@ -7,6 +9,28 @@ logger = logging.getLogger(__name__)
 
 class OpenWrt(Ssh):
     def update_config(self):
+        try:
+            output, exit_code = self.exec_command('openwisp_config --version')
+        except Exception as error:
+            logger.error('Unable to get version of openwisp_config')
+            raise error
+        else:
+            ow_config_version = output.split(' ')[-1]
+            if version.parse(ow_config_version) >= version.parse('0.6.0a'):
+                self.exec_signal_reload()
+            else:
+                self.exec_legacy_restart()
+
+    def exec_signal_reload(self):
+        self.exec_command(
+            (
+                'OW_CONFIG_PID=$(ps | grep "openwisp_config" | '
+                'grep -v "grep" | awk \'{print $1}\'); '
+                'kill -SIGUSR1 $OW_CONFIG_PID'
+            )
+        )
+
+    def exec_legacy_restart(self):
         _, exit_code = self.exec_command(
             'test -f /tmp/openwisp/applying_conf', exit_codes=[0, 1]
         )
