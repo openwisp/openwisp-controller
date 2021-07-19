@@ -1,13 +1,16 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import pagination
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import pagination, serializers
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
+    GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.response import Response
 from swapper import load_model
 
 from openwisp_users.api.authentication import BearerAuthentication
@@ -49,6 +52,21 @@ class CaDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Ca.objects.all()
 
 
+class CaRenewView(ProtectedAPIMixin, GenericAPIView):
+    serializer_class = serializers.Serializer
+    queryset = Ca.objects.all()
+
+    def post(self, request, pk):
+        """
+        Renews the CA.
+        """
+        instance = self.get_object()
+        instance.renew()
+        return Response(
+            {_("CA '{}' renewed successfully".format(instance.name))}, status=302,
+        )
+
+
 class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = CaDetailSerializer
     queryset = Ca.objects.none()
@@ -71,8 +89,42 @@ class CertDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Cert.objects.select_related('ca')
 
 
+class CertRevokeRenewBaseView(ProtectedAPIMixin, GenericAPIView):
+    serializer_class = serializers.Serializer
+    queryset = Cert.objects.select_related('ca')
+
+
+class CertRevokeView(CertRevokeRenewBaseView):
+    def post(self, request, pk):
+        """
+        Revokes the Certificate.
+        """
+        instance = self.get_object()
+        instance.revoke()
+        return Response(
+            {_("Certificate '{}' revoked successfully".format(instance.name))},
+            status=302,
+        )
+
+
+class CertRenewView(CertRevokeRenewBaseView):
+    def post(self, request, pk):
+        """
+        Renews the Certificate.
+        """
+        instance = self.get_object()
+        instance.renew()
+        return Response(
+            {_("Certificate '{}' renewed successfully".format(instance.name))},
+            status=302,
+        )
+
+
 ca_list = CaListCreateView.as_view()
 ca_detail = CaDetailView.as_view()
+ca_renew = CaRenewView.as_view()
 cert_list = CertListCreateView.as_view()
 cert_detail = CertDetailView.as_view()
 crl_download = CrlDownloadView.as_view()
+cert_revoke = CertRevokeView.as_view()
+cert_renew = CertRenewView.as_view()

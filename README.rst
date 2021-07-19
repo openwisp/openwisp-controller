@@ -1091,6 +1091,13 @@ Delete CA
 
     DELETE /api/v1/controller/ca/{id}/
 
+Renew CA
+^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/ca/{id}/renew/
+
 List Cert
 ^^^^^^^^^
 
@@ -1143,6 +1150,20 @@ Delete Cert
 .. code-block:: text
 
     DELETE /api/v1/controller/cert/{id}/
+
+Renew Cert
+^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/cert/{id}/renew/
+
+Revoke Cert
+^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/cert/{id}/revoke/
 
 Default Alerts / Notifications
 ------------------------------
