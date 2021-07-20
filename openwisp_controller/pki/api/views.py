@@ -18,8 +18,10 @@ from openwisp_users.api.mixins import FilterByOrganizationManaged
 from .serializers import (
     CaDetailSerializer,
     CaListSerializer,
+    CaRenewSerializer,
     CertDetailSerializer,
     CertListSerializer,
+    CertRevokeRenewSerializer,
 )
 
 Ca = load_model('django_x509', 'Ca')
@@ -61,7 +63,7 @@ class CaRenewView(ProtectedAPIMixin, GenericAPIView):
         """
         instance = self.get_object()
         instance.renew()
-        serializer = CaDetailSerializer(instance)
+        serializer = CaRenewSerializer(instance)
         return Response(serializer.data, status=200)
 
 
@@ -99,7 +101,7 @@ class CertRevokeView(CertRevokeRenewBaseView):
         """
         instance = self.get_object()
         instance.revoke()
-        serializer = CertDetailSerializer(instance)
+        serializer = CertRevokeRenewSerializer(instance)
         return Response(serializer.data, status=200)
 
 
@@ -110,7 +112,7 @@ class CertRenewView(CertRevokeRenewBaseView):
         """
         instance = self.get_object()
         instance.renew()
-        serializer = CertDetailSerializer(instance)
+        serializer = CertRevokeRenewSerializer(instance)
         return Response(serializer.data, status=200)
 
 

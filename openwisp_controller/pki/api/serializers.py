@@ -95,6 +95,13 @@ class CaDetailSerializer(BaseSerializer):
         read_only_fields = fields[4:]
 
 
+class CaRenewSerializer(BaseSerializer):
+    class Meta:
+        model = Ca
+        fields = CaDetail_fields(CaListSerializer.Meta.fields[:])
+        read_only_fields = fields
+
+
 def get_import_data(instance):
     data = {
         'name': instance.name,
@@ -184,3 +191,10 @@ class CertDetailSerializer(BaseSerializer):
         model = Cert
         fields = CertDetail_fields(CertListSerializer.Meta.fields[:])
         read_only_fields = ['ca'] + fields[5:]
+
+
+class CertRevokeRenewSerializer(BaseSerializer):
+    class Meta:
+        model = Cert
+        fields = CertDetail_fields(CertListSerializer.Meta.fields[:])
+        read_only_fields = fields
