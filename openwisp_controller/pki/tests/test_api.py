@@ -151,9 +151,9 @@ class TestPkiApi(
         with self.assertNumQueries(5):
             r = self.client.post(path)
         ca1.refresh_from_db()
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
         self.assertNotEqual(ca1.serial_number, old_serial_num)
-        self.assertEqual(r.data, {"CA 'ca1' renewed successfully"})
+        self.assertNotEqual(r.data['serial_number'], old_serial_num)
 
     def test_cert_post_api(self):
         path = reverse('pki_api:cert_list')
@@ -272,10 +272,10 @@ class TestPkiApi(
         path = reverse('pki_api:cert_renew', args=[cert1.pk])
         with self.assertNumQueries(5):
             r = self.client.post(path)
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
         cert1.refresh_from_db()
         self.assertNotEqual(cert1.serial_number, old_serial_num)
-        self.assertEqual(r.data, {"Certificate 'cert1' renewed successfully"})
+        self.assertNotEqual(r.data['serial_number'], old_serial_num)
 
     def test_post_cert_revoke_api(self):
         cert1 = self._create_cert(name='cert1')
@@ -284,6 +284,6 @@ class TestPkiApi(
         with self.assertNumQueries(5):
             r = self.client.post(path)
         cert1.refresh_from_db()
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
         self.assertTrue(cert1.revoked)
-        self.assertEqual(r.data, {"Certificate 'cert1' revoked successfully"})
+        self.assertTrue(r.data['revoked'])

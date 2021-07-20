@@ -1,6 +1,5 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils.translation import ugettext_lazy as _
 from rest_framework import pagination, serializers
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
@@ -62,9 +61,8 @@ class CaRenewView(ProtectedAPIMixin, GenericAPIView):
         """
         instance = self.get_object()
         instance.renew()
-        return Response(
-            {_("CA '{}' renewed successfully".format(instance.name))}, status=302,
-        )
+        serializer = CaDetailSerializer(instance)
+        return Response(serializer.data, status=200)
 
 
 class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
@@ -101,10 +99,8 @@ class CertRevokeView(CertRevokeRenewBaseView):
         """
         instance = self.get_object()
         instance.revoke()
-        return Response(
-            {_("Certificate '{}' revoked successfully".format(instance.name))},
-            status=302,
-        )
+        serializer = CertDetailSerializer(instance)
+        return Response(serializer.data, status=200)
 
 
 class CertRenewView(CertRevokeRenewBaseView):
@@ -114,10 +110,8 @@ class CertRenewView(CertRevokeRenewBaseView):
         """
         instance = self.get_object()
         instance.renew()
-        return Response(
-            {_("Certificate '{}' renewed successfully".format(instance.name))},
-            status=302,
-        )
+        serializer = CertDetailSerializer(instance)
+        return Response(serializer.data, status=200)
 
 
 ca_list = CaListCreateView.as_view()
