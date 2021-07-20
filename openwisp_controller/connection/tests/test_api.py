@@ -349,7 +349,7 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
     def test_delete_credential_detail(self):
         cred = self._create_credentials()
         path = reverse('connection_api:credential_detail', args=(cred.pk,))
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 

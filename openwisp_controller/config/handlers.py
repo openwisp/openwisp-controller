@@ -41,7 +41,7 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
 
 
 def devicegroup_change_handler(instance, **kwargs):
-    if 'created' in kwargs and kwargs['created'] is True:
+    if instance._state.adding or ('created' in kwargs and kwargs['created'] is True):
         return
     model_name = instance._meta.model_name
     tasks.invalidate_devicegroup_cache.delay(instance.id, model_name)

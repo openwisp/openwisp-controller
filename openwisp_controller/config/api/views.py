@@ -1,6 +1,6 @@
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
 from rest_framework import pagination
@@ -133,9 +133,9 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
 
 def get_cached_devicegroup_args_rewrite(self, org_slugs, common_name):
-    return reverse(
-        'config_api:devicegroup_x509_commonname', args=[org_slugs, common_name],
-    )
+    url = reverse('config_api:devicegroup_x509_commonname', args=[common_name],)
+    url = f'{url}?org={org_slugs}'
+    return url
 
 
 # TODO: Think of a better identifier
@@ -150,12 +150,15 @@ class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
         timeout=24 * 60 * 60, args_rewrite=get_cached_devicegroup_args_rewrite
     )
     def get_device_group(cls, org_slugs, common_name):
-        org_slugs = org_slugs.split(',')
+        query = Q(common_name=common_name)
+        if org_slugs:
+            org_slugs = org_slugs.split(',')
+            query = query & Q(organization__slug__in=org_slugs)
         try:
             cert = (
                 Cert.objects.select_related('organization')
                 .only('id', 'organization')
-                .filter(organization__slug__in=org_slugs, common_name=common_name)
+                .filter(query)
                 .first()
             )
             vpnclient = VpnClient.objects.only('config_id').get(cert_id=cert.id)
@@ -171,7 +174,7 @@ class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
         return group
 
     def get_object(self):
-        org_slugs = self.kwargs['organization_slug']
+        org_slugs = self.request.query_params.get('org', '')
         common_name = self.kwargs['common_name']
         group = self.get_device_group(org_slugs, common_name)
         # May raise a permission denied

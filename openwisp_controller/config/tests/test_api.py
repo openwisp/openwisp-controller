@@ -631,6 +631,7 @@ class TestConfigApi(
 
     def test_devicegroup_from_x509_commonname(self):
         org = self._get_org()
+        org2 = self._create_org(name='org2')
         device_group = self._create_device_group(organization=org)
         ca = self._create_ca(organization=org)
         vpn = self._create_vpn(ca=ca, organization=org)
@@ -643,10 +644,21 @@ class TestConfigApi(
         )
 
         with self.subTest('Test with single organization slug'):
-            path = reverse(
-                'config_api:devicegroup_x509_commonname', args=[org.slug, common_name]
+            path = reverse('config_api:devicegroup_x509_commonname', args=[common_name])
+            response = self.client.get(path, data={'org': org.slug})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['name'], device_group.name)
+            self.assertEqual(response.data['description'], device_group.description)
+            self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
+            self.assertEqual(
+                response.data['organization'], device_group.organization.pk
             )
-            response = self.client.get(path)
+
+        with self.subTest('Test with more than one organization slug'):
+            path = reverse('config_api:devicegroup_x509_commonname', args=[common_name])
+            response = self.client.get(
+                path, data={'org': ','.join([org2.slug, org.slug])}
+            )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['name'], device_group.name)
             self.assertEqual(response.data['description'], device_group.description)
@@ -658,9 +670,9 @@ class TestConfigApi(
     def test_devicegroup_from_x509_commonname_regressions(self):
         def _assert_response(org_slug, common_name):
             path = reverse(
-                'config_api:devicegroup_x509_commonname', args=[org_slug, common_name],
+                'config_api:devicegroup_x509_commonname', args=[common_name],
             )
-            response = self.client.get(path)
+            response = self.client.get(path, data={'org': org_slug})
             self.assertEqual(response.status_code, 404)
 
         org = self._get_org()
@@ -710,21 +722,21 @@ class TestConfigApiTransaction(
         config.templates.add(template)
         cert = config.vpnclient_set.select_related('cert').first().cert
         path = reverse(
-            'config_api:devicegroup_x509_commonname', args=[org.slug, cert.common_name]
+            'config_api:devicegroup_x509_commonname', args=[cert.common_name]
         )
 
         with self.subTest('Test caching works'):
             with self.assertNumQueries(5):
-                response = self.client.get(path)
+                response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
 
             with self.assertNumQueries(2):
-                response = self.client.get(path)
+                response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
 
         with self.subTest('Test cache invalidates when DeviceGroup changes'):
             # Build cache
-            response = self.client.get(path)
+            response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
             # Invalidate cache
@@ -733,12 +745,12 @@ class TestConfigApiTransaction(
 
             # Test cache is invalidated
             with self.assertNumQueries(5):
-                response = self.client.get(path)
+                response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
 
         with self.subTest('Test cache invalidates when organization changes'):
             # Build cache
-            response = self.client.get(path)
+            response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
             # Invalidate cache
@@ -747,12 +759,12 @@ class TestConfigApiTransaction(
 
             # Test cache is invalidated
             with self.assertNumQueries(5):
-                response = self.client.get(path)
+                response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
 
         with self.subTest('Test cache invalidates when certificate changes'):
             # Build cache
-            response = self.client.get(path)
+            response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
             # Invalidate cache
@@ -762,8 +774,7 @@ class TestConfigApiTransaction(
             # Test cache is invalidated
             with self.assertNumQueries(5):
                 path = reverse(
-                    'config_api:devicegroup_x509_commonname',
-                    args=[org.slug, cert.common_name],
+                    'config_api:devicegroup_x509_commonname', args=[cert.common_name],
                 )
-                response = self.client.get(path)
+                response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
