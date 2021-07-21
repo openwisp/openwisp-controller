@@ -3,8 +3,10 @@ from django.conf import settings
 from django.db.models import Case, Count, Sum, When
 from django.utils.translation import ugettext_lazy as _
 from django_loci.apps import LociConfig
+from swapper import get_model_name
 
 from openwisp_utils.admin_theme import register_dashboard_chart
+from openwisp_utils.admin_theme.menu import register_menu_group
 
 
 class GeoConfig(LociConfig):
@@ -18,6 +20,7 @@ class GeoConfig(LociConfig):
     def ready(self):
         super().ready()
         self.register_dashboard_charts()
+        self.register_menu_groups()
         if getattr(settings, 'TESTING', False):
             self._add_params_to_test_config()
 
@@ -76,5 +79,28 @@ class GeoConfig(LociConfig):
                     'with_geo__sum': 'true',
                     'without_geo__sum': 'false',
                 },
+            },
+        )
+
+    def register_menu_groups(self):
+        register_menu_group(
+            position=50,
+            config={
+                'label': 'Geographic Info',
+                'items': {
+                    1: {
+                        'label': 'Locations',
+                        'model': get_model_name('geo', 'Location'),
+                        'name': 'changelist',
+                        'icon': 'ow-location',
+                    },
+                    2: {
+                        'label': 'Floorplans',
+                        'model': get_model_name('geo', 'FloorPlan'),
+                        'name': 'changelist',
+                        'icon': 'ow-floor',
+                    },
+                },
+                'icon': 'ow-geo',
             },
         )
