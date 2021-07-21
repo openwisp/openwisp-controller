@@ -50,8 +50,7 @@ def get_api_urls(api_views):
             ),
             path(
                 ('controller/cert/<str:common_name>/group/'),
-                api_views.devicegroup_from_commonname,
-                # TODO: Use better identifier
+                api_views.devicegroup_commonname,
                 name='devicegroup_x509_commonname',
             ),
             path(

@@ -924,12 +924,23 @@ Get device group detail
 
     GET /api/v1/controller/group/{id}/
 
-Get device group from organization slug and common name of VpnClient's Certificate
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Get device group from certificate common name
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: text
 
-    GET /api/v1/controller/{organization_slug}/certificate/{common_name}/group/
+    GET /api/v1/controller/cert/{common_name}/group/
+
+This endpoint can be used to retrieve group information and metadata by the
+common name of a certificate used in a VPN client tunnel, this endpoint is
+used in layer 2 tunneling solutions for firewall/captive portals.
+
+It is also possible to filter device group by providing organization slug
+of certificate's organization as show in the example below:
+
+.. code-block:: text
+
+    GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
 List templates
 ^^^^^^^^^^^^^^

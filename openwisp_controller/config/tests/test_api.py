@@ -12,6 +12,7 @@ from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX50
 
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
+VpnClient = load_model('config', 'VpnClient')
 Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
@@ -629,7 +630,7 @@ class TestConfigApi(
             response = self.client.delete(path)
             self.assertEqual(DeviceGroup.objects.count(), 0)
 
-    def test_devicegroup_from_x509_commonname(self):
+    def test_devicegroup_commonname(self):
         org = self._get_org()
         org2 = self._create_org(name='org2')
         device_group = self._create_device_group(organization=org)
@@ -667,7 +668,7 @@ class TestConfigApi(
                 response.data['organization'], device_group.organization.pk
             )
 
-    def test_devicegroup_from_x509_commonname_regressions(self):
+    def test_devicegroup_commonname_regressions(self):
         def _assert_response(org_slug, common_name):
             path = reverse(
                 'config_api:devicegroup_x509_commonname', args=[common_name],
@@ -711,7 +712,7 @@ class TestConfigApiTransaction(
         super().setUp()
         self._login()
 
-    def test_devicegroup_from_x509_commonname_caching(self):
+    def _get_devicegroup_org_cert(self):
         org = self._get_org()
         device_group = self._create_device_group(organization=org)
         ca = self._create_ca(organization=org)
@@ -721,60 +722,116 @@ class TestConfigApiTransaction(
         template = self._create_template(type='vpn', vpn=vpn, organization=org)
         config.templates.add(template)
         cert = config.vpnclient_set.select_related('cert').first().cert
+        return device_group, org, cert
+
+    def test_devicegroup_commonname_caching_on_change(self):
+        def _build_cache(path, org_slug):
+            response = self.client.get(path, data={'org': org_slug})
+            self.assertEqual(response.status_code, 200)
+
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+        def _assert_cache_invalidation(path, org_slug):
+            with self.assertNumQueries(5):
+                response = self.client.get(path, data={'org': org_slug})
+                self.assertEqual(response.status_code, 200)
+
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+
+        device_group, org, cert = self._get_devicegroup_org_cert()
         path = reverse(
             'config_api:devicegroup_x509_commonname', args=[cert.common_name]
         )
 
         with self.subTest('Test caching works'):
-            with self.assertNumQueries(5):
-                response = self.client.get(path, data={'org': org.slug})
-                self.assertEqual(response.status_code, 200)
-
+            _build_cache(path, org.slug)
             with self.assertNumQueries(2):
                 response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
 
+            with self.assertNumQueries(2):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+
         with self.subTest('Test cache invalidates when DeviceGroup changes'):
-            # Build cache
-            response = self.client.get(path, data={'org': org.slug})
-            self.assertEqual(response.status_code, 200)
+            _build_cache(path, org.slug)
 
             # Invalidate cache
             device_group.organization = self._create_org(name='new-org')
             device_group.save()
 
-            # Test cache is invalidated
-            with self.assertNumQueries(5):
-                response = self.client.get(path, data={'org': org.slug})
-                self.assertEqual(response.status_code, 200)
+            _assert_cache_invalidation(path, org.slug)
 
         with self.subTest('Test cache invalidates when organization changes'):
-            # Build cache
-            response = self.client.get(path, data={'org': org.slug})
-            self.assertEqual(response.status_code, 200)
+            _build_cache(path, org.slug)
 
             # Invalidate cache
             org.name = 'new-org'
             org.save()
 
-            # Test cache is invalidated
-            with self.assertNumQueries(5):
-                response = self.client.get(path, data={'org': org.slug})
-                self.assertEqual(response.status_code, 200)
+            _assert_cache_invalidation(path, org.slug)
 
         with self.subTest('Test cache invalidates when certificate changes'):
-            # Build cache
+            _build_cache(path, org.slug)
+
+            # Invalidate cache
+            cert.renew()
+
+            _assert_cache_invalidation(path, org.slug)
+
+    def test_devicegroup_commonname_cache_invalidates_on_devicegroup_delete(self):
+        device_group, org, cert = self._get_devicegroup_org_cert()
+        path = reverse(
+            'config_api:devicegroup_x509_commonname', args=[cert.common_name]
+        )
+
+        with self.assertNumQueries(5):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
-            # Invalidate cache
-            cert.common_name = 'new-common-name'
-            cert.save()
+        with self.assertNumQueries(2):
+            response = self.client.get(path, data={'org': org.slug})
+            self.assertEqual(response.status_code, 200)
 
-            # Test cache is invalidated
-            with self.assertNumQueries(5):
-                path = reverse(
-                    'config_api:devicegroup_x509_commonname', args=[cert.common_name],
-                )
-                response = self.client.get(path, data={'org': org.slug})
-                self.assertEqual(response.status_code, 200)
+        device_group.delete()
+        response = self.client.get(path, data={'org': org.slug})
+        self.assertEqual(response.status_code, 404)
+
+    def test_devicegroup_commonname_cache_invalidates_on_organization_delete(self):
+        device_group, org, cert = self._get_devicegroup_org_cert()
+        path = reverse(
+            'config_api:devicegroup_x509_commonname', args=[cert.common_name]
+        )
+
+        with self.assertNumQueries(5):
+            response = self.client.get(path, data={'org': org.slug})
+            self.assertEqual(response.status_code, 200)
+
+        with self.assertNumQueries(2):
+            response = self.client.get(path, data={'org': org.slug})
+            self.assertEqual(response.status_code, 200)
+
+        org.delete()
+        response = self.client.get(path, data={'org': org.slug})
+        self.assertEqual(response.status_code, 404)
+
+    def test_devicegroup_commonname_cache_invalidates_on_cert_delete(self):
+        device_group, org, cert = self._get_devicegroup_org_cert()
+        path = reverse(
+            'config_api:devicegroup_x509_commonname', args=[cert.common_name]
+        )
+
+        with self.assertNumQueries(5):
+            response = self.client.get(path, data={'org': org.slug})
+            self.assertEqual(response.status_code, 200)
+
+        with self.assertNumQueries(2):
+            response = self.client.get(path, data={'org': org.slug})
+            self.assertEqual(response.status_code, 200)
+
+        VpnClient.objects.filter(cert=cert).delete()
+        response = self.client.get(path, data={'org': org.slug})
+        self.assertEqual(response.status_code, 404)

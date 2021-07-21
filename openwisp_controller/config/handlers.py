@@ -44,4 +44,15 @@ def devicegroup_change_handler(instance, **kwargs):
     if instance._state.adding or ('created' in kwargs and kwargs['created'] is True):
         return
     model_name = instance._meta.model_name
-    tasks.invalidate_devicegroup_cache.delay(instance.id, model_name)
+    tasks.invalidate_devicegroup_cache_change.delay(instance.id, model_name)
+
+
+def devicegroup_delete_handler(instance, **kwargs):
+    kwargs = {}
+    model_name = instance._meta.model_name
+    if isinstance(instance, Cert):
+        kwargs['org_slug'] = instance.organization.slug
+        kwargs['common_name'] = instance.common_name
+    if isinstance(instance, DeviceGroup):
+        kwargs['organization_id'] = instance.organization_id
+    tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)

@@ -29,7 +29,6 @@ def make_ca_common_name_unique(apps, schema_editor):
 def make_cert_common_name_unique(apps, schema_editor):
     Cert = get_swapped_model(apps, 'django_x509', 'Cert')
     VpnClient = get_swapped_model(apps, 'config', 'VpnClient')
-    updated_certs = []
     for cert in Cert.objects.iterator():
         qs = Cert.objects.filter(
             common_name=cert.common_name, organization_id=cert.organization_id
@@ -50,13 +49,7 @@ def make_cert_common_name_unique(apps, schema_editor):
             common_name = cert_.common_name[:58]
             unique_slug = shortuuid.ShortUUID().random(length=8)
             common_name = f'{common_name}-{unique_slug}'
-            cert_.common_name = common_name
-            updated_certs.append(cert_)
-        if len(updated_certs) > 1000:
-            Cert.objects.bulk_update(updated_certs, ['common_name'])
-            updated_certs = []
-    if updated_certs:
-        Cert.objects.bulk_update(updated_certs, ['common_name'])
+            cert_.renew()
 
 
 class Migration(migrations.Migration):

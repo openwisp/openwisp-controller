@@ -8,7 +8,9 @@ class UnqiueCommonNameMixin(object):
             self.organization is None
             and self._meta.model.objects.filter(
                 organization=None, common_name=self.common_name
-            ).exists()
+            )
+            .exclude(pk=self.pk)
+            .exists()
         ):
             raise ValidationError(
                 {

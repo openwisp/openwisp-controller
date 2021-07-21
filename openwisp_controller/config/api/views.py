@@ -132,14 +132,13 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
 
 
-def get_cached_devicegroup_args_rewrite(self, org_slugs, common_name):
+def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
     url = reverse('config_api:devicegroup_x509_commonname', args=[common_name],)
     url = f'{url}?org={org_slugs}'
     return url
 
 
-# TODO: Think of a better identifier
-class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
+class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
     # Not setting lookup_field makes DRF raise error. but it is not used
@@ -184,6 +183,7 @@ class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
     @classmethod
     def _invalidate_from_queryset(cls, queryset):
         for obj in queryset.iterator():
+            cls.get_device_group.invalidate(None, '', obj['common_name'])
             cls.get_device_group.invalidate(
                 None, obj['organization__slug'], obj['common_name']
             )
@@ -225,6 +225,20 @@ class DeviceGroupFromCommonName(ProtectedAPIMixin, RetrieveAPIView):
         )
         cls._invalidate_from_queryset(qs)
 
+    @classmethod
+    def devicegroup_delete_invalidates_cache(cls, organization_id):
+        qs = (
+            Cert.objects.select_related('organization')
+            .filter(organization_id=organization_id)
+            .values('organization__slug', 'common_name')
+        )
+        cls._invalidate_from_queryset(qs)
+
+    @classmethod
+    def certificate_delete_invalidates_cache(cls, org_slug, common_name):
+        cls.get_device_group.invalidate(cls, '', common_name)
+        cls.get_device_group.invalidate(cls, org_slug, common_name)
+
 
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
@@ -236,5 +250,5 @@ device_list = DeviceListCreateView.as_view()
 device_detail = DeviceDetailView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
-devicegroup_from_commonname = DeviceGroupFromCommonName.as_view()
+devicegroup_commonname = DeviceGroupCommonName.as_view()
 download_device_config = DownloadDeviceView().as_view()
