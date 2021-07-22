@@ -50,9 +50,7 @@ def devicegroup_change_handler(instance, **kwargs):
 def devicegroup_delete_handler(instance, **kwargs):
     kwargs = {}
     model_name = instance._meta.model_name
+    kwargs['organization_id'] = instance.organization_id
     if isinstance(instance, Cert):
-        kwargs['org_slug'] = instance.organization.slug
         kwargs['common_name'] = instance.common_name
-    if isinstance(instance, DeviceGroup):
-        kwargs['organization_id'] = instance.organization_id
     tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)

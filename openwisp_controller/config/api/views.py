@@ -33,6 +33,7 @@ DeviceGroup = load_model('config', 'DeviceGroup')
 Config = load_model('config', 'Config')
 VpnClient = load_model('config', 'VpnClient')
 Cert = load_model('django_x509', 'Cert')
+Organization = load_model('openwisp_users', 'Organization')
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -208,15 +209,6 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls._invalidate_from_queryset(qs)
 
     @classmethod
-    def organization_change_invalidates_cache(cls, organization_id):
-        qs = (
-            Cert.objects.select_related('organization')
-            .filter(organization_id=organization_id)
-            .values('organization__slug', 'common_name')
-        )
-        cls._invalidate_from_queryset(qs)
-
-    @classmethod
     def certificate_change_invalidates_cache(cls, cert_id):
         qs = (
             Cert.objects.select_related('organization')
@@ -235,7 +227,8 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls._invalidate_from_queryset(qs)
 
     @classmethod
-    def certificate_delete_invalidates_cache(cls, org_slug, common_name):
+    def certificate_delete_invalidates_cache(cls, organization_id, common_name):
+        org_slug = Organization.objects.only('slug').get(id=organization_id).slug
         cls.get_device_group.invalidate(cls, '', common_name)
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 

@@ -765,15 +765,6 @@ class TestConfigApiTransaction(
 
             _assert_cache_invalidation(path, org.slug)
 
-        with self.subTest('Test cache invalidates when organization changes'):
-            _build_cache(path, org.slug)
-
-            # Invalidate cache
-            org.name = 'new-org'
-            org.save()
-
-            _assert_cache_invalidation(path, org.slug)
-
         with self.subTest('Test cache invalidates when certificate changes'):
             _build_cache(path, org.slug)
 

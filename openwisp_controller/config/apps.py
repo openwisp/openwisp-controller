@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
+from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.utils.translation import ugettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -40,7 +40,6 @@ class ConfigConfig(AppConfig):
         self.config_model = load_model('config', 'Config')
         self.vpnclient_model = load_model('config', 'VpnClient')
         self.cert_model = load_model('django_x509', 'Cert')
-        self.org_model = load_model('openwisp_users', 'Organization')
 
     def connect_signals(self):
         """
@@ -182,20 +181,15 @@ class ConfigConfig(AppConfig):
         )
         post_save.connect(
             devicegroup_change_handler,
-            sender=self.org_model,
-            dispatch_uid='invalidate_devicegroup_cache_on_organization_change',
-        )
-        post_save.connect(
-            devicegroup_change_handler,
             sender=self.cert_model,
             dispatch_uid='invalidate_devicegroup_cache_on_certificate_change',
         )
-        pre_delete.connect(
+        post_delete.connect(
             devicegroup_delete_handler,
             sender=self.devicegroup_model,
             dispatch_uid='invalidate_devicegroup_cache_on_devicegroup_delete',
         )
-        pre_delete.connect(
+        post_delete.connect(
             devicegroup_delete_handler,
             sender=self.cert_model,
             dispatch_uid='invalidate_devicegroup_cache_on_certificate_delete',

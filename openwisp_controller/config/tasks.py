@@ -57,12 +57,9 @@ def invalidate_devicegroup_cache_change(instance_id, model_name):
     from .api.views import DeviceGroupCommonName
 
     DeviceGroup = load_model('config', 'DeviceGroup')
-    Organization = load_model('openwisp_users', 'Organization')
     Cert = load_model('django_x509', 'Cert')
     if model_name == DeviceGroup._meta.model_name:
         DeviceGroupCommonName.devicegroup_change_invalidates_cache(instance_id)
-    elif model_name == Organization._meta.model_name:
-        DeviceGroupCommonName.organization_change_invalidates_cache(instance_id)
     elif model_name == Cert._meta.model_name:
         DeviceGroupCommonName.certificate_change_invalidates_cache(instance_id)
 
@@ -80,5 +77,5 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
         )
     elif model_name == Cert._meta.model_name:
         DeviceGroupCommonName.certificate_delete_invalidates_cache(
-            kwargs['org_slug'], kwargs['common_name']
+            kwargs['organization_id'], kwargs['common_name']
         )

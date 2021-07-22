@@ -2,8 +2,9 @@
 
 import shortuuid
 from django.db import migrations, models
+from swapper import load_model
 
-from . import get_swapped_model
+from ...migrations import get_swapped_model
 
 
 def make_ca_common_name_unique(apps, schema_editor):
@@ -13,12 +14,12 @@ def make_ca_common_name_unique(apps, schema_editor):
         qs = Ca.objects.filter(
             common_name=ca.common_name, organization_id=ca.organization_id
         ).exclude(pk=ca.pk)
-        for ca_ in qs.iterator():
-            common_name = ca_.common_name
+        for dupe_cn_ca in qs.iterator():
+            common_name = dupe_cn_ca.common_name
             unique_slug = shortuuid.ShortUUID().random(length=8)
             common_name = f'{common_name}-{unique_slug}'
-            ca_.common_name = common_name
-            updated_cas.append(ca_)
+            dupe_cn_ca.common_name = common_name
+            updated_cas.append(dupe_cn_ca)
             if len(updated_cas) > 1000:
                 Ca.objects.bulk_update(updated_cas, ['common_name'])
                 updated_cas = []
@@ -27,18 +28,19 @@ def make_ca_common_name_unique(apps, schema_editor):
 
 
 def make_cert_common_name_unique(apps, schema_editor):
-    Cert = get_swapped_model(apps, 'django_x509', 'Cert')
+    # Loading concrete model is required here otherwise "renew" won't work
+    Cert = load_model('django_x509', 'Cert')
     VpnClient = get_swapped_model(apps, 'config', 'VpnClient')
     for cert in Cert.objects.iterator():
         qs = Cert.objects.filter(
             common_name=cert.common_name, organization_id=cert.organization_id
         ).exclude(pk=cert.pk)
-        for cert_ in qs.iterator():
+        for dupe_cn_cert in qs.iterator():
             try:
                 vpn_client = (
                     VpnClient.objects.select_related('config', 'config__device')
                     .only('config__device__name', 'config__device__mac_address')
-                    .get(cert_id=cert_.id)
+                    .get(cert_id=dupe_cn_cert.id)
                 )
                 common_name = (
                     f'{vpn_client.config.device.mac_address}'
@@ -46,10 +48,11 @@ def make_cert_common_name_unique(apps, schema_editor):
                 )
             except VpnClient.DoesNotExist:
                 pass
-            common_name = cert_.common_name[:58]
+            common_name = dupe_cn_cert.common_name[:58]
             unique_slug = shortuuid.ShortUUID().random(length=8)
             common_name = f'{common_name}-{unique_slug}'
-            cert_.renew()
+            dupe_cn_cert.common_name = common_name
+            dupe_cn_cert.renew()
 
 
 class Migration(migrations.Migration):
