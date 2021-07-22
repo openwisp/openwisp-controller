@@ -394,9 +394,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'modified',
     ]
     list_filter = [
+        'config__status',
         ('organization', MultitenantOrgFilter),
         ('config__templates', MultitenantRelatedOrgFilter),
-        'config__status',
+        ('group', MultitenantRelatedOrgFilter),
         'created',
     ]
     search_fields = [
@@ -734,7 +735,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'created',
         'modified',
     ]
-    search_fields = ['name']
+    search_fields = ['name', 'description', 'meta_data']
     list_filter = [
         ('organization', MultitenantOrgFilter),
     ]
