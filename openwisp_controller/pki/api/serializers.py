@@ -18,14 +18,38 @@ class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
     pass
 
 
-class CaListSerializer(BaseSerializer):
-
+class BaseListSerializer(BaseSerializer):
     extensions = serializers.JSONField(
         initial=[],
         help_text=_('additional x509 certificate extensions'),
         required=False,
     )
 
+    def get_import_data_hook(self, instance):
+        return get_import_data(instance)
+
+    def validate(self, data):
+        instance = self.instance or self.Meta.model(**data)
+        instance.full_clean()
+        if data.get('certificate') and data.get('private_key'):
+            data = self.get_import_data_hook(instance)
+        return data
+
+    def validate_validity_start(self, value):
+        if value is None:
+            value = default_validity_start()
+        return value
+
+    def default_validity_end_hook(self):
+        return default_ca_validity_end()
+
+    def validate_validity_end(self, value):
+        if value is None:
+            value = self.default_validity_end_hook()
+        return value
+
+
+class CaListSerializer(BaseListSerializer):
     class Meta:
         model = Ca
         fields = [
@@ -60,23 +84,6 @@ class CaListSerializer(BaseSerializer):
             'validity_start': {'default': default_validity_start()},
             'validity_end': {'default': default_ca_validity_end()},
         }
-
-    def validate(self, data):
-        instance = self.instance or self.Meta.model(**data)
-        instance.full_clean()
-        if data.get('certificate') and data.get('private_key'):
-            data = get_import_data(instance)
-        return data
-
-    def validate_validity_start(self, value):
-        if value is None:
-            value = default_validity_start()
-        return value
-
-    def validate_validity_end(self, value):
-        if value is None:
-            value = default_ca_validity_end()
-        return value
 
 
 def get_ca_detail_fields(fields):
@@ -134,13 +141,7 @@ def get_cert_list_fields(fields):
     return fields
 
 
-class CertListSerializer(BaseSerializer):
-
-    extensions = serializers.JSONField(
-        initial=[],
-        help_text=_('additional x509 certificate extensions'),
-        required=False,
-    )
+class CertListSerializer(BaseListSerializer):
     include_shared = True
 
     class Meta:
@@ -156,23 +157,13 @@ class CertListSerializer(BaseSerializer):
             'validity_end': {'default': default_cert_validity_end()},
         }
 
-    def validate(self, data):
-        instance = self.instance or self.Meta.model(**data)
-        instance.full_clean()
-        if data.get('certificate') and data.get('private_key'):
-            data = get_import_data(instance)
-            data.update({'ca': instance.ca})
+    def get_import_data_hook(self, instance):
+        data = super().get_import_data_hook(instance)
+        data.update({'ca': instance.ca})
         return data
 
-    def validate_validity_start(self, value):
-        if value is None:
-            value = default_validity_start()
-        return value
-
-    def validate_validity_end(self, value):
-        if value is None:
-            value = default_cert_validity_end()
-        return value
+    def default_validity_end_hook(self):
+        return default_cert_validity_end()
 
 
 def get_cert_detail_fields(fields):
