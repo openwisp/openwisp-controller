@@ -79,7 +79,7 @@ class CaListSerializer(BaseSerializer):
         return value
 
 
-def CaDetail_fields(fields=None):
+def get_ca_detail_fields(fields):
     """
     Returns the fields for the `CADetailSerializer`.
     """
@@ -91,7 +91,7 @@ def CaDetail_fields(fields=None):
 class CaDetailSerializer(BaseSerializer):
     class Meta:
         model = Ca
-        fields = CaDetail_fields(CaListSerializer.Meta.fields[:])
+        fields = get_ca_detail_fields(CaListSerializer.Meta.fields[:])
         read_only_fields = fields[4:]
 
 
@@ -124,7 +124,7 @@ def get_import_data(instance):
     return data
 
 
-def CertList_fields(fields=None):
+def get_cert_list_fields(fields):
     """
     Returns the fields for the `CertListSerializer`.
     """
@@ -145,7 +145,7 @@ class CertListSerializer(BaseSerializer):
 
     class Meta:
         model = Cert
-        fields = CertList_fields(CaListSerializer.Meta.fields[:])
+        fields = get_cert_list_fields(CaListSerializer.Meta.fields[:])
         read_only_fields = ['created', 'modified']
         extra_kwargs = {
             'revoked': {'read_only': True},
@@ -175,7 +175,7 @@ class CertListSerializer(BaseSerializer):
         return value
 
 
-def CertDetail_fields(fields=None):
+def get_cert_detail_fields(fields):
     """
     Returns the fields for the `CertDetailSerializer`.
     """
@@ -187,7 +187,7 @@ def CertDetail_fields(fields=None):
 class CertDetailSerializer(BaseSerializer):
     class Meta:
         model = Cert
-        fields = CertDetail_fields(CertListSerializer.Meta.fields[:])
+        fields = get_cert_detail_fields(CertListSerializer.Meta.fields[:])
         read_only_fields = ['ca'] + fields[5:]
 
 
