@@ -90,12 +90,13 @@ def get_ca_detail_fields(fields):
     """
     Returns the fields for the `CADetailSerializer`.
     """
-    fields.remove('extensions')
     fields.remove('passphrase')
     return fields
 
 
 class CaDetailSerializer(BaseSerializer):
+    extensions = serializers.JSONField(read_only=True)
+
     class Meta:
         model = Ca
         fields = get_ca_detail_fields(CaListSerializer.Meta.fields[:])
@@ -170,12 +171,13 @@ def get_cert_detail_fields(fields):
     """
     Returns the fields for the `CertDetailSerializer`.
     """
-    fields.remove('extensions')
     fields.remove('passphrase')
     return fields
 
 
 class CertDetailSerializer(BaseSerializer):
+    extensions = serializers.JSONField(read_only=True)
+
     class Meta:
         model = Cert
         fields = get_cert_detail_fields(CertListSerializer.Meta.fields[:])

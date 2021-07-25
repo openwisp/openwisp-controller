@@ -105,6 +105,7 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['id'], ca1.pk)
+        self.assertEqual(r.data['extensions'], [])
 
     def test_ca_put_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
@@ -224,6 +225,7 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['id'], cert1.pk)
+        self.assertEqual(r.data['extensions'], [])
 
     def test_cert_put_api(self):
         cert1 = self._create_cert(name='cert1')
