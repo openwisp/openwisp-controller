@@ -81,6 +81,7 @@ class CaListSerializer(BaseListSerializer):
             'organization': {'required': True},
             'key_length': {'initial': '2048'},
             'digest': {'initial': 'sha256'},
+            'passphrase': {'write_only': True},
             'validity_start': {'default': default_validity_start()},
             'validity_end': {'default': default_ca_validity_end()},
         }
@@ -154,6 +155,7 @@ class CertListSerializer(BaseListSerializer):
             'revoked_at': {'read_only': True},
             'key_length': {'initial': '2048'},
             'digest': {'initial': 'sha256'},
+            'passphrase': {'write_only': True},
             'validity_start': {'default': default_validity_start()},
             'validity_end': {'default': default_cert_validity_end()},
         }

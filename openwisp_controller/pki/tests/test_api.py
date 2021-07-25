@@ -97,6 +97,7 @@ class TestPkiApi(
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
+        self.assertNotIn('passphrase', r.content.decode('utf8'))
 
     def test_ca_detail_api(self):
         ca1 = self._create_ca(name='ca1', organization=self._get_org())
@@ -217,6 +218,7 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Cert.objects.count(), 1)
+        self.assertNotIn('passphrase', r.content.decode('utf8'))
 
     def test_cert_detail_api(self):
         cert1 = self._create_cert(name='cert1')
