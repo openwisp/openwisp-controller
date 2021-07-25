@@ -63,6 +63,7 @@ urlpatterns += [
     path('accounts/', include('openwisp_users.accounts.urls')),
     path('api/v1/', include('openwisp_utils.api.urls')),
     path('api/v1/', include(('openwisp_users.api.urls', 'users'), namespace='users')),
+    path('api/v1/', include(('openwisp_controller.pki.api.urls'), namespace='pki_api')),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

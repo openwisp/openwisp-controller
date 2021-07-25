@@ -4,6 +4,7 @@ from django.urls import reverse
 from OpenSSL import crypto
 from swapper import load_model
 
+from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .utils import TestPkiMixin
@@ -12,7 +13,7 @@ Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 
 
-class TestModels(TestPkiMixin, TestOrganizationMixin, TestCase):
+class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
     def test_ca_creation_with_org(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
@@ -46,6 +47,7 @@ class TestModels(TestPkiMixin, TestOrganizationMixin, TestCase):
             cert.full_clean()
 
     def test_crl_view(self):
+        self._login()
         ca = self._create_ca()
         response = self.client.get(reverse('admin:crl', args=[ca.pk]))
         self.assertEqual(response.status_code, 200)
