@@ -12,7 +12,7 @@ from swapper import get_model_name, load_model
 from openwisp_utils.admin_theme import register_dashboard_chart
 
 from . import settings as app_settings
-from .signals import config_modified, device_name_changed
+from .signals import config_modified, device_group_changed, device_name_changed
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -173,6 +173,11 @@ class ConfigConfig(AppConfig):
         config_modified.connect(
             DeviceChecksumView.invalidate_checksum_cache,
             dispatch_uid='invalidate_checksum_cache',
+        )
+        device_group_changed.connect(
+            devicegroup_change_handler,
+            sender=self.device_model,
+            dispatch_uid='invalidate_devicegroup_cache_on_device_change',
         )
         post_save.connect(
             devicegroup_change_handler,

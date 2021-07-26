@@ -756,6 +756,21 @@ class TestConfigApiTransaction(
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
 
+        with self.subTest('Test cache invalidation when group field of Device changes'):
+            device = Device.objects.first()
+            device_group2 = self._create_device_group(name='Switches')
+            _build_cache(path, org.slug)
+
+            device.group = device_group2
+            device.full_clean()
+            device.save()
+
+            _assert_cache_invalidation(path, org.slug)
+
+        device.group = device_group
+        device.full_clean()
+        device.save()
+
         with self.subTest('Test cache invalidates when DeviceGroup changes'):
             _build_cache(path, org.slug)
 

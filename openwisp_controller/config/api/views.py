@@ -184,10 +184,25 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
     @classmethod
     def _invalidate_from_queryset(cls, queryset):
         for obj in queryset.iterator():
+            if not obj['common_name']:
+                return
             cls.get_device_group.invalidate(None, '', obj['common_name'])
             cls.get_device_group.invalidate(
                 None, obj['organization__slug'], obj['common_name']
             )
+
+    @classmethod
+    def device_change_invalidates_cache(cls, device_id):
+        qs = (
+            VpnClient.objects.select_related('config', 'organization', 'cert',)
+            .filter(config__device_id=device_id)
+            .annotate(
+                organization__slug=F('cert__organization__slug'),
+                common_name=F('cert__common_name'),
+            )
+            .values('common_name', 'organization__slug')
+        )
+        cls._invalidate_from_queryset(qs)
 
     @classmethod
     def devicegroup_change_invalidates_cache(cls, device_group_id):
@@ -228,7 +243,11 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
 
     @classmethod
     def certificate_delete_invalidates_cache(cls, organization_id, common_name):
-        org_slug = Organization.objects.only('slug').get(id=organization_id).slug
+        try:
+            assert common_name
+            org_slug = Organization.objects.only('slug').get(id=organization_id).slug
+        except (AssertionError, Organization.DoesNotExist):
+            return
         cls.get_device_group.invalidate(cls, '', common_name)
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 

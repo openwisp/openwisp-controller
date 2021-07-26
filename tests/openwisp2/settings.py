@@ -129,13 +129,14 @@ TEMPLATES = [
     }
 ]
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://localhost/5',
-        'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient',},
+if not TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://localhost/5',
+            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient',},
+        }
     }
-}
 
 FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
