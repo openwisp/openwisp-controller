@@ -14,6 +14,7 @@ input.deletelink:focus{ background: #a41515 }
 .jsoneditor-wrapper div.jsoneditor input.deletelink,
 .form-row .json-editor-btn-edit{
   margin-left: 10px;
+  margin-right: 5px;
   padding: 6px 12px;
 }
 a.json-editor-btn-edit{
@@ -23,7 +24,7 @@ a.json-editor-btn-edit{
 }
 
 .form-row .json-editor-btn-edit{ margin-bottom: 10px !important }
-.jsoneditor-wrapper div.jsoneditor .form-row{ padding: 15px 15px 15px 0 }
+#main .jsoneditor-wrapper div.jsoneditor .form-row{ padding: 15px 15px 15px 0 }
 .jsoneditor-wrapper div.jsoneditor label{ margin-left: 20px }
 .jsoneditor-wrapper div.jsoneditor .form-row:last-child{ border-bottom-width: 0 }
 .jsoneditor-wrapper div.jsoneditor .inline-group{
@@ -244,7 +245,6 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
 .jsoneditor-wrapper div.jsoneditor div.form-row > .help{
   margin-left: 181px;
   margin-top: 4px;
-  font-size: 13px;
   color: #888;
 }
 .jsoneditor-wrapper div.jsoneditor .inline-group > .help,
@@ -252,7 +252,6 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
   padding: 20px 15px 20px 18px;
   margin: 0;
   border-bottom: 1px solid #eee;
-  font-size: 13px;
 }
 
 .jsoneditor-wrapper div.jsoneditor .modal label{ width: auto }
@@ -275,12 +274,13 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
 div.jsoneditor > div > h3.controls{
   background: transparent !important;
 }
-div.jsoneditor .inline-related h3 {
+#main div.jsoneditor .inline-related h3 {
   color: #666 !important;
   background-color: #f8f8f8 !important;
   border-top: 1px solid #eee !important;
   border-bottom: 1px solid #eee !important;
-  font-size: 13px !important;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 #config-0.inline-related{ position: static }

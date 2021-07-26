@@ -98,7 +98,7 @@ class ConfigConfig(AppConfig):
                         'icon': 'ow-template',
                     },
                     2: {
-                        'label': 'Vpns',
+                        'label': 'VPN Servers',
                         'model': get_model_name('config', 'Vpn'),
                         'name': 'changelist',
                         'icon': 'ow-vpn',
