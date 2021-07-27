@@ -845,3 +845,64 @@ JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial
     this.refreshValue();
     self.onChange();
 };
+
+// Overriding following methods on the JSONEditor is required for
+// working of select2 fields. Refer to https://git.io/J4Qcp for
+// more information.
+JSONEditor.defaults.editors.select.prototype.enable = function () {
+    if (!this.always_disabled) {
+        this.input.disabled = false;
+        if (this.select2) {
+            this.select2.disabled = false;
+        }
+    }
+    this.disabled = false;
+};
+
+JSONEditor.defaults.editors.select.prototype.disable = function () {
+    this.input.disabled = true;
+    if (this.select2) {
+        this.select2.disabled = true;
+    }
+    this.disabled = true;
+};
+
+JSONEditor.defaults.editors.multiselect.prototype.enable = function () {
+    if (!this.always_disabled) {
+        if (this.input) {
+            this.input.disabled = false;
+        } else if (this.inputs) {
+            for (var i in this.inputs) {
+                if (!this.inputs.hasOwnProperty(i)) {
+                    continue;
+                }
+                this.inputs[i].disabled = false;
+            }
+        }
+        // Modified code begins
+        if (this.select2) {
+            this.select2.disabled = false;
+        }
+        this.disabled = false;
+        // Modified code ends
+    }
+};
+
+JSONEditor.defaults.editors.multiselect.prototype.disable = function () {
+    if (this.input) {
+        this.input.disabled = true;
+    } else if (this.inputs) {
+        for (var i in this.inputs) {
+            if (!this.inputs.hasOwnProperty(i)) {
+                continue;
+            }
+            this.inputs[i].disabled = true;
+        }
+    }
+    // Modified code begins
+    if (this.select2) {
+        this.select2.disabled = true;
+        this._super();
+        // Modified code ends
+    }
+};
