@@ -50,3 +50,36 @@ def create_vpn_dh(vpn_pk):
     else:
         vpn.full_clean()
         vpn.save()
+
+
+@shared_task
+def invalidate_devicegroup_cache_change(instance_id, model_name):
+    from .api.views import DeviceGroupCommonName
+
+    Device = load_model('config', 'Device')
+    DeviceGroup = load_model('config', 'DeviceGroup')
+    Cert = load_model('django_x509', 'Cert')
+
+    if model_name == Device._meta.model_name:
+        DeviceGroupCommonName.device_change_invalidates_cache(instance_id)
+    elif model_name == DeviceGroup._meta.model_name:
+        DeviceGroupCommonName.devicegroup_change_invalidates_cache(instance_id)
+    elif model_name == Cert._meta.model_name:
+        DeviceGroupCommonName.certificate_change_invalidates_cache(instance_id)
+
+
+@shared_task
+def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
+    from .api.views import DeviceGroupCommonName
+
+    DeviceGroup = load_model('config', 'DeviceGroup')
+    Cert = load_model('django_x509', 'Cert')
+
+    if model_name == DeviceGroup._meta.model_name:
+        DeviceGroupCommonName.devicegroup_delete_invalidates_cache(
+            kwargs['organization_id']
+        )
+    elif model_name == Cert._meta.model_name:
+        DeviceGroupCommonName.certificate_delete_invalidates_cache(
+            kwargs['organization_id'], kwargs['common_name']
+        )

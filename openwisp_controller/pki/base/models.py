@@ -6,13 +6,21 @@ from swapper import get_model_name
 
 from openwisp_users.mixins import ShareableOrgMixin
 
+from ..utils import UnqiueCommonNameMixin
 
-class AbstractCa(ShareableOrgMixin, BaseCa):
+
+class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
     class Meta(BaseCa.Meta):
         abstract = True
+        constraints = [
+            models.UniqueConstraint(
+                fields=['common_name', 'organization'],
+                name='%(app_label)s_%(class)s_comman_name_and_organization_is_unique',
+            ),
+        ]
 
 
-class AbstractCert(ShareableOrgMixin, BaseCert):
+class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
 
     ca = models.ForeignKey(
         get_model_name('django_x509', 'Ca'),
@@ -22,6 +30,12 @@ class AbstractCert(ShareableOrgMixin, BaseCert):
 
     class Meta(BaseCert.Meta):
         abstract = True
+        constraints = [
+            models.UniqueConstraint(
+                fields=['common_name', 'organization'],
+                name='%(app_label)s_%(class)s_comman_name_and_organization_is_unique',
+            ),
+        ]
 
     def clean(self):
         self._validate_org_relation('ca')

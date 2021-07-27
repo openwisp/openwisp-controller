@@ -356,7 +356,7 @@ class TestConfig(
         c = Config.objects.get(device__name='test-create-cert')
         vpnclient = c.vpnclient_set.first()
         expected_cn = app_settings.COMMON_NAME_FORMAT.format(**c.device.__dict__)
-        self.assertEqual(vpnclient.cert.common_name, expected_cn)
+        self.assertIn(expected_cn, vpnclient.cert.common_name)
 
     def test_automatically_created_cert_not_deleted_post_clear(self):
         self.test_create_cert()
@@ -720,7 +720,9 @@ class TestTransactionConfig(
             old_checksum = config.checksum
             vpnclient_cert = config.vpnclient_set.first().cert
             vpnclient_cert.renew()
-            mocked_delete.assert_called_once()
+            # An additional call from cache invalidation of
+            # DeviceGroupCommonName View
+            self.assertEqual(mocked_delete.call_count, 3)
             del config.backend_instance
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()

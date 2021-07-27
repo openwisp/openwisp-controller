@@ -12,7 +12,7 @@ from swapper import get_model_name, load_model
 from openwisp_utils.admin_theme import register_dashboard_chart
 
 from . import settings as app_settings
-from .signals import config_modified, device_name_changed
+from .signals import config_modified, device_group_changed, device_name_changed
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -36,6 +36,7 @@ class ConfigConfig(AppConfig):
 
     def __setmodels__(self):
         self.device_model = load_model('config', 'Device')
+        self.devicegroup_model = load_model('config', 'DeviceGroup')
         self.config_model = load_model('config', 'Config')
         self.vpnclient_model = load_model('config', 'VpnClient')
         self.cert_model = load_model('django_x509', 'Cert')
@@ -162,6 +163,7 @@ class ConfigConfig(AppConfig):
         device config checksum (view and model method)
         """
         from .controller.views import DeviceChecksumView
+        from .handlers import devicegroup_change_handler, devicegroup_delete_handler
 
         post_save.connect(
             DeviceChecksumView.invalidate_get_device_cache,
@@ -171,6 +173,31 @@ class ConfigConfig(AppConfig):
         config_modified.connect(
             DeviceChecksumView.invalidate_checksum_cache,
             dispatch_uid='invalidate_checksum_cache',
+        )
+        device_group_changed.connect(
+            devicegroup_change_handler,
+            sender=self.device_model,
+            dispatch_uid='invalidate_devicegroup_cache_on_device_change',
+        )
+        post_save.connect(
+            devicegroup_change_handler,
+            sender=self.devicegroup_model,
+            dispatch_uid='invalidate_devicegroup_cache_on_devicegroup_change',
+        )
+        post_save.connect(
+            devicegroup_change_handler,
+            sender=self.cert_model,
+            dispatch_uid='invalidate_devicegroup_cache_on_certificate_change',
+        )
+        post_delete.connect(
+            devicegroup_delete_handler,
+            sender=self.devicegroup_model,
+            dispatch_uid='invalidate_devicegroup_cache_on_devicegroup_delete',
+        )
+        post_delete.connect(
+            devicegroup_delete_handler,
+            sender=self.cert_model,
+            dispatch_uid='invalidate_devicegroup_cache_on_certificate_delete',
         )
 
     def register_dashboard_charts(self):
