@@ -63,7 +63,7 @@ li.commands {
 #ow-command-confirm-dialog-wrapper {
   position: absolute;
   top: 0px;
-  z-index: 100;
+  z-index: 9999;
   height: 100%;
   width: 100%;
   left: 0px;

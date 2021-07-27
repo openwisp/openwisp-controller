@@ -61,7 +61,7 @@ function initCommandDropdown($) {
                     ${owCommandBtns}
                 </div>
             </li>`;
-        $('.object-tools li+li').before(widgetElement);
+        $(widgetElement).insertBefore($('.object-tools li+li')[0]);
     });
 
     // Only show "Send command" button when a device has credentials present
