@@ -70,7 +70,7 @@
         }
     },
     toggleFullScreen = function () {
-        var advanced = $('#advanced_editor');
+        var advanced = $('.advanced_editor:visible');
         if (!inFullScreenMode) {
             advanced.addClass('full-screen');
             $('html').addClass('editor-full');
@@ -88,8 +88,13 @@
     };
 
     var initAdvancedEditor = function (target, data, schema, disableSchema) {
-        var advanced = $("<div id='advanced_editor'></div>");
-        $(advanced).insertBefore($(target));
+        var advanced = $(target).prev('.advanced_editor');
+        if (advanced.length === 0){
+            advanced = $('<div class="advanced_editor"></div>');
+            $(advanced).insertBefore($(target));
+        } else {
+            advanced.empty();
+        }
         $(target).hide();
         // if disableSchema is true, do not validate againsts schema, default is false
         schema = disableSchema ? {} : schema;
@@ -106,7 +111,7 @@
             schema: schema
         };
 
-        var editor = new advancedJSONEditor(document.getElementById(advanced.attr('id')), options, data);
+        var editor = new advancedJSONEditor(advanced.get(0), options, data);
         editor.aceEditor.setOptions({
             fontSize: 14,
             showInvisibles: true
@@ -124,7 +129,7 @@
         // hide on esc button
         $('html').on('keydown', function (e) {
             if (inFullScreenMode && e.keyCode === 27) { // ESC
-                $('#advanced_editor').find('.jsoneditor-exit').click();
+                $('.advanced_editor:visible').find('.jsoneditor-exit').click();
             }
         });
         return editor;
@@ -234,7 +239,7 @@
         django._jsonEditors[id] = editor;
         // initialise advanced json editor here (disable schema validation in VPN admin)
         advancedEditor = initAdvancedEditor(field, value, options.schema, $('#vpn_form').length === 1);
-        $advancedEl = $('#advanced_editor');
+        $advancedEl = $(advancedEditor.container);
         getEditorValue = function () {
             return JSON.stringify(editor.getValue(), null, 4);
         };
@@ -844,4 +849,65 @@ JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial
 
     this.refreshValue();
     self.onChange();
+};
+
+// Overriding following methods on the JSONEditor is required for
+// working of select2 fields. Refer to https://git.io/J4Qcp for
+// more information.
+JSONEditor.defaults.editors.select.prototype.enable = function () {
+    if (!this.always_disabled) {
+        this.input.disabled = false;
+        if (this.select2) {
+            this.select2.disabled = false;
+        }
+    }
+    this.disabled = false;
+};
+
+JSONEditor.defaults.editors.select.prototype.disable = function () {
+    this.input.disabled = true;
+    if (this.select2) {
+        this.select2.disabled = true;
+    }
+    this.disabled = true;
+};
+
+JSONEditor.defaults.editors.multiselect.prototype.enable = function () {
+    if (!this.always_disabled) {
+        if (this.input) {
+            this.input.disabled = false;
+        } else if (this.inputs) {
+            for (var i in this.inputs) {
+                if (!this.inputs.hasOwnProperty(i)) {
+                    continue;
+                }
+                this.inputs[i].disabled = false;
+            }
+        }
+        // Modified code begins
+        if (this.select2) {
+            this.select2.disabled = false;
+        }
+        this.disabled = false;
+        // Modified code ends
+    }
+};
+
+JSONEditor.defaults.editors.multiselect.prototype.disable = function () {
+    if (this.input) {
+        this.input.disabled = true;
+    } else if (this.inputs) {
+        for (var i in this.inputs) {
+            if (!this.inputs.hasOwnProperty(i)) {
+                continue;
+            }
+            this.inputs[i].disabled = true;
+        }
+    }
+    // Modified code begins
+    if (this.select2) {
+        this.select2.disabled = true;
+        this._super();
+        // Modified code ends
+    }
 };

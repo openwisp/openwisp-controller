@@ -924,6 +924,24 @@ Get device group detail
 
     GET /api/v1/controller/group/{id}/
 
+Get device group from certificate common name
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/cert/{common_name}/group/
+
+This endpoint can be used to retrieve group information and metadata by the
+common name of a certificate used in a VPN client tunnel, this endpoint is
+used in layer 2 tunneling solutions for firewall/captive portals.
+
+It is also possible to filter device group by providing organization slug
+of certificate's organization as show in the example below:
+
+.. code-block:: text
+
+    GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
+
 List templates
 ^^^^^^^^^^^^^^
 
@@ -952,7 +970,8 @@ Download template configuration
 
     GET /api/v1/controller/template/{id}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific template.
+The above endpoint triggers the download of a ``tar.gz`` file
+containing the generated configuration for that specific template.
 
 Change details of template
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1003,7 +1022,8 @@ Download VPN configuration
 
     GET /api/v1/controller/vpn/{id}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific VPN.
+The above endpoint triggers the download of a ``tar.gz`` file
+containing the generated configuration for that specific VPN.
 
 Change details of VPN
 ^^^^^^^^^^^^^^^^^^^^^
@@ -1025,6 +1045,143 @@ Delete VPN
 .. code-block:: text
 
     DELETE /api/v1/controller/vpn/{id}/
+
+List CA
+^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/ca/
+
+Create new CA
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/ca/
+
+Import existing CA
+^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/ca/
+
+**Note**: To import an existing CA, only ``name``, ``certificate``
+and ``private_key`` fields have to be filled in the ``HTML`` form or
+included in the ``JSON`` format.
+
+Get CA Detail
+^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/ca/{id}/
+
+Change details of CA
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/ca/{id}/
+
+Patch details of CA
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/ca/{id}/
+
+Download CA(crl)
+^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/ca/{id}/crl/
+
+The above endpoint triggers the download of ``{id}.crl`` file containing 
+up to date CRL of that specific CA.
+
+Delete CA
+^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/ca/{id}/
+
+Renew CA
+^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/ca/{id}/renew/
+
+List Cert
+^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/cert/
+
+Create new Cert
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/cert/
+
+Import existing Cert
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/cert/
+
+**Note**: To import an existing Cert, only ``name``, ``ca``,
+``certificate`` and ``private_key`` fields have to be filled
+in the ``HTML`` form or included in the ``JSON`` format.
+
+Get Cert Detail
+^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    GET /api/v1/controller/cert/{id}/
+
+Change details of Cert
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PUT /api/v1/controller/cert/{id}/
+
+Patch details of Cert
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/cert/{id}/
+
+Delete Cert
+^^^^^^^^^^^
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/cert/{id}/
+
+Renew Cert
+^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/cert/{id}/renew/
+
+Revoke Cert
+^^^^^^^^^^^
+
+.. code-block:: text
+
+    POST /api/v1/controller/cert/{id}/revoke/
 
 Default Alerts / Notifications
 ------------------------------

@@ -128,7 +128,7 @@ class TestVpn(
 
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
-        different_ca = self._create_ca()
+        different_ca = self._create_ca(common_name='different-ca')
         cert = Cert(
             name='test-cert-vpn',
             ca=ca,
@@ -211,11 +211,11 @@ class TestVpn(
         d = self._create_device()
         c = self._create_config(device=d)
         client = VpnClient(vpn=vpn, config=c, auto_cert=True)
-        self.assertEqual(
-            client._get_common_name(), '{mac_address}-{name}'.format(**d.__dict__)
+        self.assertIn(
+            '{mac_address}-{name}'.format(**d.__dict__), client._get_common_name(),
         )
         d.name = d.mac_address
-        self.assertEqual(client._get_common_name(), d.mac_address)
+        self.assertIn(d.mac_address, client._get_common_name())
 
     def test_get_auto_context_keys(self):
         vpn = self._create_vpn()
@@ -328,13 +328,14 @@ class TestVpn(
         client = VpnClient(vpn=vpn, config=c, auto_cert=True)
         client.full_clean()
         client.save()
-        self.assertEqual(
-            client._get_common_name(), '{mac_address}-{name}'.format(**d.__dict__)
+        # The last 9 characters gets truncated and replaced with unique id
+        self.assertIn(
+            '{mac_address}-{name}'.format(**d.__dict__)[:-9], client._get_common_name()
         )
         self.assertEqual(len(client._get_common_name()), 64)
         cert = Cert.objects.filter(organization=org, name=device_name)
         self.assertEqual(cert.count(), 1)
-        self.assertEqual(cert.first().common_name, client._get_common_name())
+        self.assertEqual(cert.first().common_name[:-9], client._get_common_name()[:-9])
 
     @mock.patch.object(Vpn, 'dhparam', side_effect=SoftTimeLimitExceeded)
     def test_update_vpn_dh_timeout(self, dhparam):

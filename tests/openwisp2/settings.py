@@ -129,6 +129,15 @@ TEMPLATES = [
     }
 ]
 
+if not TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://localhost/5',
+            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient',},
+        }
+    }
+
 FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 EMAIL_PORT = '1025'  # for testing purposes

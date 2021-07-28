@@ -3,10 +3,14 @@ from django.utils.translation import ugettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
+from . import tasks
 from .signals import config_status_changed, device_registered
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
+Organization = load_model('openwisp_users', 'Organization')
+Cert = load_model('django_x509', 'Cert')
 
 
 @receiver(
@@ -34,3 +38,19 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
     notify.send(
         sender=instance, type='device_registered', target=instance, condition=condition
     )
+
+
+def devicegroup_change_handler(instance, **kwargs):
+    if instance._state.adding or ('created' in kwargs and kwargs['created'] is True):
+        return
+    model_name = instance._meta.model_name
+    tasks.invalidate_devicegroup_cache_change.delay(instance.id, model_name)
+
+
+def devicegroup_delete_handler(instance, **kwargs):
+    kwargs = {}
+    model_name = instance._meta.model_name
+    kwargs['organization_id'] = instance.organization_id
+    if isinstance(instance, Cert):
+        kwargs['common_name'] = instance.common_name
+    tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)

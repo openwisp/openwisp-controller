@@ -1,6 +1,7 @@
 import collections
 import subprocess
 
+import shortuuid
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.utils.text import slugify
@@ -242,10 +243,13 @@ class AbstractVpnClient(models.Model):
         d = self.config.device
         end = 63 - len(d.mac_address)
         d.name = d.name[:end]
+        unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
         if cn_format == '{mac_address}-{name}' and d.name == d.mac_address:
             cn_format = '{mac_address}'
-        return cn_format.format(**d.__dict__)
+        common_name = cn_format.format(**d.__dict__)[:55]
+        common_name = f'{common_name}-{unique_slug}'
+        return common_name
 
     @classmethod
     def post_delete(cls, **kwargs):

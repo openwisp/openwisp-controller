@@ -384,7 +384,7 @@ class TestDevice(
             device.name = 'new-name'
             device.management_ip = '10.0.0.1'
             device.group_id = device_group.id
-            # Another query is generated due to "config,set_status_modified"
+            # Another query is generated due to "config.set_status_modified"
             # on name change
-            with self.assertNumQueries(2):
+            with self.assertNumQueries(3):
                 device._check_changed_fields()

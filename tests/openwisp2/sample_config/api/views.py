@@ -2,6 +2,9 @@ from openwisp_controller.config.api.views import (
     DeviceDetailView as BaseDeviceDetailView,
 )
 from openwisp_controller.config.api.views import (
+    DeviceGroupCommonName as BaseDeviceGroupCommonName,
+)
+from openwisp_controller.config.api.views import (
     DeviceGroupDetailView as BaseDeviceGroupDetailView,
 )
 from openwisp_controller.config.api.views import (
@@ -69,6 +72,10 @@ class DeviceGroupDetailView(BaseDeviceGroupDetailView):
     pass
 
 
+class DeviceGroupCommonName(BaseDeviceGroupCommonName):
+    pass
+
+
 class DownloadDeviceView(BaseDownloadDeviceView):
     pass
 
@@ -84,3 +91,4 @@ device_detail = DeviceDetailView.as_view()
 download_device_config = DownloadDeviceView().as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
+devicegroup_commonname = DeviceGroupCommonName.as_view()
