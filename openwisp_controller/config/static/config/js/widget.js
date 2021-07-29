@@ -820,7 +820,7 @@ JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial
         if ((val) && typeof val === 'object') {
             Object.entries(val).forEach(function (entry) {
                 if (typeof entry[1] === 'string' && entry[1].indexOf('{{') > -1) {
-                    if (validator.schema.properties[entry[0]]) {
+                    if ((validator.schema.properties) && (validator.schema.properties[entry[0]])) {
                         validatorModification[i] = {
                             propertyName: entry[0],
                             maxLength: validator.schema.properties[entry[0]].maxLength
