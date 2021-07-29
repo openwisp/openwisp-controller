@@ -732,12 +732,14 @@ div.jsoneditor-menu a:hover {
 div.jsoneditor-menu a.jsoneditor-exit {
   position: absolute;
   right: 0;
-  top: 0;
-  padding: 10px;
+  top: 0px;
+  padding: 0 12px;
   font-size: 13px;
-  background-color: #fff;
+  background-color: rgba(255, 255, 255, 0.8);
   color: #000;
-  margin-bottom: 1px;
+  height: 33px;
+  line-height: 33px;
+  border-radius: 3px;
 }
 div.jsoneditor-menu a.jsoneditor-exit img{ margin: -2px 1px 0 0 }
 table.jsoneditor-search input,
@@ -851,6 +853,9 @@ table.jsoneditor-search button.jsoneditor-previous:hover {
 .jsoneditor-menu #netjsonconfig-hint-advancedmode{
   padding: 0;
   font-size: 13px;
+}
+#main .property-selector .form-row {
+  padding: 5px 0 6px 10px !important;
 }
 @media (max-width: 768px){
   .jsoneditor-menu #netjsonconfig-hint-advancedmode{
