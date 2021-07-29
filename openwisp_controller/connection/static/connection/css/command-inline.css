@@ -29,34 +29,6 @@ li.commands {
   transition: background-color 3s ease;
 }
 
-/* Styles for Command button dropdown */
-.ow-device-command-option-container{
-  position: absolute;
-  margin-top: 39px;
-  display: flex;
-  flex-direction: column;
-  z-index: 99;
-  background-color: #efefef;
-  border-radius: 8px;
-  box-shadow: 0px 1px 3px #00000040;
-  color: #333333;
-}
-.ow-command-btn{
-  font-size: 12px;
-  padding: 8px 10px;
-  border: 0;
-  font-weight: normal;
-  cursor: pointer;
-}
-.ow-command-btn:hover,
-.ow-command-btn:focus,
-.ow-command-btn:active {
-  background-color: #515151;
-  color: #fff;
-  outline: 0 none;
-}
-
-
 /* Styles for Command execute form overaly */
 #command_set-group,
 #ow-command-confirm-dialog-wrapper {
