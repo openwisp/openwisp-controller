@@ -101,7 +101,10 @@ class TestDeviceAdmin(
         self.assertEqual(required_template_element.is_selected(), True)
         self.assertEqual(default_template_element.is_enabled(), True)
         self.assertEqual(default_template_element.is_selected(), True)
-
+        # Hide user tools because it covers the save button
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
         self.web_driver.find_element_by_name('_save').click()
         self.assertEqual(
             self.web_driver.find_elements_by_class_name('success')[0].text,
@@ -242,7 +245,7 @@ class TestDeviceAdmin(
         except TimeoutException:
             self.fail('Timed out wating for configuration variabled to get loaded')
         self.web_driver.find_element_by_xpath(
-            '//*[@id="container"]/div[2]/a[3]'
+            '//*[@id="main-content"]/div[2]/a[3]'
         ).click()
         try:
             WebDriverWait(self.web_driver, 2).until(EC.alert_is_present())

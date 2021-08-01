@@ -124,3 +124,20 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
                 data['fl3_inactive'],
             ],
         )
+
+    def test_admin_menu_groups(self):
+        # Test menu group (openwisp-utils menu group) for Location , FloorPlan
+
+        self.client.force_login(self._create_admin())
+        models = ['location', 'floorplan']
+        response = self.client.get(reverse('admin:index'))
+        for model in models:
+            with self.subTest(f'test_admin_group_for_{model}_model'):
+                url = reverse(f'admin:{self.app_label}_{model}_changelist')
+                self.assertContains(response, f'<a class="mg-link" href="{url}">')
+        with self.subTest('test_geo_group_is_registered'):
+            self.assertContains(
+                response,
+                '<div class="mg-dropdown-label">Geographic Info </div>',
+                html=True,
+            )

@@ -29,41 +29,12 @@ li.commands {
   transition: background-color 3s ease;
 }
 
-/* Styles for Command button dropdown */
-.ow-device-command-option-container{
-  position: absolute;
-  margin-top: 35px;
-  display: flex;
-  flex-direction: column;
-  z-index: 99;
-  background-color: #efefef;
-  border: 2px solid #464646;
-  border-radius: 5px;
-  box-shadow: 0px 0px 5px 0px black;
-  color: #333333;
-}
-.ow-command-btn{
-  font-size: 12px;
-  padding: 8px 10px;
-  border: 0.2em solid rgba(0, 0, 0, 0.05);
-  font-weight: normal;
-  cursor: pointer;
-}
-.ow-command-btn:hover,
-.ow-command-btn:focus,
-.ow-command-btn:active {
-  background-color: #515151;
-  color: #fff;
-  outline: 0 none;
-}
-
-
 /* Styles for Command execute form overaly */
 #command_set-group,
 #ow-command-confirm-dialog-wrapper {
   position: absolute;
   top: 0px;
-  z-index: 100;
+  z-index: 9999;
   height: 100%;
   width: 100%;
   left: 0px;
@@ -195,7 +166,7 @@ li.commands {
   }
 }
 
-@media screen and (max-width: 640px){
+@media screen and (max-width: 768px){
   .object-tools {
     display: flex;
     flex-direction: column;

@@ -52,16 +52,16 @@ function initCommandDropdown($) {
 
         Object.keys(schema).forEach(function (el) {
             owCommandBtns +=
-                `<button class="ow-command-btn" data-command="${el}">${schema[el].title}</button>`;
+                `<button class="ow-command-btn option" data-command="${el}">${schema[el].title}</button>`;
         });
         widgetElement = `
             <li>
                 <a href="#" id="send-command">${gettext('Send Command')}</a>
-                <div class="ow-device-command-option-container ow-hide">
+                <div class="ow-device-command-option-container option-container ow-hide">
                     ${owCommandBtns}
                 </div>
             </li>`;
-        $('.object-tools li+li').before(widgetElement);
+        $(widgetElement).insertBefore($('.object-tools li+li')[0]);
     });
 
     // Only show "Send command" button when a device has credentials present

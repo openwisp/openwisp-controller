@@ -10,6 +10,7 @@ from openwisp_notifications.types import (
 from swapper import get_model_name, load_model
 
 from openwisp_utils.admin_theme import register_dashboard_chart
+from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
 from .signals import config_modified, device_group_changed, device_name_changed
@@ -27,11 +28,11 @@ class ConfigConfig(AppConfig):
     def ready(self, *args, **kwargs):
         self.__setmodels__()
         self.connect_signals()
-        self.add_default_menu_items()
         self.register_notification_types()
         self.add_ignore_notification_widget()
         self.enable_cache_invalidation()
         self.register_dashboard_charts()
+        self.register_menu_groups()
         self.notification_cache_update()
 
     def __setmodels__(self):
@@ -84,19 +85,49 @@ class ConfigConfig(AppConfig):
             dispatch_uid='cert_update_invalidate_checksum_cache',
         )
 
-    def add_default_menu_items(self):
-        menu_setting = 'OPENWISP_DEFAULT_ADMIN_MENU_ITEMS'
-        items = [
-            {'model': get_model_name('config', 'Device')},
-            {'model': get_model_name('config', 'Template')},
-            {'model': get_model_name('config', 'Vpn')},
-            {'model': get_model_name('config', 'DeviceGroup')},
-        ]
-        if not hasattr(settings, menu_setting):
-            setattr(settings, menu_setting, items)
-        else:
-            current_menu = getattr(settings, menu_setting)
-            current_menu += items
+    def register_menu_groups(self):
+        register_menu_group(
+            position=30,
+            config={
+                'label': 'Configurations',
+                'items': {
+                    1: {
+                        'label': 'Templates',
+                        'model': get_model_name('config', 'Template'),
+                        'name': 'changelist',
+                        'icon': 'ow-template',
+                    },
+                    2: {
+                        'label': 'VPN Servers',
+                        'model': get_model_name('config', 'Vpn'),
+                        'name': 'changelist',
+                        'icon': 'ow-vpn',
+                    },
+                    3: {
+                        'label': 'Access Credentials',
+                        'model': get_model_name('connection', 'Credentials'),
+                        'name': 'changelist',
+                        'icon': 'ow-access-credential',
+                    },
+                    4: {
+                        'label': 'Device Groups',
+                        'model': get_model_name('config', 'DeviceGroup'),
+                        'name': 'changelist',
+                        'icon': 'ow-device-group',
+                    },
+                },
+                'icon': 'ow-config',
+            },
+        )
+        register_menu_group(
+            position=20,
+            config={
+                'label': 'Devices',
+                'model': get_model_name('config', 'Device'),
+                'name': 'changelist',
+                'icon': 'ow-device',
+            },
+        )
 
     def register_notification_types(self):
         register_notification_type(
