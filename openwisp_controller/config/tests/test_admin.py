@@ -1245,6 +1245,30 @@ class TestAdmin(
         )
         app_settings.CONTEXT = old_context
 
+    def test_editable_management_ip(self):
+        d = self._create_device()
+        d.use_custom_ip = False
+        d.save()
+
+        with self.subTest('test auto management ip'):
+            r = self.client.get(
+                reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+            )
+            self.assertContains(r, '<label>Management ip:</label>')
+            self.assertNotContains(
+                r, '<input type="text" name="management_ip" id="id_management_ip">'
+            )
+
+        with self.subTest('test manual management ip'):
+            d.use_custom_ip = True
+            d.save()
+            r = self.client.get(
+                reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+            )
+            self.assertContains(
+                r, '<input type="text" name="management_ip" id="id_management_ip">'
+            )
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
