@@ -1,10 +1,12 @@
 import logging
 from io import StringIO
 
+<<<<<<< HEAD
 import paramiko
 from django.utils.functional import cached_property
+=======
+>>>>>>> e90597d ([misc] Requested changes)
 from jsonschema import validate
-from jsonschema.exceptions import ValidationError as SchemaError
 
 logger = logging.getLogger(__name__)
 
@@ -34,23 +36,9 @@ class Snmp(object):
     }
 
     def __init__(self, params, addresses):
-        self._params = params
+        self.params = params
         self.addresses = addresses
 
     @classmethod
     def validate(cls, params):
         validate(params, cls.schema)
-        cls.custom_validation(params)
-
-    @classmethod
-    def custom_validation(cls, params):
-        if 'community' not in params or 'agent' not in params:
-            raise SchemaError('Missing community or agent')
-
-    @cached_property
-    def params(self):
-        params = self._params.copy()
-        if 'key' in params:
-            key_fileobj = StringIO(params.pop('key'))
-            params['pkey'] = paramiko.RSAKey.from_private_key(key_fileobj)
-        return params

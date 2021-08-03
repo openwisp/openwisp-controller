@@ -45,7 +45,14 @@ class ConnectorMixin(object):
         self._validate_connector_schema()
 
     def _get_connector(self):
-        return operator.attrgetter(self._connector_field)(self)
+        if not hasattr(self, '_connectors'):
+            self._connectors = dict(app_settings.CONNECTORS)
+        try:
+            if self._connectors[self.credentials.connector] == 'SNMP':
+                return self.credentials.connector
+        except AttributeError:
+            pass
+        return getattr(self, self._connector_field)
 
     def _validate_connector_schema(self):
         try:
