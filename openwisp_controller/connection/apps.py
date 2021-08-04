@@ -7,7 +7,9 @@ from django.db.models.signals import post_save
 from django.utils.translation import ugettext_lazy as _
 from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
-from swapper import load_model
+from swapper import get_model_name, load_model
+
+from openwisp_utils.admin_theme.menu import register_menu_group
 
 from ..config.signals import config_modified
 from .signals import is_working_changed
@@ -28,6 +30,7 @@ class ConnectionConfig(AppConfig):
         """
         self.register_notification_types()
         self.notification_cache_update()
+        self.register_menu_groups()
 
         Config = load_model('config', 'Config')
         Credentials = load_model('connection', 'Credentials')
@@ -160,4 +163,39 @@ class ConnectionConfig(AppConfig):
             model=load_model('connection', 'DeviceConnection'),
             signal=is_working_changed,
             dispatch_uid='notification_device_cache_invalidation',
+        )
+
+    def register_menu_groups(self):
+        register_menu_group(
+            position=30,
+            config={
+                'label': 'Configurations',
+                'items': {
+                    1: {
+                        'label': 'Templates',
+                        'model': get_model_name('config', 'Template'),
+                        'name': 'changelist',
+                        'icon': 'ow-template',
+                    },
+                    2: {
+                        'label': 'VPN Servers',
+                        'model': get_model_name('config', 'Vpn'),
+                        'name': 'changelist',
+                        'icon': 'ow-vpn',
+                    },
+                    3: {
+                        'label': 'Access Credentials',
+                        'model': get_model_name('connection', 'Credentials'),
+                        'name': 'changelist',
+                        'icon': 'ow-access-credential',
+                    },
+                    4: {
+                        'label': 'Device Groups',
+                        'model': get_model_name('config', 'DeviceGroup'),
+                        'name': 'changelist',
+                        'icon': 'ow-device-group',
+                    },
+                },
+                'icon': 'ow-config',
+            },
         )
