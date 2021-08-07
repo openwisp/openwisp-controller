@@ -20,6 +20,12 @@ url_metadata = [
         'app': 'openwisp_controller.pki',
         'include': {'module': '{app}.urls', 'namespace': 'x509'},
     },
+    # openwisp_controller.pki.api
+    {
+        'regexp': r'^api/v1/',
+        'app': 'openwisp_controller.pki',
+        'include': {'module': '{app}.api.urls', 'namespace': 'pki_api'},
+    },
     # openwisp_controller controller
     {
         'regexp': r'^',
