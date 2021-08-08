@@ -126,23 +126,9 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         models = ['credentials']
         response = self.client.get(reverse('admin:index'))
         for model in models:
-            with self.subTest(f'test_admin_group_for_{model}_model'):
+            with self.subTest(f'test_menu_group_for_{model}_model'):
                 url = reverse(f'admin:{self.app_label}_{model}_changelist')
                 self.assertContains(response, f'<a class="mg-link" href="{url}">')
-
-        # Test menu group (openwisp-utils menu group) for Device Group, Template
-        # and Vpn models
-        models = ['devicegroup', 'template', 'vpn']
-        for model in models:
-            with self.subTest(f'test_admin_group_for_{model}_model'):
-                url = reverse(f'admin:{self.config_app_label}_{model}_changelist')
-                self.assertContains(response, f'<a class="mg-link" href="{url}">')
-        with self.subTest('test_configuration_group_is_registered'):
-            self.assertContains(
-                response,
-                '<div class="mg-dropdown-label">Configurations </div>',
-                html=True,
-            )
 
 
 class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):

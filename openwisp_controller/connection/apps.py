@@ -9,7 +9,7 @@ from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
 from swapper import get_model_name, load_model
 
-from openwisp_utils.admin_theme.menu import register_menu_group
+from openwisp_utils.admin_theme.menu import MENU, ModelLink
 
 from ..config.signals import config_modified
 from .signals import is_working_changed
@@ -166,36 +166,17 @@ class ConnectionConfig(AppConfig):
         )
 
     def register_menu_groups(self):
-        register_menu_group(
-            position=30,
-            config={
-                'label': 'Configurations',
-                'items': {
-                    1: {
-                        'label': 'Templates',
-                        'model': get_model_name('config', 'Template'),
-                        'name': 'changelist',
-                        'icon': 'ow-template',
-                    },
-                    2: {
-                        'label': 'VPN Servers',
-                        'model': get_model_name('config', 'Vpn'),
-                        'name': 'changelist',
-                        'icon': 'ow-vpn',
-                    },
-                    3: {
-                        'label': 'Access Credentials',
-                        'model': get_model_name('connection', 'Credentials'),
-                        'name': 'changelist',
-                        'icon': 'ow-access-credential',
-                    },
-                    4: {
-                        'label': 'Device Groups',
-                        'model': get_model_name('config', 'DeviceGroup'),
-                        'name': 'changelist',
-                        'icon': 'ow-device-group',
-                    },
-                },
-                'icon': 'ow-config',
-            },
-        )
+        config_group = MENU[30]
+        if config_group:
+            config_group.items.update(
+                {
+                    3: ModelLink(
+                        {
+                            'label': 'Access Credentials',
+                            'model': get_model_name('connection', 'Credentials'),
+                            'name': 'changelist',
+                            'icon': 'ow-access-credential',
+                        }
+                    )
+                }
+            )
