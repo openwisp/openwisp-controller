@@ -68,7 +68,7 @@ class AbstractDevice(OrgMixin, BaseModel):
     notes = models.TextField(blank=True, help_text=_('internal notes'))
     group = models.ForeignKey(
         get_model_name('config', 'DeviceGroup'),
-        verbose_name=_('Group'),
+        verbose_name=_('group'),
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
