@@ -93,7 +93,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 to=swapper.get_model_name('config', 'DeviceGroup'),
-                verbose_name='Group',
+                verbose_name='group',
             ),
         ),
         migrations.RunPython(
