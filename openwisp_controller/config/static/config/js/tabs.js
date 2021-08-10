@@ -76,33 +76,5 @@ django.jQuery(function ($) {
     }
   }
 
-  // replaces the management ip field with text with the option to edit it
-  $(".field-management_ip > div").append(
-    '<a id="edit_management_ip" class="button">Edit</a>'
-  );
-  var ip_input = $(".field-management_ip > div > input");
-  var initial_ip = ip_input.prop("value");
-  ip_input.after(function () {
-    ip_input.hide();
-    return (
-      '<div class="readonly" id="management_ip_text">' +
-      (initial_ip === "" ? "n/a" : initial_ip) +
-      "</div>"
-    );
-  });
-  $("#edit_management_ip").click(function () {
-    var ip_text = $("#management_ip_text");
-    if (this.text === "Edit") {
-      ip_input.show();
-      ip_text.hide();
-      this.text = "Cancel";
-    } else {
-      ip_text.show();
-      ip_input.hide();
-      ip_input.val(initial_ip);
-      this.text = "Edit";
-    }
-  });
-
   $('#loading-overlay').fadeOut(400);
 });

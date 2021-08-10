@@ -466,6 +466,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + [
             f'{prefix}js/tabs.js',
+            f'{prefix}js/device.js',
             f'{prefix}js/relevant_templates.js',
         ]
 
