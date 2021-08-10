@@ -88,7 +88,12 @@ class AbstractDevice(OrgMixin, BaseModel):
         blank=True,
         null=True,
         db_index=True,
-        help_text=_('ip address of the management interface, if available'),
+        help_text=_(
+            'IP address used by OpenWISP to reach the device when performing '
+            'any type of push operation or active check. The value of this field is '
+            'generally sent by the device and hence does not need to be changed, '
+            'but can be changed or cleared manually if needed.'
+        ),
     )
     hardware_id = models.CharField(**(app_settings.HARDWARE_ID_OPTIONS))
 
