@@ -91,13 +91,6 @@ class AbstractDevice(OrgMixin, BaseModel):
         help_text=_('ip address of the management interface, if available'),
     )
     hardware_id = models.CharField(**(app_settings.HARDWARE_ID_OPTIONS))
-    use_custom_ip = models.BooleanField(
-        default=False,
-        help_text=_(
-            'if enabled, user shall be able to change the '
-            'management ip of the device manually'
-        ),
-    )
 
     class Meta:
         unique_together = (
