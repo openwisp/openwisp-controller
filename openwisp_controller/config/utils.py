@@ -72,7 +72,7 @@ def update_last_ip(device, request):
     if device.last_ip != ip:
         device.last_ip = ip
         update_fields.append('last_ip')
-    if device.management_ip != management_ip and not device.use_custom_ip:
+    if device.management_ip != management_ip:
         # do not update in case user uses a custom ip
         device.management_ip = management_ip
         update_fields.append('management_ip')
