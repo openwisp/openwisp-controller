@@ -170,9 +170,11 @@ class Ssh(object):
         # abort the operation if any of the command
         # returned with a non-zero exit status
         if exit_status not in exit_codes and raise_unexpected_exit:
-            logger.error('Unexpected exit code: {0}'.format(exit_status))
+            log_message = 'Unexpected exit code: {0}'.format(exit_status)
+            logger.error(log_message)
             message = error if error else output
-            raise CommandFailedException(message)
+            # if message is empty, use log_message
+            raise CommandFailedException(message or log_message)
         return output, exit_status
 
     def update_config(self):  # pragma: no cover
