@@ -36,9 +36,9 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         self.assertTrue(dc.is_working)
         with mock.patch('logging.Logger.info') as mocked_logger:
             dc.connector_instance.exec_command('echo test')
-            mocked_logger.assert_has_calls(
-                [mock.call('Executing command: echo test'), mock.call('test\n')]
-            )
+        mocked_logger.assert_has_calls(
+            [mock.call('Executing command: echo test'), mock.call('test\n')]
+        )
 
     @mock.patch.object(ssh_logger, 'info')
     @mock.patch.object(ssh_logger, 'debug')
@@ -49,11 +49,12 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         with self.assertRaises(Exception):
             with mock.patch('logging.Logger.error') as mocked_logger:
                 dc.connector_instance.exec_command('wrongcommand')
-                mocked_logger.assert_has_calls(
-                    [
-                        mock.call('/bin/sh: 1: wrongcommand: not found'),
-                        mock.call('Unexpected exit code: 127'),
-                    ]
+        mocked_logger.assert_has_calls(
+            [
+                mock.call('/bin/sh: 1: wrongcommand: not found\n'),
+                mock.call('Unexpected exit code: 127'),
+            ]
+        )
 
     @mock.patch.object(ssh_logger, 'info')
     @mock.patch.object(ssh_logger, 'debug')
