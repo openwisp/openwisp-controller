@@ -1255,11 +1255,11 @@ class TestDeviceGroupAdmin(
     def test_admin_menu_groups(self):
         # Test menu group (openwisp-utils menu group) for Device Group, Template
         # and Vpn models
-        self.client.force_login(self._get_admin())
         models = ['devicegroup', 'template', 'vpn']
+        self.client.force_login(self._get_admin())
         response = self.client.get(reverse('admin:index'))
         for model in models:
-            with self.subTest(f'test_admin_group_for_{model}_model'):
+            with self.subTest(f'test_menu_group_for_{model}_model'):
                 url = reverse(f'admin:{self.app_label}_{model}_changelist')
                 self.assertContains(response, f'<a class="mg-link" href="{url}">')
         with self.subTest('test_configuration_group_is_registered'):

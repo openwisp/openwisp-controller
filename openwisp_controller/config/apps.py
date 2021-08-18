@@ -87,6 +87,15 @@ class ConfigConfig(AppConfig):
 
     def register_menu_groups(self):
         register_menu_group(
+            position=20,
+            config={
+                'label': 'Devices',
+                'model': get_model_name('config', 'Device'),
+                'name': 'changelist',
+                'icon': 'ow-device',
+            },
+        )
+        register_menu_group(
             position=30,
             config={
                 'label': 'Configurations',
@@ -103,12 +112,6 @@ class ConfigConfig(AppConfig):
                         'name': 'changelist',
                         'icon': 'ow-vpn',
                     },
-                    3: {
-                        'label': 'Access Credentials',
-                        'model': get_model_name('connection', 'Credentials'),
-                        'name': 'changelist',
-                        'icon': 'ow-access-credential',
-                    },
                     4: {
                         'label': 'Device Groups',
                         'model': get_model_name('config', 'DeviceGroup'),
@@ -117,15 +120,6 @@ class ConfigConfig(AppConfig):
                     },
                 },
                 'icon': 'ow-config',
-            },
-        )
-        register_menu_group(
-            position=20,
-            config={
-                'label': 'Devices',
-                'model': get_model_name('config', 'Device'),
-                'name': 'changelist',
-                'icon': 'ow-device',
             },
         )
 

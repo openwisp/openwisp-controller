@@ -7,7 +7,9 @@ from django.db.models.signals import post_save
 from django.utils.translation import ugettext_lazy as _
 from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
-from swapper import load_model
+from swapper import get_model_name, load_model
+
+from openwisp_utils.admin_theme.menu import register_menu_subitem
 
 from ..config.signals import config_modified
 from .signals import is_working_changed
@@ -28,6 +30,7 @@ class ConnectionConfig(AppConfig):
         """
         self.register_notification_types()
         self.notification_cache_update()
+        self.register_menu_groups()
 
         Config = load_model('config', 'Config')
         Credentials = load_model('connection', 'Credentials')
@@ -160,4 +163,16 @@ class ConnectionConfig(AppConfig):
             model=load_model('connection', 'DeviceConnection'),
             signal=is_working_changed,
             dispatch_uid='notification_device_cache_invalidation',
+        )
+
+    def register_menu_groups(self):
+        register_menu_subitem(
+            group_position=30,
+            item_position=3,
+            config={
+                'label': _('Access Credentials'),
+                'model': get_model_name('connection', 'Credentials'),
+                'name': 'changelist',
+                'icon': 'ow-access-credential',
+            },
         )
