@@ -9,7 +9,7 @@ from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
 from swapper import get_model_name, load_model
 
-from openwisp_utils.admin_theme.menu import MENU, ModelLink
+from openwisp_utils.admin_theme.menu import register_menu_subitem
 
 from ..config.signals import config_modified
 from .signals import is_working_changed
@@ -166,17 +166,13 @@ class ConnectionConfig(AppConfig):
         )
 
     def register_menu_groups(self):
-        config_group = MENU[30]
-        if config_group:
-            config_group.items.update(
-                {
-                    3: ModelLink(
-                        {
-                            'label': 'Access Credentials',
-                            'model': get_model_name('connection', 'Credentials'),
-                            'name': 'changelist',
-                            'icon': 'ow-access-credential',
-                        }
-                    )
-                }
-            )
+        register_menu_subitem(
+            group_position=30,
+            item_position=3,
+            config={
+                'label': _('Access Credentials'),
+                'model': get_model_name('connection', 'Credentials'),
+                'name': 'changelist',
+                'icon': 'ow-access-credential',
+            },
+        )
