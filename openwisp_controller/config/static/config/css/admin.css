@@ -26,9 +26,6 @@ a.jsoneditor-exit:focus {
   min-height: 500px;
   box-sizing: border-box;
 }
-.jsoneditor-wrapper div.jsoneditor input + p.help{
-  padding-left: 20px;
-}
 input.readonly {
   border: 1px solid rgba(0, 0, 0, 0.05) !important;
   background-color: rgba(0, 0, 0, 0.07);

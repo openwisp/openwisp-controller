@@ -124,6 +124,9 @@ li.commands {
 #ow-command-confirm-no:focus {
   background-color: #a41515;
 }
+#command_set-0 .field-input{
+  padding: 0 15px;
+}
 
 @media screen and (max-width: 768px){
   .object-tools {
