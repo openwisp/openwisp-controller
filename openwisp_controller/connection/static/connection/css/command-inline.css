@@ -12,7 +12,7 @@ button[disabled] {
 #command_set-0 h2,
 #command_set-0 label[for="id_command_set-0-input"],
 #command_set-group .add-row,
-#command_set-group #advanced_editor,
+#command_set-group .advanced_editor,
 #command_set-group .form-row.field-type,
 li.commands {
   display: none !important;
