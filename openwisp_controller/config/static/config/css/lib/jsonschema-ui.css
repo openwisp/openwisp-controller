@@ -242,23 +242,23 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
   margin-top: 3px;
   margin-left: 181px;
 }
-.jsoneditor-wrapper div.jsoneditor div.form-row > .help{
+#content .jsoneditor-wrapper div.jsoneditor div.form-row > .help{
   margin-left: 181px;
   margin-top: 4px;
   color: #888;
 }
-.jsoneditor-wrapper div.jsoneditor .inline-group > .help,
-.jsoneditor-wrapper div.jsoneditor .grid-column > .help{
+#content .jsoneditor-wrapper div.jsoneditor .inline-group > .help,
+#content .jsoneditor-wrapper div.jsoneditor .grid-column > .help{
   padding: 20px 15px 20px 18px;
   margin: 0;
   border-bottom: 1px solid #eee;
 }
 
-.jsoneditor-wrapper div.jsoneditor .modal label{ width: auto }
-.jsoneditor-wrapper div.jsoneditor div.grid-column[data-schematype="boolean"] label{
+#content .jsoneditor-wrapper div.jsoneditor .modal label{ width: auto }
+#content .jsoneditor-wrapper div.jsoneditor div.grid-column[data-schematype="boolean"] label{
   float: left;
 }
-.jsoneditor-wrapper div.jsoneditor div.grid-column[data-schematype="boolean"] .help{
+#content .jsoneditor-wrapper div.jsoneditor div.grid-column[data-schematype="boolean"] .help{
   float: left;
   clear: none;
   margin: 0;

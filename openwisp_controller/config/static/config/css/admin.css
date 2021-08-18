@@ -14,13 +14,12 @@ a.jsoneditor-exit:focus {
   white-space: pre-wrap;
   word-wrap: break-word;
   padding: 20px;
-  line-height: 22px;
+  line-height: 25px;
 }
 .jsoneditor .vLargeTextField {
   color: #333;
   background-color: #fff;
   padding: 15px;
-  font-weight: bold;
 }
 .vLargeTextField.jsoneditor-raw {
   min-width: 100%;
