@@ -2264,17 +2264,16 @@ Configure timeout for the TCP connect when establishing a SSH connection.
 ``OPENWISP_CONNECTORS``
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+--------------------------------------------------------------------------------+
-| **type**:    | ``tuple``                                                                      |
-+--------------+--------------------------------------------------------------------------------+
-| **default**: | .. code-block:: python                                                         |
-|              |                                                                                |
-|              |   (                                                                            |
-|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),              |
-|              |     ('openwisp_controller.connection.connectors.snmp.Snmp', 'SNMP'),           |
-|              |     ('openwisp_controller.connection.connectors.airos.snmp.Snmp', 'AiOS SNMP'),|
-|              |   )                                                                            |
-+--------------+--------------------------------------------------------------------------------+
++--------------+-----------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                             |
++--------------+-----------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                                |
+|              |                                                                       |
+|              |   (                                                                   |
+|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),     |
+|              |     ('openwisp_controller.connection.connectors.snmp.Snmp', 'SNMP'),  |
+|              |   )                                                                   |
++--------------+-----------------------------------------------------------------------+
 
 Available connector classes. Connectors are python classes that specify ways
 in which OpenWISP can connect to devices in order to launch commands.
