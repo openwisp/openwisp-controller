@@ -48,7 +48,7 @@ class ConnectorMixin(object):
         if not hasattr(self, '_connectors'):
             self._connectors = dict(app_settings.CONNECTORS)
         try:
-            if self._connectors[self.credentials.connector] == 'SNMP':
+            if self._connectors[self.credentials.connector] != 'SSH':
                 return self.credentials.connector
         except AttributeError:
             pass
