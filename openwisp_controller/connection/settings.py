@@ -2,8 +2,11 @@ from django.conf import settings
 
 DEFAULT_CONNECTORS = (
     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),
-    ('openwisp_controller.connection.connectors.snmp.Snmp', 'SNMP'),
-    ('openwisp_controller.connection.connectors.airos.snmp.Snmp', 'AiOS SNMP'),
+    ('openwisp_controller.connection.connectors.snmp.Snmp', 'OpenWRT SNMP'),
+    (
+        'openwisp_controller.connection.connectors.airos.snmp.Snmp',
+        'Ubiquiti AirOS SNMP',
+    ),
 )
 
 CONNECTORS = getattr(settings, 'OPENWISP_CONNECTORS', DEFAULT_CONNECTORS)

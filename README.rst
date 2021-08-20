@@ -126,7 +126,7 @@ Currently, the default connnection protocols are SSH and SNMP, but the protocol
 mechanism is extensible and more protocols can be implemented if needed.
 
 SSH
-^^^
+###
 
 The SSH connector allows the controller to initialize connections to the devices
 in order perform `push operations <#how-to-configure-push-updates>`__:
@@ -145,7 +145,7 @@ Access via SSH key is recommended, the SSH key algorithms supported are:
 - Ed25519
 
 SNMP
-^^^^
+####
 
 The SNMP connector is useful to collect monitoring information and it's used in
 `openwisp-monitoring`_ for performing checks to collect monitoring information.
@@ -2278,17 +2278,15 @@ Configure timeout for the TCP connect when establishing a SSH connection.
 ``OPENWISP_CONNECTORS``
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+--------------------------------------------------------------------------------+
-| **type**:    | ``tuple``                                                                      |
-+--------------+--------------------------------------------------------------------------------+
-| **default**: | .. code-block:: python                                                         |
-|              |                                                                                |
-|              |   (                                                                            |
-|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),              |
-|              |     ('openwisp_controller.connection.connectors.snmp.Snmp', 'SNMP'),           |
-|              |     ('openwisp_controller.connection.connectors.airos.snmp.Snmp', 'AiOS SNMP'),|
-|              |   )                                                                            |
-+--------------+--------------------------------------------------------------------------------+
++--------------+--------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                          |
++--------------+--------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                             |
+|              |                                                                    |
+|              |   (                                                                |
+|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),  |
+|              |   )                                                                |
++--------------+--------------------------------------------------------------------+
 
 Available connector classes. Connectors are python classes that specify ways
 in which OpenWISP can connect to devices in order to launch commands.

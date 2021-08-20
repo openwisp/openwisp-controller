@@ -1,6 +1,5 @@
 import collections
 import logging
-import operator
 
 import jsonschema
 from django.core.exceptions import ValidationError
@@ -45,10 +44,10 @@ class ConnectorMixin(object):
         self._validate_connector_schema()
 
     def _get_connector(self):
-        if not hasattr(self, '_connectors'):
-            self._connectors = dict(app_settings.CONNECTORS)
         try:
-            if self._connectors[self.credentials.connector] != 'SSH':
+            if not getattr(
+                import_string(self.credentials.connector), 'has_update_strategy'
+            ):
                 return self.credentials.connector
         except AttributeError:
             pass
