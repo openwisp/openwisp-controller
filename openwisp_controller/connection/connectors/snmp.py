@@ -10,25 +10,21 @@ class Snmp(object):
     schema = {
         '$schema': 'http://json-schema.org/draft-04/schema#',
         'type': 'object',
-        'title': 'Credentials type',
-        'oneOf': [
-            {
-                'title': 'SNMP',
-                'required': ['community', 'agent'],
-                'additionalProperties': False,
-                'properties': {
-                    'community': {'type': 'string', 'default': 'public'},
-                    'agent': {'type': 'string'},
-                    'port': {
-                        'type': 'integer',
-                        'default': 161,
-                        'minimum': 1,
-                        'maximum': 65535,
-                    },
-                },
+        'required': ['community', 'agent'],
+        'additionalProperties': False,
+        'properties': {
+            'community': {'type': 'string', 'default': 'public'},
+            'agent': {'type': 'string'},
+            'port': {
+                'type': 'integer',
+                'default': 161,
+                'minimum': 1,
+                'maximum': 65535,
             },
-        ],
+        },
     }
+
+    has_update_strategy = False
 
     def __init__(self, params, addresses):
         self.params = params
