@@ -11,6 +11,13 @@ SUBNET_DIVISION_TYPES = getattr(
             ),
             'VPN',
         ),
+        (
+            (
+                'openwisp_controller.subnet_division.rule_types.'
+                'device.DeviceSubnetDivisionRuleType'
+            ),
+            'Device',
+        ),
     ),
 )
 

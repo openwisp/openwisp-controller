@@ -152,6 +152,17 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             organization_id=self.organization_id, name__startswith=self.label
         ).delete()
 
+    @classmethod
+    def post_save(cls, instance, created, **kwargs):
+        from ..tasks import provision_subnet_ip_for_existing_devices
+
+        if not created:
+            return
+        if 'device' in instance.type:
+            provision_subnet_ip_for_existing_devices.delay(
+                organization_id=instance.organization_id
+            )
+
 
 class AbstractSubnetDivisionIndex(models.Model):
     keyword = models.CharField(max_length=30)

@@ -57,17 +57,21 @@ class BaseSubnetDivisionRuleType(object):
         cls.destroy_provisioned_subnets_ips(instance, **kwargs)
 
     @classmethod
-    def create_subnets_ips(cls, instance, rule_type, **kwargs):
-        if not kwargs['created']:
-            return
+    def should_create_subnets_ips(cls, instance, **kwargs):
+        return True
 
+    @classmethod
+    def create_subnets_ips(cls, instance, rule_type, **kwargs):
+        if not cls.should_create_subnets_ips(instance, **kwargs):
+            return
         try:
             organization_id = cls.get_organization(instance)
             subnet = cls.get_subnet(instance)
             division_rule = subnet.subnetdivisionrule_set.get(
                 organization_id__in=(organization_id, None), type=rule_type,
             )
-        except (AttributeError, ObjectDoesNotExist):
+        except (AttributeError, ObjectDoesNotExist) as error:
+            logger.error(error)
             return
 
         master_subnet = division_rule.master_subnet
@@ -144,7 +148,7 @@ class BaseSubnetDivisionRuleType(object):
                     keyword=f'{division_rule.label}_subnet{subnet_id}',
                     subnet_id=subnet_obj.id,
                     rule_id=division_rule.id,
-                    config_id=instance.config_id,
+                    config=instance.config,
                 )
             )
             required_subnet = required_subnet.next()
@@ -168,7 +172,7 @@ class BaseSubnetDivisionRuleType(object):
                         subnet_id=subnet_obj.id,
                         ip_id=ip_obj.id,
                         rule_id=division_rule.id,
-                        config_id=instance.config_id,
+                        config=instance.config,
                     )
                 )
 
