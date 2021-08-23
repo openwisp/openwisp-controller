@@ -101,16 +101,6 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
             ],
         )
 
-    def test_location_organization_fk_queryset(self):
-        self._create_admin()
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_location_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
-        )
-
     def test_floorplan_queryset(self):
         self._create_admin()
         data = self._create_multitenancy_test_env()

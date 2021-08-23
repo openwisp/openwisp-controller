@@ -1,68 +1,29 @@
-from django.conf import settings
+from django.contrib.auth.models import Permission
+from django.test import tag
 from django.urls.base import reverse
-from selenium import webdriver
-from selenium.common.exceptions import (
-    StaleElementReferenceException,
-    TimeoutException,
-    UnexpectedAlertPresentException,
-)
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
+from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from .utils import CreateConfigTemplateMixin, SeleniumTestCase
+from ...tests.utils import MultitenantSeleniumTestCase, SeleniumTestCase
+from .utils import CreateConfigTemplateMixin
+
+Group = load_model('openwisp_users', 'Group')
 
 
+@tag('selenium')
 class TestDeviceAdmin(
     TestOrganizationMixin, CreateConfigTemplateMixin, SeleniumTestCase
 ):
-    admin_username = 'admin'
-    admin_password = 'password'
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        chrome_options = webdriver.ChromeOptions()
-        if getattr(settings, 'SELENIUM_HEADLESS', True):
-            chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--window-size=1366,768')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        capabilities = DesiredCapabilities.CHROME
-        capabilities['goog:loggingPrefs'] = {'browser': 'ALL'}
-        cls.web_driver = webdriver.Chrome(
-            options=chrome_options, desired_capabilities=capabilities
-        )
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.web_driver.quit()
-        super().tearDownClass()
+    serialized_rollback = True
 
     def setUp(self):
         self.admin = self._create_admin(
             username=self.admin_username, password=self.admin_password
-        )
-
-    def tearDown(self):
-        # Accept unsaved changes alert to allow other tests to run
-        try:
-            self.web_driver.refresh()
-        except UnexpectedAlertPresentException:
-            self.web_driver.switch_to_alert().accept()
-        else:
-            try:
-                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
-            except TimeoutException:
-                pass
-            else:
-                self.web_driver.switch_to_alert().accept()
-        self.web_driver.refresh()
-        WebDriverWait(self.web_driver, 2).until(
-            EC.visibility_of_element_located((By.XPATH, '//*[@id="site-name"]'))
         )
 
     def test_create_new_device(self):
@@ -72,9 +33,15 @@ class TestDeviceAdmin(
         self.login()
         self.open(reverse('admin:config_device_add'))
         self.web_driver.find_element_by_name('name').send_keys('11:22:33:44:55:66')
-        Select(self.web_driver.find_element_by_name('organization')).select_by_value(
-            str(org.id)
-        )
+        self.web_driver.find_element_by_css_selector(
+            'span[data-select2-id="1"]'
+        ).click()
+        self.web_driver.find_element_by_css_selector(
+            'input.select2-search__field'
+        ).send_keys(org.name)
+        self.web_driver.find_element_by_class_name(
+            'select2-results__option--highlighted'
+        ).click()
         self.web_driver.find_element_by_name('mac_address').send_keys(
             '11:22:33:44:55:66'
         )
@@ -254,3 +221,35 @@ class TestDeviceAdmin(
         else:
             self.web_driver.switch_to_alert().accept()
             self.fail('Unsaved changes alert displayed without any change')
+
+
+@tag('selenium')
+class TestMultitenantAdmin(MultitenantSeleniumTestCase):
+    app_label = 'config'
+    serialized_rollback = True
+
+    def test_vpn_multitenant_organization(self):
+        group = Group.objects.get(name='Administrator')
+        group.permissions.add(*Permission.objects.filter(codename__endswith='vpn'))
+        url = reverse(f'admin:{self.app_label}_vpn_add')
+        self._test_organization_field_multitenancy(url)
+
+    def test_device_multitenant_organization(self):
+        group = Group.objects.get(name='Administrator')
+        group.permissions.add(*Permission.objects.filter(codename__endswith='device'))
+        url = reverse(f'admin:{self.app_label}_device_add')
+        self._test_organization_field_multitenancy(url)
+
+    def test_template_multitenant_organization(self):
+        group = Group.objects.get(name='Administrator')
+        group.permissions.add(*Permission.objects.filter(codename__endswith='template'))
+        url = reverse(f'admin:{self.app_label}_template_add')
+        self._test_organization_field_multitenancy(url)
+
+    def test_devicegroup_multitenant_organization(self):
+        group = Group.objects.get(name='Administrator')
+        group.permissions.add(
+            *Permission.objects.filter(codename__endswith='devicegroup')
+        )
+        url = reverse(f'admin:{self.app_label}_devicegroup_add')
+        self._test_organization_field_multitenancy(url)

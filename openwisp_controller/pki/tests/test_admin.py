@@ -61,23 +61,16 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
             url=reverse(f'admin:{self.app_label}_ca_changelist'),
-            visible=[data['ca1'].name, data['org1'].name],
+            visible=[data['ca1'].name],
             hidden=[
                 data['ca2'].name,
-                data['org2'].name,
                 data['ca_inactive'].name,
                 data['ca_shared'].name,
             ],
         )
 
-    def test_ca_organization_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_ca_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
-        )
+    def test_multitenant_organization_autocomplete(self):
+        self._create_multitenancy_test_env()
 
     def test_cert_queryset(self):
         data = self._create_multitenancy_test_env(cert=True)
@@ -86,19 +79,9 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             visible=[data['cert1'].name, data['org1'].name],
             hidden=[
                 data['cert2'].name,
-                data['org2'].name,
                 data['cert_inactive'].name,
                 data['cert_shared'].name,
             ],
-        )
-
-    def test_cert_organization_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_cert_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
         )
 
     def test_cert_ca_fk_queryset(self):

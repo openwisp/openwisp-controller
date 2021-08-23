@@ -251,15 +251,6 @@ class TestAdmin(
             hidden=[data['c2'].name, data['org2'].name, data['c3_inactive'].name],
         )
 
-    def test_device_organization_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_device_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
-        )
-
     def test_device_templates_m2m_queryset(self):
         data = self._create_multitenancy_test_env()
         t_shared = self._create_template(name='t-shared', organization=None)
@@ -275,15 +266,6 @@ class TestAdmin(
             url=reverse(f'admin:{self.app_label}_template_changelist'),
             visible=[data['t1'].name, data['org1'].name],
             hidden=[data['t2'].name, data['org2'].name, data['t3_inactive'].name],
-        )
-
-    def test_template_organization_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_template_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
         )
 
     def test_template_vpn_fk_queryset(self):
@@ -307,15 +289,6 @@ class TestAdmin(
                 data['vpn_shared'].name,
                 data['vpn_inactive'].name,
             ],
-        )
-
-    def test_vpn_organization_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_vpn_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
         )
 
     def test_vpn_ca_fk_queryset(self):

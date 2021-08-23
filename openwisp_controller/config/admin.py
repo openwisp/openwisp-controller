@@ -411,7 +411,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'devicelocation__location__address',
     ]
     readonly_fields = ['last_ip', 'management_ip', 'uuid']
-    autocomplete_fields = ['group']
+    autocomplete_fields = ['group', 'organization']
     fields = [
         'name',
         'organization',
@@ -579,6 +579,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'created',
     ]
     search_fields = ['name']
+    autocomplete_fields = ['organization']
     multitenant_shared_relations = ('vpn',)
     fields = [
         'name',
@@ -689,6 +690,7 @@ class VpnAdmin(
     list_display = ['name', 'organization', 'backend', 'created', 'modified']
     list_filter = [('organization', MultitenantOrgFilter), 'backend', 'created']
     search_fields = ['id', 'name', 'host', 'key']
+    autocomplete_fields = ['organization']
     readonly_fields = ['id', 'uuid', 'system_context']
     multitenant_shared_relations = ('ca', 'cert')
     fields = [
@@ -737,6 +739,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'modified',
     ]
     search_fields = ['name', 'description', 'meta_data']
+    autocomplete_fields = ['organization']
     list_filter = [
         ('organization', MultitenantOrgFilter),
     ]

@@ -72,15 +72,6 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             hidden=[data['cred2'].name, data['org2'].name, data['cred3_inactive'].name],
         )
 
-    def test_credentials_organization_fk_queryset(self):
-        data = self._create_multitenancy_test_env()
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_credentials_add'),
-            visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
-        )
-
     def test_connection_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(

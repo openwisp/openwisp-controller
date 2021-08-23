@@ -16,6 +16,7 @@ Cert = load_model('django_x509', 'Cert')
 class CaAdmin(
     MultitenantAdminMixin, PkiReversionTemplatesMixin, AbstractCaAdmin, VersionAdmin
 ):
+    autocomplete_fields = ['organization']
     history_latest_first = True
 
 
@@ -31,6 +32,7 @@ class CertAdmin(
 ):
     multitenant_shared_relations = ('ca',)
     history_latest_first = True
+    autocomplete_fields = ['organization']
 
 
 CertAdmin.fields.insert(2, 'organization')

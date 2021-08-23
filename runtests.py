@@ -18,6 +18,12 @@ if __name__ == '__main__':
         args.insert(2, 'openwisp_controller')
     else:
         args.insert(2, 'openwisp2')
+
+    if os.environ.get('RUN_SELENIUM_TESTS', False):
+        args.append('--tag=selenium')
+    else:
+        args.append('--exclude-tag=selenium')
+
     execute_from_command_line(args)
 
     if not os.environ.get('SAMPLE_APP', False):

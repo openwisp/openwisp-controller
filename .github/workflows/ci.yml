@@ -50,6 +50,87 @@ jobs:
           libgeos-dev libspatialite-dev spatialite-bin \
           libsqlite3-mod-spatialite
 
+    - name: Install npm dependencies
+      run: sudo npm install -g jshint stylelint
+
+    - name: Upgrade python system packages
+      run: pip install -U "pip==20.2.4" wheel setuptools
+
+    - name: Install openwisp-controller
+      run: |
+        pip install -e .
+
+    - name: Install test dependencies
+      run: |
+        pip install ${{ matrix.django-version }}
+        pip install -U -r requirements-test.txt
+
+    - name: QA checks
+      run: |
+        ./run-qa-checks
+    - name: Tests
+      run: |
+        coverage run --source=openwisp_controller runtests.py
+        # SAMPLE tests do not influence coverage, so we can speed up tests with --parallel
+        SAMPLE_APP=1 ./runtests.py --keepdb
+
+    - name: Upload Coverage
+      run: coveralls --service=github
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_FLAG_NAME: python-${{ matrix.python-version }}-${{ matrix.django-version }}
+        COVERALLS_PARALLEL: true
+
+  coveralls:
+    name: Finish Coveralls
+    needs: build
+    runs-on: ubuntu-latest
+    container: python:3-slim
+    steps:
+      - name: Finished
+        run: |
+          pip3 install --upgrade coveralls
+          coveralls --finish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  selenium_tests:
+    name: Selenium Tests | Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
+    runs-on: ubuntu-20.04
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - 3.6
+          - 3.7
+        django-version:
+          - django~=3.0.0
+          - django~=3.1.0
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system packages
+      run: |
+        sudo apt update
+        sudo apt-get -qq -y install sqlite3 gdal-bin libproj-dev \
+          libgeos-dev libspatialite-dev spatialite-bin \
+          libsqlite3-mod-spatialite
+
     - name: Install Chromium for Selenium testing
       run: |
         sudo snap install chromium
@@ -82,23 +163,4 @@ jobs:
         SAMPLE_APP=1 ./runtests.py --keepdb
       env:
         SELENIUM_HEADLESS: 1
-
-    - name: Upload Coverage
-      run: coveralls --service=github
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COVERALLS_FLAG_NAME: python-${{ matrix.python-version }}-${{ matrix.django-version }}
-        COVERALLS_PARALLEL: true
-
-  coveralls:
-    name: Finish Coveralls
-    needs: build
-    runs-on: ubuntu-latest
-    container: python:3-slim
-    steps:
-      - name: Finished
-        run: |
-          pip3 install --upgrade coveralls
-          coveralls --finish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RUN_SELENIUM_TESTS: 1
