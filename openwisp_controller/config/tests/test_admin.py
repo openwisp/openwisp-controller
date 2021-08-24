@@ -1259,16 +1259,16 @@ class TestDeviceGroupAdmin(
         self.client.force_login(self._get_admin())
         response = self.client.get(reverse('admin:index'))
         for model in models:
-            with self.subTest(f'test_menu_group_for_{model}_model'):
+            with self.subTest(f'test menu group link for {model} model'):
                 url = reverse(f'admin:{self.app_label}_{model}_changelist')
-                self.assertContains(response, f'<a class="mg-link" href="{url}">')
-        with self.subTest('test_configuration_group_is_registered'):
+                self.assertContains(response, f' class="mg-link" href="{url}"')
+        with self.subTest('test "Configurations" group is registered'):
             self.assertContains(
                 response,
                 '<div class="mg-dropdown-label">Configurations </div>',
                 html=True,
             )
         # Test Device is registered as menu item
-        with self.subTest('test_device_is_registered_as_menu_item'):
+        with self.subTest('test device menu item is registered'):
             url = reverse(f'admin:{self.app_label}_device_changelist')
-            self.assertContains(response, f'<a class="menu-item" href="{url}">')
+            self.assertContains(response, f' class="menu-item" href="{url}"')
