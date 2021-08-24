@@ -26,6 +26,10 @@ class SubnetDivisionRuleInlineAdmin(
     model = SubnetDivisionRule
     extra = 0
 
+    class Media:
+        js = ['admin/js/jquery.init.js', 'subnet-division/js/subnet-division.js']
+        css = {'all': ['subnet-division/css/subnet-division.css']}
+
 
 # Monkey patching DeviceAdmin to allow filtering using subnet
 DeviceAdmin.list_filter.append(SubnetFilter)

@@ -1916,6 +1916,20 @@ Important Notes
   `device subnet division rule <#device-subnet-division-rule>`_ can be used, which only requires
   `creating a subnet and a subnet division rule <#1-create-a-subnet-and-a-subnet-division-rule>`_.
 
+- In the current implementation, it is not possible to change "Size", "Number of Subnets" and
+  "Number of IPs" fields of an existing subnet division rule due to following reasons:
+
+  - **Size**: Allowing to change size of provisioned subnets of an existing subnet division rule
+    will require rebuilding of Subnets and IP addresses which has possibility of breaking
+    existing configurations.
+  - **Number of Subnets**: Allowing to decrease number of subnets of an existing subnet division
+    rule can create patches of unused subnets dispersed everywhere in the master subnet.
+    Allowing to increase number of subnets will break the continuous allocation of subnets for
+    every device. It can also break configuration of devices.
+  - **Number of IPs**: Allowing to decrease number of IPs of an existing subnet division rule
+    will lead to deletion of IP Addresses which can break configuration of devices being used.
+    It **is allowed** to increase number of IPs.
+
 Signals
 -------
 
