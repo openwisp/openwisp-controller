@@ -136,7 +136,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         models = ['ca', 'cert']
         response = self.client.get(reverse('admin:index'))
         for model in models:
-            with self.subTest(f'test menu link for {model} model'):
+            with self.subTest(f'test menu group link for {model} model'):
                 url = reverse(f'admin:{self.app_label}_{model}_changelist')
                 self.assertContains(response, f' class="mg-link" href="{url}"')
         with self.subTest('test "Cas & Certificates" group is registered'):
