@@ -1,33 +1,33 @@
-from django.db.models.signals import post_delete
+from django.db.models.signals import post_delete, post_save
 from swapper import load_model
 
-from ...config.signals import device_registered
 from .base import BaseSubnetDivisionRuleType
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
 
 
 class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
-    provision_signal = device_registered
-    provision_sender = ('config', 'Device')
+    provision_signal = post_save
+    provision_sender = ('config', 'Config')
     provision_dispatch_uid = 'device_registered_provision_subnet'
 
     destroyer_signal = post_delete
     destroyer_sender = ('config', 'Config')
     destroyer_dispatch_uid = 'device_registered_destroy_subnet'
 
-    organization_id_path = 'organization_id'
+    organization_id_path = 'device.organization_id'
     subnet_path = ''
+    config_path = 'self'
 
     @classmethod
     def get_subnet(cls, instance):
-        return instance.organization.subnetdivisionrule_set.get(
+        return instance.device.organization.subnetdivisionrule_set.get(
             type=f'{cls.__module__}.{cls.__name__}'
         ).master_subnet
 
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
-        return kwargs['is_new']
+        return 'created' in kwargs and kwargs['created']
 
     @staticmethod
     def destroy_provisioned_subnets_ips(instance, **kwargs):

@@ -632,8 +632,9 @@ from being displayed on the changelist view of Subnet and IP admin.
 |              |                                                                                                         |
 +--------------+---------------------------------------------------------------------------------------------------------+
 
-Available types for Subject Division Rule objects. For more information on how
-to write your own types, read `"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
+`Available types for Subject Division Rule <#vpn-subnet-division-rule>`_ objects.
+For more information on how to write your own types, read
+`"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
 
 ``OPENWISP_CONTROLLER_API``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1835,16 +1836,17 @@ follows:
 1. VPN Subnet Division Rule
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A subnet division rule having of "VPN" type will provision subnets when a VPN Client template
-is added to a device. It is pre-required that the related VPN server has the same subnet
-for which the subnet division rule is created.
+This rule provisions subnets when a VPN Client template is added to a device.
+It is pre-required that the related VPN server has the same subnet for which the subnet
+division rule is created.
 
 2. Device Subnet Division Rule
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A subnet division rule having of "Device" type will provision subnets when a new device
-registers on the controller. Also, adding a new rule of "Device" type will provision
-subnets and IP addresses for existing devices.
+This rule provisions subnets when a new device registers on the controller.
+Adding a new rule of "Device" type will provision subnets and IP addresses for
+existing devices of the organization. It is pre-required for devices to have
+a related configuration
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example

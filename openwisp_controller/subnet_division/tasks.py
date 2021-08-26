@@ -13,7 +13,7 @@ Subnet = load_model('openwisp_ipam', 'Subnet')
 IpAddress = load_model('openwisp_ipam', 'IpAddress')
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
-Device = load_model('config', 'Device')
+Config = load_model('config', 'Config')
 
 
 @shared_task
@@ -117,7 +117,11 @@ def provision_extra_ips(rule_id, old_number_of_ips):
 
 @shared_task
 def provision_subnet_ip_for_existing_devices(organization_id):
-    for device in Device.objects.filter(organization_id=organization_id).iterator():
+    for config in (
+        Config.objects.select_related('device', 'device__organization')
+        .filter(device__organization_id=organization_id)
+        .iterator()
+    ):
         DeviceSubnetDivisionRuleType.provision_receiver(
-            device, is_new=True,
+            config, created=True,
         )
