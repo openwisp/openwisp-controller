@@ -153,10 +153,12 @@ class TestMultitenantApi(
     def test_geojson_list(self):
         url = 'geo_api:location_geojson'
         # create 2 devices and 2 device location for each org
-        device_a = self._create_device(organization=self._get_org('org_a'))
-        device_b = self._create_device(organization=self._get_org('org_b'))
-        location_a = self._create_location(organization=self._get_org('org_a'))
-        location_b = self._create_location(organization=self._get_org('org_b'))
+        org_a = self._get_org('org_a')
+        org_b = self._get_org('org_b')
+        device_a = self._create_device(organization=org_a)
+        device_b = self._create_device(organization=org_b)
+        location_a = self._create_location(organization=org_a)
+        location_b = self._create_location(organization=org_b)
         self._create_device_location(content_object=device_a, location=location_a)
         self._create_device_location(content_object=device_b, location=location_b)
 
@@ -171,6 +173,17 @@ class TestMultitenantApi(
             r = self.client.get(reverse(url))
             self.assertContains(r, str(location_a.pk))
             self.assertContains(r, str(location_b.pk))
+
+        with self.subTest('Test filtering using organization slug'):
+            self.client.login(username='admin', password='tester')
+            response = self.client.get(
+                reverse(url), data={'organization_slug': org_a.slug}
+            )
+            response_data = response.data
+            self.assertEqual(response_data['count'], 1)
+            self.assertEqual(
+                response_data['features'][0]['properties']['organization'], org_a.id
+            )
 
         with self.subTest('Test geojson list unauthenticated user'):
             self.client.logout()
