@@ -44,13 +44,4 @@ django.jQuery(function ($) {
     hideOrganizationFieldForNonSharedSubnet();
     $('#subnetdivisionrule_set-group .add-row a').click(hideOrganizationFieldForNonSharedSubnet);
     $('#id_organization').change(hideOrganizationFieldForNonSharedSubnet);
-
-    // Insert change warning
-    $('#subnetdivisionrule_set-group .add-row a').click(function () {
-        var warningText = gettext('Please keep in mind that once the subnet division rule is created and used, changing "Size" and "Number of Subnets" and decreasing "Number of IPs" will not be possible.') +
-            ' ' + gettext('Please read') + ' ' + '<a target="_blank" href="https://github.com/openwisp/openwisp-controller/tree/1.0.x#important-notes">' +
-            gettext('documentation') + '</a>' + ' ' + gettext('for more information'),
-            html = `<div class="help-text-warning"><img src="/static/admin/img/icon-alert.svg"><p>${warningText}</p><div>`;
-        $('.last-related > fieldset:visible:last').before(html);
-    });
 });
