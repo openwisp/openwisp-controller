@@ -626,13 +626,13 @@ from being displayed on the changelist view of Subnet and IP admin.
 | **default**: | .. code-block:: python                                                                                  |
 |              |                                                                                                         |
 |              |    (                                                                                                    |
-|              |       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),          |
 |              |       ('openwisp_controller.subnet_division.rule_types.device.DeviceSubnetDivisionRuleType', 'Device'), |
+|              |       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),          |
 |              |    )                                                                                                    |
 |              |                                                                                                         |
 +--------------+---------------------------------------------------------------------------------------------------------+
 
-`Available types for Subject Division Rule <#vpn-subnet-division-rule>`_ objects.
+`Available types for Subject Division Rule <#device-subnet-division-rule>`_ objects.
 For more information on how to write your own types, read
 `"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
 
@@ -1833,20 +1833,20 @@ The type of subnet division rule controls when subnets and IP addresses will be 
 for a device. Currently, two subnet division rule types have been implemented which are as
 follows:
 
-1. VPN Subnet Division Rule
+1. Device Subnet Division Rule
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This rule provisions subnets whenever a device configuration(``config.Config`` model)
+is created. Adding a new rule of "Device" type will also provision subnets and
+IP addresses for existing devices of the organization. A device without a configuration
+will not trigger this rule.
+
+2. VPN Subnet Division Rule
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This rule provisions subnets when a VPN Client template is added to a device.
 It is pre-required that the related VPN server has the same subnet for which the subnet
 division rule is created.
-
-2. Device Subnet Division Rule
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This rule provisions subnets when a new device registers on the controller.
-Adding a new rule of "Device" type will provision subnets and IP addresses for
-existing devices of the organization. It is pre-required for devices to have
-a related configuration
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example
@@ -1909,6 +1909,10 @@ Important Notes
   to provision any IP addresses that have to be created manually. The rest of the master subnet
   address space **must not** be interfered with or the automation implemented in this module
   will not work.
+
+- The above example used `VPN subnet division rule <#vpn-subnet-division-rule>`_. Similarly,
+  `device subnet division rule <#device-subnet-division-rule>`_ can be used, which only requires
+  `creating a subnet and a subnet division rule <#1-create-a-subnet-and-a-subnet-division-rule>`_.
 
 Signals
 -------
