@@ -1829,24 +1829,26 @@ Create a master subnet under which automatically generated subnets will be provi
 On the same page, add a **subnet division rule** that will be used to provision subnets
 under the master subnet.
 
-The type of subnet division rule controls when subnets and IP addresses will be Provisioned
-for a device. Currently, two subnet division rule types have been implemented which are as
-follows:
+The type of subnet division rule controls when subnets and IP addresses will be provisioned
+for a device. The subnet division rule types currently implemented are described below.
 
-1. Device Subnet Division Rule
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This rule provisions subnets whenever a device configuration(``config.Config`` model)
-is created. Adding a new rule of "Device" type will also provision subnets and
-IP addresses for existing devices of the organization. A device without a configuration
-will not trigger this rule.
-
-2. VPN Subnet Division Rule
+Device Subnet Division Rule
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This rule provisions subnets when a VPN Client template is added to a device.
-It is pre-required that the related VPN server has the same subnet for which the subnet
-division rule is created.
+This rule type is triggered whenever a device configuration (``config.Config`` model)
+is created for the organization specified in the rule.
+
+Creating a new rule of "Device" type will also provision subnets and
+IP addresses for existing devices of the organization automatically.
+
+**Note**: a device without a configuration will not trigger this rule.
+
+VPN Subnet Division Rule
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+This rule is triggered when a VPN client template is assigned to a device,
+provided the VPN server to which the VPN client template relates to has
+the same subnet for which the subnet division rule is created.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example
