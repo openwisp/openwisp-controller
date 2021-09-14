@@ -161,10 +161,11 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         from ..tasks import provision_subnet_ip_for_existing_devices
 
         if created:
-            if 'device' in instance.type:
-                provision_subnet_ip_for_existing_devices.delay(
-                    organization_id=instance.organization_id
-                )
+            provision_subnet_ip_for_existing_devices.delay(
+                rule_id=instance.id,
+                organization_id=instance.organization_id,
+                type=instance.type,
+            )
         else:
             transaction.on_commit(instance.update_related_objects)
 
