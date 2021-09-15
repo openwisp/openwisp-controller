@@ -1,6 +1,10 @@
 from openwisp_ipam.tests import CreateModelsMixin as SubnetIpamMixin
 from swapper import load_model
 
+from openwisp_controller.subnet_division.rule_types.device import (
+    DeviceSubnetDivisionRuleType,
+)
+
 from ...config.tests.utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 from ..rule_types.vpn import VpnSubnetDivisionRuleType
 
@@ -42,6 +46,13 @@ class SubnetDivisionTestMixin(
         path = (
             f'{VpnSubnetDivisionRuleType.__module__}.'
             f'{VpnSubnetDivisionRuleType.__name__}'
+        )
+        return self._get_subnet_division_rule(type=path, **kwargs)
+
+    def _get_device_subdivision_rule(self, **kwargs):
+        path = (
+            f'{DeviceSubnetDivisionRuleType.__module__}.'
+            f'{DeviceSubnetDivisionRuleType.__name__}'
         )
         return self._get_subnet_division_rule(type=path, **kwargs)
 

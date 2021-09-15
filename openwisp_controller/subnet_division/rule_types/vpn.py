@@ -14,3 +14,7 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     organization_id_path = 'config.device.organization_id'
     subnet_path = 'vpn.subnet'
+
+    @classmethod
+    def should_create_subnets_ips(cls, instance, **kwargs):
+        return kwargs['created']
