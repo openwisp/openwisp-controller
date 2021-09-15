@@ -49,13 +49,6 @@ jobs:
           libgeos-dev libspatialite-dev spatialite-bin \
           libsqlite3-mod-spatialite
 
-    - name: Install Chromium for Selenium testing
-      run: |
-        sudo snap install chromium
-        wget https://chromedriver.storage.googleapis.com/91.0.4472.19/chromedriver_linux64.zip
-        sudo unzip chromedriver_linux64.zip -d /usr/local/bin/
-        sudo chmod +x /usr/local/bin/chromedriver
-
     - name: Install npm dependencies
       run: sudo npm install -g jshint stylelint
 
