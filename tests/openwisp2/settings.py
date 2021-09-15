@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'openwisp_controller.geo',
     'openwisp_controller.connection',
     'openwisp_users',
+    'openwisp_users.accounts',
     'openwisp_notifications',
     # openwisp2 admin theme
     # (must be loaded here)
