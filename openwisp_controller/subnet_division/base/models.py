@@ -2,7 +2,7 @@ from ipaddress import ip_network
 
 import swapper
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
 
 from openwisp_users.mixins import OrgMixin
@@ -151,6 +151,26 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         Subnet.objects.filter(
             organization_id=self.organization_id, name__startswith=self.label
         ).delete()
+
+    @classmethod
+    def pre_save(cls, instance, **kwargs):
+        instance.check_and_queue_modified_fields()
+
+    @classmethod
+    def post_save(cls, instance, created, **kwargs):
+        from ..tasks import provision_subnet_ip_for_existing_devices
+
+        if created:
+            if 'device' in instance.type:
+                provision_subnet_ip_for_existing_devices.delay(
+                    organization_id=instance.organization_id
+                )
+        else:
+            transaction.on_commit(instance.update_related_objects)
+
+    @classmethod
+    def post_delete(cls, instance, **kwargs):
+        transaction.on_commit(instance.delete_provisioned_subnets)
 
 
 class AbstractSubnetDivisionIndex(models.Model):
