@@ -459,3 +459,9 @@ class TestCeleryTasks(TestCase):
             mocked_logger.assert_called_once_with(
                 log_message.format(action='provision extra IPs for')
             )
+
+        with patch('logging.Logger.warning') as mocked_logger:
+            tasks.provision_subnet_ip_for_existing_devices.run(id)
+            mocked_logger.assert_called_once_with(
+                log_message.format(action='provision IPs on existing devices for')
+            )

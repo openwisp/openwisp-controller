@@ -3,6 +3,7 @@ from ipaddress import ip_network
 import swapper
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils.module_loading import import_string
 from django.utils.translation import ugettext_lazy as _
 
 from openwisp_users.mixins import OrgMixin
@@ -59,6 +60,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 
     def __str__(self):
         return f'{self.label}'
+
+    @property
+    def rule_class(self):
+        return import_string(self.type)
 
     def clean(self):
         super().clean()
@@ -161,11 +166,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         from ..tasks import provision_subnet_ip_for_existing_devices
 
         if created:
-            provision_subnet_ip_for_existing_devices.delay(
-                rule_id=instance.id,
-                organization_id=instance.organization_id,
-                type=instance.type,
-            )
+            provision_subnet_ip_for_existing_devices.delay(rule_id=instance.id)
         else:
             transaction.on_commit(instance.update_related_objects)
 

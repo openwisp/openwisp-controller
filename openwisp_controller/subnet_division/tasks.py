@@ -6,10 +6,6 @@ from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from swapper import load_model
 
-from openwisp_controller.subnet_division.rule_types.vpn import VpnSubnetDivisionRuleType
-
-from .rule_types.device import DeviceSubnetDivisionRuleType
-
 logger = logging.getLogger(__name__)
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
@@ -121,19 +117,26 @@ def provision_extra_ips(rule_id, old_number_of_ips):
 
 
 @shared_task
-def provision_subnet_ip_for_existing_devices(rule_id, organization_id, type):
-    if 'device' in type:
+def provision_subnet_ip_for_existing_devices(rule_id):
+    try:
+        rule = SubnetDivisionRule.objects.get(id=rule_id)
+    except SubnetDivisionRule.DoesNotExist as error:
+        logger.warning(
+            'Failed to provision IPs on existing devices for Subnet '
+            f'Division Rule with id: "{rule_id}", reason: {error}'
+        )
+        return
+    if 'device' in rule.type:
         for config in (
             Config.objects.select_related('device', 'device__organization')
-            .filter(device__organization_id=organization_id)
+            .filter(device__organization_id=rule.organization_id)
             .iterator()
         ):
-            DeviceSubnetDivisionRuleType.provision_receiver(
+            rule.rule_class.provision_receiver(
                 config, created=True,
             )
-    elif 'vpn' in type:
-        rule = SubnetDivisionRule.objects.get(id=rule_id)
-        organization_filter = Q(organization_id=organization_id) | Q(
+    elif 'vpn' in rule.type:
+        organization_filter = Q(organization_id=rule.organization_id) | Q(
             organization_id=None
         )
         vpn_qs = (
@@ -142,9 +145,7 @@ def provision_subnet_ip_for_existing_devices(rule_id, organization_id, type):
             .values_list('id')
         )
         qs = VpnClient.objects.filter(
-            vpn__in=vpn_qs, config__device__organization_id=organization_id
+            vpn__in=vpn_qs, config__device__organization_id=rule.organization_id
         )
         for vpn_client in qs:
-            VpnSubnetDivisionRuleType.provision_receiver(
-                instance=vpn_client, created=True
-            )
+            rule.rule_class.provision_receiver(instance=vpn_client, created=True)
