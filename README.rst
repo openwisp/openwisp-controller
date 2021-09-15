@@ -903,6 +903,13 @@ List locations with devices deployed (in GeoJSON format)
 
     GET /api/v1/controller/location/geojson/
 
+You can filter using ``organization_slug`` to list location of
+devices from that organization
+
+.. code:: text
+
+    GET /api/v1/controller/location/geojson/?organization_slug=<organization_slug>
+
 List device groups
 ^^^^^^^^^^^^^^^^^^
 
@@ -1099,7 +1106,7 @@ Download CA(crl)
 
     GET /api/v1/controller/ca/{id}/crl/
 
-The above endpoint triggers the download of ``{id}.crl`` file containing 
+The above endpoint triggers the download of ``{id}.crl`` file containing
 up to date CRL of that specific CA.
 
 Delete CA
