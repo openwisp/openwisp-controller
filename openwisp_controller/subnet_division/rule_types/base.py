@@ -29,6 +29,7 @@ class BaseSubnetDivisionRuleType(object):
 
     organization_id_path = None
     subnet_path = None
+    config_path = 'config'
 
     @classmethod
     def validate_rule_type(cls):
@@ -57,12 +58,20 @@ class BaseSubnetDivisionRuleType(object):
         cls.destroy_provisioned_subnets_ips(instance, **kwargs)
 
     @classmethod
-    def create_subnets_ips(cls, instance, rule_type, **kwargs):
-        if not kwargs['created']:
-            return
+    def should_create_subnets_ips(cls, instance, **kwargs):
+        """
+        return a boolean value whether subnets and IPs should
+        be provisioned for "instance" object
+        """
+        raise NotImplementedError()
 
+    @classmethod
+    def create_subnets_ips(cls, instance, rule_type, **kwargs):
+        if not cls.should_create_subnets_ips(instance, **kwargs):
+            return
         try:
             organization_id = cls.get_organization(instance)
+            config = cls.get_config(instance)
             subnet = cls.get_subnet(instance)
             division_rule = subnet.subnetdivisionrule_set.get(
                 organization_id__in=(organization_id, None), type=rule_type,
@@ -74,9 +83,9 @@ class BaseSubnetDivisionRuleType(object):
         max_subnet = cls.get_max_subnet(master_subnet, division_rule)
         generated_indexes = []
         generated_subnets = cls.create_subnets(
-            instance, division_rule, max_subnet, generated_indexes
+            config, division_rule, max_subnet, generated_indexes
         )
-        cls.create_ips(instance, division_rule, generated_subnets, generated_indexes)
+        cls.create_ips(config, division_rule, generated_subnets, generated_indexes)
         SubnetDivisionIndex.objects.bulk_create(generated_indexes)
 
     @classmethod
@@ -86,6 +95,13 @@ class BaseSubnetDivisionRuleType(object):
     @classmethod
     def get_subnet(cls, instance):
         return attrgetter(cls.subnet_path)(instance)
+
+    @classmethod
+    def get_config(cls, instance):
+        if cls.config_path == 'self':
+            return instance
+        else:
+            return attrgetter(cls.config_path)(instance)
 
     @staticmethod
     def get_max_subnet(master_subnet, division_rule):
@@ -119,7 +135,7 @@ class BaseSubnetDivisionRuleType(object):
             return max_subnet
 
     @staticmethod
-    def create_subnets(instance, division_rule, max_subnet, generated_indexes):
+    def create_subnets(config, division_rule, max_subnet, generated_indexes):
         master_subnet = division_rule.master_subnet
         required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
@@ -144,7 +160,7 @@ class BaseSubnetDivisionRuleType(object):
                     keyword=f'{division_rule.label}_subnet{subnet_id}',
                     subnet_id=subnet_obj.id,
                     rule_id=division_rule.id,
-                    config_id=instance.config_id,
+                    config=config,
                 )
             )
             required_subnet = required_subnet.next()
@@ -152,7 +168,7 @@ class BaseSubnetDivisionRuleType(object):
         return generated_subnets
 
     @staticmethod
-    def create_ips(instance, division_rule, generated_subnets, generated_indexes):
+    def create_ips(config, division_rule, generated_subnets, generated_indexes):
         generated_ips = []
         for subnet_obj in generated_subnets:
             for ip_id in range(1, division_rule.number_of_ips + 1):
@@ -168,15 +184,16 @@ class BaseSubnetDivisionRuleType(object):
                         subnet_id=subnet_obj.id,
                         ip_id=ip_obj.id,
                         rule_id=division_rule.id,
-                        config_id=instance.config_id,
+                        config=config,
                     )
                 )
 
         IpAddress.objects.bulk_create(generated_ips)
 
-    @staticmethod
-    def destroy_provisioned_subnets_ips(instance, **kwargs):
+    @classmethod
+    def destroy_provisioned_subnets_ips(cls, instance, **kwargs):
         # Deleting related subnets automatically deletes related IpAddress
         # and SubnetDivisionIndex objects
-        subnet_ids = instance.config.subnetdivisionindex_set.values_list('subnet_id')
+        config = cls.get_config(instance)
+        subnet_ids = config.subnetdivisionindex_set.values_list('subnet_id')
         Subnet.objects.filter(id__in=subnet_ids).delete()
