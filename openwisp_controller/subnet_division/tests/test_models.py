@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
+from django.urls import reverse
 from swapper import load_model
 
 from .. import tasks
@@ -15,6 +16,7 @@ SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
 VpnClient = load_model('config', 'VpnClient')
 Device = load_model('config', 'Device')
+OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
 
 class TestSubnetDivisionRule(
@@ -329,6 +331,65 @@ class TestSubnetDivisionRule(
         )
         # Check 10.0.0.1 is not provisioned again
         self.assertEqual(SubnetDivisionIndex.objects.filter(ip_id=ip.id).count(), 0)
+
+    def test_device_subnet_division_rule(self):
+        self.config.delete()
+        rule = self._get_device_subdivision_rule()
+        OrganizationConfigSettings.objects.create(
+            organization=self.org, shared_secret='shared_secret'
+        )
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.assertEqual(subnet_query.count(), 0)
+
+        # Register device
+        options = {
+            'hardware_id': '1234',
+            'secret': 'shared_secret',
+            'name': 'FF:FF:FF:FF:FF:FF',
+            'mac_address': 'FF:FF:FF:FF:FF:FF',
+            'backend': 'netjsonconfig.OpenWrt',
+        }
+        response = self.client.post(reverse('controller:device_register'), options)
+        lines = response.content.decode().split('\n')
+        self.assertEqual(lines[0], 'registration-result: success')
+
+        self.assertEqual(
+            subnet_query.count(), rule.number_of_subnets,
+        )
+        self.assertEqual(
+            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+
+        # Verify context of config
+        device = Device.objects.get(mac_address='FF:FF:FF:FF:FF:FF')
+        context = device.config.get_subnet_division_context()
+        self.assertIn(f'{rule.label}_prefixlen', context)
+        for subnet_id in range(1, rule.number_of_subnets + 1):
+            self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
+            for ip_id in range(1, rule.number_of_ips + 1):
+                self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
+
+        # Verify working of delete handler
+        device.delete()
+        self.assertEqual(
+            subnet_query.count(), 0,
+        )
+        self.assertEqual(IpAddress.objects.count(), 0)
+
+    def test_device_subnet_division_rule_existing_devices(self):
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.assertEqual(subnet_query.count(), 0)
+        rule = self._get_device_subdivision_rule()
+        self.assertEqual(
+            subnet_query.count(), rule.number_of_subnets,
+        )
+        self.assertEqual(
+            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
 
 
 class TestCeleryTasks(TestCase):

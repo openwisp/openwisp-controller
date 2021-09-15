@@ -620,19 +620,21 @@ from being displayed on the changelist view of Subnet and IP admin.
 ``OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+------------------------------------------------------------------------------------------------+
-| **type**:    | ``tuple``                                                                                      |
-+--------------+------------------------------------------------------------------------------------------------+
-| **default**: | .. code-block:: python                                                                         |
-|              |                                                                                                |
-|              |    (                                                                                           |
-|              |       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'), |
-|              |    )                                                                                           |
-|              |                                                                                                |
-+--------------+------------------------------------------------------------------------------------------------+
++--------------+---------------------------------------------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                                                               |
++--------------+---------------------------------------------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                                                                  |
+|              |                                                                                                         |
+|              |    (                                                                                                    |
+|              |       ('openwisp_controller.subnet_division.rule_types.device.DeviceSubnetDivisionRuleType', 'Device'), |
+|              |       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),          |
+|              |    )                                                                                                    |
+|              |                                                                                                         |
++--------------+---------------------------------------------------------------------------------------------------------+
 
-Available types for Subject Division Rule objects. For more information on how
-to write your own types, read `"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
+`Available types for Subject Division Rule <#device-subnet-division-rule>`_ objects.
+For more information on how to write your own types, read
+`"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
 
 ``OPENWISP_CONTROLLER_API``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1834,8 +1836,31 @@ Create a master subnet under which automatically generated subnets will be provi
 On the same page, add a **subnet division rule** that will be used to provision subnets
 under the master subnet.
 
+The type of subnet division rule controls when subnets and IP addresses will be provisioned
+for a device. The subnet division rule types currently implemented are described below.
+
+Device Subnet Division Rule
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This rule type is triggered whenever a device configuration (``config.Config`` model)
+is created for the organization specified in the rule.
+
+Creating a new rule of "Device" type will also provision subnets and
+IP addresses for existing devices of the organization automatically.
+
+**Note**: a device without a configuration will not trigger this rule.
+
+VPN Subnet Division Rule
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+This rule is triggered when a VPN client template is assigned to a device,
+provided the VPN server to which the VPN client template relates to has
+the same subnet for which the subnet division rule is created.
+
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example
+
+In this example, **VPN subnet division rule** is used.
 
 2. Create a VPN Server
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -1893,6 +1918,10 @@ Important Notes
   to provision any IP addresses that have to be created manually. The rest of the master subnet
   address space **must not** be interfered with or the automation implemented in this module
   will not work.
+
+- The above example used `VPN subnet division rule <#vpn-subnet-division-rule>`_. Similarly,
+  `device subnet division rule <#device-subnet-division-rule>`_ can be used, which only requires
+  `creating a subnet and a subnet division rule <#1-create-a-subnet-and-a-subnet-division-rule>`_.
 
 Signals
 -------
@@ -2861,6 +2890,13 @@ for that device.
         # Similar to organization_id_path but for the required subnet attribute
         subnet_path = 'subnet'
 
+        # An intermediate method through which you can specify conditions for provisions
+        @classmethod
+        def should_create_subnets_ips(cls, instance, **kwargs):
+            # Using "post_save" provision_signal, the rule should be only
+            # triggered when a new object is created.
+            return kwargs['created']
+
 
 After creating a class for your custom rule type, you will need to set
 `OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES <#openwisp-controller-subnet-division-types>`_
@@ -2870,6 +2906,7 @@ setting as follows:
 
     OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES = (                                                                                           |
        ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),
+       ('openwisp_controller.subnet_division.rule_types.device.DeviceSubnetDivisionRuleType', 'Device'),
        ('mycontroller.sample_subnet_division.rules_types.custom.CustomRuleType', 'Custom Rule'),
     )
 

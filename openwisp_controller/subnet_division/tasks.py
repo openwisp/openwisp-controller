@@ -5,12 +5,15 @@ from django.db import transaction
 from django.utils.translation import ugettext_lazy as _
 from swapper import load_model
 
+from .rule_types.device import DeviceSubnetDivisionRuleType
+
 logger = logging.getLogger(__name__)
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
 IpAddress = load_model('openwisp_ipam', 'IpAddress')
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
+Config = load_model('config', 'Config')
 
 
 @shared_task
@@ -110,3 +113,15 @@ def provision_extra_ips(rule_id, old_number_of_ips):
             generated_ips, generated_indexes
         )
     )
+
+
+@shared_task
+def provision_subnet_ip_for_existing_devices(organization_id):
+    for config in (
+        Config.objects.select_related('device', 'device__organization')
+        .filter(device__organization_id=organization_id)
+        .iterator()
+    ):
+        DeviceSubnetDivisionRuleType.provision_receiver(
+            config, created=True,
+        )
