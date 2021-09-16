@@ -3,6 +3,7 @@ from swapper import load_model
 
 from .base import BaseSubnetDivisionRuleType
 
+Config = load_model('config', 'Config')
 Subnet = load_model('openwisp_ipam', 'Subnet')
 
 
@@ -35,3 +36,14 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
         # and SubnetDivisionIndex objects
         subnet_ids = instance.subnetdivisionindex_set.values_list('subnet_id')
         Subnet.objects.filter(id__in=subnet_ids).delete()
+
+    @classmethod
+    def provision_for_existing_objects(cls, rule_obj):
+        for config in (
+            Config.objects.select_related('device', 'device__organization')
+            .filter(device__organization_id=rule_obj.organization_id)
+            .iterator()
+        ):
+            cls.provision_receiver(
+                config, created=True,
+            )

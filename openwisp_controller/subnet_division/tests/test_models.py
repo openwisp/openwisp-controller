@@ -7,6 +7,8 @@ from django.test import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.subnet_division.rule_types.vpn import VpnSubnetDivisionRuleType
+
 from .. import tasks
 from .helpers import SubnetDivisionTestMixin
 
@@ -433,6 +435,10 @@ class TestSubnetDivisionRule(
         ).values_list('subnet__subnet', flat=True)
         self.assertNotIn(config1_subnets.first(), config2_subnets)
         self.assertNotIn(config1_subnets.last(), config2_subnets)
+
+    def test_backend_class_property(self):
+        rule = self._get_vpn_subdivision_rule()
+        self.assertEqual(rule.rule_class, VpnSubnetDivisionRuleType)
 
 
 class TestCeleryTasks(TestCase):

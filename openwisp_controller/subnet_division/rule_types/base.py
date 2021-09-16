@@ -66,6 +66,13 @@ class BaseSubnetDivisionRuleType(object):
         raise NotImplementedError()
 
     @classmethod
+    def provision_for_existing_objects(cls, rule_obj):
+        """
+        Contains logic to trigger provisioning for existing objects
+        """
+        pass
+
+    @classmethod
     def create_subnets_ips(cls, instance, rule_type, **kwargs):
         if not cls.should_create_subnets_ips(instance, **kwargs):
             return

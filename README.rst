@@ -2890,6 +2890,16 @@ for that device.
             # triggered when a new object is created.
             return kwargs['created']
 
+        # You can define logic to trigger provisioning for existing objects
+        # using following classmethod. By default, BaseSubnetDivisionRuleType
+        # performs no operation for existing objects.
+        @classmethod
+        def provision_for_existing_objects(cls, rule_obj):
+            for device in Device.objects.filter(
+                organization=rule_obj.organization
+            ):
+                cls.provision_receiver(device, created=True)
+
 
 After creating a class for your custom rule type, you will need to set
 `OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES <#openwisp-controller-subnet-division-types>`_

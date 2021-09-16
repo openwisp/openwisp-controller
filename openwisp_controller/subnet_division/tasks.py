@@ -2,7 +2,6 @@ import logging
 
 from celery import shared_task
 from django.db import transaction
-from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from swapper import load_model
 
@@ -126,26 +125,5 @@ def provision_subnet_ip_for_existing_devices(rule_id):
             f'Division Rule with id: "{rule_id}", reason: {error}'
         )
         return
-    if 'device' in rule.type:
-        for config in (
-            Config.objects.select_related('device', 'device__organization')
-            .filter(device__organization_id=rule.organization_id)
-            .iterator()
-        ):
-            rule.rule_class.provision_receiver(
-                config, created=True,
-            )
-    elif 'vpn' in rule.type:
-        organization_filter = Q(organization_id=rule.organization_id) | Q(
-            organization_id=None
-        )
-        vpn_qs = (
-            Vpn.objects.filter(subnet=rule.master_subnet)
-            .filter(organization_filter)
-            .values_list('id')
-        )
-        qs = VpnClient.objects.filter(
-            vpn__in=vpn_qs, config__device__organization_id=rule.organization_id
-        )
-        for vpn_client in qs:
-            rule.rule_class.provision_receiver(instance=vpn_client, created=True)
+    else:
+        rule.rule_class.provision_for_existing_objects(rule)
