@@ -1,5 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
+from django_filters import rest_framework as filters
 from rest_framework import generics, pagination
 from rest_framework.permissions import BasePermission
 from rest_framework_gis.pagination import GeoJsonPagination
@@ -69,12 +70,22 @@ class GeoJsonLocationListPagination(GeoJsonPagination):
     page_size = 1000
 
 
+class GeoJsonLocationFilter(filters.FilterSet):
+    organization_slug = filters.CharFilter(field_name='organization__slug')
+
+    class Meta:
+        model = Location
+        fields = ['organization_slug']
+
+
 class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
         device_count=Count('devicelocation')
     )
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = GeoJsonLocationFilter
 
 
 class LocationDeviceList(FilterByParentManaged, generics.ListAPIView):
