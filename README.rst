@@ -1923,8 +1923,8 @@ under the `System Defined Variables <#system-defined-variables>`_.
 Voila! You can now use these variables in configuration of the device. Refer to `How to use configuration variables <#how-to-use-configuration-variables>`_
 section of this documentation to learn how to use configuration variables.
 
-Important Notes
-~~~~~~~~~~~~~~~
+Important notes for using Subnet Division
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - In the above example Subnet, VPN Server, and VPN Client Template belonged to the **default** organization.
   You can use **Systemwide Shared** Subnet, VPN Server, or VPN Client Template too, but
@@ -1945,6 +1945,39 @@ Important Notes
 - The above example used `VPN subnet division rule <#vpn-subnet-division-rule>`_. Similarly,
   `device subnet division rule <#device-subnet-division-rule>`_ can be used, which only requires
   `creating a subnet and a subnet division rule <#1-create-a-subnet-and-a-subnet-division-rule>`_.
+
+Limitations of Subnet Division
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the current implementation, it is not possible to change "Size", "Number of Subnets" and
+"Number of IPs" fields of an existing subnet division rule due to following reasons:
+
+Size
+""""
+
+Allowing to change size of provisioned subnets of an existing subnet division rule
+will require rebuilding of Subnets and IP addresses which has possibility of breaking
+existing configurations.
+
+Number of Subnets
+"""""""""""""""""
+
+Allowing to decrease number of subnets of an existing subnet division
+rule can create patches of unused subnets dispersed everywhere in the master subnet.
+Allowing to increase number of subnets will break the continuous allocation of subnets for
+every device. It can also break configuration of devices.
+
+Number of IPs
+"""""""""""""
+
+Allowing to decrease number of IPs of an existing subnet division rule
+will lead to deletion of IP Addresses which can break configuration of devices being used.
+It **is allowed** to increase number of IPs.
+
+If you want to make changes to any of above fields, delete the existing rule and create a
+new one. The automation will provision for all existing devices that meets the criteria
+for provisioning. **WARNING**: It is possible that devices get different subnets and IPs
+from previous provisioning.
 
 Signals
 -------
