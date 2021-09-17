@@ -1,6 +1,11 @@
+from django.db.models import Q
 from django.db.models.signals import post_delete, post_save
+from swapper import load_model
 
 from .base import BaseSubnetDivisionRuleType
+
+Vpn = load_model('config', 'Vpn')
+VpnClient = load_model('config', 'VpnClient')
 
 
 class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
@@ -18,3 +23,19 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
         return kwargs['created']
+
+    @classmethod
+    def provision_for_existing_objects(cls, rule_obj):
+        organization_filter = Q(organization_id=rule_obj.organization_id) | Q(
+            organization_id=None
+        )
+        vpn_qs = (
+            Vpn.objects.filter(subnet=rule_obj.master_subnet)
+            .filter(organization_filter)
+            .values_list('id')
+        )
+        qs = VpnClient.objects.filter(
+            vpn__in=vpn_qs, config__device__organization_id=rule_obj.organization_id
+        )
+        for vpn_client in qs:
+            cls.provision_receiver(instance=vpn_client, created=True)
