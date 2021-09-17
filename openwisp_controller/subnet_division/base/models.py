@@ -64,6 +64,24 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         super().clean()
         self._validate_master_subnet_consistency()
         self._validate_ip_address_consistency()
+        if not self._state.adding:
+            self._validate_existing_fields()
+
+    def _validate_existing_fields(self):
+        db_instance = self._meta.model.objects.get(id=self.id)
+        # The size field should not be changed
+        if self.size != db_instance.size:
+            raise ValidationError({'size': _('Subnet size cannot be changed')})
+        # Number of IPs should not decreased
+        if self.number_of_ips < db_instance.number_of_ips:
+            raise ValidationError(
+                {'number_of_ips': _('Number of IPs cannot be decreased')}
+            )
+        # Number of subnets should not be changed
+        if self.number_of_subnets != db_instance.number_of_subnets:
+            raise ValidationError(
+                {'number_of_subnets': _('Number of Subnets cannot be changed')}
+            )
 
     def _validate_master_subnet_consistency(self):
         master_subnet_prefix = ip_network(self.master_subnet.subnet).prefixlen
@@ -82,6 +100,15 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                         f'subnets of size /{self.size}'
                     )
                 }
+            )
+
+        # Validate organization of master subnet
+        if (
+            self.master_subnet.organization is not None
+            and self.master_subnet.organization != self.organization
+        ):
+            raise ValidationError(
+                {'organization': _('Organization should be same as the subnet')}
             )
 
     def _validate_ip_address_consistency(self):

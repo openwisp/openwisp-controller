@@ -8,7 +8,7 @@ from swapper import load_model
 
 from openwisp_controller.config.admin import DeviceAdmin
 from openwisp_users.multitenancy import MultitenantAdminMixin, MultitenantOrgFilter
-from openwisp_utils.admin import TimeReadonlyAdminMixin
+from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
 from .filters import DeviceFilter, SubnetFilter, SubnetListFilter
@@ -21,10 +21,24 @@ Device = load_model('config', 'Device')
 
 
 class SubnetDivisionRuleInlineAdmin(
-    MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.StackedInline
+    MultitenantAdminMixin, TimeReadonlyAdminMixin, HelpTextStackedInline
 ):
     model = SubnetDivisionRule
     extra = 0
+    help_text = {
+        'text': _(
+            'Please keep in mind that once the subnet division rule is created '
+            'changing changing "Size", "Number of Subnets" or decreasing '
+            '"Number of IPs" will not be possible.'
+        ),
+        'documentation_url': (
+            'https://github.com/openwisp/openwisp-controller'
+            '#limitations-of-subnet-division'
+        ),
+    }
+
+    class Media:
+        js = ['admin/js/jquery.init.js', 'subnet-division/js/subnet-division.js']
 
 
 # Monkey patching DeviceAdmin to allow filtering using subnet
