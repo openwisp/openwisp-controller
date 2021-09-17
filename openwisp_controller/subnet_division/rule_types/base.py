@@ -70,7 +70,7 @@ class BaseSubnetDivisionRuleType(object):
         """
         Contains logic to trigger provisioning for existing objects
         """
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def create_subnets_ips(cls, instance, rule_type, **kwargs):
