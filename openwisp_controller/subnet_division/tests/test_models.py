@@ -74,6 +74,55 @@ class TestSubnetDivisionRule(
             with self.assertRaises(ValidationError):
                 rule.full_clean()
 
+        with self.subTest('Test updating existing subnet division rule'):
+            rule = SubnetDivisionRule(**default_options.copy())
+            rule.full_clean()
+            rule.save()
+
+            # Test changing size of provisioned subnets
+            with self.assertRaises(ValidationError) as error:
+                rule.size = 26
+                rule.full_clean()
+            self.assertDictEqual(
+                error.exception.message_dict,
+                {'size': ['Subnet size cannot be changed']},
+            )
+
+            # Test decreasing number_of_ips
+            with self.assertRaises(ValidationError) as error:
+                rule.size = 28
+                rule.number_of_ips = 0
+                rule.full_clean()
+            self.assertDictEqual(
+                error.exception.message_dict,
+                {'number_of_ips': ['Number of IPs cannot be decreased']},
+            )
+
+            # Test changing number of subnets
+            with self.assertRaises(ValidationError) as error:
+                rule.number_of_ips = 2
+                rule.number_of_subnets = 3
+                rule.full_clean()
+            self.assertDictEqual(
+                error.exception.message_dict,
+                {'number_of_subnets': ['Number of Subnets cannot be changed']},
+            )
+
+        with self.subTest('Test multitenancy'):
+            org1 = self._get_org()
+            org2 = self._create_org(name='org2')
+            master_subnet = self._create_subnet(
+                subnet='192.168.0.0/16', organization=org1
+            )
+            with self.assertRaises(ValidationError) as error:
+                rule = self._get_vpn_subdivision_rule(
+                    organization=org2, master_subnet=master_subnet
+                )
+            self.assertDictEqual(
+                error.exception.message_dict,
+                {'organization': ['Organization should be same as the subnet']},
+            )
+
     def test_provisioned_subnets(self):
         rule = self._get_vpn_subdivision_rule()
         subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
