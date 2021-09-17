@@ -7,6 +7,8 @@ from django.test import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.subnet_division.rule_types.vpn import VpnSubnetDivisionRuleType
+
 from .. import tasks
 from .helpers import SubnetDivisionTestMixin
 
@@ -440,6 +442,53 @@ class TestSubnetDivisionRule(
             IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
+    def test_vpn_subnet_division_rule_existing_devices(self):
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.config.templates.add(self.template)
+        self.assertEqual(subnet_query.count(), 0)
+        rule = self._get_vpn_subdivision_rule()
+        self.assertEqual(
+            subnet_query.count(), rule.number_of_subnets,
+        )
+        self.assertEqual(
+            IpAddress.objects.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+
+    def test_vpn_subnet_division_rule_existing_devices_different_orgs(self):
+        vpn_server = self._create_vpn(name='vpn-server', subnet=self.master_subnet)
+        template = self._create_template(name='vpn-client', type='vpn', vpn=vpn_server)
+        self.master_subnet.organization = None
+        self.master_subnet.save()
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        config1 = self._create_config(organization=org1)
+        config2 = self._create_config(organization=org2)
+
+        config1.templates.add(template)
+        config2.templates.add(template)
+
+        rule1 = self._get_vpn_subdivision_rule(organization=org1)
+        rule2 = self._get_vpn_subdivision_rule(organization=org2)
+
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            rule1.number_of_subnets + rule2.number_of_subnets,
+        )
+        config1_subnets = config1.subnetdivisionindex_set.filter(
+            ip__isnull=True, subnet__isnull=False
+        ).values_list('subnet__subnet', flat=True)
+        config2_subnets = config2.subnetdivisionindex_set.filter(
+            ip__isnull=True, subnet__isnull=False
+        ).values_list('subnet__subnet', flat=True)
+        self.assertNotIn(config1_subnets.first(), config2_subnets)
+        self.assertNotIn(config1_subnets.last(), config2_subnets)
+
+    def test_backend_class_property(self):
+        rule = self._get_vpn_subdivision_rule()
+        self.assertEqual(rule.rule_class, VpnSubnetDivisionRuleType)
+
 
 class TestCeleryTasks(TestCase):
     def test_subnet_division_rule_does_not_exist(self):
@@ -464,4 +513,10 @@ class TestCeleryTasks(TestCase):
             tasks.provision_extra_ips.run(id, old_number_of_ips=0)
             mocked_logger.assert_called_once_with(
                 log_message.format(action='provision extra IPs for')
+            )
+
+        with patch('logging.Logger.warning') as mocked_logger:
+            tasks.provision_subnet_ip_for_existing_devices.run(id)
+            mocked_logger.assert_called_once_with(
+                log_message.format(action='provision IPs on existing devices for')
             )
