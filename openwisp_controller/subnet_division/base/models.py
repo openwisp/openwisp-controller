@@ -89,15 +89,23 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
 
     def _validate_master_subnet_consistency(self):
-        master_subnet_prefix = ip_network(self.master_subnet.subnet).prefixlen
+        master_subnet = self.master_subnet.subnet
         # Validate size of generated subnet is not greater than size of master subnet
-        if master_subnet_prefix >= self.size:
+        try:
+            next(master_subnet.subnets(new_prefix=self.size))
+        except ValueError:
             raise ValidationError(
-                {'size': _('Subnet size exceeds the size of master subnet')}
+                {
+                    'size': _(
+                        'Master subnet cannot accommodate subnets of size /{0}'.format(
+                            self.size
+                        )
+                    )
+                }
             )
 
         # Validate master subnet can accommodate required number of generated subnets
-        if self.number_of_subnets > (2 ** (self.size - master_subnet_prefix)):
+        if self.number_of_subnets > (2 ** (self.size - master_subnet.prefixlen)):
             raise ValidationError(
                 {
                     'number_of_subnets': _(
