@@ -65,22 +65,58 @@ class TestSubnetDivisionRule(
             options = default_options.copy()
             options['size'] = 8
             rule = SubnetDivisionRule(**options)
-            with self.assertRaises(ValidationError):
+            with self.assertRaises(ValidationError) as context_manager:
                 rule.full_clean()
+            expected_message_dict = {
+                'size': ['Master subnet cannot accommodate subnets of size /8']
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_message_dict
+            )
+
+        with self.subTest('Test rule size is illegal'):
+            options = default_options.copy()
+            options['size'] = 33
+            rule = SubnetDivisionRule(**options)
+            with self.assertRaises(ValidationError) as context_manager:
+                rule.full_clean()
+            expected_message_dict = {
+                'size': ['Master subnet cannot accommodate subnets of size /33']
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_message_dict
+            )
 
         with self.subTest('Test master_subnet cannot accommodate number_of_subnets'):
             options = default_options.copy()
             options['number_of_subnets'] = 99999999
             rule = SubnetDivisionRule(**options)
-            with self.assertRaises(ValidationError):
+            with self.assertRaises(ValidationError) as context_manager:
                 rule.full_clean()
+            expected_message_dict = {
+                'number_of_subnets': [
+                    'Master subnet cannot accommodate 99999999 subnets of size /28'
+                ]
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_message_dict
+            )
 
         with self.subTest('Test generated subnets cannot accommodate number_of_ips'):
             options = default_options.copy()
             options['number_of_ips'] = 99999999
             rule = SubnetDivisionRule(**options)
-            with self.assertRaises(ValidationError):
+            with self.assertRaises(ValidationError) as context_manager:
                 rule.full_clean()
+            expected_message_dict = {
+                'number_of_ips': [
+                    'Generated subnets of size /28 cannot accommodate 99999999 '
+                    'IP Addresses.'
+                ]
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_message_dict
+            )
 
         with self.subTest('Test updating existing subnet division rule'):
             rule = SubnetDivisionRule(**default_options.copy())
