@@ -16,13 +16,17 @@ django.jQuery(function ($) {
             $(el).attr('min', $(el).val());
         }
     });
-    // Disable subnet size field
-    $('#subnetdivisionrule_set-group input[name$="-size"]:visible').prop('readonly', true);
-    $('#subnetdivisionrule_set-group input[name$="-size"]:visible').addClass('readonly');
 
-    // Disable number of subnets field
-    $('#subnetdivisionrule_set-group input[name$="-number_of_subnets"]:visible').prop('readonly', true);
-    $('#subnetdivisionrule_set-group input[name$="-number_of_subnets"]:visible').addClass('readonly');
+    // Disable size and number_of_subnets fields for existing rules
+    $('.inline-related.dynamic-subnetdivisionrule_set:visible').each(function (index, el) {
+        // Delete link appears only on unsaved rules.
+        if ($(el).find('.inline-deletelink').length === 0) {
+            $(el).find('input[name$="-size"]').prop('readonly', true);
+            $(el).find('input[name$="-size"]').addClass('readonly');
+            $(el).find('input[name$="-number_of_subnets"]').prop('readonly', true);
+            $(el).find('input[name$="-number_of_subnets"]').addClass('readonly');
+        }
+    });
 
     // If subnet is not shared, hide organization field from Subnet Division Rule
     function hideOrganizationFieldForNonSharedSubnet() {
