@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from django.db.models.signals import post_delete, post_save
 from swapper import load_model
@@ -39,3 +40,15 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
         )
         for vpn_client in qs:
             cls.provision_receiver(instance=vpn_client, created=True)
+
+    @staticmethod
+    def post_provision_handler(instance, provisioned, **kwargs):
+        def _assign_vpnclient_ip():
+            if provisioned['ip_addresses']:
+                instance.ip = provisioned['ip_addresses'][0]
+                instance.full_clean()
+                instance.save()
+
+        if not provisioned:
+            return
+        transaction.on_commit(_assign_vpnclient_ip)
