@@ -1,10 +1,8 @@
 import os
 
 from django.apps.registry import apps
-from django.core import mail
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
-from django.utils.html import strip_tags
 from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
@@ -29,35 +27,19 @@ class BaseTestNotification:
         self, exp_level, exp_type, exp_verb, exp_message, exp_email_subject
     ):
         n = Notification.objects.first()
-        url_path = reverse('notifications:notification_read_redirect', args=[n.pk])
-        exp_email_link = f'https://example.com{url_path}'
         config_app = (
             'config' if not os.environ.get('SAMPLE_APP', False) else 'sample_config'
         )
         device_url_path = reverse(f'admin:{config_app}_device_change', args=[self.d.id])
         exp_target_link = f'https://example.com{device_url_path}'
-        exp_email_body = '{message}' f'\n\nFor more information see {exp_email_link}.'
 
-        email = mail.outbox.pop()
-        html_message, _ = email.alternatives.pop()
         self.assertEqual(n.type, exp_type)
         self.assertEqual(n.level, exp_level)
         self.assertEqual(n.verb, exp_verb)
         self.assertEqual(n.actor, self.d.deviceconnection_set.first())
         self.assertEqual(n.target, self.d)
-        self.assertEqual(
-            n.message, exp_message.format(n=n, target_link=exp_target_link)
-        )
+        self.assertIn(exp_message.format(n=n, target_link=exp_target_link), n.message)
         self.assertEqual(n.email_subject, exp_email_subject.format(n=n))
-        self.assertEqual(email.subject, n.email_subject)
-        self.assertEqual(
-            email.body, exp_email_body.format(message=strip_tags(n.message))
-        )
-        self.assertIn(
-            f'<a href="{exp_email_link}">'
-            f'For further information see "device: {n.target}".</a>',
-            html_message,
-        )
 
 
 class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
@@ -74,8 +56,8 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
             exp_type='connection_is_working',
             exp_verb='working',
             exp_message=(
-                '<p>(SSH) connection to device <a href="{target_link}">'
-                '{n.target}</a> is {n.verb}. </p>'
+                '(SSH) connection to device <a href="{target_link}">'
+                '{n.target}</a> is {n.verb}.'
             ),
             exp_email_subject='[example.com] RECOVERY: Connection to device {n.target}',
         )
@@ -116,8 +98,8 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
             exp_type='connection_is_not_working',
             exp_verb='not working',
             exp_message=(
-                '<p>(SSH) connection to device <a href="{target_link}">'
-                '{n.target}</a> is {n.verb}. </p>'
+                '(SSH) connection to device <a href="{target_link}">'
+                '{n.target}</a> is {n.verb}.'
             ),
             exp_email_subject='[example.com] PROBLEM: Connection to device {n.target}',
         )
@@ -138,9 +120,9 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
             exp_type='connection_is_not_working',
             exp_verb='not working',
             exp_message=(
-                '<p>(SSH) connection to device <a href="{target_link}">'
+                '(SSH) connection to device <a href="{target_link}">'
                 '{n.target}</a> is {n.verb}. '
-                'Giving up, device not reachable anymore after upgrade</p>'
+                'Giving up, device not reachable anymore after upgrade'
             ),
             exp_email_subject='[example.com] PROBLEM: Connection to device {n.target}',
         )
