@@ -154,6 +154,15 @@ OPENWISP_ADMIN_DASHBOARD_ENABLED = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 if not TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/6',
+            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient',},
+        }
+    }
+
+if not TESTING:
     CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost/1')
 else:
     CELERY_TASK_ALWAYS_EAGER = True
