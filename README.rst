@@ -2148,6 +2148,35 @@ The signal is emitted when the device group changes.
 
 It is not emitted when the device is created.
 
+``subnet_provisioned``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.subnet_division.signals.subnet_provisioned``
+
+**Arguments**:
+
+- ``instance``: instance of ``VpnClient``.
+- ``provisioned``: dictionary of ``Subnet`` and ``IpAddress`` provisioned,
+  ``None`` if nothing is provisioned
+
+The signal is emitted when subnets and IP addresses have been provisioned
+for a ``VpnClient`` for a VPN server with a subnet with
+`subnet division rule <#subnet-division-app>`_.
+
+``vpn_peers_changed``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.vpn_peers_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Vpn``.
+
+The signal is emitted when the peers of VPN server gets changed.
+
+It is only emitted for ``Vpn`` object with **WireGuard** or
+**VXLAN over WireGuard** backend.
+
 Setup (integrate in an existing django project)
 -----------------------------------------------
 

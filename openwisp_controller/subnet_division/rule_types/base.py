@@ -9,6 +9,8 @@ from django.utils.translation import gettext_lazy as _
 from netaddr import IPNetwork
 from swapper import load_model
 
+from ..signals import subnet_provisioned
+
 logger = logging.getLogger(__name__)
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
@@ -48,14 +50,36 @@ class BaseSubnetDivisionRuleType(object):
 
     @classmethod
     def provision_receiver(cls, instance, **kwargs):
+        def _provision_receiver():
+            provisioned = cls.create_subnets_ips(instance, rule_type, **kwargs)
+            cls.post_provision_handler(instance, provisioned, **kwargs)
+            cls.subnet_provisioned_signal_emitter(instance, provisioned)
+
+        if kwargs['created'] is False:
+            return
         rule_type = f'{cls.__module__}.{cls.__name__}'
-        transaction.on_commit(
-            lambda: cls.create_subnets_ips(instance, rule_type, **kwargs)
-        )
+        transaction.on_commit(_provision_receiver)
 
     @classmethod
     def destroyer_receiver(cls, instance, **kwargs):
         cls.destroy_provisioned_subnets_ips(instance, **kwargs)
+
+    @staticmethod
+    def post_provision_handler(instance, provisioned, **kwargs):
+        """
+        This method should be overridden in inherited rule types to
+        perform any operation on provisioned subnets and IP addresses.
+        :param instance: object that triggered provisioning
+        :param provisioned: dictionary containing subnets and IP addresses
+            provisioned, None if nothing is provisioned
+        """
+        pass
+
+    @staticmethod
+    def subnet_provisioned_signal_emitter(instance, provisioned):
+        subnet_provisioned.send(
+            sender=SubnetDivisionRule, instance=instance, provisioned=provisioned
+        )
 
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
@@ -92,8 +116,11 @@ class BaseSubnetDivisionRuleType(object):
         generated_subnets = cls.create_subnets(
             config, division_rule, max_subnet, generated_indexes
         )
-        cls.create_ips(config, division_rule, generated_subnets, generated_indexes)
+        generated_ips = cls.create_ips(
+            config, division_rule, generated_subnets, generated_indexes
+        )
         SubnetDivisionIndex.objects.bulk_create(generated_indexes)
+        return {'subnets': generated_subnets, 'ip_addresses': generated_ips}
 
     @classmethod
     def get_organization(cls, instance):
@@ -196,6 +223,7 @@ class BaseSubnetDivisionRuleType(object):
                 )
 
         IpAddress.objects.bulk_create(generated_ips)
+        return generated_ips
 
     @classmethod
     def destroy_provisioned_subnets_ips(cls, instance, **kwargs):

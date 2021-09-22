@@ -8,8 +8,10 @@ from django.urls import reverse
 from swapper import load_model
 
 from openwisp_controller.subnet_division.rule_types.vpn import VpnSubnetDivisionRuleType
+from openwisp_utils.tests import catch_signal
 
 from .. import tasks
+from ..signals import subnet_provisioned
 from .helpers import SubnetDivisionTestMixin
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
@@ -488,6 +490,18 @@ class TestSubnetDivisionRule(
     def test_backend_class_property(self):
         rule = self._get_vpn_subdivision_rule()
         self.assertEqual(rule.rule_class, VpnSubnetDivisionRuleType)
+
+    def test_subnet_ips_provisioned_signal(self):
+        rule = self._get_vpn_subdivision_rule()
+        with catch_signal(subnet_provisioned) as handler:
+            self.config.templates.add(self.template)
+            handler.assert_called_once()
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.assertEqual(
+            subnet_query.count(), rule.number_of_subnets,
+        )
 
 
 class TestCeleryTasks(TestCase):
