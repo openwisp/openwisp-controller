@@ -130,24 +130,34 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
         self._validate_certs()
+        self._validate_keys()
         self._validate_org_relation('ca')
         self._validate_org_relation('cert')
         self._validate_org_relation('subnet')
         self._validate_subnet_ip()
 
     def _validate_certs(self):
-        if self._is_backend_type('openvpn') and not self.ca:
+        if not self._is_backend_type('openvpn'):
+            self.ca = None
+            self.cert = None
+            return
+
+        if not self.ca:
             raise ValidationError({'ca': _('CA is required with this VPN backend')})
-        if self._is_backend_type('wireguard') and self.ca:
-            raise ValidationError(
-                {'ca': _('CA must not be used when using this VPN backend')}
-            )
         # certificate must be related to CA
         if self.cert and self.cert.ca.pk != self.ca.pk:
             msg = _('The selected certificate must match the selected CA.')
             raise ValidationError({'cert': msg})
 
+    def _validate_keys(self):
+        if not self._is_backend_type('wireguard'):
+            self.public_key = ''
+            self.private_key = ''
+
     def _validate_subnet_ip(self):
+        if self._is_backend_type('openvpn'):
+            self.subnet = None
+            self.ip = None
         if self.subnet and self.ip and self.ip.subnet != self.subnet:
             raise ValidationError(
                 {'ip': _('VPN ip address must be within the VPN subnet')}

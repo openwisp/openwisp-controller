@@ -29,8 +29,8 @@ class TestSubnetDivisionRule(
     def setUp(self):
         self.org = self._get_org()
         self.master_subnet = self._get_master_subnet()
-        self.vpn_server = self._create_vpn(
-            subnet=self.master_subnet, organization=self.org
+        self.vpn_server = self._create_wireguard_vpn(
+            subnet=self.master_subnet, organization=self.org,
         )
         self.template = self._create_template(
             name='vpn-test', type='vpn', vpn=self.vpn_server, organization=self.org
@@ -329,7 +329,9 @@ class TestSubnetDivisionRule(
         self.master_subnet.organization = None
         self.master_subnet.save()
 
-        vpn_server = self._create_vpn(name='vpn-server', subnet=self.master_subnet)
+        vpn_server = self._create_wireguard_vpn(
+            name='vpn-server', subnet=self.master_subnet
+        )
 
         template = self._create_template(name='vpn-client', type='vpn', vpn=vpn_server)
 
@@ -467,7 +469,9 @@ class TestSubnetDivisionRule(
     def test_vpn_subnet_division_rule_existing_devices_different_orgs(self):
         self.master_subnet.organization = None
         self.master_subnet.save()
-        vpn_server = self._create_vpn(name='vpn-server', subnet=self.master_subnet)
+        vpn_server = self._create_wireguard_vpn(
+            name='vpn-server', subnet=self.master_subnet
+        )
         template = self._create_template(name='vpn-client', type='vpn', vpn=vpn_server)
         org1 = self._create_org(name='org1')
         org2 = self._create_org(name='org2')

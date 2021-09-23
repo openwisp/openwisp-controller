@@ -380,8 +380,8 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ('auto_cert', models.BooleanField(default=False)),
-                ('public_key', models.CharField(blank=True, max_length=44)),
-                ('private_key', models.CharField(blank=True, max_length=44)),
+                ('public_key', models.CharField(blank=True, max_length=44),),
+                ('private_key', models.CharField(blank=True, max_length=44),),
                 (
                     'vni',
                     models.PositiveIntegerField(

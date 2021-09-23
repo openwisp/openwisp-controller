@@ -5,7 +5,7 @@ from openwisp_controller.subnet_division.rule_types.device import (
     DeviceSubnetDivisionRuleType,
 )
 
-from ...config.tests.utils import CreateConfigTemplateMixin, TestVpnX509Mixin
+from ...config.tests.utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
 from ..rule_types.vpn import VpnSubnetDivisionRuleType
 
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
@@ -14,7 +14,7 @@ Subnet = load_model('openwisp_ipam', 'Subnet')
 
 
 class SubnetDivisionTestMixin(
-    CreateConfigTemplateMixin, TestVpnX509Mixin, SubnetIpamMixin
+    CreateConfigTemplateMixin, TestWireguardVpnMixin, SubnetIpamMixin
 ):
     @property
     def subnet_query(self):
