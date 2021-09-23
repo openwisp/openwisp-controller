@@ -172,7 +172,7 @@ class TestSubnetDivisionRule(
 
     def test_rule_label_updated(self):
         new_rule_label = 'TSDR'
-        rule = self._get_vpn_subdivision_rule()
+        rule = self._get_vpn_subdivision_rule(label='VPN_OW')
         self.config.templates.add(self.template)
         index_queryset = rule.subnetdivisionindex_set.filter(config_id=self.config.id)
         subnet_queryset = self.subnet_query.filter(
@@ -182,7 +182,7 @@ class TestSubnetDivisionRule(
         )
         index_count = index_queryset.count()
         subnet_count = subnet_queryset.count()
-        rule.label = 'TSDR'
+        rule.label = new_rule_label
         rule.save()
         rule.refresh_from_db()
 
@@ -193,6 +193,14 @@ class TestSubnetDivisionRule(
             keyword__startswith=new_rule_label,
         ).count()
         self.assertEqual(index_count, new_index_count)
+
+        # Verify context of config
+        context = self.config.get_subnet_division_context()
+        self.assertIn(f'{rule.label}_prefixlen', context)
+        for subnet_id in range(1, rule.number_of_subnets + 1):
+            self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
+            for ip_id in range(1, rule.number_of_ips + 1):
+                self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
 
         # Assert name and description of Subnet are updated
         new_subnet_count = subnet_queryset.filter(
