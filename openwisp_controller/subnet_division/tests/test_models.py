@@ -43,7 +43,7 @@ class TestSubnetDivisionRule(
 
     def test_field_validations(self):
         default_options = {
-            'label': 'OW',
+            'label': 'OW_1',
             'size': 28,
             'master_subnet': self.master_subnet,
             'number_of_ips': 2,
@@ -60,6 +60,21 @@ class TestSubnetDivisionRule(
             rule = SubnetDivisionRule(**options)
             rule.full_clean()
             self.assertEqual(str(rule), options['label'])
+
+        with self.subTest('Test label'):
+            options = default_options.copy()
+            options['label'] = 'OW_10.0.0.0/16'
+            rule = SubnetDivisionRule(**options)
+            with self.assertRaises(ValidationError) as error:
+                rule.full_clean()
+            self.assertDictEqual(
+                error.exception.message_dict,
+                {
+                    'label': [
+                        'Only alphanumeric characters and underscores are allowed.'
+                    ]
+                },
+            )
 
         with self.subTest('Test rule size exceeds size of master_subnet'):
             options = default_options.copy()
