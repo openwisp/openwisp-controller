@@ -67,10 +67,21 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 
     def clean(self):
         super().clean()
+        self._validate_label()
         self._validate_master_subnet_consistency()
         self._validate_ip_address_consistency()
         if not self._state.adding:
             self._validate_existing_fields()
+
+    def _validate_label(self):
+        if not self.label.isidentifier():
+            raise ValidationError(
+                {
+                    'label': _(
+                        'Only alphanumeric characters and underscores are allowed.'
+                    )
+                }
+            )
 
     def _validate_existing_fields(self):
         db_instance = self._meta.model.objects.get(id=self.id)
