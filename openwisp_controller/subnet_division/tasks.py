@@ -27,15 +27,16 @@ def update_subnet_division_index(rule_id):
         )
         return
 
-    index_queryset = division_rule.subnetdivisionindex_set.all()
-    for index in index_queryset:
+    for index in division_rule.subnetdivisionindex_set.only('keyword').iterator():
         identifiers = index.keyword.split('_')
-        identifiers[0] = division_rule.label
-        index.keyword = '_'.join(identifiers)
-
-    SubnetDivisionIndex.objects.bulk_update(
-        index_queryset, fields=['keyword'], batch_size=20
-    )
+        if index.ip_id is not None:
+            required_identifiers = 2
+        else:
+            required_identifiers = 1
+        index.keyword = '_'.join(
+            [division_rule.label] + identifiers[-required_identifiers:]
+        )
+        index.save()
 
 
 @shared_task
