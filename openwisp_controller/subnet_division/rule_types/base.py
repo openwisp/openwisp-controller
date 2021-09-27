@@ -53,13 +53,23 @@ class BaseSubnetDivisionRuleType(object):
         def _provision_receiver():
             # If any of following operations fail, the database transaction
             # should fail/rollback.
-            provisioned = cls.create_subnets_ips(instance, rule_type, **kwargs)
-            cls.post_provision_handler(instance, provisioned, **kwargs)
-            cls.subnet_provisioned_signal_emitter(instance, provisioned)
+            if 'rule' in kwargs:
+                rules = [kwargs['rule']]
+            else:
+                try:
+                    rules = cls.get_subnet_division_rules(instance)
+                except (AttributeError, ObjectDoesNotExist):
+                    return
+            for rule in rules:
+                provisioned = cls.create_subnets_ips(instance, rule, **kwargs)
+                cls.post_provision_handler(instance, provisioned, **kwargs)
+                cls.subnet_provisioned_signal_emitter(instance, provisioned)
 
-        if kwargs['created'] is False:
+        if kwargs['created'] is False or not cls.should_create_subnets_ips(
+            instance, **kwargs
+        ):
             return
-        rule_type = f'{cls.__module__}.{cls.__name__}'
+
         transaction.on_commit(_provision_receiver)
 
     @classmethod
@@ -99,16 +109,9 @@ class BaseSubnetDivisionRuleType(object):
         raise NotImplementedError()
 
     @classmethod
-    def create_subnets_ips(cls, instance, rule_type, **kwargs):
-        if not cls.should_create_subnets_ips(instance, **kwargs):
-            return
+    def create_subnets_ips(cls, instance, division_rule, **kwargs):
         try:
-            organization_id = cls.get_organization(instance)
             config = cls.get_config(instance)
-            subnet = cls.get_subnet(instance)
-            division_rule = subnet.subnetdivisionrule_set.get(
-                organization_id__in=(organization_id, None), type=rule_type,
-            )
         except (AttributeError, ObjectDoesNotExist):
             return
 
@@ -131,6 +134,15 @@ class BaseSubnetDivisionRuleType(object):
     @classmethod
     def get_subnet(cls, instance):
         return attrgetter(cls.subnet_path)(instance)
+
+    @classmethod
+    def get_subnet_division_rules(cls, instance):
+        rule_type = f'{cls.__module__}.{cls.__name__}'
+        organization_id = cls.get_organization(instance)
+        subnet = cls.get_subnet(instance)
+        return subnet.subnetdivisionrule_set.filter(
+            organization_id__in=(organization_id, None), type=rule_type,
+        ).iterator()
 
     @classmethod
     def get_config(cls, instance):
@@ -232,5 +244,8 @@ class BaseSubnetDivisionRuleType(object):
         # Deleting related subnets automatically deletes related IpAddress
         # and SubnetDivisionIndex objects
         config = cls.get_config(instance)
-        subnet_ids = config.subnetdivisionindex_set.values_list('subnet_id')
+        rule_type = f'{cls.__module__}.{cls.__name__}'
+        subnet_ids = config.subnetdivisionindex_set.filter(
+            rule__type=rule_type
+        ).values_list('subnet_id')
         Subnet.objects.filter(id__in=subnet_ids).delete()

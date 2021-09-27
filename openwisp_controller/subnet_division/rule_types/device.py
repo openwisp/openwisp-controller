@@ -22,9 +22,14 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @classmethod
     def get_subnet(cls, instance):
-        return instance.device.organization.subnetdivisionrule_set.get(
-            type=f'{cls.__module__}.{cls.__name__}'
-        ).master_subnet
+        return None
+
+    @classmethod
+    def get_subnet_division_rules(cls, instance):
+        rule_type = f'{cls.__module__}.{cls.__name__}'
+        return instance.device.organization.subnetdivisionrule_set.filter(
+            type=rule_type
+        ).iterator()
 
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
@@ -44,6 +49,4 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
             .filter(device__organization_id=rule_obj.organization_id)
             .iterator()
         ):
-            cls.provision_receiver(
-                config, created=True,
-            )
+            cls.provision_receiver(config, created=True, rule=rule_obj)

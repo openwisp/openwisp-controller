@@ -604,6 +604,47 @@ class TestSubnetDivisionRule(
             index.config = self.config
             index.full_clean()
 
+    def test_single_subnet_multiple_vpn_rule(self):
+        rule1 = self._get_vpn_subdivision_rule()
+        rule2 = self._get_vpn_subdivision_rule(label='VPN')
+        self.config.templates.add(self.template)
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            rule1.number_of_subnets + rule2.number_of_subnets,
+        )
+        rule2.delete()
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            rule1.number_of_subnets,
+        )
+
+    def test_single_subnet_multiple_device_rule(self):
+        rule1 = self._get_device_subdivision_rule(label='LAN1')
+        rule2 = self._get_device_subdivision_rule(label='LAN2')
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            rule1.number_of_subnets + rule2.number_of_subnets,
+        )
+        rule2.delete()
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            rule1.number_of_subnets,
+        )
+
+    def test_single_subnet_vpn_device_rule(self):
+        device_rule = self._get_device_subdivision_rule(label='LAN')
+        vpn_rule = self._get_vpn_subdivision_rule(label='VPN')
+        self.config.templates.add(self.template)
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            device_rule.number_of_subnets + vpn_rule.number_of_subnets,
+        )
+        self.config.templates.remove(self.template)
+        self.assertEqual(
+            self.subnet_query.exclude(id=self.master_subnet.id).count(),
+            device_rule.number_of_subnets,
+        )
+
 
 class TestCeleryTasks(TestCase):
     def test_subnet_division_rule_does_not_exist(self):

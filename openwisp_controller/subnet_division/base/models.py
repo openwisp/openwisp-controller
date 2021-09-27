@@ -199,8 +199,12 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         # Hence, this method only executes query of deleting Subnets provisioned by
         # this corresponding SubnetDivisionRule.
         Subnet = swapper.load_model('openwisp_ipam', 'Subnet')
+        SubnetDivisionIndex = swapper.load_model(
+            'subnet_division', 'SubnetDivisionIndex'
+        )
+
         Subnet.objects.filter(
-            organization_id=self.organization_id, name__startswith=self.label
+            id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values('subnet_id')
         ).delete()
 
     @classmethod
@@ -241,7 +245,8 @@ class AbstractSubnetDivisionIndex(models.Model):
     )
     rule = models.ForeignKey(
         swapper.get_model_name('subnet_division', 'SubnetDivisionRule'),
-        on_delete=models.CASCADE,
+        null=True,
+        on_delete=models.SET_NULL,
     )
     config = models.ForeignKey(
         swapper.get_model_name('config', 'Config'),
