@@ -134,26 +134,24 @@ UqzLuoNWCyj8KCicbA7tiBxX+2zgQpch8wIBAg==
 
 
 class TestWireguardVpnMixin:
-    def _create_wireguard_vpn(self, config=None):
+    def _create_wireguard_vpn(self, config=None, **kwargs):
         if config is None:
             config = {'wireguard': [{'name': 'wg0', 'port': 51820}]}
-        org1 = self._get_org()
-        subnet = self._create_subnet(
-            name='wireguard test', subnet='10.0.0.0/16', organization=org1
-        )
-        subnet.refresh_from_db()
-        vpn = self._create_vpn(
-            organization=org1,
-            backend=self._BACKENDS['wireguard'],
-            config=config,
-            subnet=subnet,
-            ca=None,
-            cert=None,
-        )
-        self.assertIsNone(vpn.ca)
-        self.assertIsNone(vpn.cert)
-        self.assertIsNotNone(vpn.ip)
-        self.assertEqual(vpn.ip.ip_address, '10.0.0.1')
+        org = kwargs.get('organization', None)
+        if 'subnet' not in kwargs:
+            kwargs['subnet'] = self._create_subnet(
+                name='wireguard test', subnet='10.0.0.0/16', organization=org
+            )
+        vpn_options = {
+            'backend': 'openwisp_controller.vpn_backends.Wireguard',
+            'config': config,
+            'name': 'test',
+            'host': 'vpn1.test.com',
+        }
+        vpn_options.update(kwargs)
+        vpn = Vpn(**vpn_options)
+        vpn.full_clean()
+        vpn.save()
         return vpn
 
     def _create_wireguard_vpn_template(self, auto_cert=True):

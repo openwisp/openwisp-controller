@@ -21,7 +21,9 @@ class TestSubnetAdmin(
     def setUp(self):
         org = self._get_org()
         self.master_subnet = self._get_master_subnet()
-        vpn_server = self._create_vpn(subnet=self.master_subnet, organization=org)
+        vpn_server = self._create_wireguard_vpn(
+            subnet=self.master_subnet, organization=org
+        )
         self.template = self._create_template(
             name='vpn-test', type='vpn', vpn=vpn_server, organization=org
         )
@@ -70,7 +72,7 @@ class TestSubnetAdmin(
         template2 = self._create_template(
             name='vpn-test',
             type='vpn',
-            vpn=self._create_vpn(subnet=master_subnet2, organization=org2),
+            vpn=self._create_wireguard_vpn(subnet=master_subnet2, organization=org2),
             organization=org2,
         )
         self.rule = self._get_vpn_subdivision_rule(
@@ -133,7 +135,9 @@ class TestIPAdmin(
     def setUp(self):
         org = self._get_org()
         self.master_subnet = self._get_master_subnet()
-        vpn_server = self._create_vpn(subnet=self.master_subnet, organization=org)
+        vpn_server = self._create_wireguard_vpn(
+            subnet=self.master_subnet, organization=org
+        )
         self.template = self._create_template(
             name='vpn-test', type='vpn', vpn=vpn_server, organization=org
         )
@@ -163,7 +167,9 @@ class TestDeviceAdmin(
     def setUp(self):
         org = self._get_org()
         self.master_subnet = self._get_master_subnet()
-        vpn_server = self._create_vpn(subnet=self.master_subnet, organization=org)
+        vpn_server = self._create_wireguard_vpn(
+            subnet=self.master_subnet, organization=org
+        )
         template = self._create_template(
             name='vpn-test', type='vpn', vpn=vpn_server, organization=org
         )
@@ -193,7 +199,7 @@ class TestDeviceAdmin(
         template2 = self._create_template(
             name='vpn-test',
             type='vpn',
-            vpn=self._create_vpn(subnet=master_subnet2, organization=org2),
+            vpn=self._create_wireguard_vpn(subnet=master_subnet2, organization=org2),
             organization=org2,
         )
         self.rule = self._get_vpn_subdivision_rule(

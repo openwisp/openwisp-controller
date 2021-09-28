@@ -420,19 +420,6 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertTrue(vpn._is_backend_type('wireguard'))
         self.assertFalse(vpn._is_backend_type('openvpn'))
 
-    def test_ip_within_subnet(self):
-        org = self._get_org()
-        subnet1 = self._create_subnet(subnet='10.0.1.0/24', organization=org)
-        subnet2 = self._create_subnet(subnet='10.0.2.0/24', organization=org)
-        ip_subnet2 = subnet2.request_ip()
-        with self.assertRaises(ValidationError) as context_manager:
-            self._create_vpn(organization=org, subnet=subnet1, ip=ip_subnet2)
-        message_dict = context_manager.exception.message_dict
-        self.assertIn('ip', message_dict)
-        self.assertIn(
-            'VPN ip address must be within the VPN subnet', message_dict['ip']
-        )
-
     def test_cert_validation(self):
         with self.subTest('test certs required case'):
             with self.assertRaises(ValidationError) as context_manager:
@@ -440,19 +427,6 @@ class TestVpn(BaseTestVpn, TestCase):
             message_dict = context_manager.exception.message_dict
             self.assertIn('ca', message_dict)
             self.assertIn('CA is required with this VPN backend', message_dict['ca'])
-
-        with self.subTest('test certs not required case'):
-            with self.assertRaises(ValidationError) as context_manager:
-                self._create_vpn(
-                    ca=self._create_ca(),
-                    backend=self._BACKENDS['wireguard'],
-                    config={'wireguard': [{'name': 'wg0', 'port': 51820}]},
-                )
-            message_dict = context_manager.exception.message_dict
-            self.assertIn('ca', message_dict)
-            self.assertIn(
-                'CA must not be used when using this VPN backend', message_dict['ca']
-            )
 
 
 class TestVpnTransaction(BaseTestVpn, TransactionTestCase):
@@ -535,6 +509,19 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         self.assertEqual(device.config.vpnclient_set.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 1)
 
+    def test_ip_within_subnet(self):
+        org = self._get_org()
+        subnet1 = self._create_subnet(subnet='10.0.1.0/24', organization=org)
+        subnet2 = self._create_subnet(subnet='10.0.2.0/24', organization=org)
+        ip_subnet2 = subnet2.request_ip()
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_wireguard_vpn(organization=org, subnet=subnet1, ip=ip_subnet2)
+        message_dict = context_manager.exception.message_dict
+        self.assertIn('ip', message_dict)
+        self.assertIn(
+            'VPN ip address must be within the VPN subnet', message_dict['ip']
+        )
+
     def test_wireguard_schema(self):
         with self.subTest('wireguard schema shall be valid'):
             with self.assertRaises(ValidationError) as context_manager:
@@ -564,6 +551,31 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
             **context_keys,
         )
         self.assertEqual(auto, expected)
+
+    def test_change_vpn_backend(self):
+        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        subnet = self._create_subnet(
+            name='wireguard', subnet='10.0.0.0/16', organization=vpn.organization
+        )
+        ca = vpn.ca
+
+        vpn.backend = self._BACKENDS['wireguard']
+        vpn.subnet = subnet
+        vpn.full_clean()
+        vpn.save()
+        self.assertEqual(vpn.ca, None)
+        self.assertEqual(vpn.cert, None)
+        self.assertEqual(vpn.subnet, subnet)
+        self.assertNotEqual(vpn.ip, None)
+
+        vpn.backend = self._BACKENDS['openvpn']
+        vpn.ca = ca
+        vpn.full_clean()
+        vpn.save()
+        self.assertEqual(vpn.public_key, '')
+        self.assertEqual(vpn.private_key, '')
+        self.assertEqual(vpn.subnet, None)
+        self.assertEqual(vpn.ip, None)
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
