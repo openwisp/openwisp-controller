@@ -1896,6 +1896,9 @@ This rule is triggered when a VPN client template is assigned to a device,
 provided the VPN server to which the VPN client template relates to has
 the same subnet for which the subnet division rule is created.
 
+**Note:** This rule will only work for **WireGuard** and **VXLAN over WireGuard**
+VPN servers.
+
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example
 
