@@ -22,7 +22,7 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @classmethod
     def get_subnet(cls, instance):
-        return None
+        pass
 
     @classmethod
     def get_subnet_division_rules(cls, instance):
@@ -33,7 +33,7 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
-        return 'created' in kwargs and kwargs['created']
+        return kwargs.get('created', False)
 
     @staticmethod
     def destroy_provisioned_subnets_ips(instance, **kwargs):

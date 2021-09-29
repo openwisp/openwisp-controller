@@ -53,6 +53,10 @@ class BaseSubnetDivisionRuleType(object):
         def _provision_receiver():
             # If any of following operations fail, the database transaction
             # should fail/rollback.
+
+            # This method is also called by "provision_for_existing_objects"
+            # which passes the "rule" keyword argument. In such case,
+            # provisioning should be only triggered for received rule.
             if 'rule' in kwargs:
                 rules = [kwargs['rule']]
             else:
@@ -65,9 +69,7 @@ class BaseSubnetDivisionRuleType(object):
                 cls.post_provision_handler(instance, provisioned, **kwargs)
                 cls.subnet_provisioned_signal_emitter(instance, provisioned)
 
-        if kwargs['created'] is False or not cls.should_create_subnets_ips(
-            instance, **kwargs
-        ):
+        if not cls.should_create_subnets_ips(instance, **kwargs):
             return
 
         transaction.on_commit(_provision_receiver)
