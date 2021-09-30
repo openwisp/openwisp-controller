@@ -22,7 +22,7 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
-        return kwargs['created']
+        return kwargs.get('created', False)
 
     @classmethod
     def provision_for_existing_objects(cls, rule_obj):
