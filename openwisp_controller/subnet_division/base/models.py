@@ -192,15 +192,18 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                 )
 
     def delete_provisioned_subnets(self):
-        # Deleting an object of SubnetDivisionRule will automatically delete
-        # it's related SubnetDivisionIndex objects due to "on_delete=CASCADE".
-        # Similarly, deleting a Subnet object will automatically delete IpAddress
-        # objects related to it.
-        # Hence, this method only executes query of deleting Subnets provisioned by
-        # this corresponding SubnetDivisionRule.
+        # Deleting an object of SubnetDivisionRule will set the rule field
+        # of related SubnetDivisionIndex to "None" due to "on_delete=SET_NULL".
+        # These indexes are used delete subnets that were provisioned by the
+        # deleted rule. Deleting a Subnet object will automatically delete
+        # related IpAddress objects.
         Subnet = swapper.load_model('openwisp_ipam', 'Subnet')
+        SubnetDivisionIndex = swapper.load_model(
+            'subnet_division', 'SubnetDivisionIndex'
+        )
+
         Subnet.objects.filter(
-            organization_id=self.organization_id, name__startswith=self.label
+            id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values('subnet_id')
         ).delete()
 
     @classmethod
@@ -241,7 +244,8 @@ class AbstractSubnetDivisionIndex(models.Model):
     )
     rule = models.ForeignKey(
         swapper.get_model_name('subnet_division', 'SubnetDivisionRule'),
-        on_delete=models.CASCADE,
+        null=True,
+        on_delete=models.SET_NULL,
     )
     config = models.ForeignKey(
         swapper.get_model_name('config', 'Config'),

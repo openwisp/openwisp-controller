@@ -144,7 +144,8 @@ class Migration(migrations.Migration):
                 (
                     'rule',
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
                         to='sample_subnet_division.subnetdivisionrule',
                     ),
                 ),
