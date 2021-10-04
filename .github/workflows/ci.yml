@@ -61,8 +61,8 @@ jobs:
 
     - name: Install test dependencies
       run: |
-        pip install ${{ matrix.django-version }}
         pip install -U -r requirements-test.txt
+        pip install ${{ matrix.django-version }}
 
     - name: QA checks
       run: |
@@ -70,7 +70,7 @@ jobs:
     - name: Tests
       run: |
         coverage run --source=openwisp_controller runtests.py
-        # SAMPLE tests do not influence coverage, so we can speed up tests with --parallel
+        # SAMPLE tests
         SAMPLE_APP=1 ./runtests.py --keepdb
       env:
         SELENIUM_HEADLESS: 1
