@@ -1846,7 +1846,7 @@ Create a master subnet under which automatically generated subnets will be provi
 
 **Note**: Choose the size of the subnet appropriately considering your use case.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet.png
+.. image:: docs/subnet-division-rule/subnet.png
   :alt: Creating a master subnet example
 
 On the same page, add a **subnet division rule** that will be used to provision subnets
@@ -1876,7 +1876,7 @@ the same subnet for which the subnet division rule is created.
 **Note:** This rule will only work for **WireGuard** and **VXLAN over WireGuard**
 VPN servers.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
+.. image:: docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example
 
 In this example, **VPN subnet division rule** is used.
@@ -1887,7 +1887,7 @@ In this example, **VPN subnet division rule** is used.
 Now create a VPN Server and choose the previously created **master subnet** as the subnet for
 this VPN Server.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/vpn-server.png
+.. image:: docs/subnet-division-rule/vpn-server.png
   :alt: Creating a VPN Server example
 
 3. Create a VPN Client Template
@@ -1896,7 +1896,7 @@ this VPN Server.
 Create a template, setting the **Type** field to **VPN Client** and **VPN** field to use the
 previously created VPN Server.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/vpn-client.png
+.. image:: docs/subnet-division-rule/vpn-client.png
   :alt: Creating a VPN Client template example
 
 **Note**: You can also check the **Enable by default** field if you want to automatically
@@ -1907,13 +1907,13 @@ apply this template to devices that will register in future.
 
 With everything in place, you can now apply the VPN Client Template to devices.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/apply-template-to-device.png
+.. image:: docs/subnet-division-rule/apply-template-to-device.png
   :alt: Adding template to device example
 
 After saving the device, you should see all provisioned Subnets and IPs for this device
 under the `System Defined Variables <#system-defined-variables>`_.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/system-defined-variables.png
+.. image:: docs/subnet-division-rule/system-defined-variables.png
   :alt: Provisioned Subnets and IPs available as System Defined Variables example
 
 Voila! You can now use these variables in configuration of the device. Refer to `How to use configuration variables <#how-to-use-configuration-variables>`_
