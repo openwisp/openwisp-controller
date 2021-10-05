@@ -141,6 +141,7 @@ class ConfigConfig(AppConfig):
                     'present on the filesystem of the device.'
                 ),
             },
+            models=[self.device_model, self.config_model],
         )
 
         register_notification_type(
@@ -158,6 +159,7 @@ class ConfigConfig(AppConfig):
                     '({notification.target_link}) has {notification.verb}.'
                 ),
             },
+            models=[self.device_model],
         )
 
         #  Unregister default notification type
