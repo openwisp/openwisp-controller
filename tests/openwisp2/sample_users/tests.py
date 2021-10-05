@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from openwisp_controller.tests.mixins import GetEditFormInlineMixin
 from openwisp_users.tests.test_admin import (
     TestBasicUsersIntegration as BaseTestBasicUsersIntegration,
@@ -30,7 +32,12 @@ class TestMultitenantAdmin(BaseTestMultitenantAdmin):
 
 
 class TestUsers(BaseTestUsers):
-    pass
+
+    # This task access the organizations_dict when user is created.
+    # This makes the test fail because the cache is already populated.
+    @patch('openwisp_notifications.tasks.update_superuser_notification_settings')
+    def test_organizations_dict_cache(self, *args):
+        super().test_organizations_dict_cache()
 
 
 del BaseTestUsersAdmin
