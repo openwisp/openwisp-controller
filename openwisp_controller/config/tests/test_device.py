@@ -233,6 +233,26 @@ class TestDevice(
         with self.assertRaises(ValidationError):
             self._create_device(**kwargs)
 
+    def test_device_group_validation(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name='org2')
+        kwargs = {
+            'name': 'test.device.name',
+            'organization': org1,
+            'mac_address': '0a-1b-3c-4d-5e-6f',
+            'group': self._create_device_group(organization=org2),
+        }
+        device = Device(**kwargs)
+        with self.assertRaises(ValidationError) as context_manager:
+            device.full_clean()
+        expected_error_dict = {
+            'group': [
+                'Please ensure that the organization of this Device and the '
+                'organization of the related Device Group match.'
+            ]
+        }
+        self.assertEqual(context_manager.exception.message_dict, expected_error_dict)
+
     @mock.patch('openwisp_controller.config.settings.DEVICE_NAME_UNIQUE', False)
     def test_device_name_organization_not_unique(self):
         org = self._get_org()
