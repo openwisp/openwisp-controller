@@ -2115,17 +2115,17 @@ organization.
 6. Under the configuration section, set the name of WireGuard tunnel 1 interface.
    We have used ``wg0`` in this example.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/vpn-server-1.png
+.. image:: docs/wireguard-vxlan-tutorial/vpn-server-1.png
    :alt: WireGuard VPN VXLAN server configuration example 1
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/vpn-server-2.png
+.. image:: docs/wireguard-vxlan-tutorial/vpn-server-2.png
    :alt: WireGuard VPN VXLAN server configuration example 2
 
 7. After clicking on **Save and continue editing**, you will see that OpenWISP
    has automatically created public and private key for WireGuard server in
    **System Defined Variables** along with internal IP address information.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/vpn-server-3.png
+.. image:: docs/wireguard-vxlan-tutorial/vpn-server-3.png
    :alt: WireGuard VXLAN VPN server configuration example 3
 
 2. Deploy Wireguard VXLAN VPN Server
@@ -2158,7 +2158,7 @@ VPN server configuration in OpenWISP.
    accordingly. We will use the automatically generated VPN client configuration
    for this example.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/template.png
+.. image:: docs/wireguard-vxlan-tutorial/template.png
     :alt: WireGuard VXLAN VPN client template example
 
 4. Apply Wireguard VXLAN VPN template to devices
@@ -2174,7 +2174,7 @@ OpenWISP. Register or create a device before proceeding.
    private and public key for the WireGuard client on the device and details of
    WireGuard VPN server along with VXLAN Network Identifier(VNI) of this device.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/device-configuration.png
+.. image:: docs/wireguard-vxlan-tutorial/device-configuration.png
    :alt: WireGuard VXLAN VPN device configuration example
 
 **Voila!** You have successfully configured OpenWISP to manage VXLAN over
