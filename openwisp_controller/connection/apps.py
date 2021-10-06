@@ -121,6 +121,8 @@ class ConnectionConfig(AppConfig):
         notify.send(**notification_opts)
 
     def register_notification_types(self):
+        device_conn_model = load_model('connection', 'DeviceConnection')
+        device_model = load_model('config', 'Device')
         register_notification_type(
             'connection_is_not_working',
             {
@@ -137,6 +139,7 @@ class ConnectionConfig(AppConfig):
                     'is {notification.verb}. {notification.actor.failure_reason}'
                 ),
             },
+            models=[device_model, device_conn_model],
         )
         register_notification_type(
             'connection_is_working',
@@ -154,6 +157,7 @@ class ConnectionConfig(AppConfig):
                     'is {notification.verb}. {notification.actor.failure_reason}'
                 ),
             },
+            models=[device_model, device_conn_model],
         )
 
     def notification_cache_update(self):

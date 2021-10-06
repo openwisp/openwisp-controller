@@ -441,6 +441,6 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(10):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
