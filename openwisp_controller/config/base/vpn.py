@@ -129,12 +129,25 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
+        self._validate_backend()
         self._validate_certs()
         self._validate_keys()
         self._validate_org_relation('ca')
         self._validate_org_relation('cert')
         self._validate_org_relation('subnet')
         self._validate_subnet_ip()
+
+    def _validate_backend(self):
+        if self._state.adding:
+            return
+        if self.vpnclient_set.exists():
+            raise ValidationError(
+                {
+                    'backend': _(
+                        'Backend cannot be changed because the VPN is currently in use.'
+                    )
+                }
+            )
 
     def _validate_certs(self):
         if not self._is_backend_type('openvpn'):
