@@ -519,7 +519,7 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         message_dict = context_manager.exception.message_dict
         self.assertIn('ip', message_dict)
         self.assertIn(
-            'VPN ip address must be within the VPN subnet', message_dict['ip']
+            'VPN IP address must be within the VPN subnet', message_dict['ip']
         )
 
     def test_wireguard_schema(self):
@@ -576,6 +576,12 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         self.assertEqual(vpn.private_key, '')
         self.assertEqual(vpn.subnet, None)
         self.assertEqual(vpn.ip, None)
+
+    def test_wireguard_vpn_without_subnet(self):
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_wireguard_vpn(subnet=None)
+        expected_error_dict = {'subnet': ['Subnet is required for this VPN backend.']}
+        self.assertEqual(expected_error_dict, context_manager.exception.message_dict)
 
     def test_change_vpn_backend_with_vpnclient(self):
         vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
