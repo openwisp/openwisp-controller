@@ -171,10 +171,15 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if self._is_backend_type('openvpn'):
             self.subnet = None
             self.ip = None
-        if self.subnet and self.ip and self.ip.subnet != self.subnet:
-            raise ValidationError(
-                {'ip': _('VPN ip address must be within the VPN subnet')}
-            )
+        elif self._is_backend_type('wireguard'):
+            if not self.subnet:
+                raise ValidationError(
+                    {'subnet': _('Subnet is required for this VPN backend.')}
+                )
+            if self.ip and self.ip.subnet != self.subnet:
+                raise ValidationError(
+                    {'ip': _('VPN IP address must be within the VPN subnet')}
+                )
 
     def save(self, *args, **kwargs):
         """
