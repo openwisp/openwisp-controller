@@ -576,6 +576,30 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         self.assertEqual(vpn.subnet, None)
         self.assertEqual(vpn.ip, None)
 
+    def test_change_vpn_backend_with_vpnclient(self):
+        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        subnet = self._create_subnet(
+            name='wireguard', subnet='10.0.0.0/16', organization=vpn.organization
+        )
+        template = self._create_template(name='VPN', type='vpn', vpn=vpn)
+        config = self._create_config(organization=self._get_org())
+        config.templates.add(template)
+        self.assertEqual(VpnClient.objects.count(), 1)
+
+        with self.assertRaises(ValidationError) as context_manager:
+            vpn.backend = self._BACKENDS['wireguard']
+            vpn.subnet = subnet
+            vpn.full_clean()
+            vpn.save()
+        expected_error_dict = {
+            'backend': [
+                'Backend cannot be changed because the VPN is currently in use.'
+            ]
+        }
+        self.assertDictEqual(
+            context_manager.exception.message_dict, expected_error_dict
+        )
+
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
     def test_auto_peer_configuration(self):
