@@ -2036,8 +2036,8 @@ OpenWISP to manage WireGuard VPN server.
 Pay attention to the VPN server attributes used in your playbook. It should be same as
 VPN server configuration in OpenWISP.
 
-3. Create VPN server configuration for VXLAN over WireGuard
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3. Create VPN client template for WireGuard VPN Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Visit ``/admin/config/template/add/`` to add a new template.
 2. Set ``Wireguard Client`` as **Name** (you can set whatever you want) and
