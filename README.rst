@@ -1846,7 +1846,7 @@ Create a master subnet under which automatically generated subnets will be provi
 
 **Note**: Choose the size of the subnet appropriately considering your use case.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/subnet.png
   :alt: Creating a master subnet example
 
 On the same page, add a **subnet division rule** that will be used to provision subnets
@@ -1876,7 +1876,7 @@ the same subnet for which the subnet division rule is created.
 **Note:** This rule will only work for **WireGuard** and **VXLAN over WireGuard**
 VPN servers.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/subnet-division-rule.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/subnet-division-rule.png
   :alt: Creating a subnet division rule example
 
 In this example, **VPN subnet division rule** is used.
@@ -1887,7 +1887,7 @@ In this example, **VPN subnet division rule** is used.
 Now create a VPN Server and choose the previously created **master subnet** as the subnet for
 this VPN Server.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/vpn-server.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/vpn-server.png
   :alt: Creating a VPN Server example
 
 3. Create a VPN Client Template
@@ -1896,7 +1896,7 @@ this VPN Server.
 Create a template, setting the **Type** field to **VPN Client** and **VPN** field to use the
 previously created VPN Server.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/vpn-client.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/vpn-client.png
   :alt: Creating a VPN Client template example
 
 **Note**: You can also check the **Enable by default** field if you want to automatically
@@ -1907,13 +1907,13 @@ apply this template to devices that will register in future.
 
 With everything in place, you can now apply the VPN Client Template to devices.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/apply-template-to-device.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/apply-template-to-device.png
   :alt: Adding template to device example
 
 After saving the device, you should see all provisioned Subnets and IPs for this device
 under the `System Defined Variables <#system-defined-variables>`_.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/issues/400-subnet-subdivision-rule/docs/subnet-division-rule/system-defined-variables.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/system-defined-variables.png
   :alt: Provisioned Subnets and IPs available as System Defined Variables example
 
 Voila! You can now use these variables in configuration of the device. Refer to `How to use configuration variables <#how-to-use-configuration-variables>`_
@@ -2012,17 +2012,17 @@ organization.
 6. Under the configuration section, set the name of WireGuard tunnel 1 interface.
    We have used ``wg0`` in this example.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-tutorial/vpn-server-1.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/vpn-server-1.png
    :alt: WireGuard VPN server configuration example 1
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-tutorial/vpn-server-2.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/vpn-server-2.png
    :alt: WireGuard VPN server configuration example 2
 
 7. After clicking on **Save and continue editing**, you will see that OpenWISP
    has automatically created public and private key for WireGuard server in
    **System Defined Variables** along with internal IP address information.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-tutorial/vpn-server-3.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/vpn-server-3.png
    :alt: WireGuard VPN server configuration example 3
 
 2. Deploy Wireguard VPN Server
@@ -2036,8 +2036,8 @@ OpenWISP to manage WireGuard VPN server.
 Pay attention to the VPN server attributes used in your playbook. It should be same as
 VPN server configuration in OpenWISP.
 
-3. Create VPN server configuration for VXLAN over WireGuard
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3. Create VPN client template for WireGuard VPN Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Visit ``/admin/config/template/add/`` to add a new template.
 2. Set ``Wireguard Client`` as **Name** (you can set whatever you want) and
@@ -2055,7 +2055,7 @@ VPN server configuration in OpenWISP.
    accordingly. We will use the automatically generated VPN client configuration
    for this example.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-tutorial/template.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/template.png
     :alt: WireGuard VPN client template example
 
 4. Apply Wireguard VPN template to devices
@@ -2071,7 +2071,7 @@ OpenWISP. Register or create a device before proceeding.
    private and public key for the WireGuard client on the device along with
    details of WireGuard VPN server.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-tutorial/device-configuration.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/device-configuration.png
    :alt: WireGuard VPN device configuration example
 
 **Voila!** You have successfully configured OpenWISP to manage WireGuard
@@ -2115,17 +2115,17 @@ organization.
 6. Under the configuration section, set the name of WireGuard tunnel 1 interface.
    We have used ``wg0`` in this example.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/vpn-server-1.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/vpn-server-1.png
    :alt: WireGuard VPN VXLAN server configuration example 1
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/vpn-server-2.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/vpn-server-2.png
    :alt: WireGuard VPN VXLAN server configuration example 2
 
 7. After clicking on **Save and continue editing**, you will see that OpenWISP
    has automatically created public and private key for WireGuard server in
    **System Defined Variables** along with internal IP address information.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/vpn-server-3.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/vpn-server-3.png
    :alt: WireGuard VXLAN VPN server configuration example 3
 
 2. Deploy Wireguard VXLAN VPN Server
@@ -2158,7 +2158,7 @@ VPN server configuration in OpenWISP.
    accordingly. We will use the automatically generated VPN client configuration
    for this example.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/template.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/template.png
     :alt: WireGuard VXLAN VPN client template example
 
 4. Apply Wireguard VXLAN VPN template to devices
@@ -2174,7 +2174,7 @@ OpenWISP. Register or create a device before proceeding.
    private and public key for the WireGuard client on the device and details of
    WireGuard VPN server along with VXLAN Network Identifier(VNI) of this device.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/wireguard-vxlan/docs/wireguard-vxlan-tutorial/device-configuration.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/device-configuration.png
    :alt: WireGuard VXLAN VPN device configuration example
 
 **Voila!** You have successfully configured OpenWISP to manage VXLAN over
