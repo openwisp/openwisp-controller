@@ -3,30 +3,15 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
+from openwisp_utils.admin_theme.filters import SimpleInputFilter
+
 from . import settings as app_settings
 
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
 Subnet = load_model('openwisp_ipam', 'Subnet')
 
 
-class InputFilter(admin.SimpleListFilter):
-    template = 'admin/input_filter.html'
-
-    def lookups(self, request, model_admin):
-        # Required to show the filter.
-        return [tuple()]
-
-    def choices(self, changelist):
-        # Grab only the "all" option.
-        all_choice = next(super().choices(changelist))
-        all_choice['query_parts'] = []
-        for key, value in changelist.get_filters_params().items():
-            if key != self.parameter_name:
-                all_choice['query_parts'].append((key, value))
-        yield all_choice
-
-
-class SubnetFilter(InputFilter):
+class SubnetFilter(SimpleInputFilter):
     parameter_name = 'subnet'
     title = _('subnet')
 
@@ -41,7 +26,7 @@ class SubnetFilter(InputFilter):
             ).distinct()
 
 
-class DeviceFilter(InputFilter):
+class DeviceFilter(SimpleInputFilter):
     """
     Filters Subnet queryset for input device name
     using SubnetDivisionIndex
