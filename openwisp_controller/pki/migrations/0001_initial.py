@@ -8,6 +8,7 @@ import django.utils.timezone
 import django_x509.base.models
 import jsonfield.fields
 import model_utils.fields
+from django.conf import settings
 from django.db import migrations, models
 from swapper import get_model_name
 
@@ -16,7 +17,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [('openwisp_users', '0001_initial')]
+    dependencies = [migrations.swappable_dependency(settings.AUTH_USER_MODEL)]
 
     operations = [
         migrations.CreateModel(

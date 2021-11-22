@@ -15,7 +15,6 @@ def create_default_config_settings_organization(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('openwisp_users', '0003_default_organization'),
         ('config', '0015_default_groups_permissions'),
     ]
     operations = [

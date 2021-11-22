@@ -9,6 +9,7 @@ import django.core.validators
 import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
+from django.conf import settings
 from django.db import migrations, models
 from swapper import get_model_name
 
@@ -25,7 +26,10 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [('pki', '0001_initial'), ('openwisp_users', '0001_initial')]
+    dependencies = [
+        ('pki', '0001_initial'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
 
     operations = [
         migrations.CreateModel(
