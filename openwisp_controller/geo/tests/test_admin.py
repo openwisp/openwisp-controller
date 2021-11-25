@@ -32,7 +32,7 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
     ]
 
     def setUp(self):
-        """ override TestAdminMixin.setUp """
+        """override TestAdminMixin.setUp"""
         pass
 
     def _create_multitenancy_test_env(self, vpn=False):

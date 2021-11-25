@@ -58,10 +58,20 @@ class GeoConfig(LociConfig):
                     'model': 'device',
                     'annotate': {
                         'with_geo': Count(
-                            Case(When(devicelocation__isnull=False, then=1,))
+                            Case(
+                                When(
+                                    devicelocation__isnull=False,
+                                    then=1,
+                                )
+                            )
                         ),
                         'without_geo': Count(
-                            Case(When(devicelocation__isnull=True, then=1,))
+                            Case(
+                                When(
+                                    devicelocation__isnull=True,
+                                    then=1,
+                                )
+                            )
                         ),
                     },
                     'aggregate': {

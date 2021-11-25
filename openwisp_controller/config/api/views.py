@@ -134,7 +134,10 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
-    url = reverse('config_api:devicegroup_x509_commonname', args=[common_name],)
+    url = reverse(
+        'config_api:devicegroup_x509_commonname',
+        args=[common_name],
+    )
     url = f'{url}?org={org_slugs}'
     return url
 
@@ -194,7 +197,11 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
     @classmethod
     def device_change_invalidates_cache(cls, device_id):
         qs = (
-            VpnClient.objects.select_related('config', 'organization', 'cert',)
+            VpnClient.objects.select_related(
+                'config',
+                'organization',
+                'cert',
+            )
             .filter(config__device_id=device_id)
             .annotate(
                 organization__slug=F('cert__organization__slug'),

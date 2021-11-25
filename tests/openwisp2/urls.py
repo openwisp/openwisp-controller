@@ -50,7 +50,10 @@ if os.environ.get('SAMPLE_APP', False):
         url(
             r'^api/v1/',
             include(
-                (get_connection_api_urls(connection_api_views), 'connection_api',),
+                (
+                    get_connection_api_urls(connection_api_views),
+                    'connection_api',
+                ),
                 namespace='connection_api',
             ),
         ),

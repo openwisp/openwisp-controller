@@ -239,7 +239,13 @@ class Migration(migrations.Migration):
                         max_length=12,
                     ),
                 ),
-                ('type', models.CharField(choices=COMMAND_CHOICES, max_length=16,),),
+                (
+                    'type',
+                    models.CharField(
+                        choices=COMMAND_CHOICES,
+                        max_length=16,
+                    ),
+                ),
                 (
                     'input',
                     jsonfield.fields.JSONField(

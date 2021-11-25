@@ -25,7 +25,9 @@ class BaseDeviceConsumer(WebsocketConsumer):
     def _user_has_permissions(self, add=True, change=True, delete=True):
         permissions = []
         model_identifier = '{0}.{1}_{2}'.format(
-            self.model._meta.app_label, '{permission}', self.model._meta.model_name,
+            self.model._meta.app_label,
+            '{permission}',
+            self.model._meta.model_name,
         )
         if add:
             permissions.append(model_identifier.format(permission='add'))

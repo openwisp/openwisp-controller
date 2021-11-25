@@ -19,7 +19,9 @@ class TestUtilities(TestCase):
             self.assertEqual(len(error), 0)
 
         with patch.object(
-            app_settings, 'OPENWISP_CONTROLLER_API_HOST', 'https://example.com',
+            app_settings,
+            'OPENWISP_CONTROLLER_API_HOST',
+            'https://example.com',
         ):
             with self.subTest('Test "django-cors-headers" absent in INSTALLED_APPS'):
                 error = run_check()
@@ -39,14 +41,18 @@ class TestUtilities(TestCase):
 
         with self.subTest('Test OPENWISP_CONTROLLER_API_HOST configured'):
             with patch.object(
-                app_settings, 'OPENWISP_CONTROLLER_API_HOST', 'https://example.com',
+                app_settings,
+                'OPENWISP_CONTROLLER_API_HOST',
+                'https://example.com',
             ):
                 error_message = 'absent from context processor'
                 error = runcheck()
                 self.assertIn(error_message, error.hint)
 
     @patch.object(
-        app_settings, 'OPENWISP_CONTROLLER_API_HOST', 'https://example.com',
+        app_settings,
+        'OPENWISP_CONTROLLER_API_HOST',
+        'https://example.com',
     )
     def test_openwisp_controller_context_processor(self):
         with override_settings(TEMPLATES=_get_updated_templates_settings()):

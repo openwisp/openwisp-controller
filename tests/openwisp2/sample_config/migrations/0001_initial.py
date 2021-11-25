@@ -646,7 +646,8 @@ class Migration(migrations.Migration):
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.AlterUniqueTogether(
-            name='devicegroup', unique_together={('organization', 'name')},
+            name='devicegroup',
+            unique_together={('organization', 'name')},
         ),
         migrations.CreateModel(
             name='Device',
