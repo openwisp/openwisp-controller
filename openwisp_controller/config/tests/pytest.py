@@ -37,7 +37,12 @@ class TestDeviceConsumer(CreateDeviceMixin, TestOrganizationMixin):
         communicator = WebsocketCommunicator(
             self.application,
             path=f'ws/controller/device/{device_id}/',
-            headers=[(b'cookie', f'sessionid={session_id}'.encode('ascii'),)],
+            headers=[
+                (
+                    b'cookie',
+                    f'sessionid={session_id}'.encode('ascii'),
+                )
+            ],
         )
         connected, subprotocol = await communicator.connect()
         assert connected is True
@@ -87,6 +92,11 @@ class TestDeviceConsumer(CreateDeviceMixin, TestOrganizationMixin):
         communicator = WebsocketCommunicator(
             self.application,
             path=f'ws/controller/device/{device.pk}/',
-            headers=[(b'cookie', f'sessionid={session_id}'.encode('ascii'),)],
+            headers=[
+                (
+                    b'cookie',
+                    f'sessionid={session_id}'.encode('ascii'),
+                )
+            ],
         )
         await communicator.disconnect()

@@ -14,7 +14,7 @@ class OrgVersionMixin(object):
     """
 
     def recoverlist_view(self, request, extra_context=None):
-        """ only superusers are allowed to recover deleted objects """
+        """only superusers are allowed to recover deleted objects"""
         if not request.user.is_superuser:
             raise PermissionDenied
         return super().recoverlist_view(request, extra_context)

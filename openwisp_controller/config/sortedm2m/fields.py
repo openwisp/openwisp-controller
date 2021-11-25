@@ -54,7 +54,9 @@ class SortedManyToManyDescriptor(BaseSortedManyToManyDescriptor):
     def related_manager_cls(self):
         model = self.rel.model
         return create_sorted_many_related_manager(
-            model._default_manager.__class__, self.rel, reverse=False,
+            model._default_manager.__class__,
+            self.rel,
+            reverse=False,
         )
 
 

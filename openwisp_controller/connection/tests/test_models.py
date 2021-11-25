@@ -450,7 +450,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             e = context_manager.exception
             self.assertIn('input', e.message_dict)
             self.assertIn(
-                'Additional properties are not allowed', e.message_dict['input'][0],
+                'Additional properties are not allowed',
+                e.message_dict['input'][0],
             )
 
         with self.subTest('JSON check on arguments'):
@@ -758,7 +759,8 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         def _assert_applying_conf_test_command(mocked_exec):
             args, _ = mocked_exec_command.call_args_list[1]
             self.assertEqual(
-                args[0], 'test -f /tmp/openwisp/applying_conf',
+                args[0],
+                'test -f /tmp/openwisp/applying_conf',
             )
 
         conf = self._prepare_conf_object()

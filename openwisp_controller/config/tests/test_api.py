@@ -671,7 +671,8 @@ class TestConfigApi(
     def test_devicegroup_commonname_regressions(self):
         def _assert_response(org_slug, common_name):
             path = reverse(
-                'config_api:devicegroup_x509_commonname', args=[common_name],
+                'config_api:devicegroup_x509_commonname',
+                args=[common_name],
             )
             response = self.client.get(path, data={'org': org_slug})
             self.assertEqual(response.status_code, 404)

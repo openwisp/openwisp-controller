@@ -71,7 +71,8 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(next_response.status_code, 200)
             self.assertEqual(next_response.data['count'], number_of_commands)
             self.assertEqual(
-                next_response.data['next'], None,
+                next_response.data['next'],
+                None,
             )
             self.assertIn(
                 self._get_path('device_command_list', self.device_id),
@@ -87,7 +88,10 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.data['count'], number_of_commands)
             self.assertIn(
                 self._get_path(
-                    'device_command_list', self.device_id, page=2, page_size=page_size,
+                    'device_command_list',
+                    self.device_id,
+                    page=2,
+                    page_size=page_size,
                 ),
                 response.data['next'],
             )
@@ -100,7 +104,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(next_response.data['next'], None)
             self.assertIn(
                 self._get_path(
-                    'device_command_list', self.device_id, page_size=page_size,
+                    'device_command_list',
+                    self.device_id,
+                    page_size=page_size,
                 ),
                 next_response.data['previous'],
             )
@@ -135,7 +141,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 'input': None,
             }
             response = self.client.post(
-                url, data=payload, content_type='application/json',
+                url,
+                data=payload,
+                content_type='application/json',
             )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
@@ -146,7 +154,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 'input': {'password': 'ass@1234', 'confirm_password': 'Pass@1234'},
             }
             response = self.client.post(
-                url, data=json.dumps(payload), content_type='application/json',
+                url,
+                data=json.dumps(payload),
+                content_type='application/json',
             )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
@@ -157,7 +167,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 'input': {'command': 'echo test'},
             }
             response = self.client.post(
-                url, data=json.dumps(payload), content_type='application/json',
+                url,
+                data=json.dumps(payload),
+                content_type='application/json',
             )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
@@ -201,13 +213,19 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             url = self._get_path(
                 'device_command_details', self.device_id, command_obj.id
             )
-            response = self.client.get(url, HTTP_AUTHORIZATION=f'Bearer {token}',)
+            response = self.client.get(
+                url,
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
             self.assertEqual(response.status_code, 200)
             self.assertIn('id', response.data)
 
         with self.subTest('Test listing command'):
             url = self._get_path('device_command_list', self.device_id)
-            response = self.client.get(url, HTTP_AUTHORIZATION=f'Bearer {token}',)
+            response = self.client.get(
+                url,
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.data['results']), 2)
 
@@ -217,7 +235,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
 
         with self.subTest('Test listing commands'):
             url = self._get_path('device_command_list', device_id)
-            response = self.client.get(url,)
+            response = self.client.get(
+                url,
+            )
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
 
@@ -227,13 +247,18 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 'type': 'custom',
                 'input': {'command': 'echo test'},
             }
-            response = self.client.post(url, data=payload,)
+            response = self.client.post(
+                url,
+                data=payload,
+            )
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
 
         with self.subTest('Test retrieving commands'):
             url = self._get_path('device_command_details', device_id, uuid.uuid4())
-            response = self.client.get(url,)
+            response = self.client.get(
+                url,
+            )
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
 

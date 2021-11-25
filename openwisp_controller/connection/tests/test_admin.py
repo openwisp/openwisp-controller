@@ -190,7 +190,9 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         self.assertIn('reboot', result)
 
     @patch.object(
-        module_settings, 'OPENWISP_CONTROLLER_API_HOST', 'https://example.com',
+        module_settings,
+        'OPENWISP_CONTROLLER_API_HOST',
+        'https://example.com',
     )
     def test_notification_host_setting(self, ctx_processors=[]):
         url = reverse(

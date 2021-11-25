@@ -212,7 +212,8 @@ class TestVpn(
         c = self._create_config(device=d)
         client = VpnClient(vpn=vpn, config=c, auto_cert=True)
         self.assertIn(
-            '{mac_address}-{name}'.format(**d.__dict__), client._get_common_name(),
+            '{mac_address}-{name}'.format(**d.__dict__),
+            client._get_common_name(),
         )
         d.name = d.mac_address
         self.assertIn(d.mac_address, client._get_common_name())

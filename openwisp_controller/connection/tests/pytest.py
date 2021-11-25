@@ -25,7 +25,12 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
         communicator = WebsocketCommunicator(
             self.application,
             path=f'ws/controller/device/{device_id}/command',
-            headers=[(b'cookie', f'sessionid={session_id}'.encode('ascii'),)],
+            headers=[
+                (
+                    b'cookie',
+                    f'sessionid={session_id}'.encode('ascii'),
+                )
+            ],
         )
         connected, subprotocol = await communicator.connect()
         assert connected is True

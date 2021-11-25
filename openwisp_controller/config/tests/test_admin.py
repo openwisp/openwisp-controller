@@ -942,7 +942,10 @@ class TestAdmin(
         vpn = self._create_vpn()
         template = self._create_template()
         vpn_template = self._create_template(
-            name='vpn-test', type='vpn', vpn=vpn, auto_cert=True,
+            name='vpn-test',
+            type='vpn',
+            vpn=vpn,
+            auto_cert=True,
         )
         cert_query = Cert.objects.exclude(pk=vpn.cert_id)
 

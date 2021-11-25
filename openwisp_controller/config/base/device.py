@@ -230,7 +230,8 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         if self._initial_name != self.name:
             device_name_changed.send(
-                sender=self.__class__, instance=self,
+                sender=self.__class__,
+                instance=self,
             )
 
             if self._has_config():
