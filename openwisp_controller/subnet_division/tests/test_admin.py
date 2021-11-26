@@ -42,7 +42,8 @@ class TestSubnetAdmin(
                 reverse(f'admin:{self.ipam_label}_subnet_changelist')
             )
             self.assertContains(
-                response, f'<a href="{url}">{self.config.device.name}</a>',
+                response,
+                f'<a href="{url}">{self.config.device.name}</a>',
             )
 
         with self.subTest('Test change view'):
@@ -50,7 +51,8 @@ class TestSubnetAdmin(
                 reverse(f'admin:{self.ipam_label}_subnet_change', args=[subnet.pk])
             )
             self.assertContains(
-                response, f'<a href="{url}">{self.config.device.name}</a>',
+                response,
+                f'<a href="{url}">{self.config.device.name}</a>',
             )
 
     def test_device_filter(self):
@@ -62,7 +64,8 @@ class TestSubnetAdmin(
         url = f'{subnet_changelist}?device={self.config.device.name}'
         response = self.client.get(url)
         self.assertContains(
-            response, self.config.device.name,
+            response,
+            self.config.device.name,
         )
         self.assertNotContains(response, config2.device.name)
 
@@ -189,7 +192,8 @@ class TestDeviceAdmin(
         )
         response = self.client.get(url)
         self.assertContains(
-            response, self.config.device.name,
+            response,
+            self.config.device.name,
         )
         self.assertNotContains(response, device2.name)
 

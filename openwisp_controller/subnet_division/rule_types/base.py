@@ -143,7 +143,8 @@ class BaseSubnetDivisionRuleType(object):
         organization_id = cls.get_organization(instance)
         subnet = cls.get_subnet(instance)
         return subnet.subnetdivisionrule_set.filter(
-            organization_id__in=(organization_id, None), type=rule_type,
+            organization_id__in=(organization_id, None),
+            type=rule_type,
         ).iterator()
 
     @classmethod
@@ -223,7 +224,8 @@ class BaseSubnetDivisionRuleType(object):
         for subnet_obj in generated_subnets:
             for ip_id in range(1, division_rule.number_of_ips + 1):
                 ip_obj = IpAddress(
-                    subnet_id=subnet_obj.id, ip_address=str(subnet_obj.subnet[ip_id]),
+                    subnet_id=subnet_obj.id,
+                    ip_address=str(subnet_obj.subnet[ip_id]),
                 )
                 ip_obj.full_clean()
                 generated_ips.append(ip_obj)

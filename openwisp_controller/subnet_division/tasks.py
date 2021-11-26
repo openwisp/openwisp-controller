@@ -51,7 +51,8 @@ def update_subnet_name_description(rule_id):
         return
 
     related_subnet_ids = division_rule.subnetdivisionindex_set.filter(
-        subnet_id__isnull=False, ip_id__isnull=True,
+        subnet_id__isnull=False,
+        ip_id__isnull=True,
     ).values_list('subnet_id')
     subnet_queryset = Subnet.objects.filter(id__in=related_subnet_ids)
 
@@ -87,7 +88,9 @@ def provision_extra_ips(rule_id, old_number_of_ips):
         return
 
     index_queryset = division_rule.subnetdivisionindex_set.filter(
-        subnet_id__isnull=False, config_id__isnull=False, ip_id__isnull=True,
+        subnet_id__isnull=False,
+        config_id__isnull=False,
+        ip_id__isnull=True,
     ).select_related('subnet')
 
     starting_ip_id = old_number_of_ips + 1
@@ -96,7 +99,10 @@ def provision_extra_ips(rule_id, old_number_of_ips):
     for index in index_queryset:
         subnet = index.subnet
         for ip_id in range(starting_ip_id, ending_ip_id):
-            ip = IpAddress(subnet_id=subnet.id, ip_address=str(subnet.subnet[ip_id]),)
+            ip = IpAddress(
+                subnet_id=subnet.id,
+                ip_address=str(subnet.subnet[ip_id]),
+            )
 
             generated_ips.append(ip)
             generated_indexes.append(
