@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def _peer_cache_key(vpn):
-    """ used to generate a unique cache key """
+    """used to generate a unique cache key"""
     return str(vpn.pk)
 
 
@@ -403,7 +403,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     'vxlan_' if self._is_backend_type('vxlan') else ''
                 )
                 auto = getattr(template_backend_class, vpn_auto_client)(
-                    host=vpn_host, server=self.config['wireguard'][0], **context_keys,
+                    host=vpn_host,
+                    server=self.config['wireguard'][0],
+                    **context_keys,
                 )
             else:
                 del context_keys['vpn_port']

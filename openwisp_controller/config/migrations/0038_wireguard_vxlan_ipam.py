@@ -116,7 +116,8 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterUniqueTogether(
-            name='vpnclient', unique_together={('config', 'vpn'), ('vpn', 'vni')},
+            name='vpnclient',
+            unique_together={('config', 'vpn'), ('vpn', 'vni')},
         ),
         migrations.AddField(
             model_name='vpnclient',
