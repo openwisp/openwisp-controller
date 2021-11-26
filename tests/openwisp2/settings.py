@@ -227,6 +227,7 @@ if os.environ.get('SAMPLE_APP', False):
     OPENWISP_USERS_ORGANIZATION_MODEL = 'sample_users.Organization'
     OPENWISP_USERS_ORGANIZATIONUSER_MODEL = 'sample_users.OrganizationUser'
     OPENWISP_USERS_ORGANIZATIONOWNER_MODEL = 'sample_users.OrganizationOwner'
+    OPENWISP_USERS_ORGANIZATIONINVITATION_MODEL = 'sample_users.OrganizationInvitation'
     CONFIG_DEVICE_MODEL = 'sample_config.Device'
     CONFIG_DEVICEGROUP_MODEL = 'sample_config.DeviceGroup'
     CONFIG_CONFIG_MODEL = 'sample_config.Config'
