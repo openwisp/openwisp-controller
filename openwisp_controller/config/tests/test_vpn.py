@@ -831,7 +831,8 @@ class TestVxlanTransaction(
         self.assertIsInstance(peers, list)
         self.assertEqual(len(peers), 1)
         self.assertEqual(
-            peers[0], {'vni': vpnclient_qs.first().vni, 'remote': '10.0.0.2'},
+            peers[0],
+            {'vni': vpnclient_qs.first().vni, 'remote': '10.0.0.2'},
         )
 
         with self.subTest('cache update when a new peer is added'):

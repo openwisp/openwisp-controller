@@ -24,13 +24,15 @@ OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
 
 class TestSubnetDivisionRule(
-    SubnetDivisionTestMixin, TransactionTestCase,
+    SubnetDivisionTestMixin,
+    TransactionTestCase,
 ):
     def setUp(self):
         self.org = self._get_org()
         self.master_subnet = self._get_master_subnet()
         self.vpn_server = self._create_wireguard_vpn(
-            subnet=self.master_subnet, organization=self.org,
+            subnet=self.master_subnet,
+            organization=self.org,
         )
         self.template = self._create_template(
             name='vpn-test', type='vpn', vpn=self.vpn_server, organization=self.org
@@ -192,7 +194,8 @@ class TestSubnetDivisionRule(
         self.config.templates.add(self.template)
 
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
@@ -240,7 +243,8 @@ class TestSubnetDivisionRule(
 
         # Assert name and description of Subnet are updated
         new_subnet_count = subnet_queryset.filter(
-            name__startswith=new_rule_label, description__contains=new_rule_label,
+            name__startswith=new_rule_label,
+            description__contains=new_rule_label,
         ).count()
         self.assertEqual(subnet_count, new_subnet_count)
 
@@ -301,7 +305,8 @@ class TestSubnetDivisionRule(
         self.config.templates.add(self.template)
 
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
         # 1 IP is automatically assigned to VPN server and client each,
         # hence add two in below assertion
@@ -311,7 +316,8 @@ class TestSubnetDivisionRule(
 
         self.config.templates.remove(self.template)
         self.assertEqual(
-            subnet_query.count(), 0,
+            subnet_query.count(),
+            0,
         )
         self.assertEqual(self.ip_query.count(), 0)
 
@@ -321,7 +327,8 @@ class TestSubnetDivisionRule(
             '10.0.0.0/28', master_subnet=self.master_subnet
         )
         self._get_vpn_subdivision_rule(
-            master_subnet=subnet, size=29,
+            master_subnet=subnet,
+            size=29,
         )
         self.vpn_server.subnet = subnet
         self.vpn_server.save()
@@ -355,12 +362,14 @@ class TestSubnetDivisionRule(
         )
         self.config.templates.add(self.template)
         self.assertEqual(
-            self.config.subnetdivisionindex_set.count(), index_count,
+            self.config.subnetdivisionindex_set.count(),
+            index_count,
         )
         vpn_client = VpnClient.objects.first()
         vpn_client.save()
         self.assertEqual(
-            self.config.subnetdivisionindex_set.count(), index_count,
+            self.config.subnetdivisionindex_set.count(),
+            index_count,
         )
 
     def test_shareable_vpn_vpnclient_subnet(self):
@@ -426,12 +435,14 @@ class TestSubnetDivisionRule(
         )
         self.config.templates.add(self.template)
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
 
         self.config.device.delete()
         self.assertEqual(
-            subnet_query.count(), 0,
+            subnet_query.count(),
+            0,
         )
 
     def test_reserved_subnet(self):
@@ -476,7 +487,8 @@ class TestSubnetDivisionRule(
         self.assertEqual(lines[0], 'registration-result: success')
 
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
@@ -494,7 +506,8 @@ class TestSubnetDivisionRule(
         # Verify working of delete handler
         device.delete()
         self.assertEqual(
-            subnet_query.count(), 0,
+            subnet_query.count(),
+            0,
         )
         self.assertEqual(self.ip_query.count(), 0)
 
@@ -505,7 +518,8 @@ class TestSubnetDivisionRule(
         self.assertEqual(subnet_query.count(), 0)
         rule = self._get_device_subdivision_rule()
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
@@ -519,7 +533,8 @@ class TestSubnetDivisionRule(
         self.assertEqual(subnet_query.count(), 0)
         rule = self._get_vpn_subdivision_rule()
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
@@ -569,7 +584,8 @@ class TestSubnetDivisionRule(
             id=self.master_subnet.id
         )
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
 
     def test_vpn_rule_assigns_vpnclient_ip(self):
@@ -584,7 +600,8 @@ class TestSubnetDivisionRule(
         vpn_client = self.config.vpnclient_set.first()
         self.assertEqual(vpn_client.ip, expected_assigned_ip)
         self.assertEqual(
-            subnet_query.count(), rule.number_of_subnets,
+            subnet_query.count(),
+            rule.number_of_subnets,
         )
 
     def test_subnet_division_index_validation(self):
