@@ -186,6 +186,14 @@ class Migration(migrations.Migration):
                         verbose_name='user permissions',
                     ),
                 ),
+                (
+                    'language',
+                    models.CharField(
+                        choices=settings.LANGUAGES,
+                        default=settings.LANGUAGE_CODE,
+                        max_length=8,
+                    ),
+                ),
             ],
             options={
                 'verbose_name': 'user',
@@ -351,6 +359,74 @@ class Migration(migrations.Migration):
             ],
             options={'abstract': False},
             bases=(organizations.base.UnicodeMixin, models.Model),
+        ),
+        migrations.CreateModel(
+            name='OrganizationInvitation',
+            fields=[
+                (
+                    'id',
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name='ID',
+                    ),
+                ),
+                ('guid', models.UUIDField(editable=False)),
+                (
+                    'invitee_identifier',
+                    models.CharField(
+                        help_text=(
+                            'The contact identifier for the invitee, email, '
+                            'phone number, social media handle, etc.'
+                        ),
+                        max_length=1000,
+                    ),
+                ),
+                (
+                    'created',
+                    organizations.fields.AutoCreatedField(
+                        default=django.utils.timezone.now, editable=False
+                    ),
+                ),
+                (
+                    'modified',
+                    organizations.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now, editable=False
+                    ),
+                ),
+                (
+                    'invited_by',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name=(
+                            'sample_users_organizationinvitation_sent_invitations'
+                        ),
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    'invitee',
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name='sample_users_organizationinvitation_invitations',
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    'organization',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name='organization_invites',
+                        to='sample_users.organization',
+                    ),
+                ),
+            ],
+            options={
+                'abstract': False,
+            },
         ),
         migrations.AddField(
             model_name='organization',
