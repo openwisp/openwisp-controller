@@ -15,9 +15,7 @@ class Migration(migrations.Migration):
 
     org_model = swapper.get_model_name('openwisp_users', 'organization')
     model_app_label = swapper.split(org_model)[0]
-    dependencies = [
-        (model_app_label, '0001_initial'),
-    ]
+    dependencies = [(model_app_label, '0001_initial')]
 
     operations = [
         migrations.RunPython(
