@@ -17,6 +17,5 @@ netjsonconfig~=0.9.0
 paramiko[ed25519]~=2.7.2
 scp>=0.13.0,<0.14.0
 celery>=4.4.3,<4.5.0
-swapper~=1.1.0
 django-cache-memoize~=0.1
 shortuuid~=1.0.1
