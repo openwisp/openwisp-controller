@@ -21,7 +21,9 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        swapper.dependency(
+            *swapper.split(settings.AUTH_USER_MODEL), version='0004_default_groups'
+        ),
         swapper.dependency('config', 'Device'),
     ]
 

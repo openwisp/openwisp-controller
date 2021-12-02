@@ -11,7 +11,7 @@ import jsonfield.fields
 import model_utils.fields
 from django.conf import settings
 from django.db import migrations, models
-from swapper import get_model_name
+from swapper import dependency, get_model_name, split
 
 import openwisp_controller.config.base.template
 import openwisp_utils.base
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('pki', '0001_initial'),
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        dependency(*split(settings.AUTH_USER_MODEL), version='0004_default_groups'),
     ]
 
     operations = [
