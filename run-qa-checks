@@ -15,6 +15,7 @@ rm -rf ./openwisp_controller/geo/tests/.pytest_cache \
 jshint openwisp_controller/pki/static/admin/pki/js/*.js
 jshint openwisp_controller/config/static/config/js/*.js
 jshint openwisp_controller/connection/static/connection/js/*.js
+<<<<<<< HEAD
 jshint openwisp_controller/subnet_division/static/subnet-division/js/*.js
 stylelint "openwisp_controller/config/static/config/css/*.css"
 stylelint "openwisp_controller/connection/static/connection/css/*.css"
@@ -23,8 +24,12 @@ stylelint "openwisp_controller/subnet_division/static/subnet-division/css/*.css"
 
 # CSS checks
 stylelint "openwisp_controller/connection/static/connection/css/*.css"
+=======
+>>>>>>> [qa] Enable css and js linting checks #487
 
 openwisp-qa-check \
+  --csslinter
+  --jslinter
   --migrations-to-ignore "12 0 0 4" \
   --migration-path "./openwisp_controller/config/migrations
                   ./openwisp_controller/connection/migrations
