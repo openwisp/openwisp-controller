@@ -9,7 +9,6 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('openwisp_users', '0004_default_groups'),
         ('config', '0018_config_context'),
     ]
 
