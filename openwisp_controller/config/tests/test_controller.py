@@ -10,6 +10,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
+from .. import settings as app_settings
 from ..base.config import logger as config_model_logger
 from ..controller.views import DeviceChecksumView
 from ..controller.views import logger as controller_views_logger
@@ -1171,6 +1172,69 @@ class TestController(
         c2.refresh_from_db()
         self.assertEqual(c1.device.last_ip, c2.device.last_ip)
         self.assertNotEqual(c1.device.management_ip, c2.device.management_ip)
+
+    def test_shared_management_ip_address_space(self):
+        org1 = self._create_org(name='org1', shared_secret='org1')
+        org2 = self._create_org(name='org2', shared_secret='org2')
+        org1_device = self._create_device_config(
+            device_opts={
+                'organization': org1,
+                'management_ip': '10.0.0.5',
+                'last_ip': '127.0.0.1',
+            }
+        )
+        org2_device = self._create_device_config(
+            device_opts={'organization': org2, 'management_ip': '10.0.0.5'}
+        )
+        org2_device_url = reverse('controller:device_checksum', args=[org2_device.pk])
+        self.assertEqual(org1_device.management_ip, '10.0.0.5')
+        self.assertEqual(org1_device.last_ip, '127.0.0.1')
+        self.assertEqual(org2_device.management_ip, '10.0.0.5')
+        self.assertEqual(org2_device.last_ip, None)
+
+        with self.subTest('SHARED_MANAGEMENT_IP_ADDRESS_SPACE is False'):
+            with patch.object(
+                app_settings, 'SHARED_MANAGEMENT_IP_ADDRESS_SPACE', False
+            ):
+                with patch.object(
+                    Config,
+                    'get_cached_checksum',
+                    return_value=org2_device.config.checksum,
+                ) as mock:
+                    self.client.get(
+                        org2_device_url,
+                        {'key': org2_device.key, 'management_ip': '10.0.0.5'},
+                    )
+                    mock.assert_called_once()
+                org1_device.refresh_from_db()
+                org2_device.refresh_from_db()
+                self.assertEqual(org1_device.management_ip, '10.0.0.5')
+                self.assertEqual(org1_device.last_ip, '127.0.0.1')
+                self.assertEqual(org2_device.management_ip, '10.0.0.5')
+                self.assertEqual(org2_device.last_ip, '127.0.0.1')
+
+        # Duplicates are only removed when last_ip is changed.
+        org2_device.last_ip = None
+        org2_device.save()
+
+        with self.subTest('SHARED_MANAGEMENT_IP_ADDRESS_SPACE is True'):
+            with patch.object(app_settings, 'SHARED_MANAGEMENT_IP_ADDRESS_SPACE', True):
+                with patch.object(
+                    Config,
+                    'get_cached_checksum',
+                    return_value=org2_device.config.checksum,
+                ) as mock:
+                    self.client.get(
+                        org2_device_url,
+                        {'key': org2_device.key, 'management_ip': '10.0.0.5'},
+                    )
+                    mock.assert_called_once()
+                org1_device.refresh_from_db()
+                org2_device.refresh_from_db()
+                self.assertEqual(org1_device.management_ip, None)
+                self.assertEqual(org1_device.last_ip, None)
+                self.assertEqual(org2_device.management_ip, '10.0.0.5')
+                self.assertEqual(org2_device.last_ip, '127.0.0.1')
 
     def test_config_modified_not_sent_in_registration(self):
         options = {

@@ -639,6 +639,22 @@ Allows to specify a `list` of tuples for adding commands as described in
 
 Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`_.
 
+``OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    | ``bool``  |
++--------------+-----------+
+| **default**: | ``False`` |
++--------------+-----------+
+
+Setting this to ``True`` will ensure that two devices belonging to different
+organizations do not have the same ``management_ip``.
+
+This can happen when the management IP address space is shared by multiple organizations
+and management interfaces are using DHCP. In this scenario, a device can get an address
+that was previously used by another device (that may now be offline).
+
 REST API
 --------
 

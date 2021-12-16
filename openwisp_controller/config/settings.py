@@ -68,3 +68,6 @@ DEVICE_NAME_UNIQUE = get_settings_value('DEVICE_NAME_UNIQUE', True)
 DEVICE_GROUP_SCHEMA = get_settings_value(
     'DEVICE_GROUP_SCHEMA', {'type': 'object', 'properties': {}}
 )
+SHARED_MANAGEMENT_IP_ADDRESS_SPACE = get_settings_value(
+    'SHARED_MANAGEMENT_IP_ADDRESS_SPACE', False
+)
