@@ -4,14 +4,14 @@ django-reversion>=3.0.5,<3.1.0
 django-x509~=0.9.4
 django-taggit~=1.3.0
 # TODO: Need to be changed
-django-loci @ https://github.com/niteshsinha17/django-loci/tarball/issues/79-update-channels-and-pytest
+django-loci @ https://github.com/openwisp/django-loci/tarball/master
 django-flat-json-widget~=0.1.3
 # TODO: change this when next point version of openwisp-utils is released
 openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
 # TODO: change this when next point version of openwisp-users is released
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 # TODO: Need to be changed
-openwisp-notifications @ https://github.com/niteshsinha17/openwisp-notifications/tarball/issues/154-update-channels
+openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 djangorestframework-gis>=0.12.0,<0.17.0
 netjsonconfig~=0.9.0
 paramiko[ed25519]~=2.7.2
