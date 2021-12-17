@@ -1,5 +1,5 @@
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_x509.base.models import AbstractCa as BaseCa
 from django_x509.base.models import AbstractCert as BaseCert
 from swapper import get_model_name

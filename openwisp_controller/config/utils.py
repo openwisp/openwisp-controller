@@ -1,10 +1,10 @@
 import logging
 
-from django.conf.urls import url
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404 as base_get_object_or_404
+from django.urls import path
 
 logger = logging.getLogger(__name__)
 
@@ -114,64 +114,64 @@ def get_controller_urls(views_module):
     used by third party apps to reduce boilerplate
     """
     urls = [
-        url(
-            r'^controller/device/checksum/(?P<pk>[^/]+)/$',
+        path(
+            'controller/device/checksum/<uuid:pk>',
             views_module.device_checksum,
             name='device_checksum',
         ),
-        url(
-            r'^controller/device/download-config/(?P<pk>[^/]+)/$',
+        path(
+            'controller/device/download-config/<uuid:pk>',
             views_module.device_download_config,
             name='device_download_config',
         ),
-        url(
-            r'^controller/device/update-info/(?P<pk>[^/]+)/$',
+        path(
+            'controller/device/update-info/<uuid:pk>',
             views_module.device_update_info,
             name='device_update_info',
         ),
-        url(
-            r'^controller/device/report-status/(?P<pk>[^/]+)/$',
+        path(
+            'controller/device/report-status/<uuid:pk>',
             views_module.device_report_status,
             name='device_report_status',
         ),
-        url(
-            r'^controller/device/register/$',
+        path(
+            'controller/device/register/',
             views_module.device_register,
             name='device_register',
         ),
-        url(
-            r'^controller/vpn/checksum/(?P<pk>[^/]+)/$',
+        path(
+            'controller/vpn/checksum/<uuid:pk>/',
             views_module.vpn_checksum,
             name='vpn_checksum',
         ),
-        url(
-            r'^controller/vpn/download-config/(?P<pk>[^/]+)/$',
+        path(
+            'controller/vpn/download-config/<uuid:pk>/',
             views_module.vpn_download_config,
             name='vpn_download_config',
         ),
         # legacy URLs
-        url(
-            r'^controller/checksum/(?P<pk>[^/]+)/$',
+        path(
+            'controller/checksum/<uuid:pk>/',
             views_module.device_checksum,
             name='checksum_legacy',
         ),
-        url(
-            r'^controller/download-config/(?P<pk>[^/]+)/$',
+        path(
+            'controller/download-config/<uuid:pk>/',
             views_module.device_download_config,
             name='download_config_legacy',
         ),
-        url(
-            r'^controller/update-info/(?P<pk>[^/]+)/$',
+        path(
+            'controller/update-info/<uuid:pk>/',
             views_module.device_update_info,
             name='update_info_legacy',
         ),
-        url(
-            r'^controller/report-status/(?P<pk>[^/]+)/$',
+        path(
+            'controller/report-status/<uuid:pk>/',
             views_module.device_report_status,
             name='report_status_legacy',
         ),
-        url(
-            r'^controller/register/$',
+        path(
+            'controller/register/',
             views_module.device_register,
             name='register_legacy',
         ),

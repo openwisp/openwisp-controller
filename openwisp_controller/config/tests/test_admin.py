@@ -758,7 +758,10 @@ class TestAdmin(
         self.assertEqual(response.status_code, 404)
 
     def test_change_device_malformed_uuid(self):
-        path = reverse(f'admin:{self.app_label}_device_change', args=['wrong'])
+        path = reverse(
+            f'admin:{self.app_label}_device_change',
+            args=['00000000-0000-0000-0000-000000000000'],
+        )
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 

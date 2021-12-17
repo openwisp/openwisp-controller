@@ -1,10 +1,10 @@
 from django.conf import settings
-from django.conf.urls import include, url
+from django.urls import include, path
 
 url_metadata = [
     # allauth proxy
     {
-        'regexp': r'^accounts/',
+        'regexp': 'accounts/',
         'app': 'openwisp_users',
         'include': {'module': 'openwisp_users.accounts.urls'},
     },
@@ -16,49 +16,49 @@ url_metadata = [
     },
     # openwisp_controller.pki (CRL view)
     {
-        'regexp': r'^',
+        'regexp': '',
         'app': 'openwisp_controller.pki',
         'include': {'module': '{app}.urls', 'namespace': 'x509'},
     },
     # openwisp_controller.pki.api
     {
-        'regexp': r'^api/v1/',
+        'regexp': 'api/v1/',
         'app': 'openwisp_controller.pki',
         'include': {'module': '{app}.api.urls', 'namespace': 'pki_api'},
     },
     # openwisp_controller controller
     {
-        'regexp': r'^',
+        'regexp': '',
         'app': 'openwisp_controller.config',
         'include': {'module': '{app}.controller.urls', 'namespace': 'controller'},
     },
     # owm_legacy
     {
-        'regexp': r'^',
+        'regexp': '',
         'app': 'owm_legacy',
         'include': {'module': '{app}.urls', 'namespace': 'owm'},
     },
     # openwisp_controller.geo
     {
-        'regexp': r'^',
+        'regexp': '',
         'app': 'openwisp_controller.geo',
         'include': {'module': '{app}.api.urls', 'namespace': 'geo_api'},
     },
     # openwisp_controller.config
     {
-        'regexp': r'^',
+        'regexp': '',
         'app': 'openwisp_controller.config',
         'include': {'module': '{app}.urls', 'namespace': 'config'},
     },
     # openwisp_controller.config.api
     {
-        'regexp': r'^api/v1/',
+        'regexp': 'api/v1/',
         'app': 'openwisp_controller.config',
         'include': {'module': '{app}.api.urls', 'namespace': 'config_api'},
     },
     # openwisp_controller.connection
     {
-        'regexp': r'^',
+        'regexp': '',
         'app': 'openwisp_controller.connection',
         'include': {'module': '{app}.api.urls', 'namespace': 'connection_api'},
     },
@@ -75,4 +75,4 @@ for meta in url_metadata:
             continue
         # DRY python module path
         module = module.format(**meta)
-    urlpatterns.append(url(meta['regexp'], include(module, **meta['include'])))
+    urlpatterns.append(path(meta['regexp'], include(module, **meta['include'])))

@@ -309,7 +309,7 @@ class Migration(migrations.Migration):
                     'user',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='sample_users_organizationuser',
+                        related_name='%(app_label)s_%(class)s',
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -399,9 +399,7 @@ class Migration(migrations.Migration):
                     'invited_by',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name=(
-                            'sample_users_organizationinvitation_sent_invitations'
-                        ),
+                        related_name=('%(app_label)s_%(class)s_sent_invitations'),
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -411,7 +409,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='sample_users_organizationinvitation_invitations',
+                        related_name='%(app_label)s_%(class)s_invitations',
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -432,7 +430,7 @@ class Migration(migrations.Migration):
             model_name='organization',
             name='users',
             field=models.ManyToManyField(
-                related_name='sample_users_organization',
+                related_name='%(app_label)s_%(class)s',
                 through='sample_users.OrganizationUser',
                 to=settings.AUTH_USER_MODEL,
             ),

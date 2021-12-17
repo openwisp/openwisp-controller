@@ -147,7 +147,7 @@ class Migration(migrations.Migration):
                     'content_type',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='sample_config_taggedtemplate_tagged_items',
+                        related_name='%(app_label)s_%(class)s_tagged_items',
                         to='contenttypes.ContentType',
                         verbose_name='content type',
                     ),
@@ -520,7 +520,7 @@ class Migration(migrations.Migration):
             name='tag',
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='sample_config_taggedtemplate_items',
+                related_name='%(app_label)s_%(class)s_items',
                 to='sample_config.TemplateTag',
             ),
         ),

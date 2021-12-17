@@ -3,7 +3,6 @@ import logging
 
 from django import forms
 from django.conf import settings
-from django.conf.urls import url
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.models import ADDITION, LogEntry
@@ -18,7 +17,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from swapper import load_model
 
@@ -138,18 +137,18 @@ class BaseConfigAdmin(BaseAdmin):
         options = getattr(self.model, '_meta')
         url_prefix = '{0}_{1}'.format(options.app_label, options.model_name)
         return [
-            url(
-                r'^download/(?P<pk>[^/]+)/$',
+            path(
+                'download/<uuid:pk>/',
                 self.admin_site.admin_view(self.download_view),
                 name='{0}_download'.format(url_prefix),
             ),
-            url(
-                r'^preview/$',
+            path(
+                'preview/',
                 self.admin_site.admin_view(self.preview_view),
                 name='{0}_preview'.format(url_prefix),
             ),
-            url(
-                r'^(?P<pk>[^/]+)/context\.json$',
+            path(
+                '<uuid:pk>/context.json',
                 self.admin_site.admin_view(self.context_view),
                 name='{0}_context'.format(url_prefix),
             ),
@@ -484,13 +483,13 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     def get_urls(self):
         urls = [
-            url(
-                r'^config/get-relevant-templates/(?P<organization_id>[^/]+)/$',
+            path(
+                'config/get-relevant-templates/<str:organization_id>/',
                 self.admin_site.admin_view(get_relevant_templates),
                 name='get_relevant_templates',
             ),
-            url(
-                r'^get-template-default-values/$',
+            path(
+                'get-template-default-values/',
                 self.admin_site.admin_view(get_template_default_values),
                 name='get_template_default_values',
             ),

@@ -72,7 +72,11 @@ class Migration(migrations.Migration):
             model_name='config',
             name='status',
             field=model_utils.fields.StatusField(
-                choices=[(0, 'dummy')],
+                choices=[
+                    ('modified', 'modified'),
+                    ('applied', 'applied'),
+                    ('error', 'error'),
+                ],
                 default='modified',
                 help_text=(
                     '"modified" means the configuration is not applied yet; '
