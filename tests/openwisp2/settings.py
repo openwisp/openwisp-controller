@@ -87,7 +87,7 @@ INTERNAL_IPS = ['127.0.0.1']
 
 ROOT_URLCONF = 'openwisp2.urls'
 
-ASGI_APPLICATION = 'openwisp2.routing.application'
+ASGI_APPLICATION = 'openwisp2.asgi.application'
 if not TESTING:
     CHANNEL_LAYERS = {
         'default': {

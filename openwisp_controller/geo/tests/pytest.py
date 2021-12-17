@@ -55,7 +55,9 @@ class TestChannels(TestGeoMixin):
         return {'pk': pk, 'path': path, 'session': session}
 
     def _get_communicator(self, request_vars, user=None):
-        communicator = WebsocketCommunicator(LocationBroadcast, request_vars['path'])
+        communicator = WebsocketCommunicator(
+            LocationBroadcast.as_asgi(), request_vars['path']
+        )
         if user:
             communicator.scope.update(
                 {

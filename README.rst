@@ -2250,7 +2250,31 @@ Ensure you are using one of the available geodjango backends, eg:
 
 For more information about GeoDjango, please refer to the `geodjango documentation <https://docs.djangoproject.com/en/dev/ref/contrib/gis/>`_.
 
-6. Other Settings
+6. Django Channels Setup
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create ``asgi.py`` in your project folder and add following lines in it:
+
+.. code-block:: python
+
+    from channels.auth import AuthMiddlewareStack
+    from channels.routing import ProtocolTypeRouter, URLRouter
+    from channels.security.websocket import AllowedHostsOriginValidator
+    from django.core.asgi import get_asgi_application
+
+    from openwisp_controller.routing import get_routes
+    # You can also add your routes like this
+    from my_app.routing import my_routes
+
+    application = ProtocolTypeRouter(
+        {   "http": get_asgi_application(),
+            'websocket': AllowedHostsOriginValidator(
+                AuthMiddlewareStack(URLRouter(get_routes() + my_routes))
+            )
+        }
+    )
+
+7. Other Settings
 ~~~~~~~~~~~~~~~~~
 
 Add the following settings to ``settings.py``:
@@ -2259,7 +2283,7 @@ Add the following settings to ``settings.py``:
 
     FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
-    ASGI_APPLICATION = 'openwisp_controller.geo.channels.routing.channel_routing'
+    ASGI_APPLICATION = 'my_project.asgi.application'
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer'

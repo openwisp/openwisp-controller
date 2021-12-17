@@ -25,7 +25,12 @@ class TestDeviceConsumer(CreateDeviceMixin, TestOrganizationMixin):
             'websocket': AllowedHostsOriginValidator(
                 AuthMiddlewareStack(
                     URLRouter(
-                        [path('ws/controller/device/<uuid:pk>/', BaseDeviceConsumer)]
+                        [
+                            path(
+                                'ws/controller/device/<uuid:pk>/',
+                                BaseDeviceConsumer.as_asgi(),
+                            )
+                        ]
                     )
                 )
             )
