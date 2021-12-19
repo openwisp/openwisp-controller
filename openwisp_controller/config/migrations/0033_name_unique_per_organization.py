@@ -6,7 +6,6 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('openwisp_users', '0011_user_first_name_150_max_length'),
         ('config', '0032_update_legacy_vpn_backend'),
     ]
 

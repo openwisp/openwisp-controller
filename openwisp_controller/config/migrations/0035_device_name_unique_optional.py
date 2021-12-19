@@ -6,7 +6,6 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('openwisp_users', '0014_user_notes'),
         ('config', '0034_template_required'),
     ]
 

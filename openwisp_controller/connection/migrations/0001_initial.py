@@ -8,6 +8,7 @@ import django.utils.timezone
 import jsonfield.fields
 import model_utils.fields
 import swapper
+from django.conf import settings
 from django.db import migrations, models
 
 import openwisp_users.mixins
@@ -20,7 +21,9 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('openwisp_users', '0001_initial'),
+        swapper.dependency(
+            *swapper.split(settings.AUTH_USER_MODEL), version='0004_default_groups'
+        ),
         swapper.dependency('config', 'Device'),
     ]
 

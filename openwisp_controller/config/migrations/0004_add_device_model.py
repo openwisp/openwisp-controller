@@ -19,7 +19,6 @@ from .. import settings as app_settings
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('openwisp_users', '0001_initial'),
         ('config', '0003_template_tags'),
     ]
 
