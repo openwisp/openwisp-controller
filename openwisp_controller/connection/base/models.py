@@ -168,10 +168,16 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         #   - belong to the same organization of the device
         #     OR
         #     belong to no organization (hence are shared)
-        conditions = models.Q(organization=device.organization) | models.Q(
-            organization=None
+        where = models.Q(auto_add=True) & (
+            models.Q(organization=device.organization) | models.Q(organization=None)
         )
-        credentials = cls.objects.filter(conditions).filter(auto_add=True)
+        # Exclude credentials for which DeviceConnection object already
+        # exists for the device. This condition is required when a
+        # deleted device is recovered through django-reversions.
+        not_where = models.Q(
+            id__in=device.deviceconnection_set.values_list('credentials_id', flat=True)
+        )
+        credentials = cls.objects.filter(where).exclude(not_where)
         for cred in credentials:
             DeviceConnection = load_model('connection', 'DeviceConnection')
             conn = DeviceConnection(device=device, credentials=cred, enabled=True)

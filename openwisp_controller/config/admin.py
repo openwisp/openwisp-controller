@@ -382,6 +382,7 @@ class ConfigInline(
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+    recover_form_template = 'admin/config/device_recover_form.html'
     list_display = [
         'name',
         'backend',
