@@ -10,6 +10,7 @@ import jsonfield.fields
 import model_utils.fields
 import swapper
 import taggit.managers
+from django.conf import settings
 from django.db import migrations, models
 
 import openwisp_controller.config.base.template
@@ -26,7 +27,9 @@ class Migration(migrations.Migration):
     dependencies = [
         ('contenttypes', '0002_remove_content_type_name'),
         ('sample_pki', '0002_default_group_permissions'),
-        swapper.dependency('openwisp_users', 'Organization'),
+        swapper.dependency(
+            *swapper.split(settings.AUTH_USER_MODEL), version='0004_default_groups'
+        ),
     ]
 
     operations = [

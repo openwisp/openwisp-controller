@@ -18,7 +18,6 @@ from . import assign_devicegroup_permissions_to_groups
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('openwisp_users', '0014_user_notes'),
         ('config', '0035_device_name_unique_optional'),
     ]
 
@@ -69,7 +68,7 @@ class Migration(migrations.Migration):
                     'organization',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='openwisp_users.organization',
+                        to=swapper.get_model_name('openwisp_users', 'Organization'),
                         verbose_name='organization',
                     ),
                 ),
