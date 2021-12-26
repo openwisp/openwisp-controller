@@ -4,7 +4,7 @@ import logging
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField

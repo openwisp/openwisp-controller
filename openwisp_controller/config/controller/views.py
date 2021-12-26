@@ -115,10 +115,11 @@ def get_device_args_rewrite(view):
     # avoid ambiguity between hex format and dashed string
     # return view.kwargs['pk']
     pk = view.kwargs['pk']
-    try:
-        pk = uuid.UUID(pk)
-    except ValueError:
-        return pk
+    if not isinstance(pk, uuid.UUID):
+        try:
+            pk = uuid.UUID(pk)
+        except ValueError:
+            return pk
     return pk.hex
 
 

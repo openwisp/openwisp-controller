@@ -1,5 +1,5 @@
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from swapper import get_model_name
 from taggit.models import GenericUUIDTaggedItemBase, TagBase, TaggedItemBase
 
