@@ -1,7 +1,7 @@
 import swapper
 from django.conf import settings
 from django.db.models import Case, Count, Sum, When
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_loci.apps import LociConfig
 from swapper import get_model_name
 

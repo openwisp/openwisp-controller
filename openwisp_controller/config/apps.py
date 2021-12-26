@@ -2,7 +2,7 @@ from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import m2m_changed, post_delete, post_save
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
     unregister_notification_type,
@@ -24,6 +24,7 @@ class ConfigConfig(AppConfig):
     name = 'openwisp_controller.config'
     label = 'config'
     verbose_name = _('Network Configuration')
+    default_auto_field = 'django.db.models.AutoField'
 
     def ready(self, *args, **kwargs):
         self.__setmodels__()

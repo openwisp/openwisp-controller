@@ -5,7 +5,7 @@ import shortuuid
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.utils.text import slugify
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from swapper import get_model_name
 
 from openwisp_utils.base import KeyField

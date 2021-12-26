@@ -2,12 +2,11 @@ from datetime import timedelta
 
 import swapper
 from django import forms
-from django.conf.urls import url
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path, resolve
 from django.utils.timezone import localtime
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import TimeReadonlyAdminMixin
@@ -62,8 +61,8 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
         options = getattr(self.model, '_meta')
         url_prefix = f'{options.app_label}_{options.model_name}'
         return [
-            url(
-                r'^ui/schema.json$',
+            path(
+                'ui/schema.json',
                 self.admin_site.admin_view(self.schema_view),
                 name=f'{url_prefix}_schema',
             )

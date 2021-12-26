@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_x509.base.models import (
     default_ca_validity_end,
     default_cert_validity_end,

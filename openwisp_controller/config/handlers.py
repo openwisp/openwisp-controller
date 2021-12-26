@@ -1,5 +1,5 @@
 from django.dispatch import receiver
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 

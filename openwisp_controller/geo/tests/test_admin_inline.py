@@ -75,3 +75,6 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
             loc.objectlocation_set.first().content_object.name, params['name']
         )
         self.assertEqual(loc.name, params['name'])
+
+
+del TestConfigAdmin
