@@ -642,13 +642,13 @@ Allows specifying JSONSchema used for validating meta-data of `Device Group <#de
 ``OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+-----------+
-| **type**:    | ``bool``  |
-+--------------+-----------+
-| **default**: | ``False`` |
-+--------------+-----------+
++--------------+----------+
+| **type**:    | ``bool`` |
++--------------+----------+
+| **default**: | ``True`` |
++--------------+----------+
 
-Setting this to ``True`` will ensure that two devices belonging to different
+This setting ensures that two devices belonging to different
 organizations do not have the same ``management_ip``.
 
 This can happen when the management IP address space is shared by multiple organizations
