@@ -13,6 +13,10 @@ const commandWebSocket = new ReconnectingWebSocket(
 );
 
 django.jQuery(function ($) {
+    if (isDeviceRecoverForm()) {
+        commandWebSocket.close();
+        return;
+    }
     let selector = $('#id_command_set-0-type'),
         showFields = function () {
             var fields = $('#command_set-group fieldset > .form-row:not(.field-type):not(.field-params), #command_set-group .jsoneditor-wrapper'),
@@ -570,4 +574,8 @@ function getFormattedDateTimeString(DateTimeString) {
     stringArray[0] = stringArray[0].substring(0, 4) + '.';
     stringArray[4] = (stringArray[4] == 'AM') ? 'a.m.' : 'p.m.';
     return stringArray.join(' ');
+}
+
+function isDeviceRecoverForm() {
+    return 'Recover' === document.getElementsByTagName('title')[0].innerText.split(' ')[0];
 }
