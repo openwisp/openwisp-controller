@@ -1,5 +1,5 @@
 from asgiref.sync import async_to_sync
-from celery.task.control import inspect
+from celery import current_app
 from channels import layers
 from django.apps import AppConfig
 from django.db import transaction
@@ -94,7 +94,7 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def _is_update_in_progress(cls, device_pk):
-        active = inspect().active()
+        active = current_app.control.inspect().active()
         if not active:
             return False
         # check if there's any other running task before adding it
