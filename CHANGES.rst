@@ -6,6 +6,15 @@ Version 0.9.0 [unreleased]
 
 WIP
 
+Changes
+~~~~~~~
+
+- **Backward incompatible**: The default behaviour for resolution of conflicting management
+  IPs between devices of different organizations has been changed. Different devices (even from
+  different organizations) **cannot** have the same management IP. You can override this behaviour by using
+  `OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE` <https://github.com/openwisp/openwisp-controller#openwisp_controller_shared_management_ip_address_space>_
+  setting.
+
 Version 0.8.3 [2020-12-18]
 --------------------------
 

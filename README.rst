@@ -655,6 +655,9 @@ This can happen when the management IP address space is shared by multiple organ
 and management interfaces are using DHCP. In this scenario, a device can get an address
 that was previously used by another device (that may now be offline).
 
+Set this to ``False`` if every organization has its dedicated management
+tunnel with a dedicated address space that is reachable by the OpenWISP server.
+
 REST API
 --------
 
