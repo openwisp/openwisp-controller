@@ -534,6 +534,15 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 inlines.append(inline)
         return inlines
 
+    def reversion_register(self, model, **options):
+        if model == Device:
+            options['follow'] = (
+                *(options['follow']),
+                'deviceconnection_set',
+                'devicelocation',
+            )
+        return super().reversion_register(model, **options)
+
 
 class CloneOrganizationForm(forms.Form):
     organization = forms.ModelChoiceField(queryset=Organization.objects.none())

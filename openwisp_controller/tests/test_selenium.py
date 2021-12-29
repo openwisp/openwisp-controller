@@ -11,19 +11,25 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from swapper import load_model
 
-from ...tests.utils import SeleniumTestMixin
-from .utils import CreateConnectionsMixin
+from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
+from openwisp_controller.geo.tests.utils import TestGeoMixin
+
+from .utils import SeleniumTestMixin
 
 Device = load_model('config', 'Device')
 DeviceConnection = load_model('connection', 'DeviceConnection')
+Location = load_model('geo', 'Location')
+DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 class TestDeviceConnectionInlineAdmin(
-    CreateConnectionsMixin, SeleniumTestMixin, StaticLiveServerTestCase
+    CreateConnectionsMixin, TestGeoMixin, SeleniumTestMixin, StaticLiveServerTestCase
 ):
     config_app_label = 'config'
     admin_username = 'admin'
     admin_password = 'password'
+    location_model = Location
+    object_location_model = DeviceLocation
 
     @classmethod
     def setUpClass(cls):
@@ -72,6 +78,12 @@ class TestDeviceConnectionInlineAdmin(
         org = self._get_org()
         self._create_credentials(auto_add=True, organization=org)
         device = self._create_config(organization=org).device
+        self._create_object_location(
+            location=self._create_location(
+                organization=org,
+            ),
+            content_object=device,
+        )
         self.assertEqual(device.deviceconnection_set.count(), 1)
         call_command('createinitialrevisions')
 
@@ -85,6 +97,7 @@ class TestDeviceConnectionInlineAdmin(
         ).click()
         self.assertEqual(Device.objects.count(), 0)
         self.assertEqual(DeviceConnection.objects.count(), 0)
+        self.assertEqual(DeviceLocation.objects.count(), 0)
 
         version_obj = Version.objects.get_deleted(model=Device).first()
 
@@ -106,3 +119,4 @@ class TestDeviceConnectionInlineAdmin(
 
         self.assertEqual(Device.objects.count(), 1)
         self.assertEqual(DeviceConnection.objects.count(), 1)
+        self.assertEqual(DeviceLocation.objects.count(), 1)

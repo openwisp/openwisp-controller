@@ -1,3 +1,4 @@
+import reversion
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.admin import (
@@ -100,3 +101,4 @@ class DeviceLocationFilter(admin.SimpleListFilter):
 # Prepend DeviceLocationInline to config.DeviceAdmin
 DeviceAdmin.inlines.insert(1, DeviceLocationInline)
 DeviceAdmin.list_filter.append(DeviceLocationFilter)
+reversion.register(model=DeviceLocation, follow=['device'])

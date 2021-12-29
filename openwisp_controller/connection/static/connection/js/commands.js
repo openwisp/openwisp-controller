@@ -8,15 +8,16 @@ const commandApiUrl = `${owControllerApiHost.origin}${owCommandApiEndpoint.repla
 const commandWebSocket = new ReconnectingWebSocket(
     `${getWebSocketProtocol()}${owControllerApiHost.host}/ws/controller/device/${deviceId}/command`,
     null, {
-        debug: false
+        debug: false,
+        automaticOpen: false,
     }
 );
 
 django.jQuery(function ($) {
     if (isDeviceRecoverForm()) {
-        commandWebSocket.close();
         return;
     }
+    commandWebSocket.open();
     let selector = $('#id_command_set-0-type'),
         showFields = function () {
             var fields = $('#command_set-group fieldset > .form-row:not(.field-type):not(.field-params), #command_set-group .jsoneditor-wrapper'),
@@ -577,5 +578,5 @@ function getFormattedDateTimeString(DateTimeString) {
 }
 
 function isDeviceRecoverForm() {
-    return 'Recover' === document.getElementsByTagName('title')[0].innerText.split(' ')[0];
+    return document.getElementsByTagName('title')[0].innerText.indexOf('Recover') > -1;
 }
