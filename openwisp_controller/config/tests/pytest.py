@@ -5,7 +5,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import Permission
-from django.urls import path
+from django.urls import re_path
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
@@ -26,8 +26,8 @@ class TestDeviceConsumer(CreateDeviceMixin, TestOrganizationMixin):
                 AuthMiddlewareStack(
                     URLRouter(
                         [
-                            path(
-                                'ws/controller/device/<uuid:pk>/',
+                            re_path(
+                                r'^ws/controller/device/(?P<pk>[^/]+)/$',
                                 BaseDeviceConsumer.as_asgi(),
                             )
                         ]
