@@ -9,11 +9,14 @@ WIP
 Changes
 ~~~~~~~
 
-- **Backward incompatible**: The default behaviour for resolution of conflicting management
-  IPs between devices of different organizations has been changed. Different devices (even from
-  different organizations) **cannot** have the same management IP. You can override this behaviour by using
-  `OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE` <https://github.com/openwisp/openwisp-controller#openwisp_controller_shared_management_ip_address_space>_
-  setting.
+- **Backward incompatible**: The default behaviour for the resolution of conflicting management
+  IPs between devices of different organizations has been changed. By default, in this new version,
+  the system assumes it's using only 1 management tunnel for all the organizations, so different devices
+  from any organization will not have the same management IP to avoid conflicts.
+  The old behavior can be restored by setting
+  `OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE
+  <https://github.com/openwisp/openwisp-controller#openwisp_controller_shared_management_ip_address_space>`_
+  to ``False``.
 
 Version 0.8.3 [2020-12-18]
 --------------------------
