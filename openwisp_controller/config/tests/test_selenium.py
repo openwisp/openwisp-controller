@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.urls.base import reverse
 from selenium import webdriver
 from selenium.common.exceptions import (
@@ -13,11 +14,15 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from .utils import CreateConfigTemplateMixin, SeleniumTestCase
+from ...tests.utils import SeleniumTestMixin
+from .utils import CreateConfigTemplateMixin
 
 
 class TestDeviceAdmin(
-    TestOrganizationMixin, CreateConfigTemplateMixin, SeleniumTestCase
+    TestOrganizationMixin,
+    CreateConfigTemplateMixin,
+    SeleniumTestMixin,
+    StaticLiveServerTestCase,
 ):
     admin_username = 'admin'
     admin_password = 'password'
