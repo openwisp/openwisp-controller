@@ -382,6 +382,7 @@ class ConfigInline(
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+    recover_form_template = 'admin/config/device_recover_form.html'
     list_display = [
         'name',
         'backend',
@@ -532,6 +533,15 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             if inline_instance._get_conditional_queryset(request, obj=obj):
                 inlines.append(inline)
         return inlines
+
+    def reversion_register(self, model, **options):
+        if model == Device:
+            options['follow'] = (
+                *(options['follow']),
+                'deviceconnection_set',
+                'devicelocation',
+            )
+        return super().reversion_register(model, **options)
 
 
 class CloneOrganizationForm(forms.Form):
