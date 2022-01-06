@@ -639,6 +639,29 @@ Allows to specify a `list` of tuples for adding commands as described in
 
 Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`_.
 
+``OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+----------+
+| **type**:    | ``bool`` |
++--------------+----------+
+| **default**: | ``True`` |
++--------------+----------+
+
+By default, the system assumes that the address space of the management
+tunnel is shared among all the organizations using the system, that is,
+the system assumes there's only one management VPN, tunnel or other
+networking technology to reach the devices it controls.
+
+When set to ``True``, any device belonging to any
+organization will never have the same ``management_ip`` as another device,
+the latest device declaring the management IP will take the IP and any
+other device who declared the same IP in the past will have the field
+reset to empty state to avoid potential conflicts.
+
+Set this to ``False`` if every organization has its dedicated management
+tunnel with a dedicated address space that is reachable by the OpenWISP server.
+
 REST API
 --------
 

@@ -10,6 +10,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
+from .. import settings as app_settings
 from ..base.config import logger as config_model_logger
 from ..controller.views import DeviceChecksumView
 from ..controller.views import logger as controller_views_logger
@@ -1096,6 +1097,7 @@ class TestController(
         ).count()
         self.assertEqual(count, 0)
 
+    @patch.object(app_settings, 'SHARED_MANAGEMENT_IP_ADDRESS_SPACE', False)
     def test_ip_fields_not_duplicated(self):
         org1 = self._get_org()
         c1 = self._create_config(organization=org1)
@@ -1145,6 +1147,31 @@ class TestController(
             view.kwargs = {'pk': str(c1.device.pk)}
             cached_device1 = view.get_device()
             self.assertIsNone(cached_device1.management_ip)
+
+    @patch.object(app_settings, 'SHARED_MANAGEMENT_IP_ADDRESS_SPACE', True)
+    def test_organization_shares_management_ip_address_space(self):
+        org1 = self._get_org()
+        org1_config = self._create_config(organization=org1)
+        org2 = self._create_org(name='org2', shared_secret='org2')
+        org2_config = self._create_config(organization=org2)
+        with self.assertNumQueries(6):
+            self.client.get(
+                reverse('controller:device_checksum', args=[org1_config.device_id]),
+                {'key': org1_config.device.key, 'management_ip': '192.168.1.99'},
+            )
+        # Device from another organization sends conflicting management IP
+        # Extra queries due to conflict resolution
+        with self.assertNumQueries(8):
+            self.client.get(
+                reverse('controller:device_checksum', args=[org2_config.device_id]),
+                {'key': org2_config.device.key, 'management_ip': '192.168.1.99'},
+            )
+        org1_config.refresh_from_db()
+        org2_config.refresh_from_db()
+        # device previously having the IP now won't have it anymore
+        self.assertIsNone(org1_config.device.management_ip)
+        self.assertEqual(org2_config.device.management_ip, '192.168.1.99')
+        self.assertNotEqual(org1_config.device.last_ip, org2_config.device.last_ip)
 
     # simulate public IP by mocking the
     # method which tells us if the ip is private or not
