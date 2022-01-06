@@ -78,18 +78,18 @@ class UpdateLastIpMixin(object):
         return result
 
     def _remove_duplicated_management_ip(self, device):
-        # avoid that any other device in the
-        # same org stays with the same management_ip
+        # Ensures that two devices does not have same management_ip.
         # This can happen when management interfaces are using DHCP
         # and they get a new address which was previously used by another
-        # device that may now be offline, without this fix, we will end up
-        # with two devices having the same management_ip, which will
-        # cause OpenWISP to be confused
+        # device that may now be offline. Without this, two devices will
+        # have the same management_ip which will confuse OpenWISP.
         if not device.management_ip:
             return
-        queryset = self.model.objects.filter(
-            organization_id=device.organization_id, management_ip=device.management_ip
-        ).exclude(pk=device.pk)
+        where = Q(management_ip=device.management_ip)
+        if not app_settings.SHARED_MANAGEMENT_IP_ADDRESS_SPACE:
+            where &= Q(organization_id=device.organization_id)
+
+        queryset = self.model.objects.filter(where).exclude(pk=device.pk)
         for dupe in queryset.only('pk', 'key', 'management_ip'):
             dupe.management_ip = ''
             dupe.save(update_fields=['management_ip'])
@@ -100,10 +100,12 @@ class UpdateLastIpMixin(object):
         # allow it to be duplicated
         if not device.last_ip or not ip_address(device.last_ip).is_private:
             return
-        queryset = Device.objects.filter(
-            organization_id=device.organization_id, last_ip=device.last_ip
-        ).exclude(pk=device.pk)
-        for dupe in queryset.only('pk', 'key', 'last_ip', 'management_ip'):
+        where = Q(last_ip=device.last_ip)
+        if not app_settings.SHARED_MANAGEMENT_IP_ADDRESS_SPACE:
+            where &= Q(organization_id=device.organization_id)
+
+        queryset = self.model.objects.filter(where).exclude(pk=device.pk)
+        for dupe in queryset.only('pk', 'key', 'last_ip'):
             dupe.last_ip = ''
             dupe.save(update_fields=['last_ip'])
 
