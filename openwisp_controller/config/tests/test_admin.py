@@ -549,7 +549,7 @@ class TestAdmin(
     def test_download_device_config(self):
         d = self._create_device(name='download')
         self._create_config(device=d)
-        path = reverse(f'admin:{self.app_label}_device_download', args=[d.pk])
+        path = reverse(f'admin:{self.app_label}_device_download', args=[d.pk.hex])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('content-type'), 'application/octet-stream')
