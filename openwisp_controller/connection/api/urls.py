@@ -11,12 +11,12 @@ def get_api_urls(api_views):
     """
     return [
         path(
-            'api/v1/controller/device/<uuid:id>/command/',
+            'api/v1/controller/device/<str:id>/command/',
             api_views.command_list_create_view,
             name='device_command_list',
         ),
         path(
-            'api/v1/controller/device/<uuid:id>/command/<uuid:command_id>/',
+            'api/v1/controller/device/<str:id>/command/<uuid:command_id>/',
             api_views.command_details_view,
             name='device_command_details',
         ),
