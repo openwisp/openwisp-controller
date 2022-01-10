@@ -9,9 +9,9 @@ openwisp-controller
    :target: https://coveralls.io/r/openwisp/openwisp-controller
    :alt: Test Coverage
 
-.. image:: https://requires.io/github/openwisp/openwisp-controller/requirements.svg?branch=master
-   :target: https://requires.io/github/openwisp/openwisp-controller/requirements/?branch=master
-   :alt: Requirements Status
+.. image:: https://img.shields.io/librariesio/release/github/openwisp/openwisp-controller
+  :target: https://libraries.io/github/openwisp/openwisp-controller#repository_dependencies
+  :alt: Dependency monitoring
 
 .. image:: https://img.shields.io/gitter/room/nwjs/nw.js.svg
    :target: https://gitter.im/openwisp/general
@@ -87,7 +87,7 @@ An automated installer is available at `ansible-openwisp2 <https://github.com/op
 Dependencies
 ------------
 
-* Python >= 3.6
+* Python >= 3.7
 * OpenSSL
 
 Install stable version from pypi
