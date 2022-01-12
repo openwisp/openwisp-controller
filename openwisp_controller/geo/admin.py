@@ -102,3 +102,4 @@ class DeviceLocationFilter(admin.SimpleListFilter):
 DeviceAdmin.inlines.insert(1, DeviceLocationInline)
 DeviceAdmin.list_filter.append(DeviceLocationFilter)
 reversion.register(model=DeviceLocation, follow=['device'])
+DeviceAdmin.add_reversion_following(follow=['devicelocation'])
