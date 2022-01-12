@@ -15,7 +15,7 @@ openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 # TODO: change this when the next point version of openwisp-ipam is released
 openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
-djangorestframework-gis @ https://github.com/openwisp/django-rest-framework-gis/tarball/master
+djangorestframework-gis~=0.18.0
 paramiko[ed25519]~=2.7.2
 scp>=0.13.0,<0.14.0
 celery~=5.2.3
