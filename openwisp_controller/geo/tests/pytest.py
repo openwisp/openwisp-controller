@@ -13,8 +13,6 @@ from django.http.request import HttpRequest
 from django.utils.module_loading import import_string
 from swapper import load_model
 
-from openwisp_controller.geo.channels.consumers import LocationBroadcast
-
 from .utils import TestGeoMixin
 
 Device = load_model('config', 'Device')
@@ -26,6 +24,7 @@ OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 @skipIf(os.environ.get('SAMPLE_APP', False), 'Running tests on SAMPLE_APP')
 class TestChannels(TestGeoMixin):
+    application = import_string(getattr(settings, 'ASGI_APPLICATION'))
     object_model = Device
     location_model = Location
     object_location_model = DeviceLocation
@@ -55,9 +54,7 @@ class TestChannels(TestGeoMixin):
         return {'pk': pk, 'path': path, 'session': session}
 
     def _get_communicator(self, request_vars, user=None):
-        communicator = WebsocketCommunicator(
-            LocationBroadcast.as_asgi(), request_vars['path']
-        )
+        communicator = WebsocketCommunicator(self.application, request_vars['path'])
         if user:
             communicator.scope.update(
                 {
@@ -109,6 +106,5 @@ class TestChannels(TestGeoMixin):
         assert connected
         await communicator.disconnect()
 
-    def test_routing(self):
-        application = import_string(getattr(settings, 'ASGI_APPLICATION'))
-        assert isinstance(application, ProtocolTypeRouter)
+    def test_asgi_application_router(self):
+        assert isinstance(self.application, ProtocolTypeRouter)
