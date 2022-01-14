@@ -537,16 +537,18 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     @classmethod
     def add_reversion_following(cls, follow):
-        # DeviceAdmin is used by other modules that register InlineModelAdmin
-        # using monkey patching. The default implementation of reversion.register
-        # ignore such inlines and does not update the "follow" field accordingly.
-        # This method updates the "follow" fields of the Device model
-        # by unregistering the Device model from reversion and re-registering it.
-        # Only the "follow" option is updated.
+        """
+        DeviceAdmin is used by other modules that register InlineModelAdmin
+        using monkey patching. The default implementation of reversion.register
+        ignore such inlines and does not update the "follow" field accordingly.
+        This method updates the "follow" fields of the Device model
+        by unregistering the Device model from reversion and re-registering it.
+        Only the" "follow" option is updated.
+        """
         device_reversion_options = reversion.revisions._registered_models[
             reversion.revisions._get_registration_key(Device)
         ]
-        following = set(device_reversion_options.follow) | set(follow)
+        following = set(device_reversion_options.follow).union(set(follow))
         reversion.unregister(Device)
         reversion.register(
             model=Device,
