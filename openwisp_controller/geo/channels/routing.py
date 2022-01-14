@@ -12,7 +12,9 @@ from .consumers import LocationBroadcast
 
 def get_routes():
     return [
-        path(location_broadcast_path, LocationBroadcast.as_asgi, name='LocationChannel')
+        path(
+            location_broadcast_path, LocationBroadcast.as_asgi(), name='LocationChannel'
+        )
     ]
 
 
