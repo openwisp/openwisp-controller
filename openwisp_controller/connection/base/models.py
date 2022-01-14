@@ -160,6 +160,11 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
          we can automatically create a DeviceConnection if we have
          a ``Config`` object)
         """
+        from django.contrib.contenttypes.models import ContentType
+        from reversion.models import Version
+
+        DeviceConnection = load_model('connection', 'DeviceConnection')
+
         if not created:
             return
         device = instance.device
@@ -177,6 +182,22 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         not_where = models.Q(
             id__in=device.deviceconnection_set.values_list('credentials_id', flat=True)
         )
+        # A race condition might occur while recovering a deleted device.
+        # The code for creating new DeviceConnection might execute
+        # before the deleted DeviceConnection object is restored from the database.
+        # Therefore, we query Version objects for DeviceConnection related to the
+        # device and use them to get the related credential_ids. These credential_ids
+        # will be excluded while fetching required Credential objects.
+        # This query will be empty for an ideal creation of new Device (Config).
+        # Hence, it should have minimal effect on regular operations of OpenWISP.
+        device_connection_versions = Version.objects.filter(
+            content_type=ContentType.objects.get_for_model(DeviceConnection),
+            serialized_data__contains=str(device.id),
+        )
+        versioned_credentials = []
+        for version in device_connection_versions:
+            versioned_credentials.append(version.field_dict['credentials_id'])
+        not_where |= models.Q(id__in=versioned_credentials)
         credentials = cls.objects.filter(where).exclude(not_where)
         for cred in credentials:
             DeviceConnection = load_model('connection', 'DeviceConnection')
