@@ -540,7 +540,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         """
         DeviceAdmin is used by other modules that register InlineModelAdmin
         using monkey patching. The default implementation of reversion.register
-        ignore such inlines and does not update the "follow" field accordingly.
+        ignores such inlines and does not update the "follow" field accordingly.
         This method updates the "follow" fields of the Device model
         by unregistering the Device model from reversion and re-registering it.
         Only the" "follow" option is updated.
