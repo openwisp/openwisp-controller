@@ -160,6 +160,11 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
          we can automatically create a DeviceConnection if we have
          a ``Config`` object)
         """
+        from django.contrib.contenttypes.models import ContentType
+        from reversion.models import Version
+
+        DeviceConnection = load_model('connection', 'DeviceConnection')
+
         if not created:
             return
         device = instance.device
@@ -177,6 +182,23 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         not_where = models.Q(
             id__in=device.deviceconnection_set.values_list('credentials_id', flat=True)
         )
+        # A race condition might occur while recovering a deleted device.
+        # The code for creating new DeviceConnection might be executed
+        # before the deleted DeviceConnection object is restored from the database.
+        # Therefore, when creating DeviceConnection objects in this method,
+        # we make sure to avoid creating objects for credentials which are
+        # stored in the revision history of django-reversion so that when a
+        # deleted device is restored from the revision history we avoid
+        # this race condition which would generate two identical DeviceConnection
+        # objects and hence prevent the restoration of a deleted device.
+        device_connection_versions = Version.objects.filter(
+            content_type=ContentType.objects.get_for_model(DeviceConnection),
+            serialized_data__contains=str(device.id),
+        )
+        versioned_credentials = []
+        for version in device_connection_versions:
+            versioned_credentials.append(version.field_dict['credentials_id'])
+        not_where |= models.Q(id__in=versioned_credentials)
         credentials = cls.objects.filter(where).exclude(not_where)
         for cred in credentials:
             DeviceConnection = load_model('connection', 'DeviceConnection')
