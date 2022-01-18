@@ -173,3 +173,4 @@ DeviceAdmin.conditional_inlines += [
     # or the JS logic will not work
     CommandInline,
 ]
+DeviceAdmin.add_reversion_following(follow=['deviceconnection_set'])

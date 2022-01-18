@@ -1,6 +1,7 @@
 import json
 import logging
 
+import reversion
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
@@ -534,14 +535,30 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 inlines.append(inline)
         return inlines
 
-    def reversion_register(self, model, **options):
-        if model == Device:
-            options['follow'] = (
-                *(options['follow']),
-                'deviceconnection_set',
-                'devicelocation',
-            )
-        return super().reversion_register(model, **options)
+    @classmethod
+    def add_reversion_following(cls, follow):
+        """
+        DeviceAdmin is used by other modules that register InlineModelAdmin
+        using monkey patching. The default implementation of reversion.register
+        ignores such inlines and does not update the "follow" field accordingly.
+        This method updates the "follow" fields of the Device model
+        by unregistering the Device model from reversion and re-registering it.
+        Only the" "follow" option is updated.
+        """
+        device_reversion_options = reversion.revisions._registered_models[
+            reversion.revisions._get_registration_key(Device)
+        ]
+        following = set(device_reversion_options.follow).union(set(follow))
+        reversion.unregister(Device)
+        reversion.register(
+            model=Device,
+            fields=device_reversion_options.fields,
+            follow=following,
+            format=device_reversion_options.format,
+            for_concrete_model=device_reversion_options.for_concrete_model,
+            ignore_duplicates=device_reversion_options.ignore_duplicates,
+            use_natural_foreign_keys=device_reversion_options.use_natural_foreign_keys,
+        )
 
 
 class CloneOrganizationForm(forms.Form):
