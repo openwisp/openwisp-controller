@@ -57,6 +57,15 @@ class TestApi(TestGeoMixin, TestCase):
         )
         self.assertEqual(self.location_model.objects.count(), 1)
 
+    def test_get_existing_location_html(self):
+        """
+        Regression test for browsable web UI bug
+        """
+        dl = self._create_object_location()
+        url = reverse(self.url_name, args=[dl.device.pk])
+        r = self.client.get(url, {'key': dl.device.key}, HTTP_ACCEPT='text/html')
+        self.assertEqual(r.status_code, 200)
+
     def test_get_create_location(self):
         self.assertEqual(self.location_model.objects.count(), 0)
         device = self._create_object()
