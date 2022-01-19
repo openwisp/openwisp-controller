@@ -28,8 +28,8 @@ stylelint "openwisp_controller/connection/static/connection/css/*.css"
 >>>>>>> [qa] Enable css and js linting checks #487
 
 openwisp-qa-check \
-  --csslinter
-  --jslinter
+  --csslinter \
+  --jslinter \
   --migrations-to-ignore "12 0 0 4" \
   --migration-path "./openwisp_controller/config/migrations
                   ./openwisp_controller/connection/migrations
