@@ -21,7 +21,11 @@ DeviceLocation = load_model('geo', 'DeviceLocation')
 
 class DevicePermission(BasePermission):
     def has_object_permission(self, request, view, obj):
-        return request.query_params.get('key') == obj.key
+        # checks for presence of key attribute first
+        # because in the browsable UI this method is
+        # getting passed also Location instances,
+        # which do not have the key attribute
+        return hasattr(obj, 'key') and request.query_params.get('key') == obj.key
 
 
 class ListViewPagination(pagination.PageNumberPagination):
