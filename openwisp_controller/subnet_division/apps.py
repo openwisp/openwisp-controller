@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
 from . import settings as app_settings
+from .utils import get_subnet_division_config_context
 
 
 class SubnetDivisionConfig(AppConfig):
@@ -15,6 +16,7 @@ class SubnetDivisionConfig(AppConfig):
     def ready(self):
         super().ready()
         self._load_models()
+        self._add_config_context_method()
 
         for rule_path, name in app_settings.SUBNET_DIVISION_TYPES:
             rule_class = import_string(rule_path)
@@ -50,3 +52,30 @@ class SubnetDivisionConfig(AppConfig):
         self.subnetdivisionrule_model_ = load_model(
             'subnet_division', 'SubnetDivisionRule'
         )
+
+    def _add_config_context_method(self):
+        from openwisp_controller.config.base.vpn import AbstractVpnClient
+
+        Config = load_model('config', 'Config')
+        Config.add_context_function(get_subnet_division_config_context)
+
+        # Monkey patching of Vpn._auto_ip is required because
+        # the default behavior is to automatically assign an IP
+        # to the VPN server. This assignment is handled by
+        # SubnetDivision rule, so we need to skip it here.
+        def _patched_vpnclient_auto_ip(vpn_client):
+            if not vpn_client.vpn.subnet:
+                return
+            if vpn_client.vpn.subnet.subnetdivisionrule_set.filter(
+                organization_id=vpn_client.config.device.organization,
+                type=(
+                    'openwisp_controller.subnet_division.rule_types.'
+                    'vpn.VpnSubnetDivisionRuleType'
+                ),
+            ).exists():
+                # Do not assign IP here if the VPN has a subnet with a subnet
+                # rule for the organization of the device
+                return
+            vpn_client.ip = vpn_client.vpn.subnet.request_ip()
+
+        AbstractVpnClient._auto_ip = _patched_vpnclient_auto_ip

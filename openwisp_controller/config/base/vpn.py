@@ -710,14 +710,4 @@ class AbstractVpnClient(models.Model):
     def _auto_ip(self):
         if not self.vpn.subnet:
             return
-        if self.vpn.subnet.subnetdivisionrule_set.filter(
-            organization_id=self.config.device.organization,
-            type=(
-                'openwisp_controller.subnet_division.rule_types.'
-                'vpn.VpnSubnetDivisionRuleType'
-            ),
-        ).exists():
-            # Do not assign IP here if the VPN has a subnet with a subnet
-            # rule for the organization of the device
-            return
         self.ip = self.vpn.subnet.request_ip()

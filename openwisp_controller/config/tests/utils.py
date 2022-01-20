@@ -6,6 +6,10 @@ change with care.
 from unittest import mock
 from uuid import uuid4
 
+from django.conf import settings
+from django.db import connections
+from django.db.utils import DEFAULT_DB_ALIAS
+from django.test.testcases import _AssertNumQueriesContext
 from swapper import load_model
 
 from ...pki.tests.utils import TestPkiMixin
@@ -213,6 +217,35 @@ class TestVpnX509Mixin(CreateVpnMixin, TestPkiMixin):
 
 
 class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
+    class _CustomAssertnumQueriesContext(_AssertNumQueriesContext):
+        def __exit__(self, exc_type, exc_value, traceback):
+            if exc_type is not None:
+                return
+            if 'openwisp_controller.subnet_division' in getattr(
+                settings, 'INSTALLED_APPS'
+            ):
+                for query in self.captured_queries:
+                    if 'subnetdivision' in query['sql']:
+                        self.num += 1
+            super().__exit__(exc_type, exc_value, traceback)
+
+    def assertNumQueries(self, num, func=None, *args, using=DEFAULT_DB_ALIAS, **kwargs):
+        # "openwisp_controller.subnet_division" updates context of
+        # the Config object which creates additional database queries.
+        # Usage of subnet_division app is optional hence, tests in
+        # "openwisp_controller.config" are written assuming
+        # subnet_division is not used. But when it is used, the number
+        # of queries should be increased which is done by
+        # _CustomAssertnumQueriesContext.__exit__ method.
+        conn = connections[using]
+
+        context = self._CustomAssertnumQueriesContext(self, num, conn)
+        if func is None:
+            return context
+
+        with context:
+            func(*args, **kwargs)
+
     def _create_config(self, **kwargs):
         if 'device' not in kwargs:
             kwargs['device'] = self._create_device(

@@ -47,9 +47,6 @@ class ConfigConfig(AppConfig):
         self.config_model = load_model('config', 'Config')
         self.vpn_model = load_model('config', 'Vpn')
         self.vpnclient_model = load_model('config', 'VpnClient')
-        self.subnet_division_rule_model = load_model(
-            'subnet_division', 'SubnetDivisionRule'
-        )
         self.cert_model = load_model('django_x509', 'Cert')
 
     def connect_signals(self):
