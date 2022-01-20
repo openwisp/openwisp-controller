@@ -332,6 +332,12 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def register_context_function(cls, func):
+        """
+        Adds "func" to "_config_context_functions".
+        These functions are called in the "get_context" method.
+        Output from these functions is added to  the context
+        of Config.
+        """
         if func not in cls._config_context_functions:
             cls._config_context_functions.append(func)
 
