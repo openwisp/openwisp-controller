@@ -1,4 +1,10 @@
 def get_subnet_division_config_context(config):
+    """
+    Returns SubnetDivision context containing subnet
+    and IP address provisioned for the "config" object.
+
+    This method is called by "Config.get_context" method.
+    """
     context = {}
     qs = config.subnetdivisionindex_set.values(
         'keyword', 'subnet__subnet', 'ip__ip_address'

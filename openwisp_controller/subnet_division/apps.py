@@ -55,6 +55,9 @@ class SubnetDivisionConfig(AppConfig):
 
     def _add_config_context_method(self):
         from openwisp_controller.config.base.vpn import AbstractVpnClient
+        from openwisp_controller.config.tests import CreateConfigTemplateMixin
+
+        from .tests.helpers import subnetdivision_patched_assertNumQueries
 
         Config = load_model('config', 'Config')
         Config.add_context_function(get_subnet_division_config_context)
@@ -79,3 +82,14 @@ class SubnetDivisionConfig(AppConfig):
             vpn_client.ip = vpn_client.vpn.subnet.request_ip()
 
         AbstractVpnClient._auto_ip = _patched_vpnclient_auto_ip
+
+        # Monkeypatching of "CreateConfigTemplateMixin" is required because
+        # subnet_division app updates context of the Config object
+        # which creates additional database queries.
+        # Usage of subnet_division app is optional hence, tests in
+        # "openwisp_controller.config" are written assuming
+        # subnet_division is not used. But when it is used, the number
+        # of queries should be increased.
+        CreateConfigTemplateMixin.assertNumQueries = (
+            subnetdivision_patched_assertNumQueries
+        )
