@@ -183,8 +183,7 @@ subnets and IP addresses to the devices without the need of manual intervention.
 Refer to `"How to configure automatic provisioning of subnets and IPs" section of this documentation <#how-to-configure-automatic-provisioning-of-subnets-and-ips>`_
 to learn about features provided by this app.
 
-If you don't require features provided by this app, you can skip adding it to
-``INSTALLED_APPS`` settings of Django.
+This app is optional, if you don't need it you can avoid adding it to ``settings.INSTALLED_APPS``.
 
 Settings
 --------
