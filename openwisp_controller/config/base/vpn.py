@@ -576,6 +576,7 @@ class AbstractVpnClient(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(16777216)],
         db_index=True,
     )
+    _auto_ip_stopped_funcs = []
 
     class Meta:
         abstract = True
@@ -585,6 +586,11 @@ class AbstractVpnClient(models.Model):
         )
         verbose_name = _('VPN client')
         verbose_name_plural = _('VPN clients')
+
+    @classmethod
+    def register_auto_ip_stopper(cls, func):
+        if func not in cls._auto_ip_stopped_funcs:
+            cls._auto_ip_stopped_funcs.append(func)
 
     def save(self, *args, **kwargs):
         """
@@ -708,6 +714,9 @@ class AbstractVpnClient(models.Model):
             self.vni = 1
 
     def _auto_ip(self):
+        for func in self._auto_ip_stopped_funcs:
+            if func(self):
+                return
         if not self.vpn.subnet:
             return
         self.ip = self.vpn.subnet.request_ip()

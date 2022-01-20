@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
 from . import settings as app_settings
-from .utils import get_subnet_division_config_context
+from .utils import get_subnet_division_config_context, subnet_division_vpnclient_auto_ip
 
 
 class SubnetDivisionConfig(AppConfig):
@@ -54,34 +54,15 @@ class SubnetDivisionConfig(AppConfig):
         )
 
     def _add_config_context_method(self):
-        from openwisp_controller.config.base.vpn import AbstractVpnClient
         from openwisp_controller.config.tests import CreateConfigTemplateMixin
 
         from .tests.helpers import subnetdivision_patched_assertNumQueries
 
         Config = load_model('config', 'Config')
-        Config.add_context_function(get_subnet_division_config_context)
+        VpnClient = load_model('config', 'VpnClient')
 
-        # Monkey patching of Vpn._auto_ip is required because
-        # the default behavior is to automatically assign an IP
-        # to the VPN server. This assignment is handled by
-        # SubnetDivision rule, so we need to skip it here.
-        def _patched_vpnclient_auto_ip(vpn_client):
-            if not vpn_client.vpn.subnet:
-                return
-            if vpn_client.vpn.subnet.subnetdivisionrule_set.filter(
-                organization_id=vpn_client.config.device.organization,
-                type=(
-                    'openwisp_controller.subnet_division.rule_types.'
-                    'vpn.VpnSubnetDivisionRuleType'
-                ),
-            ).exists():
-                # Do not assign IP here if the VPN has a subnet with a subnet
-                # rule for the organization of the device
-                return
-            vpn_client.ip = vpn_client.vpn.subnet.request_ip()
-
-        AbstractVpnClient._auto_ip = _patched_vpnclient_auto_ip
+        Config.register_context_function(get_subnet_division_config_context)
+        VpnClient.register_auto_ip_stopper(subnet_division_vpnclient_auto_ip)
 
         # Monkeypatching of "CreateConfigTemplateMixin" is required because
         # subnet_division app updates context of the Config object

@@ -331,7 +331,7 @@ class AbstractConfig(BaseConfig):
             transaction.on_commit(config.set_status_modified)
 
     @classmethod
-    def add_context_function(cls, func):
+    def register_context_function(cls, func):
         if func not in cls._config_context_functions:
             cls._config_context_functions.append(func)
 

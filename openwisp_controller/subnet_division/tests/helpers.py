@@ -68,6 +68,13 @@ class SubnetDivisionTestMixin(
 
 class _CustomAssertnumQueriesContext(_AssertNumQueriesContext):
     def __exit__(self, exc_type, exc_value, traceback):
+        """
+        This method increases the number of expected database
+        queries if subnet_division app is enabled. Tests in
+        "openwisp_controller.config" are written assuming
+        subnet_division is disabled. Therefore, it is required
+        to increase the number of expected queries in those tests.
+        """
         if exc_type is not None:
             return
         for query in self.captured_queries:
