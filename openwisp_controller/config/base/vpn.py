@@ -576,6 +576,7 @@ class AbstractVpnClient(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(16777216)],
         db_index=True,
     )
+    _auto_ip_stopper_funcs = []
 
     class Meta:
         abstract = True
@@ -585,6 +586,17 @@ class AbstractVpnClient(models.Model):
         )
         verbose_name = _('VPN client')
         verbose_name_plural = _('VPN clients')
+
+    @classmethod
+    def register_auto_ip_stopper(cls, func):
+        """
+        Adds "func" to "_auto_ip_stopper_funcs".
+        These functions are called in the "_auto_ip" method.
+        Output from these functions are used to determine
+        skipping automatic IP assignment.
+        """
+        if func not in cls._auto_ip_stopper_funcs:
+            cls._auto_ip_stopper_funcs.append(func)
 
     def save(self, *args, **kwargs):
         """
@@ -710,14 +722,7 @@ class AbstractVpnClient(models.Model):
     def _auto_ip(self):
         if not self.vpn.subnet:
             return
-        if self.vpn.subnet.subnetdivisionrule_set.filter(
-            organization_id=self.config.device.organization,
-            type=(
-                'openwisp_controller.subnet_division.rule_types.'
-                'vpn.VpnSubnetDivisionRuleType'
-            ),
-        ).exists():
-            # Do not assign IP here if the VPN has a subnet with a subnet
-            # rule for the organization of the device
-            return
+        for func in self._auto_ip_stopper_funcs:
+            if func(self):
+                return
         self.ip = self.vpn.subnet.request_ip()

@@ -688,7 +688,9 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             vpn.save()
             vpn_client.refresh_from_db()
 
-            with mock.patch('logging.Logger.info') as mocked_logger, mock.patch(
+            with mock.patch(
+                'openwisp_controller.config.tasks.logger.info'
+            ) as mocked_logger, mock.patch(
                 'requests.post', return_value=HttpResponse()
             ):
                 post_save.send(

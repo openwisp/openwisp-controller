@@ -12,6 +12,7 @@ from openwisp_utils.tests import catch_signal
 
 from .. import tasks
 from ..signals import subnet_provisioned
+from ..utils import get_subnet_division_config_context
 from .helpers import SubnetDivisionTestMixin
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
@@ -202,7 +203,7 @@ class TestSubnetDivisionRule(
         )
 
         # Verify context of config
-        context = self.config.get_subnet_division_context()
+        context = get_subnet_division_config_context(self.config)
         self.assertIn(f'{rule.label}_prefixlen', context)
         for subnet_id in range(1, rule.number_of_subnets + 1):
             self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
@@ -234,7 +235,7 @@ class TestSubnetDivisionRule(
         self.assertEqual(index_count, new_index_count)
 
         # Verify context of config
-        context = self.config.get_subnet_division_context()
+        context = get_subnet_division_config_context(config=self.config)
         self.assertIn(f'{rule.label}_prefixlen', context)
         for subnet_id in range(1, rule.number_of_subnets + 1):
             self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
@@ -496,7 +497,7 @@ class TestSubnetDivisionRule(
 
         # Verify context of config
         device = Device.objects.get(mac_address='FF:FF:FF:FF:FF:FF')
-        context = device.config.get_subnet_division_context()
+        context = get_subnet_division_config_context(device.config)
         self.assertIn(f'{rule.label}_prefixlen', context)
         for subnet_id in range(1, rule.number_of_subnets + 1):
             self.assertIn(f'{rule.label}_subnet{subnet_id}', context)

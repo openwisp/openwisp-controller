@@ -183,6 +183,8 @@ subnets and IP addresses to the devices without the need of manual intervention.
 Refer to `"How to configure automatic provisioning of subnets and IPs" section of this documentation <#how-to-configure-automatic-provisioning-of-subnets-and-ips>`_
 to learn about features provided by this app.
 
+This app is optional, if you don't need it you can avoid adding it to ``settings.INSTALLED_APPS``.
+
 Settings
 --------
 
@@ -2415,6 +2417,7 @@ Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
         'openwisp_controller.pki',
         'openwisp_controller.geo',
         'openwisp_controller.connection',
+        'openwisp_controller.subnet_division', # Optional
         'openwisp_controller.notifications',
         'openwisp_users',
         'openwisp_notifications',

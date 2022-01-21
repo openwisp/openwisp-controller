@@ -6,6 +6,7 @@ change with care.
 from unittest import mock
 from uuid import uuid4
 
+from django.db.utils import DEFAULT_DB_ALIAS
 from swapper import load_model
 
 from ...pki.tests.utils import TestPkiMixin
@@ -213,6 +214,12 @@ class TestVpnX509Mixin(CreateVpnMixin, TestPkiMixin):
 
 
 class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
+    def assertNumQueries(self, num, func=None, *args, using=DEFAULT_DB_ALIAS, **kwargs):
+        # NOTE: Do not remove this. It is required by
+        # "openwisp_controller.subnet_division". Check
+        # "openwisp_controller.subnet_division.apps" for details.
+        return super().assertNumQueries(num, func=func, *args, using=using, **kwargs)
+
     def _create_config(self, **kwargs):
         if 'device' not in kwargs:
             kwargs['device'] = self._create_device(
