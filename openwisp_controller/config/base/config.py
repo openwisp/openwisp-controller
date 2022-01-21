@@ -82,6 +82,7 @@ class AbstractConfig(BaseConfig):
     )
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
+    _config_context_functions = list()
 
     class Meta:
         abstract = True
@@ -329,6 +330,17 @@ class AbstractConfig(BaseConfig):
         else:
             transaction.on_commit(config.set_status_modified)
 
+    @classmethod
+    def register_context_function(cls, func):
+        """
+        Adds "func" to "_config_context_functions".
+        These functions are called in the "get_context" method.
+        Output from these functions is added to  the context
+        of Config.
+        """
+        if func not in cls._config_context_functions:
+            cls._config_context_functions.append(func)
+
     def get_default_templates(self):
         """
         retrieves default templates of a Config object
@@ -479,31 +491,6 @@ class AbstractConfig(BaseConfig):
                 context[vpn_context_keys['vni']] = f'{vpnclient.vni}'
         return context
 
-    def get_subnet_division_context(self):
-        # NOTE: Use regex to know which subnet division variables
-        # are used in this config and only provide those contexts
-
-        context = {}
-        qs = self.subnetdivisionindex_set.values(
-            'keyword', 'subnet__subnet', 'ip__ip_address'
-        )
-        for entry in qs:
-            if entry['ip__ip_address'] is None:
-                context[entry['keyword']] = str(entry['subnet__subnet'])
-            else:
-                context[entry['keyword']] = str(entry['ip__ip_address'])
-
-        prefixlen = (
-            self.subnetdivisionindex_set.select_related('rule')
-            .values('rule__label', 'rule__size')
-            .first()
-        )
-        if prefixlen:
-            context[f'{prefixlen["rule__label"]}_prefixlen'] = str(
-                prefixlen['rule__size']
-            )
-        return context
-
     def get_context(self, system=False):
         """
         additional context passed to netjsonconfig
@@ -522,7 +509,8 @@ class AbstractConfig(BaseConfig):
             if self.context and not system:
                 extra.update(self.context)
         extra.update(self.get_vpn_context())
-        extra.update(self.get_subnet_division_context())
+        for func in self._config_context_functions:
+            extra.update(func(config=self))
         if app_settings.HARDWARE_ID_ENABLED and self._has_device():
             extra.update({'hardware_id': str(self.device.hardware_id)})
         c.update(sorted(extra.items()))

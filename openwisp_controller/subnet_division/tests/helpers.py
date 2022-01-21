@@ -1,3 +1,6 @@
+from django.db import connections
+from django.db.utils import DEFAULT_DB_ALIAS
+from django.test.testcases import _AssertNumQueriesContext
 from openwisp_ipam.tests import CreateModelsMixin as SubnetIpamMixin
 from swapper import load_model
 
@@ -61,3 +64,33 @@ class SubnetDivisionTestMixin(
             return Subnet.objects.get(subnet=subnet, **kwargs)
         except Subnet.DoesNotExist:
             return self._create_subnet(subnet=subnet, **kwargs)
+
+
+class _CustomAssertnumQueriesContext(_AssertNumQueriesContext):
+    def __exit__(self, exc_type, exc_value, traceback):
+        """
+        This method increases the number of expected database
+        queries if subnet_division app is enabled. Tests in
+        "openwisp_controller.config" are written assuming
+        subnet_division is disabled. Therefore, it is required
+        to increase the number of expected queries in those tests.
+        """
+        if exc_type is not None:
+            return
+        for query in self.captured_queries:
+            if 'subnetdivision' in query['sql']:
+                self.num += 1
+        super().__exit__(exc_type, exc_value, traceback)
+
+
+def subnetdivision_patched_assertNumQueries(
+    self, num, func=None, *args, using=DEFAULT_DB_ALIAS, **kwargs
+):
+    conn = connections[using]
+
+    context = _CustomAssertnumQueriesContext(self, num, conn)
+    if func is None:
+        return context
+
+    with context:
+        func(*args, **kwargs)
