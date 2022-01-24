@@ -1292,9 +1292,10 @@ Install the system dependencies:
 
 .. code-block:: shell
 
+    sudo apt update
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
-    sudo snap install chromium
+    sudo apt install -y chromium
 
 Fork and clone the forked repository:
 
