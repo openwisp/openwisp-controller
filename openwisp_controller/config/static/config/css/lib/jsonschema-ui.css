@@ -294,9 +294,6 @@ div.jsoneditor > div > h3.controls{
   position: static;
   margin-top: 15px;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-row > .grid-column > label {
-  display: none;
-}
 .jsoneditor-wrapper div.jsoneditor .inline-group > .form-row > label {
   display: block !important;
 }
