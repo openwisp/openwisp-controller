@@ -596,11 +596,12 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         with self.subTest(
             'Test validation error is not raised when backend is unchanged'
         ):
-            vpn.full_clean()
+            try:
+                vpn.full_clean()
+            except ValidationError as error:
+                self.fail(f'Unexpected ValidationError: {error}')
 
-        with self.subTest(
-            'Test validation error is not raised when backend is changed'
-        ):
+        with self.subTest('Test validation error is raised when backend is changed'):
             with self.assertRaises(ValidationError) as context_manager:
                 vpn.backend = self._BACKENDS['wireguard']
                 vpn.subnet = subnet
