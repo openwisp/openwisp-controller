@@ -593,19 +593,26 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         config.templates.add(template)
         self.assertEqual(VpnClient.objects.count(), 1)
 
-        with self.assertRaises(ValidationError) as context_manager:
-            vpn.backend = self._BACKENDS['wireguard']
-            vpn.subnet = subnet
+        with self.subTest(
+            'Test validation error is not raised when backend is unchanged'
+        ):
             vpn.full_clean()
-            vpn.save()
-        expected_error_dict = {
-            'backend': [
-                'Backend cannot be changed because the VPN is currently in use.'
-            ]
-        }
-        self.assertDictEqual(
-            context_manager.exception.message_dict, expected_error_dict
-        )
+
+        with self.subTest(
+            'Test validation error is not raised when backend is changed'
+        ):
+            with self.assertRaises(ValidationError) as context_manager:
+                vpn.backend = self._BACKENDS['wireguard']
+                vpn.subnet = subnet
+                vpn.full_clean()
+            expected_error_dict = {
+                'backend': [
+                    'Backend cannot be changed because the VPN is currently in use.'
+                ]
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_error_dict
+            )
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
