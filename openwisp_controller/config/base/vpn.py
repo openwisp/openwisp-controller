@@ -140,7 +140,12 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     def _validate_backend(self):
         if self._state.adding:
             return
-        if self.vpnclient_set.exists():
+        if (
+            'backend' not in self.get_deferred_fields()
+            and self._meta.model.objects.only('backend').get(id=self.id).backend
+            != self.backend
+            and self.vpnclient_set.exists()
+        ):
             raise ValidationError(
                 {
                     'backend': _(
