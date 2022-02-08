@@ -163,7 +163,6 @@ class Ssh(object):
         # log standard error
         error = stderr.read().decode('utf-8', 'ignore')
         if error:
-            logger.error(error)
             if not output.endswith('\n'):
                 output += '\n'
             output += error
@@ -171,7 +170,7 @@ class Ssh(object):
         # returned with a non-zero exit status
         if exit_status not in exit_codes and raise_unexpected_exit:
             log_message = 'Unexpected exit code: {0}'.format(exit_status)
-            logger.error(log_message)
+            logger.info(log_message)
             message = error if error else output
             # if message is empty, use log_message
             raise CommandFailedException(message or log_message)
