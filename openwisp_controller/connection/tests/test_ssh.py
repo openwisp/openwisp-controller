@@ -47,11 +47,9 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
         with self.assertRaises(Exception):
-            with mock.patch('logging.Logger.error') as mocked_logger:
-                dc.connector_instance.exec_command('wrongcommand')
-        mocked_logger.assert_has_calls(
+            dc.connector_instance.exec_command('wrongcommand')
+        mocked_info.assert_has_calls(
             [
-                mock.call('/bin/sh: 1: wrongcommand: not found\n'),
                 mock.call('Unexpected exit code: 127'),
             ]
         )
@@ -65,12 +63,11 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
         with self.assertRaises(Exception) as ctx:
-            with mock.patch('logging.Logger.error') as mocked_logger:
-                dc.connector_instance.exec_command(
-                    'rm /thisfilesurelydoesnotexist 2> /dev/null'
-                )
+            dc.connector_instance.exec_command(
+                'rm /thisfilesurelydoesnotexist 2> /dev/null'
+            )
         log_message = 'Unexpected exit code: 1'
-        mocked_logger.assert_has_calls([mock.call(log_message)])
+        mocked_info.assert_has_calls([mock.call(log_message)])
         self.assertEqual(str(ctx.exception), log_message)
 
     @mock.patch('scp.SCPClient.putfo')
