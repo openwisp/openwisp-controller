@@ -1,20 +1,16 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import pagination, serializers
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
 from rest_framework.response import Response
 from swapper import load_model
 
-from openwisp_users.api.authentication import BearerAuthentication
-from openwisp_users.api.mixins import FilterByOrganizationManaged
-
+from ...mixins import ProtectedAPIMixin
 from .serializers import (
     CaDetailSerializer,
     CaListSerializer,
@@ -32,14 +28,6 @@ class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
-
-
-class ProtectedAPIMixin(FilterByOrganizationManaged):
-    authentication_classes = [BearerAuthentication, SessionAuthentication]
-    permission_classes = [
-        IsAuthenticated,
-        DjangoModelPermissions,
-    ]
 
 
 class CaListCreateView(ProtectedAPIMixin, ListCreateAPIView):

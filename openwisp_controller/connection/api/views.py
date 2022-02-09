@@ -9,13 +9,11 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
-from rest_framework.permissions import IsAuthenticated
 from swapper import load_model
 
 from openwisp_users.api.authentication import BearerAuthentication
-from openwisp_users.api.mixins import FilterByOrganizationManaged
-from openwisp_users.api.permissions import DjangoModelPermissions
 
+from ...mixins import ProtectedAPIMixin
 from .serializer import (
     CommandSerializer,
     CredentialSerializer,
@@ -82,14 +80,6 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
         # May raise a permission denied
         self.check_object_permissions(self.request, obj)
         return obj
-
-
-class ProtectedAPIMixin(FilterByOrganizationManaged):
-    authentication_classes = [BearerAuthentication, SessionAuthentication]
-    permission_classes = [
-        IsAuthenticated,
-        DjangoModelPermissions,
-    ]
 
 
 class CredentialListCreateView(ProtectedAPIMixin, ListCreateAPIView):
