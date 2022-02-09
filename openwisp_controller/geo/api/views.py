@@ -6,8 +6,9 @@ from rest_framework.permissions import BasePermission
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
+from openwisp_users.api.mixins import FilterByParentManaged
 
+from ...mixins import ProtectedAPIMixin
 from .serializers import (
     GeoJsonLocationSerializer,
     LocationDeviceSerializer,
@@ -34,12 +35,17 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class DeviceLocationView(generics.RetrieveUpdateAPIView):
+class DeviceLocationView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
     serializer_class = LocationSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
         'devicelocation', 'devicelocation__location'
     )
+
+    def get_queryset(self):
+        # It is required to override ProtectedAPIMixin.get_queryset
+        # which filters the queryset for organizations managed.
+        return self.queryset
 
     def get_location(self, device):
         try:
@@ -82,7 +88,7 @@ class GeoJsonLocationFilter(filters.FilterSet):
         fields = ['organization_slug']
 
 
-class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
+class GeoJsonLocationList(ProtectedAPIMixin, generics.ListAPIView):
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
         device_count=Count('devicelocation')
     )
@@ -92,7 +98,9 @@ class GeoJsonLocationList(FilterByOrganizationManaged, generics.ListAPIView):
     filterset_class = GeoJsonLocationFilter
 
 
-class LocationDeviceList(FilterByParentManaged, generics.ListAPIView):
+class LocationDeviceList(
+    FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
+):
     serializer_class = LocationDeviceSerializer
     pagination_class = ListViewPagination
     queryset = Device.objects.none()

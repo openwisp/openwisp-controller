@@ -4,19 +4,14 @@ from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
 from rest_framework import pagination
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.permissions import IsAuthenticated
 from swapper import load_model
 
-from openwisp_users.api.authentication import BearerAuthentication
-from openwisp_users.api.mixins import FilterByOrganizationManaged
-from openwisp_users.api.permissions import DjangoModelPermissions
-
+from ...mixins import ProtectedAPIMixin
 from ..admin import BaseConfigAdmin
 from .serializers import (
     DeviceDetailSerializer,
@@ -40,14 +35,6 @@ class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
-
-
-class ProtectedAPIMixin(FilterByOrganizationManaged):
-    authentication_classes = [BearerAuthentication, SessionAuthentication]
-    permission_classes = [
-        IsAuthenticated,
-        DjangoModelPermissions,
-    ]
 
 
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):

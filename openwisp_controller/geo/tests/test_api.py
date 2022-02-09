@@ -1,8 +1,10 @@
 import json
 
+from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.authtoken.models import Token
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import CreateConfigTemplateMixin
@@ -15,6 +17,8 @@ Device = load_model('config', 'Device')
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
+Group = load_model('openwisp_users', 'Group')
+User = get_user_model()
 
 
 class TestApi(TestGeoMixin, TestCase):
@@ -29,6 +33,11 @@ class TestApi(TestGeoMixin, TestCase):
         self.assertEqual(r.status_code, 404)
 
     def test_permission_403(self):
+        user = User.objects.create(
+            username='tester',
+            password='tester',
+        )
+        self.client.force_login(user)
         dl = self._create_object_location()
         url = reverse(self.url_name, args=[dl.device.pk])
         r = self.client.get(url)
@@ -98,6 +107,40 @@ class TestApi(TestGeoMixin, TestCase):
         )
         self.assertEqual(self.location_model.objects.count(), 1)
 
+    @capture_any_output()
+    def test_bearer_authentication(self):
+        user = User.objects.create(
+            username='admin', password='password', is_staff=True, is_superuser=True
+        )
+        token = Token.objects.create(user=user).key
+        device = self._create_object()
+
+        with self.subTest('Test DeviceLocationView'):
+            response = self.client.get(
+                reverse(self.url_name, args=[device.pk]),
+                data={'key': device.key},
+                content_type='application/json',
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test GeoJsonLocationListView'):
+            response = self.client.get(
+                reverse('geo_api:location_geojson'),
+                content_type='application/json',
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test LocationDeviceList'):
+            location = self._create_location(organization=device.organization)
+            response = self.client.get(
+                reverse('geo_api:location_device_list', args=[location.id]),
+                content_type='application/json',
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
 
 class TestMultitenantApi(
     TestOrganizationMixin, TestGeoMixin, TestCase, CreateConfigTemplateMixin
@@ -111,10 +154,11 @@ class TestMultitenantApi(
         # create 2 orgs
         self._create_org(name='org_b', slug='org_b')
         org_a = self._create_org(name='org_a', slug='org_a')
+        user = self._create_operator()
+        admin_group = Group.objects.get(name='Administrator')
+        admin_group.user_set.add(user)
         # create an operator for org_a
-        ou = OrganizationUser.objects.create(
-            user=self._create_operator(), organization=org_a
-        )
+        ou = OrganizationUser.objects.create(user=user, organization=org_a)
         ou.is_admin = True
         ou.save()
         # create a superuser
@@ -156,7 +200,7 @@ class TestMultitenantApi(
         with self.subTest('Test location device list for unauthenticated user'):
             self.client.logout()
             r = self.client.get(reverse(url, args=[location_a.id]))
-            self.assertEqual(r.status_code, 403)
+            self.assertEqual(r.status_code, 401)
 
     @capture_any_output()
     def test_geojson_list(self):
@@ -197,4 +241,4 @@ class TestMultitenantApi(
         with self.subTest('Test geojson list unauthenticated user'):
             self.client.logout()
             r = self.client.get(reverse(url))
-            self.assertEqual(r.status_code, 403)
+            self.assertEqual(r.status_code, 401)

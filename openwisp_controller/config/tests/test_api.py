@@ -6,7 +6,9 @@ from django.urls import reverse
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
+from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.tests import capture_any_output
 
 from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX509Mixin
 
@@ -24,6 +26,7 @@ class TestConfigApi(
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,
+    AuthenticationMixin,
     TestCase,
 ):
     def setUp(self):
@@ -699,6 +702,104 @@ class TestConfigApi(
             config.templates.add(template)
             vpnclient = config.vpnclient_set.select_related('cert').first()
             _assert_response(org_slug=org.slug, common_name=vpnclient.cert.common_name)
+
+    @capture_any_output()
+    def test_bearer_authentication(self):
+        self.client.logout()
+        token = self._obtain_auth_token(username='admin', password='tester')
+        vpn = self._create_vpn()
+        template = self._create_template(type='vpn', vpn=vpn, default=True)
+        device_group = self._create_device_group()
+        device = self._create_device(group=device_group)
+        config = self._create_config(device=device)
+        vpnclient_cert = config.vpnclient_set.first().cert
+
+        with self.subTest('Test TemplateListCreateView'):
+            response = self.client.get(
+                reverse('config_api:template_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test TemplateDetailView'):
+            response = self.client.get(
+                reverse('config_api:template_detail', args=[template.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DownloadTemplateconfiguration'):
+            response = self.client.get(
+                reverse('config_api:download_template_config', args=[template.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test VpnListCreateView'):
+            response = self.client.get(
+                reverse('config_api:vpn_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test VpnDetailView'):
+            response = self.client.get(
+                reverse('config_api:vpn_detail', args=[vpn.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DownloadVpnView'):
+            response = self.client.get(
+                reverse('config_api:download_vpn_config', args=[vpn.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceListCreateView'):
+            response = self.client.get(
+                reverse('config_api:device_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceDetailView'):
+            response = self.client.get(
+                reverse('config_api:device_detail', args=[device.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceGroupListCreateView'):
+            response = self.client.get(
+                reverse('config_api:devicegroup_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceGroupDetailView'):
+            response = self.client.get(
+                reverse('config_api:devicegroup_detail', args=[device_group.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceGroupCommonName'):
+            response = self.client.get(
+                reverse(
+                    'config_api:devicegroup_x509_commonname',
+                    args=[vpnclient_cert.common_name],
+                ),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DownloadDeviceView'):
+            response = self.client.get(
+                reverse('config_api:download_device_config', args=[device.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
 
 
 class TestConfigApiTransaction(
