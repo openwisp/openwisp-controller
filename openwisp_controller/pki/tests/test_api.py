@@ -3,8 +3,9 @@ from django.urls import reverse
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
+from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
-from openwisp_utils.tests import AssertNumQueriesSubTestMixin
+from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
 
 from .utils import TestPkiMixin
 
@@ -17,6 +18,7 @@ class TestPkiApi(
     TestAdminMixin,
     TestPkiMixin,
     TestOrganizationMixin,
+    AuthenticationMixin,
     TestCase,
 ):
     def setUp(self):
@@ -291,3 +293,65 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 200)
         self.assertTrue(cert1.revoked)
         self.assertTrue(r.data['revoked'])
+
+    @capture_any_output()
+    def test_bearer_authentication(self):
+        self.client.logout()
+        token = self._obtain_auth_token(username='admin', password='tester')
+        ca = self._create_ca()
+        cert = self._create_cert(ca=ca)
+        with self.subTest('Test CaListCreateView'):
+            response = self.client.get(
+                reverse('pki_api:ca_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CaDetailView'):
+            response = self.client.get(
+                reverse('pki_api:ca_detail', args=[ca.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CaRenewView'):
+            response = self.client.post(
+                reverse('pki_api:ca_renew', args=[ca.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CertListCreateView'):
+            response = self.client.get(
+                reverse('pki_api:cert_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CertDetailView'):
+            response = self.client.get(
+                reverse('pki_api:cert_detail', args=[cert.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CrlDownloadView'):
+            response = self.client.get(
+                reverse('pki_api:crl_download', args=[ca.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CertRenewView'):
+            response = self.client.post(
+                reverse('pki_api:cert_renew', args=[cert.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CertRevokeView'):
+            response = self.client.post(
+                reverse('pki_api:cert_revoke', args=[cert.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)

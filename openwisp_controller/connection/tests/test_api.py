@@ -286,7 +286,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.data['count'], 1)
 
 
-class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
+class TestConnectionApi(
+    TestAdminMixin, AuthenticationMixin, TestCase, CreateConnectionsMixin
+):
     def setUp(self):
         super().setUp()
         self._login()
@@ -469,3 +471,41 @@ class TestConnectionApi(TestAdminMixin, TestCase, CreateConnectionsMixin):
         with self.assertNumQueries(9):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
+
+    def test_bearer_authentication(self):
+        self.client.logout()
+        token = self._obtain_auth_token(username='admin', password='tester')
+        credentials = self._create_credentials(auto_add=True)
+        device_conn = self._create_device_connection(credentials=credentials)
+        device = device_conn.device
+
+        with self.subTest('Test CredentialListCreateView'):
+            response = self.client.get(
+                reverse('connection_api:credential_list'),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test CredentialDetailView'):
+            response = self.client.get(
+                reverse('connection_api:credential_detail', args=[credentials.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceConnenctionListCreateView'):
+            response = self.client.get(
+                reverse('connection_api:deviceconnection_list', args=[device.id]),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test DeviceConnectionDetailView'):
+            response = self.client.get(
+                reverse(
+                    'connection_api:deviceconnection_detail',
+                    args=[device.id, device_conn.id],
+                ),
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+            self.assertEqual(response.status_code, 200)
