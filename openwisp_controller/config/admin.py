@@ -576,12 +576,20 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
 
 class CloneOrganizationForm(forms.Form):
-    organization = forms.ModelChoiceField(queryset=Organization.objects.none())
+    organization = forms.ModelChoiceField(
+        queryset=Organization.objects.none(),
+        required=False,
+        empty_label=_('Shared systemwide (no organization)'),
+    )
 
     def __init__(self, *args, **kwargs):
         queryset = kwargs.pop('queryset')
+        user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
-        self.fields['organization'].queryset = queryset
+        org_field = self.fields.get('organization')
+        org_field.queryset = queryset
+        if not user.is_superuser:
+            org_field.empty_label = None
 
 
 class TemplateForm(BaseForm):
@@ -661,12 +669,13 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 pk__in=user.organizations_dict.keys()
             )
         if selectable_orgs:
-            if request.POST.get('organization'):
+            organization = request.POST.get('organization')
+            if organization or organization == '':
                 for template in queryset:
                     clone = template.clone(user)
-                    clone.organization = Organization.objects.get(
-                        pk=request.POST.get('organization')
-                    )
+                    clone.organization = None
+                    if organization:
+                        clone.organization = Organization.objects.get(pk=organization)
                     create_log_entry(user, clone)
                     clone.save()
                 self.message_user(
@@ -680,7 +689,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 'queryset': queryset,
                 'opts': self.model._meta,
                 'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-                'form': CloneOrganizationForm(queryset=selectable_orgs),
+                'form': CloneOrganizationForm(queryset=selectable_orgs, user=user),
                 'changelist_url': (
                     f'{request.resolver_match.app_name}:'
                     f'{request.resolver_match.url_name}'
