@@ -450,6 +450,7 @@ class TestAdmin(
         self.client.force_login(self._get_admin())
         response = self.client.post(path, post_data)
         self.assertContains(response, 'Clone templates')
+        self.assertContains(response, 'Shared systemwide')
 
     def test_clone_templates_operator_1_org(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
@@ -470,6 +471,7 @@ class TestAdmin(
         self.client.force_login(operator)
         response = self.client.post(path, post_data)
         self.assertContains(response, 'Clone templates')
+        self.assertNotContains(response, 'Shared systemwide')
 
     def test_change_device_clean_templates(self):
         o = self._get_org()
