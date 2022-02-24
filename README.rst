@@ -497,8 +497,12 @@ downloaded on routers when ``auto_cert`` is being used (enabled by default).
 +--------------+------------------------------+
 
 Defines the format of the ``common_name`` attribute of VPN client certificates that are automatically
-created when using VPN templates which have ``auto_cert`` set to ``True``. Mention short ``uuid``.
-If the ``name`` of the device is the ``mac address``, the ``mac address`` part will be omitted to avoid redundancy.
+created when using VPN templates which have ``auto_cert`` set to ``True``.
+A unique slug generated using `shortuuid <https://github.com/skorokithakis/shortuuid/>`_
+is appended to the common name to introduce uniqueness.
+
+
+**Note:** if the ``name`` and ``mac address`` of the device are equal, the ``name`` of the device will be omitted from the common name to avoid redundancy. 
 
 ``OPENWISP_CONTROLLER_MANAGEMENT_IP_DEVICE_LIST``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
