@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models.signals import m2m_changed, post_delete, post_save
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -207,7 +207,11 @@ class ConfigConfig(AppConfig):
         device config checksum (view and model method)
         """
         from .controller.views import DeviceChecksumView
-        from .handlers import devicegroup_change_handler, devicegroup_delete_handler
+        from .handlers import (
+            device_cache_invalidation_handler,
+            devicegroup_change_handler,
+            devicegroup_delete_handler,
+        )
 
         post_save.connect(
             DeviceChecksumView.invalidate_get_device_cache,
@@ -242,6 +246,11 @@ class ConfigConfig(AppConfig):
             devicegroup_delete_handler,
             sender=self.cert_model,
             dispatch_uid='invalidate_devicegroup_cache_on_certificate_delete',
+        )
+        pre_delete.connect(
+            device_cache_invalidation_handler,
+            sender=self.device_model,
+            dispatch_uid='device.invalidate_cache',
         )
 
     def register_dashboard_charts(self):

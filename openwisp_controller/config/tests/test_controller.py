@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.http.response import Http404
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
@@ -122,6 +123,12 @@ class TestController(
             with self.assertNumQueries(1):
                 obj = view.get_device()
             self.assertEqual(obj.os, 'test_cache')
+
+        with self.subTest('test cache invalidation on device delete'):
+            d.delete()
+            with self.assertNumQueries(1):
+                with self.assertRaises(Http404):
+                    view.get_device()
 
     def test_get_cached_checksum(self):
         d = self._create_device_config()
