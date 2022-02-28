@@ -3,6 +3,8 @@ from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
+from openwisp_controller.config.controller.views import DeviceChecksumView
+
 from . import tasks
 from .signals import config_status_changed, device_registered
 
@@ -54,3 +56,9 @@ def devicegroup_delete_handler(instance, **kwargs):
     if isinstance(instance, Cert):
         kwargs['common_name'] = instance.common_name
     tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)
+
+
+def device_cache_invalidation_handler(instance, **kwargs):
+    view = DeviceChecksumView()
+    setattr(view, 'kwargs', {'pk': str(instance.pk)})
+    view.get_device.invalidate(view)
