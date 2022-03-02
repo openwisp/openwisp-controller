@@ -46,12 +46,6 @@ class TestAdmin(
     object_model = Device
     object_location_model = DeviceLocation
     maxDiff = None
-    operator_permission_filters = [
-        {'codename__endswith': 'config'},
-        {'codename__endswith': 'device'},
-        {'codename__endswith': 'template'},
-        {'codename__endswith': 'vpn'},
-    ]
     _device_params = {
         'name': 'test-device',
         'hardware_id': '1234',
@@ -197,6 +191,7 @@ class TestAdmin(
         org2 = self._create_org(name='test2org')
         inactive = self._create_org(name='inactive-org', is_active=False)
         operator = self._create_operator(organizations=[org1, inactive])
+        administrator = self._create_administrator(organizations=[org1, inactive])
         t1 = self._create_template(name='template1org', organization=org1)
         t2 = self._create_template(name='template2org', organization=org2)
         t3 = self._create_template(name='t3-inactive', organization=inactive)
@@ -229,6 +224,7 @@ class TestAdmin(
             org2=org2,
             inactive=inactive,
             operator=operator,
+            administrator=administrator,
         )
         if vpn:
             v1 = self._create_vpn(name='vpn1org', organization=org1)
@@ -316,6 +312,7 @@ class TestAdmin(
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
+            administrator=True,
         )
 
     def test_vpn_ca_fk_queryset(self):
@@ -325,6 +322,7 @@ class TestAdmin(
             visible=[data['vpn1'].ca.name, data['vpn_shared'].ca.name],
             hidden=[data['vpn2'].ca.name, data['vpn_inactive'].ca.name],
             select_widget=True,
+            administrator=True,
         )
 
     def test_vpn_cert_fk_queryset(self):
@@ -334,6 +332,7 @@ class TestAdmin(
             visible=[data['vpn1'].cert.name, data['vpn_shared'].cert.name],
             hidden=[data['vpn2'].cert.name, data['vpn_inactive'].cert.name],
             select_widget=True,
+            administrator=True,
         )
 
     def test_changelist_recover_deleted_button(self):
