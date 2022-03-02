@@ -449,7 +449,7 @@ class TestConfigApi(
     def test_vpn_create_with_shared_objects(self):
         org1 = self._get_org()
         shared_ca = self._create_ca(name='shared_ca', organization=None)
-        test_user = self._create_operator(organizations=[org1])
+        test_user = self._create_administrator(organizations=[org1])
         self.client.force_login(test_user)
         data = self._get_vpn_data.copy()
         data['organization'] = org1.pk
@@ -472,7 +472,7 @@ class TestConfigApi(
         ca = self._create_ca(name='shared_ca', organization=None)
         self._create_cert(ca=ca, name='shared_cert', organization=None)
         org1 = self._get_org()
-        test_user = self._create_operator(organizations=[org1])
+        test_user = self._create_administrator(organizations=[org1])
         self.client.force_login(test_user)
         path = reverse('config_api:vpn_list')
         r = self.client.get(path, {'format': 'api'})

@@ -14,16 +14,12 @@ Cert = load_model('django_x509', 'Cert')
 class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     app_label = 'pki'
 
-    operator_permission_filters = [
-        {'codename__endswith': 'ca'},
-        {'codename__endswith': 'cert'},
-    ]
-
     def _create_multitenancy_test_env(self, cert=False):
         org1 = self._create_org(name='test1org')
         org2 = self._create_org(name='test2org')
         inactive = self._create_org(name='inactive-org', is_active=False)
         operator = self._create_operator(organizations=[org1, inactive])
+        administrator = self._create_administrator(organizations=[org1, inactive])
         ca1 = self._create_ca(name='ca1', organization=org1)
         ca2 = self._create_ca(name='ca2', organization=org2)
         ca_shared = self._create_ca(name='ca-shared', organization=None)
@@ -37,6 +33,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             org2=org2,
             inactive=inactive,
             operator=operator,
+            administrator=administrator,
         )
         if cert:
             cert1 = self._create_cert(name='cert1', ca=ca1, organization=org1)
@@ -77,6 +74,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
+            administrator=True,
         )
 
     def test_cert_queryset(self):
@@ -99,6 +97,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
+            administrator=True,
         )
 
     def test_cert_ca_fk_queryset(self):
@@ -108,6 +107,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             visible=[data['ca1'].name, data['ca_shared'].name],
             hidden=[data['ca2'].name, data['ca_inactive'].name],
             select_widget=True,
+            administrator=True,
         )
 
     def test_cert_changeform_200(self):

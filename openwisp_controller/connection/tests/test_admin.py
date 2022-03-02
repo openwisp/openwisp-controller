@@ -24,14 +24,6 @@ Command = load_model('connection', 'Command')
 class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = 'config'
     app_label = 'connection'
-    operator_permission_filters = [
-        {'codename__endswith': 'config'},
-        {'codename__endswith': 'device'},
-        {'codename__endswith': 'template'},
-        {'codename__endswith': 'connection'},
-        {'codename__endswith': 'credentials'},
-        {'codename__endswith': 'device_connection'},
-    ]
     _device_params = TestConfigAdmin._device_params.copy()
 
     def _get_device_params(self, org):
@@ -44,6 +36,7 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         org2 = self._create_org(name='test2org')
         inactive = self._create_org(name='inactive-org', is_active=False)
         operator = self._create_operator(organizations=[org1, inactive])
+        administrator = self._create_administrator(organizations=[org1, inactive])
         cred1 = self._create_credentials(organization=org1, name='test1cred')
         cred2 = self._create_credentials(organization=org2, name='test2cred')
         cred3 = self._create_credentials(organization=inactive, name='test3cred')
@@ -61,6 +54,7 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             org2=org2,
             inactive=inactive,
             operator=operator,
+            administrator=administrator,
         )
         return data
 
@@ -70,6 +64,7 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             url=reverse(f'admin:{self.app_label}_credentials_changelist'),
             visible=[data['cred1'].name, data['org1'].name],
             hidden=[data['cred2'].name, data['org2'].name, data['cred3_inactive'].name],
+            administrator=True,
         )
 
     def test_credentials_organization_fk_queryset(self):
@@ -79,6 +74,7 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
             select_widget=True,
+            administrator=True,
         )
 
     def test_connection_queryset(self):
@@ -91,6 +87,7 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
                 data['org2'].name,
                 data['dc3_inactive'].credentials.name,
             ],
+            administrator=True,
         )
 
     def test_connection_credentials_fk_queryset(self):

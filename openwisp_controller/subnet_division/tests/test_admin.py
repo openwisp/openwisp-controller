@@ -17,6 +17,7 @@ class TestSubnetAdmin(
 ):
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
+    fixtures = ['groups.json']
 
     def setUp(self):
         org = self._get_org()
@@ -89,12 +90,9 @@ class TestSubnetAdmin(
         )
         config2.templates.add(template2)
 
-        org2_user = self._create_org_user(
-            organization=org2, is_admin=True, user=self._create_operator()
-        )
-        org2_user.user.user_permissions.add(*self.get_operator_permissions())
+        administrator = self._create_administrator(organizations=[org2])
         self.client.logout()
-        self.client.force_login(org2_user.user)
+        self.client.force_login(administrator)
 
         response = self.client.get(
             reverse(f'admin:{self.ipam_label}_subnet_changelist')
@@ -166,6 +164,7 @@ class TestDeviceAdmin(
 ):
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
+    fixtures = ['groups.json']
 
     def setUp(self):
         org = self._get_org()
@@ -216,13 +215,9 @@ class TestDeviceAdmin(
             device=self._create_device(name='org2-device', organization=org2)
         )
         config2.templates.add(template2)
-
-        org2_owner = self._create_org_user(
-            organization=org2, is_admin=True, user=self._create_operator()
-        )
-        org2_owner.user.user_permissions.add(*self.get_operator_permissions())
+        administrator = self._create_administrator(organizations=[org2])
         self.client.logout()
-        self.client.force_login(org2_owner.user)
+        self.client.force_login(administrator)
 
         response = self.client.get(
             reverse(f'admin:{self.config_label}_device_changelist')
