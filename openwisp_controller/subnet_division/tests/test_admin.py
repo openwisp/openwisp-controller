@@ -1,38 +1,22 @@
 from unittest.mock import patch
 
-from django.test import TransactionTestCase
+from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
-from .helpers import SubnetDivisionTestMixin
+from .helpers import SubnetDivisionAdminTestMixin
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
 Device = load_model('config', 'Device')
 
 
 class TestSubnetAdmin(
-    SubnetDivisionTestMixin, TestMultitenantAdminMixin, TransactionTestCase
+    SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase
 ):
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
-    fixtures = ['groups.json']
-
-    def setUp(self):
-        org = self._get_org()
-        self.master_subnet = self._get_master_subnet()
-        vpn_server = self._create_wireguard_vpn(
-            subnet=self.master_subnet, organization=org
-        )
-        self.template = self._create_template(
-            name='vpn-test', type='vpn', vpn=vpn_server, organization=org
-        )
-        self.config = self._create_config(organization=org)
-        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
-        self.config.templates.add(self.template)
-        admin = self._get_admin()
-        self.client.force_login(admin)
 
     def test_related_links(self):
         device_changelist = reverse(f'admin:{self.config_label}_device_changelist')
@@ -61,7 +45,7 @@ class TestSubnetAdmin(
         config2 = self._create_config(
             device=self._create_device(name='device-2', mac_address='00:11:22:33:44:56')
         )
-        config2.templates.add(self.template)
+        self._mock_subnet_division_rule(config2, self.master_subnet, self.rule)
         url = f'{subnet_changelist}?device={self.config.device.name}'
         response = self.client.get(url)
         self.assertContains(
@@ -71,26 +55,20 @@ class TestSubnetAdmin(
         self.assertNotContains(response, config2.device.name)
 
     def test_device_filter_mutitenancy(self):
+        # Create subnet and device for another organization
         org2 = self._create_org(name='org2')
         master_subnet2 = self._get_master_subnet(organization=org2)
-        template2 = self._create_template(
-            name='vpn-test',
-            type='vpn',
-            vpn=self._create_wireguard_vpn(subnet=master_subnet2, organization=org2),
-            organization=org2,
+        config2 = self._create_config(
+            device=self._create_device(name='org2-device', organization=org2)
         )
-        self.rule = self._get_vpn_subdivision_rule(
+        rule2 = self._get_vpn_subdivision_rule(
             number_of_ips=1,
             number_of_subnets=1,
             organization=org2,
             master_subnet=master_subnet2,
         )
-        config2 = self._create_config(
-            device=self._create_device(name='org2-device', organization=org2)
-        )
-        config2.templates.add(template2)
-
-        administrator = self._create_administrator(organizations=[org2])
+        self._mock_subnet_division_rule(config2, master_subnet2, rule2)
+        administrator = self._create_administrator([org2])
         self.client.logout()
         self.client.force_login(administrator)
 
@@ -119,34 +97,17 @@ class TestSubnetAdmin(
             response = self.client.get(
                 reverse(f'admin:{self.ipam_label}_subnet_changelist')
             )
-            self.assertContains(response, f'{self.rule.label}_subnet')
+            self.assertContains(response, 'TEST_subnet')
 
         with self.subTest('Test IpAddressAdmin'):
             response = self.client.get(
                 reverse(f'admin:{self.ipam_label}_ipaddress_changelist')
             )
-            self.assertContains(response, f'{self.rule.label}_subnet')
+            self.assertContains(response, 'TEST_subnet')
 
 
-class TestIPAdmin(
-    SubnetDivisionTestMixin, TestMultitenantAdminMixin, TransactionTestCase
-):
+class TestIPAdmin(SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase):
     ipam_label = 'openwisp_ipam'
-
-    def setUp(self):
-        org = self._get_org()
-        self.master_subnet = self._get_master_subnet()
-        vpn_server = self._create_wireguard_vpn(
-            subnet=self.master_subnet, organization=org
-        )
-        self.template = self._create_template(
-            name='vpn-test', type='vpn', vpn=vpn_server, organization=org
-        )
-        self.config = self._create_config(organization=org)
-        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
-        self.config.templates.add(self.template)
-        admin = self._get_admin()
-        self.client.force_login(admin)
 
     def test_provisioned_ip_readonly_change_view(self):
         ip_id = self.rule.subnetdivisionindex_set.filter(ip__isnull=False).first().ip_id
@@ -160,26 +121,10 @@ class TestIPAdmin(
 
 
 class TestDeviceAdmin(
-    SubnetDivisionTestMixin, TestMultitenantAdminMixin, TransactionTestCase
+    SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase
 ):
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
-    fixtures = ['groups.json']
-
-    def setUp(self):
-        org = self._get_org()
-        self.master_subnet = self._get_master_subnet()
-        vpn_server = self._create_wireguard_vpn(
-            subnet=self.master_subnet, organization=org
-        )
-        template = self._create_template(
-            name='vpn-test', type='vpn', vpn=vpn_server, organization=org
-        )
-        self.config = self._create_config(organization=org)
-        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
-        self.config.templates.add(template)
-        admin = self._get_admin()
-        self.client.force_login(admin)
 
     def test_subnet_filter(self):
         device_changelist = reverse(f'admin:{self.config_label}_device_changelist')
@@ -196,26 +141,21 @@ class TestDeviceAdmin(
         )
         self.assertNotContains(response, device2.name)
 
-    def test_subnet_filter_mutitenancy(self):
+    def test_subnet_filter_multitenancy(self):
+        # Create subnet and device for another organization
         org2 = self._create_org(name='org2')
         master_subnet2 = self._get_master_subnet(organization=org2)
-        template2 = self._create_template(
-            name='vpn-test',
-            type='vpn',
-            vpn=self._create_wireguard_vpn(subnet=master_subnet2, organization=org2),
-            organization=org2,
+        config2 = self._create_config(
+            device=self._create_device(name='org2-device', organization=org2)
         )
-        self.rule = self._get_vpn_subdivision_rule(
+        rule2 = self._get_vpn_subdivision_rule(
             number_of_ips=1,
             number_of_subnets=1,
             organization=org2,
             master_subnet=master_subnet2,
         )
-        config2 = self._create_config(
-            device=self._create_device(name='org2-device', organization=org2)
-        )
-        config2.templates.add(template2)
-        administrator = self._create_administrator(organizations=[org2])
+        self._mock_subnet_division_rule(config2, master_subnet2, rule2)
+        administrator = self._create_administrator([org2])
         self.client.logout()
         self.client.force_login(administrator)
 
