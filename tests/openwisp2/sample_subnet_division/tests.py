@@ -2,6 +2,9 @@ from openwisp_controller.subnet_division.tests.test_admin import (
     TestDeviceAdmin as BaseTestDeviceAdmin,
 )
 from openwisp_controller.subnet_division.tests.test_admin import (
+    TestIPAdmin as BaseTestIPAdmin,
+)
+from openwisp_controller.subnet_division.tests.test_admin import (
     TestSubnetAdmin as BaseTestSubnetAdmin,
 )
 from openwisp_controller.subnet_division.tests.test_models import (
@@ -21,6 +24,11 @@ class TestSubnetDivsionRule(BaseTestSubnetDivisionRule):
     pass
 
 
+class TestIPAdmin(BaseTestIPAdmin):
+    pass
+
+
 del BaseTestDeviceAdmin
 del BaseTestSubnetAdmin
 del BaseTestSubnetDivisionRule
+del BaseTestIPAdmin
