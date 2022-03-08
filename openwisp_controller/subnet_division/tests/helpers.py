@@ -1,6 +1,7 @@
 from django.db import connections
 from django.db.utils import DEFAULT_DB_ALIAS
 from django.test.testcases import _AssertNumQueriesContext
+from netaddr import IPNetwork
 from openwisp_ipam.tests import CreateModelsMixin as SubnetIpamMixin
 from swapper import load_model
 
@@ -64,6 +65,58 @@ class SubnetDivisionTestMixin(
             return Subnet.objects.get(subnet=subnet, **kwargs)
         except Subnet.DoesNotExist:
             return self._create_subnet(subnet=subnet, **kwargs)
+
+    def _mock_subnet_division_rule(self, config, master_subnet, rule):
+        """
+        Imitates triggering of subnet division rule and provisions subnets.
+        Useful when subnet division rules are not triggered due to
+        working of django.test.TestCase class.
+        """
+        try:
+            max_subnet = (
+                # Get the highest subnet created for this master_subnet
+                Subnet.objects.filter(master_subnet_id=master_subnet.id)
+                .order_by('-created')
+                .first()
+                .subnet
+            )
+        except AttributeError:
+            # If there is no existing subnet, create a reserved subnet
+            # and use it as starting point
+            required_subnet = next(
+                IPNetwork(str(master_subnet.subnet)).subnet(prefixlen=32)
+            )
+        else:
+            required_subnet = IPNetwork(str(max_subnet)).next()
+
+        subnet = self._create_subnet(
+            organization=config.device.organization,
+            subnet=required_subnet,
+            master_subnet=master_subnet,
+            name='TEST_subnet1',
+        )
+        ip = subnet.request_ip()
+        SubnetDivisionIndex.objects.create(
+            rule=rule, config=config, subnet=subnet, keyword='TEST_subnet1'
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=rule,
+            config=config,
+            # subnet=subnet,
+            ip=ip,
+            keyword='TEST_subnet1_ip1',
+        )
+
+
+class SubnetDivisionAdminTestMixin(SubnetDivisionTestMixin):
+    def setUp(self):
+        org = self._get_org()
+        self.master_subnet = self._get_master_subnet()
+        self.config = self._create_config(organization=org)
+        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
+        self._mock_subnet_division_rule(self.config, self.master_subnet, self.rule)
+        admin = self._get_admin()
+        self.client.force_login(admin)
 
 
 class _CustomAssertnumQueriesContext(_AssertNumQueriesContext):
