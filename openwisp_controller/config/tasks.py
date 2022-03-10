@@ -7,6 +7,8 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from swapper import load_model
 
+from openwisp_utils.tasks import OpenwispCeleryTask
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,7 +56,7 @@ def create_vpn_dh(vpn_pk):
         vpn.save()
 
 
-@shared_task
+@shared_task(base=OpenwispCeleryTask)
 def invalidate_devicegroup_cache_change(instance_id, model_name):
     from .api.views import DeviceGroupCommonName
 
@@ -70,7 +72,7 @@ def invalidate_devicegroup_cache_change(instance_id, model_name):
         DeviceGroupCommonName.certificate_change_invalidates_cache(instance_id)
 
 
-@shared_task
+@shared_task(base=OpenwispCeleryTask)
 def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
     from .api.views import DeviceGroupCommonName
 
@@ -87,7 +89,7 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
         )
 
 
-@shared_task(soft_time_limit=1200)
+@shared_task(base=OpenwispCeleryTask)
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     response = requests.post(
         endpoint,
