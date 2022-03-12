@@ -177,15 +177,15 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
 .jsoneditor-wrapper div.jsoneditor .grid-column > label,
 .jsoneditor-wrapper div.jsoneditor .grid-column > select{
   position: absolute;
-  top: 14px;
   left: 0;
+  top: 12px;
   z-index: 1;
   font-weight: bold;
 }
 .jsoneditor-wrapper div.jsoneditor .inline-related > select,
 .jsoneditor-wrapper div.jsoneditor .grid-column > select{
   margin-left: 188px;
-  background-color: #fff
+  background-color: #fff;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row .grid-column{ position: relative }
 .jsoneditor-wrapper div.jsoneditor .modal{
@@ -291,8 +291,7 @@ div.jsoneditor > div > h3.controls{
   z-index: 99;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row .grid-column > select.switcher{
-  position: static;
-  margin-top: 15px;
+  top: 11px;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row > .grid-column > label {
   display: none;
