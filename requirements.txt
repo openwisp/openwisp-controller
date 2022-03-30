@@ -8,7 +8,7 @@ django-flat-json-widget~=0.1.3
 # TODO: change this when next point version of openwisp-utils is released
 openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
 # TODO: change this when next point version of netjsonconfig is released
-netjsonconfig @ https://github.com/openwisp/netjsonconfig/tarball/master
+netjsonconfig @ https://github.com/openwisp/netjsonconfig/tarball/issues/196-bridge-syntax
 # TODO: change this when next point version of openwisp-users is released
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 # TODO: change this when next point version of openwisp-notifications is released

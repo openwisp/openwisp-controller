@@ -55,6 +55,20 @@ class TestConfig(
         c = Config(backend='netjsonconfig.OpenWrt', config=config)
         self.assertIsInstance(c.backend_instance, OpenWrt)
 
+    def test_backend_openwrt_different_versions(self):
+        c = Config(
+            backend='netjsonconfig.OpenWrt',
+            device=Device(name='test', os='OpenWrt 21.02.2 r16495-bf0c965af0'),
+        )
+        self.assertIsInstance(c.backend_instance, OpenWrt)
+        self.assertEqual(c.backend_instance.dsa, True)
+        c = Config(
+            backend='netjsonconfig.OpenWrt',
+            device=Device(name='test', os='OpenWrt 19.02.2 r16495-bf0c965af0'),
+        )
+        self.assertIsInstance(c.backend_instance, OpenWrt)
+        self.assertEqual(c.backend_instance.dsa, False)
+
     def test_netjson_validation(self):
         config = {'interfaces': {'invalid': True}}
         c = Config(
