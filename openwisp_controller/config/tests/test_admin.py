@@ -701,10 +701,17 @@ class TestAdmin(
 
     def test_preview_device_showerror(self):
         t1 = Template.objects.get(name='dhcp')
-        t2 = Template(name='t', config=t1.config, backend='netjsonconfig.OpenWrt')
-        t2.full_clean()
-        t2.save()
-        templates = [t1, t2]
+        t2 = Template(name='t2', config=t1.config, backend=t1.backend)
+        t3 = Template(name='t3', config=t1.config, backend=t1.backend)
+        t4 = Template(
+            name='t4',
+            config={"interfaces": [{"name": "eth0", "type": "bridge", "stp": "WRONG"}]},
+            backend='netjsonconfig.OpenWrt',
+        )
+        # skip validating config to raise error later
+        t4.save()
+        # adding multiple templates to ensure the order is retained correctly
+        templates = [t1, t2, t3, t4]
         path = reverse(f'admin:{self.app_label}_device_preview')
         data = {
             'name': 'test-device',
