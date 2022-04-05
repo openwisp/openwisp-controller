@@ -20,6 +20,8 @@ from django.template.response import TemplateResponse
 from django.urls import path, re_path, reverse
 from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
+from import_export import resources
+from import_export.admin import ImportExportMixin
 from swapper import load_model
 
 from openwisp_controller.config.views import (
@@ -627,6 +629,31 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         )
 
 
+class DeviceResource(resources.ModelResource):
+    class Meta:
+        model = Device
+        fields = [
+            'name',
+            'mac_address',
+            'organization__name',
+            'group__name',
+            'config__status',
+            'config__backend',
+            'last_ip',
+            'management_ip',
+            'created',
+            'modified',
+            'id',
+            'organization__id',
+            'group__id',
+        ]
+        export_order = fields
+
+
+class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):
+    resource_class = DeviceResource
+
+
 class CloneOrganizationForm(forms.Form):
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.none(),
@@ -886,7 +913,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         return JsonResponse(app_settings.DEVICE_GROUP_SCHEMA)
 
 
-admin.site.register(Device, DeviceAdmin)
+admin.site.register(Device, DeviceAdminExportable)
 admin.site.register(Template, TemplateAdmin)
 admin.site.register(Vpn, VpnAdmin)
 admin.site.register(DeviceGroup, DeviceGroupAdmin)

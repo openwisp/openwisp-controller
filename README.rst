@@ -109,6 +109,7 @@ Config App
 * **VPN management**: `automatically provision VPN tunnels <#openwisp-controller-default-auto-cert>`_,
   including cryptographic keys, IP addresses
 * `REST API <#rest-api-reference>`_
+* Export/Import devices TODO
 
 PKI App
 ~~~~~~~
@@ -375,6 +376,7 @@ Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
         'openwisp_utils.admin_theme',
         'django.contrib.admin',
         'django.forms',
+        'import_export',
         ...
     ]
     EXTENDED_APPS = ('django_x509', 'django_loci')
@@ -930,6 +932,11 @@ Device Groups provide the following features:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-groups.png
   :alt: Device Group example
+
+Export/Import Device data
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
 
 How to setup WireGuard tunnels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3150,6 +3157,8 @@ Now you need to add ``mycontroller.sample_config``,
         'rest_framework_gis',
         # channels
         'channels',
+        # django-import-export
+        'import_export',
     ]
 
 Substitute ``mycontroller``, ``sample_config``, ``sample_pki``, ``sample_connection``,

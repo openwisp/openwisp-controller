@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     # channels
     'channels',
+    'import_export',
     # 'debug_toolbar',
 ]
 EXTENDED_APPS = ('django_x509', 'django_loci')
