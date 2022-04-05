@@ -1,5 +1,6 @@
 import collections
 import logging
+import re
 
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -8,6 +9,8 @@ from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
+from netjsonconfig import OpenWrt
+from packaging import version
 from swapper import get_model_name
 
 from .. import settings as app_settings
@@ -355,6 +358,47 @@ class AbstractConfig(BaseConfig):
         return get_default_templates_queryset(
             organization_id=org_id, queryset=queryset, backend=self.backend
         )
+
+    def _should_use_dsa(self):
+        if not hasattr(self, 'device') or not issubclass(self.backend_class, OpenWrt):
+            return
+
+        if not self.device.os:
+            # Device os field is empty. Early return to
+            # prevent unnecessary computation.
+            return app_settings.USE_DSA_FALLBACK
+
+        # Check if the device is using stock OpenWrt.
+        openwrt_match = re.search(
+            '[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)', self.device.os
+        )
+        if openwrt_match:
+            if version.parse(openwrt_match.group(1)) >= version.parse('21.02.2'):
+                return True
+            else:
+                return False
+
+        # Device is using custom firmware
+        if app_settings.CUSTOM_OS_MAPPING:
+            openwrt_based_firmware = app_settings.CUSTOM_OS_MAPPING.get(
+                'netjsonconfig.OpenWrt', {}
+            )
+            dsa_enabled_os = openwrt_based_firmware.get('>=21.02', [])
+            dsa_disabled_os = openwrt_based_firmware.get('<21.02', [])
+            for os in dsa_enabled_os:
+                if re.search(os, self.device.os):
+                    return True
+            for os in dsa_disabled_os:
+                if re.search(os, self.device.os):
+                    return False
+
+        return app_settings.USE_DSA_FALLBACK
+
+    def get_backend_instance(self, template_instances=None, context=None, **kwargs):
+        dsa_enabled = self._should_use_dsa()
+        if dsa_enabled is not None:
+            kwargs['dsa'] = dsa_enabled
+        return super().get_backend_instance(template_instances, context, **kwargs)
 
     def clean(self):
         """

@@ -1,7 +1,6 @@
 import collections
 import hashlib
 import json
-import re
 from copy import deepcopy
 
 from django.core.exceptions import ValidationError
@@ -10,7 +9,6 @@ from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
-from netjsonconfig import OpenWrt
 from netjsonconfig.exceptions import ValidationError as SchemaError
 
 from openwisp_utils.base import TimeStampedEditableModel
@@ -143,19 +141,13 @@ class BaseConfig(BaseModel):
         """
         return self.get_backend_instance()
 
-    def get_backend_instance(self, template_instances=None, context=None):
+    def get_backend_instance(self, template_instances=None, context=None, **kwargs):
         """
         allows overriding config and templates
         needed for pre validation of m2m
         """
         backend = self.backend_class
-        kwargs = {'config': self.get_config()}
-        if hasattr(self, 'device') and issubclass(backend, OpenWrt):
-            match = re.search('[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)', self.device.os)
-            if match and int(''.join(match.group(1).split('.'))) >= 21022:
-                kwargs['dsa'] = True
-            else:
-                kwargs['dsa'] = False
+        kwargs.update({'config': self.get_config()})
         context = context or {}
         # determine if we can pass templates
         # expecting a many2many relationship
