@@ -472,30 +472,6 @@ class TestAdmin(
         self.assertContains(response, 'Clone templates')
         self.assertNotContains(response, 'Shared systemwide')
 
-    def test_change_device_clean_templates(self):
-        o = self._get_org()
-        t = Template.objects.first()
-        d = self._create_device(organization=o)
-        c = self._create_config(device=d, backend=t.backend, config=t.config)
-        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
-        params = self._get_device_params(org=o)
-        params.update(
-            {
-                'name': 'test-change-device',
-                'config-0-id': str(c.pk),
-                'config-0-device': str(d.pk),
-                'config-0-templates': str(t.pk),
-                'config-INITIAL_FORMS': 1,
-            }
-        )
-        # ensure it fails with error
-        response = self.client.post(path, params)
-        self.assertContains(response, 'errors field-templates')
-        # remove conflicting template and ensure doesn't error
-        params['config-0-templates'] = ''
-        response = self.client.post(path, params)
-        self.assertNotContains(response, 'errors field-templates', status_code=302)
-
     def test_change_device_required_template(self):
         o = self._get_org()
         t = Template.objects.first()
@@ -698,25 +674,6 @@ class TestAdmin(
         }
         response = self.client.post(path, data)
         self.assertEqual(response.status_code, 400)
-
-    def test_preview_device_showerror(self):
-        t1 = Template.objects.get(name='dhcp')
-        t2 = Template(name='t', config=t1.config, backend='netjsonconfig.OpenWrt')
-        t2.full_clean()
-        t2.save()
-        templates = [t1, t2]
-        path = reverse(f'admin:{self.app_label}_device_preview')
-        data = {
-            'name': 'test-device',
-            'mac_address': self.TEST_MAC_ADDRESS,
-            'backend': 'netjsonconfig.OpenWrt',
-            'config': '{}',
-            'templates': ','.join([str(t.pk) for t in templates]),
-            'csrfmiddlewaretoken': 'test',
-        }
-        response = self.client.post(path, data)
-        # expect duplicate error
-        self.assertContains(response, '<pre class="djnjc-preformatted error')
 
     @patch('sys.stdout', devnull)
     @patch('sys.stderr', devnull)
