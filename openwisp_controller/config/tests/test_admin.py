@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
@@ -489,7 +490,10 @@ class TestAdmin(
             }
         )
         # ensure it fails with error
-        response = self.client.post(path, params)
+        with patch.object(
+            Config, 'clean_templates', side_effect=ValidationError('test')
+        ):
+            response = self.client.post(path, params)
         self.assertContains(response, 'errors field-templates')
         # remove conflicting template and ensure doesn't error
         params['config-0-templates'] = ''
