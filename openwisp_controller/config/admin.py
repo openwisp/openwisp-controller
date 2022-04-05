@@ -230,11 +230,14 @@ class BaseConfigAdmin(BaseAdmin):
         template_ids = request.POST.get('templates')
         if template_ids:
             template_model = config_model.get_template_model()
+            template_ids = template_ids.split(',')
             try:
-                templates = template_model.objects.filter(
-                    pk__in=template_ids.split(',')
-                )
+                templates = template_model.objects.filter(pk__in=template_ids)
                 templates = list(templates)  # evaluating queryset performs query
+                # ensure the order of templates is maintained
+                templates.sort(
+                    key=lambda template: template_ids.index(str(template.id))
+                )
             except ValidationError as e:
                 logger.exception(error_msg, extra={'request': request})
                 return HttpResponse(str(e), status=400)
