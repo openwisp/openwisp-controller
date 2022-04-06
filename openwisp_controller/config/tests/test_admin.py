@@ -726,7 +726,7 @@ class TestAdmin(
             'csrfmiddlewaretoken': 'test',
         }
         response = self.client.post(path, data)
-        # expect duplicate error
+        # expect error
         self.assertContains(response, '<pre class="djnjc-preformatted error')
 
     @patch('sys.stdout', devnull)
