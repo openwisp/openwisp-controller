@@ -55,10 +55,10 @@ class TestConfig(
         c = Config(backend='netjsonconfig.OpenWrt', config=config)
         self.assertIsInstance(c.backend_instance, OpenWrt)
 
-    @patch.object(app_settings, 'USE_DSA_FALLBACK', False)
+    @patch.object(app_settings, 'DSA_DEFAULT_FALLBACK', False)
     @patch.object(
         app_settings,
-        'CUSTOM_OS_MAPPING',
+        'DSA_OS_MAPPING',
         {
             'netjsonconfig.OpenWrt': {
                 '>=21.02': [r'MyCustomFirmware 2.1(.*)'],

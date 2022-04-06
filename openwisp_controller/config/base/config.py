@@ -366,21 +366,21 @@ class AbstractConfig(BaseConfig):
         if not self.device.os:
             # Device os field is empty. Early return to
             # prevent unnecessary computation.
-            return app_settings.USE_DSA_FALLBACK
+            return app_settings.DSA_DEFAULT_FALLBACK
 
         # Check if the device is using stock OpenWrt.
         openwrt_match = re.search(
             '[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)', self.device.os
         )
         if openwrt_match:
-            if version.parse(openwrt_match.group(1)) >= version.parse('21.02.2'):
+            if version.parse(openwrt_match.group(1)) >= version.parse('21'):
                 return True
             else:
                 return False
 
         # Device is using custom firmware
-        if app_settings.CUSTOM_OS_MAPPING:
-            openwrt_based_firmware = app_settings.CUSTOM_OS_MAPPING.get(
+        if app_settings.DSA_OS_MAPPING:
+            openwrt_based_firmware = app_settings.DSA_OS_MAPPING.get(
                 'netjsonconfig.OpenWrt', {}
             )
             dsa_enabled_os = openwrt_based_firmware.get('>=21.02', [])
@@ -392,7 +392,7 @@ class AbstractConfig(BaseConfig):
                 if re.search(os, self.device.os):
                     return False
 
-        return app_settings.USE_DSA_FALLBACK
+        return app_settings.DSA_DEFAULT_FALLBACK
 
     def get_backend_instance(self, template_instances=None, context=None, **kwargs):
         dsa_enabled = self._should_use_dsa()

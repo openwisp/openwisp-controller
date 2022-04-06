@@ -730,8 +730,8 @@ reset to empty state to avoid potential conflicts.
 Set this to ``False`` if every organization has its dedicated management
 tunnel with a dedicated address space that is reachable by the OpenWISP server.
 
-``OPENWISP_CONTROLLER_CUSTOM_OS_MAPPING``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``OPENWISP_CONTROLLER_DSA_OS_MAPPING``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------+----------+
 | **type**:    | ``dict`` |
@@ -739,15 +739,26 @@ tunnel with a dedicated address space that is reachable by the OpenWISP server.
 | **default**: | ``{}``   |
 +--------------+----------+
 
-A ``dict`` mapping OS identifier of your custom firmware to the OpenWrt
-configuration version. The value of this setting is used to decide
-syntax of device's configuration.
+OpenWISP Controller can figure out whether it should use the new OpenWrt syntax
+for DSA interfaces (Distributed Switch Architecture) introduced in OpenWrt 21 by
+reading the ``os`` field of the ``Device`` object. However, if the firmware you
+are using has a custom firmware identifier, the system will not be able to figure
+out whether it should use the new syntax and it will default to
+`OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK <#openwisp_controller_dsa_default_fallback>`_.
+
+If you want to make sure the system can parse your custom firmware
+identifier properly, you can follow the example below.
+
+For the sake of the example, the OS identifier ``MyCustomFirmware 2.0``
+corresponds to ``OpenWrt 19.07``, while ``MyCustomFirmware 2.1`` corresponds to
+``OpenWrt 21.02``. Configuring this setting as indicated below will allow
+OpenWISP to supply the right syntax automatically.
 
 Example:
 
 .. code-block:: python
 
-    OPENWISP_CONTROLLER_CUSTOM_OS_MAPPING = {
+    OPENWISP_CONTROLLER_DSA_OS_MAPPING = {
         'netjsonconfig.OpenWrt': {
             # OpenWrt >=21.02 configuration syntax will be used for
             # these OS identifiers.
@@ -760,8 +771,8 @@ Example:
 
 **Note**: The OS identifier should be a regular expression as shown in above example.
 
-``OPENWISP_CONTROLLER_USE_DSA_FALLBACK``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------+----------+
 | **type**:    | ``bool`` |
@@ -770,7 +781,7 @@ Example:
 +--------------+----------+
 
 The value of this setting decides whether to use DSA syntax
-(OpenWrt >=21.02 configuration syntax) if openwisp-controller fails
+(OpenWrt >=21 configuration syntax) if openwisp-controller fails
 to make that decision automatically.
 
 REST API
