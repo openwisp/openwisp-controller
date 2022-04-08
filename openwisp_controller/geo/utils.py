@@ -4,6 +4,11 @@ from django.urls import path
 def get_geo_urls(geo_views):
     return [
         path(
+            'api/v1/controller/device/<str:pk>/coordinates/',
+            geo_views.device_coordinates,
+            name='device_coordinates',
+        ),
+        path(
             'api/v1/controller/device/<str:pk>/location/',
             geo_views.device_location,
             name='device_location',

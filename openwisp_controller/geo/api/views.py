@@ -2,15 +2,17 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import NotFound
+from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterByParentManaged
+from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
 from ...mixins import ProtectedAPIMixin
 from .serializers import (
+    DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
     FloorPlanSerializer,
     GeoJsonLocationSerializer,
@@ -39,8 +41,8 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class DeviceLocationView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
-    serializer_class = LocationSerializer
+class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
+    serializer_class = DeviceCoordinatesSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
         'devicelocation', 'devicelocation__location'
@@ -53,22 +55,20 @@ class DeviceLocationView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
     def get_location(self, device):
         try:
-            return device.devicelocation
+            return device.devicelocation.location
         except ObjectDoesNotExist:
             return None
 
     def get_object(self, *args, **kwargs):
         device = super().get_object()
-        devicelocation = self.get_devicelocation(device)
-        if devicelocation:
-            return devicelocation
-        else:
-            if self.request.method in ('GET', 'PATCH', 'DELETE'):
-                raise Http404
-            if self.request.method == 'PUT':
-                return self.create_devicelocation(device)
+        location = self.get_location(device)
+        if location:
+            return location
+        if self.request.method == 'PUT':
+            return self.create_location(device)
+        raise NotFound
 
-    def create_devicelocation(self, device):
+    def create_location(self, device):
         location = Location(
             name=device.name,
             type='outdoor',
@@ -77,10 +77,24 @@ class DeviceLocationView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
         )
         location.full_clean()
         location.save()
-        dl = DeviceLocation(content_object=device, location=location, indoor="")
+        dl = DeviceLocation(content_object=device, location=location)
         dl.full_clean()
         dl.save()
-        return dl
+        return location
+
+
+class DeviceLocationView(
+    ProtectedAPIMixin,
+    CreateModelMixin,
+    generics.RetrieveUpdateDestroyAPIView,
+):
+    serializer_class = DeviceLocationSerializer
+    queryset = Device.objects.select_related(
+        'devicelocation', 'devicelocation__location'
+    )
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
 
 
 class GeoJsonLocationListPagination(GeoJsonPagination):
@@ -95,7 +109,9 @@ class GeoJsonLocationFilter(filters.FilterSet):
         fields = ['organization_slug']
 
 
-class GeoJsonLocationList(ProtectedAPIMixin, generics.ListAPIView):
+class GeoJsonLocationList(
+    ProtectedAPIMixin, FilterByOrganizationManaged, generics.ListAPIView
+):
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
         device_count=Count('devicelocation')
     )
@@ -150,6 +166,7 @@ class LocationDetailView(
     queryset = Location.objects.all()
 
 
+device_coordinates = DeviceCoordinatesView.as_view()
 device_location = DeviceLocationView.as_view()
 geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
