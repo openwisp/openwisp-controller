@@ -76,3 +76,5 @@ DEVICE_GROUP_SCHEMA = get_settings_value(
 SHARED_MANAGEMENT_IP_ADDRESS_SPACE = get_settings_value(
     'SHARED_MANAGEMENT_IP_ADDRESS_SPACE', True
 )
+DSA_OS_MAPPING = get_settings_value('DSA_OS_MAPPING', {})
+DSA_DEFAULT_FALLBACK = get_settings_value('DSA_DEFAULT_FALLBACK', True)

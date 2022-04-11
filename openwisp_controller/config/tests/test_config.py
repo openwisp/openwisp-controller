@@ -55,6 +55,58 @@ class TestConfig(
         c = Config(backend='netjsonconfig.OpenWrt', config=config)
         self.assertIsInstance(c.backend_instance, OpenWrt)
 
+    @patch.object(app_settings, 'DSA_DEFAULT_FALLBACK', False)
+    @patch.object(
+        app_settings,
+        'DSA_OS_MAPPING',
+        {
+            'netjsonconfig.OpenWrt': {
+                '>=21.02': [r'MyCustomFirmware 2.1(.*)'],
+                '<21.02': [r'MyCustomFirmware 2.0(.*)'],
+            }
+        },
+    )
+    def test_backend_openwrt_different_versions(self):
+        with self.subTest('DSA enabled OpenWrt firmware'):
+            c = Config(
+                backend='netjsonconfig.OpenWrt',
+                device=Device(name='test', os='OpenWrt 21.02.2 r16495-bf0c965af0'),
+            )
+            self.assertIsInstance(c.backend_instance, OpenWrt)
+            self.assertEqual(c.backend_instance.dsa, True)
+
+        with self.subTest('DSA disabed OpenWrt Firmware'):
+            c = Config(
+                backend='netjsonconfig.OpenWrt',
+                device=Device(name='test', os='OpenWrt 19.02.2 r16495-bf0c965af0'),
+            )
+            self.assertIsInstance(c.backend_instance, OpenWrt)
+            self.assertEqual(c.backend_instance.dsa, False)
+
+        with self.subTest('DSA enabled custom firmware'):
+            c = Config(
+                backend='netjsonconfig.OpenWrt',
+                device=Device(name='test', os='MyCustomFirmware 2.1.2'),
+            )
+            self.assertIsInstance(c.backend_instance, OpenWrt)
+            self.assertEqual(c.backend_instance.dsa, True)
+
+        with self.subTest('DSA disabled custom firmware'):
+            c = Config(
+                backend='netjsonconfig.OpenWrt',
+                device=Device(name='test', os='MyCustomFirmware 2.0.1'),
+            )
+            self.assertIsInstance(c.backend_instance, OpenWrt)
+            self.assertEqual(c.backend_instance.dsa, False)
+
+        with self.subTest('Device os field is empty'):
+            c = Config(
+                backend='netjsonconfig.OpenWrt',
+                device=Device(name='test', os=''),
+            )
+            self.assertIsInstance(c.backend_instance, OpenWrt)
+            self.assertEqual(c.backend_instance.dsa, False)
+
     def test_netjson_validation(self):
         config = {'interfaces': {'invalid': True}}
         c = Config(
