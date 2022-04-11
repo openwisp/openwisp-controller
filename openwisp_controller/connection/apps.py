@@ -12,6 +12,7 @@ from swapper import get_model_name, load_model
 from openwisp_utils.admin_theme.menu import register_menu_subitem
 
 from ..config.signals import config_modified
+from . import settings as app_settings
 from .signals import is_working_changed
 
 _TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
@@ -106,12 +107,22 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def is_working_changed_receiver(
-        cls, instance, is_working, old_is_working, **kwargs
+        cls,
+        instance,
+        is_working,
+        old_is_working,
+        failure_reason,
+        old_failure_reason,
+        **kwargs,
     ):
         # if old_is_working is None, it's a new device connection which wasn't
         # used yet, so nothing is really changing and we won't notify the user
         if old_is_working is None:
             return
+        # don't send notification if error occurred due to connectivity issues
+        for ignore_reason in app_settings._IGNORE_CONNECTION_NOTIFICATION_REASONS:
+            if ignore_reason in failure_reason or ignore_reason in old_failure_reason:
+                return
         device = instance.device
         notification_opts = dict(sender=instance, target=device)
         if not is_working:

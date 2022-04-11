@@ -1,11 +1,14 @@
 import os
+from unittest.mock import patch
 
 from django.apps.registry import apps
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
+from openwisp_notifications.signals import notify
 from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
+from .. import settings as app_settings
 from .utils import CreateConnectionsMixin
 
 Notification = load_model('openwisp_notifications', 'Notification')
@@ -141,6 +144,53 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
         # No exception should be raised as the exception is already handled.
         app = apps.get_app_config(self.app_label)
         app.register_notification_types()
+
+    @patch.object(
+        app_settings, '_IGNORE_CONNECTION_NOTIFICATION_REASONS', ['timed out']
+    )
+    @patch.object(notify, 'send')
+    def test_connection_is_working_changed_timed_out(self, notify_send, *args):
+        credentials = self._create_credentials_with_key(port=self.ssh_server.port)
+        self._create_config(device=self.d)
+        device_conn = self._create_device_connection(
+            credentials=credentials, device=self.d, is_working=True
+        )
+        self.assertEqual(device_conn.is_working, True)
+        device_conn.is_working = False
+        device_conn.failure_reason = 'timed out'
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
+        # Connection recovers, device is reachable again
+        device_conn.is_working = True
+        device_conn.failure_reason = ''
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
+
+    @patch.object(
+        app_settings, '_IGNORE_CONNECTION_NOTIFICATION_REASONS', ['Unable to connect']
+    )
+    @patch.object(notify, 'send')
+    def test_connection_is_working_changed_unable_to_connect(self, notify_send, *args):
+        credentials = self._create_credentials_with_key(port=self.ssh_server.port)
+        self._create_config(device=self.d)
+        device_conn = self._create_device_connection(
+            credentials=credentials, device=self.d, is_working=True
+        )
+        device_conn.failure_reason = (
+            '[Errno None] Unable to connect to port 5555 on 127.0.0.1'
+        )
+        device_conn.is_working = False
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
+        # Connection makes recovery.
+        device_conn.failure_reason = ''
+        device_conn.is_working = True
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
 
 
 class TestNotificationTransaction(
