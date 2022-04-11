@@ -56,7 +56,6 @@ class BaseFloorPlanSerializer(BaseSerializer):
             'name',
             'floor',
             'image',
-            'location',
         ]
         read_only_fields = ['id']
 
@@ -67,13 +66,21 @@ class BaseFloorPlanSerializer(BaseSerializer):
 
 class FloorPlanSerializer(BaseFloorPlanSerializer):
     class Meta(BaseFloorPlanSerializer.Meta):
-        fields = BaseFloorPlanSerializer.Meta.fields + ['created', 'modified']
+        fields = BaseFloorPlanSerializer.Meta.fields + ['location','created', 'modified']
         read_only_fields = BaseFloorPlanSerializer.Meta.read_only_fields + ['created', 'modified']
 
 
 class NestedFloorplanSerializer(BaseFloorPlanSerializer):
+    location = None
     class Meta(BaseFloorPlanSerializer.Meta):
         pass
+
+    def is_valid(self, raise_exception=False):
+        try:
+            return super().is_valid(raise_exception)
+        except Exception as e:
+            print('>>', e)
+            raise e
 
     def to_internal_value(self, data):
         if isinstance(data, str):
@@ -277,12 +284,22 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         )
 
     def run_validation(self, data):
+        view = self.context.get('view')
+        device = Device.objects.get(id=view.kwargs.get('pk'))
+        if 'location' not in data:
+            data['location.organization'] = device.organization_id
+        if 'floorplan' not in data:
+            data['floorplan.organization'] = device.organization_id
+        #     floorplan = {}
+        #     for field in self.fields['floorplan'].fields.keys():
+        #         floorplan[field] = data.pop(f'floorplan.{field}', None)
+        #     data['floorplan'] = floorplan
+        from pprint import pprint
+        pprint(data)
         return super().run_validation(data)
 
-    def get_attribute(self, instance):
-        return super().get_attribute(instance)
-
     def create(self, validated_data):
+        print('creating')
         view = self.context.get('view')
         device = Device.objects.get(id=view.kwargs.get('pk'))
         if 'location' in validated_data and isinstance(validated_data['location'], dict):
@@ -301,10 +318,12 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
             floorplan_data = validated_data.pop('floorplan')
             if 'location' not in floorplan_data:
                 floorplan_data['location'] = validated_data['location']
+            print(floorplan_data)
             floorplan_serializer = FloorPlanSerializer(data=floorplan_data)
             try:
                 floorplan_serializer.is_valid(raise_exception=True)
             except Exception as e:
+                print(e)
                 raise e
             floorplan = floorplan_serializer.save()
             validated_data['floorplan'] = floorplan
@@ -316,42 +335,42 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         )
         return super().create(validated_data)
 
-    def update(self, instance, validated_data):
-        if 'location' in validated_data:
-            location_data = validated_data.pop('location')
-            location = instance.location
-            if location.type == 'indoor' and location_data.get('type') == 'outdoor':
-                instance.floorplan = None
-                validated_data['indoor'] = ""
-                location.type = location_data.get('type', location.type)
-            location.is_mobile = location_data.get('is_mobile', location.is_mobile)
-            location.name = location_data.get('name', location.name)
-            location.address = location_data.get('address', location.address)
-            location.geometry = location_data.get('geometry', location.geometry)
-            location.save()
+    # def update(self, instance, validated_data):
+    #     if 'location' in validated_data:
+    #         location_data = validated_data.pop('location')
+    #         location = instance.location
+    #         if location.type == 'indoor' and location_data.get('type') == 'outdoor':
+    #             instance.floorplan = None
+    #             validated_data['indoor'] = ""
+    #             location.type = location_data.get('type', location.type)
+    #         location.is_mobile = location_data.get('is_mobile', location.is_mobile)
+    #         location.name = location_data.get('name', location.name)
+    #         location.address = location_data.get('address', location.address)
+    #         location.geometry = location_data.get('geometry', location.geometry)
+    #         location.save()
 
-        if 'floorplan' in validated_data:
-            floorplan_data = validated_data.pop('floorplan')
-            if instance.location.type == 'indoor':
-                if instance.floorplan:
-                    floorplan = instance.floorplan
-                    floorplan.floor = floorplan_data.get('floor', floorplan.floor)
-                    floorplan.image = floorplan_data.get('image', floorplan.image)
-                    floorplan.full_clean()
-                    floorplan.save()
-            if (
-                instance.location.type == 'outdoor'
-                and location_data['type'] == 'indoor'
-            ):
-                fl = FloorPlan.objects.create(
-                    floor=floorplan_data['floor'],
-                    organization=instance.content_object.organization,
-                    image=floorplan_data['image'],
-                    location=instance.location,
-                )
-                instance.location.type = 'indoor'
-                instance.location.full_clean()
-                instance.location.save()
-                instance.floorplan = fl
+    #     if 'floorplan' in validated_data:
+    #         floorplan_data = validated_data.pop('floorplan')
+    #         if instance.location.type == 'indoor':
+    #             if instance.floorplan:
+    #                 floorplan = instance.floorplan
+    #                 floorplan.floor = floorplan_data.get('floor', floorplan.floor)
+    #                 floorplan.image = floorplan_data.get('image', floorplan.image)
+    #                 floorplan.full_clean()
+    #                 floorplan.save()
+    #         if (
+    #             instance.location.type == 'outdoor'
+    #             and location_data['type'] == 'indoor'
+    #         ):
+    #             fl = FloorPlan.objects.create(
+    #                 floor=floorplan_data['floor'],
+    #                 organization=instance.content_object.organization,
+    #                 image=floorplan_data['image'],
+    #                 location=instance.location,
+    #             )
+    #             instance.location.type = 'indoor'
+    #             instance.location.full_clean()
+    #             instance.location.save()
+    #             instance.floorplan = fl
 
-        return super().update(instance, validated_data)
+    #     return super().update(instance, validated_data)

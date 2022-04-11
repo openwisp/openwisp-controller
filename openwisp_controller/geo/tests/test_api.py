@@ -1,6 +1,7 @@
 import json
 import tempfile
 from io import BytesIO
+import io
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -9,6 +10,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.urls import reverse
+from rest_framework.test import APITestCase
 from django.utils.http import urlencode
 from PIL import Image
 from rest_framework.authtoken.models import Token
@@ -290,7 +292,7 @@ class TestGeoApi(
             )
         return inm_file
 
-    def test_create_device_location_using_related_ids(self):
+    def test_create_devicelocation_using_related_ids(self):
         device = self._create_object()
         floorplan = self._create_floorplan()
         location = floorplan.location
@@ -305,33 +307,37 @@ class TestGeoApi(
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['location']['id'], str(location.id))
+        self.assertIn('type', response.data['location'].keys())
+        self.assertIn('geometry', response.data['location'].keys())
+        self.assertIn('properties', response.data['location'].keys())
         self.assertEqual(response.data['floorplan']['id'], str(floorplan.id))
+        self.assertIn('name', response.data['floorplan'].keys())
+        self.assertIn('floor', response.data['floorplan'].keys())
+        self.assertIn('image', response.data['floorplan'].keys())
+        # New location and floorplan objects are not created.
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.floorplan_model.objects.count(), 1)
 
-    def test_create_device_location_using_location_data(self):
+    def test_create_devicelocation_location_floorplan(self):
         device = self._create_object()
+        self.assertEqual(self.location_model.objects.count(), 0)
+        self.assertEqual(self.object_location_model.objects.count(), 0)
+        self.assertEqual(self.floorplan_model.objects.count(), 0)
         url = reverse('geo_api:device_location', args=[device.id])
+        data = {
+            'location.name': 'test-location',
+            'location.address': 'Via del Corso, Roma, Italia',
+            'location.geometry': 'SRID=4326;POINT (12.512124 41.898903)',
+            'location.type': 'outdoor',
+            'floorplan.floor': 1,
+            'floorplan.image': self._get_in_memory_upload_file(),
+        }
         response = self.client.post(
-            url,
-            data={
-                'location': {
-                    'name': 'test-location',
-                    'address': 'Via del Corso, Roma, Italia',
-                    'geometry': 'SRID=4326;POINT (12.512124 41.898903)',
-                    'type': 'outdoor',
-                },
-                'floorplan': {
-                    'floor': 1,
-                    'image': self._get_in_memory_upload_file()
-                }
-            },
-            content_type=MULTIPART_CONTENT,
+            url, data=data, format='multipart'
         )
+
         print(response.data)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['location']['id'], str(location.id))
-        self.assertEqual(response.data['floorplan']['id'], None)
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.object_location_model.objects.count(), 1)
         self.assertEqual(self.floorplan_model.objects.count(), 1)
@@ -369,6 +375,7 @@ class TestGeoApi(
         data = {'floor': 1, 'image': temporary_image, 'location': l1.pk}
         with self.assertNumQueries(10):
             response = self.client.post(path, data, format='multipart')
+        print(response.data)
         self.assertEqual(response.status_code, 201)
 
     def test_get_floorplan_detail(self):

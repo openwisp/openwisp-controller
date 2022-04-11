@@ -94,6 +94,7 @@ class DeviceLocationView(
     )
 
     def post(self, request, *args, **kwargs):
+        print('posting', request.data)
         return self.create(request, *args, **kwargs)
 
 
