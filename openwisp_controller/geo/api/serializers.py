@@ -1,10 +1,9 @@
-import uuid
 
 from django.contrib.humanize.templatetags.humanize import ordinal
-from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db import transaction
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from jsonschema import ValidationError
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import IntegerField, SerializerMethodField
@@ -64,55 +63,59 @@ class BaseFloorPlanSerializer(BaseSerializer):
         return name
 
 
-class FloorPlanSerializer(BaseFloorPlanSerializer):
+class FloorPlanSerializer(BaseFloorPlanSerializer, ValidatedModelSerializer):
     class Meta(BaseFloorPlanSerializer.Meta):
-        fields = BaseFloorPlanSerializer.Meta.fields + ['location','created', 'modified']
-        read_only_fields = BaseFloorPlanSerializer.Meta.read_only_fields + ['created', 'modified']
+        fields = BaseFloorPlanSerializer.Meta.fields + [
+            'location',
+            'organization',
+            'created',
+            'modified',
+        ]
+        read_only_fields = BaseFloorPlanSerializer.Meta.read_only_fields + [
+            'created',
+            'modified',
+        ]
+        extra_kwargs = {
+            'organization': {'required': False}
+        }
+
+    def validate(self, data):
+        if data.get('location'):
+            data['organization'] = data.get('location').organization
+        return super().validate(data)
 
 
 class NestedFloorplanSerializer(BaseFloorPlanSerializer):
-    location = None
     class Meta(BaseFloorPlanSerializer.Meta):
         pass
 
-    def is_valid(self, raise_exception=False):
-        try:
-            return super().is_valid(raise_exception)
-        except Exception as e:
-            print('>>', e)
-            raise e
+    def validate(self, data):
+        # This method has been overridden because this
+        # serializer does not handle all fields of FloorPlan
+        # model and ValidatedModelSerializer.validate complains
+        # for non-handled fields.
+        return data
 
     def to_internal_value(self, data):
         if isinstance(data, str):
             try:
-                id = uuid.UUID(data)
-            except ValueError:
-                pass
-            else:
-                try:
-                    self.instance = FloorPlan.objects.get(id=id)
-                    return self.instance
-                except FloorPlan.DoesNotExist:
-                    raise APIException(
-                        detail={
-                            'floorplan': _(
-                                'Floorplan object with entered ID does not exists.'
-                            )
-                        }
-                    )
+                self.instance = FloorPlan.objects.get(id=data)
+                return self.instance
+            except (ValidationError, FloorPlan.DoesNotExist):
+                raise APIException(
+                    detail={
+                        'floorplan': _(
+                            'Floorplan object with entered ID does not exists.'
+                        )
+                    }
+                )
         return super().to_internal_value(data)
 
-    def run_validators(self, data):
-        if isinstance(data, FloorPlan):
-            return data
-        return super().run_validators(data)
-
     def get_attribute(self, instance):
-        if isinstance(instance, Device):
-            return instance.devicelocation.floorplan
         if isinstance(instance, DeviceLocation):
             return instance.floorplan
         super().get_attribute(instance)
+
 
 class FloorPlanLocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -122,6 +125,7 @@ class FloorPlanLocationSerializer(serializers.ModelSerializer):
             'image',
         )
         extra_kwargs = {'floor': {'required': False}, 'image': {'required': False}}
+
 
 class DeviceCoordinatesSerializer(gis_serializers.GeoFeatureModelSerializer):
     class Meta:
@@ -244,28 +248,26 @@ class NestedtLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
         )
         read_only_fields = ('id',)
 
+    def get_value(self, dictionary):
+        if isinstance(dictionary.get('location'), str):
+            return dictionary.get(self.field_name)
+        return super().get_value(dictionary)
+
     def to_internal_value(self, data):
         if isinstance(data, str):
             try:
-                id = uuid.UUID(data)
-            except ValueError:
-                pass
-            else:
-                try:
-                    return Location.objects.get(id=id)
-                except Location.DoesNotExist:
-                    raise APIException(
-                        detail={
-                            'location': _(
-                                'Location object with entered ID does not exists.'
-                            )
-                        }
-                    )
+                return Location.objects.get(id=data)
+            except (ValidationError, Location.DoesNotExist):
+                raise APIException(
+                    detail={
+                        'location': _(
+                            'Location object with entered ID does not exists.'
+                        )
+                    }
+                )
         return super().to_internal_value(data)
 
     def get_attribute(self, instance):
-        if isinstance(instance, Device):
-            return instance.devicelocation.location
         if isinstance(instance, DeviceLocation):
             return instance.location
         super().get_attribute(instance)
@@ -283,94 +285,71 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
             'indoor',
         )
 
-    def run_validation(self, data):
-        view = self.context.get('view')
-        device = Device.objects.get(id=view.kwargs.get('pk'))
-        if 'location' not in data:
-            data['location.organization'] = device.organization_id
-        if 'floorplan' not in data:
-            data['floorplan.organization'] = device.organization_id
-        #     floorplan = {}
-        #     for field in self.fields['floorplan'].fields.keys():
-        #         floorplan[field] = data.pop(f'floorplan.{field}', None)
-        #     data['floorplan'] = floorplan
-        from pprint import pprint
-        pprint(data)
-        return super().run_validation(data)
+    @property
+    def device_organization_id(self):
+        return (
+            Device.objects.only('organization_id')
+            .get(id=self.context.get('device_id'))
+            .organization_id
+        )
 
-    def create(self, validated_data):
-        print('creating')
-        view = self.context.get('view')
-        device = Device.objects.get(id=view.kwargs.get('pk'))
-        if 'location' in validated_data and isinstance(validated_data['location'], dict):
-            location_data = validated_data.pop('location')
+    def get_or_create_location_object(self, validated_data, location_instance=None):
+        location_data = validated_data.pop('location', None)
+        if not location_data:
+            return
+        if isinstance(location_data, dict):
             if 'organization' not in location_data:
-                location_data['organization'] = device.organization_id
-            location_serializer = LocationSerializer(data=location_data)
+                location_data['organization'] = self.device_organization_id
+            location_serializer = LocationSerializer(
+                data=location_data, instance=location_instance
+            )
             try:
                 location_serializer.is_valid(raise_exception=True)
-            except Exception as e:
-                raise e
-            location = location_serializer.save()
-            validated_data['location'] = location
+            except serializers.ValidationError as error:
+                raise serializers.ValidationError(detail={'location': error.detail})
+            else:
+                return location_serializer.save()
+        return location_data
 
-        if 'floorplan' in validated_data and isinstance(validated_data['floorplan'], dict):
-            floorplan_data = validated_data.pop('floorplan')
+    def get_or_create_floorplan_object(self, validated_data, floorplan_instance=None):
+        floorplan_data = validated_data.pop('floorplan', None)
+        if not floorplan_data:
+            return
+        if isinstance(floorplan_data, dict):
+            if 'organization' not in floorplan_data:
+                floorplan_data['organization'] = self.device_organization_id
             if 'location' not in floorplan_data:
-                floorplan_data['location'] = validated_data['location']
-            print(floorplan_data)
-            floorplan_serializer = FloorPlanSerializer(data=floorplan_data)
+                floorplan_data['location'] = getattr(
+                    validated_data['location'], 'id', validated_data['location']
+                )
+            floorplan_serializer = FloorPlanSerializer(
+                data=floorplan_data, instance=floorplan_instance
+            )
             try:
                 floorplan_serializer.is_valid(raise_exception=True)
-            except Exception as e:
-                print(e)
-                raise e
-            floorplan = floorplan_serializer.save()
-            validated_data['floorplan'] = floorplan
+            except serializers.ValidationError as error:
+                raise serializers.ValidationError(detail={'floorplan': error.detail})
+            else:
+                return floorplan_serializer.save()
+        return floorplan_data
 
+    def create(self, validated_data):
+        validated_data['location'] = self.get_or_create_location_object(validated_data)
+        validated_data['floorplan'] = self.get_or_create_floorplan_object(
+            validated_data
+        )
         validated_data.update(
             {
-                'content_object': device,
+                'content_object_id': self.context.get('device_id'),
             }
         )
         return super().create(validated_data)
 
-    # def update(self, instance, validated_data):
-    #     if 'location' in validated_data:
-    #         location_data = validated_data.pop('location')
-    #         location = instance.location
-    #         if location.type == 'indoor' and location_data.get('type') == 'outdoor':
-    #             instance.floorplan = None
-    #             validated_data['indoor'] = ""
-    #             location.type = location_data.get('type', location.type)
-    #         location.is_mobile = location_data.get('is_mobile', location.is_mobile)
-    #         location.name = location_data.get('name', location.name)
-    #         location.address = location_data.get('address', location.address)
-    #         location.geometry = location_data.get('geometry', location.geometry)
-    #         location.save()
-
-    #     if 'floorplan' in validated_data:
-    #         floorplan_data = validated_data.pop('floorplan')
-    #         if instance.location.type == 'indoor':
-    #             if instance.floorplan:
-    #                 floorplan = instance.floorplan
-    #                 floorplan.floor = floorplan_data.get('floor', floorplan.floor)
-    #                 floorplan.image = floorplan_data.get('image', floorplan.image)
-    #                 floorplan.full_clean()
-    #                 floorplan.save()
-    #         if (
-    #             instance.location.type == 'outdoor'
-    #             and location_data['type'] == 'indoor'
-    #         ):
-    #             fl = FloorPlan.objects.create(
-    #                 floor=floorplan_data['floor'],
-    #                 organization=instance.content_object.organization,
-    #                 image=floorplan_data['image'],
-    #                 location=instance.location,
-    #             )
-    #             instance.location.type = 'indoor'
-    #             instance.location.full_clean()
-    #             instance.location.save()
-    #             instance.floorplan = fl
-
-    #     return super().update(instance, validated_data)
+    def update(self, instance, validated_data):
+        validated_data['location'] = self.get_or_create_location_object(
+            validated_data, instance.location
+        )
+        validated_data['floorplan'] = self.get_or_create_floorplan_object(
+            validated_data, instance.floorplan
+        )
+        return super().update(instance, validated_data)

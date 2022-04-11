@@ -80,6 +80,8 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
         dl = DeviceLocation(content_object=device, location=location)
         dl.full_clean()
         dl.save()
+        self.get_serializer_context()
+
         return location
 
 
@@ -89,12 +91,22 @@ class DeviceLocationView(
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = DeviceLocationSerializer
-    queryset = Device.objects.select_related(
-        'devicelocation', 'devicelocation__location'
+    queryset = DeviceLocation.objects.select_related(
+        'content_object', 'location', 'floorplan', 'content_object__organization'
     )
+    lookup_field = 'content_object'
+    lookup_url_kwarg = 'pk'
+    organization_field = 'content_object__organization'
+
+    def get_queryset(self):
+        return super().get_queryset().filter(content_object=self.kwargs['pk'])
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'device_id': self.kwargs['pk']})
+        return context
 
     def post(self, request, *args, **kwargs):
-        print('posting', request.data)
         return self.create(request, *args, **kwargs)
 
 
