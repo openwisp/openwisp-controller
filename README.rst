@@ -1506,41 +1506,6 @@ Get command details
 
     GET /api/v1/controller/device/{device_id}/command/{command_id}/
 
-Get device coordinates
-######################
-
-.. code-block:: text
-
-    GET /api/v1/controller/device/{id}/location/
-
-Update device coordinates
-#########################
-
-.. code-block:: text
-
-    PUT /api/v1/controller/device/{id}/location/
-
-List of devices in a location
-#############################
-
-.. code:: text
-
-    GET /api/v1/controller/location/{id}/device/
-
-List locations with devices deployed (in GeoJSON format)
-########################################################
-
-.. code:: text
-
-    GET /api/v1/controller/location/geojson/
-
-You can filter using ``organization_slug`` to list location of
-devices from that organization
-
-.. code:: text
-
-    GET /api/v1/controller/location/geojson/?organization_slug=<organization_slug>
-
 List device groups
 ##################
 
@@ -1579,6 +1544,170 @@ of certificate's organization as show in the example below:
 .. code-block:: text
 
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
+
+Get device coordinates
+######################
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/{id}/coordinates/
+
+The device location endpoints can be accessed in two ways:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* As all the other endpoints it can be accessed
+  with token or session authentication, when this
+  happens permissions and multi-tenancy is respected.
+
+* When device key is passed as ``query_param``, we assume
+  the device itself is updating its position, so no check for
+  multi-tenancy or permissions is performed.
+
+Update device location
+######################
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{id}/location/
+
+**Note**:- To access this endpoints, `see here <#the-device-location-endpoints-can-be-accesseed-in-two-ways>`_
+
+Patch details of device location
+################################
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/device/{id}/location/
+
+**Note**:- To access this endpoints, `see here <#the-device-location-endpoints-can-be-accesseed-in-two-ways>`_
+
+Delete device location
+######################
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/device/{id}/location/
+
+**Note**:- To access this endpoints, `see here <#the-device-location-endpoints-can-be-accesseed-in-two-ways>`_.
+Presently, with these endpoints it is not possible to
+assign an existing location or floorplan to a device,
+however, it allows us to update and delete.
+
+List of devices in a location
+#############################
+
+.. code:: text
+
+    GET /api/v1/controller/location/{id}/device/
+
+List locations with devices deployed (in GeoJSON format)
+########################################################
+
+.. code:: text
+
+    GET /api/v1/controller/location/geojson/
+
+You can filter using ``organization_slug`` to list location of
+devices from that organization
+
+.. code:: text
+
+    GET /api/v1/controller/location/geojson/?organization_slug=<organization_slug>
+
+List floorplan
+##############
+
+.. code:: text
+
+    GET /api/v1/controller/floorplan/
+
+Create floorplan
+################
+
+.. code:: text
+
+    POST /api/v1/controller/floorplan/
+
+Get floorplan detail
+####################
+
+.. code:: text
+
+    GET /api/v1/controller/floorplan/{pk}/
+
+Change floorplan detail
+#######################
+
+.. code:: text
+
+    PUT /api/v1/controller/floorplan/{pk}/
+
+Patch details of floorplan
+##########################
+
+.. code:: text
+
+    PATCH /api/v1/controller/floorplan/{pk}/
+
+Delete floorplan
+################
+
+.. code:: text
+
+    DELETE /api/v1/controller/floorplan/{pk}/
+
+List locations
+##############
+
+.. code:: text
+
+    GET /api/v1/controller/location/
+
+Create locations
+################
+
+.. code:: text
+
+    POST /api/v1/controller/location/
+
+Get location detail
+###################
+
+.. code:: text
+
+    GET /api/v1/controller/location/{pk}/
+
+Change location detail
+######################
+
+.. code:: text
+
+    PUT /api/v1/controller/location/{pk}/
+
+Patch details of location
+#########################
+
+.. code:: text
+
+    PATCH /api/v1/controller/location/{pk}/
+
+**Note**: Only the first floorplan data present can be
+edited or changed. Setting the `type` of location to
+outdoor will remove all the floorplans associated with it.
+
+**Example usage**: To change the floorplan data of a location
+
+.. code-block:: shell
+
+    echo '{"floorplan":{"floor": 11}}' | \
+    http PATCH http://127.0.0.1:8000/api/v1/controller/location/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/
+
+Delete location
+###############
+
+.. code:: text
+
+    DELETE /api/v1/controller/location/{pk}/
 
 List templates
 ##############
