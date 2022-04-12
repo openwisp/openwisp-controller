@@ -2526,6 +2526,7 @@ it is not sent if the response was not successful.
 - ``old_is_working``: previous value of ``DeviceConnection.is_working``,
   either ``None`` (for new connections), ``True`` or ``False``
 - ``failure_reason``: error message explaining reason for failure in establishing connection
+- ``old_failure_reason``: previous value of ``DeviceConnection.failure_reason``
 
 This signal is emitted every time ``DeviceConnection.is_working`` changes.
 
