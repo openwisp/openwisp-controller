@@ -64,6 +64,11 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
 - `openwisp-notifications <https://github.com/openwisp/openwisp-notifications>`_:
   allows users to be aware of important events happening in the network.
 
+**For a more complete overview of the OpenWISP modules and architecture**,
+see the
+`OpenWISP Architecture Overview
+<https://openwisp.io/docs/general/architecture.html>`_.
+
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp2-docs/master/assets/design/openwisp-logo-black.svg
   :target: http://openwisp.org
   :alt: OpenWISP
