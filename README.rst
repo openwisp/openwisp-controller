@@ -103,7 +103,7 @@ Config App
 * **simple HTTP resources**: allow devices to automatically download configuration updates
 * **VPN management**: `automatically provision VPN tunnels <#openwisp-controller-default-auto-cert>`_,
   including cryptographic keys, IP addresses
-* `REST API <#rest-api>`_
+* `REST API <#rest-api-reference>`_
 
 PKI App
 ~~~~~~~
@@ -111,7 +111,7 @@ PKI App
 The PKI app is based on `django-x509 <https://github.com/openwisp/django-x509>`_,
 it allows to create, import and view x509 CAs and certificates directly from
 the administration dashboard, it also adds different endpoints to the
-`REST API <#rest-api>`_.
+`REST API <#rest-api-reference>`_.
 
 Connection App
 ~~~~~~~~~~~~~~
@@ -122,7 +122,7 @@ in order perform `push operations <#how-to-configure-push-updates>`__:
 - Sending configuration updates.
 - `Executing shell commands <#sending-commands-to-devices>`_.
 - Perform `firmware upgrades via the additional firmware upgrade module <https://github.com/openwisp/openwisp-firmware-upgrader>`_.
-- `REST API <#rest-api>`_
+- `REST API <#rest-api-reference>`_
 
 The default connection protocol implemented is SSH, but other protocol
 mechanism is extensible and custom protocols can be implemented as well.
@@ -139,7 +139,7 @@ The geographic app is based on `django-loci <https://github.com/openwisp/django-
 and allows to define the geographic coordinates of the devices,
 as well as their indoor coordinates on floorplan images.
 
-It also adds different endpoints to the `REST API <#rest-api>`_.
+It also adds different endpoints to the `REST API <#rest-api-reference>`_.
 
 Subnet Division App
 ~~~~~~~~~~~~~~~~~~~
@@ -1254,8 +1254,19 @@ new one. The automation will provision for all existing devices that meets the c
 for provisioning. **WARNING**: It is possible that devices get different subnets and IPs
 from previous provisioning.
 
-REST API
---------
+Default Alerts / Notifications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++-----------------------+---------------------------------------------------------------------+
+| Notification Type     | Use                                                                 |
++-----------------------+---------------------------------------------------------------------+
+| ``config_error``      | Fires when status of a device configuration changes to  ``error``.  |
++-----------------------+---------------------------------------------------------------------+
+| ``device_registered`` | Fires when a new device is registered automatically on the network. |
++-----------------------+---------------------------------------------------------------------+
+
+REST API Reference
+------------------
 
 Live documentation
 ~~~~~~~~~~~~~~~~~~
@@ -1804,215 +1815,6 @@ Revoke Cert
 .. code-block:: text
 
     POST /api/v1/controller/cert/{id}/revoke/
-
-Default Alerts / Notifications
-------------------------------
-
-+-----------------------+---------------------------------------------------------------------+
-| Notification Type     | Use                                                                 |
-+-----------------------+---------------------------------------------------------------------+
-| ``config_error``      | Fires when status of a device configuration changes to  ``error``.  |
-+-----------------------+---------------------------------------------------------------------+
-| ``device_registered`` | Fires when a new device is registered automatically on the network. |
-+-----------------------+---------------------------------------------------------------------+
-
-Signals
--------
-
-``config_modified``
-~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.config_modified``
-
-**Arguments**:
-
-- ``instance``: instance of ``Config`` which got its ``config`` modified
-- ``previous_status``: indicates the status of the config object before the
-  signal was emitted
-- ``action``: action which emitted the signal, can be any of the list below:
-  - ``config_changed``: the configuration of the config object was changed
-  - ``related_template_changed``: the configuration of a related template was changed
-  - ``m2m_templates_changed``: the assigned templates were changed
-  (either templates were added, removed or their order was changed)
-
-This signal is emitted every time the configuration of a device is modified.
-
-It does not matter if ``Config.status`` is already modified, this signal will
-be emitted anyway because it signals that the device configuration has changed.
-
-This signal is used to trigger the update of the configuration on devices,
-when the push feature is enabled (requires Device credentials).
-
-The signal is also emitted when one of the templates used by the device
-is modified or if the templates assigned to the device are changed.
-
-Special cases in which ``config_modified`` is not emitted
-#########################################################
-
-This signal is not emitted when the device is created for the first time.
-
-It is also not emitted when templates assigned to a config object are
-cleared (``post_clear`` m2m signal), this is necessary because
-`sortedm2m <https://github.com/jazzband/django-sortedm2m>`_, the package
-we use to implement ordered templates, uses the clear action to
-reorder templates (m2m relationships are first cleared and then added back),
-therefore we ignore ``post_clear`` to avoid emitting signals twice
-(one for the clear action and one for the add action).
-Please keep this in mind if you plan on using the clear method
-of the m2m manager.
-
-``config_status_changed``
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.config_status_changed``
-
-**Arguments**:
-
-- ``instance``: instance of ``Config`` which got its ``status`` changed
-
-This signal is emitted only when the configuration status of a device has changed.
-
-The signal is emitted also when the m2m template relationships of a config
-object are changed, but only on ``post_add`` or ``post_remove`` actions,
-``post_clear`` is ignored for the same reason explained
-in the previous section.
-
-``checksum_requested``
-~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.checksum_requested``
-
-**Arguments**:
-
-- ``instance``: instance of ``Device`` for which its configuration
-  checksum has been requested
-- ``request``: the HTTP request object
-
-This signal is emitted when a device requests a checksum via the controller views.
-
-The signal is emitted just before a successful response is returned,
-it is not sent if the response was not successful.
-
-``config_download_requested``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.config_download_requested``
-
-**Arguments**:
-
-- ``instance``: instance of ``Device`` for which its configuration has been
-  requested for download
-- ``request``: the HTTP request object
-
-This signal is emitted when a device requests to download its configuration
-via the controller views.
-
-The signal is emitted just before a successful response is returned,
-it is not sent if the response was not successful.
-
-``is_working_changed``
-~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.connection.signals.is_working_changed``
-
-**Arguments**:
-
-- ``instance``: instance of ``DeviceConnection``
-- ``is_working``: value of ``DeviceConnection.is_working``
-- ``old_is_working``: previous value of ``DeviceConnection.is_working``,
-  either ``None`` (for new connections), ``True`` or ``False``
-- ``failure_reason``: error message explaining reason for failure in establishing connection
-
-This signal is emitted every time ``DeviceConnection.is_working`` changes.
-
-It is not triggered when the device is created for the first time.
-
-``management_ip_changed``
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.management_ip_changed``
-
-**Arguments**:
-
-- ``instance``: instance of ``Device``
-- ``management_ip``: value of ``Device.management_ip``
-- ``old_management_ip``: previous value of ``Device.management_ip``
-
-This signal is emitted every time ``Device.management_ip`` changes.
-
-It is not triggered when the device is created for the first time.
-
-``device_registered``
-~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.device_registered``
-
-**Arguments**:
-
-- ``instance``: instance of ``Device`` which got registered.
-- ``is_new``: boolean, will be ``True`` when the device is new,
-  ``False`` when the device already exists
-  (eg: a device which gets a factory reset will register again)
-
-This signal is emitted when a device registers automatically through the controller
-HTTP API.
-
-``device_name_changed``
-~~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.device_name_changed``
-
-**Arguments**:
-
-- ``instance``: instance of ``Device``.
-
-The signal is emitted when the device name changes.
-
-It is not emitted when the device is created.
-
-``device_group_changed``
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.device_group_changed``
-
-**Arguments**:
-
-- ``instance``: instance of ``Device``.
-- ``group_id``: primary key of ``DeviceGroup`` of ``Device``
-- ``old_group_id``: primary key of previous ``DeviceGroup`` of ``Device``
-
-The signal is emitted when the device group changes.
-
-It is not emitted when the device is created.
-
-``subnet_provisioned``
-~~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.subnet_division.signals.subnet_provisioned``
-
-**Arguments**:
-
-- ``instance``: instance of ``VpnClient``.
-- ``provisioned``: dictionary of ``Subnet`` and ``IpAddress`` provisioned,
-  ``None`` if nothing is provisioned
-
-The signal is emitted when subnets and IP addresses have been provisioned
-for a ``VpnClient`` for a VPN server with a subnet with
-`subnet division rule <#subnet-division-app>`_.
-
-``vpn_peers_changed``
-~~~~~~~~~~~~~~~~~~~~~
-
-**Path**: ``openwisp_controller.config.signals.vpn_peers_changed``
-
-**Arguments**:
-
-- ``instance``: instance of ``Vpn``.
-
-The signal is emitted when the peers of VPN server gets changed.
-
-It is only emitted for ``Vpn`` object with **WireGuard** or
-**VXLAN over WireGuard** backend.
 
 Settings
 --------
@@ -2612,6 +2414,204 @@ Example:
 The value of this setting decides whether to use DSA syntax
 (OpenWrt >=21 configuration syntax) if openwisp-controller fails
 to make that decision automatically.
+
+Signals
+-------
+
+``config_modified``
+~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.config_modified``
+
+**Arguments**:
+
+- ``instance``: instance of ``Config`` which got its ``config`` modified
+- ``previous_status``: indicates the status of the config object before the
+  signal was emitted
+- ``action``: action which emitted the signal, can be any of the list below:
+  - ``config_changed``: the configuration of the config object was changed
+  - ``related_template_changed``: the configuration of a related template was changed
+  - ``m2m_templates_changed``: the assigned templates were changed
+  (either templates were added, removed or their order was changed)
+
+This signal is emitted every time the configuration of a device is modified.
+
+It does not matter if ``Config.status`` is already modified, this signal will
+be emitted anyway because it signals that the device configuration has changed.
+
+This signal is used to trigger the update of the configuration on devices,
+when the push feature is enabled (requires Device credentials).
+
+The signal is also emitted when one of the templates used by the device
+is modified or if the templates assigned to the device are changed.
+
+Special cases in which ``config_modified`` is not emitted
+#########################################################
+
+This signal is not emitted when the device is created for the first time.
+
+It is also not emitted when templates assigned to a config object are
+cleared (``post_clear`` m2m signal), this is necessary because
+`sortedm2m <https://github.com/jazzband/django-sortedm2m>`_, the package
+we use to implement ordered templates, uses the clear action to
+reorder templates (m2m relationships are first cleared and then added back),
+therefore we ignore ``post_clear`` to avoid emitting signals twice
+(one for the clear action and one for the add action).
+Please keep this in mind if you plan on using the clear method
+of the m2m manager.
+
+``config_status_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.config_status_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Config`` which got its ``status`` changed
+
+This signal is emitted only when the configuration status of a device has changed.
+
+The signal is emitted also when the m2m template relationships of a config
+object are changed, but only on ``post_add`` or ``post_remove`` actions,
+``post_clear`` is ignored for the same reason explained
+in the previous section.
+
+``checksum_requested``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.checksum_requested``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device`` for which its configuration
+  checksum has been requested
+- ``request``: the HTTP request object
+
+This signal is emitted when a device requests a checksum via the controller views.
+
+The signal is emitted just before a successful response is returned,
+it is not sent if the response was not successful.
+
+``config_download_requested``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.config_download_requested``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device`` for which its configuration has been
+  requested for download
+- ``request``: the HTTP request object
+
+This signal is emitted when a device requests to download its configuration
+via the controller views.
+
+The signal is emitted just before a successful response is returned,
+it is not sent if the response was not successful.
+
+``is_working_changed``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.connection.signals.is_working_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``DeviceConnection``
+- ``is_working``: value of ``DeviceConnection.is_working``
+- ``old_is_working``: previous value of ``DeviceConnection.is_working``,
+  either ``None`` (for new connections), ``True`` or ``False``
+- ``failure_reason``: error message explaining reason for failure in establishing connection
+
+This signal is emitted every time ``DeviceConnection.is_working`` changes.
+
+It is not triggered when the device is created for the first time.
+
+``management_ip_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.management_ip_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``
+- ``management_ip``: value of ``Device.management_ip``
+- ``old_management_ip``: previous value of ``Device.management_ip``
+
+This signal is emitted every time ``Device.management_ip`` changes.
+
+It is not triggered when the device is created for the first time.
+
+``device_registered``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_registered``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device`` which got registered.
+- ``is_new``: boolean, will be ``True`` when the device is new,
+  ``False`` when the device already exists
+  (eg: a device which gets a factory reset will register again)
+
+This signal is emitted when a device registers automatically through the controller
+HTTP API.
+
+``device_name_changed``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_name_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``.
+
+The signal is emitted when the device name changes.
+
+It is not emitted when the device is created.
+
+``device_group_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_group_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Device``.
+- ``group_id``: primary key of ``DeviceGroup`` of ``Device``
+- ``old_group_id``: primary key of previous ``DeviceGroup`` of ``Device``
+
+The signal is emitted when the device group changes.
+
+It is not emitted when the device is created.
+
+``subnet_provisioned``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.subnet_division.signals.subnet_provisioned``
+
+**Arguments**:
+
+- ``instance``: instance of ``VpnClient``.
+- ``provisioned``: dictionary of ``Subnet`` and ``IpAddress`` provisioned,
+  ``None`` if nothing is provisioned
+
+The signal is emitted when subnets and IP addresses have been provisioned
+for a ``VpnClient`` for a VPN server with a subnet with
+`subnet division rule <#subnet-division-app>`_.
+
+``vpn_peers_changed``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.vpn_peers_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``Vpn``.
+
+The signal is emitted when the peers of VPN server gets changed.
+
+It is only emitted for ``Vpn`` object with **WireGuard** or
+**VXLAN over WireGuard** backend.
 
 Extending openwisp-controller
 -----------------------------
