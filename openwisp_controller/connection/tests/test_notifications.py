@@ -8,7 +8,6 @@ from openwisp_notifications.signals import notify
 from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
-from .. import settings as app_settings
 from .utils import CreateConnectionsMixin
 
 Notification = load_model('openwisp_notifications', 'Notification')
@@ -145,8 +144,10 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
         app = apps.get_app_config(self.app_label)
         app.register_notification_types()
 
-    @patch.object(
-        app_settings, '_IGNORE_CONNECTION_NOTIFICATION_REASONS', ['timed out']
+    @patch(
+        'openwisp_controller.connection.apps.ConnectionConfig'
+        '._ignore_connection_notification_reasons',
+        ['timed out'],
     )
     @patch.object(notify, 'send')
     def test_connection_is_working_changed_timed_out(self, notify_send, *args):
@@ -168,8 +169,10 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
         device_conn.save()
         notify_send.assert_not_called()
 
-    @patch.object(
-        app_settings, '_IGNORE_CONNECTION_NOTIFICATION_REASONS', ['Unable to connect']
+    @patch(
+        'openwisp_controller.connection.apps.ConnectionConfig'
+        '._ignore_connection_notification_reasons',
+        ['Unable to connect'],
     )
     @patch.object(notify, 'send')
     def test_connection_is_working_changed_unable_to_connect(self, notify_send, *args):

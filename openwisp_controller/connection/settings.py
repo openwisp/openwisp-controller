@@ -1,10 +1,5 @@
 from django.conf import settings
 
-# List of reasons for which notifications should
-# not be generated if a device connection errors out.
-# Intended to be used internally by OpenWISP to
-# ignore notifications generated due to connectivity issues.
-_IGNORE_CONNECTION_NOTIFICATION_REASONS = []
 DEFAULT_CONNECTORS = (('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),)
 
 CONNECTORS = getattr(settings, 'OPENWISP_CONNECTORS', DEFAULT_CONNECTORS)
