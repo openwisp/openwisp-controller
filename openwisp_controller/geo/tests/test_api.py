@@ -296,7 +296,11 @@ class TestGeoApi(
     def test_post_floorplan_list(self):
         location = self._create_location(type='indoor')
         path = reverse('geo_api:list_floorplan')
-        data = {'floor': 1, 'image': self._get_simpleuploadedfile(), 'location': location.pk}
+        data = {
+            'floor': 1,
+            'image': self._get_simpleuploadedfile(),
+            'location': location.pk,
+        }
         self.assertEqual(self.floorplan_model.objects.count(), 0)
         with self.assertNumQueries(10):
             response = self.client.post(path, data, format='multipart')

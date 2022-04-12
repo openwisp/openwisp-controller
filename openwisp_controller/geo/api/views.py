@@ -4,7 +4,7 @@ from django_filters import rest_framework as filters
 from rest_framework import generics, pagination
 from rest_framework.exceptions import NotFound
 from rest_framework.mixins import CreateModelMixin
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.permissions import BasePermission
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 

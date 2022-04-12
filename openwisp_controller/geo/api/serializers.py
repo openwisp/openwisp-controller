@@ -1,4 +1,3 @@
-
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import transaction
 from django.urls import reverse
@@ -75,9 +74,7 @@ class FloorPlanSerializer(BaseFloorPlanSerializer, ValidatedModelSerializer):
             'created',
             'modified',
         ]
-        extra_kwargs = {
-            'organization': {'required': False}
-        }
+        extra_kwargs = {'organization': {'required': False}}
 
     def validate(self, data):
         if data.get('location'):
