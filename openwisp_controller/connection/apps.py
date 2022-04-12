@@ -21,6 +21,11 @@ class ConnectionConfig(AppConfig):
     name = 'openwisp_controller.connection'
     label = 'connection'
     verbose_name = _('Network Device Credentials')
+    # List of reasons for which notifications should
+    # not be generated if a device connection errors out.
+    # Intended to be used internally by OpenWISP to
+    # ignore notifications generated due to connectivity issues.
+    _ignore_connection_notification_reasons = []
 
     def ready(self):
         """
@@ -106,12 +111,22 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def is_working_changed_receiver(
-        cls, instance, is_working, old_is_working, **kwargs
+        cls,
+        instance,
+        is_working,
+        old_is_working,
+        failure_reason,
+        old_failure_reason,
+        **kwargs,
     ):
         # if old_is_working is None, it's a new device connection which wasn't
         # used yet, so nothing is really changing and we won't notify the user
         if old_is_working is None:
             return
+        # don't send notification if error occurred due to connectivity issues
+        for ignore_reason in cls._ignore_connection_notification_reasons:
+            if ignore_reason in failure_reason or ignore_reason in old_failure_reason:
+                return
         device = instance.device
         notification_opts = dict(sender=instance, target=device)
         if not is_working:

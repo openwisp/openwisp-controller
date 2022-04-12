@@ -334,6 +334,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             dc.save()
         handler.assert_called_once_with(
             failure_reason='',
+            old_failure_reason='',
             instance=dc,
             is_working=True,
             old_is_working=None,

@@ -248,6 +248,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._initial_is_working = self.is_working
+        self._initial_failure_reason = self.failure_reason
 
     def clean(self):
         cred_org = self.credentials.organization
@@ -340,6 +341,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         if self.is_working != self._initial_is_working:
             self.send_is_working_changed_signal()
         self._initial_is_working = self.is_working
+        self._initial_failure_reason = self.failure_reason
 
     def send_is_working_changed_signal(self):
         is_working_changed.send(
@@ -347,6 +349,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             is_working=self.is_working,
             old_is_working=self._initial_is_working,
             failure_reason=self.failure_reason,
+            old_failure_reason=self._initial_failure_reason,
             instance=self,
         )
 
