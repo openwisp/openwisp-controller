@@ -1509,14 +1509,14 @@ Get command details
 List device groups
 ##################
 
-.. code:: text
+.. code-block:: text
 
     GET api/v1/controller/group/
 
 Create device group
 ###################
 
-.. code:: text
+.. code-block:: text
 
     POST api/v1/controller/group/
 
@@ -1545,41 +1545,137 @@ of certificate's organization as show in the example below:
 
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
-Get device coordinates
+Get device location
+###################
+
+.. code-block:: text
+
+
+    GET /api/v1/controller/device/{id}/location/
+
+
+Create device location
 ######################
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{id}/coordinates/
+    POST /api/v1/controller/device/{id}/location/
 
-The device location endpoints can be accessed in two ways:
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+You can create ``DeviceLocation`` object by using primary
+keys of existing ``Location`` and ``FloorPlan`` objects as shown in
+the example below.
 
-* As all the other endpoints it can be accessed
-  with token or session authentication, when this
-  happens permissions and multi-tenancy is respected.
+.. code-block:: json
 
-* When device key is passed as ``query_param``, we assume
-  the device itself is updating its position, so no check for
-  multi-tenancy or permissions is performed.
+    {
+        "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
+        "floorplan": "dfeb6724-aab4-4533-aeab-f7feb6648acd",
+        "indoor": "12.342,23.541"
+    }
 
-Update device location
-######################
+.. code-block:: text
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'content-type: application/json' \
+        -d '{
+            "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
+            "floorplan": "dfeb6724-aab4-4533-aeab-f7feb6648acd",
+            "indoor": "12.342,23.541"
+            }'
+
+You can also create related ``Location`` and ``FloorPlan`` objects for the
+device directly from this endpoint.
+
+The following example demonstrates creating related location
+object in a single request.
+
+.. code-block:: json
+
+    {
+        "location": {
+            "name": "Via del Corso",
+            "address": "Via del Corso, Roma, Italia",
+            "geometry": "POINT (12.512124 41.898903)",
+            "type": "outdoor",
+        }
+    }
+
+.. code-block:: text
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'content-type: application/json' \
+        -d '{
+                "location": {
+                    "name": "Via del Corso",
+                    "address": "Via del Corso, Roma, Italia",
+                    "geometry": "POINT (12.512124 41.898903)",
+                    "type": "outdoor"
+                }
+            }'
+
+Similarly, you can create ``Floorplan`` object with the same request.
+But, note that a ``FloorPlan`` can be added to ``DeviceLocation`` only
+if the related ``Location`` object defines an indoor location. The example
+below demonstrates creating both ``Location`` and ``FloorPlan`` objects.
+
+.. code-block:: text
+
+    {
+        'location.name': 'Via del Corso',
+        'location.address': 'Via del Corso, Roma, Italia',
+        'location.geometry': 'POINT (12.512124 41.898903)',
+        'location.type': 'outdoor',
+        'floorplan.floor': 1,
+        'floorplan.image': floorplan.png,
+    }
+
+.. code-block:: text
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
+        -F 'location.name=Via del Corso' \
+        -F 'location.address=Via del Corso, Roma, Italia' \
+        -F 'location.geometry=POINT (12.512124 41.898903)' \
+        -F location.type=indoor \
+        -F floorplan.floor=1 \
+        -F 'floorplan.image=@floorplan.png'
+
+**Note:** The request in above example uses ``multipart content-type``
+for uploading floorplan image.
+
+You can also use an existing ``Location`` object and create a new
+floorplan for that location using this endpoint.
+
+.. code-block:: text
+
+    {
+        "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
+        "floorplan.floor": 1,
+        "floorplan.image": floorplan.png
+    }
+
+.. code-block:: text
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
+        -F location=f0cb5762-3711-4791-95b6-c2f6656249fa \
+        -F floorplan.floor=1 \
+        -F 'floorplan.image=@floorplan.png'
+
+Change details of device location
+#################################
 
 .. code-block:: text
 
     PUT /api/v1/controller/device/{id}/location/
 
-**Note**:- To access this endpoints, `see here <#the-device-location-endpoints-can-be-accesseed-in-two-ways>`_
-
-Patch details of device location
-################################
-
-.. code-block:: text
-
-    PATCH /api/v1/controller/device/{id}/location/
-
-**Note**:- To access this endpoints, `see here <#the-device-location-endpoints-can-be-accesseed-in-two-ways>`_
+**Note:** This endpoint can be used to update related ``Location``
+and ``Floorplan`` objects. Refer `examples of "Create device location"
+section for information on payload format <#create-device-location>`_.
 
 Delete device location
 ######################
@@ -1588,126 +1684,197 @@ Delete device location
 
     DELETE /api/v1/controller/device/{id}/location/
 
-**Note**:- To access this endpoints, `see here <#the-device-location-endpoints-can-be-accesseed-in-two-ways>`_.
-Presently, with these endpoints it is not possible to
-assign an existing location or floorplan to a device,
-however, it allows us to update and delete.
+Get device coordinates
+######################
 
-List of devices in a location
-#############################
+.. code-block:: text
 
-.. code:: text
+    GET /api/v1/controller/device/{id}/coordinates/
+
+**Note:** This endpoint is intended to be used by devices.
+
+This endpoint skips multi-tenancy and permission checks if the
+device ``key`` is passed as ``query_param`` because the system
+assumes that the device is updating it's position.
+
+.. code-block:: text
+
+    curl -X GET \
+        'http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/coordinates/?key=10a0cb5a553c71099c0e4ef236435496'
+
+Update device coordinates
+#########################
+
+.. code-block:: text
+
+    PUT /api/v1/controller/device/{id}/coordinates/
+
+**Note:** This endpoint is intended to be used by devices.
+
+This endpoint skips multi-tenancy and permission checks if the
+device ``key`` is passed as ``query_param`` because the system
+assumes that the device is updating it's position.
+
+.. code-block:: json
+
+    {
+        "type": "Feature",
+        "geometry": "POINT (12.512124 41.898903)"
+    }
+
+.. code-block:: text
+
+    curl -X PUT \
+        'http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/coordinates/?key=10a0cb5a553c71099c0e4ef236435496' \
+        -H 'content-type: application/json' \
+        -d '{
+                "type": "Feature",
+                "geometry": "POINT (12.512124 41.898903)"
+            }'
+
+List locations
+##############
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/
+
+Create location
+###############
+
+.. code-block:: text
+
+    POST /api/v1/controller/location/
+
+If you are creating an ``indoor`` location, you can use this endpoint
+to create floorplan for the location
+
+.. code-block:: text
+
+    {
+        "name": "Via del Corso",
+        "address": "Via del Corso, Roma, Italia",
+        "geometry": "POINT (12.512124 41.898903)",
+        "type": "indoor",
+        "is_mobile": "false",
+        "floorplan.floor": "1",
+        "floorplan.image": "Screenshot from 2022-04-18 17-18-11.png",
+        "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
+    }
+
+The following example demonstrates creating floorplan along with location
+in a single request.
+
+.. code-block:: text
+
+    {
+        "name": "Via del Corso",
+        "address": "Via del Corso, Roma, Italia",
+        "geometry": "POINT (12.512124 41.898903)",
+        "type": "indoor",
+        "is_mobile": "false",
+        "floorplan.floor": "1",
+        "floorplan.image": "Screenshot from 2022-04-18 17-18-11.png",
+        "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
+    }
+
+.. code-block:: text
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/location/ \
+        -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
+        -F 'name=Via del Corso' \
+        -F 'address=Via del Corso, Roma, Italia' \
+        -F 'geometry=POINT (12.512124 41.898903)' \
+        -F type=indoor \
+        -F is_mobile=false \
+        -F floorplan.floor=1 \
+        -F 'floorplan.image=@floorplan.png' \
+        -F organization=1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05
+
+Get location details
+####################
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/{pk}/
+
+Change location details
+#######################
+
+.. code-block:: text
+
+    PUT /api/v1/controller/location/{pk}/
+
+**Note**: Only the first floorplan data present can be
+edited or changed. Setting the ``type`` of location to
+outdoor will remove all the floorplans associated with it.
+
+Refer `examples of "Create location"
+section for information on payload format <#create-location>`.
+
+Delete location
+###############
+
+.. code-block:: text
+
+    DELETE /api/v1/controller/location/{pk}/
+
+List devices in a location
+##########################
+
+.. code-block:: text
 
     GET /api/v1/controller/location/{id}/device/
 
 List locations with devices deployed (in GeoJSON format)
 ########################################################
 
-.. code:: text
+.. code-block:: text
 
     GET /api/v1/controller/location/geojson/
 
 You can filter using ``organization_slug`` to list location of
 devices from that organization
 
-.. code:: text
+.. code-block:: text
 
     GET /api/v1/controller/location/geojson/?organization_slug=<organization_slug>
 
-List floorplan
-##############
+List floorplans
+###############
 
-.. code:: text
+.. code-block:: text
 
     GET /api/v1/controller/floorplan/
 
 Create floorplan
 ################
 
-.. code:: text
+.. code-block:: text
 
     POST /api/v1/controller/floorplan/
 
-Get floorplan detail
-####################
+Get floorplan details
+#####################
 
-.. code:: text
+.. code-block:: text
 
     GET /api/v1/controller/floorplan/{pk}/
 
-Change floorplan detail
-#######################
+Change floorplan details
+########################
 
-.. code:: text
+.. code-block:: text
 
     PUT /api/v1/controller/floorplan/{pk}/
-
-Patch details of floorplan
-##########################
-
-.. code:: text
-
-    PATCH /api/v1/controller/floorplan/{pk}/
 
 Delete floorplan
 ################
 
-.. code:: text
+.. code-block:: text
 
     DELETE /api/v1/controller/floorplan/{pk}/
-
-List locations
-##############
-
-.. code:: text
-
-    GET /api/v1/controller/location/
-
-Create locations
-################
-
-.. code:: text
-
-    POST /api/v1/controller/location/
-
-Get location detail
-###################
-
-.. code:: text
-
-    GET /api/v1/controller/location/{pk}/
-
-Change location detail
-######################
-
-.. code:: text
-
-    PUT /api/v1/controller/location/{pk}/
-
-Patch details of location
-#########################
-
-.. code:: text
-
-    PATCH /api/v1/controller/location/{pk}/
-
-**Note**: Only the first floorplan data present can be
-edited or changed. Setting the `type` of location to
-outdoor will remove all the floorplans associated with it.
-
-**Example usage**: To change the floorplan data of a location
-
-.. code-block:: shell
-
-    echo '{"floorplan":{"floor": 11}}' | \
-    http PATCH http://127.0.0.1:8000/api/v1/controller/location/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/
-
-Delete location
-###############
-
-.. code:: text
-
-    DELETE /api/v1/controller/location/{pk}/
 
 List templates
 ##############
