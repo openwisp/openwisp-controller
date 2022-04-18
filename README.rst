@@ -1511,14 +1511,14 @@ List device groups
 
 .. code-block:: text
 
-    GET api/v1/controller/group/
+    GET /api/v1/controller/group/
 
 Create device group
 ###################
 
 .. code-block:: text
 
-    POST api/v1/controller/group/
+    POST /api/v1/controller/group/
 
 Get device group detail
 #######################
@@ -1622,13 +1622,15 @@ below demonstrates creating both ``Location`` and ``FloorPlan`` objects.
 
 .. code-block:: text
 
+    // This is not a valid JSON object. The JSON format is
+    // only used for showing available fields.
     {
-        'location.name': 'Via del Corso',
-        'location.address': 'Via del Corso, Roma, Italia',
-        'location.geometry': 'POINT (12.512124 41.898903)',
-        'location.type': 'outdoor',
-        'floorplan.floor': 1,
-        'floorplan.image': floorplan.png,
+        "location.name": "Via del Corso",
+        "location.address": "Via del Corso, Roma, Italia",
+        "location.geometry": "POINT (12.512124 41.898903)",
+        "location.type": "outdoor",
+        "floorplan.floor": 1,
+        "floorplan.image": floorplan.png,
     }
 
 .. code-block:: text
@@ -1651,6 +1653,8 @@ floorplan for that location using this endpoint.
 
 .. code-block:: text
 
+    // This is not a valid JSON object. The JSON format is
+    // only used for showing available fields.
     {
         "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
         "floorplan.floor": 1,
@@ -1747,20 +1751,7 @@ Create location
     POST /api/v1/controller/location/
 
 If you are creating an ``indoor`` location, you can use this endpoint
-to create floorplan for the location
-
-.. code-block:: text
-
-    {
-        "name": "Via del Corso",
-        "address": "Via del Corso, Roma, Italia",
-        "geometry": "POINT (12.512124 41.898903)",
-        "type": "indoor",
-        "is_mobile": "false",
-        "floorplan.floor": "1",
-        "floorplan.image": "Screenshot from 2022-04-18 17-18-11.png",
-        "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
-    }
+to create floorplan for the location.
 
 The following example demonstrates creating floorplan along with location
 in a single request.
@@ -1774,7 +1765,7 @@ in a single request.
         "type": "indoor",
         "is_mobile": "false",
         "floorplan.floor": "1",
-        "floorplan.image": "Screenshot from 2022-04-18 17-18-11.png",
+        "floorplan.image": floorplan.png,
         "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
     }
 
@@ -1811,7 +1802,7 @@ edited or changed. Setting the ``type`` of location to
 outdoor will remove all the floorplans associated with it.
 
 Refer `examples of "Create location"
-section for information on payload format <#create-location>`.
+section for information on payload format <#create-location>`_.
 
 Delete location
 ###############
