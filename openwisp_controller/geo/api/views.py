@@ -1,4 +1,4 @@
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination
@@ -99,7 +99,11 @@ class DeviceLocationView(
     organization_field = 'content_object__organization'
 
     def get_queryset(self):
-        return super().get_queryset().filter(content_object=self.kwargs['pk'])
+        qs = super().get_queryset()
+        try:
+            return qs.filter(content_object=self.kwargs['pk'])
+        except ValidationError:
+            return qs.none()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

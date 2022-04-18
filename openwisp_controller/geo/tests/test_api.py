@@ -388,11 +388,18 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 201)
 
     def test_get_location_detail(self):
-        l1 = self._create_location()
-        path = reverse('geo_api:detail_location', args=[l1.pk])
-        with self.assertNumQueries(4):
-            response = self.client.get(path)
-        self.assertEqual(response.status_code, 200)
+        with self.subTest('Test with invalid pk'):
+            path = reverse('geo_api:detail_location', args=['wrong-pk'])
+            with self.assertNumQueries(2):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest('Test with correct pk'):
+            location = self._create_location()
+            path = reverse('geo_api:detail_location', args=[location.pk])
+            with self.assertNumQueries(4):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
 
     def test_put_location_detail(self):
         l1 = self._create_location()
