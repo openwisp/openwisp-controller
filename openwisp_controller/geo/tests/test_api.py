@@ -1,5 +1,6 @@
 import json
 import tempfile
+import uuid
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -12,7 +13,6 @@ from rest_framework.authtoken.models import Token
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import CreateConfigTemplateMixin
-from openwisp_controller.geo.tests.test_admin import FloorPlan
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
@@ -21,6 +21,7 @@ from .utils import TestGeoMixin
 
 Device = load_model('config', 'Device')
 Location = load_model('geo', 'Location')
+FloorPlan = load_model('geo', 'FloorPlan')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 Group = load_model('openwisp_users', 'Group')
@@ -87,6 +88,19 @@ class TestApi(TestGeoMixin, TestCase):
         url = reverse(self.url_name, args=[device.pk])
         r = self.client.get(url, {'key': device.key})
         self.assertEqual(r.status_code, 404)
+
+    def test_put_create_location(self):
+        device = self._create_object()
+        self.assertEqual(self.location_model.objects.count(), 0)
+        url = reverse(self.url_name, args=[device.pk])
+        r = self.client.put(f'{url}?key={device.key }')
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(
+            r.json(),
+            {'type': 'Feature', 'geometry': None, 'properties': {'name': device.name}},
+        )
+        self.assertEqual(self.location_model.objects.count(), 1)
+        self.assertEqual(r.status_code, 200)
 
     def test_put_update_coordinates(self):
         self.assertEqual(self.location_model.objects.count(), 0)
@@ -542,17 +556,53 @@ class TestGeoApi(
         )
         self.assertEqual(self.object_location_model.objects.count(), 0)
 
+    def test_create_devicelocation_using_non_existing_related_ids(self):
+        device = self._create_object()
+        floorplan = self._create_floorplan()
+        location = floorplan.location
+        url = reverse('geo_api:device_location', args=[device.id])
+
+        with self.subTest('Test non-existing location object'):
+            response = self.client.post(
+                url,
+                data={
+                    'location': uuid.uuid4(),
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                'Location object with entered ID does not exists',
+                str(response.data['location']),
+            )
+
+        with self.subTest('Test non-existing floorplan object'):
+            response = self.client.post(
+                url,
+                data={
+                    'location': str(location.id),
+                    'floorplan': uuid.uuid4(),
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                'FloorPlan object with entered ID does not exists',
+                str(response.data['floorplan']),
+            )
+
     def test_create_devicelocation_using_related_ids(self):
         device = self._create_object()
         floorplan = self._create_floorplan()
         location = floorplan.location
         url = reverse('geo_api:device_location', args=[device.id])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(12):
             response = self.client.post(
                 url,
                 data={
                     'location': location.id,
                     'floorplan': floorplan.id,
+                    'indoor': '12.342,23.541',
                 },
                 content_type='application/json',
             )
@@ -582,13 +632,58 @@ class TestGeoApi(
             'location.type': 'indoor',
             'floorplan.floor': 1,
             'floorplan.image': self._get_simpleuploadedfile(),
+            'indoor': ['12.342,23.541'],
         }
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(26):
             response = self.client.post(url, data=data, format='multipart')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.object_location_model.objects.count(), 1)
         self.assertEqual(self.floorplan_model.objects.count(), 1)
+
+    def test_create_devicelocation_location_floorplan_validation(self):
+        org1 = self._create_org(name='org1', slug='org1')
+        org2 = self._create_org(name='org2', slug='org2')
+        location = self._create_location(organization=org2, type='indoor')
+        device = self._create_object(organization=org1)
+        floorplan = self._create_floorplan(
+            location=self._create_location(organization=org1, type='indoor')
+        )
+        url = reverse('geo_api:device_location', args=[device.id])
+
+        with self.subTest('Test location validation'):
+            response = self.client.post(
+                url,
+                data={'location': str(location.id)},
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                'Please ensure that the organization of this device '
+                'location and the organization of the related location match',
+                str(response.data['location']),
+            )
+
+        location.organization = org1
+        location.type = 'indoor'
+        location.full_clean()
+        location.save()
+
+        with self.subTest('Test floorplan validation'):
+            response = self.client.post(
+                url,
+                data={
+                    'location': str(location.id),
+                    'floorplan': str(floorplan.id),
+                    'indoor': '1,1',
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                'Invalid floorplan (belongs to a different location)',
+                str(response.data['__all__']),
+            )
 
     def test_create_devicelocation_only_location(self):
         device = self._create_object()
@@ -604,7 +699,7 @@ class TestGeoApi(
                 'type': 'indoor',
             }
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(15):
             response = self.client.post(url, data=data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
@@ -640,13 +735,32 @@ class TestGeoApi(
             'location': str(location.id),
             'floorplan.floor': 1,
             'floorplan.image': self._get_simpleuploadedfile(),
+            'indoor': ['12.342,23.541'],
         }
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(20):
             response = self.client.post(url, data=data, format='multipart')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.object_location_model.objects.count(), 1)
         self.assertEqual(self.floorplan_model.objects.count(), 1)
+
+    def test_create_duplicate_floorplan(self):
+        device_location = self._create_object_location()
+        url = reverse('geo_api:device_location', args=[device_location.device.id])
+        data = {
+            'location': {
+                'name': 'test-location',
+                'address': 'Via del Corso, Roma, Italia',
+                'geometry': 'SRID=4326;POINT (12.512124 41.898903)',
+                'type': 'indoor',
+            }
+        }
+        response = self.client.post(url, data, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            'Device location with this Content object already exists',
+            str(response.data['content_object']),
+        )
 
     def test_update_devicelocation_change_location_outdoor_to_indoor(self):
         device_location = self._create_object_location()
@@ -662,7 +776,7 @@ class TestGeoApi(
         }
         self.assertEqual(device_location.location.type, 'outdoor')
         self.assertEqual(device_location.floorplan, None)
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(20):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -681,7 +795,7 @@ class TestGeoApi(
             'indoor': '0,0',
         }
         self.assertEqual(device_location.indoor, '-140.38620,40.369227')
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(9):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -698,7 +812,7 @@ class TestGeoApi(
         data = {
             'floorplan': str(floor2.id),
         }
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(11):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -712,7 +826,7 @@ class TestGeoApi(
         data = {
             'location': str(location2.id),
         }
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(8):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()

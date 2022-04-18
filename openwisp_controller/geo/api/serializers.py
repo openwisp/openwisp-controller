@@ -1,10 +1,9 @@
 from django.contrib.humanize.templatetags.humanize import ordinal
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from jsonschema import ValidationError
 from rest_framework import serializers
-from rest_framework.exceptions import APIException
 from rest_framework.serializers import IntegerField, SerializerMethodField
 from rest_framework_gis import serializers as gis_serializers
 from swapper import load_model
@@ -99,19 +98,17 @@ class NestedFloorplanSerializer(BaseFloorPlanSerializer):
                 self.instance = FloorPlan.objects.get(id=data)
                 return self.instance
             except (ValidationError, FloorPlan.DoesNotExist):
-                raise APIException(
+                raise serializers.ValidationError(
                     detail={
                         'floorplan': _(
-                            'Floorplan object with entered ID does not exists.'
+                            'FloorPlan object with entered ID does not exists.'
                         )
                     }
                 )
         return super().to_internal_value(data)
 
     def get_attribute(self, instance):
-        if isinstance(instance, DeviceLocation):
-            return instance.floorplan
-        super().get_attribute(instance)
+        return instance.floorplan
 
 
 class FloorPlanLocationSerializer(serializers.ModelSerializer):
@@ -255,7 +252,7 @@ class NestedtLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
             try:
                 return Location.objects.get(id=data)
             except (ValidationError, Location.DoesNotExist):
-                raise APIException(
+                raise serializers.ValidationError(
                     detail={
                         'location': _(
                             'Location object with entered ID does not exists.'
@@ -265,9 +262,7 @@ class NestedtLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
         return super().to_internal_value(data)
 
     def get_attribute(self, instance):
-        if isinstance(instance, DeviceLocation):
-            return instance.location
-        super().get_attribute(instance)
+        return instance.location
 
 
 class DeviceLocationSerializer(serializers.ModelSerializer):
@@ -300,12 +295,8 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
             location_serializer = LocationSerializer(
                 data=location_data, instance=location_instance
             )
-            try:
-                location_serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as error:
-                raise serializers.ValidationError(detail={'location': error.detail})
-            else:
-                return location_serializer.save()
+            location_serializer.is_valid(raise_exception=True)
+            return location_serializer.save()
         return location_data
 
     def get_or_create_floorplan_object(self, validated_data, floorplan_instance=None):
@@ -330,6 +321,14 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
                 return floorplan_serializer.save()
         return floorplan_data
 
+    def _validate(self, data):
+        instance = self.instance or self.Meta.model(**data)
+        try:
+            instance.full_clean()
+        except ValidationError as error:
+            raise serializers.ValidationError(detail=error.error_dict)
+        return data
+
     def create(self, validated_data):
         validated_data['location'] = self.get_or_create_location_object(validated_data)
         validated_data['floorplan'] = self.get_or_create_floorplan_object(
@@ -340,6 +339,7 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
                 'content_object_id': self.context.get('device_id'),
             }
         )
+        validated_data = self._validate(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
@@ -349,4 +349,5 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         validated_data['floorplan'] = self.get_or_create_floorplan_object(
             validated_data, instance.floorplan
         )
+        validated_data = self._validate(validated_data)
         return super().update(instance, validated_data)
