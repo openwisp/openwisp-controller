@@ -53,8 +53,14 @@ class BaseFloorPlanSerializer(BaseSerializer):
             'name',
             'floor',
             'image',
+            'created',
+            'modified',
         ]
-        read_only_fields = ['id']
+        read_only_fields = [
+            'id',
+            'created',
+            'modified',
+        ]
 
     def get_name(self, obj):
         name = '{0} {1} Floor'.format(obj.location.name, ordinal(obj.floor))
@@ -66,12 +72,6 @@ class FloorPlanSerializer(BaseFloorPlanSerializer, ValidatedModelSerializer):
         fields = BaseFloorPlanSerializer.Meta.fields + [
             'location',
             'organization',
-            'created',
-            'modified',
-        ]
-        read_only_fields = BaseFloorPlanSerializer.Meta.read_only_fields + [
-            'created',
-            'modified',
         ]
         extra_kwargs = {'organization': {'required': False}}
 

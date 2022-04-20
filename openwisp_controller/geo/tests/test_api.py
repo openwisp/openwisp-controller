@@ -3,7 +3,6 @@ import tempfile
 import uuid
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -290,22 +289,42 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 200)
 
     def test_filter_floorplan_list(self):
-        f1 = self._create_floorplan(floor=10)
         org1 = self._create_org(name='org1')
-        l1 = self._create_location(type='indoor', organization=org1)
-        f2 = self._create_floorplan(floor=13, location=l1)
-        staff_user = self._get_operator()
-        change_perm = Permission.objects.filter(codename='change_floorplan')
-        staff_user.user_permissions.add(*change_perm)
-        self._create_org_user(user=staff_user, organization=org1, is_admin=True)
-        self.client.force_login(staff_user)
+        org2 = self._create_org(name='org2')
+        org1_floorplan = self._create_floorplan(
+            location=self._create_location(organization=org1, type='indoor')
+        )
+        org2_floorplan = self._create_floorplan(
+            location=self._create_location(organization=org2, type='indoor')
+        )
         path = reverse('geo_api:list_floorplan')
-        with self.assertNumQueries(6):
-            response = self.client.get(path)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['count'], 1)
-        self.assertContains(response, f2.id)
-        self.assertNotContains(response, f1.id)
+
+        with self.subTest('Test without organization filtering'):
+            with self.assertNumQueries(4):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 2)
+            self.assertContains(response, org1_floorplan.id)
+            self.assertContains(response, org2_floorplan.id)
+
+        with self.subTest('Test filtering with organization slug'):
+            with self.assertNumQueries(4):
+                response = self.client.get(path, {'organization_slug': org1.slug})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_floorplan.id)
+            self.assertNotContains(response, org2_floorplan.id)
+
+        with self.subTest('Test multi-tenancy filtering'):
+            self.client.logout()
+            user = self._create_administrator([org1])
+            self.client.force_login(user)
+            with self.assertNumQueries(6):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_floorplan.id)
+            self.assertNotContains(response, org2_floorplan.id)
 
     def test_post_floorplan_list(self):
         location = self._create_location(type='indoor')
@@ -370,21 +389,38 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 200)
 
     def test_filter_location_list(self):
-        l1 = self._create_location(name='location-1')
         org1 = self._create_org(name='org1')
-        l2 = self._create_location(type='indoor', organization=org1)
-        staff_user = self._get_operator()
-        change_perm = Permission.objects.filter(codename='change_location')
-        staff_user.user_permissions.add(*change_perm)
-        self._create_org_user(user=staff_user, organization=org1, is_admin=True)
-        self.client.force_login(staff_user)
+        org2 = self._create_org(name='org2')
+        org1_location = self._create_location(name='org1-location', organization=org1)
+        org2_location = self._create_location(name='org2-location', organization=org2)
         path = reverse('geo_api:list_location')
-        with self.assertNumQueries(7):
-            response = self.client.get(path)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['count'], 1)
-        self.assertContains(response, l2.id)
-        self.assertNotContains(response, l1.id)
+
+        with self.subTest('Test without organization filtering'):
+            with self.assertNumQueries(6):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 2)
+            self.assertContains(response, org1_location.id)
+            self.assertContains(response, org2_location.id)
+
+        with self.subTest('Test filtering with organization slug'):
+            with self.assertNumQueries(5):
+                response = self.client.get(path, {'organization_slug': org1.slug})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_location.id)
+            self.assertNotContains(response, org2_location.id)
+
+        with self.subTest('Test multi-tenancy filtering'):
+            self.client.logout()
+            user = self._create_administrator([org1])
+            self.client.force_login(user)
+            with self.assertNumQueries(7):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_location.id)
+            self.assertNotContains(response, org2_location.id)
 
     def test_post_location_list(self):
         path = reverse('geo_api:list_location')
@@ -548,7 +584,9 @@ class TestGeoApi(
             'floorplan.image': self._get_simpleuploadedfile(),
         }
         self.assertEqual(self.object_location_model.objects.count(), 0)
-        response = self.client.post(path, data, format='multipart')
+        response = self.client.put(
+            path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn(
             'floorplans can only be associated to locations of type "indoor"',
@@ -563,7 +601,7 @@ class TestGeoApi(
         url = reverse('geo_api:device_location', args=[device.id])
 
         with self.subTest('Test non-existing location object'):
-            response = self.client.post(
+            response = self.client.put(
                 url,
                 data={
                     'location': uuid.uuid4(),
@@ -577,7 +615,7 @@ class TestGeoApi(
             )
 
         with self.subTest('Test non-existing floorplan object'):
-            response = self.client.post(
+            response = self.client.put(
                 url,
                 data={
                     'location': str(location.id),
@@ -596,8 +634,8 @@ class TestGeoApi(
         floorplan = self._create_floorplan()
         location = floorplan.location
         url = reverse('geo_api:device_location', args=[device.id])
-        with self.assertNumQueries(12):
-            response = self.client.post(
+        with self.assertNumQueries(13):
+            response = self.client.put(
                 url,
                 data={
                     'location': location.id,
@@ -634,8 +672,10 @@ class TestGeoApi(
             'floorplan.image': self._get_simpleuploadedfile(),
             'indoor': ['12.342,23.541'],
         }
-        with self.assertNumQueries(26):
-            response = self.client.post(url, data=data, format='multipart')
+        with self.assertNumQueries(27):
+            response = self.client.put(
+                url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
+            )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.object_location_model.objects.count(), 1)
@@ -652,7 +692,7 @@ class TestGeoApi(
         url = reverse('geo_api:device_location', args=[device.id])
 
         with self.subTest('Test location validation'):
-            response = self.client.post(
+            response = self.client.put(
                 url,
                 data={'location': str(location.id)},
                 content_type='application/json',
@@ -670,7 +710,7 @@ class TestGeoApi(
         location.save()
 
         with self.subTest('Test floorplan validation'):
-            response = self.client.post(
+            response = self.client.put(
                 url,
                 data={
                     'location': str(location.id),
@@ -699,8 +739,8 @@ class TestGeoApi(
                 'type': 'indoor',
             }
         }
-        with self.assertNumQueries(15):
-            response = self.client.post(url, data=data, content_type='application/json')
+        with self.assertNumQueries(16):
+            response = self.client.put(url, data=data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.object_location_model.objects.count(), 1)
@@ -716,8 +756,10 @@ class TestGeoApi(
             'floorplan.floor': 1,
             'floorplan.image': self._get_simpleuploadedfile(),
         }
-        with self.assertNumQueries(2):
-            response = self.client.post(url, data=data, format='multipart')
+        with self.assertNumQueries(3):
+            response = self.client.put(
+                url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
+            )
         self.assertEqual(response.status_code, 400)
         self.assertIn('This field is required.', response.data['location'][0])
         self.assertEqual(self.location_model.objects.count(), 0)
@@ -737,30 +779,14 @@ class TestGeoApi(
             'floorplan.image': self._get_simpleuploadedfile(),
             'indoor': ['12.342,23.541'],
         }
-        with self.assertNumQueries(20):
-            response = self.client.post(url, data=data, format='multipart')
+        with self.assertNumQueries(21):
+            response = self.client.put(
+                url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
+            )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.object_location_model.objects.count(), 1)
         self.assertEqual(self.floorplan_model.objects.count(), 1)
-
-    def test_create_duplicate_floorplan(self):
-        device_location = self._create_object_location()
-        url = reverse('geo_api:device_location', args=[device_location.device.id])
-        data = {
-            'location': {
-                'name': 'test-location',
-                'address': 'Via del Corso, Roma, Italia',
-                'geometry': 'SRID=4326;POINT (12.512124 41.898903)',
-                'type': 'indoor',
-            }
-        }
-        response = self.client.post(url, data, content_type='application/json')
-        self.assertEqual(response.status_code, 400)
-        self.assertIn(
-            'Device location with this Content object already exists',
-            str(response.data['content_object']),
-        )
 
     def test_update_devicelocation_change_location_outdoor_to_indoor(self):
         device_location = self._create_object_location()
@@ -831,3 +857,27 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
         self.assertEqual(device_location.location, location2)
+
+    def test_retrieve_devicelocation(self):
+        floorplan = self._create_floorplan()
+        device_location = self._create_object_location(
+            location=floorplan.location, floorplan=floorplan
+        )
+        url = reverse('geo_api:device_location', args=[device_location.device.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data['location']['id'], str(device_location.location.id)
+        )
+        self.assertIn('type', response.data['location'].keys())
+        self.assertIn('geometry', response.data['location'].keys())
+        self.assertIn('properties', response.data['location'].keys())
+        self.assertEqual(
+            response.data['floorplan']['id'], str(device_location.floorplan.id)
+        )
+        self.assertIn('id', response.data['floorplan'].keys())
+        self.assertIn('name', response.data['floorplan'].keys())
+        self.assertIn('floor', response.data['floorplan'].keys())
+        self.assertIn('image', response.data['floorplan'].keys())
+        self.assertIn('created', response.data['floorplan'].keys())
+        self.assertIn('modified', response.data['floorplan'].keys())

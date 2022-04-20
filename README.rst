@@ -1374,25 +1374,48 @@ to the ``config`` and cannot be removed.
 
 .. code-block:: shell
 
-    echo '{"config":{"templates": ["4791fa4c-2cef-4f42-8bb4-c86018d71bd3"]}}' | \
-    http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+    curl -X PATCH \
+        http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'content-type: application/json' \
+        -d '{
+                "config": {
+                    "templates": ["4791fa4c-2cef-4f42-8bb4-c86018d71bd3"]
+                }
+            }'
 
 **Example usage**: For removing assigned templates, simply remove the/their {id} from the config of a device,
 
 .. code-block:: shell
 
-    echo '{"config":{"templates": []}}' | \
-    http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+    curl -X PATCH \
+        http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'content-type: application/json' \
+        -d '{
+                "config": {
+                    "templates": []
+                }
+            }'
 
 **Example usage**: For reordering the templates simply change their order from the config of a device,
 
 .. code-block:: shell
 
-    echo '{"config":{"templates": ["c5bbc697-170e-44bc-8eb7-b944b55ee88f","4791fa4c-2cef-4f42-8bb4-c86018d71bd3"]}}' | \
-    http PATCH http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-    "Authorization: Bearer 9b5e40da02d107cfdb9d6b69b26dc00332ec2fbc"
+    curl -X PATCH \
+        http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'cache-control: no-cache' \
+        -H 'content-type: application/json' \
+        -H 'postman-token: b3f6a1cc-ff13-5eba-e460-8f394e485801' \
+        -d '{
+                "config": {
+                    "templates": [
+                        "c5bbc697-170e-44bc-8eb7-b944b55ee88f",
+                        "4791fa4c-2cef-4f42-8bb4-c86018d71bd3"
+                    ]
+                }
+            }'
 
 Delete device
 #############
@@ -1559,7 +1582,7 @@ Create device location
 
 .. code-block:: text
 
-    POST /api/v1/controller/device/{id}/location/
+    PUT /api/v1/controller/device/{id}/location/
 
 You can create ``DeviceLocation`` object by using primary
 keys of existing ``Location`` and ``FloorPlan`` objects as shown in
@@ -1570,18 +1593,24 @@ the example below.
     {
         "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
         "floorplan": "dfeb6724-aab4-4533-aeab-f7feb6648acd",
-        "indoor": "12.342,23.541"
+        "indoor": "-36,264"
     }
+
+**Note:** The ``indoor`` field represents the coordinates of the
+point placed on the image from the top left corner. E.g. if you
+placed the pointer on the top left corner of the floorplan image,
+its indoor coordinates will be ``0,0``.
 
 .. code-block:: text
 
-    curl -X POST \
+    curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: application/json' \
         -d '{
             "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
             "floorplan": "dfeb6724-aab4-4533-aeab-f7feb6648acd",
-            "indoor": "12.342,23.541"
+            "indoor": "-36,264"
             }'
 
 You can also create related ``Location`` and ``FloorPlan`` objects for the
@@ -1596,24 +1625,45 @@ object in a single request.
         "location": {
             "name": "Via del Corso",
             "address": "Via del Corso, Roma, Italia",
-            "geometry": "POINT (12.512124 41.898903)",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [12.512124, 41.898903]
+            },
             "type": "outdoor",
         }
     }
 
 .. code-block:: text
 
-    curl -X POST \
+    curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: application/json' \
         -d '{
                 "location": {
                     "name": "Via del Corso",
                     "address": "Via del Corso, Roma, Italia",
-                    "geometry": "POINT (12.512124 41.898903)",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [12.512124, 41.898903]
+                    },
                     "type": "outdoor"
                 }
             }'
+
+**Note:** You can also specify the ``geometry`` in **Well-known text (WKT)**
+format, like following:
+
+.. code-block:: json
+
+    {
+        "location": {
+            "name": "Via del Corso",
+            "address": "Via del Corso, Roma, Italia",
+            "geometry": "POINT (12.512124 41.898903)",
+            "type": "outdoor",
+        }
+    }
 
 Similarly, you can create ``Floorplan`` object with the same request.
 But, note that a ``FloorPlan`` can be added to ``DeviceLocation`` only
@@ -1627,7 +1677,8 @@ below demonstrates creating both ``Location`` and ``FloorPlan`` objects.
     {
         "location.name": "Via del Corso",
         "location.address": "Via del Corso, Roma, Italia",
-        "location.geometry": "POINT (12.512124 41.898903)",
+        "location.geometry.type": "Point",
+        "location.geometry.coordinates": [12.512124, 41.898903]
         "location.type": "outdoor",
         "floorplan.floor": 1,
         "floorplan.image": floorplan.png,
@@ -1635,12 +1686,14 @@ below demonstrates creating both ``Location`` and ``FloorPlan`` objects.
 
 .. code-block:: text
 
-    curl -X POST \
+    curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F 'location.name=Via del Corso' \
         -F 'location.address=Via del Corso, Roma, Italia' \
-        -F 'location.geometry=POINT (12.512124 41.898903)' \
+        -F location.geometry.type=Point \
+        -F 'location.geometry.coordinates=[12.512124, 41.898903]' \
         -F location.type=indoor \
         -F floorplan.floor=1 \
         -F 'floorplan.image=@floorplan.png'
@@ -1663,8 +1716,9 @@ floorplan for that location using this endpoint.
 
 .. code-block:: text
 
-    curl -X POST \
+    curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F location=f0cb5762-3711-4791-95b6-c2f6656249fa \
         -F floorplan.floor=1 \
@@ -1723,7 +1777,10 @@ assumes that the device is updating it's position.
 
     {
         "type": "Feature",
-        "geometry": "POINT (12.512124 41.898903)"
+        "geometry": {
+            "type": "Point",
+            "coordinates": [12.512124, 41.898903]
+        },
     }
 
 .. code-block:: text
@@ -1733,7 +1790,10 @@ assumes that the device is updating it's position.
         -H 'content-type: application/json' \
         -d '{
                 "type": "Feature",
-                "geometry": "POINT (12.512124 41.898903)"
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [12.512124, 41.898903]
+                },
             }'
 
 List locations
@@ -1742,6 +1802,13 @@ List locations
 .. code-block:: text
 
     GET /api/v1/controller/location/
+
+You can filter using ``organization_slug`` to get list locations that
+belongs to an organization.
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/?organization_slug=<organization_slug>
 
 Create location
 ###############
@@ -1761,7 +1828,8 @@ in a single request.
     {
         "name": "Via del Corso",
         "address": "Via del Corso, Roma, Italia",
-        "geometry": "POINT (12.512124 41.898903)",
+        "geometry.type": "Point",
+        "geometry.location": [12.512124, 41.898903],
         "type": "indoor",
         "is_mobile": "false",
         "floorplan.floor": "1",
@@ -1773,15 +1841,33 @@ in a single request.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/location/ \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F 'name=Via del Corso' \
         -F 'address=Via del Corso, Roma, Italia' \
-        -F 'geometry=POINT (12.512124 41.898903)' \
+        -F geometry.type=Point \
+        -F 'geometry.coordinates=[12.512124, 41.898903]' \
         -F type=indoor \
         -F is_mobile=false \
         -F floorplan.floor=1 \
         -F 'floorplan.image=@floorplan.png' \
         -F organization=1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05
+
+**Note:** You can also specify the ``geometry`` in **Well-known text (WKT)**
+format, like following:
+
+.. code-block:: text
+
+    {
+        "name": "Via del Corso",
+        "address": "Via del Corso, Roma, Italia",
+        "geometry": "POINT (12.512124 41.898903)",
+        "type": "indoor",
+        "is_mobile": "false",
+        "floorplan.floor": "1",
+        "floorplan.image": floorplan.png,
+        "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
+    }
 
 Get location details
 ####################
@@ -1821,12 +1907,14 @@ List devices in a location
 List locations with devices deployed (in GeoJSON format)
 ########################################################
 
+This endpoint only list locations that have been assigned to a device.
+
 .. code-block:: text
 
     GET /api/v1/controller/location/geojson/
 
-You can filter using ``organization_slug`` to list location of
-devices from that organization
+You can filter using ``organization_slug`` to get list location of
+devices from that organization.
 
 .. code-block:: text
 
@@ -1838,6 +1926,13 @@ List floorplans
 .. code-block:: text
 
     GET /api/v1/controller/floorplan/
+
+You can filter using ``organization_slug`` to get list floorplans that
+belongs to an organization.
+
+.. code-block:: text
+
+    GET /api/v1/controller/floorplan/?organization_slug=<organization_slug>
 
 Create floorplan
 ################

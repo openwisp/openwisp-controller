@@ -76,8 +76,6 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
         # needs a binary file to test all lines
-        with open(
-            os.path.join(settings.BASE_DIR, '../media/floorplan.jpg'), 'rb'
-        ) as fl:
-            dc.connector_instance.upload(fl, '/tmp/test')
-            putfo_mocked.assert_called_once()
+        fl = open(os.path.join(settings.BASE_DIR, '../media/floorplan.jpg'), 'rb')
+        dc.connector_instance.upload(fl, '/tmp/test')
+        putfo_mocked.assert_called_once()

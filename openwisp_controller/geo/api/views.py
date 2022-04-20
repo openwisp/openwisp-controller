@@ -1,10 +1,12 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count
+from django.http import Http404
 from django_filters import rest_framework as filters
-from rest_framework import generics, pagination
+from rest_framework import generics, pagination, status
 from rest_framework.exceptions import NotFound
-from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import BasePermission
+from rest_framework.request import clone_request
+from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
@@ -33,6 +35,23 @@ class DevicePermission(BasePermission):
         # getting passed also Location instances,
         # which do not have the key attribute
         return hasattr(obj, 'key') and request.query_params.get('key') == obj.key
+
+
+class BaseOrganizationSlugFilter(filters.FilterSet):
+    organization_slug = filters.CharFilter(field_name='organization__slug')
+
+    class Meta:
+        fields = ['organization_slug']
+
+
+class LocationOrganizationSlugFilter(BaseOrganizationSlugFilter):
+    class Meta(BaseOrganizationSlugFilter.Meta):
+        model = Location
+
+
+class FloorPlanOrganizationSlugFilter(BaseOrganizationSlugFilter):
+    class Meta(BaseOrganizationSlugFilter.Meta):
+        model = FloorPlan
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -87,7 +106,6 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
 class DeviceLocationView(
     ProtectedAPIMixin,
-    CreateModelMixin,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = DeviceLocationSerializer
@@ -110,32 +128,58 @@ class DeviceLocationView(
         context.update({'device_id': self.kwargs['pk']})
         return context
 
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object_or_none()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        if instance is None:
+            self.perform_create(serializer)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+    def get_object_or_none(self):
+        try:
+            return self.get_object()
+        except Http404:
+            if self.request.method == 'PUT':
+                # For PUT-as-create operation, we need to ensure that we have
+                # relevant permissions, as if this was a POST request. This
+                # will either raise a PermissionDenied exception, or simply
+                # return None.
+                self.check_permissions(clone_request(self.request, 'POST'))
+            else:
+                # PATCH requests where the object does not exist should still
+                # return a 404 response.
+                raise
 
 
 class GeoJsonLocationListPagination(GeoJsonPagination):
     page_size = 1000
 
 
-class GeoJsonLocationFilter(filters.FilterSet):
-    organization_slug = filters.CharFilter(field_name='organization__slug')
-
-    class Meta:
-        model = Location
-        fields = ['organization_slug']
-
-
 class GeoJsonLocationList(
     ProtectedAPIMixin, FilterByOrganizationManaged, generics.ListAPIView
 ):
+    """
+    Shows only locations which are assigned to devices.
+    """
+
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
         device_count=Count('devicelocation')
     )
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = GeoJsonLocationFilter
+    filterset_class = LocationOrganizationSlugFilter
 
 
 class LocationDeviceList(
@@ -159,6 +203,8 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related().order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filter_class = FloorPlanOrganizationSlugFilter
 
 
 class FloorPlanDetailView(
@@ -173,6 +219,8 @@ class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = LocationSerializer
     queryset = Location.objects.order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = LocationOrganizationSlugFilter
 
 
 class LocationDetailView(
