@@ -391,7 +391,9 @@ class TestGeoApi(
     def test_filter_location_list(self):
         org1 = self._create_org(name='org1')
         org2 = self._create_org(name='org2')
-        org1_location = self._create_location(name='org1-location', organization=org1)
+        org1_location = self._create_location(
+            name='org1-location', organization=org1, type='indoor', is_mobile=True
+        )
         org2_location = self._create_location(name='org2-location', organization=org2)
         path = reverse('geo_api:list_location')
 
@@ -406,6 +408,22 @@ class TestGeoApi(
         with self.subTest('Test filtering with organization slug'):
             with self.assertNumQueries(5):
                 response = self.client.get(path, {'organization_slug': org1.slug})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_location.id)
+            self.assertNotContains(response, org2_location.id)
+
+        with self.subTest('Test filtering with location type'):
+            with self.assertNumQueries(5):
+                response = self.client.get(path, {'type': 'indoor'})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_location.id)
+            self.assertNotContains(response, org2_location.id)
+
+        with self.subTest('Test filtering with "is_mobile"'):
+            with self.assertNumQueries(5):
+                response = self.client.get(path, {'is_mobile': True})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
             self.assertContains(response, org1_location.id)

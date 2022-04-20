@@ -1907,7 +1907,7 @@ List devices in a location
 List locations with devices deployed (in GeoJSON format)
 ########################################################
 
-This endpoint only list locations that have been assigned to a device.
+**Note**: this endpoint will only list locations that have been assigned to a device.
 
 .. code-block:: text
 

@@ -47,6 +47,7 @@ class BaseOrganizationSlugFilter(filters.FilterSet):
 class LocationOrganizationSlugFilter(BaseOrganizationSlugFilter):
     class Meta(BaseOrganizationSlugFilter.Meta):
         model = Location
+        fields = BaseOrganizationSlugFilter.Meta.fields + ['is_mobile', 'type']
 
 
 class FloorPlanOrganizationSlugFilter(BaseOrganizationSlugFilter):
