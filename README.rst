@@ -169,7 +169,7 @@ Installation instructions
 Deploy it in production
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-See
+See:
 
 - `ansible-openwisp2 <https://github.com/openwisp/ansible-openwisp2>`_
 - `docker-openwisp <https://github.com/openwisp/docker-openwisp>`_
