@@ -163,15 +163,20 @@ class AbstractConfig(BaseConfig):
         return templates
 
     @classmethod
-    def clean_templates(cls, action, instance, pk_set, **kwargs):
+    def clean_templates(cls, action, instance, pk_set, raw_data={}, **kwargs):
         """
         validates resulting configuration of config + templates
         raises a ValidationError if invalid
         must be called from forms or APIs
         this method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
+
+        raw_data contains the non-validated data that is submitted to
+        a form or API.
         """
-        templates = cls.clean_templates_org(action, instance, pk_set, **kwargs)
+        templates = cls.clean_templates_org(
+            action, instance, pk_set, raw_data=raw_data, **kwargs
+        )
         if not templates:
             return
         backend = instance.get_backend_instance(template_instances=templates)
@@ -254,8 +259,12 @@ class AbstractConfig(BaseConfig):
                     client.delete()
 
     @classmethod
-    def clean_templates_org(cls, action, instance, pk_set, **kwargs):
-        if action != 'post_add':
+    def clean_templates_org(cls, action, instance, pk_set, raw_data={}, **kwargs):
+        """
+        raw_data contains the non-validated data that is submitted to
+        a form or API.
+        """
+        if action != 'pre_add':
             return False
         templates = cls._get_templates_from_pk_set(pk_set)
         # when using the admin, templates will be a list
@@ -264,9 +273,10 @@ class AbstractConfig(BaseConfig):
             template_model = cls.templates.rel.model
             pk_list = [template.pk for template in templates]
             templates = template_model.objects.filter(pk__in=pk_list)
-        # lookg for invalid templates
+        # looking for invalid templates
+        organization = raw_data.get('organization', instance.device.organization)
         invalids = (
-            templates.exclude(organization=instance.device.organization)
+            templates.exclude(organization=organization)
             .exclude(organization=None)
             .values('name')
         )
@@ -287,7 +297,9 @@ class AbstractConfig(BaseConfig):
         return templates
 
     @classmethod
-    def enforce_required_templates(cls, action, instance, pk_set, **kwargs):
+    def enforce_required_templates(
+        cls, action, instance, pk_set, raw_data={}, **kwargs
+    ):
         """
         This method is called from a django signal (m2m_changed),
         see config.apps.ConfigConfig.connect_signals.
@@ -295,6 +307,9 @@ class AbstractConfig(BaseConfig):
         is unassigned from a config.
         It adds back required templates on post_clear events
         (post-clear is used by sortedm2m to assign templates).
+
+        raw_data contains the non-validated data that is submitted to
+        a form or API.
         """
         if action not in ['pre_remove', 'post_clear']:
             return False
@@ -309,12 +324,13 @@ class AbstractConfig(BaseConfig):
         if action == 'post_clear':
             # retrieve required templates related to this
             # device and ensure they're always present
+            organization = raw_data.get('organization', instance.device.organization)
+            instance.device.organization = organization
             required_templates = (
                 cls.get_template_model()
                 .objects.filter(template_query)
                 .filter(
-                    models.Q(organization=instance.device.organization)
-                    | models.Q(organization=None)
+                    models.Q(organization=organization) | models.Q(organization=None)
                 )
             )
             if required_templates.exists():

@@ -201,22 +201,24 @@ class DeviceDetailSerializer(BaseSerializer):
         ]
 
     def update(self, instance, validated_data):
-        config_data = None
+        config_data = validated_data.pop('config', {})
+        config_templates = [
+            template.pk for template in config_data.get('templates', [])
+        ]
+        raw_data_for_signal_handlers = {
+            'organization': validated_data.get('organization', instance.organization)
+        }
 
         if self.initial_data.get('config.backend') and instance._has_config() is False:
-            config_data = dict(validated_data.pop('config'))
-            config_templates = [
-                template.pk for template in config_data.pop('templates')
-            ]
+            config_data = dict(config_data)
             with transaction.atomic():
-                config = Config.objects.create(device=instance, **config_data)
+                config = Config(device=instance, **config_data)
                 config.templates.add(*config_templates)
                 config.full_clean()
                 config.save()
             return super().update(instance, validated_data)
 
-        if validated_data.get('config'):
-            config_data = validated_data.pop('config')
+        if config_data:
             instance.config.backend = config_data.get(
                 'backend', instance.config.backend
             )
@@ -225,11 +227,9 @@ class DeviceDetailSerializer(BaseSerializer):
             )
             instance.config.config = config_data.get('config', instance.config.config)
 
-            if 'templates' in config_data:
+            if config_templates:
                 if config_data.get('templates'):
-                    new_config_templates = [
-                        template.pk for template in config_data.get('templates')
-                    ]
+                    new_config_templates = config_templates
                     old_config_templates = [
                         template
                         for template in instance.config.templates.values_list(
@@ -256,8 +256,26 @@ class DeviceDetailSerializer(BaseSerializer):
                     instance.config.templates.clear()
                     instance.config.templates.add(*[])
 
-            instance.config.full_clean()
-            instance.config.save()
+        else:
+            if hasattr(instance, 'config'):
+                Config.enforce_required_templates(
+                    action='post_clear',
+                    instance=instance.config,
+                    sender=instance.config.templates,
+                    pk_set=None,
+                    raw_data=raw_data_for_signal_handlers,
+                )
+
+        if hasattr(instance, 'config'):
+            Config.clean_templates(
+                action='pre_add',
+                instance=instance.config,
+                sender=instance.config.templates,
+                reverse=False,
+                model=instance.config.templates.model,
+                pk_set=config_templates,
+                raw_data=raw_data_for_signal_handlers,
+            )
         return super().update(instance, validated_data)
 
 

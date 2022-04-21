@@ -265,6 +265,30 @@ class TestConfigApi(
                         '''
         self.assertTrue(' '.join(validation_msg.split()) in error.exception.message)
 
+    def test_device_change_organization_required_templates(self):
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        org1_template = self._create_template(
+            name='org1-template', organization=org1, required=True
+        )
+        org2_template = self._create_template(
+            name='org2-template', organization=org2, required=True
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.templates.first(), org1_template)
+
+        path = reverse('config_api:device_detail', args=[device.pk])
+        data = {'organization': org2.pk}
+        response = self.client.patch(path, data=data, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.organization, org2)
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.templates.first(), org2_template)
+
     def test_device_patch_api(self):
         d1 = self._create_device(name='test-device')
         path = reverse('config_api:device_detail', args=[d1.pk])
