@@ -29,8 +29,8 @@ openwisp-controller
    :target: https://pypi.org/project/black/
    :alt: code style: black
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/controller_demo.gif
-   :target: https://github.com/openwisp/openwisp-controller/tree/master/docs/controller_demo.gif
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/controller_demo.gif
+   :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/controller_demo.gif
    :alt: Feature Highlights
 
 ------------
@@ -488,7 +488,7 @@ simply rename the templates by prefixing them with numbers, eg:
 Required Templates
 ~~~~~~~~~~~~~~~~~~
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/required-templates.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/required-templates.png
   :alt: Required template example
 
 Required templates are similar to `Default templates <#default-templates>`__
@@ -531,7 +531,7 @@ In the device configuration section you can find a section named
 "Configuration variables" where it is possible to define the configuration
 variables and their values, as shown in the example below:
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-context.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-context.png
    :alt: context
 
 Template default values
@@ -552,7 +552,7 @@ These default values will be overridden by the
 The default values of variables can be manipulated from the section
 "configuration variables" in the edit template page:
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/template-default-values.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/template-default-values.png
   :alt: default values
 
 Global variables
@@ -569,7 +569,7 @@ are automatically managed by the system (eg: when using templates of
 type VPN-client) are displayed in the admin UI as *System Defined Variables*
 in read-only mode.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/system-defined-variables.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/system-defined-variables.png
    :alt: system defined variables
 
 Example usage of variables
@@ -655,7 +655,7 @@ Store the content of these files in a secure location.
 2. Save SSH private key in OpenWISP (access credentials)
 ########################################################
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/add-ssh-credentials-private-key.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-ssh-credentials-private-key.png
   :alt: add SSH private key as access credential in OpenWISP
 
 From the first page of OpenWISP click on "Access credentials", then click
@@ -674,7 +674,7 @@ The credentials just created will be automatically enabled for all the devices i
 3. Add the public key to your devices
 #####################################
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/add-authorized-ssh-keys-template.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-authorized-ssh-keys-template.png
   :alt: Add authorized SSH public keys template to OpenWISP (OpenWRT)
 
 Now we need to instruct your devices to allow OpenWISP accessing via SSH,
@@ -909,7 +909,7 @@ Device Groups provide the following features:
   information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
   setting.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/device-groups.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-groups.png
   :alt: Device Group example
 
 How to setup WireGuard tunnels
@@ -1276,14 +1276,14 @@ REST API Reference
 Live documentation
 ~~~~~~~~~~~~~~~~~~
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/live-docu-api.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/live-docu-api.png
 
 A general live API documentation (following the OpenAPI specification) at ``/api/v1/docs/``.
 
 Browsable web interface
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/master/docs/browsable-api-ui.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/browsable-api-ui.png
 
 Additionally, opening any of the endpoints `listed below <#list-of-endpoints>`_
 directly in the browser will show the `browsable API interface of Django-REST-Framework
