@@ -208,7 +208,6 @@ class DeviceDetailSerializer(BaseSerializer):
         raw_data_for_signal_handlers = {
             'organization': validated_data.get('organization', instance.organization)
         }
-
         if self.initial_data.get('config.backend') and instance._has_config() is False:
             config_data = dict(config_data)
             with transaction.atomic():
@@ -227,7 +226,7 @@ class DeviceDetailSerializer(BaseSerializer):
             )
             instance.config.config = config_data.get('config', instance.config.config)
 
-            if config_templates:
+            if 'templates' in config_data:
                 if config_data.get('templates'):
                     new_config_templates = config_templates
                     old_config_templates = [
@@ -256,8 +255,14 @@ class DeviceDetailSerializer(BaseSerializer):
                     instance.config.templates.clear()
                     instance.config.templates.add(*[])
 
-        else:
-            if hasattr(instance, 'config'):
+        elif hasattr(instance, 'config') and validated_data.get('organization'):
+            if instance.organization != validated_data.get('organization'):
+                # The configuration's device organization is used for validation
+                # and for adding default and required templates. The value
+                # of the organization field is set here to prevent code from
+                # accessing old value from the database.
+                instance.config.device.organization = validated_data.get('organization')
+                instance.config.templates.clear()
                 Config.enforce_required_templates(
                     action='post_clear',
                     instance=instance.config,
@@ -265,17 +270,6 @@ class DeviceDetailSerializer(BaseSerializer):
                     pk_set=None,
                     raw_data=raw_data_for_signal_handlers,
                 )
-
-        if hasattr(instance, 'config'):
-            Config.clean_templates(
-                action='pre_add',
-                instance=instance.config,
-                sender=instance.config.templates,
-                reverse=False,
-                model=instance.config.templates.model,
-                pk_set=config_templates,
-                raw_data=raw_data_for_signal_handlers,
-            )
         return super().update(instance, validated_data)
 
 

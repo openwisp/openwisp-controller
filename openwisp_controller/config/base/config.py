@@ -325,7 +325,6 @@ class AbstractConfig(BaseConfig):
             # retrieve required templates related to this
             # device and ensure they're always present
             organization = raw_data.get('organization', instance.device.organization)
-            instance.device.organization = organization
             required_templates = (
                 cls.get_template_model()
                 .objects.filter(template_query)
