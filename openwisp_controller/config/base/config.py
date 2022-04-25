@@ -163,7 +163,7 @@ class AbstractConfig(BaseConfig):
         return templates
 
     @classmethod
-    def clean_templates(cls, action, instance, pk_set, raw_data={}, **kwargs):
+    def clean_templates(cls, action, instance, pk_set, raw_data=None, **kwargs):
         """
         validates resulting configuration of config + templates
         raises a ValidationError if invalid
@@ -174,6 +174,7 @@ class AbstractConfig(BaseConfig):
         raw_data contains the non-validated data that is submitted to
         a form or API.
         """
+        raw_data = raw_data or {}
         templates = cls.clean_templates_org(
             action, instance, pk_set, raw_data=raw_data, **kwargs
         )
@@ -259,13 +260,14 @@ class AbstractConfig(BaseConfig):
                     client.delete()
 
     @classmethod
-    def clean_templates_org(cls, action, instance, pk_set, raw_data={}, **kwargs):
+    def clean_templates_org(cls, action, instance, pk_set, raw_data=None, **kwargs):
         """
         raw_data contains the non-validated data that is submitted to
         a form or API.
         """
         if action != 'pre_add':
             return False
+        raw_data = raw_data or {}
         templates = cls._get_templates_from_pk_set(pk_set)
         # when using the admin, templates will be a list
         # we need to get the queryset from this list in order to proceed
@@ -298,7 +300,7 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def enforce_required_templates(
-        cls, action, instance, pk_set, raw_data={}, **kwargs
+        cls, action, instance, pk_set, raw_data=None, **kwargs
     ):
         """
         This method is called from a django signal (m2m_changed),
@@ -313,6 +315,7 @@ class AbstractConfig(BaseConfig):
         """
         if action not in ['pre_remove', 'post_clear']:
             return False
+        raw_data = raw_data or {}
         template_query = models.Q(required=True, backend=instance.backend)
         # trying to remove a required template will raise PermissionDenied
         if action == 'pre_remove':

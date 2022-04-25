@@ -257,10 +257,12 @@ class DeviceDetailSerializer(BaseSerializer):
 
         elif hasattr(instance, 'config') and validated_data.get('organization'):
             if instance.organization != validated_data.get('organization'):
-                # The configuration's device organization is used for validation
-                # and for adding default and required templates. The value
-                # of the organization field is set here to prevent code from
-                # accessing old value from the database.
+                # config.device.organization is used for validating
+                # the organization of templates. It is also used for adding
+                # default and required templates configured for an organization.
+                # The value of the organization field is set here to
+                # prevent access of the old value stored in the database
+                # while performing above operations.
                 instance.config.device.organization = validated_data.get('organization')
                 instance.config.templates.clear()
                 Config.enforce_required_templates(
