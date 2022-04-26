@@ -347,6 +347,14 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
                 reverse=False,
                 model=config.templates.model,
                 pk_set=templates,
+                # The template validation retrieves the device object
+                # from the database. Even if the organization of the device
+                # is changed by the user, the validation uses the old
+                # organization of the device because the device is not
+                # saved yet. The raw POST data is passed here so that
+                # validation can be performed using up to date data of
+                # the device object.
+                raw_data=self.data,
             )
         return templates
 
