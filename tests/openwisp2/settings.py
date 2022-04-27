@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     # channels
     'channels',
     # 'debug_toolbar',
+    'import_export',
 ]
 EXTENDED_APPS = ('django_x509', 'django_loci')
 
