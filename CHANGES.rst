@@ -18,6 +18,33 @@ Changes
   <https://github.com/openwisp/openwisp-controller#openwisp_controller_shared_management_ip_address_space>`_
   to ``False``.
 
+Version 0.8.4 [2021-04-09]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `bug in connection module <https://github.com/openwisp/openwisp-controller/issues/370>`_
+  that raised ``UnicodeDecodeError``, improved logging and ignored unicode
+  conversion issues
+- Fixed `context loading from default values of templates overwriting system
+  defined variables <https://github.com/openwisp/openwisp-controller/issues/352>`_
+  in device admin
+- Fixed `default template selection not updating after changing backend field <https://github.com/openwisp/openwisp-controller/issues/354>`_
+  in device admin
+- Fixed JSONSchema widget to enable working with a single schema
+- Fixed `related configuration not getting updated after template "default_values" are changed <https://github.com/openwisp/openwisp-controller/issues/352>`_
+- Fixed `bug which caused the unsaved changes alert in device admin <https://github.com/openwisp/openwisp-controller/issues/388>`_
+  when location of device is present
+- Fixed `bug replacing manually entered device information with empty string <https://github.com/openwisp/openwisp-controller/issues/425>`_
+- Fixed `multiple requests for fetching default template values in device admin <https://github.com/openwisp/openwisp-controller/issues/423>`_
+
+Security
+~~~~~~~~
+
+- Patched security bugs in internal HTTP endpoints which allowed to obtain UUID
+  of other organizations and other sensitive information
+
 Version 0.8.3 [2020-12-18]
 --------------------------
 
