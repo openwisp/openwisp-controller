@@ -1,22 +1,158 @@
 Changelog
 =========
 
-Version 0.9.0 [unreleased]
+Version 1.0.0 [2022-04-29]
 --------------------------
 
-WIP
+Features
+~~~~~~~~
+
+- Added support for `remotely executing shell commands on device
+  <https://github.com/openwisp/openwisp-controller#sending-commands-to-devices>`_
+- Added `automatic provisioning of Subnets and IPs
+  <https://github.com/openwisp/openwisp-controller#subnet-division-app>`_
+- Added `support for WireGuard and VXLAN tunnels
+  <https://github.com/openwisp/openwisp-controller#how-to-setup-wireguard-tunnels>`_
+- Added `required templates
+  <https://github.com/openwisp/openwisp-controller#required-templates>`_
+- Added support for generating configurations for OpenWrt 21
+- Added `REST API
+  <https://github.com/openwisp/openwisp-controller#rest-api-reference>`_
+- Added charts for *config status*, *model*, *OS*, *hardware*
+  and *location type* and a map for displaying the location of all devices
+- Added `management_ip_changed
+  <https://github.com/openwisp/openwisp-controller#management_ip_changed>`_
+  and `device_name_changed
+  <https://github.com/openwisp/openwisp-controller#device_name_changed>`_
+  signals
+- Added `OPENWISP_CONTROLLER_DEVICE_NAME_UNIQUE setting
+  <https://github.com/openwisp/openwisp-controller#openwisp_controller_device_name_unique>`_
+  to conditionally enforce unique device names in an organization
+- Added caching for ``DeviceChecksumView``
+- Added support for ED25519 SSH keys in ``Credentials``
+- Added `Device Groups
+  <https://github.com/openwisp/openwisp-controller#device-groups>`_
+  to organize devices of a particular organization
+- Configuration push updates now use the SIGUSR1 signal to reload openwisp-config
+- The device list admin page now allows to search for location address
 
 Changes
 ~~~~~~~
 
-- **Backward incompatible**: The default behaviour for the resolution of conflicting management
-  IPs between devices of different organizations has been changed. By default, in this new version,
-  the system assumes it's using only 1 management tunnel for all the organizations, so different devices
-  from any organization will not have the same management IP to avoid conflicts.
-  The old behavior can be restored by setting
+Backward incompatible changes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- Since django-sortedm2m, the widget we use to implement ordered templates,
+  clears all the many to many relationships every time it has to make changes,
+  we had to stop deleting ``VpnClient`` instances related to VPN templates
+  on ``post_clear`` m2m signals
+  If you wrote any custom derivative which relies on calls like
+  ``device.config.templates.clear()`` to delete related ``VpnClient``
+  instances and their x509 certificates, you will have to update your code
+  to remove all the templates using their primary keys,
+  instead of using ``clear()``
+- The default behavior for the resolution of conflicting management
+  IPs between devices of different organizations has been changed;
+  by default, in this new version, the system assumes it's using only
+  1 management tunnel for all the organizations, so different devices
+  from any organization will not have the same management IP to avoid
+  conflicts. The old behaviour can be restored by setting
   `OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE
   <https://github.com/openwisp/openwisp-controller#openwisp_controller_shared_management_ip_address_space>`_
-  to ``False``.
+  to ``False``
+- ``OPENWISP_CONTROLLER_BACKEND_DEVICE_LIST`` has been renamed
+  to ``OPENWISP_CONTROLLER_CONFIG_BACKEND_FIELD_SHOWN``
+- ``Device.check_management_ip_changed`` has been changed to private API
+  ``Device._check_management_ip_changed``
+
+Dependencies
+^^^^^^^^^^^^
+
+- Dropped support for Python 3.6
+- Dropped support for Django 2.2
+- Added support for Python 3.8 and 3.9
+- Added support for Django 3.2 and 4.0
+- Upgraded django-sortedm2m to 3.1.x
+- Upgraded django-reversion to 4.0.x
+- Upgraded django-taggit to 2.1.x
+- Upgraded djangorestframework-gis to 0.18.0
+- Upgraded paramiko[ed25519] to 2.10.3
+- Upgraded scp to 0.14.2
+- Upgraded django-flat-json-widget to 0.2.x
+- Upgraded celery to 5.2.x
+- Upgraded channels to 3.0.x
+- Upgraded django-x509 to 1.1.x
+- Upgraded django-loci to 1.0.x
+- Upgraded netjsonconfig to 1.0.x
+- Upgraded openwisp-utils to 1.0.x
+- Upgraded openwisp-users to 1.0.x
+- Upgraded openwisp-notifications to 1.0.x
+- Upgraded openwisp-ipam to 1.0.x
+- Added shortuuid 1.0.x
+- Added netaddr 0.8.x
+- Added django-cache-memoize to 0.1
+
+Other changes
+^^^^^^^^^^^^^
+
+- `Reworked implementation of config_modified signal
+  <https://github.com/openwisp/openwisp-controller#config_modified>`_:
+
+  - the signal is now always emitted on templates changes m2m events,
+    also if ``config.status`` is modified, with the differences that
+    only post_add and post_remove m2m events are used, while
+    ``post_clear`` is ignored, which fixes the duplicate signal emission
+    caused by the implementation of sortedm2m;
+  - added ``action`` and ``previous_status`` arguments, which allow to
+    understand where the ``config_modified`` signal is being emitted from,
+    this allows more advanced usage of the signal by custom implementations
+
+- Context variable follows template order:
+  If two or more applied templates have "default_values" with the same keys,
+  then the context variables of the template which comes later in the order
+  will be used
+- New credentials created with ``auto_add`` set to ``True`` will get added
+  to the existing devices in a background task. This improves the
+  responsiveness of the web application
+- Decoupled admin LogEntry from Template model
+- Device admin only lists relevant templates, i.e.
+  templates that are shared or belong to the device's organization
+- Improved UX of `system-defined variables
+  <https://github.com/openwisp/openwisp-controller/issues/344>`_
+- Name of objects is unique only within the same organization
+  and within the shared objects
+- The system does not sends connection notifications if the
+  connectivity of the device changes
+- Allowed searching devices using their location address in Device admin.
+- Removed deprecated ``api/device-location/<pk>`` endpoint
+- Made device name unique per organization instead of unique system wide
+- Added time limits to background celery tasks
+
+Bugfixes
+~~~~~~~~
+
+- Fixed a bug which caused ``VpnClient`` instances to be recreated every time
+  the configuration templates of a device were changed,
+  which caused x590 certificates to be destroyed and recreated as well
+- Hardened config validation of OpenVPN backend. The validation fails
+  if the ``openvpn`` key is missing from the configuration
+- Fixed a bug that caused issues in updating related ``Config`` whenever
+  a template's ``default_values`` were changed
+- Fixed pop-up view of CA and Cert not displaying data
+- Fixed config status stays ``applied`` after clearing all device templates
+- Fixed ``VpnClient`` not created when multiple VPN templates are added
+- Fixed configuration editor raising validation error when using variables in
+  fields with ``maxLength`` set
+- Fixed connection notifications reporting outdated status
+- Fixed migrations referencing non-swappable OpenWISP modules that
+  broke OpenWISP's extensibility
+- Fixed bugs in restoring deleted devices using ``django-reversion``
+- Fixed cloning of shared templates
+- Disallowed blank values for ``key_length`` or ``digest`` fields for ``CA``
+  and ``Cert`` objects
+- Fixed template ordering bug in the configuration preview on Device admin
+  The order of templates was not always retained when
+  generating the preview of a config object
 
 Version 0.8.4 [2021-04-09]
 --------------------------

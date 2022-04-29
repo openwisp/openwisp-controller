@@ -1,20 +1,14 @@
 django-sortedm2m~=3.1.1
 django-reversion~=4.0.1
-django-x509 @ https://github.com/openwisp/django-x509/tarball/master
+django-x509~=1.1.0
 django-taggit~=2.1.0
-# TODO: change this when next point version of django-loci is released
-django-loci @ https://github.com/openwisp/django-loci/tarball/master
-django-flat-json-widget~=0.1.3
-# TODO: change this when next point version of openwisp-utils is released
-openwisp-utils[rest] @ https://github.com/openwisp/openwisp-utils/tarball/master
-# TODO: change this when next point version of netjsonconfig is released
-netjsonconfig @ https://github.com/openwisp/netjsonconfig/tarball/master
-# TODO: change this when next point version of openwisp-users is released
-openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
-# TODO: change this when next point version of openwisp-notifications is released
-openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
-# TODO: change this when the next point version of openwisp-ipam is released
-openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
+django-loci~=1.0.1
+django-flat-json-widget~=0.2.0
+openwisp-utils[rest]~=1.0.1
+netjsonconfig~=1.0.0
+openwisp-users~=1.0.0
+openwisp-notifications~=1.0.0
+openwisp-ipam~=1.0.0
 djangorestframework-gis~=0.18.0
 paramiko[ed25519]~=2.10.3
 scp~=0.14.2
