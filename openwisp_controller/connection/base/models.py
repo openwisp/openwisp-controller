@@ -147,7 +147,6 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
             conn = DeviceConnection(
                 device=device, credentials_id=credential_id, enabled=True
             )
-            conn._connector_field = 'credentials.connector'
             conn.full_clean()
             device_connections.append(conn)
             # Send create query when chunk_size is reached
