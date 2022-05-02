@@ -119,8 +119,9 @@ Other changes
   templates that are shared or belong to the device's organization
 - Improved UX of `system-defined variables
   <https://github.com/openwisp/openwisp-controller/issues/344>`_
-- Name of objects is unique only within the same organization
-  and within the shared objects
+- Name of ``Vpn``, ``Template`` and ``Credentials`` objects is
+  unique only within the same organization and within the shared
+  objects
 - Added functionality to configure connection failure reasons
   for which the system should not send notifications.
   Added ``old_failure_reason`` parameter in
