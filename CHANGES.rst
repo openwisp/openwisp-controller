@@ -18,8 +18,8 @@ Features
 - Added support for generating configurations for OpenWrt 21
 - Added `REST API
   <https://github.com/openwisp/openwisp-controller#rest-api-reference>`_
-- Added charts for *config status*, *model*, *OS*, *hardware*
-  and *location type* and a map for displaying the location of all devices
+- Added dashboard charts for *config status*, *model*, *OS*, *hardware*
+  and *location type*
 - Added `management_ip_changed
   <https://github.com/openwisp/openwisp-controller#management_ip_changed>`_
   and `device_name_changed
@@ -119,10 +119,13 @@ Other changes
   templates that are shared or belong to the device's organization
 - Improved UX of `system-defined variables
   <https://github.com/openwisp/openwisp-controller/issues/344>`_
-- Name of objects is unique only within the same organization
-  and within the shared objects
-- The system does not sends connection notifications if the
-  connectivity of the device changes
+- Name of ``Vpn``, ``Template`` and ``Credentials`` objects is
+  unique only within the same organization and within the shared
+  objects
+- Added functionality to configure connection failure reasons
+  for which the system should not send notifications.
+  Added ``old_failure_reason`` parameter in
+  ``openwisp_controller.connection.signals.is_working_changed`` signal
 - Allowed searching devices using their location address in Device admin.
 - Removed deprecated ``api/device-location/<pk>`` endpoint
 - Made device name unique per organization instead of unique system wide
