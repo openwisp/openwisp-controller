@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('contenttypes', '0002_remove_content_type_name'),
-        ('config', '0036_device_group'),
+        ('config', '0037_alter_management_ip_help_text'),
     ]
 
     operations = [

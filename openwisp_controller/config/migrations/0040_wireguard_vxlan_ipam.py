@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         swapper.dependency('pki', 'Ca'),
         swapper.dependency('openwisp_ipam', 'IpAddress'),
         swapper.dependency('openwisp_ipam', 'Subnet'),
-        ('config', '0038_vpn_subnet'),
+        ('config', '0039_vpn_subnet'),
     ]
 
     operations = [
