@@ -13,7 +13,7 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
@@ -402,6 +402,14 @@ class ConfigInline(
         return qs.select_related(*self.change_select_related)
 
 
+class ChangeDeviceGroupForm(forms.Form):
+    device_group = forms.ModelChoiceField(
+        queryset=DeviceGroup.objects.all(),
+        label=_('Group'),
+        required=False,
+    )
+
+
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     recover_form_template = 'admin/config/device_recover_form.html'
     list_display = [
@@ -451,6 +459,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ]
     inlines = [ConfigInline]
     conditional_inlines = []
+    actions = ['change_group']
 
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
@@ -468,6 +477,41 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/tabs.js',
             f'{prefix}js/relevant_templates.js',
         ]
+
+    def change_group(self, request, queryset):
+        if 'apply' in request.POST:
+            form = ChangeDeviceGroupForm(request.POST)
+            if form.is_valid():
+                group = form.cleaned_data['device_group']
+                if group:
+                    queryset.update(group=group)
+                else:
+                    queryset.update(group=None)
+            self.message_user(
+                request,
+                _('Successfully changed  group of selected devices.'),
+                messages.SUCCESS,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+
+        form = ChangeDeviceGroupForm()
+        context = {
+            'title': _('Change group'),
+            'queryset': queryset,
+            'form': form,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'opts': self.model._meta,
+            'changelist_url': (
+                f'{request.resolver_match.app_name}:'
+                f'{request.resolver_match.url_name}'
+            ),
+        }
+
+        return TemplateResponse(
+            request, 'admin/config/change_device_group.html', context
+        )
+
+    change_group.short_description = _('Change group of selected Devices')
 
     def get_fields(self, request, obj=None):
         """

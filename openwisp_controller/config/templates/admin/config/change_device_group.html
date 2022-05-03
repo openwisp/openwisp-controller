@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% load i18n l10n admin_urls static %}
+
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{% static 'config/css/change-device-group-form.css' %}">
+{% endblock %}
+
+{% block bodyclass %}
+change-device-group
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans 'Change group' %}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<p>{% blocktrans %}What group do you want to assign to the selected devices?{% endblocktrans %}</p>
+<form method="post">{% csrf_token %}
+    <div>
+        {% for obj in queryset %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
+        {% endfor %}
+        {{ form }}
+        <br>
+        <input type="hidden" name="action" value="change_group">
+        <input type="submit" name='apply' value="{% trans 'Change group' %}">
+        <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+    </div>
+</form>
+{% endblock %}
