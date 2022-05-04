@@ -60,7 +60,7 @@ jobs:
       run: sudo npm install -g jshint stylelint
 
     - name: Upgrade python system packages
-      run: pip install -U "pip==20.2.4" wheel setuptools
+      run: pip install -U pip wheel setuptools
 
     - name: Install openwisp-controller
       run: |
