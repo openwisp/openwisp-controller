@@ -1,8 +1,10 @@
 import os
+import sys
 from unittest import mock
 
 from django.conf import settings
 from django.test import TestCase
+from paramiko.ssh_exception import AuthenticationException
 from swapper import load_model
 
 from ..connectors.ssh import logger as ssh_logger
@@ -39,6 +41,22 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         mocked_logger.assert_has_calls(
             [mock.call('Executing command: echo test'), mock.call('test\n')]
         )
+
+    @mock.patch('paramiko.SSHClient.close')
+    def test_connection_connect_auth_failure(self, mocked_ssh_close):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        auth_failed = AuthenticationException('Authentication failed.')
+        with mock.patch(
+            'paramiko.SSHClient.connect', side_effect=auth_failed
+        ) as mocked_connect:
+            dc.connect()
+        self.assertEqual(mocked_connect.call_count, 2)
+        self.assertFalse(dc.is_working)
+        mocked_ssh_close.assert_called_once()
+        if sys.version_info[0:2] > (3, 7):
+            self.assertNotIn('disabled_algorithms', mocked_connect.mock_calls[0].kwargs)
+            self.assertIn('disabled_algorithms', mocked_connect.mock_calls[1].kwargs)
 
     @mock.patch.object(ssh_logger, 'info')
     @mock.patch.object(ssh_logger, 'debug')
