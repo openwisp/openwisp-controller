@@ -483,13 +483,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             form = ChangeDeviceGroupForm(request.POST)
             if form.is_valid():
                 group = form.cleaned_data['device_group']
-                if group:
-                    queryset.update(group=group)
-                else:
-                    queryset.update(group=None)
+                queryset.update(group=group or None)
             self.message_user(
                 request,
-                _('Successfully changed  group of selected devices.'),
+                _('Successfully changed group of selected devices.'),
                 messages.SUCCESS,
             )
             return HttpResponseRedirect(request.get_full_path())
