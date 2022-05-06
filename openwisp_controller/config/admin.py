@@ -878,6 +878,7 @@ class DeviceGroupFilter(admin.SimpleListFilter):
 
 
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
+    change_form_template = 'admin/device_group/change_form.html'
     form = DeviceGroupForm
     list_display = [
         'name',
@@ -889,14 +890,19 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'name',
         'organization',
         'description',
+        'templates',
         'meta_data',
         'created',
         'modified',
     ]
     search_fields = ['name', 'description', 'meta_data']
     list_filter = [('organization', MultitenantOrgFilter), DeviceGroupFilter]
+    multitenant_shared_relations = ('templates',)
 
     class Media:
+        js = list(UUIDAdmin.Media.js) + [
+            f'{prefix}js/relevant_templates.js',
+        ]
         css = {'all': (f'{prefix}css/admin.css',)}
 
     def get_urls(self):
@@ -914,6 +920,26 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
 
     def schema_view(self, request):
         return JsonResponse(app_settings.DEVICE_GROUP_SCHEMA)
+
+    def add_view(self, request, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context.update(self.get_extra_context())
+        return super().add_view(request, form_url, extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = self.get_extra_context(object_id)
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_extra_context(self, pk=None):
+        ctx = {}
+        ctx.update(
+            {
+                'relevant_template_url': reverse(
+                    'admin:get_relevant_templates', args=['org_id']
+                ),
+            }
+        )
+        return ctx
 
 
 admin.site.register(Device, DeviceAdminExportable)

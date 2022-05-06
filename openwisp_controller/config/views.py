@@ -26,10 +26,15 @@ def get_relevant_templates(request, organization_id):
     if not user.is_superuser and not user.is_manager(organization_id):
         return HttpResponse(status=403)
     org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+    filter_options = {}
+    if backend:
+        filter_options.update(backend=backend)
+    else:
+        filter_options.update(required=False)
     queryset = (
-        Template.objects.filter(backend=backend)
+        Template.objects.filter(**filter_options)
         .filter(Q(organization_id=org.pk) | Q(organization_id=None))
-        .values('id', 'required', 'default', 'name')
+        .values('id', 'required', 'default', 'name', 'backend')
     )
     relevant_templates = {}
     for template in queryset:

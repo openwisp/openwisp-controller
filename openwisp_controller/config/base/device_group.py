@@ -6,16 +6,27 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
+from swapper import get_model_name
 
 from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
 from .. import settings as app_settings
+from ..sortedm2m.fields import SortedManyToManyField
+from .config import TemplatesThrough
 
 
 class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
     name = models.CharField(max_length=60, null=False, blank=False)
     description = models.TextField(blank=True, help_text=_('internal notes'))
+    templates = SortedManyToManyField(
+        get_model_name('config', 'Template'),
+        related_name='device_group_relations',
+        verbose_name=_('templates'),
+        base_class=TemplatesThrough,
+        blank=True,
+        help_text=_('configuration templates, applied from first to last'),
+    )
     meta_data = JSONField(
         blank=True,
         default=dict,
