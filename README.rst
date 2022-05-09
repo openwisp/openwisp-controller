@@ -2807,6 +2807,20 @@ The value of this setting decides whether to use DSA syntax
 (OpenWrt >=21 configuration syntax) if openwisp-controller fails
 to make that decision automatically.
 
+``OPENWISP_CONTROLLER_GROUP_PIE_CHART``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    |  ``bool`` |
++--------------+-----------+
+| **default**: | ``False`` |
++--------------+-----------+
+
+This setting is used to see device groups pie chart on the dashboard.
+If the group has any device in it then it is shown as active group else
+it is shown as inactive group.
+This setting is disabled by default.
+
 Signals
 -------
 

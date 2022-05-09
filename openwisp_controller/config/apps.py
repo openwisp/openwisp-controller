@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db.models import Case, Count, When
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
@@ -320,6 +321,56 @@ class ConfigConfig(AppConfig):
                 'labels': {'': _('undefined')},
             },
         )
+        if app_settings.GROUP_PIE_CHART:
+            register_dashboard_chart(
+                position=13,
+                config={
+                    'name': _('Groups'),
+                    'query_params': {
+                        'app_label': 'config',
+                        'model': 'devicegroup',
+                        'annotate': {
+                            'with_device': Count(
+                                Case(
+                                    When(
+                                        device__isnull=False,
+                                        then=1,
+                                    )
+                                )
+                            ),
+                            'without_device': Count(
+                                Case(
+                                    When(
+                                        device__isnull=True,
+                                        then=1,
+                                    )
+                                )
+                            ),
+                        },
+                        'aggregate': {
+                            'with_device_count': Count(
+                                Case(When(with_device__gt=0, then=1))
+                            ),
+                            'without_device_count': Count(
+                                Case(When(without_device__gt=0, then=1))
+                            ),
+                        },
+                    },
+                    'colors': {
+                        'with_device_count': '#2277b4',
+                        'without_device_count': '#EF7D2D',
+                    },
+                    'labels': {
+                        'with_device_count': _('Active groups'),
+                        'without_device_count': _('Empty groups'),
+                    },
+                    'filters': {
+                        'key': 'device',
+                        'with_device_count': 'true',
+                        'without_device_count': 'false',
+                    },
+                },
+            )
 
     def notification_cache_update(self):
         from openwisp_notifications.handlers import register_notification_cache_update

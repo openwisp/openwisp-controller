@@ -151,7 +151,7 @@ LOGIN_REDIRECT_URL = 'admin:index'
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
 OPENWISP_ORGANIZATION_USER_ADMIN = True  # tests will fail without this setting
 OPENWISP_ADMIN_DASHBOARD_ENABLED = True
-
+OPENWISP_CONTROLLER_GROUP_PIE_CHART = True
 # during development only
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
