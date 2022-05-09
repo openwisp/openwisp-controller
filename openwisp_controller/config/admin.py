@@ -792,6 +792,12 @@ class DeviceGroupForm(BaseForm):
 
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     form = DeviceGroupForm
+    list_display = [
+        'name',
+        'organization',
+        'created',
+        'modified',
+    ]
     fields = [
         'name',
         'organization',
