@@ -1,6 +1,21 @@
 Changelog
 =========
 
+Version 1.0.1 [2022-05-11]
+--------------------------
+
+- Admin: show main group information in ``DeviceGroupAdmin`` list:
+  - name
+  - organization
+  - modified
+  - created
+- Fixed uncaught exception triggered on the deletion of
+  VPN client certificates
+- SSH connection: fixed OpenWrt <= 19 authentication failure
+- The SSH connection is now explicitly closed when
+  the authentication fails to avoid leaving lingering SSH
+  connection objects open
+
 Version 1.0.0 [2022-04-29]
 --------------------------
 
