@@ -733,18 +733,22 @@ has at least one **Access Credential**.
 
 If you need to allow your users to quickly send specific commands that are used often in your
 network regardless of your users' knowledge of Linux shell commands, you can add new commands
-by following instructions in `"How to add commands" <#how-to-add-commands>`_ section.
+by following instructions in the `"How to define new options in the commands menu"
+<#how-to-define-new-options-in-the-commands-menu>`_ section below.
 
 If you are an advanced user and want to register commands programatically, then refer to
 `"Register / Unregistering commands" <#registering--unregistering-commands>`_ section.
 
-How to add commands
-###################
+How to define new options in the commands menu
+##############################################
 
-Let's explore to add new commands to the UI to help users perform
-additional actions without having to be Linux/Unix experts.
+Let's explore to define new custom commands
+to help users perform additional management actions
+without having to be Linux/Unix experts.
 
-This example defines a simple command that could ``ping`` an input
+We can do so by using the ``OPENWISP_CONTROLLER_USER_COMMANDS`` django setting.
+
+The following example defines a simple command that can ``ping`` an input
 ``destination_address`` through a network interface, ``interface_name``.
 
 .. code-block:: python
@@ -784,13 +788,14 @@ This example defines a simple command that could ``ping`` an input
         )
     ]
 
-The above code will add "Ping" command as show in the GIF below:
+The above code will add the "Ping" command in the user interface as show
+in the GIF below:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/ping_command_example.gif
    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/ping_command_example.gif
    :alt: Adding a "ping" command
 
-``OPENWISP_CONTROLLER_USER_COMMANDS`` setting takes a ``list`` of ``tuple``
+The ``OPENWISP_CONTROLLER_USER_COMMANDS`` setting takes a ``list`` of ``tuple``
 each containing two elements. The first element of the tuple should contain an
 identifier for the command and the second element should contain a ``dict``
 defining configuration of the command.
@@ -966,7 +971,7 @@ organization.
 ##############################
 
 If you haven't already setup WireGuard on your VPN server, this will be a good
-time do so. We stress on using `ansible-wireguard-openwisp <https://github.com/openwisp/ansible-wireguard-openwisp>`_
+time do so. We recommend using the `ansible-wireguard-openwisp <https://github.com/openwisp/ansible-wireguard-openwisp>`_
 role for installing WireGuard since it also installs scripts that allows
 OpenWISP to manage WireGuard VPN server.
 
@@ -1069,7 +1074,7 @@ organization.
 ####################################
 
 If you haven't already setup WireGuard on your VPN server, this will be a good
-time do so. We stress on using `ansible-wireguard-openwisp <https://github.com/openwisp/ansible-wireguard-openwisp>`_
+time do so. We recommend using the `ansible-wireguard-openwisp <https://github.com/openwisp/ansible-wireguard-openwisp>`_
 role for installing WireGuard since it also installs scripts that allows
 OpenWISP to manage WireGuard VPN server along with VXLAN tunnels.
 
@@ -1121,7 +1126,7 @@ How to configure automatic provisioning of subnets and IPs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following steps will help you configure automatic provisioning of subnets and IPs
-for devices:
+for devices.
 
 1. Create a Subnet and a Subnet Division Rule
 #############################################
@@ -1195,7 +1200,7 @@ With everything in place, you can now apply the VPN Client Template to devices.
   :alt: Adding template to device example
 
 After saving the device, you should see all provisioned Subnets and IPs for this device
-under the `System Defined Variables <#system-defined-variables>`_.
+under `System Defined Variables <#system-defined-variables>`_.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/system-defined-variables.png
   :alt: Provisioned Subnets and IPs available as System Defined Variables example
@@ -2712,7 +2717,7 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 +--------------+----------+
 
 Allows to specify a `list` of tuples for adding commands as described in
-`'How to add commands" <#how-to-add-commands>`_ section.
+`'How to define custom commands" <#how-to-define-new-options-in-the-commands-menu>`_ section.
 
 ``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
