@@ -357,6 +357,24 @@ class TestAdmin(
             hidden=[data['t2'].name, data['t3_inactive'].name],
         )
 
+    def _get_change_device_post_data(self, device):
+        return {
+            '_selected_action': [device.pk],
+            'action': 'change_group',
+            'csrfmiddlewaretoken': 'test',
+        }
+
+    def test_change_device_group(self):
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        org = self._get_org(org_name='default')
+        device = self._create_device(organization=org)
+        post_data = self._get_change_device_post_data(device)
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, 'What group do you want to assign to the selected devices?'
+        )
+
     def test_device_contains_default_templates_js(self):
         config = self._create_config(organization=self._get_org())
         path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
