@@ -59,10 +59,7 @@ class TestApps(TestCase):
         self.assertIn('labels', chart_config)
         self.assertDictEqual(
             chart_config['labels'],
-            {
-                'with_device_count': 'Active groups',
-                'without_device_count': 'Empty groups',
-            },
+            {'active': 'Active groups', 'empty': 'Empty groups'},
         )
         self.assertIn('filters', chart_config)
         query_params = chart_config['query_params']
@@ -72,5 +69,5 @@ class TestApps(TestCase):
         self.assertIn('filters', chart_config)
         filters = chart_config['filters']
         self.assertIn('key', filters)
-        self.assertIn('with_device_count', chart_config['filters'])
-        self.assertIn('without_device_count', chart_config['filters'])
+        self.assertIn('active', chart_config['filters'])
+        self.assertIn('empty', chart_config['filters'])

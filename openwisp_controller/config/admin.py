@@ -831,6 +831,22 @@ class DeviceGroupForm(BaseForm):
         }
 
 
+class DeviceGroupFilter(admin.SimpleListFilter):
+    title = _('has devices?')
+    parameter_name = 'empty'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('true', _('Yes')),
+            ('false', _('No')),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(device__isnull=self.value() == 'false').distinct()
+        return queryset
+
+
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     form = DeviceGroupForm
     list_display = [
@@ -848,9 +864,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'modified',
     ]
     search_fields = ['name', 'description', 'meta_data']
-    list_filter = [
-        ('organization', MultitenantOrgFilter),
-    ]
+    list_filter = [('organization', MultitenantOrgFilter), DeviceGroupFilter]
 
     class Media:
         css = {'all': (f'{prefix}css/admin.css',)}

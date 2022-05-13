@@ -330,7 +330,7 @@ class ConfigConfig(AppConfig):
                         'app_label': 'config',
                         'model': 'devicegroup',
                         'annotate': {
-                            'with_device': Count(
+                            'active_count': Count(
                                 Case(
                                     When(
                                         device__isnull=False,
@@ -338,7 +338,7 @@ class ConfigConfig(AppConfig):
                                     )
                                 )
                             ),
-                            'without_device': Count(
+                            'empty_count': Count(
                                 Case(
                                     When(
                                         device__isnull=True,
@@ -348,26 +348,22 @@ class ConfigConfig(AppConfig):
                             ),
                         },
                         'aggregate': {
-                            'with_device_count': Count(
-                                Case(When(with_device__gt=0, then=1))
-                            ),
-                            'without_device_count': Count(
-                                Case(When(without_device__gt=0, then=1))
-                            ),
+                            'active': Count(Case(When(active_count__gt=0, then=1))),
+                            'empty': Count(Case(When(empty_count__gt=0, then=1))),
                         },
                     },
                     'colors': {
-                        'with_device_count': '#2277b4',
-                        'without_device_count': '#EF7D2D',
+                        'active': '#2277b4',
+                        'empty': '#EF7D2D',
                     },
                     'labels': {
-                        'with_device_count': _('Active groups'),
-                        'without_device_count': _('Empty groups'),
+                        'active': _('Active groups'),
+                        'empty': _('Empty groups'),
                     },
                     'filters': {
-                        'key': 'device',
-                        'with_device_count': 'true',
-                        'without_device_count': 'false',
+                        'key': 'empty',
+                        'active': 'true',
+                        'empty': 'false',
                     },
                 },
             )
