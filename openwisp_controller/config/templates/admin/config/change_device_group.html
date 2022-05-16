@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block bodyclass %}
-organization-selection admin-actions
+change-device-group admin-actions
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -14,13 +14,13 @@ organization-selection admin-actions
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
     &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
     &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
-    &rsaquo; {% trans 'Clone templates' %}
+    &rsaquo; {% trans 'Change group' %}
 </div>
 {% endblock %}
 
 {% block content %}
 
-<p>{% blocktrans %}What organization do you want clone selected templates to?{% endblocktrans %}</p>
+<p>{% blocktrans %}What group do you want to assign to the selected devices?{% endblocktrans %}</p>
 <form method="post">{% csrf_token %}
     <div>
         {% for obj in queryset %}
@@ -28,8 +28,8 @@ organization-selection admin-actions
         {% endfor %}
         {{ form }}
         <br>
-        <input type="hidden" name="action" value="clone_selected_templates">
-        <input type="submit" value="{% trans 'Clone' %}">
+        <input type="hidden" name="action" value="change_group">
+        <input type="submit" name='apply' value="{% trans 'Change group' %}">
         <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
     </div>
 </form>

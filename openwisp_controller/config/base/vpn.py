@@ -656,9 +656,11 @@ class AbstractVpnClient(models.Model):
         # only invalidates, does not regenerate the cache
         # to avoid generating high load during bulk deletes
         instance.vpn._invalidate_peer_cache()
-
-        if instance.cert:
-            instance.cert.delete()
+        try:
+            if instance.cert:
+                instance.cert.delete()
+        except ObjectDoesNotExist:
+            pass
         try:
             if instance.ip:
                 instance.ip.delete()

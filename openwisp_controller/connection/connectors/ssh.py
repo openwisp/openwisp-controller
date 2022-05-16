@@ -109,20 +109,46 @@ class Ssh(object):
             raise ValueError('No valid IP addresses to initiate connections found')
         for address in addresses:
             try:
-                self.shell.connect(
-                    address,
-                    auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
-                    banner_timeout=app_settings.SSH_BANNER_TIMEOUT,
-                    timeout=app_settings.SSH_CONNECTION_TIMEOUT,
-                    **self.params
-                )
+                self._connect(address)
             except Exception as e:
                 exception = e
             else:
                 success = True
                 break
         if not success:
+            self.disconnect()
             raise exception
+
+    def _connect(self, address):
+        """
+        Tries to instantiate the SSH connection,
+        if the connection fails, it tries again
+        by disabling the new deafult HostKeyAlgorithms
+        used by newer versions of Paramiko
+        """
+        params = self.params
+        for attempt in [1, 2]:
+            try:
+                self.shell.connect(
+                    address,
+                    auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
+                    banner_timeout=app_settings.SSH_BANNER_TIMEOUT,
+                    timeout=app_settings.SSH_CONNECTION_TIMEOUT,
+                    **params
+                )
+            except paramiko.ssh_exception.AuthenticationException as e:
+                # the authentication failure may be caused by the issue
+                # described at https://github.com/paramiko/paramiko/issues/1961
+                # let's retry by disabling the new default HostKeyAlgorithms,
+                # which can work on older systems.
+                if e.args == ('Authentication failed.',) and attempt == 1:
+                    params['disabled_algorithms'] = {
+                        'pubkeys': ['rsa-sha2-512', 'rsa-sha2-256']
+                    }
+                    continue
+                raise e
+            else:
+                break
 
     def disconnect(self):
         self.shell.close()

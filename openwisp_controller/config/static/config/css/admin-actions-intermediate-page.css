@@ -1,0 +1,31 @@
+.admin-actions form select {
+  margin: 10px;
+}
+.admin-actions form input[type='submit'] {
+  background: #ba2121;
+  border-radius: 4px;
+  padding: 10px 15px;
+  color: #fff;
+  margin: 10px 0 0 0;
+}
+.admin-actions form input[type='submit']:active,
+.admin-actions form input[type='submit']:focus,
+.admin-actions form input[type='submit']:hover {
+  background: #a41515;
+}
+.admin-actions form .cancel-link {
+  display: inline-block;
+  vertical-align: middle;
+  height: 15px;
+  line-height: 15px;
+  background: #ddd;
+  border-radius: 4px;
+  padding: 10px 15px;
+  color: #333;
+  margin: 10px 0 0 10px;
+}
+.admin-actions form .cancel-link:active,
+.admin-actions form .cancel-link:focus,
+.admin-actions form .cancel-link:hover {
+  background: #ccc;
+}

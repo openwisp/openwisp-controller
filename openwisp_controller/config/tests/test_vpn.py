@@ -138,6 +138,19 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
         self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
 
+    def test_vpn_client_cert_post_deletes_cert(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        t = self._create_template(name='vpn-test', type='vpn', vpn=vpn, auto_cert=True)
+        c = self._create_config(organization=org)
+        c.templates.add(t)
+        vpnclient = c.vpnclient_set.first()
+        cert_pk = vpnclient.cert.pk
+        self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 1)
+        vpnclient.cert.delete()
+        self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
+        self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
+
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
         different_ca = self._create_ca(common_name='different-ca')
