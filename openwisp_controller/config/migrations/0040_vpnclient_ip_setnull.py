@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.OPENWISP_IPAM_IPADDRESS_MODEL),
-        ('config', '0040_wireguard_vxlan_ipam'),
+        ('config', '0039_wireguard_vxlan_ipam'),
     ]
 
     operations = [

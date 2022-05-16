@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.OPENWISP_IPAM_SUBNET_MODEL),
-        ('config', '0038_alter_taggedtemplate'),
+        ('config', '0037_alter_taggedtemplate'),
     ]
 
     operations = [
