@@ -362,8 +362,8 @@ class ConfigConfig(AppConfig):
                     },
                     'filters': {
                         'key': 'empty',
-                        'active': 'true',
-                        'empty': 'false',
+                        'active': 'false',
+                        'empty': 'true',
                     },
                 },
             )

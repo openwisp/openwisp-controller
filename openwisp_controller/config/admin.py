@@ -837,13 +837,13 @@ class DeviceGroupFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('true', _('Yes')),
-            ('false', _('No')),
+            ('true', _('No')),
+            ('false', _('Yes')),
         )
 
     def queryset(self, request, queryset):
         if self.value():
-            return queryset.filter(device__isnull=self.value() == 'false').distinct()
+            return queryset.filter(device__isnull=self.value() == 'true').distinct()
         return queryset
 
 
