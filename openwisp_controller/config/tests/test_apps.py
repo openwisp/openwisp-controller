@@ -51,3 +51,23 @@ class TestApps(TestCase):
         query_params = chart_config['query_params']
         self.assertIn('group_by', query_params)
         self.assertEqual(query_params['group_by'], 'system')
+
+    def test_device_group_chart_registered(self):
+        chart_config = DASHBOARD_CHARTS.get(13, None)
+        self.assertIsNotNone(chart_config)
+        self.assertEqual(chart_config['name'], 'Groups')
+        self.assertIn('labels', chart_config)
+        self.assertDictEqual(
+            chart_config['labels'],
+            {'active': 'Active groups', 'empty': 'Empty groups'},
+        )
+        self.assertIn('filters', chart_config)
+        query_params = chart_config['query_params']
+        self.assertNotIn('group_by', query_params)
+        self.assertIn('annotate', query_params)
+        self.assertIn('aggregate', query_params)
+        self.assertIn('filters', chart_config)
+        filters = chart_config['filters']
+        self.assertIn('key', filters)
+        self.assertIn('active', chart_config['filters'])
+        self.assertIn('empty', chart_config['filters'])
