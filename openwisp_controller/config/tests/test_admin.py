@@ -10,10 +10,12 @@ from django.urls import reverse
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.tests import catch_signal
 
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
+from ..signals import device_group_changed, device_name_changed, management_ip_changed
 from .utils import (
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
@@ -36,6 +38,7 @@ Group = load_model('openwisp_users', 'Group')
 
 class TestAdmin(
     TestGeoMixin,
+    CreateDeviceGroupMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     TestAdminMixin,
@@ -139,6 +142,25 @@ class TestAdmin(
         self.assertEqual(
             device.config.templates.filter(name__in=['t1', 't2']).count(), 2
         )
+
+    def test_add_device_does_not_emit_changed_signals(self):
+        org1 = self._get_org()
+        path = reverse(f'admin:{self.app_label}_device_add')
+        data = self._get_device_params(org=org1)
+        data.update({'group': str(self._create_device_group().pk)})
+        self._login()
+        with catch_signal(
+            device_group_changed
+        ) as mocked_device_group_changed, catch_signal(
+            device_name_changed
+        ) as mocked_device_name_changed, catch_signal(
+            management_ip_changed
+        ) as mocked_management_ip_changed:
+            self.client.post(path, data)
+
+        mocked_device_group_changed.assert_not_called()
+        mocked_device_name_changed.assert_not_called()
+        mocked_management_ip_changed.assert_not_called()
 
     def test_preview_device(self):
         org = self._get_org()
