@@ -44,6 +44,13 @@ class ConnectorMixin(object):
         self._validate_connector_schema()
 
     def _get_connector(self):
+        try:
+            if not getattr(
+                import_string(self.credentials.connector), 'has_update_strategy'
+            ):
+                return self.credentials.connector
+        except AttributeError:
+            pass
         return getattr(self, self._connector_field)
 
     def _validate_connector_schema(self):
@@ -203,6 +210,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         for cred in credentials:
             DeviceConnection = load_model('connection', 'DeviceConnection')
             conn = DeviceConnection(device=device, credentials=cred, enabled=True)
+            conn.set_connector(cred.connector_instance)
             conn.full_clean()
             conn.save()
 

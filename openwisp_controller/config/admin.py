@@ -439,7 +439,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'system',
         'devicelocation__location__address',
     ]
-    readonly_fields = ['last_ip', 'management_ip', 'uuid']
+    readonly_fields = ['last_ip', 'uuid']
     autocomplete_fields = ['group']
     fields = [
         'name',
@@ -475,6 +475,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + [
             f'{prefix}js/tabs.js',
+            f'{prefix}js/management_ip.js',
             f'{prefix}js/relevant_templates.js',
         ]
 

@@ -54,6 +54,8 @@ class Ssh(object):
         ],
     }
 
+    has_update_strategy = True
+
     def __init__(self, params, addresses):
         self._params = params
         self.addresses = addresses
