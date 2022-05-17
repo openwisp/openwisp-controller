@@ -12,6 +12,7 @@ from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
 from .. import settings as app_settings
+from ..signals import group_templates_changed
 from ..sortedm2m.fields import SortedManyToManyField
 from .config import TemplatesThrough
 
@@ -50,3 +51,12 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
             )
         except SchemaError as e:
             raise ValidationError({'input': e.message})
+
+    @classmethod
+    def templates_changed(cls, instance, old_templates, templates, *args, **kwargs):
+        group_templates_changed.send(
+            sender=cls,
+            instance=instance,
+            templates=templates,
+            old_templates=old_templates,
+        )

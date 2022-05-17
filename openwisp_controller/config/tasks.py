@@ -104,3 +104,42 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
             f'Response status code: {response.status_code}, '
             f'VPN Server UUID: {vpn_id}',
         )
+
+
+@shared_task(base=OpenwispCeleryTask)
+def change_devices_templates(instance_id, model_name, **kwargs):
+    def filter_backend_templates(templates, backend):
+        return filter(lambda template: template.backend == backend, templates)
+
+    def add_templates(device, templates):
+        valid_templates = filter_backend_templates(templates, device.config.backend)
+        device.config.templates.add(*valid_templates)
+
+    def remove_templates(device, templates):
+        valid_templates = filter_backend_templates(templates, device.config.backend)
+        device.config.templates.remove(*valid_templates)
+
+    Device = load_model('config', 'Device')
+    DeviceGroup = load_model('config', 'DeviceGroup')
+    Template = load_model('config', 'Template')
+    if model_name == Device._meta.model_name:
+        device = Device.objects.get(pk=instance_id)
+        old_group = DeviceGroup.objects.get(pk=kwargs.get('old_group_id'))
+        group = DeviceGroup.objects.get(pk=kwargs.get('group_id'))
+        old_group_templates = old_group.templates.all()
+        group_templates = group.templates.all()
+        for template in old_group_templates:
+            if template not in group_templates:
+                remove_templates(device, [template])
+        for template in group_templates:
+            if template not in old_group_templates:
+                add_templates(device, [template])
+    elif model_name == DeviceGroup._meta.model_name:
+        device_group = DeviceGroup.objects.get(id=instance_id)
+        templates = Template.objects.filter(pk__in=kwargs.get('templates'))
+        old_templates = Template.objects.filter(pk__in=kwargs.get('old_templates'))
+        for device in device_group.device_set.all():
+            if not hasattr(device, 'config'):
+                continue
+            remove_templates(device, old_templates)
+            add_templates(device, templates)

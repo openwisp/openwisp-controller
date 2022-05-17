@@ -46,6 +46,9 @@ def devicegroup_change_handler(instance, **kwargs):
     if instance._state.adding or ('created' in kwargs and kwargs['created'] is True):
         return
     model_name = instance._meta.model_name
+    if model_name == Device._meta.model_name:
+        # remove old group templates and apply new group templates
+        devicegroup_templates_change_handler(instance, **kwargs)
     tasks.invalidate_devicegroup_cache_change.delay(instance.id, model_name)
 
 
@@ -62,3 +65,21 @@ def device_cache_invalidation_handler(instance, **kwargs):
     view = DeviceChecksumView()
     setattr(view, 'kwargs', {'pk': str(instance.pk)})
     view.get_device.invalidate(view)
+
+
+def devicegroup_templates_change_handler(instance, **kwargs):
+    model_name = instance._meta.model_name
+    if model_name == Device._meta.model_name:
+        tasks.change_devices_templates(
+            instance_id=instance.id,
+            model_name=model_name,
+            group_id=kwargs.pop('group_id'),
+            old_group_id=kwargs.pop('old_group_id'),
+        )
+    elif model_name == DeviceGroup._meta.model_name:
+        tasks.change_devices_templates.delay(
+            instance_id=instance.id,
+            model_name=model_name,
+            templates=kwargs.get('templates'),
+            old_templates=kwargs.get('old_templates'),
+        )

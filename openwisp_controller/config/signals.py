@@ -37,3 +37,7 @@ vpn_peers_changed = Signal()
 vpn_peers_changed.__doc__ = """
 providing arguments: ['instance']
 """
+group_templates_changed = Signal()
+group_templates_changed.__doc__ = """
+providing arguments: ['instance', 'templates', 'old_templates']
+"""

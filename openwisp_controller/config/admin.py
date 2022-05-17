@@ -930,6 +930,14 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         extra_context = self.get_extra_context(object_id)
         return super().change_view(request, object_id, form_url, extra_context)
 
+    def save_related(self, request, form, formsets, change):
+        old_templates = list(form.instance.templates.values_list('pk', flat=True))
+        super().save_related(request, form, formsets, change)
+        templates = list(form.instance.templates.values_list('pk', flat=True))
+        DeviceGroup.templates_changed(
+            form.instance, old_templates=old_templates, templates=templates
+        )
+
     def get_extra_context(self, pk=None):
         ctx = {}
         ctx.update(
