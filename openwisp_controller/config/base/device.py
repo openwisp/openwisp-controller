@@ -189,6 +189,9 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
+        # The value of "self._state.adding" will always be "False"
+        # after performing the save operation. Hence, the actual value
+        # is stored in the "state_adding" variable.
         if not state_adding:
             self._check_changed_fields()
 
