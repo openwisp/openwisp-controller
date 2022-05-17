@@ -22,7 +22,8 @@ class TestSnmp(CreateConnectionsMixin, TestCase):
             self.assertEqual(params, obj.params)
             self.assertEqual(Credentials.objects.count(), init_credentials_count + 1)
             self.assertEqual(
-                obj.connector, 'openwisp_controller.connection.connectors.openwrt.snmp.OpenWRTSnmp'
+                obj.connector,
+                'openwisp_controller.connection.connectors.openwrt.snmp.OpenWRTSnmp',
             )
 
         with self.subTest('test airos'):

@@ -2283,17 +2283,17 @@ Configure timeout for the TCP connect when establishing a SSH connection.
 ``OPENWISP_CONNECTORS``
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+-------------------------------------------------------------------------------------------+
-| **type**:    | ``tuple``                                                                                 |
-+--------------+-------------------------------------------------------------------------------------------+
-| **default**: | .. code-block:: python                                                                    |
-|              |                                                                                           |
-|              |   (                                                                                       |
-|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),                         |
-|              |     ('openwisp_controller.connection.connectors.openwrt.snmp.OpenWRTSnmp', 'OpenWRT SNMP'),              |
++--------------+------------------------------------------------------------------------------------------------+
+| **type**:    | ``tuple``                                                                                      |
++--------------+------------------------------------------------------------------------------------------------+
+| **default**: | .. code-block:: python                                                                         |
+|              |                                                                                                |
+|              |   (                                                                                            |
+|              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),                              |
+|              |     ('openwisp_controller.connection.connectors.openwrt.snmp.OpenWRTSnmp', 'OpenWRT SNMP'),    |
 |              |     ('openwisp_controller.connection.connectors.airos.snmp.AirOsSnmp', 'Ubiquiti AirOS SNMP'), |
-|              |   )                                                                                       |
-+--------------+-------------------------------------------------------------------------------------------+
+|              |   )                                                                                            |
++--------------+------------------------------------------------------------------------------------------------+
 
 Available connector classes. Connectors are python classes that specify ways
 in which OpenWISP can connect to devices in order to launch commands.
@@ -2822,6 +2822,23 @@ Example:
 The value of this setting decides whether to use DSA syntax
 (OpenWrt >=21 configuration syntax) if openwisp-controller fails
 to make that decision automatically.
+
+``OPENWISP_CONTROLLER_GROUP_PIE_CHART``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    |  ``bool`` |
++--------------+-----------+
+| **default**: | ``False`` |
++--------------+-----------+
+
+Allows to show a pie chart like the one in the screenshot.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/devicegroups-piechart.png
+   :alt: device groups piechart
+
+Active groups are groups which have at least one device in them,
+while emtpy groups do not have any device assigned.
 
 Signals
 -------
