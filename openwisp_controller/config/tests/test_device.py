@@ -389,8 +389,10 @@ class TestDevice(
             )
 
     def test_device_group_changed_not_emitted_on_creation(self):
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org)
         with catch_signal(device_group_changed) as handler:
-            self._create_device(organization=self._get_org())
+            self._create_device(name='test', organization=org, group=device_group)
         handler.assert_not_called()
 
     def test_device_field_changed_checks(self):
