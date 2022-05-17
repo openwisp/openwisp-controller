@@ -6,16 +6,13 @@ from swapper import load_model
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
-from .base import PkiReversionTemplatesMixin
 
 Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 
 
 @admin.register(Ca)
-class CaAdmin(
-    MultitenantAdminMixin, PkiReversionTemplatesMixin, AbstractCaAdmin, VersionAdmin
-):
+class CaAdmin(MultitenantAdminMixin, AbstractCaAdmin, VersionAdmin):
     history_latest_first = True
 
 
@@ -26,9 +23,7 @@ CaAdmin.Media.js += ('admin/pki/js/show-org-field.js',)
 
 
 @admin.register(Cert)
-class CertAdmin(
-    MultitenantAdminMixin, PkiReversionTemplatesMixin, AbstractCertAdmin, VersionAdmin
-):
+class CertAdmin(MultitenantAdminMixin, AbstractCertAdmin, VersionAdmin):
     multitenant_shared_relations = ('ca',)
     history_latest_first = True
 
