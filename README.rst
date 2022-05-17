@@ -2290,8 +2290,8 @@ Configure timeout for the TCP connect when establishing a SSH connection.
 |              |                                                                                           |
 |              |   (                                                                                       |
 |              |     ('openwisp_controller.connection.connectors.ssh.Ssh', 'SSH'),                         |
-|              |     ('openwisp_controller.connection.connectors.snmp.Snmp', 'OpenWRT SNMP'),              |
-|              |     ('openwisp_controller.connection.connectors.airos.snmp.Snmp', 'Ubiquiti AirOS SNMP'), |
+|              |     ('openwisp_controller.connection.connectors.openwrt.snmp.OpenWRTSnmp', 'OpenWRT SNMP'),              |
+|              |     ('openwisp_controller.connection.connectors.airos.snmp.AirOsSnmp', 'Ubiquiti AirOS SNMP'), |
 |              |   )                                                                                       |
 +--------------+-------------------------------------------------------------------------------------------+
 

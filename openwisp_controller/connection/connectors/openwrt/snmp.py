@@ -1,5 +1,5 @@
 from ..snmp import Snmp as BaseSnmp
 
 
-class AirOsSnmp(BaseSnmp):
+class OpenWRTSnmp(BaseSnmp):
     pass
