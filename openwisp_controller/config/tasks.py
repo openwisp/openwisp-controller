@@ -122,18 +122,21 @@ def change_devices_templates(instance_id, model_name, **kwargs):
     Device = load_model('config', 'Device')
     DeviceGroup = load_model('config', 'DeviceGroup')
     Template = load_model('config', 'Template')
+
     if model_name == Device._meta.model_name:
         device = Device.objects.get(pk=instance_id)
-        old_group = DeviceGroup.objects.get(pk=kwargs.get('old_group_id'))
-        group = DeviceGroup.objects.get(pk=kwargs.get('group_id'))
-        old_group_templates = old_group.templates.all()
+        if not hasattr(device, 'config'):
+            return
+        old_group_id = kwargs.get('old_group_id')
+        group_id = kwargs.get('group_id')
+        group = DeviceGroup.objects.get(pk=group_id)
         group_templates = group.templates.all()
-        for template in old_group_templates:
-            if template not in group_templates:
-                remove_templates(device, [template])
-        for template in group_templates:
-            if template not in old_group_templates:
-                add_templates(device, [template])
+        if old_group_id:
+            old_group = DeviceGroup.objects.get(pk=old_group_id)
+            old_group_templates = old_group.templates.all()
+            remove_templates(device, old_group_templates)
+        add_templates(device, group_templates)
+
     elif model_name == DeviceGroup._meta.model_name:
         device_group = DeviceGroup.objects.get(id=instance_id)
         templates = Template.objects.filter(pk__in=kwargs.get('templates'))

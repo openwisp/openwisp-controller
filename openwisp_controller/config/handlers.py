@@ -69,13 +69,21 @@ def device_cache_invalidation_handler(instance, **kwargs):
 
 def devicegroup_templates_change_handler(instance, **kwargs):
     model_name = instance._meta.model_name
-    if model_name == Device._meta.model_name:
-        tasks.change_devices_templates(
-            instance_id=instance.id,
-            model_name=model_name,
-            group_id=kwargs.pop('group_id'),
-            old_group_id=kwargs.pop('old_group_id'),
+    if model_name == Device._meta.model_name and instance.group:
+        group_id = kwargs.get('group_id')
+        old_group_id = kwargs.get('old_group_id')
+        device_created = instance._state.adding or (
+            'created' in kwargs and kwargs['created'] is True
         )
+        if not group_id and device_created:
+            group_id = instance.group.id
+        if group_id and (device_created or old_group_id):
+            tasks.change_devices_templates(
+                instance_id=instance.id,
+                model_name=model_name,
+                group_id=group_id,
+                old_group_id=old_group_id,
+            )
     elif model_name == DeviceGroup._meta.model_name:
         tasks.change_devices_templates.delay(
             instance_id=instance.id,

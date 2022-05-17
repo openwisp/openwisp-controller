@@ -108,6 +108,11 @@ class ConfigConfig(AppConfig):
             sender=self.devicegroup_model,
             dispatch_uid='devicegroup.templates_changed',
         )
+        post_save.connect(
+            handlers.devicegroup_templates_change_handler,
+            sender=self.device_model,
+            dispatch_uid='device_created',
+        )
 
     def register_menu_groups(self):
         register_menu_group(
