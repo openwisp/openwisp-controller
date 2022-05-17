@@ -652,6 +652,8 @@ class DeviceResource(resources.ModelResource):
 
 class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):
     resource_class = DeviceResource
+    # needed to support both reversion and import-export
+    change_list_template = 'admin/config/change_list_device.html'
 
 
 class CloneOrganizationForm(forms.Form):
