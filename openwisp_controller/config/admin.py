@@ -37,7 +37,6 @@ from openwisp_utils.admin import (
 )
 
 from ..admin import MultitenantAdminMixin
-from ..pki.base import PkiReversionTemplatesMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
 from .utils import send_file
@@ -69,7 +68,7 @@ class SystemDefinedVariableMixin(object):
     system_context.short_description = _('System Defined Variables')
 
 
-class BaseAdmin(TimeReadonlyAdminMixin, PkiReversionTemplatesMixin, ModelAdmin):
+class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
     history_latest_first = True
 
 
