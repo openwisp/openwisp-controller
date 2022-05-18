@@ -644,8 +644,9 @@ class DeviceResource(resources.ModelResource):
             'created',
             'modified',
             'id',
-            'organization__id',
-            'group__id',
+            'key',
+            'organization',
+            'group',
         ]
         export_order = fields
 
