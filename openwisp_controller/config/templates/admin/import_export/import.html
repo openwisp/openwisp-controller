@@ -1,0 +1,7 @@
+{% extends "admin/import_export/import.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'import_export/import-openwisp.css' %}" />
+{% endblock %}
