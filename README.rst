@@ -109,6 +109,7 @@ Config App
 * **VPN management**: `automatically provision VPN tunnels <#openwisp-controller-default-auto-cert>`_,
   including cryptographic keys, IP addresses
 * `REST API <#rest-api-reference>`_
+* `Export/Import devices <#exportimport-device-data>`_
 
 PKI App
 ~~~~~~~
@@ -375,6 +376,7 @@ Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
         'openwisp_utils.admin_theme',
         'django.contrib.admin',
         'django.forms',
+        'import_export',
         ...
     ]
     EXTENDED_APPS = ('django_x509', 'django_loci')
@@ -930,6 +932,31 @@ Device Groups provide the following features:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-groups.png
   :alt: Device Group example
+
+Export/Import Device data
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/import-export/device-list.png
+  :alt: Import / Export
+
+The device list page offers two buttons to export and import device data in
+different formats.
+
+The export feature respects any filters selected in the device list.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/import-export/export-page.png
+  :alt: Export
+
+For importing devices into the system, only the required fields are needed,
+for example, the following CSV file will import a device named
+``TestImport`` with mac address ``00:11:22:09:44:55`` in the organization with
+UUID ``3cb5e18c-0312-48ab-8dbd-038b8415bd6f``::
+
+    organization,name,mac_address
+    3cb5e18c-0312-48ab-8dbd-038b8415bd6f,TestImport,00:11:22:09:44:55
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/import-export/import-page.png
+  :alt: Import / Export
 
 How to setup WireGuard tunnels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3150,6 +3177,8 @@ Now you need to add ``mycontroller.sample_config``,
         'rest_framework_gis',
         # channels
         'channels',
+        # django-import-export
+        'import_export',
     ]
 
 Substitute ``mycontroller``, ``sample_config``, ``sample_pki``, ``sample_connection``,

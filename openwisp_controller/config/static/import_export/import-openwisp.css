@@ -1,0 +1,6 @@
+body { overflow-y: auto }
+ins { padding: 5px; white-space: nowrap; }
+#main-content .results tbody td, #main-content .results tbody th,
+div#main-content table tbody th, div#main-content table tbody td {
+  padding: 0.2rem 10px
+}

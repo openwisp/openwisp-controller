@@ -1,3 +1,4 @@
+import io
 import json
 import os
 from unittest.mock import patch
@@ -5,6 +6,7 @@ from unittest.mock import patch
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
@@ -36,7 +38,65 @@ DeviceLocation = load_model('geo', 'DeviceLocation')
 Group = load_model('openwisp_users', 'Group')
 
 
+class TestImportExportMixin:
+    """
+    Reused in OpenWISP Monitoring
+    """
+
+    resource_fields = [
+        'name',
+        'mac_address',
+        'organization__name',
+        'group__name',
+        'config__status',
+        'config__backend',
+        'last_ip',
+        'management_ip',
+        'created',
+        'modified',
+        'key',
+        'id',
+        'organization',
+        'group',
+    ]
+
+    def test_device_import_export_buttons(self):
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Import</a>')
+        self.assertContains(response, 'Export</a>')
+
+    def test_device_export(self):
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_export'), {'file_format': '0'}
+        )
+        self.assertNotContains(response, 'error')
+        self.assertIsNotNone(response.get('Content-Disposition'))
+        file_ = io.BytesIO(response.content)
+        csv = file_.getvalue().decode()
+        for field in self.resource_fields:
+            self.assertIn(field, csv)
+
+    def test_device_import(self):
+        org = self._get_org()
+        contents = (
+            'organization,name,mac_address\n' f'{org.pk},TestImport,00:11:22:09:44:55'
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv},
+        )
+        with open('test.html', 'w+') as f:
+            f.write(response.content.decode())
+        self.assertNotContains(response, 'errorlist')
+        self.assertNotContains(response, 'Errors')
+        self.assertContains(response, 'Confirm import')
+
+
 class TestAdmin(
+    TestImportExportMixin,
     TestGeoMixin,
     CreateDeviceGroupMixin,
     CreateConfigTemplateMixin,
