@@ -111,17 +111,20 @@ def change_devices_templates(instance_id, model_name, **kwargs):
     def filter_backend_templates(templates, backend):
         return filter(lambda template: template.backend == backend, templates)
 
-    def add_templates(device, templates):
-        valid_templates = filter_backend_templates(templates, device.config.backend)
-        device.config.templates.add(*valid_templates)
+    def add_templates(device, templates, ignore_backend_filter=False):
+        if not ignore_backend_filter:
+            templates = filter_backend_templates(templates, device.config.backend)
+        device.config.templates.add(*templates)
 
-    def remove_templates(device, templates):
-        valid_templates = filter_backend_templates(templates, device.config.backend)
-        device.config.templates.remove(*valid_templates)
+    def remove_templates(device, templates, ignore_backend_filter=False):
+        if not ignore_backend_filter:
+            templates = filter_backend_templates(templates, device.config.backend)
+        device.config.templates.remove(*templates)
 
     Device = load_model('config', 'Device')
     DeviceGroup = load_model('config', 'DeviceGroup')
     Template = load_model('config', 'Template')
+    Config = load_model('config', 'Config')
 
     if model_name == Device._meta.model_name:
         device = Device.objects.get(pk=instance_id)
@@ -146,3 +149,12 @@ def change_devices_templates(instance_id, model_name, **kwargs):
                 continue
             remove_templates(device, old_templates)
             add_templates(device, templates)
+
+    elif model_name == Config._meta.model_name:
+        config = Config.objects.get(pk=instance_id)
+        device_group = config.device.group
+        templates = device_group.templates.filter(backend=kwargs.get('backend'))
+        old_templates = device_group.templates.filter(backend=kwargs.get('old_backend'))
+        ignore_backend_filter = True
+        remove_templates(config.device, old_templates, ignore_backend_filter)
+        add_templates(config.device, templates, ignore_backend_filter)

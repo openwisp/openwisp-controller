@@ -14,7 +14,7 @@ from packaging import version
 from swapper import get_model_name
 
 from .. import settings as app_settings
-from ..signals import config_modified, config_status_changed
+from ..signals import config_backend_changed, config_modified, config_status_changed
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
@@ -459,6 +459,13 @@ class AbstractConfig(BaseConfig):
             'backend', 'config', 'context', 'status'
         ).get(pk=self.pk)
         for attr in ['backend', 'config', 'context']:
+            if attr == 'backend' and getattr(self, attr) != getattr(current, attr):
+                config_backend_changed.send(
+                    sender=self.__class__,
+                    instance=self,
+                    old_backend=current.backend,
+                    backend=self.backend,
+                )
             if getattr(self, attr) == getattr(current, attr):
                 continue
             if self.status != 'modified':

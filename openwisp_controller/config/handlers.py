@@ -67,9 +67,14 @@ def device_cache_invalidation_handler(instance, **kwargs):
     view.get_device.invalidate(view)
 
 
+def config_backend_change_handler(instance, **kwargs):
+    devicegroup_templates_change_handler(instance, **kwargs)
+
+
 def devicegroup_templates_change_handler(instance, **kwargs):
     model_name = instance._meta.model_name
     if model_name == Device._meta.model_name and instance.group:
+        # device group or config changed
         group_id = kwargs.get('group_id')
         old_group_id = kwargs.get('old_group_id')
         device_created = instance._state.adding or (
@@ -85,9 +90,18 @@ def devicegroup_templates_change_handler(instance, **kwargs):
                 old_group_id=old_group_id,
             )
     elif model_name == DeviceGroup._meta.model_name:
+        # group templates changed
         tasks.change_devices_templates.delay(
             instance_id=instance.id,
             model_name=model_name,
             templates=kwargs.get('templates'),
             old_templates=kwargs.get('old_templates'),
+        )
+    elif model_name == Config._meta.model_name:
+        # config backend changed
+        tasks.change_devices_templates(
+            instance_id=instance.id,
+            model_name=model_name,
+            backend=kwargs.get('backend'),
+            old_backend=kwargs.get('old_backend'),
         )

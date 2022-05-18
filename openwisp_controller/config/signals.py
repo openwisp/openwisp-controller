@@ -41,3 +41,7 @@ group_templates_changed = Signal()
 group_templates_changed.__doc__ = """
 providing arguments: ['instance', 'templates', 'old_templates']
 """
+config_backend_changed = Signal()
+config_backend_changed.__doc__ = """
+providing arguments: ['instance', 'backend', 'old_backend']
+"""

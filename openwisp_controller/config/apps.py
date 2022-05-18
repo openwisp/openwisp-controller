@@ -15,6 +15,7 @@ from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
 from .signals import (
+    config_backend_changed,
     config_modified,
     device_group_changed,
     device_name_changed,
@@ -112,6 +113,11 @@ class ConfigConfig(AppConfig):
             handlers.devicegroup_templates_change_handler,
             sender=self.device_model,
             dispatch_uid='device_created',
+        )
+        config_backend_changed.connect(
+            handlers.config_backend_change_handler,
+            sender=self.config_model,
+            dispatch_uid='config.config_backend_changed',
         )
 
     def register_menu_groups(self):
