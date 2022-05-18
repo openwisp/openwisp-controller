@@ -53,7 +53,7 @@ class TestApps(TestCase):
         self.assertEqual(query_params['group_by'], 'system')
 
     def test_device_group_chart_registered(self):
-        chart_config = DASHBOARD_CHARTS.get(13, None)
+        chart_config = DASHBOARD_CHARTS.get(20, None)
         self.assertIsNotNone(chart_config)
         self.assertEqual(chart_config['name'], 'Groups')
         self.assertIn('labels', chart_config)

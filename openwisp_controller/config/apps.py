@@ -323,7 +323,7 @@ class ConfigConfig(AppConfig):
         )
         if app_settings.GROUP_PIE_CHART:
             register_dashboard_chart(
-                position=13,
+                position=20,
                 config={
                     'name': _('Groups'),
                     'query_params': {
