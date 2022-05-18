@@ -73,7 +73,11 @@ def config_backend_change_handler(instance, **kwargs):
 
 def devicegroup_templates_change_handler(instance, **kwargs):
     model_name = instance._meta.model_name
-    if model_name == Device._meta.model_name and instance.group:
+    if (
+        model_name == Device._meta.model_name
+        and (kwargs.get('group_id') or kwargs.get('created') is True)
+        and instance.group
+    ):
         # device group or config changed
         group_id = kwargs.get('group_id')
         old_group_id = kwargs.get('old_group_id')

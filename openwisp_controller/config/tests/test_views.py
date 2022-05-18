@@ -74,7 +74,23 @@ class TestViews(
                 reverse('admin:get_relevant_templates', args=[org1.pk])
             )
         template = response.json()
-        self.assertEqual(template, {})
+        self.assertEqual(
+            template,
+            {
+                str(t1.pk): {
+                    'backend': t1.backend,
+                    'default': t1.default,
+                    'name': t1.name,
+                    'required': t1.required,
+                },
+                str(t3.pk): {
+                    'backend': t3.backend,
+                    'default': t3.default,
+                    'name': t3.name,
+                    'required': t3.required,
+                },
+            },
+        )
 
     def test_get_relevant_templates_with_backend_filtering(self):
         org1 = self._create_org(name='org1')
@@ -105,6 +121,7 @@ class TestViews(
             templates,
             {
                 str(t1.pk): {
+                    'backend': t1.backend,
                     'required': t1.required,
                     'default': t1.default,
                     'name': t1.name,
@@ -123,6 +140,7 @@ class TestViews(
             templates,
             {
                 str(t2.pk): {
+                    'backend': t2.backend,
                     'required': t2.required,
                     'default': t2.default,
                     'name': t2.name,

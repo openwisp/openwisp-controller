@@ -153,6 +153,8 @@ def change_devices_templates(instance_id, model_name, **kwargs):
     elif model_name == Config._meta.model_name:
         config = Config.objects.get(pk=instance_id)
         device_group = config.device.group
+        if not device_group:
+            return
         templates = device_group.templates.filter(backend=kwargs.get('backend'))
         old_templates = device_group.templates.filter(backend=kwargs.get('old_backend'))
         ignore_backend_filter = True
