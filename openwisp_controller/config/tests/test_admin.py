@@ -1301,7 +1301,7 @@ class TestAdmin(
 
     def test_device_export(self):
         response = self.client.post(
-            reverse('admin:config_device_export'), {'file_format': '0'}
+            reverse(f'admin:{self.app_label}_device_export'), {'file_format': '0'}
         )
         self.assertNotContains(response, 'error')
         self.assertIsNotNone(response.get('Content-Disposition'))
@@ -1333,7 +1333,7 @@ class TestAdmin(
         )
         csv = ContentFile(contents)
         response = self.client.post(
-            reverse('admin:config_device_import'),
+            reverse(f'admin:{self.app_label}_device_import'),
             {'input_format': '0', 'import_file': csv},
         )
         with open('test.html', 'w+') as f:
