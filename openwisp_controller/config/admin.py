@@ -939,14 +939,11 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         )
 
     def get_extra_context(self, pk=None):
-        ctx = {}
-        ctx.update(
-            {
-                'relevant_template_url': reverse(
-                    'admin:get_relevant_templates', args=['org_id']
-                ),
-            }
-        )
+        ctx = {
+            'relevant_template_url': reverse(
+                'admin:get_relevant_templates', args=['org_id']
+            ),
+        }
         return ctx
 
 

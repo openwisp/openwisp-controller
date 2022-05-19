@@ -107,17 +107,17 @@ class ConfigConfig(AppConfig):
         group_templates_changed.connect(
             handlers.devicegroup_templates_change_handler,
             sender=self.devicegroup_model,
-            dispatch_uid='devicegroup.templates_changed',
+            dispatch_uid='devicegroup_templates_change_handler.changed',
         )
         post_save.connect(
             handlers.devicegroup_templates_change_handler,
             sender=self.device_model,
-            dispatch_uid='device_created',
+            dispatch_uid='devicegroup_templates_change_handler.created',
         )
         config_backend_changed.connect(
             handlers.config_backend_change_handler,
             sender=self.config_model,
-            dispatch_uid='config.config_backend_changed',
+            dispatch_uid='devicegroup_templates_change_handler.backend_changed',
         )
 
     def register_menu_groups(self):
