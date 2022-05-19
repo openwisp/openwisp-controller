@@ -88,8 +88,6 @@ class TestImportExportMixin:
             reverse(f'admin:{self.app_label}_device_import'),
             {'input_format': '0', 'import_file': csv},
         )
-        with open('test.html', 'w+') as f:
-            f.write(response.content.decode())
         self.assertNotContains(response, 'errorlist')
         self.assertNotContains(response, 'Errors')
         self.assertContains(response, 'Confirm import')
