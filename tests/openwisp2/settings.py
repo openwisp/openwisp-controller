@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'reversion',
     'leaflet',
     'flat_json_widget',
+    'admin_auto_filters',
     # rest framework
     'rest_framework',
     'rest_framework.authtoken',

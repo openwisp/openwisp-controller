@@ -2,6 +2,7 @@ import json
 import logging
 
 import reversion
+from admin_auto_filters.filters import AutocompleteFilter
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
@@ -429,6 +430,24 @@ class ChangeDeviceGroupForm(forms.Form):
     )
 
 
+class TemplatesFilter(AutocompleteFilter):
+    template = 'admin/config/autocomplete_filter.html'
+    title = 'templates'
+    field_name = 'templates'
+    parameter_name = 'config__templates'
+    rel_model = Config
+
+    class Media:
+        js = (
+            'admin/js/jquery.init.js',
+            'config/js/autocomplete_filter.js',
+        )
+
+        css = {
+            'screen': ('config/css/autocomplete_filter.css',),
+        }
+
+
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     recover_form_template = 'admin/config/device_recover_form.html'
     list_display = [
@@ -444,7 +463,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     list_filter = [
         'config__status',
         ('organization', MultitenantOrgFilter),
-        ('config__templates', MultitenantRelatedOrgFilter),
+        TemplatesFilter,
         ('group', MultitenantRelatedOrgFilter),
         'created',
     ]
