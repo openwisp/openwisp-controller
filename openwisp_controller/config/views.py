@@ -30,7 +30,7 @@ def get_relevant_templates(request, organization_id):
     if backend:
         filter_options.update(backend=backend)
     else:
-        filter_options.update(required=False)
+        filter_options.update(required=False, default=False)
     queryset = (
         Template.objects.filter(**filter_options)
         .filter(Q(organization_id=org.pk) | Q(organization_id=None))

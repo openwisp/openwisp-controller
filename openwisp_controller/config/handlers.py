@@ -86,7 +86,7 @@ def devicegroup_templates_change_handler(instance, **kwargs):
         )
         if not group_id and device_created:
             group_id = instance.group.id
-        if group_id and (device_created or old_group_id):
+        if group_id:
             tasks.change_devices_templates(
                 instance_id=instance.id,
                 model_name=model_name,

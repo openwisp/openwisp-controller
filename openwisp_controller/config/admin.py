@@ -359,6 +359,17 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
             )
         return templates
 
+    def save(self, *args, **kwargs):
+        config = self.instance
+        old_backend = config._old_backend
+        instance = super().save(*args, **kwargs)
+        # if the backend has changed, the device group templates
+        # must be re-applied with the new backend after calling
+        # save_m2m method to apply user selected templates first
+        if config.backend != old_backend:
+            config._send_config_backend_changed_signal()
+        return instance
+
     class Meta(BaseForm.Meta):
         model = Config
         widgets = {'config': JsonSchemaWidget, 'context': FlatJsonWidget}

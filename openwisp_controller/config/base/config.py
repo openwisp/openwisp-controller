@@ -86,6 +86,7 @@ class AbstractConfig(BaseConfig):
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
     _config_context_functions = list()
+    _old_backend = None
 
     class Meta:
         abstract = True
@@ -444,6 +445,9 @@ class AbstractConfig(BaseConfig):
             default_templates = self.get_default_templates()
             if default_templates:
                 self.templates.add(*default_templates)
+        if self._old_backend != self.backend:
+            self._send_config_backend_changed_signal()
+            self._old_backend = None
         # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
             self._send_config_modified_signal(action='config_changed')
@@ -460,12 +464,8 @@ class AbstractConfig(BaseConfig):
         ).get(pk=self.pk)
         for attr in ['backend', 'config', 'context']:
             if attr == 'backend' and getattr(self, attr) != getattr(current, attr):
-                config_backend_changed.send(
-                    sender=self.__class__,
-                    instance=self,
-                    old_backend=current.backend,
-                    backend=self.backend,
-                )
+                # storing old backend to send backend change signal after save
+                self._old_backend = current.backend
             if getattr(self, attr) == getattr(current, attr):
                 continue
             if self.status != 'modified':
@@ -494,6 +494,18 @@ class AbstractConfig(BaseConfig):
             # kept for backward compatibility
             config=self,
             device=self.device,
+        )
+
+    def _send_config_backend_changed_signal(self):
+        """
+        Emits ``config_backend_changed`` signal.
+        Called also by ConfigForm when backend is changed
+        """
+        config_backend_changed.send(
+            sender=self.__class__,
+            instance=self,
+            old_backend=self._old_backend,
+            backend=self.backend,
         )
 
     def _send_config_status_changed_signal(self):
