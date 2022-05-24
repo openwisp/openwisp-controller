@@ -1,6 +1,6 @@
 {% load i18n %}
 
-    <div class="auto-filter">
+    <div class="ow-filter auto-filter">
         {% if not spec.is_placeholder_title %}
         <h3>{% blocktrans with filter_title=title %} By {{ filter_title }} {% endblocktrans %}</h3>
         {% endif %}
