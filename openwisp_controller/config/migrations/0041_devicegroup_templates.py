@@ -18,7 +18,13 @@ class Migration(migrations.Migration):
             name='templates',
             field=openwisp_controller.config.sortedm2m.fields.SortedManyToManyField(
                 blank=True,
-                help_text='configuration templates, applied from first to last',
+                help_text=(
+                    'Templates assigned to the devices which are part '
+                    'of the group. Default and required templates are '
+                    'excluded from this list. If the group on the device '
+                    'is changed, these templates are automatically removed '
+                    'and the templates of the new group are assigned.'
+                ),
                 related_name='device_group_relations',
                 to=settings.CONFIG_TEMPLATE_MODEL,
                 verbose_name='templates',

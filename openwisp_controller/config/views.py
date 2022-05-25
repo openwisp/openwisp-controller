@@ -34,11 +34,16 @@ def get_relevant_templates(request, organization_id):
     queryset = (
         Template.objects.filter(**filter_options)
         .filter(Q(organization_id=org.pk) | Q(organization_id=None))
-        .values('id', 'required', 'default', 'name', 'backend')
+        .only('id', 'name', 'backend', 'default', 'required')
     )
     relevant_templates = {}
     for template in queryset:
-        relevant_templates[str(template.pop('id'))] = template
+        relevant_templates[str(template.pk)] = dict(
+            name=template.name,
+            backend=template.get_backend_display(),
+            default=template.default,
+            required=template.required,
+        )
     return JsonResponse(relevant_templates)
 
 

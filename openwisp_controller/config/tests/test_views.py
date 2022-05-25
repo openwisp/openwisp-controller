@@ -102,7 +102,7 @@ class TestViews(
             template,
             {
                 str(t4.pk): {
-                    'backend': t4.backend,
+                    'backend': t4.get_backend_display(),
                     'required': t4.required,
                     'default': t4.default,
                     'name': t4.name,
@@ -139,7 +139,7 @@ class TestViews(
             templates,
             {
                 str(t1.pk): {
-                    'backend': t1.backend,
+                    'backend': t1.get_backend_display(),
                     'required': t1.required,
                     'default': t1.default,
                     'name': t1.name,
@@ -158,7 +158,7 @@ class TestViews(
             templates,
             {
                 str(t2.pk): {
-                    'backend': t2.backend,
+                    'backend': t2.get_backend_display(),
                     'required': t2.required,
                     'default': t2.default,
                     'name': t2.name,

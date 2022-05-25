@@ -600,5 +600,23 @@ class AbstractConfig(BaseConfig):
     def get_system_context(self):
         return self.get_context(system=True)
 
+    def manage_group_templates(
+        self, templates, old_templates, ignore_backend_filter=False
+    ):
+        """
+        This method is used to manage group templates for a device config.
+
+        Args:
+            instance (Config): Config instance
+            templates (Queryset): Queryset of templates to add
+            old_templates (Queryset): Queryset of old templates to remove
+            ignore_backend_filter (bool, optional): Defaults to False.
+        """
+        if not ignore_backend_filter:
+            templates = templates.filter(backend=self.backend)
+            old_templates = old_templates.filter(backend=self.backend)
+        self.templates.remove(*old_templates)
+        self.templates.add(*templates)
+
 
 AbstractConfig._meta.get_field('config').blank = True

@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -95,12 +96,15 @@ def devicegroup_templates_change_handler(instance, **kwargs):
             )
     elif model_name == DeviceGroup._meta.model_name:
         # group templates changed
-        tasks.change_devices_templates.delay(
-            instance_id=instance.id,
-            model_name=model_name,
-            templates=kwargs.get('templates'),
-            old_templates=kwargs.get('old_templates'),
+        transaction.on_commit(
+            lambda: tasks.change_devices_templates.delay(
+                instance_id=instance.id,
+                model_name=model_name,
+                templates=kwargs.get('templates'),
+                old_templates=kwargs.get('old_templates'),
+            )
         )
+
     elif model_name == Config._meta.model_name:
         # config backend changed
         tasks.change_devices_templates(

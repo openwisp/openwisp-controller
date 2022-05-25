@@ -26,7 +26,12 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         verbose_name=_('templates'),
         base_class=TemplatesThrough,
         blank=True,
-        help_text=_('configuration templates, applied from first to last'),
+        help_text=_(
+            'Templates assigned to the devices which are part of the group. '
+            'Default and required templates are excluded from this list. '
+            'If the group on the device is changed, these templates are '
+            'automatically removed and the templates of the new group are assigned.'
+        ),
     )
     meta_data = JSONField(
         blank=True,

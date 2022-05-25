@@ -108,19 +108,6 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
 
 @shared_task(base=OpenwispCeleryTask)
 def change_devices_templates(instance_id, model_name, **kwargs):
-    def filter_backend_templates(templates, backend):
-        return filter(lambda template: template.backend == backend, templates)
-
-    def add_templates(device, templates, ignore_backend_filter=False):
-        if not ignore_backend_filter:
-            templates = filter_backend_templates(templates, device.config.backend)
-        device.config.templates.add(*templates)
-
-    def remove_templates(device, templates, ignore_backend_filter=False):
-        if not ignore_backend_filter:
-            templates = filter_backend_templates(templates, device.config.backend)
-        device.config.templates.remove(*templates)
-
     Device = load_model('config', 'Device')
     DeviceGroup = load_model('config', 'DeviceGroup')
     Template = load_model('config', 'Template')
@@ -134,11 +121,11 @@ def change_devices_templates(instance_id, model_name, **kwargs):
         group_id = kwargs.get('group_id')
         group = DeviceGroup.objects.get(pk=group_id)
         group_templates = group.templates.all()
+        old_group_templates = Template.objects.none()
         if old_group_id:
             old_group = DeviceGroup.objects.get(pk=old_group_id)
             old_group_templates = old_group.templates.all()
-            remove_templates(device, old_group_templates)
-        add_templates(device, group_templates)
+        device.config.manage_group_templates(group_templates, old_group_templates)
 
     elif model_name == DeviceGroup._meta.model_name:
         device_group = DeviceGroup.objects.get(id=instance_id)
@@ -147,8 +134,7 @@ def change_devices_templates(instance_id, model_name, **kwargs):
         for device in device_group.device_set.all():
             if not hasattr(device, 'config'):
                 continue
-            remove_templates(device, old_templates)
-            add_templates(device, templates)
+            device.config.manage_group_templates(templates, old_templates)
 
     elif model_name == Config._meta.model_name:
         config = Config.objects.get(pk=instance_id)
@@ -158,5 +144,4 @@ def change_devices_templates(instance_id, model_name, **kwargs):
         templates = device_group.templates.filter(backend=kwargs.get('backend'))
         old_templates = device_group.templates.filter(backend=kwargs.get('old_backend'))
         ignore_backend_filter = True
-        remove_templates(config.device, old_templates, ignore_backend_filter)
-        add_templates(config.device, templates, ignore_backend_filter)
+        config.manage_group_templates(templates, old_templates, ignore_backend_filter)

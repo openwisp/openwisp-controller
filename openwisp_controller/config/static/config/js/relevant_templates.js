@@ -12,7 +12,7 @@ django.jQuery(function ($) {
         getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
             var prefix = isPrefix ? '__prefix__-' : '',
                 requiredString = templateConfig.required ? ' (required)' : '',
-                backendString = isDeviceGroup() && templateConfig.backend ? ` (backend - ${templateConfig.backend})` : '',
+                backendString = isDeviceGroup() && templateConfig.backend ? ` (backend: ${templateConfig.backend})` : '',
                 element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m" data-required=${templateConfig.required}> ${templateConfig.name}${requiredString}${backendString}</label></li>`),
                 inputField = element.children().children('input');
 
