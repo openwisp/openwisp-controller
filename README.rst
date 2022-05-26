@@ -927,9 +927,27 @@ Device Groups provide the following features:
 - Customize structure and validation of metadata field of DeviceGroup to standardize
   information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
   setting.
+- `Manage templates <#manage-device-group-templates>`_ of devices associated with group.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-groups.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
   :alt: Device Group example
+
+Manage Device Group Templates
+##############################
+
+Device Groups can be used to manage templates of the associated devices. i.e.:
+
+- Templates of any backend can be selected for a group. When a device is assigned to a group,
+  only those group templates which matches the device backend is applied to the device.
+- System will not force group templates to devices i.e. user can remove the applied group templates
+  from the device.
+- If the group of associated device changes then system will take care of removing old group templates and
+  applying new group templates to the device using `group_templates_changed <#group_templates_changed>`_ signal.
+- On backend change of associated device the system will remove all the group templates of previous backend and
+  apply group templates of new backend to the device using `config_backend_changed <#config_backend_changed>`_ signal.
+
+**Note:** Templates shown on the group page do not contains default or required templates
+as all new devices already assigns the default or required templates to itself.
 
 Export/Import Device data
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2926,6 +2944,16 @@ object are changed, but only on ``post_add`` or ``post_remove`` actions,
 ``post_clear`` is ignored for the same reason explained
 in the previous section.
 
+``config_backend_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.config_backend_changed``
+**Arguments**:
+
+- ``instance``: instance of ``Config`` which got its ``backend`` changed
+- ``old_backend``: the old backend of the config object
+- ``backend``: the new backend of the config object
+
 ``checksum_requested``
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -3032,6 +3060,22 @@ It is not emitted when the device is created.
 - ``old_group_id``: primary key of previous ``DeviceGroup`` of ``Device``
 
 The signal is emitted when the device group changes.
+
+It is not emitted when the device is created.
+
+``group_templates_changed``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+**Path**: ``openwisp_controller.config.signals.group_templates_changed``
+
+**Arguments**:
+
+- ``instance``: instance of ``DeviceGroup``.
+- ``templates``: list of ``Template`` objects assigned to ``DeviceGroup``
+- ``old_templates``: list of ``Template`` objects assigned earlier to ``DeviceGroup``
+
+The signal is emitted when the device group templates changes.
 
 It is not emitted when the device is created.
 
