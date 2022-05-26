@@ -1,6 +1,7 @@
 import io
 import json
 import os
+from unittest import mock
 from unittest.mock import patch
 
 from django.contrib.admin.models import LogEntry
@@ -17,17 +18,24 @@ from openwisp_utils.tests import catch_signal
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
-from ..signals import device_group_changed, device_name_changed, management_ip_changed
+from ..signals import (
+    device_group_changed,
+    device_name_changed,
+    group_templates_changed,
+    management_ip_changed,
+)
 from .utils import (
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
+    CreateTemplateMixin,
     TestVpnX509Mixin,
 )
 
 devnull = open(os.devnull, 'w')
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
@@ -1357,14 +1365,27 @@ class TestAdmin(
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
+    CreateTemplateMixin,
     TestOrganizationMixin,
     TestAdminMixin,
     TestCase,
 ):
     app_label = 'config'
+    _device_group_params = {
+        'name': 'test-device-group',
+        'description': 'test device group',
+    }
+    _additional_params = {}
 
     def setUp(self):
         self.client.force_login(self._get_admin())
+
+    def _get_device_group_params(self, org, **kwargs):
+        p = self._device_group_params.copy()
+        p.update(self._additional_params)
+        p.update(kwargs)
+        p['organization'] = org.pk
+        return p
 
     def test_multitenant_admin(self):
         org1 = self._create_org(name='org1')
@@ -1433,3 +1454,30 @@ class TestDeviceGroupAdmin(
         with self.subTest('test device menu item is registered'):
             url = reverse(f'admin:{self.app_label}_device_changelist')
             self.assertContains(response, f' class="menu-item" href="{url}"')
+
+    def test_add_devicegroup_does_not_emit_changed_signals(self):
+        template = self._create_template()
+        org1 = self._get_org()
+        path = reverse(f'admin:{self.app_label}_devicegroup_add')
+        data = self._get_device_group_params(org=org1, templates=[template.pk])
+        self._login()
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            self.client.post(path, data)
+        mocked_group_templates_changed.assert_not_called()
+
+    def test_change_devicegroup_templates_emit_changed_signals(self):
+        template = self._create_template()
+        org1 = self._get_org()
+        dg = self._create_device_group(organization=org1)
+        path = reverse(f'admin:{self.app_label}_devicegroup_change', args=[dg.pk])
+        data = self._get_device_group_params(org=org1, templates=[template.pk])
+        self._login()
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            self.client.post(path, data)
+        mocked_group_templates_changed.assert_called_once_with(
+            signal=mock.ANY,
+            sender=DeviceGroup,
+            instance=dg,
+            templates=[template.id],
+            old_templates=[],
+        )

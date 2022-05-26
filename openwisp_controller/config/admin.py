@@ -862,6 +862,25 @@ class VpnAdmin(
 
 
 class DeviceGroupForm(BaseForm):
+    _templates = None
+
+    def clean_templates(self):
+        templates = self.cleaned_data.get('templates')
+        self._templates = templates
+        return templates
+
+    def save(self, *args, **kwargs):
+        instance = super().save(*args, **kwargs)
+        if not self.instance._state.adding:
+            DeviceGroup.templates_changed(
+                instance=instance,
+                old_templates=list(
+                    self.instance.templates.values_list('pk', flat=True)
+                ),
+                templates=[template.id for template in self._templates],
+            )
+        return instance
+
     class Meta(BaseForm.Meta):
         model = DeviceGroup
         widgets = {'meta_data': DeviceGroupJsonSchemaWidget}
@@ -942,14 +961,6 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = self.get_extra_context(object_id)
         return super().change_view(request, object_id, form_url, extra_context)
-
-    def save_related(self, request, form, formsets, change):
-        old_templates = list(form.instance.templates.values_list('pk', flat=True))
-        super().save_related(request, form, formsets, change)
-        templates = list(form.instance.templates.values_list('pk', flat=True))
-        DeviceGroup.templates_changed(
-            form.instance, old_templates=old_templates, templates=templates
-        )
 
     def get_extra_context(self, pk=None):
         ctx = {
