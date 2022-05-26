@@ -51,7 +51,6 @@
 }
 .change-list .select2-container--open {
   margin-top: 3px;
-  transition: all 0.3s ease;
   border: none !important;
 }
 .change-list .select2-search--dropdown {
@@ -77,6 +76,7 @@
   list-style-type: none;
   color: #777;
   font-size: 14px;
+  border-radius: 4px;
 }
 .change-list .select2-results__option[aria-selected='true'] {
   background: #df5d43 !important;
