@@ -1,4 +1,3 @@
-from unittest import mock
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
@@ -57,7 +56,7 @@ class TestDeviceGroup(
             dg.templates.add(template)
             group_templates_changed_handler.assert_not_called()
             post_save_handler.assert_called_with(
-                signal=mock.ANY,
+                signal=post_save,
                 sender=load_model('config', 'DeviceGroup'),
                 instance=dg,
                 created=True,
