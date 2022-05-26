@@ -1,9 +1,10 @@
 'use strict';
 django.jQuery(document).ready(function () {
-    django.jQuery('.ow-filter select, #grp-filters select').on('change', function (e, choice) {
-        var val = django.jQuery(e.target).val() || '';
-        var class_name = this.className;
-        var param = this.name;
+    django.jQuery('#ow-apply-filter').on('click', function (e, choice) {
+        var filter = django.jQuery('.auto-filter select, #grp-filters select');
+        var val = filter.val() || '';
+        var class_name = filter.attr('class');
+        var param = filter.attr('name');
         if (class_name.includes('admin-autocomplete')) {
             window.location.search = search_replace(param, val);
         }

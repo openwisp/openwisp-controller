@@ -1,11 +1,11 @@
 {% load i18n %}
 
-    <div class="ow-filter auto-filter">
+    <div class="auto-filter">
         {% if not spec.is_placeholder_title %}
         <h3>{% blocktrans with filter_title=title %} By {{ filter_title }} {% endblocktrans %}</h3>
         {% endif %}
         <ul>
-            <li>{{ spec.rendered_widget }}</li>
+            <li id="target">{{ spec.rendered_widget }}</li>
             <li>{{ spec.field }}</li>
         </ul>
     </div>
