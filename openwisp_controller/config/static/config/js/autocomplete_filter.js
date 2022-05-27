@@ -1,6 +1,6 @@
 'use strict';
 django.jQuery(document).ready(function () {
-    django.jQuery('#ow-apply-filter').on('click', function (e, choice) {
+    django.jQuery('#ow-apply-filter').on('click', function () {
         var filter = django.jQuery('.auto-filter select, #grp-filters select');
         var val = filter.val() || '';
         var class_name = filter.attr('class');
@@ -10,7 +10,7 @@ django.jQuery(document).ready(function () {
         }
     });
 
-    django.jQuery('.auto-filter').on('select2:open', function (e) {
+    django.jQuery('.auto-filter').on('select2:open', function () {
         var dropDownContainer = django.jQuery('.select2-container--open')[1];
         django.jQuery(dropDownContainer).appendTo('#auto-filter-choices');
         django.jQuery(dropDownContainer).removeAttr('style');
