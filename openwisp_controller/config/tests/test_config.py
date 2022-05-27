@@ -13,8 +13,8 @@ from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
 from ..base.config import logger as config_model_logger
-from ..signals import config_modified, config_status_changed
-from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
+from ..signals import config_backend_changed, config_modified, config_status_changed
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX509Mixin
 
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
@@ -24,7 +24,11 @@ Ca = load_model('django_x509', 'Ca')
 
 
 class TestConfig(
-    CreateConfigTemplateMixin, TestOrganizationMixin, TestVpnX509Mixin, TestCase
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestOrganizationMixin,
+    TestVpnX509Mixin,
+    TestCase,
 ):
     """
     tests for Config model
@@ -751,6 +755,46 @@ class TestConfig(
         config.status = 'modified'
         config.save()
         self.assertEqual(config._initial_status, 'modified')
+
+    def test_config_backend_changed(self):
+        org = self._get_org()
+        old_backend = 'netjsonconfig.OpenWrt'
+        backend = 'netjsonconfig.OpenWisp'
+        group = self._create_device_group(organization=org)
+        t1 = self._create_template(name='t1', backend=old_backend)
+        t2 = self._create_template(name='t2', backend=backend)
+        group.templates.add(*[t1, t2])
+        d = self._create_device(group=group, organization=org)
+        with self.subTest('config_backend_changed signal must not be sent on creation'):
+            with catch_signal(config_backend_changed) as handler:
+                self._create_config(backend=old_backend, device=d)
+                handler.assert_not_called()
+                self.assertTrue(d.config.templates.filter(pk=t1.pk).exists())
+                self.assertFalse(d.config.templates.filter(pk=t2.pk).exists())
+        with self.subTest(
+            'config_backend_changed signal must not be sent on config status change'
+        ):
+            with catch_signal(config_backend_changed) as handler:
+                c = d.config
+                c.status = 'applied'
+                c.save(update_fields=['status'])
+                handler.assert_not_called()
+        with self.subTest(
+            'config_backend_changed signal must be sent on backend change'
+        ):
+            with catch_signal(config_backend_changed) as handler:
+                c = d.config
+                c.backend = backend
+                c.save(update_fields=['backend'])
+                handler.assert_called_once_with(
+                    sender=Config,
+                    signal=config_backend_changed,
+                    instance=c,
+                    old_backend=old_backend,
+                    backend=backend,
+                )
+                self.assertTrue(d.config.templates.filter(pk=t2.pk).exists())
+                self.assertFalse(d.config.templates.filter(pk=t1.pk).exists())
 
 
 class TestTransactionConfig(

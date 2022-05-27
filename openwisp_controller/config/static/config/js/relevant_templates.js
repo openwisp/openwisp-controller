@@ -10,6 +10,9 @@ django.jQuery(function ($) {
             return isDeviceGroup() ? 'templates' : 'config-0-templates';
         },
         getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
+            if (templateConfig===undefined) {
+                return; // relevant templates do not contain this template
+            }
             var prefix = isPrefix ? '__prefix__-' : '',
                 requiredString = templateConfig.required ? ' (required)' : '',
                 backendString = isDeviceGroup() && templateConfig.backend ? ` (backend: ${templateConfig.backend})` : '',

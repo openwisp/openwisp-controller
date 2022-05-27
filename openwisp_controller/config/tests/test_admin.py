@@ -509,6 +509,32 @@ class TestAdmin(
         self.assertNotIn(t1, templates)
         self.assertIn(t2, templates)
 
+    def test_group_templates_are_not_forced(self):
+        o = self._get_org()
+        t = self._create_template(name='t')
+        dg = self._create_device_group(name='test-group', organization=o)
+        dg.templates.add(t)
+        d = self._create_device(organization=o, group=dg)
+        c = self._create_config(device=d, backend=t.backend, config=t.config)
+        self.assertIn(t, d.config.templates.all())
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        params = self._get_device_params(org=o)
+        params.update(
+            {
+                'name': 'test-device-changed',
+                'config-0-id': str(c.pk),
+                'config-0-device': str(d.pk),
+                'config-0-templates': '',
+                'config-INITIAL_FORMS': 1,
+                'group': str(dg.pk),
+            }
+        )
+        response = self.client.post(path, params)
+        self.assertNotContains(response, 'errors', status_code=302)
+        c.refresh_from_db()
+        self.assertEqual(c.name, 'test-device-changed')
+        self.assertFalse(c.templates.filter(pk=t.pk).exists())
+
     def test_device_contains_default_templates_js(self):
         config = self._create_config(organization=self._get_org())
         path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
@@ -1546,6 +1572,9 @@ class TestDeviceGroupAdminTransaction(
         org1 = self._get_org()
         dg = self._create_device_group(organization=org1)
         device = self._create_device_config(device_opts=dict(group=dg))
+        self._create_device(
+            name='test-device-without-config', group=dg, mac_address='00:00:00:00:00:01'
+        )
         self.assertEqual(device.config.templates.count(), 0)
         path = reverse(f'admin:{self.app_label}_devicegroup_change', args=[dg.pk])
         self._login()

@@ -78,8 +78,6 @@ def devicegroup_templates_change_handler(instance, **kwargs):
         # device group changed
         group_id = kwargs.get('group_id')
         old_group_id = kwargs.get('old_group_id')
-        if not group_id:
-            return
         tasks.change_devices_templates(
             instance_id=instance.id,
             model_name=model_name,
