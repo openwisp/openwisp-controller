@@ -7,6 +7,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db.models.signals import post_save
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
@@ -455,7 +456,7 @@ class TestAdmin(
             'csrfmiddlewaretoken': 'test',
         }
 
-    def test_change_device_group(self):
+    def test_change_device_group_action(self):
         path = reverse(f'admin:{self.app_label}_device_changelist')
         org = self._get_org(org_name='default')
         device = self._create_device(organization=org)
@@ -465,6 +466,48 @@ class TestAdmin(
         self.assertContains(
             response, 'What group do you want to assign to the selected devices?'
         )
+
+    def test_change_device_group_add_group_templates(self):
+        org = self._get_org(org_name='default')
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1.templates.add(t1)
+        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2.templates.add(t2)
+        data = self._get_device_params(org=org)
+        data.update(group=str(dg1.pk))
+        with catch_signal(post_save) as mock_post_save, catch_signal(
+            device_group_changed
+        ) as device_group_changed_mock:
+            self.client.post(
+                reverse(f'admin:{self.app_label}_device_add'), data, follow=True
+            )
+        device = Device.objects.first()
+        mock_post_save.assert_any_call(
+            signal=post_save,
+            sender=Config,
+            instance=device.config,
+            created=True,
+            update_fields=None,
+            raw=False,
+            using='default',
+        )
+        device_group_changed_mock.assert_not_called()
+        self.assertIn(t1, device.config.templates.all())
+        with catch_signal(device_group_changed) as device_group_changed_mock:
+            device.group = dg2
+            device.save(update_fields=['group'])
+        device_group_changed_mock.assert_called_with(
+            signal=device_group_changed,
+            sender=Device,
+            instance=device,
+            group_id=dg2.id,
+            old_group_id=dg1.id,
+        )
+        templates = device.config.templates.all()
+        self.assertNotIn(t1, templates)
+        self.assertIn(t2, templates)
 
     def test_device_contains_default_templates_js(self):
         config = self._create_config(organization=self._get_org())

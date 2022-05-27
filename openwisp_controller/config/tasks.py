@@ -141,7 +141,13 @@ def change_devices_templates(instance_id, model_name, **kwargs):
         device_group = config.device.group
         if not device_group:
             return
-        templates = device_group.templates.filter(backend=kwargs.get('backend'))
-        old_templates = device_group.templates.filter(backend=kwargs.get('old_backend'))
-        ignore_backend_filter = True
-        config.manage_group_templates(templates, old_templates, ignore_backend_filter)
+        created = kwargs.get('created')
+        if created:
+            templates = device_group.templates.all()
+            old_templates = Template.objects.none()
+        else:
+            templates = device_group.templates.filter(backend=kwargs.get('backend'))
+            old_templates = device_group.templates.filter(
+                backend=kwargs.get('old_backend')
+            )
+        config.manage_group_templates(templates, old_templates, not created)

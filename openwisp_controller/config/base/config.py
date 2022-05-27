@@ -445,7 +445,7 @@ class AbstractConfig(BaseConfig):
             default_templates = self.get_default_templates()
             if default_templates:
                 self.templates.add(*default_templates)
-        if self._old_backend != self.backend:
+        if self._old_backend and self._old_backend != self.backend:
             self._send_config_backend_changed_signal()
             self._old_backend = None
         # emit signals if config is modified and/or if status is changing

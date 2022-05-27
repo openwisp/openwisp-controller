@@ -74,26 +74,19 @@ def config_backend_change_handler(instance, **kwargs):
 
 def devicegroup_templates_change_handler(instance, **kwargs):
     model_name = instance._meta.model_name
-    if (
-        model_name == Device._meta.model_name
-        and (kwargs.get('group_id') or kwargs.get('created') is True)
-        and instance.group
-    ):
-        # device group or config changed
+    if model_name == Device._meta.model_name:
+        # device group changed
         group_id = kwargs.get('group_id')
         old_group_id = kwargs.get('old_group_id')
-        device_created = instance._state.adding or (
-            'created' in kwargs and kwargs['created'] is True
+        if not group_id:
+            return
+        tasks.change_devices_templates(
+            instance_id=instance.id,
+            model_name=model_name,
+            group_id=group_id,
+            old_group_id=old_group_id,
         )
-        if not group_id and device_created:
-            group_id = instance.group.id
-        if group_id:
-            tasks.change_devices_templates(
-                instance_id=instance.id,
-                model_name=model_name,
-                group_id=group_id,
-                old_group_id=old_group_id,
-            )
+
     elif model_name == DeviceGroup._meta.model_name:
         # group templates changed
         transaction.on_commit(
@@ -106,10 +99,16 @@ def devicegroup_templates_change_handler(instance, **kwargs):
         )
 
     elif model_name == Config._meta.model_name:
-        # config backend changed
+        # config created or backend changed
+        config_created = instance._state.adding or (
+            'created' in kwargs and kwargs['created'] is True
+        )
+        if not (config_created or kwargs.get('backend')):
+            return
         tasks.change_devices_templates(
             instance_id=instance.id,
             model_name=model_name,
+            created=config_created,
             backend=kwargs.get('backend'),
             old_backend=kwargs.get('old_backend'),
         )

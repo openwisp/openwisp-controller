@@ -317,7 +317,7 @@ class BaseForm(forms.ModelForm):
 
 
 class ConfigForm(AlwaysHasChangedMixin, BaseForm):
-    _old_backend = None
+    _old_templates = None
 
     def get_temp_model_instance(self, **options):
         config_model = self.Meta.model
@@ -359,17 +359,22 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
                 # the device object.
                 raw_data=self.data,
             )
-        if data.get('backend', None) != config.backend:
-            self._old_backend = config.backend
+        self._old_templates = list(config.templates.filter(required=False))
         return templates
 
     def save(self, *args, **kwargs):
+        templates = self.cleaned_data.pop('templates', [])
         instance = super().save(*args, **kwargs)
-        # if the backend has changed, the device group templates
-        # must be re-applied with the new backend after calling
-        # save_m2m method to apply user selected templates first
-        if self._old_backend and self.instance.backend != self._old_backend:
-            self.instance._send_config_backend_changed_signal()
+        # as group templates are not forced so if user remove any selected
+        # group template, we need to remove it from the config instance
+        # not doing this in save_m2m because save_form_data directly set the
+        # user selected templates and we need to handle the condition i.e.
+        # group templates get applied at the time of creation of config
+        self.instance.manage_group_templates(
+            templates=templates,
+            old_templates=self._old_templates,
+            ignore_backend_filter=True,
+        )
         return instance
 
     class Meta(BaseForm.Meta):
