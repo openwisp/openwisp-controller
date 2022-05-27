@@ -15,6 +15,7 @@
   padding: 0;
 }
 .auto-filter h3 {
+  position: relative;
   margin: 0;
   padding: 0px 5px;
   width: fit-content;
@@ -23,8 +24,8 @@
   color: rgba(0, 0, 0, 0.65);
   pointer-events: none;
   font-weight: 300;
-  transform: translate(10px, -6px);
-  z-index: 100;
+  transform: translate(10px, -8px);
+  z-index: 3;
 }
 .auto-filter li {
   list-style-type: none;
@@ -36,7 +37,7 @@
   letter-spacing: 0.5px;
   line-height: 20px;
   margin-top: -16px !important;
-  z-index: 99;
+  z-index: 2;
 }
 .auto-filter .select2-selection {
   border: 1px solid #747272 !important;
@@ -49,14 +50,20 @@
 .auto-filter .select2-selection[aria-expanded='true'] .select2-selection__rendered {
   color: #df5d43 !important;
 }
-.change-list .select2-container--open {
-  margin-top: 3px;
-  border: none !important;
+#auto-filter-choices {
+  display: block;
+  min-height: 14.75rem;
+  border: none;
 }
-.change-list .select2-search--dropdown {
+#auto-filter-choices .select2-container--open {
+  border: none !important;
+  top: 17px !important;
+  left: 0 !important;
+}
+#auto-filter-choices .select2-search--dropdown {
   background: #fff !important;
 }
-.change-list .select2-dropdown--below {
+#auto-filter-choices .select2-dropdown--below {
   border-radius: 0.35rem;
   width: min-content;
   background: #fff;
@@ -67,22 +74,24 @@
   box-shadow: 0px 1px 4px #00000040;
   overflow-y: auto;
 }
-.change-list .select2-results ul {
+#auto-filter-choices .select2-results ul {
   margin: 0;
   padding: 0;
 }
-.change-list .select2-results li {
+#auto-filter-choices .select2-results li {
   margin: 0;
   list-style-type: none;
   color: #777;
   font-size: 14px;
   border-radius: 4px;
+  font-weight: 500;
+  transition: color 0.15s, background 0.15s;
 }
-.change-list .select2-results__option[aria-selected='true'] {
+#auto-filter-choices .select2-results__option[aria-selected='true'] {
   background: #df5d43 !important;
   color: #ffff !important;
 }
-.change-list .select2-results__option--highlighted {
+#auto-filter-choices .select2-results__option--highlighted {
   background: #ffe5e5 !important;
   color: #ba2121 !important;
 }

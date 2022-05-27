@@ -9,6 +9,12 @@ django.jQuery(document).ready(function () {
             window.location.search = search_replace(param, val);
         }
     });
+
+    django.jQuery('.auto-filter').on('select2:open', function (e) {
+        var dropDownContainer = django.jQuery('.select2-container--open')[1];
+        django.jQuery(dropDownContainer).appendTo('#auto-filter-choices');
+        django.jQuery(dropDownContainer).removeAttr('style');
+    });
 });
 
 function search_replace(name, value) {
@@ -18,26 +24,6 @@ function search_replace(name, value) {
         new_search_hash[decodeURIComponent(name)].push(decodeURIComponent(value));
     } else {
         delete new_search_hash[decodeURIComponent(name)];
-    }
-    return hash_to_search(new_search_hash);
-}
-
-function search_add(name, value) {
-    var new_search_hash = search_to_hash();
-    if (!(decodeURIComponent(name) in new_search_hash)) {
-        new_search_hash[decodeURIComponent(name)] = [];
-    }
-    new_search_hash[decodeURIComponent(name)].push(decodeURIComponent(value));
-    return hash_to_search(new_search_hash);
-}
-// pduey: remove a variable/value pair from the current query string and return updated href
-function search_remove(name, value) {
-    var new_search_hash = search_to_hash();
-    if (new_search_hash[name].indexOf(value) >= 0) {
-        new_search_hash[name].splice(new_search_hash[name].indexOf(value), 1);
-        if (new_search_hash[name].length == 0) {
-            delete new_search_hash[name];
-        }
     }
     return hash_to_search(new_search_hash);
 }
