@@ -919,35 +919,50 @@ registered with the same name.
 Device Groups
 ~~~~~~~~~~~~~
 
-Device Groups provide an easy way to organize devices of a particular organization.
-Device Groups provide the following features:
+Device Groups provide features aimed at adding specific management rules
+for the devices of an organization:
 
 - Group similar devices by having dedicated groups for access points, routers, etc.
-- Store additional information regarding a group in the structured metadata field.
+- Store additional information regarding a group in the structured metadata field
+  (which can be accessed via the REST API).
 - Customize structure and validation of metadata field of DeviceGroup to standardize
   information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
   setting.
-- `Manage templates <#manage-device-group-templates>`_ of devices associated with group.
+- Define `group configuration templates <#group-templates>`_.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
   :alt: Device Group example
 
-Manage Device Group Templates
-##############################
+Group Templates
+###############
 
-Device Groups can be used to manage templates of the associated devices. i.e.:
+Groups allow to define templates which are automatically assigned to devices
+belonging to the group. When using this feature, keep in mind the following
+important points:
 
-- Templates of any backend can be selected for a group. When a device is assigned to a group,
-  only those group templates which matches the device backend is applied to the device.
-- System will not force group templates to devices i.e. user can remove the applied group templates
-  from the device.
-- If the group of associated device changes then system will take care of removing old group templates and
-  applying new group templates to the device using `group_templates_changed <#group_templates_changed>`_ signal.
-- On backend change of associated device the system will remove all the group templates of previous backend and
-  apply group templates of new backend to the device using `config_backend_changed <#config_backend_changed>`_ signal.
+- Templates of any configuration backend can be selected,
+  when a device is assigned to a group,
+  only the templates which matches the device configuration backend are
+  applied to the device.
+- The system will not force group templates onto devices, this means that
+  users can remove the applied group templates from a specific device if
+  needed.
+- If a device group is changed, the system will automatically remove the
+  group templates of the old group and apply the new templates of the new
+  group (this operation is implemented by leveraging the
+  `group_templates_changed <#group_templates_changed>`_ signal).
+- If the group templates are changed, the devices which belong to the group
+  will be automatically updated to reflect the changes
+  (this operation is executed in a background task).
+- In case the configuration backend of a device is changed,
+  the system will handle this automatically too and update the group
+  templates accordingly (this operation is implemented by leveraging the
+  `config_backend_changed <#config_backend_changed>`_ signal).
 
-**Note:** Templates shown on the group page do not contains default or required templates
-as all new devices already assigns the default or required templates to itself.
+**Note:** the list of templates shown in the edit group page do not
+contain templates flagged as "default" or "required" to avoid redundancy
+because those templates are automatically assigned by the system
+to new devices.
 
 Export/Import Device data
 ~~~~~~~~~~~~~~~~~~~~~~~~~
