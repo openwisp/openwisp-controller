@@ -2969,6 +2969,8 @@ in the previous section.
 - ``old_backend``: the old backend of the config object
 - ``backend``: the new backend of the config object
 
+It is not emitted when the device or config is created.
+
 ``checksum_requested``
 ~~~~~~~~~~~~~~~~~~~~~~
 

@@ -278,6 +278,8 @@ class DeviceDetailSerializer(BaseSerializer):
 
 class DeviceGroupSerializer(BaseSerializer):
     meta_data = serializers.JSONField(required=False, initial={})
+    templates = FilterTemplatesByOrganization(many=True)
+    _templates = None
 
     class Meta(BaseMeta):
         model = DeviceGroup
@@ -286,7 +288,33 @@ class DeviceGroupSerializer(BaseSerializer):
             'name',
             'organization',
             'description',
+            'templates',
             'meta_data',
             'created',
             'modified',
         ]
+
+    def validate(self, data):
+        self._templates = [template.id for template in data.pop('templates', [])]
+        return super().validate(data)
+
+    def _save_m2m_templates(self, instance, created=False):
+        old_templates = list(instance.templates.values_list('pk', flat=True))
+        if old_templates != self._templates:
+            instance.templates.set(self._templates)
+            if not created:
+                self.Meta.model.templates_changed(
+                    instance=instance,
+                    old_templates=old_templates,
+                    templates=self._templates,
+                )
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        self._save_m2m_templates(instance, created=True)
+        return instance
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        self._save_m2m_templates(instance)
+        return instance

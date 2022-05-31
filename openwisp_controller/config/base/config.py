@@ -462,10 +462,10 @@ class AbstractConfig(BaseConfig):
         current = self._meta.model.objects.only(
             'backend', 'config', 'context', 'status'
         ).get(pk=self.pk)
+        if self.backend != current.backend:
+            # storing old backend to send backend change signal after save
+            self._old_backend = current.backend
         for attr in ['backend', 'config', 'context']:
-            if attr == 'backend' and getattr(self, attr) != getattr(current, attr):
-                # storing old backend to send backend change signal after save
-                self._old_backend = current.backend
             if getattr(self, attr) == getattr(current, attr):
                 continue
             if self.status != 'modified':

@@ -1548,6 +1548,18 @@ class TestDeviceGroupAdminTransaction(
             self.client.post(path, data)
         mocked_group_templates_changed.assert_not_called()
 
+    def test_templates_not_changed(self):
+        template = self._create_template()
+        org1 = self._get_org()
+        path = reverse(f'admin:{self.app_label}_devicegroup_add')
+        data = self._get_device_group_params(org=org1, templates=[template])
+        self._login()
+        self.client.post(path, data)
+        data['name'] = 'templates-not-changed'
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            self.client.post(path, data)
+        mocked_group_templates_changed.assert_not_called()
+
     def test_change_devicegroup_templates_emit_changed_signals(self):
         template = self._create_template()
         org1 = self._get_org()

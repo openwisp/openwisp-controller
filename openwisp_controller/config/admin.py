@@ -871,18 +871,17 @@ class DeviceGroupForm(BaseForm):
 
     def clean_templates(self):
         templates = self.cleaned_data.get('templates')
-        self._templates = templates
+        self._templates = [template.id for template in templates]
         return templates
 
     def save(self, *args, **kwargs):
         instance = super().save(*args, **kwargs)
-        if not self.instance._state.adding:
+        old_templates = list(self.instance.templates.values_list('pk', flat=True))
+        if not self.instance._state.adding and old_templates != self._templates:
             DeviceGroup.templates_changed(
                 instance=instance,
-                old_templates=list(
-                    self.instance.templates.values_list('pk', flat=True)
-                ),
-                templates=[template.id for template in self._templates],
+                old_templates=old_templates,
+                templates=self._templates,
             )
         return instance
 
