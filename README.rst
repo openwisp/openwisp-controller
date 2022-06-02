@@ -964,6 +964,9 @@ contain templates flagged as "default" or "required" to avoid redundancy
 because those templates are automatically assigned by the system
 to new devices.
 
+This feature works also when editing group templates or the group assigned
+to a device via the `REST API <#patch-device-group-detail>`__.
+
 Export/Import Device data
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1626,6 +1629,15 @@ Get device group detail
 .. code-block:: text
 
     GET /api/v1/controller/group/{id}/
+
+Patch device group detail
+#########################
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/group/{id}/
+
+This endpoint allow to change the `group templates <#group-templates>`_ too.
 
 Get device group from certificate common name
 #############################################
