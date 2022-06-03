@@ -1630,14 +1630,14 @@ Get device group detail
 
     GET /api/v1/controller/group/{id}/
 
-Patch device group detail
-#########################
+Change device group detail
+##########################
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/group/{id}/
+    PUT /api/v1/controller/group/{id}/
 
-This endpoint allow to change the `group templates <#group-templates>`_ too.
+This endpoint allows to change the `group templates <#group-templates>`_ too.
 
 Get device group from certificate common name
 #############################################
