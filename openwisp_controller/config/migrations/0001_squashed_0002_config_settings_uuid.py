@@ -22,9 +22,6 @@ from ..sortedm2m.fields import SortedManyToManyField
 
 
 class Migration(migrations.Migration):
-
-    replaces = [('config', '0001_initial'), ('config', '0002_config_settings_uuid')]
-
     initial = True
 
     dependencies = [
