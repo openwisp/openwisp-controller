@@ -1,12 +1,5 @@
 {% load i18n %}
-
-    <div class="auto-filter">
-        {% if not spec.is_placeholder_title %}
-        <h3>{% blocktrans with filter_title=title %} By {{ filter_title }} {% endblocktrans %}</h3>
-        {% endif %}
-        <ul>
-            <li>{{ spec.rendered_widget }}</li>
-            <li>{{ spec.field }}</li>
-        </ul>
-        <div id="auto-filter-choices"></div>
-    </div>
+<div class="auto-filter">
+    {% include 'django-admin-autocomplete-filter/autocomplete-filter.html' %}
+    <div id="auto-filter-choices"></div>
+</div>
