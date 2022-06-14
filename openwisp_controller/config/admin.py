@@ -432,7 +432,7 @@ class ChangeDeviceGroupForm(forms.Form):
 
 class TemplatesFilter(AutocompleteFilter):
     template = 'admin/config/autocomplete_filter.html'
-    title = 'templates'
+    title = _('template')
     field_name = 'templates'
     parameter_name = 'config__templates'
     rel_model = Config
@@ -442,7 +442,6 @@ class TemplatesFilter(AutocompleteFilter):
             'admin/js/jquery.init.js',
             'config/js/autocomplete_filter.js',
         )
-
         css = {
             'screen': ('config/css/autocomplete_filter.css',),
         }
