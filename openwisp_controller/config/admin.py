@@ -503,7 +503,13 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             form = ChangeDeviceGroupForm(request.POST)
             if form.is_valid():
                 group = form.cleaned_data['device_group']
+                instances, old_group_ids = map(
+                    list, zip(*queryset.values_list('id', 'group'))
+                )
                 queryset.update(group=group or None)
+                Device._send_device_group_changed_signal(
+                    instance=instances, group_id=group.id, old_group_id=old_group_ids
+                )
             self.message_user(
                 request,
                 _('Successfully changed group of selected devices.'),

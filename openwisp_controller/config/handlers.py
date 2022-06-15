@@ -44,6 +44,10 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
 
 
 def devicegroup_change_handler(instance, **kwargs):
+    if type(instance) is list:
+        # changes group templates for multiple devices
+        devicegroup_templates_change_handler(instance, **kwargs)
+        return
     if instance._state.adding or ('created' in kwargs and kwargs['created'] is True):
         return
     model_name = instance._meta.model_name
@@ -73,17 +77,31 @@ def config_backend_change_handler(instance, **kwargs):
 
 
 def devicegroup_templates_change_handler(instance, **kwargs):
-    model_name = instance._meta.model_name
+    if type(instance) is list:
+        # instance is queryset of devices
+        model_name = Device._meta.model_name
+    else:
+        model_name = instance._meta.model_name
+
     if model_name == Device._meta.model_name:
-        # device group changed
-        group_id = kwargs.get('group_id')
-        old_group_id = kwargs.get('old_group_id')
-        tasks.change_devices_templates(
-            instance_id=instance.id,
-            model_name=model_name,
-            group_id=group_id,
-            old_group_id=old_group_id,
-        )
+        if type(instance) is list:
+            # changes group templates for multiple devices
+            tasks.change_devices_templates.delay(
+                instance_id=instance,
+                model_name=model_name,
+                group_id=kwargs.get('group_id'),
+                old_group_id=kwargs.get('old_group_id'),
+            )
+        else:
+            # device group changed
+            group_id = kwargs.get('group_id')
+            old_group_id = kwargs.get('old_group_id')
+            tasks.change_devices_templates(
+                instance_id=instance.id,
+                model_name=model_name,
+                group_id=group_id,
+                old_group_id=old_group_id,
+            )
 
     elif model_name == DeviceGroup._meta.model_name:
         # group templates changed
