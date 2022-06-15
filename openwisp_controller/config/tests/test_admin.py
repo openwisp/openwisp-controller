@@ -562,6 +562,32 @@ class TestAdmin(
         self.assertNotIn(t1, templates)
         self.assertIn(t2, templates)
 
+    def test_unassigning_group_removes_old_templates(self):
+        org = self._get_org(org_name='default')
+        template = self._create_template(name='template')
+        dg = self._create_device_group(name='test-group', organization=org)
+        dg.templates.add(template)
+        device = self._create_device_config(
+            device_opts=dict(organization=org, group=dg)
+        )
+        self.assertIn(template, device.config.templates.all())
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        params = self._get_device_params(org=org)
+        params.update(
+            {
+                'name': 'test-device-changed',
+                'config-0-id': str(device.config.pk),
+                'config-0-device': str(device.pk),
+                'config-INITIAL_FORMS': 1,
+                'group': '',
+            }
+        )
+        response = self.client.post(path, params, follow=True)
+        self.assertNotContains(response, 'errors', status_code=200)
+        device.refresh_from_db()
+        self.assertIsNone(device.group)
+        self.assertNotIn(template, device.config.templates.all())
+
     def test_group_templates_are_not_forced(self):
         o = self._get_org()
         t = self._create_template(name='t')

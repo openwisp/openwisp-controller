@@ -124,8 +124,10 @@ def change_devices_templates(instance_id, model_name, **kwargs):
             device = Device.objects.get(pk=instance_id)
             if not hasattr(device, 'config'):
                 return
-            group = DeviceGroup.objects.get(pk=group_id)
-            group_templates = group.templates.all()
+            group_templates = Template.objects.none()
+            if group_id:
+                group = DeviceGroup.objects.get(pk=group_id)
+                group_templates = group.templates.all()
             old_group_templates = Template.objects.none()
             if old_group_id:
                 old_group = DeviceGroup.objects.get(pk=old_group_id)
