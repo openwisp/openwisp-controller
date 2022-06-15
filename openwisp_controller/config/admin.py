@@ -482,6 +482,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
+    state_adding = False
 
     if app_settings.CONFIG_BACKEND_FIELD_SHOWN:
         list_filter.insert(1, 'config__backend')
@@ -497,6 +498,30 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/management_ip.js',
             f'{prefix}js/relevant_templates.js',
         ]
+
+    def save_form(self, request, form, change):
+        # The value of "form.instance._state.adding" will always be "False"
+        # after performing the save operation. Hence, the actual value
+        # is stored in the "state_adding" variable.
+        self.state_adding = form.instance._state.adding
+        return super().save_form(request, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        if (
+            self.state_adding
+            and formset.model == Config
+            and formset.cleaned_data == [{}]
+            and form.instance.group
+            and form.instance.group.templates.exists()
+        ):
+            # While adding device if inline config form data is empty
+            # and if the device is assigned to a group with templates,
+            # we need to apply the templates to the device.
+            config = form.instance.get_temp_config_instance(
+                backend=app_settings.DEFAULT_BACKEND
+            )
+            config.save()
+        return super().save_formset(request, form, formset, change)
 
     def change_group(self, request, queryset):
         if 'apply' in request.POST:
@@ -673,6 +698,18 @@ class DeviceResource(resources.ModelResource):
             'group',
         ]
         export_order = fields
+
+    def after_save_instance(self, instance, using_transactions, dry_run):
+        super().after_save_instance(instance, using_transactions, dry_run)
+        if dry_run:
+            return
+        if instance.group and instance.group.templates.exists():
+            # While importing device if the device is assigned to a group with
+            # templates, we need to apply the templates to the device.
+            config = instance.get_temp_config_instance(
+                backend=app_settings.DEFAULT_BACKEND
+            )
+            config.save()
 
 
 class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):

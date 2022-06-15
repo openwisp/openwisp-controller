@@ -492,6 +492,34 @@ class TestAdmin(
         self.assertIn(t2, templates)
         self.assertNotIn(t1, templates)
 
+    def test_device_import_with_group_apply_templates(self):
+        org = self._get_org(org_name='default')
+        template = self._create_template(name='template')
+        dg = self._create_device_group(name='test-group', organization=org)
+        dg.templates.add(template)
+        contents = (
+            'organization,name,mac_address,group\n'
+            f'{org.pk},TestImport,00:11:22:09:44:55,{dg.pk}'
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertEqual(device.group, dg)
+        self.assertIsNotNone(device.config)
+        self.assertIn(template, device.config.templates.all())
+
     def test_change_device_group_add_group_templates(self):
         org = self._get_org(org_name='default')
         t1 = self._create_template(name='t1')
