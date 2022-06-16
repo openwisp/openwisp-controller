@@ -765,6 +765,7 @@ class TestConfig(
         t2 = self._create_template(name='t2', backend=backend)
         group.templates.add(*[t1, t2])
         d = self._create_device(group=group, organization=org)
+        d.config.delete()
         with self.subTest('config_backend_changed signal must not be sent on creation'):
             with catch_signal(config_backend_changed) as handler:
                 self._create_config(backend=old_backend, device=d)

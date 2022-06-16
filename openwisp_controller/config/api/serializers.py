@@ -162,6 +162,14 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
         with transaction.atomic():
             device = Device.objects.create(**validated_data)
             if config_data:
+                if (
+                    hasattr(device, 'config')
+                    and device.group
+                    and device.group.templates.all()
+                ):
+                    # deleting the default config created by the model
+                    # if the device group has templates in it
+                    device.config.delete()
                 config = Config.objects.create(device=device, **config_data)
                 config.templates.add(*config_templates)
         return device

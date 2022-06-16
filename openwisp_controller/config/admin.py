@@ -500,9 +500,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         ]
 
     def save_form(self, request, form, change):
-        # The value of "form.instance._state.adding" will always be "False"
-        # after performing the save operation. Hence, the actual value
-        # is stored in the "state_adding" variable.
         self.state_adding = form.instance._state.adding
         return super().save_form(request, form, change)
 
@@ -510,17 +507,13 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         if (
             self.state_adding
             and formset.model == Config
-            and formset.cleaned_data == [{}]
+            and hasattr(form.instance, 'config')
             and form.instance.group
             and form.instance.group.templates.exists()
         ):
-            # While adding device if inline config form data is empty
-            # and if the device is assigned to a group with templates,
-            # we need to apply the templates to the device.
-            config = form.instance.get_temp_config_instance(
-                backend=app_settings.DEFAULT_BACKEND
-            )
-            config.save()
+            # deleting the default config created by the model
+            # if the device group has templates in it
+            form.instance.config.delete()
         return super().save_formset(request, form, formset, change)
 
     def change_group(self, request, queryset):
@@ -698,18 +691,6 @@ class DeviceResource(resources.ModelResource):
             'group',
         ]
         export_order = fields
-
-    def after_save_instance(self, instance, using_transactions, dry_run):
-        super().after_save_instance(instance, using_transactions, dry_run)
-        if dry_run:
-            return
-        if instance.group and instance.group.templates.exists():
-            # While importing device if the device is assigned to a group with
-            # templates, we need to apply the templates to the device.
-            config = instance.get_temp_config_instance(
-                backend=app_settings.DEFAULT_BACKEND
-            )
-            config.save()
 
 
 class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):

@@ -194,6 +194,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
+        if state_adding:
+            self.create_default_config()
         # The value of "self._state.adding" will always be "False"
         # after performing the save operation. Hence, the actual value
         # is stored in the "state_adding" variable.
@@ -324,3 +326,15 @@ class AbstractDevice(OrgMixin, BaseModel):
         can be overridden with custom logic if needed
         """
         return self.config.status != 'applied'
+
+    def create_default_config(self, **options):
+        """
+        creates a new config instance to apply group templates
+        if group has templates.
+        """
+        if not (self.group and self.group.templates.exists()):
+            return
+        config = self.get_temp_config_instance(
+            backend=app_settings.DEFAULT_BACKEND, **options
+        )
+        config.save()

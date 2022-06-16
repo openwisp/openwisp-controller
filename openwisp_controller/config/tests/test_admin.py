@@ -476,9 +476,7 @@ class TestAdmin(
         dg1.templates.add(t1)
         dg2 = self._create_device_group(name='test-group-2', organization=org)
         dg2.templates.add(t2)
-        device = self._create_device_config(
-            device_opts=dict(organization=org, group=dg1)
-        )
+        device = self._create_device(organization=org, group=dg1)
         templates = device.config.templates.all()
         self.assertNotIn(t2, templates)
         self.assertIn(t1, templates)
@@ -567,9 +565,7 @@ class TestAdmin(
         template = self._create_template(name='template')
         dg = self._create_device_group(name='test-group', organization=org)
         dg.templates.add(template)
-        device = self._create_device_config(
-            device_opts=dict(organization=org, group=dg)
-        )
+        device = self._create_device(organization=org, group=dg)
         self.assertIn(template, device.config.templates.all())
         path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
         params = self._get_device_params(org=org)
@@ -594,14 +590,13 @@ class TestAdmin(
         dg = self._create_device_group(name='test-group', organization=o)
         dg.templates.add(t)
         d = self._create_device(organization=o, group=dg)
-        c = self._create_config(device=d, backend=t.backend, config=t.config)
         self.assertIn(t, d.config.templates.all())
         path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
         params = self._get_device_params(org=o)
         params.update(
             {
                 'name': 'test-device-changed',
-                'config-0-id': str(c.pk),
+                'config-0-id': str(d.config.pk),
                 'config-0-device': str(d.pk),
                 'config-0-templates': '',
                 'config-INITIAL_FORMS': 1,
@@ -610,9 +605,9 @@ class TestAdmin(
         )
         response = self.client.post(path, params)
         self.assertNotContains(response, 'errors', status_code=302)
-        c.refresh_from_db()
-        self.assertEqual(c.name, 'test-device-changed')
-        self.assertFalse(c.templates.filter(pk=t.pk).exists())
+        d.refresh_from_db()
+        self.assertEqual(d.config.name, 'test-device-changed')
+        self.assertFalse(d.config.templates.filter(pk=t.pk).exists())
 
     def test_device_contains_default_templates_js(self):
         config = self._create_config(organization=self._get_org())

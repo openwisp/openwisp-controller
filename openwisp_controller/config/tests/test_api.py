@@ -73,8 +73,8 @@ class TestConfigApi(
             'backend': 'netjsonconfig.OpenWrt',
             'status': 'modified',
             'templates': [],
-            'context': '{}',
-            'config': '{}',
+            'context': {},
+            'config': {},
         },
     }
 
@@ -106,6 +106,21 @@ class TestConfigApi(
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
+
+    def test_device_create_with_group(self):
+        self.assertEqual(Device.objects.count(), 0)
+        dg = self._create_device_group()
+        template = self._create_template()
+        dg.templates.add(template)
+        path = reverse('config_api:device_list')
+        data = self._get_device_data.copy()
+        org = self._get_org()
+        data['organization'] = org.pk
+        data['group'] = dg.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        self.assertIn(template, Device.objects.first().config.templates.all())
 
     def test_device_create_with_invalid_name_api(self):
         path = reverse('config_api:device_list')
