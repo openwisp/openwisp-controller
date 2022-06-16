@@ -525,8 +525,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                     list, zip(*queryset.values_list('id', 'group'))
                 )
                 queryset.update(group=group or None)
+                group_id = None
+                if group:
+                    group_id = group.id
                 Device._send_device_group_changed_signal(
-                    instance=instances, group_id=group.id, old_group_id=old_group_ids
+                    instance=instances, group_id=group_id, old_group_id=old_group_ids
                 )
             self.message_user(
                 request,

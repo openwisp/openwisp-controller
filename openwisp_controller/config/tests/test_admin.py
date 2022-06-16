@@ -481,14 +481,23 @@ class TestAdmin(
         self.assertNotIn(t2, templates)
         self.assertIn(t1, templates)
         post_data = self._get_change_device_post_data(device)
-        post_data['device_group'] = str(dg2.pk)
-        post_data['apply'] = True
-        response = self.client.post(path, post_data, follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Successfully changed group of selected devices.')
-        templates = device.config.templates.all()
-        self.assertIn(t2, templates)
-        self.assertNotIn(t1, templates)
+        with self.subTest('change group'):
+            post_data['device_group'] = str(dg2.pk)
+            post_data['apply'] = True
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response, 'Successfully changed group of selected devices.'
+            )
+            templates = device.config.templates.all()
+            self.assertIn(t2, templates)
+            self.assertNotIn(t1, templates)
+        with self.subTest('unassign group'):
+            post_data['device_group'] = ''
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            templates = list(device.config.templates.all())
+            self.assertEqual(templates, [])
 
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name='default')
