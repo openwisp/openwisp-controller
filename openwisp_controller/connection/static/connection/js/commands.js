@@ -230,7 +230,7 @@ function initCommandOverlay($) {
         let elements = `
             <p class="errornote ow-command-overlay-errornote ow-hide" id="ow-command-overlay-validation-error">Please correct the errors below.</p>
             <p class="errornote ow-command-overlay-errornote ow-hide" id="ow-command-overlay-request-error">An error encountered, please try sometime later.</p>
-            <button id="ow-command-overlay-close"><img class="icon" src="/static/admin/img/icon-deletelink.svg"></button>`;
+            <button id="ow-command-overlay-close"><img class="icon" src="${window.staticUrl}admin/img/icon-deletelink.svg"></button>`;
         $('#command_set-0 .form-row.field-input').prepend(elements);
     });
 
