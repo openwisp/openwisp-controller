@@ -543,9 +543,9 @@ class AbstractConfig(BaseConfig):
                     }
                 )
             if vpnclient.public_key:
-                context['public_key'] = vpnclient.public_key
+                context[f'client_public_key_{vpn_id}'] = vpnclient.public_key
             if vpnclient.private_key:
-                context['private_key'] = vpnclient.private_key
+                context[f'client_private_key_{vpn_id}'] = vpnclient.private_key
             if vpn.subnet:
                 if vpnclient.ip:
                     context[vpn_context_keys['ip_address']] = vpnclient.ip.ip_address
