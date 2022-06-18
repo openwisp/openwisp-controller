@@ -254,6 +254,7 @@ class DeviceDetailSerializer(BaseSerializer):
                         instance.config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
                     instance.config.templates.clear()
                     instance.config.templates.add(*[])
+            instance.config.save()
 
         elif hasattr(instance, 'config') and validated_data.get('organization'):
             if instance.organization != validated_data.get('organization'):

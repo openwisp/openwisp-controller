@@ -200,7 +200,7 @@ class TestConfigApi(
             'organization': org.pk,
             'mac_address': d1.mac_address,
             'config': {
-                'backend': 'netjsonconfig.OpenWrt',
+                'backend': 'netjsonconfig.OpenWisp',
                 'status': 'modified',
                 'templates': [],
                 'context': '{}',
@@ -212,6 +212,11 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'change-test-device')
         self.assertEqual(r.data['organization'], org.pk)
+        self.assertEqual(r.data['config']['backend'], 'netjsonconfig.OpenWisp')
+        d1.refresh_from_db()
+        self.assertEqual(d1.name, 'change-test-device')
+        self.assertEqual(d1.organization, org)
+        self.assertEqual(d1.config.backend, 'netjsonconfig.OpenWisp')
 
     # test device with VPN-client type template assigned to it
     def test_device_with_vpn_client_template_assigned(self):
