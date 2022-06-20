@@ -205,7 +205,7 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     queryset = FloorPlan.objects.select_related().order_by('-created')
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filter_class = FloorPlanOrganizationSlugFilter
+    filterset_class = FloorPlanOrganizationSlugFilter
 
 
 class FloorPlanDetailView(
