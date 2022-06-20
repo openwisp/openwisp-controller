@@ -479,7 +479,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     inlines = [ConfigInline]
     conditional_inlines = []
     actions = ['change_group']
-
+    state_adding = False
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
 
@@ -497,6 +497,24 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/management_ip.js',
             f'{prefix}js/relevant_templates.js',
         ]
+
+    def save_form(self, request, form, change):
+        self.state_adding = form.instance._state.adding
+        return super().save_form(request, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        if (
+            self.state_adding
+            and formset.model == Config
+            and hasattr(form.instance, 'config')
+            and form.instance.group
+            and form.instance.group.templates.exists()
+        ):
+            # deleting the config created while saving device
+            # by Device.create_default_config to avoid conflict
+            # with the config created by the user in the form
+            form.instance.config.delete()
+        return super().save_formset(request, form, formset, change)
 
     def change_group(self, request, queryset):
         if 'apply' in request.POST:
