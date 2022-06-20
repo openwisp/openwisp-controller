@@ -110,51 +110,25 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
 def change_devices_templates(instance_id, model_name, **kwargs):
     Device = load_model('config', 'Device')
     DeviceGroup = load_model('config', 'DeviceGroup')
-    Template = load_model('config', 'Template')
     Config = load_model('config', 'Config')
-
     if model_name == Device._meta.model_name:
-        instance_ids = instance_id
-        old_group_ids = kwargs.get('old_group_id')
-        group_id = kwargs.get('group_id')
-        if type(instance_id) is not list:
-            instance_ids = [instance_id]
-            old_group_ids = [old_group_ids]
-        for instance_id, old_group_id in zip(instance_ids, old_group_ids):
-            device = Device.objects.get(pk=instance_id)
-            if not hasattr(device, 'config'):
-                return
-            group_templates = Template.objects.none()
-            if group_id:
-                group = DeviceGroup.objects.get(pk=group_id)
-                group_templates = group.templates.all()
-            old_group_templates = Template.objects.none()
-            if old_group_id:
-                old_group = DeviceGroup.objects.get(pk=old_group_id)
-                old_group_templates = old_group.templates.all()
-            device.config.manage_group_templates(group_templates, old_group_templates)
+        Device.manage_devices_group_templates(
+            device_ids=instance_id,
+            old_group_ids=kwargs.get('old_group_id'),
+            group_id=kwargs.get('group_id'),
+        )
 
     elif model_name == DeviceGroup._meta.model_name:
-        device_group = DeviceGroup.objects.get(id=instance_id)
-        templates = Template.objects.filter(pk__in=kwargs.get('templates'))
-        old_templates = Template.objects.filter(pk__in=kwargs.get('old_templates'))
-        for device in device_group.device_set.all():
-            if not hasattr(device, 'config'):
-                continue
-            device.config.manage_group_templates(templates, old_templates)
+        DeviceGroup.manage_group_templates(
+            group_id=instance_id,
+            old_template_ids=kwargs.get('old_templates'),
+            template_ids=kwargs.get('templates'),
+        )
 
     elif model_name == Config._meta.model_name:
-        config = Config.objects.get(pk=instance_id)
-        device_group = config.device.group
-        if not device_group:
-            return
-        created = kwargs.get('created')
-        if created:
-            templates = device_group.templates.all()
-            old_templates = Template.objects.none()
-        else:
-            templates = device_group.templates.filter(backend=kwargs.get('backend'))
-            old_templates = device_group.templates.filter(
-                backend=kwargs.get('old_backend')
-            )
-        config.manage_group_templates(templates, old_templates, not created)
+        Config.manage_backend_changed(
+            instance_id=instance_id,
+            old_backend=kwargs.pop('old_backend'),
+            backend=kwargs.pop('backend'),
+            **kwargs,
+        )

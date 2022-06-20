@@ -467,38 +467,6 @@ class TestAdmin(
             response, 'What group do you want to assign to the selected devices?'
         )
 
-    def test_change_device_group_action_changes_templates(self):
-        path = reverse(f'admin:{self.app_label}_device_changelist')
-        org = self._get_org(org_name='default')
-        t1 = self._create_template(name='t1')
-        t2 = self._create_template(name='t2')
-        dg1 = self._create_device_group(name='test-group-1', organization=org)
-        dg1.templates.add(t1)
-        dg2 = self._create_device_group(name='test-group-2', organization=org)
-        dg2.templates.add(t2)
-        device = self._create_device(organization=org, group=dg1)
-        templates = device.config.templates.all()
-        self.assertNotIn(t2, templates)
-        self.assertIn(t1, templates)
-        post_data = self._get_change_device_post_data(device)
-        with self.subTest('change group'):
-            post_data['device_group'] = str(dg2.pk)
-            post_data['apply'] = True
-            response = self.client.post(path, post_data, follow=True)
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(
-                response, 'Successfully changed group of selected devices.'
-            )
-            templates = device.config.templates.all()
-            self.assertIn(t2, templates)
-            self.assertNotIn(t1, templates)
-        with self.subTest('unassign group'):
-            post_data['device_group'] = ''
-            response = self.client.post(path, post_data, follow=True)
-            self.assertEqual(response.status_code, 200)
-            templates = list(device.config.templates.all())
-            self.assertEqual(templates, [])
-
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name='default')
         template = self._create_template(name='template')
@@ -1699,3 +1667,39 @@ class TestDeviceGroupAdminTransaction(
             templates = device.config.templates.all()
             self.assertEqual(templates.count(), 1)
             self.assertNotIn(t3, templates)
+
+    def test_change_device_group_action_changes_templates(self):
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        org = self._get_org(org_name='default')
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1.templates.add(t1)
+        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2.templates.add(t2)
+        device = self._create_device(organization=org, group=dg1)
+        templates = device.config.templates.all()
+        self.assertNotIn(t2, templates)
+        self.assertIn(t1, templates)
+        post_data = {
+            '_selected_action': [device.pk],
+            'action': 'change_group',
+            'csrfmiddlewaretoken': 'test',
+        }
+        with self.subTest('change group'):
+            post_data['device_group'] = str(dg2.pk)
+            post_data['apply'] = True
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response, 'Successfully changed group of selected devices.'
+            )
+            templates = device.config.templates.all()
+            self.assertIn(t2, templates)
+            self.assertNotIn(t1, templates)
+        with self.subTest('unassign group'):
+            post_data['device_group'] = ''
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            templates = list(device.config.templates.all())
+            self.assertEqual(templates, [])

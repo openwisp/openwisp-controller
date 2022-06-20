@@ -4,7 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from swapper import get_model_name
+from swapper import get_model_name, load_model
 
 from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
@@ -194,7 +194,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
-        if state_adding:
+        if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
         # after performing the save operation. Hence, the actual value
@@ -338,3 +338,32 @@ class AbstractDevice(OrgMixin, BaseModel):
             backend=app_settings.DEFAULT_BACKEND, **options
         )
         config.save()
+
+    @classmethod
+    def manage_devices_group_templates(cls, device_ids, old_group_ids, group_id):
+        """
+        This method is used to manage group templates for devices.
+        """
+        Device = load_model('config', 'Device')
+        DeviceGroup = load_model('config', 'DeviceGroup')
+        Template = load_model('config', 'Template')
+        if type(device_ids) is not list:
+            device_ids = [device_ids]
+            old_group_ids = [old_group_ids]
+        for device_id, old_group_id in zip(device_ids, old_group_ids):
+            device = Device.objects.get(pk=device_id)
+            if not hasattr(device, 'config'):
+                device.create_default_config()
+            config_created = hasattr(device, 'config')
+            if not config_created:
+                # device has no config (device group has no templates)
+                return
+            group_templates = Template.objects.none()
+            if group_id:
+                group = DeviceGroup.objects.get(pk=group_id)
+                group_templates = group.templates.all()
+            old_group_templates = Template.objects.none()
+            if old_group_id:
+                old_group = DeviceGroup.objects.get(pk=old_group_id)
+                old_group_templates = old_group.templates.all()
+            device.config.manage_group_templates(group_templates, old_group_templates)

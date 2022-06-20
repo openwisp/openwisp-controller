@@ -958,6 +958,10 @@ important points:
   the system will handle this automatically too and update the group
   templates accordingly (this operation is implemented by leveraging the
   `config_backend_changed <#config_backend_changed>`_ signal).
+- If a device does not have a configuration defined yet, but it is assigned
+  to a group which has templates defined, the system will automatically
+  create a configuration for it using the default backend specified in
+  `OPENWISP_CONTROLLER_DEFAULT_BACKEND <#OPENWISP_CONTROLLER_DEFAULT_BACKEND>`_ setting.
 
 **Note:** the list of templates shown in the edit group page do not
 contain templates flagged as "default" or "required" to avoid redundancy

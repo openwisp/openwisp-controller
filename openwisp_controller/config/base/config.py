@@ -11,7 +11,7 @@ from model_utils import Choices
 from model_utils.fields import StatusField
 from netjsonconfig import OpenWrt
 from packaging import version
-from swapper import get_model_name
+from swapper import get_model_name, load_model
 
 from .. import settings as app_settings
 from ..signals import config_backend_changed, config_modified, config_status_changed
@@ -617,6 +617,26 @@ class AbstractConfig(BaseConfig):
             old_templates = old_templates.filter(backend=self.backend)
         self.templates.remove(*old_templates)
         self.templates.add(*templates)
+
+    @classmethod
+    def manage_backend_changed(cls, instance_id, old_backend, backend, **kwargs):
+        """
+        This is used to change group templates if config backend is changed.
+        """
+        Config = load_model('config', 'Config')
+        Template = load_model('config', 'Template')
+        config = Config.objects.get(pk=instance_id)
+        device_group = config.device.group
+        if not device_group:
+            return
+        created = kwargs.get('created')
+        if created:
+            templates = device_group.templates.all()
+            old_templates = Template.objects.none()
+        else:
+            templates = device_group.templates.filter(backend=backend)
+            old_templates = device_group.templates.filter(backend=old_backend)
+        config.manage_group_templates(templates, old_templates, not created)
 
 
 AbstractConfig._meta.get_field('config').blank = True

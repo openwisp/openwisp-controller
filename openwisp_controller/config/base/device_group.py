@@ -6,7 +6,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
-from swapper import get_model_name
+from swapper import get_model_name, load_model
 
 from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
@@ -66,3 +66,19 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
             templates=templates,
             old_templates=old_templates,
         )
+
+    @classmethod
+    def manage_group_templates(cls, group_id, old_template_ids, template_ids):
+        """
+        This method is used to change the templates of associated devices
+        if group templates are changed.
+        """
+        DeviceGroup = load_model('config', 'DeviceGroup')
+        Template = load_model('config', 'Template')
+        device_group = DeviceGroup.objects.get(id=group_id)
+        templates = Template.objects.filter(pk__in=template_ids)
+        old_templates = Template.objects.filter(pk__in=old_template_ids)
+        for device in device_group.device_set.all():
+            if not hasattr(device, 'config'):
+                device.create_default_config()
+            device.config.manage_group_templates(templates, old_templates)

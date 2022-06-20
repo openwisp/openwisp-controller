@@ -86,21 +86,21 @@ def devicegroup_templates_change_handler(instance, **kwargs):
     if model_name == Device._meta.model_name:
         if type(instance) is list:
             # changes group templates for multiple devices
-            tasks.change_devices_templates.delay(
-                instance_id=instance,
-                model_name=model_name,
-                group_id=kwargs.get('group_id'),
-                old_group_id=kwargs.get('old_group_id'),
+            transaction.on_commit(
+                lambda: tasks.change_devices_templates.delay(
+                    instance_id=instance,
+                    model_name=model_name,
+                    group_id=kwargs.get('group_id'),
+                    old_group_id=kwargs.get('old_group_id'),
+                )
             )
         else:
             # device group changed
-            group_id = kwargs.get('group_id')
-            old_group_id = kwargs.get('old_group_id')
             tasks.change_devices_templates(
                 instance_id=instance.id,
                 model_name=model_name,
-                group_id=group_id,
-                old_group_id=old_group_id,
+                group_id=kwargs.get('group_id'),
+                old_group_id=kwargs.get('old_group_id'),
             )
 
     elif model_name == DeviceGroup._meta.model_name:

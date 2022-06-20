@@ -370,7 +370,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         # not doing this in save_m2m because save_form_data directly set the
         # user selected templates and we need to handle the condition i.e.
         # group templates get applied at the time of creation of config
-        self.instance.manage_group_templates(
+        instance.manage_group_templates(
             templates=templates,
             old_templates=self._old_templates,
             ignore_backend_filter=True,
@@ -482,7 +482,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
-    state_adding = False
 
     if app_settings.CONFIG_BACKEND_FIELD_SHOWN:
         list_filter.insert(1, 'config__backend')
@@ -498,23 +497,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/management_ip.js',
             f'{prefix}js/relevant_templates.js',
         ]
-
-    def save_form(self, request, form, change):
-        self.state_adding = form.instance._state.adding
-        return super().save_form(request, form, change)
-
-    def save_formset(self, request, form, formset, change):
-        if (
-            self.state_adding
-            and formset.model == Config
-            and hasattr(form.instance, 'config')
-            and form.instance.group
-            and form.instance.group.templates.exists()
-        ):
-            # deleting the default config created by the model
-            # if the device group has templates in it
-            form.instance.config.delete()
-        return super().save_formset(request, form, formset, change)
 
     def change_group(self, request, queryset):
         if 'apply' in request.POST:

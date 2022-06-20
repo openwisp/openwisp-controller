@@ -719,9 +719,16 @@ class TestConfigApi(
     def test_devicegroup_list_api(self):
         self._create_device_group()
         path = reverse('config_api:devicegroup_list')
-        with self.assertNumQueries(5):
-            r = self.client.get(path)
-        self.assertEqual(r.status_code, 200)
+        with self.subTest('assert number of queries'):
+            with self.assertNumQueries(5):
+                r = self.client.get(path)
+            self.assertEqual(r.status_code, 200)
+        with self.subTest('should not contain default or required templates'):
+            t1 = self._create_template(name='t1')
+            t2 = self._create_template(name='t2', required=True)
+            r = self.client.get(path, {'format': 'api'})
+            self.assertContains(r, t1.name)
+            self.assertNotContains(r, t2.name)
 
     def test_devicegroup_detail_api(self):
         device_group = self._create_device_group()
