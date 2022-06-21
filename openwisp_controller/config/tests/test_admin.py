@@ -495,7 +495,7 @@ class TestAdmin(
         self.assertIsNotNone(device.config)
         self.assertIn(template, device.config.templates.all())
 
-    def test_change_device_group_add_group_templates(self):
+    def test_add_device_with_group_templates(self):
         org = self._get_org(org_name='default')
         t1 = self._create_template(name='t1')
         t2 = self._create_template(name='t2')
@@ -523,19 +523,6 @@ class TestAdmin(
         )
         device_group_changed_mock.assert_not_called()
         self.assertIn(t1, device.config.templates.all())
-        with catch_signal(device_group_changed) as device_group_changed_mock:
-            device.group = dg2
-            device.save(update_fields=['group'])
-        device_group_changed_mock.assert_called_with(
-            signal=device_group_changed,
-            sender=Device,
-            instance=device,
-            group_id=dg2.id,
-            old_group_id=dg1.id,
-        )
-        templates = device.config.templates.all()
-        self.assertNotIn(t1, templates)
-        self.assertIn(t2, templates)
 
     def test_unassigning_group_removes_old_templates(self):
         org = self._get_org(org_name='default')
@@ -1703,3 +1690,29 @@ class TestDeviceGroupAdminTransaction(
             self.assertEqual(response.status_code, 200)
             templates = list(device.config.templates.all())
             self.assertEqual(templates, [])
+
+    def test_change_device_group_changes_templates(self):
+        org = self._get_org(org_name='default')
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1.templates.add(t1)
+        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2.templates.add(t2)
+        device = self._create_device(organization=org, group=dg1)
+        templates = device.config.templates.all()
+        self.assertNotIn(t2, templates)
+        self.assertIn(t1, templates)
+        with catch_signal(device_group_changed) as device_group_changed_mock:
+            device.group = dg2
+            device.save(update_fields=['group'])
+        device_group_changed_mock.assert_called_with(
+            signal=device_group_changed,
+            sender=Device,
+            instance=device,
+            group_id=dg2.id,
+            old_group_id=dg1.id,
+        )
+        templates = device.config.templates.all()
+        self.assertNotIn(t1, templates)
+        self.assertIn(t2, templates)

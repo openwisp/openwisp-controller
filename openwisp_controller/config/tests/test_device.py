@@ -408,5 +408,5 @@ class TestDevice(
             device.group_id = device_group.id
             # Another query is generated due to "config.set_status_modified"
             # on name change
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(3):
                 device._check_changed_fields()

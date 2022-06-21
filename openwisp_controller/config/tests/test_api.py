@@ -235,50 +235,6 @@ class TestConfigApi(
         self.assertEqual(d1.organization, org)
         self.assertEqual(d1.config.backend, 'netjsonconfig.OpenWisp')
 
-    def test_device_api_change_group(self):
-        t1 = self._create_template(name='t1')
-        t2 = self._create_template(name='t2')
-        dg1 = self._create_device_group(name='dg-1')
-        dg2 = self._create_device_group(name='dg-2')
-        dg1.templates.add(t1)
-        dg2.templates.add(t2)
-        d1 = self._create_device(name='test-device', group=dg1)
-        path = reverse('config_api:device_detail', args=[d1.pk])
-        data = {
-            'name': 'change-test-device',
-            'organization': d1.organization.pk,
-            'mac_address': d1.mac_address,
-            'group': dg2.pk,
-            'config': {
-                'backend': d1.config.backend,
-                'status': 'modified',
-                'templates': [],
-                'context': {},
-                'config': {},
-            },
-        }
-        with self.subTest('detail device api should show group templates'):
-            r = self.client.get(path, content_type='application/json')
-            self.assertEqual(r.status_code, 200)
-            self.assertEqual(r.data['group'], dg1.pk)
-            self.assertEqual(r.data['config']['templates'], [t1.pk])
-            self.assertIn(t1, d1.config.templates.all())
-
-        with self.subTest('change group should change device templates'):
-            r = self.client.put(path, data, content_type='application/json')
-            self.assertEqual(r.status_code, 200)
-            self.assertEqual(r.data['group'], dg2.pk)
-            self.assertEqual(r.data['config']['templates'], [t2.pk])
-            self.assertIn(t2, d1.config.templates.all())
-
-        with self.subTest('unassign group should remove group templates'):
-            data['group'] = ''
-            r = self.client.put(path, data, content_type='application/json')
-            self.assertEqual(r.status_code, 200)
-            self.assertEqual(r.data['group'], None)
-            self.assertEqual(r.data['config']['templates'], [])
-            self.assertEqual(d1.config.templates.count(), 0)
-
     def test_device_api_change_config_backend(self):
         t1 = self._create_template(name='t1', backend='netjsonconfig.OpenWrt')
         t2 = self._create_template(name='t2', backend='netjsonconfig.OpenWisp')
@@ -1092,3 +1048,47 @@ class TestConfigApiTransaction(
             templates=[t2.pk],
             old_templates=[t1.pk],
         )
+
+    def test_device_api_change_group(self):
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='dg-1')
+        dg2 = self._create_device_group(name='dg-2')
+        dg1.templates.add(t1)
+        dg2.templates.add(t2)
+        d1 = self._create_device(name='test-device', group=dg1)
+        path = reverse('config_api:device_detail', args=[d1.pk])
+        data = {
+            'name': 'change-test-device',
+            'organization': d1.organization.pk,
+            'mac_address': d1.mac_address,
+            'group': dg2.pk,
+            'config': {
+                'backend': d1.config.backend,
+                'status': 'modified',
+                'templates': [],
+                'context': {},
+                'config': {},
+            },
+        }
+        with self.subTest('detail device api should show group templates'):
+            r = self.client.get(path, content_type='application/json')
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data['group'], dg1.pk)
+            self.assertEqual(r.data['config']['templates'], [t1.pk])
+            self.assertIn(t1, d1.config.templates.all())
+
+        with self.subTest('change group should change device templates'):
+            r = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data['group'], dg2.pk)
+            self.assertEqual(r.data['config']['templates'], [t2.pk])
+            self.assertIn(t2, d1.config.templates.all())
+
+        with self.subTest('unassign group should remove group templates'):
+            data['group'] = ''
+            r = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data['group'], None)
+            self.assertEqual(r.data['config']['templates'], [])
+            self.assertEqual(d1.config.templates.count(), 0)

@@ -96,11 +96,13 @@ def devicegroup_templates_change_handler(instance, **kwargs):
             )
         else:
             # device group changed
-            tasks.change_devices_templates(
-                instance_id=instance.id,
-                model_name=model_name,
-                group_id=kwargs.get('group_id'),
-                old_group_id=kwargs.get('old_group_id'),
+            transaction.on_commit(
+                lambda: tasks.change_devices_templates(
+                    instance_id=instance.id,
+                    model_name=model_name,
+                    group_id=kwargs.get('group_id'),
+                    old_group_id=kwargs.get('old_group_id'),
+                )
             )
 
     elif model_name == DeviceGroup._meta.model_name:
