@@ -150,9 +150,17 @@ class BaseSubnetDivisionRuleType(object):
     @classmethod
     def get_config(cls, instance):
         if cls.config_path == 'self':
-            return instance
+            config = instance
         else:
-            return attrgetter(cls.config_path)(instance)
+            config = attrgetter(cls.config_path)(instance)
+        # check for real existence in DB to workaround
+        # this django-import-export bug:
+        # https://github.com/django-import-export/django-import-export/issues/1078
+        # TODO: if that issue is ever solved, we can remove the this block below
+        Config = config._meta.model
+        if not Config.objects.filter(pk=config.pk).exists():
+            raise ObjectDoesNotExist()
+        return config
 
     @staticmethod
     def get_max_subnet(master_subnet, division_rule):
