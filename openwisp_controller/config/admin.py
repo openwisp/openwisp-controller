@@ -479,9 +479,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     inlines = [ConfigInline]
     conditional_inlines = []
     actions = ['change_group']
-    state_adding = False
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
+    _state_adding = False
+    _config_formset = None
 
     if app_settings.CONFIG_BACKEND_FIELD_SHOWN:
         list_filter.insert(1, 'config__backend')
@@ -499,7 +500,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         ]
 
     def save_form(self, request, form, change):
-        self.state_adding = form.instance._state.adding
+        self._state_adding = form.instance._state.adding
         return super().save_form(request, form, change)
 
     def save_formset(self, request, form, formset, change):
@@ -509,18 +510,38 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         # new config for the device before this form
         # is saved, therefore we'll incur in an integrity
         # error exception because the config already exists.
-        # To avoid that, the simplest option is to delete
-        # the config object which was created automatically
-        # to let the formset re-create it.
+        # To avoid that, we have to convince django that
+        # the formset is for an existing object and not a new one
         if (
-            self.state_adding
+            self._state_adding
             and formset.model == Config
             and hasattr(form.instance, 'config')
             and form.instance.group
             and form.instance.group.templates.exists()
         ):
-            form.instance.config.delete()
+            formset.data['config-0-id'] = str(form.instance.config.id)
+            formset.data['config-0-device'] = str(form.instance.id)
+            formset.data['config-INITIAL_FORMS'] = '1'
+            templates = form.instance.config.templates.all().values_list(
+                'pk', flat=True
+            )
+            templates = [str(template) for template in templates]
+            formset.data['config-0-templates'] = ','.join(templates)
+            formset_new = formset.__class__(
+                data=formset.data, instance=formset.instance
+            )
+            formset = formset_new
+            formset.full_clean()
+            formset.new_objects = []
+            formset.changed_objects = []
+            formset.deleted_objects = []
+            self._config_formset = formset
         return super().save_formset(request, form, formset, change)
+
+    def construct_change_message(self, request, form, formsets, add=False):
+        if self._state_adding and self._config_formset:
+            formsets[0] = self._config_formset
+        return super().construct_change_message(request, form, formsets, add)
 
     def change_group(self, request, queryset):
         if 'apply' in request.POST:
