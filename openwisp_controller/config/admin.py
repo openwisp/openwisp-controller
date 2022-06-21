@@ -503,6 +503,15 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return super().save_form(request, form, change)
 
     def save_formset(self, request, form, formset, change):
+        # if a new device and config objects get created
+        # with a group having group templates assigned,
+        # the device group functionality creates a
+        # new config for the device before this form
+        # is saved, therefore we'll incur in an integrity
+        # error exception because the config already exists.
+        # To avoid that, the simplest option is to delete
+        # the config object which was created automatically
+        # to let the formset re-create it.
         if (
             self.state_adding
             and formset.model == Config
@@ -510,9 +519,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             and form.instance.group
             and form.instance.group.templates.exists()
         ):
-            # deleting the config created while saving device
-            # by Device.create_default_config to avoid conflict
-            # with the config created by the user in the form
             form.instance.config.delete()
         return super().save_formset(request, form, formset, change)
 
