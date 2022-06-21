@@ -78,7 +78,7 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         device_group = DeviceGroup.objects.get(id=group_id)
         templates = Template.objects.filter(pk__in=template_ids)
         old_templates = Template.objects.filter(pk__in=old_template_ids)
-        for device in device_group.device_set.all():
+        for device in device_group.device_set.iterator():
             if not hasattr(device, 'config'):
                 device.create_default_config()
             device.config.manage_group_templates(templates, old_templates)
