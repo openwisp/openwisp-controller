@@ -18,7 +18,7 @@ django.jQuery(function ($) {
   });
   $("#management_ip_text").after(function () {
     return (
-      '<a id="edit_management_ip"><img value="edit" src="/static/admin/img/icon-changelink.svg" alt="' +
+      `<a id="edit_management_ip"><img value="edit" src="${window.staticUrl}admin/img/icon-changelink.svg" alt="` +
       management_ip_alt +
       '" title="' +
       management_ip_alt +
@@ -32,7 +32,7 @@ django.jQuery(function ($) {
       ip_input.show();
       ip_text.hide();
       management_ip_alt = gettext("Cancel");
-      img_element.attr("src", "/static/admin/img/icon-deletelink.svg");
+      img_element.attr("src", `${window.staticUrl}admin/img/icon-deletelink.svg`);
       img_element.attr("value", "cancel");
       img_element.attr("alt", management_ip_alt);
       img_element.attr("title", management_ip_alt);
@@ -41,7 +41,7 @@ django.jQuery(function ($) {
       ip_input.hide();
       ip_input.val(initial_ip);
       management_ip_alt = gettext("Edit");
-      img_element.attr("src", "/static/admin/img/icon-changelink.svg");
+      img_element.attr("src", `${window.staticUrl}admin/img/icon-changelink.svg`);
       img_element.attr("value", "edit");
       img_element.attr("alt", management_ip_alt);
       img_element.attr("title", management_ip_alt);
