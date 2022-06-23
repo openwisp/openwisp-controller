@@ -657,6 +657,7 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
             self.assertEqual(context[f'server_ip_address_{pk}'], '10.0.0.1')
             self.assertEqual(context[f'server_ip_network_{pk}'], '10.0.0.1/32')
+            self.assertEqual(context[f'vpn_subnet_{pk}'], '10.0.0.0/16')
             self.assertEqual(context[f'public_key_{pk}'], vpn.public_key)
 
         with self.subTest('cache update when a new peer is added'):
@@ -776,6 +777,7 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
             self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
             self.assertEqual(context[f'server_ip_address_{pk}'], '10.0.0.1')
             self.assertEqual(context[f'server_ip_network_{pk}'], '10.0.0.1/32')
+            self.assertEqual(context[f'vpn_subnet_{pk}'], '10.0.0.0/16')
             self.assertEqual(context[f'vni_{pk}'], '1')
 
         with self.subTest('auto_cert=False'):
