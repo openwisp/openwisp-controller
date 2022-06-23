@@ -122,7 +122,7 @@
         advanced.parents('.field-config').find('.screen-mode').click(toggleFullScreen);
         // add controls to the editor header
         advanced.find('.jsoneditor-menu')
-            .append($('<a href="javascript:;" class="jsoneditor-exit"><img class="icon" src="/static/admin/img/icon-deletelink.svg" /> back to normal mode</a>'))
+            .append($(`<a href="javascript:;" class="jsoneditor-exit"><img class="icon" src="${window.staticUrl}admin/img/icon-deletelink.svg" /> back to normal mode</a>`))
             .append(advanced.parents('.field-config').find('#netjsonconfig-hint')
                 .clone(true)
                 .attr('id', 'netjsonconfig-hint-advancedmode'));
