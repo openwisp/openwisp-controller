@@ -433,8 +433,6 @@ Add the URLs to your main ``urls.py``:
         # openwisp-controller urls
         url(r'^admin/', admin.site.urls),
         url(r'', include('openwisp_controller.urls')),
-        url(r'', include('openwisp_notifications.urls')),
-        url(r'', include('openwisp_ipam.urls')),
     ]
 
 Configure caching (you may use a different cache storage if you want):
