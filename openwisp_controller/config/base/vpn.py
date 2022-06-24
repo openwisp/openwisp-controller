@@ -372,6 +372,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     'public_key': 'public_key_{}'.format(pk),
                     'ip_address': 'ip_address_{}'.format(pk),
                     'vpn_subnet': 'vpn_subnet_{}'.format(pk),
+                    'private_key': 'pvt_key_{}'.format(pk),
                 }
             )
         if self._is_backend_type('vxlan'):
