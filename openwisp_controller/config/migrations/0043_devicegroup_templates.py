@@ -9,7 +9,7 @@ import openwisp_controller.config.sortedm2m.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('config', '0040_vpnclient_ip_setnull'),
+        ('config', '0042_multiple_wireguard_tunnels'),
     ]
 
     operations = [
