@@ -318,7 +318,6 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 context_keys['server_ip_network']
             ] = f'{self.ip.ip_address}/{self.subnet.subnet.max_prefixlen}'
             context[context_keys['vpn_subnet']] = str(self.subnet.subnet)
-            context[context_keys['private_key']] = '{{private_key}}'
         return context
 
     def get_system_context(self):
@@ -373,7 +372,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     'public_key': 'public_key_{}'.format(pk),
                     'ip_address': 'ip_address_{}'.format(pk),
                     'vpn_subnet': 'vpn_subnet_{}'.format(pk),
-                    'private_key': 'client_private_key_{}'.format(pk),
+                    'private_key': 'pvt_key_{}'.format(pk),
                 }
             )
         if self._is_backend_type('vxlan'):

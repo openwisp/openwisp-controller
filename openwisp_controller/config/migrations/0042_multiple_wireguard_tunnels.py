@@ -27,7 +27,7 @@ def allow_multiple_wireguard_tunneling(apps, schema_editor):
                 '{{ private_key }}',
             ]:
                 continue
-            interface['private_key'] = '{{client_private_key_%s}}' % vpn_id
+            interface['private_key'] = '{{pvt_key_%s}}' % vpn_id
             changed = True
         if not changed:
             continue
@@ -47,7 +47,7 @@ def disallow_multiple_wireguard_tunneling(apps, schema_editor):
             private_key = interface.get('private_key', None)
             if interface_type != 'wireguard' or not private_key:
                 continue
-            if f'client_private_key_{vpn_id}' not in private_key:
+            if f'pvt_key_{vpn_id}' not in private_key:
                 continue
             interface['private_key'] = '{{private_key}}'
             changed = True
