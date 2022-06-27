@@ -1,0 +1,23 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_modify %}
+
+{% block content %}
+<div class="{% if not add %}change-form{% else %}add-form{% endif %}">
+    {{ block.super }}
+
+    {% block default_templates_js %}
+    {% if relevant_template_url %}
+    <script>
+        // enable default templates - do not remove this comment
+        (function ($) {
+            $(document).ready( function () {
+                window._relevantTemplateUrl = "{{ relevant_template_url | safe }}";
+                window._deviceGroup = true;
+                window.bindDefaultTemplateLoading();
+            })
+        }) (django.jQuery);
+    </script>
+    {% endif %}
+    {% endblock %}
+</div>
+{% endblock %}

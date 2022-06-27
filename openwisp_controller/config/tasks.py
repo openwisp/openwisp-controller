@@ -104,3 +104,31 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
             f'Response status code: {response.status_code}, '
             f'VPN Server UUID: {vpn_id}',
         )
+
+
+@shared_task(base=OpenwispCeleryTask)
+def change_devices_templates(instance_id, model_name, **kwargs):
+    Device = load_model('config', 'Device')
+    DeviceGroup = load_model('config', 'DeviceGroup')
+    Config = load_model('config', 'Config')
+    if model_name == Device._meta.model_name:
+        Device.manage_devices_group_templates(
+            device_ids=instance_id,
+            old_group_ids=kwargs.get('old_group_id'),
+            group_id=kwargs.get('group_id'),
+        )
+
+    elif model_name == DeviceGroup._meta.model_name:
+        DeviceGroup.manage_group_templates(
+            group_id=instance_id,
+            old_template_ids=kwargs.get('old_templates'),
+            template_ids=kwargs.get('templates'),
+        )
+
+    elif model_name == Config._meta.model_name:
+        Config.manage_backend_changed(
+            instance_id=instance_id,
+            old_backend=kwargs.pop('old_backend'),
+            backend=kwargs.pop('backend'),
+            **kwargs,
+        )

@@ -74,7 +74,41 @@ class TestViews(
                 reverse('admin:get_relevant_templates', args=[org1.pk])
             )
         template = response.json()
-        self.assertEqual(template, {})
+        self.assertEqual(
+            template,
+            {},
+        )
+        # filtering template which is not required and enabled by default
+        t4 = self._create_template(
+            organization=org1,
+            name='t4',
+            default=False,
+            required=False,
+        )
+        t5 = self._create_template(
+            organization=org1,
+            name='t5',
+            default=False,
+            required=True,
+        )
+        with self.assertNumQueries(4):
+            response = self.client.get(
+                reverse('admin:get_relevant_templates', args=[org1.pk])
+            )
+        template = response.json()
+        self.assertNotIn(t5.pk, template.keys())
+        self.assertNotIn(t1.pk, template.keys())
+        self.assertEqual(
+            template,
+            {
+                str(t4.pk): {
+                    'backend': t4.get_backend_display(),
+                    'required': t4.required,
+                    'default': t4.default,
+                    'name': t4.name,
+                }
+            },
+        )
 
     def test_get_relevant_templates_with_backend_filtering(self):
         org1 = self._create_org(name='org1')
@@ -105,6 +139,7 @@ class TestViews(
             templates,
             {
                 str(t1.pk): {
+                    'backend': t1.get_backend_display(),
                     'required': t1.required,
                     'default': t1.default,
                     'name': t1.name,
@@ -123,6 +158,7 @@ class TestViews(
             templates,
             {
                 str(t2.pk): {
+                    'backend': t2.get_backend_display(),
                     'required': t2.required,
                     'default': t2.default,
                     'name': t2.name,

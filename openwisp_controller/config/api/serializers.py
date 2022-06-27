@@ -162,7 +162,11 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
         with transaction.atomic():
             device = Device.objects.create(**validated_data)
             if config_data:
-                config = Config.objects.create(device=device, **config_data)
+                if not hasattr(device, 'config'):
+                    config = Config.objects.create(device=device, **config_data)
+                else:
+                    Config.objects.filter(device=device).update(**config_data)
+                    config = device.config
                 config.templates.add(*config_templates)
         return device
 
@@ -276,8 +280,15 @@ class DeviceDetailSerializer(BaseSerializer):
         return super().update(instance, validated_data)
 
 
+class FilterGroupTemplates(FilterTemplatesByOrganization):
+    def get_queryset(self):
+        return super().get_queryset().exclude(Q(default=True) | Q(required=True))
+
+
 class DeviceGroupSerializer(BaseSerializer):
     meta_data = serializers.JSONField(required=False, initial={})
+    templates = FilterGroupTemplates(many=True)
+    _templates = None
 
     class Meta(BaseMeta):
         model = DeviceGroup
@@ -286,7 +297,33 @@ class DeviceGroupSerializer(BaseSerializer):
             'name',
             'organization',
             'description',
+            'templates',
             'meta_data',
             'created',
             'modified',
         ]
+
+    def validate(self, data):
+        self._templates = [template.id for template in data.pop('templates', [])]
+        return super().validate(data)
+
+    def _save_m2m_templates(self, instance, created=False):
+        old_templates = list(instance.templates.values_list('pk', flat=True))
+        if old_templates != self._templates:
+            instance.templates.set(self._templates)
+            if not created:
+                self.Meta.model.templates_changed(
+                    instance=instance,
+                    old_templates=old_templates,
+                    templates=self._templates,
+                )
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        self._save_m2m_templates(instance, created=True)
+        return instance
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        self._save_m2m_templates(instance)
+        return instance

@@ -11,10 +11,10 @@ from model_utils import Choices
 from model_utils.fields import StatusField
 from netjsonconfig import OpenWrt
 from packaging import version
-from swapper import get_model_name
+from swapper import get_model_name, load_model
 
 from .. import settings as app_settings
-from ..signals import config_modified, config_status_changed
+from ..signals import config_backend_changed, config_modified, config_status_changed
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
@@ -86,6 +86,7 @@ class AbstractConfig(BaseConfig):
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
     _config_context_functions = list()
+    _old_backend = None
 
     class Meta:
         abstract = True
@@ -444,6 +445,9 @@ class AbstractConfig(BaseConfig):
             default_templates = self.get_default_templates()
             if default_templates:
                 self.templates.add(*default_templates)
+        if self._old_backend and self._old_backend != self.backend:
+            self._send_config_backend_changed_signal()
+            self._old_backend = None
         # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
             self._send_config_modified_signal(action='config_changed')
@@ -458,6 +462,9 @@ class AbstractConfig(BaseConfig):
         current = self._meta.model.objects.only(
             'backend', 'config', 'context', 'status'
         ).get(pk=self.pk)
+        if self.backend != current.backend:
+            # storing old backend to send backend change signal after save
+            self._old_backend = current.backend
         for attr in ['backend', 'config', 'context']:
             if getattr(self, attr) == getattr(current, attr):
                 continue
@@ -487,6 +494,18 @@ class AbstractConfig(BaseConfig):
             # kept for backward compatibility
             config=self,
             device=self.device,
+        )
+
+    def _send_config_backend_changed_signal(self):
+        """
+        Emits ``config_backend_changed`` signal.
+        Called also by ConfigForm when backend is changed
+        """
+        config_backend_changed.send(
+            sender=self.__class__,
+            instance=self,
+            old_backend=self._old_backend,
+            backend=self.backend,
         )
 
     def _send_config_status_changed_signal(self):
@@ -580,6 +599,44 @@ class AbstractConfig(BaseConfig):
 
     def get_system_context(self):
         return self.get_context(system=True)
+
+    def manage_group_templates(
+        self, templates, old_templates, ignore_backend_filter=False
+    ):
+        """
+        This method is used to manage group templates for a device config.
+
+        Args:
+            instance (Config): Config instance
+            templates (Queryset): Queryset of templates to add
+            old_templates (Queryset): Queryset of old templates to remove
+            ignore_backend_filter (bool, optional): Defaults to False.
+        """
+        if not ignore_backend_filter:
+            templates = templates.filter(backend=self.backend)
+            old_templates = old_templates.filter(backend=self.backend)
+        self.templates.remove(*old_templates)
+        self.templates.add(*templates)
+
+    @classmethod
+    def manage_backend_changed(cls, instance_id, old_backend, backend, **kwargs):
+        """
+        This is used to change group templates if config backend is changed.
+        """
+        Config = load_model('config', 'Config')
+        Template = load_model('config', 'Template')
+        config = Config.objects.get(pk=instance_id)
+        device_group = config.device.group
+        if not device_group:
+            return
+        created = kwargs.get('created')
+        if created:
+            templates = device_group.templates.all()
+            old_templates = Template.objects.none()
+        else:
+            templates = device_group.templates.filter(backend=backend)
+            old_templates = device_group.templates.filter(backend=old_backend)
+        config.manage_group_templates(templates, old_templates, not created)
 
 
 AbstractConfig._meta.get_field('config').blank = True

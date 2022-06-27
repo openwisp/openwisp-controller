@@ -15,9 +15,11 @@ from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
 from .signals import (
+    config_backend_changed,
     config_modified,
     device_group_changed,
     device_name_changed,
+    group_templates_changed,
     vpn_peers_changed,
 )
 
@@ -101,6 +103,21 @@ class ConfigConfig(AppConfig):
             self.config_model.certificate_updated,
             sender=self.cert_model,
             dispatch_uid='cert_update_invalidate_checksum_cache',
+        )
+        group_templates_changed.connect(
+            handlers.devicegroup_templates_change_handler,
+            sender=self.devicegroup_model,
+            dispatch_uid='devicegroup_templates_change_handler.changed',
+        )
+        post_save.connect(
+            handlers.devicegroup_templates_change_handler,
+            sender=self.config_model,
+            dispatch_uid='devicegroup_templates_change_handler.created',
+        )
+        config_backend_changed.connect(
+            handlers.config_backend_change_handler,
+            sender=self.config_model,
+            dispatch_uid='devicegroup_templates_change_handler.backend_changed',
         )
 
     def register_menu_groups(self):

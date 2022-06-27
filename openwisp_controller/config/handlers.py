@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -43,9 +44,16 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
 
 
 def devicegroup_change_handler(instance, **kwargs):
+    if type(instance) is list:
+        # changes group templates for multiple devices
+        devicegroup_templates_change_handler(instance, **kwargs)
+        return
     if instance._state.adding or ('created' in kwargs and kwargs['created'] is True):
         return
     model_name = instance._meta.model_name
+    if model_name == Device._meta.model_name:
+        # remove old group templates and apply new group templates
+        devicegroup_templates_change_handler(instance, **kwargs)
     tasks.invalidate_devicegroup_cache_change.delay(instance.id, model_name)
 
 
@@ -62,3 +70,63 @@ def device_cache_invalidation_handler(instance, **kwargs):
     view = DeviceChecksumView()
     setattr(view, 'kwargs', {'pk': str(instance.pk)})
     view.get_device.invalidate(view)
+
+
+def config_backend_change_handler(instance, **kwargs):
+    devicegroup_templates_change_handler(instance, **kwargs)
+
+
+def devicegroup_templates_change_handler(instance, **kwargs):
+    if type(instance) is list:
+        # instance is queryset of devices
+        model_name = Device._meta.model_name
+    else:
+        model_name = instance._meta.model_name
+
+    if model_name == Device._meta.model_name:
+        if type(instance) is list:
+            # changes group templates for multiple devices
+            transaction.on_commit(
+                lambda: tasks.change_devices_templates.delay(
+                    instance_id=instance,
+                    model_name=model_name,
+                    group_id=kwargs.get('group_id'),
+                    old_group_id=kwargs.get('old_group_id'),
+                )
+            )
+        else:
+            # device group changed
+            transaction.on_commit(
+                lambda: tasks.change_devices_templates(
+                    instance_id=instance.id,
+                    model_name=model_name,
+                    group_id=kwargs.get('group_id'),
+                    old_group_id=kwargs.get('old_group_id'),
+                )
+            )
+
+    elif model_name == DeviceGroup._meta.model_name:
+        # group templates changed
+        transaction.on_commit(
+            lambda: tasks.change_devices_templates.delay(
+                instance_id=instance.id,
+                model_name=model_name,
+                templates=kwargs.get('templates'),
+                old_templates=kwargs.get('old_templates'),
+            )
+        )
+
+    elif model_name == Config._meta.model_name:
+        # config created or backend changed
+        config_created = instance._state.adding or (
+            'created' in kwargs and kwargs['created'] is True
+        )
+        if not (config_created or kwargs.get('backend')):
+            return
+        tasks.change_devices_templates(
+            instance_id=instance.id,
+            model_name=model_name,
+            created=config_created,
+            backend=kwargs.get('backend'),
+            old_backend=kwargs.get('old_backend'),
+        )

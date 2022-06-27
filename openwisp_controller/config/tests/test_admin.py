@@ -7,7 +7,8 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.db.models.signals import post_save
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
@@ -17,7 +18,12 @@ from openwisp_utils.tests import catch_signal
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
-from ..signals import device_group_changed, device_name_changed, management_ip_changed
+from ..signals import (
+    device_group_changed,
+    device_name_changed,
+    group_templates_changed,
+    management_ip_changed,
+)
 from .utils import (
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
@@ -28,6 +34,7 @@ from .utils import (
 devnull = open(os.devnull, 'w')
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
+DeviceGroup = load_model('config', 'DeviceGroup')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
@@ -449,7 +456,7 @@ class TestAdmin(
             'csrfmiddlewaretoken': 'test',
         }
 
-    def test_change_device_group(self):
+    def test_change_device_group_action(self):
         path = reverse(f'admin:{self.app_label}_device_changelist')
         org = self._get_org(org_name='default')
         device = self._create_device(organization=org)
@@ -459,6 +466,112 @@ class TestAdmin(
         self.assertContains(
             response, 'What group do you want to assign to the selected devices?'
         )
+
+    def test_device_import_with_group_apply_templates(self):
+        org = self._get_org(org_name='default')
+        template = self._create_template(name='template')
+        dg = self._create_device_group(name='test-group', organization=org)
+        dg.templates.add(template)
+        contents = (
+            'organization,name,mac_address,group\n'
+            f'{org.pk},TestImport,00:11:22:09:44:55,{dg.pk}'
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertEqual(device.group, dg)
+        self.assertIsNotNone(device.config)
+        self.assertIn(template, device.config.templates.all())
+
+    def test_add_device_with_group_templates(self):
+        org = self._get_org(org_name='default')
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1.templates.add(t1)
+        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2.templates.add(t2)
+        data = self._get_device_params(org=org)
+        data.update(group=str(dg1.pk))
+        with catch_signal(post_save) as mock_post_save, catch_signal(
+            device_group_changed
+        ) as device_group_changed_mock:
+            self.client.post(
+                reverse(f'admin:{self.app_label}_device_add'), data, follow=True
+            )
+        device = Device.objects.first()
+        mock_post_save.assert_any_call(
+            signal=post_save,
+            sender=Config,
+            instance=device.config,
+            created=True,
+            update_fields=None,
+            raw=False,
+            using='default',
+        )
+        device_group_changed_mock.assert_not_called()
+        self.assertIn(t1, device.config.templates.all())
+
+    def test_unassigning_group_removes_old_templates(self):
+        org = self._get_org(org_name='default')
+        template = self._create_template(name='template')
+        dg = self._create_device_group(name='test-group', organization=org)
+        dg.templates.add(template)
+        device = self._create_device(organization=org, group=dg)
+        self.assertIn(template, device.config.templates.all())
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        params = self._get_device_params(org=org)
+        params.update(
+            {
+                'name': 'test-device-changed',
+                'config-0-id': str(device.config.pk),
+                'config-0-device': str(device.pk),
+                'config-INITIAL_FORMS': 1,
+                'group': '',
+            }
+        )
+        response = self.client.post(path, params, follow=True)
+        self.assertNotContains(response, 'errors', status_code=200)
+        device.refresh_from_db()
+        self.assertIsNone(device.group)
+        self.assertNotIn(template, device.config.templates.all())
+
+    def test_group_templates_are_not_forced(self):
+        o = self._get_org()
+        t = self._create_template(name='t')
+        dg = self._create_device_group(name='test-group', organization=o)
+        dg.templates.add(t)
+        d = self._create_device(organization=o, group=dg)
+        self.assertIn(t, d.config.templates.all())
+        path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
+        params = self._get_device_params(org=o)
+        params.update(
+            {
+                'name': 'test-device-changed',
+                'config-0-id': str(d.config.pk),
+                'config-0-device': str(d.pk),
+                'config-0-templates': '',
+                'config-INITIAL_FORMS': 1,
+                'group': str(dg.pk),
+            }
+        )
+        response = self.client.post(path, params)
+        self.assertNotContains(response, 'errors', status_code=302)
+        d.refresh_from_db()
+        self.assertEqual(d.config.name, 'test-device-changed')
+        self.assertFalse(d.config.templates.filter(pk=t.pk).exists())
 
     def test_device_contains_default_templates_js(self):
         config = self._create_config(organization=self._get_org())
@@ -1433,3 +1546,173 @@ class TestDeviceGroupAdmin(
         with self.subTest('test device menu item is registered'):
             url = reverse(f'admin:{self.app_label}_device_changelist')
             self.assertContains(response, f' class="menu-item" href="{url}"')
+
+
+class TestDeviceGroupAdminTransaction(
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    CreateDeviceMixin,
+    TestOrganizationMixin,
+    TestAdminMixin,
+    TransactionTestCase,
+):
+
+    app_label = 'config'
+    _device_group_params = {
+        'name': 'test-device-group',
+        'description': 'test device group',
+    }
+    _additional_params = {}
+
+    def setUp(self):
+        self.client.force_login(self._get_admin())
+
+    def _get_device_group_params(self, org, **kwargs):
+        p = self._device_group_params.copy()
+        p.update(self._additional_params)
+        p.update(kwargs)
+        p['organization'] = org.pk
+        if p.get('templates'):
+            p['templates'] = ','.join([str(t.pk) for t in p['templates']])
+        return p
+
+    def test_add_devicegroup_does_not_emit_changed_signals(self):
+        template = self._create_template()
+        org1 = self._get_org()
+        path = reverse(f'admin:{self.app_label}_devicegroup_add')
+        data = self._get_device_group_params(org=org1, templates=[template])
+        self._login()
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            self.client.post(path, data)
+        mocked_group_templates_changed.assert_not_called()
+
+    def test_templates_not_changed(self):
+        template = self._create_template()
+        org1 = self._get_org()
+        path = reverse(f'admin:{self.app_label}_devicegroup_add')
+        data = self._get_device_group_params(org=org1, templates=[template])
+        self._login()
+        self.client.post(path, data)
+        data['name'] = 'templates-not-changed'
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            self.client.post(path, data)
+        mocked_group_templates_changed.assert_not_called()
+
+    def test_change_devicegroup_templates_emit_changed_signals(self):
+        template = self._create_template()
+        org = self._get_org()
+        dg = self._create_device_group(organization=org)
+        path = reverse(f'admin:{self.app_label}_devicegroup_change', args=[dg.pk])
+        data = self._get_device_group_params(org=org, templates=[template])
+        self._login()
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            self.client.post(path, data)
+        mocked_group_templates_changed.assert_called_once_with(
+            signal=group_templates_changed,
+            sender=DeviceGroup,
+            instance=dg,
+            templates=[template.id],
+            old_templates=[],
+        )
+
+    def test_group_templates_apply(self):
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        t3 = self._create_template(name='t3', backend='netjsonconfig.OpenWisp')
+        org1 = self._get_org()
+        dg = self._create_device_group(organization=org1)
+        device = self._create_device_config(device_opts=dict(group=dg))
+        self._create_device(
+            name='test-device-without-config', group=dg, mac_address='00:00:00:00:00:01'
+        )
+        self.assertEqual(device.config.templates.count(), 0)
+        path = reverse(f'admin:{self.app_label}_devicegroup_change', args=[dg.pk])
+        self._login()
+        with self.subTest('adding templates to group must apply templates to device'):
+            data = self._get_device_group_params(org=org1, templates=[t1, t2])
+            self.client.post(path, data)
+            templates = device.config.templates.all()
+            self.assertEqual(templates.count(), 2)
+            self.assertIn(t1, templates)
+            self.assertIn(t2, templates)
+
+        with self.subTest(
+            'removing templates from group must remove templates from device'
+        ):
+            data = self._get_device_group_params(org=org1, templates=[t2])
+            self.client.post(path, data)
+            templates = device.config.templates.all()
+            self.assertEqual(templates.count(), 1)
+            self.assertIn(t2, templates)
+            self.assertNotIn(t1, templates)
+
+        with self.subTest(
+            'apply templates to device if backend of templates and device are same'
+        ):
+            data = self._get_device_group_params(org=org1, templates=[t1, t3])
+            self.client.post(path, data)
+            templates = device.config.templates.all()
+            self.assertEqual(templates.count(), 1)
+            self.assertNotIn(t3, templates)
+
+    def test_change_device_group_action_changes_templates(self):
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        org = self._get_org(org_name='default')
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1.templates.add(t1)
+        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2.templates.add(t2)
+        device = self._create_device(organization=org, group=dg1)
+        templates = device.config.templates.all()
+        self.assertNotIn(t2, templates)
+        self.assertIn(t1, templates)
+        post_data = {
+            '_selected_action': [device.pk],
+            'action': 'change_group',
+            'csrfmiddlewaretoken': 'test',
+        }
+        with self.subTest('change group'):
+            post_data['device_group'] = str(dg2.pk)
+            post_data['apply'] = True
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response, 'Successfully changed group of selected devices.'
+            )
+            templates = device.config.templates.all()
+            self.assertIn(t2, templates)
+            self.assertNotIn(t1, templates)
+        with self.subTest('unassign group'):
+            post_data['device_group'] = ''
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            templates = list(device.config.templates.all())
+            self.assertEqual(templates, [])
+
+    def test_change_device_group_changes_templates(self):
+        org = self._get_org(org_name='default')
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1.templates.add(t1)
+        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2.templates.add(t2)
+        device = self._create_device(organization=org, group=dg1)
+        templates = device.config.templates.all()
+        self.assertNotIn(t2, templates)
+        self.assertIn(t1, templates)
+        with catch_signal(device_group_changed) as device_group_changed_mock:
+            device.group = dg2
+            device.save(update_fields=['group'])
+        device_group_changed_mock.assert_called_with(
+            signal=device_group_changed,
+            sender=Device,
+            instance=device,
+            group_id=dg2.id,
+            old_group_id=dg1.id,
+        )
+        templates = device.config.templates.all()
+        self.assertNotIn(t1, templates)
+        self.assertIn(t2, templates)

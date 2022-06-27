@@ -8,8 +8,9 @@ from swapper import load_model
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
-from openwisp_utils.tests import capture_any_output
+from openwisp_utils.tests import capture_any_output, catch_signal
 
+from ..signals import group_templates_changed
 from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX509Mixin
 
 Template = load_model('config', 'Template')
@@ -72,8 +73,8 @@ class TestConfigApi(
             'backend': 'netjsonconfig.OpenWrt',
             'status': 'modified',
             'templates': [],
-            'context': '{}',
-            'config': '{}',
+            'context': {},
+            'config': {},
         },
     }
 
@@ -82,6 +83,7 @@ class TestConfigApi(
         'description': 'Group for APs of default organization',
         'organization': 'None',
         'meta_data': {'captive_portal_url': 'https://example.com'},
+        'templates': [],
     }
 
     def test_device_create_with_config_api(self):
@@ -104,6 +106,21 @@ class TestConfigApi(
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
+
+    def test_device_create_with_group(self):
+        self.assertEqual(Device.objects.count(), 0)
+        dg = self._create_device_group()
+        template = self._create_template()
+        dg.templates.add(template)
+        path = reverse('config_api:device_list')
+        data = self._get_device_data.copy()
+        org = self._get_org()
+        data['organization'] = org.pk
+        data['group'] = dg.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        self.assertIn(template, Device.objects.first().config.templates.all())
 
     def test_device_create_with_invalid_name_api(self):
         path = reverse('config_api:device_list')
@@ -217,6 +234,34 @@ class TestConfigApi(
         self.assertEqual(d1.name, 'change-test-device')
         self.assertEqual(d1.organization, org)
         self.assertEqual(d1.config.backend, 'netjsonconfig.OpenWisp')
+
+    def test_device_api_change_config_backend(self):
+        t1 = self._create_template(name='t1', backend='netjsonconfig.OpenWrt')
+        t2 = self._create_template(name='t2', backend='netjsonconfig.OpenWisp')
+        dg1 = self._create_device_group(name='dg-1')
+        dg1.templates.add(t1, t2)
+        d1 = self._create_device(name='test-device', group=dg1)
+        self.assertIn(t1, d1.config.templates.all())
+        path = reverse('config_api:device_detail', args=[d1.pk])
+        data = {
+            'name': 'change-test-device',
+            'organization': d1.organization.pk,
+            'mac_address': d1.mac_address,
+            'group': dg1.pk,
+            'config': {
+                'backend': 'netjsonconfig.OpenWisp',
+                'status': 'modified',
+                'templates': [],
+                'context': {},
+                'config': {},
+            },
+        }
+        r = self.client.put(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data['group'], dg1.pk)
+        self.assertEqual(r.data['config']['backend'], 'netjsonconfig.OpenWisp')
+        self.assertNotIn(t1, d1.config.templates.all())
+        self.assertIn(t2, d1.config.templates.all())
 
     # test device with VPN-client type template assigned to it
     def test_device_with_vpn_client_template_assigned(self):
@@ -613,9 +658,11 @@ class TestConfigApi(
     def test_devicegroup_create_api(self):
         self.assertEqual(DeviceGroup.objects.count(), 0)
         org = self._get_org()
+        template = self._create_template(name='t1', organization=org)
         path = reverse('config_api:devicegroup_list')
         data = self._get_devicegroup_data.copy()
         data['organization'] = org.pk
+        data['templates'] = [str(template.pk)]
         response = self.client.post(path, data, content_type='application/json')
         self.assertEqual(DeviceGroup.objects.count(), 1)
         self.assertEqual(response.status_code, 201)
@@ -623,20 +670,28 @@ class TestConfigApi(
         self.assertEqual(response.data['description'], data['description'])
         self.assertEqual(response.data['meta_data'], data['meta_data'])
         self.assertEqual(response.data['organization'], org.pk)
+        self.assertEqual(response.data['templates'], [template.pk])
 
     def test_devicegroup_list_api(self):
         self._create_device_group()
         path = reverse('config_api:devicegroup_list')
-        with self.assertNumQueries(4):
-            r = self.client.get(path)
-        self.assertEqual(r.status_code, 200)
+        with self.subTest('assert number of queries'):
+            with self.assertNumQueries(5):
+                r = self.client.get(path)
+            self.assertEqual(r.status_code, 200)
+        with self.subTest('should not contain default or required templates'):
+            t1 = self._create_template(name='t1')
+            t2 = self._create_template(name='t2', required=True)
+            r = self.client.get(path, {'format': 'api'})
+            self.assertContains(r, t1.name)
+            self.assertNotContains(r, t2.name)
 
     def test_devicegroup_detail_api(self):
         device_group = self._create_device_group()
         path = reverse('config_api:devicegroup_detail', args=[device_group.pk])
 
         with self.subTest('Test GET'):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['name'], device_group.name)
@@ -864,11 +919,11 @@ class TestConfigApiTransaction(
             self.assertEqual(response.status_code, 200)
 
         def _assert_cache_invalidation(path, org_slug):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(6):
                 response = self.client.get(path, data={'org': org_slug})
                 self.assertEqual(response.status_code, 200)
 
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(6):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
 
@@ -879,11 +934,11 @@ class TestConfigApiTransaction(
 
         with self.subTest('Test caching works'):
             _build_cache(path, org.slug)
-            with self.assertNumQueries(2):
+            with self.assertNumQueries(3):
                 response = self.client.get(path, data={'org': org.slug})
                 self.assertEqual(response.status_code, 200)
 
-            with self.assertNumQueries(2):
+            with self.assertNumQueries(3):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
 
@@ -925,11 +980,11 @@ class TestConfigApiTransaction(
             'config_api:devicegroup_x509_commonname', args=[cert.common_name]
         )
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
@@ -943,11 +998,11 @@ class TestConfigApiTransaction(
             'config_api:devicegroup_x509_commonname', args=[cert.common_name]
         )
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
@@ -961,14 +1016,79 @@ class TestConfigApiTransaction(
             'config_api:devicegroup_x509_commonname', args=[cert.common_name]
         )
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             response = self.client.get(path, data={'org': org.slug})
             self.assertEqual(response.status_code, 200)
 
         VpnClient.objects.filter(cert=cert).delete()
         response = self.client.get(path, data={'org': org.slug})
         self.assertEqual(response.status_code, 404)
+
+    def test_devicegroup_templates_change(self):
+        org = self._get_org()
+        t1 = self._create_template(name='t1', organization=org)
+        t2 = self._create_template(name='t2', organization=org)
+        dg = self._create_device_group(name='test-group', organization=org)
+        dg.templates.add(t1)
+        path = reverse('config_api:devicegroup_detail', args=[dg.pk])
+        data = {
+            'templates': [str(t2.pk)],
+        }
+        with catch_signal(group_templates_changed) as mocked_group_templates_changed:
+            response = self.client.patch(path, data, content_type='application/json')
+            self.assertEqual(response.json().get('templates'), [str(t2.pk)])
+        mocked_group_templates_changed.assert_called_once_with(
+            signal=group_templates_changed,
+            sender=DeviceGroup,
+            instance=dg,
+            templates=[t2.pk],
+            old_templates=[t1.pk],
+        )
+
+    def test_device_api_change_group(self):
+        t1 = self._create_template(name='t1')
+        t2 = self._create_template(name='t2')
+        dg1 = self._create_device_group(name='dg-1')
+        dg2 = self._create_device_group(name='dg-2')
+        dg1.templates.add(t1)
+        dg2.templates.add(t2)
+        d1 = self._create_device(name='test-device', group=dg1)
+        path = reverse('config_api:device_detail', args=[d1.pk])
+        data = {
+            'name': 'change-test-device',
+            'organization': d1.organization.pk,
+            'mac_address': d1.mac_address,
+            'group': dg2.pk,
+            'config': {
+                'backend': d1.config.backend,
+                'status': 'modified',
+                'templates': [],
+                'context': {},
+                'config': {},
+            },
+        }
+        with self.subTest('detail device api should show group templates'):
+            r = self.client.get(path, content_type='application/json')
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data['group'], dg1.pk)
+            self.assertEqual(r.data['config']['templates'], [t1.pk])
+            self.assertIn(t1, d1.config.templates.all())
+
+        with self.subTest('change group should change device templates'):
+            r = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data['group'], dg2.pk)
+            self.assertEqual(r.data['config']['templates'], [t2.pk])
+            self.assertIn(t2, d1.config.templates.all())
+
+        with self.subTest('unassign group should remove group templates'):
+            data['group'] = ''
+            r = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data['group'], None)
+            self.assertEqual(r.data['config']['templates'], [])
+            self.assertEqual(d1.config.templates.count(), 0)

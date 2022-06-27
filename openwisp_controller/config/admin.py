@@ -317,6 +317,8 @@ class BaseForm(forms.ModelForm):
 
 
 class ConfigForm(AlwaysHasChangedMixin, BaseForm):
+    _old_templates = None
+
     def get_temp_model_instance(self, **options):
         config_model = self.Meta.model
         instance = config_model(**options)
@@ -357,7 +359,23 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
                 # the device object.
                 raw_data=self.data,
             )
+        self._old_templates = list(config.templates.filter(required=False))
         return templates
+
+    def save(self, *args, **kwargs):
+        templates = self.cleaned_data.pop('templates', [])
+        instance = super().save(*args, **kwargs)
+        # as group templates are not forced so if user remove any selected
+        # group template, we need to remove it from the config instance
+        # not doing this in save_m2m because save_form_data directly set the
+        # user selected templates and we need to handle the condition i.e.
+        # group templates get applied at the time of creation of config
+        instance.manage_group_templates(
+            templates=templates,
+            old_templates=self._old_templates,
+            ignore_backend_filter=True,
+        )
+        return instance
 
     class Meta(BaseForm.Meta):
         model = Config
@@ -461,9 +479,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     inlines = [ConfigInline]
     conditional_inlines = []
     actions = ['change_group']
-
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
+    _state_adding = False
+    _config_formset = None
 
     if app_settings.CONFIG_BACKEND_FIELD_SHOWN:
         list_filter.insert(1, 'config__backend')
@@ -480,12 +499,65 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/relevant_templates.js',
         ]
 
+    def save_form(self, request, form, change):
+        self._state_adding = form.instance._state.adding
+        return super().save_form(request, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        # if a new device and config objects get created
+        # with a group having group templates assigned,
+        # the device group functionality creates a
+        # new config for the device before this form
+        # is saved, therefore we'll incur in an integrity
+        # error exception because the config already exists.
+        # To avoid that, we have to convince django that
+        # the formset is for an existing object and not a new one
+        if (
+            self._state_adding
+            and formset.model == Config
+            and hasattr(form.instance, 'config')
+            and form.instance.group
+            and form.instance.group.templates.exists()
+        ):
+            formset.data['config-0-id'] = str(form.instance.config.id)
+            formset.data['config-0-device'] = str(form.instance.id)
+            formset.data['config-INITIAL_FORMS'] = '1'
+            templates = form.instance.config.templates.all().values_list(
+                'pk', flat=True
+            )
+            templates = [str(template) for template in templates]
+            formset.data['config-0-templates'] = ','.join(templates)
+            formset_new = formset.__class__(
+                data=formset.data, instance=formset.instance
+            )
+            formset = formset_new
+            formset.full_clean()
+            formset.new_objects = []
+            formset.changed_objects = []
+            formset.deleted_objects = []
+            self._config_formset = formset
+        return super().save_formset(request, form, formset, change)
+
+    def construct_change_message(self, request, form, formsets, add=False):
+        if self._state_adding and self._config_formset:
+            formsets[0] = self._config_formset
+        return super().construct_change_message(request, form, formsets, add)
+
     def change_group(self, request, queryset):
         if 'apply' in request.POST:
             form = ChangeDeviceGroupForm(request.POST)
             if form.is_valid():
                 group = form.cleaned_data['device_group']
+                instances, old_group_ids = map(
+                    list, zip(*queryset.values_list('id', 'group'))
+                )
                 queryset.update(group=group or None)
+                group_id = None
+                if group:
+                    group_id = group.id
+                Device._send_device_group_changed_signal(
+                    instance=instances, group_id=group_id, old_group_id=old_group_ids
+                )
             self.message_user(
                 request,
                 _('Successfully changed group of selected devices.'),
@@ -849,6 +921,24 @@ class VpnAdmin(
 
 
 class DeviceGroupForm(BaseForm):
+    _templates = None
+
+    def clean_templates(self):
+        templates = self.cleaned_data.get('templates')
+        self._templates = [template.id for template in templates]
+        return templates
+
+    def save(self, *args, **kwargs):
+        instance = super().save(*args, **kwargs)
+        old_templates = list(self.instance.templates.values_list('pk', flat=True))
+        if not self.instance._state.adding and old_templates != self._templates:
+            DeviceGroup.templates_changed(
+                instance=instance,
+                old_templates=old_templates,
+                templates=self._templates,
+            )
+        return instance
+
     class Meta(BaseForm.Meta):
         model = DeviceGroup
         widgets = {'meta_data': DeviceGroupJsonSchemaWidget}
@@ -878,6 +968,7 @@ class DeviceGroupFilter(admin.SimpleListFilter):
 
 
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
+    change_form_template = 'admin/device_group/change_form.html'
     form = DeviceGroupForm
     list_display = [
         'name',
@@ -889,14 +980,19 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'name',
         'organization',
         'description',
+        'templates',
         'meta_data',
         'created',
         'modified',
     ]
     search_fields = ['name', 'description', 'meta_data']
     list_filter = [('organization', MultitenantOrgFilter), DeviceGroupFilter]
+    multitenant_shared_relations = ('templates',)
 
     class Media:
+        js = list(UUIDAdmin.Media.js) + [
+            f'{prefix}js/relevant_templates.js',
+        ]
         css = {'all': (f'{prefix}css/admin.css',)}
 
     def get_urls(self):
@@ -914,6 +1010,23 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
 
     def schema_view(self, request):
         return JsonResponse(app_settings.DEVICE_GROUP_SCHEMA)
+
+    def add_view(self, request, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context.update(self.get_extra_context())
+        return super().add_view(request, form_url, extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = self.get_extra_context(object_id)
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_extra_context(self, pk=None):
+        ctx = {
+            'relevant_template_url': reverse(
+                'admin:get_relevant_templates', args=['org_id']
+            ),
+        }
+        return ctx
 
 
 admin.site.register(Device, DeviceAdminExportable)

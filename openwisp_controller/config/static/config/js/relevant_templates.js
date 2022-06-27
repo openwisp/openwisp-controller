@@ -1,10 +1,22 @@
 'use strict';
 django.jQuery(function ($) {
     var firstRun = true,
+        backendFieldSelector = '#id_config-0-backend',
+        orgFieldSelector = '#id_organization',
+        isDeviceGroup = function () {
+            return window._deviceGroup;
+        },
+        templatesFieldName = function () {
+            return isDeviceGroup() ? 'templates' : 'config-0-templates';
+        },
         getTemplateOptionElement = function (index, templateId, templateConfig, isSelected = false, isPrefix = false) {
+            if (templateConfig===undefined) {
+                return; // relevant templates do not contain this template
+            }
             var prefix = isPrefix ? '__prefix__-' : '',
                 requiredString = templateConfig.required ? ' (required)' : '',
-                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m" data-required=${templateConfig.required}> ${templateConfig.name}${requiredString}</label></li>`),
+                backendString = isDeviceGroup() && templateConfig.backend ? ` (backend: ${templateConfig.backend})` : '',
+                element = $(`<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m" data-required=${templateConfig.required}> ${templateConfig.name}${requiredString}${backendString}</label></li>`),
                 inputField = element.children().children('input');
 
             if (templateConfig.required) {
@@ -36,7 +48,7 @@ django.jQuery(function ($) {
             $('.sortedm2m-container > .help').text(helpText);
         },
         addChangeEventHandlerToBackendField = function () {
-            $('#id_config-0-backend').change(function () {
+            $(backendFieldSelector).change(function () {
                 setTimeout(function () {
                     // ensures getDefaultTemplates execute only after other
                     // onChange event handlers attached this field has been
@@ -48,18 +60,27 @@ django.jQuery(function ($) {
             showRelevantTemplates();
         },
         updateConfigTemplateField = function (templates) {
-            $('input[name="config-0-templates"]').attr(
+            $(`input[name="${templatesFieldName()}"]`).attr(
                 'value', templates.join(',')
             );
             $('input.sortedm2m:first').trigger('change');
         },
+        parseSelectedTemplates = function (selectedTemplates) {
+            if (selectedTemplates !== undefined) {
+                if (selectedTemplates === '') {
+                    return [];
+                } else {
+                    return selectedTemplates.split(',');
+                }
+            }
+        },
         showRelevantTemplates = function () {
-            var orgID = $('#id_organization').val(),
-                backend = $('#id_config-0-backend').val(),
+            var orgID = $(orgFieldSelector).val(),
+                backend = isDeviceGroup() ? "" : $(backendFieldSelector).val(),
                 selectedTemplates;
 
             // Hide templates if no organization or backend is selected
-            if (orgID.length === 0 || backend.length === 0) {
+            if (orgID.length === 0 || !isDeviceGroup() && backend.length === 0) {
                 resetTemplateOptions();
                 updateTemplateHelpText();
                 return;
@@ -70,14 +91,7 @@ django.jQuery(function ($) {
                 // when the user has changed any of organization or backend field.
                 // selectedTemplates will be an empty string if no template is selected
                 // ''.split(',') returns [''] hence, this case requires special handling
-                selectedTemplates = django._owcInitialValues["config-0-templates"];
-                if (selectedTemplates !== undefined) {
-                    if (selectedTemplates === '') {
-                        selectedTemplates = [];
-                    } else {
-                        selectedTemplates = selectedTemplates.split(',');
-                    }
-                }
+                selectedTemplates = isDeviceGroup() ? parseSelectedTemplates($("#id_templates").val()) : parseSelectedTemplates(django._owcInitialValues[templatesFieldName()]);
             }
 
             var url = window._relevantTemplateUrl.replace('org_id', orgID);
@@ -98,7 +112,9 @@ django.jQuery(function ($) {
                         var element = getTemplateOptionElement(index, templateId, data[templateId], true, false),
                             prefixElement = getTemplateOptionElement(index, templateId, data[templateId], true, true);
                         sortedm2mUl.append(element);
-                        sortedm2mPrefixUl.append(prefixElement);
+                        if (!isDeviceGroup()) {
+                            sortedm2mPrefixUl.append(prefixElement);
+                        }
                         delete data[templateId];
                     });
                 }
@@ -118,7 +134,9 @@ django.jQuery(function ($) {
                         enabledTemplates.push(templateId);
                     }
                     sortedm2mUl.append(element);
-                    sortedm2mPrefixUl.append(prefixElement);
+                    if (!isDeviceGroup()) {
+                        sortedm2mPrefixUl.append(prefixElement);
+                    }
                 });
                 if (firstRun === true && selectedTemplates !== undefined) {
                     updateTemplateSelection(selectedTemplates);
@@ -128,17 +146,21 @@ django.jQuery(function ($) {
             });
         },
         bindDefaultTemplateLoading = function () {
-            var backendField = $('#id_config-0-backend');
-            $('#id_organization').change(function () {
+            var backendField = $(backendFieldSelector);
+            $(orgFieldSelector).change(function () {
                 // Only fetch templates when backend field is present
-                if ($('#id_config-0-backend').length > 0) {
+                if ($(backendFieldSelector).length > 0 || isDeviceGroup()) {
                     showRelevantTemplates();
                 }
             });
             // Change view: backendField is rendered on page load
             if (backendField.length > 0) {
                 addChangeEventHandlerToBackendField();
-            } else {
+            } else if (isDeviceGroup()) {
+                // Initially request data to get templates
+                showRelevantTemplates();
+            }
+            else {
                 // Add view: backendField is added when user adds configuration
                 $('#config-group > fieldset.module').ready(function () {
                     $('div.add-row > a').one('click', function () {
