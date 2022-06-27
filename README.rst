@@ -969,7 +969,7 @@ because those templates are automatically assigned by the system
 to new devices.
 
 This feature works also when editing group templates or the group assigned
-to a device via the `REST API <#patch-device-group-detail>`__.
+to a device via the `REST API <#change-device-group-detail>`__.
 
 Export/Import Device data
 ~~~~~~~~~~~~~~~~~~~~~~~~~
