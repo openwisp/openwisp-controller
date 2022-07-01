@@ -2,7 +2,6 @@ import json
 import logging
 
 import reversion
-from admin_auto_filters.filters import AutocompleteFilter
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
@@ -38,6 +37,7 @@ from openwisp_utils.admin import (
     TimeReadonlyAdminMixin,
     UUIDAdmin,
 )
+from openwisp_utils.admin_theme.filters import AutocompleteFilter
 
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
@@ -431,20 +431,10 @@ class ChangeDeviceGroupForm(forms.Form):
 
 
 class TemplatesFilter(AutocompleteFilter):
-    template = 'admin/config/autocomplete_filter.html'
     title = _('template')
     field_name = 'templates'
     parameter_name = 'config__templates'
     rel_model = Config
-
-    class Media:
-        js = (
-            'admin/js/jquery.init.js',
-            'config/js/autocomplete_filter.js',
-        )
-        css = {
-            'screen': ('config/css/autocomplete_filter.css',),
-        }
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
