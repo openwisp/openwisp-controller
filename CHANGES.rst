@@ -6,8 +6,35 @@ Version 1.1.0 [unreleased]
 
 WIP
 
+Version 1.0.2 [2022-07-01]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `device's "changed" signals emitting on the creation
+  of new device <https://github.com/openwisp/openwisp-controller/issues/649>`_
+- Fixed *django-reversion's* recovery buttons were hidden from users
+  of the "Operator" group in the admin dashboard of ``Certificate`` and ``CA``
+  models
+- Removed `hardcoded static URLs
+  <https://github.com/openwisp/openwisp-controller/issues/660>`_
+  which created issues when static files are served using an
+  external service (e.g. S3 storage buckets)
+- Fixed `permissions for "Operator" and "Administrator" groups to
+  access "OrganizationConfigSettings" objects
+  <https://github.com/openwisp/openwisp-controller/issues/664>`_
+- Fixed `support for multiple wireguard tunnels on the same devices
+  <https://github.com/openwisp/openwisp-controller/issues/657>`_
+- Fixed `"/api/v1/controller/device/{id}/" REST API endpoint not
+  updating the device's configuration backend
+  <https://github.com/openwisp/openwisp-controller/issues/658>`_
+
 Version 1.0.1 [2022-05-11]
 --------------------------
+
+Bugfixes
+~~~~~~~~
 
 - Admin: show main group information in ``DeviceGroupAdmin`` list:
   - name
