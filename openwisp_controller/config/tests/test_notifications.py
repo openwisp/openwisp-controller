@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.apps.registry import apps
-from django.test import TestCase
+from django.test import TransactionTestCase
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import CreateConfigMixin
@@ -15,7 +15,7 @@ Notification = load_model('openwisp_notifications', 'Notification')
 notification_qs = Notification.objects.all()
 
 
-class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TestCase):
+class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TransactionTestCase):
     app_label = 'config'
 
     def setUp(self):

@@ -45,25 +45,6 @@ class BaseTestNotification:
 
 
 class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
-    def test_connection_working_notification(self):
-        self.assertEqual(Notification.objects.count(), 0)
-        device_connection = DeviceConnection.objects.create(
-            credentials=self.creds, device=self.d, is_working=False
-        )
-        device_connection.is_working = True
-        device_connection.save()
-        self.assertEqual(Notification.objects.count(), 1)
-        self._generic_notification_test(
-            exp_level='info',
-            exp_type='connection_is_working',
-            exp_verb='working',
-            exp_message=(
-                '(SSH) connection to device <a href="{target_link}">'
-                '{n.target}</a> is {n.verb}.'
-            ),
-            exp_email_subject='[example.com] RECOVERY: Connection to device {n.target}',
-        )
-
     def test_connection_is_working_none(self):
         self.assertEqual(Notification.objects.count(), 0)
 
@@ -86,6 +67,95 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
             device_connection.is_working = True
             device_connection.save()
             self.assertEqual(Notification.objects.count(), 0)
+
+    def test_default_notification_type_already_unregistered(self):
+        # Simulates if 'default notification type is already unregistered
+        # by some other module
+
+        # Unregister "config_error" and "device_registered" notification
+        # types to avoid getting rasing ImproperlyConfigured exceptions
+        unregister_notification_type('connection_is_not_working')
+        unregister_notification_type('connection_is_working')
+
+        # This will try to unregister 'default' notification type
+        # which is already got unregistered when Django loaded.
+        # No exception should be raised as the exception is already handled.
+        app = apps.get_app_config(self.app_label)
+        app.register_notification_types()
+
+    @patch(
+        'openwisp_controller.connection.apps.ConnectionConfig'
+        '._ignore_connection_notification_reasons',
+        ['Unable to connect'],
+    )
+    @patch.object(notify, 'send')
+    def test_connection_is_working_changed_unable_to_connect(self, notify_send, *args):
+        credentials = self._create_credentials_with_key(port=self.ssh_server.port)
+        self._create_config(device=self.d)
+        device_conn = self._create_device_connection(
+            credentials=credentials, device=self.d, is_working=True
+        )
+        device_conn.failure_reason = (
+            '[Errno None] Unable to connect to port 5555 on 127.0.0.1'
+        )
+        device_conn.is_working = False
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
+        # Connection makes recovery.
+        device_conn.failure_reason = ''
+        device_conn.is_working = True
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
+
+
+class TestNotificationTransaction(
+    CreateConnectionsMixin, BaseTestNotification, TransactionTestCase
+):
+    def test_connection_working_notification(self):
+        self.assertEqual(Notification.objects.count(), 0)
+        device_connection = DeviceConnection.objects.create(
+            credentials=self.creds, device=self.d, is_working=False
+        )
+        device_connection.is_working = True
+        device_connection.save()
+        self.assertEqual(Notification.objects.count(), 1)
+        self._generic_notification_test(
+            exp_level='info',
+            exp_type='connection_is_working',
+            exp_verb='working',
+            exp_message=(
+                '(SSH) connection to device <a href="{target_link}">'
+                '{n.target}</a> is {n.verb}.'
+            ),
+            exp_email_subject='[example.com] RECOVERY: Connection to device {n.target}',
+        )
+
+    @patch(
+        'openwisp_controller.connection.apps.ConnectionConfig'
+        '._ignore_connection_notification_reasons',
+        ['timed out'],
+    )
+    @patch.object(notify, 'send')
+    def test_connection_is_working_changed_timed_out(self, notify_send, *args):
+        credentials = self._create_credentials_with_key(port=self.ssh_server.port)
+        self._create_config(device=self.d)
+        device_conn = self._create_device_connection(
+            credentials=credentials, device=self.d, is_working=True
+        )
+        self.assertEqual(device_conn.is_working, True)
+        device_conn.is_working = False
+        device_conn.failure_reason = 'timed out'
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
+        # Connection recovers, device is reachable again
+        device_conn.is_working = True
+        device_conn.failure_reason = ''
+        device_conn.full_clean()
+        device_conn.save()
+        notify_send.assert_not_called()
 
     def test_connection_not_working_notification(self):
         device_connection = DeviceConnection.objects.create(
@@ -128,93 +198,3 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
             ),
             exp_email_subject='[example.com] PROBLEM: Connection to device {n.target}',
         )
-
-    def test_default_notification_type_already_unregistered(self):
-        # Simulates if 'default notification type is already unregistered
-        # by some other module
-
-        # Unregister "config_error" and "device_registered" notification
-        # types to avoid getting rasing ImproperlyConfigured exceptions
-        unregister_notification_type('connection_is_not_working')
-        unregister_notification_type('connection_is_working')
-
-        # This will try to unregister 'default' notification type
-        # which is already got unregistered when Django loaded.
-        # No exception should be raised as the exception is already handled.
-        app = apps.get_app_config(self.app_label)
-        app.register_notification_types()
-
-    @patch(
-        'openwisp_controller.connection.apps.ConnectionConfig'
-        '._ignore_connection_notification_reasons',
-        ['timed out'],
-    )
-    @patch.object(notify, 'send')
-    def test_connection_is_working_changed_timed_out(self, notify_send, *args):
-        credentials = self._create_credentials_with_key(port=self.ssh_server.port)
-        self._create_config(device=self.d)
-        device_conn = self._create_device_connection(
-            credentials=credentials, device=self.d, is_working=True
-        )
-        self.assertEqual(device_conn.is_working, True)
-        device_conn.is_working = False
-        device_conn.failure_reason = 'timed out'
-        device_conn.full_clean()
-        device_conn.save()
-        notify_send.assert_not_called()
-        # Connection recovers, device is reachable again
-        device_conn.is_working = True
-        device_conn.failure_reason = ''
-        device_conn.full_clean()
-        device_conn.save()
-        notify_send.assert_not_called()
-
-    @patch(
-        'openwisp_controller.connection.apps.ConnectionConfig'
-        '._ignore_connection_notification_reasons',
-        ['Unable to connect'],
-    )
-    @patch.object(notify, 'send')
-    def test_connection_is_working_changed_unable_to_connect(self, notify_send, *args):
-        credentials = self._create_credentials_with_key(port=self.ssh_server.port)
-        self._create_config(device=self.d)
-        device_conn = self._create_device_connection(
-            credentials=credentials, device=self.d, is_working=True
-        )
-        device_conn.failure_reason = (
-            '[Errno None] Unable to connect to port 5555 on 127.0.0.1'
-        )
-        device_conn.is_working = False
-        device_conn.full_clean()
-        device_conn.save()
-        notify_send.assert_not_called()
-        # Connection makes recovery.
-        device_conn.failure_reason = ''
-        device_conn.is_working = True
-        device_conn.full_clean()
-        device_conn.save()
-        notify_send.assert_not_called()
-
-
-class TestNotificationTransaction(
-    CreateConnectionsMixin, BaseTestNotification, TransactionTestCase
-):
-    def test_unreachable_after_upgrade_notification(self):
-        failure_reason = 'A failure reason'
-        device_connection = DeviceConnection.objects.create(
-            credentials=self.creds, device=self.d, is_working=True
-        )
-        self.assertEqual(Notification.objects.count(), 0)
-        device_connection.is_working = False
-        device_connection.failure_reason = failure_reason
-        device_connection.save()
-        self.assertEqual(Notification.objects.count(), 1)
-        notification = Notification.objects.get(type='connection_is_not_working')
-        self.assertIn(failure_reason, notification.message)
-
-        device_connection.is_working = True
-        device_connection.failure_reason = ''
-        device_connection.save()
-        self.assertEqual(Notification.objects.count(), 2)
-        notification = Notification.objects.get(type='connection_is_working')
-        self.assertNotIn(failure_reason, notification.message)
