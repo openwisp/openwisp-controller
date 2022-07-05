@@ -374,6 +374,7 @@ Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
         # openwisp2 admin theme
         # (must be loaded here)
         'openwisp_utils.admin_theme',
+        'admin_auto_filters',
         'django.contrib.admin',
         'django.forms',
         'import_export',
@@ -3235,6 +3236,7 @@ Now you need to add ``mycontroller.sample_config``,
     INSTALLED_APPS = [
         # other django installed apps
         'openwisp_utils.admin_theme',
+        'admin_auto_filters',
         # all-auth
         'django.contrib.sites',
         'allauth',
