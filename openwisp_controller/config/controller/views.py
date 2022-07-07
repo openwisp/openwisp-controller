@@ -9,6 +9,7 @@ from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils.decorators import method_decorator
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from django.views.generic.detail import SingleObjectMixin
@@ -247,7 +248,13 @@ class DeviceReportStatusView(CsrfExtemptMixin, GetDeviceView):
         status = status if status != 'running' else 'applied'
         # call set_status_{status} method on Config model
         method_name = f'set_status_{status}'
-        getattr(config, method_name)()
+        if status == 'error':
+            error_reason = request.POST.get(
+                'error_reason', _('Reason not reported by the device.')
+            )
+            getattr(config, method_name)(reason=error_reason)
+        else:
+            getattr(config, method_name)()
         return ControllerResponse(
             f'report-result: success\ncurrent-status: {config.status}\n',
             content_type='text/plain',

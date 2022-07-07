@@ -71,6 +71,12 @@ class AbstractConfig(BaseConfig):
             '"error" means the configuration caused issues and it was rolled back;'
         ),
     )
+    error_reason = models.CharField(
+        _('error reason'),
+        max_length=1050,
+        help_text=_('Error reason reported by the device'),
+        blank=True,
+    )
     context = JSONField(
         blank=True,
         default=dict,
@@ -515,11 +521,15 @@ class AbstractConfig(BaseConfig):
         """
         config_status_changed.send(sender=self.__class__, instance=self)
 
-    def _set_status(self, status, save=True):
+    def _set_status(self, status, save=True, reason=None):
         self.status = status
         self._send_config_status_changed = True
+        update_fields = ['status']
+        if reason:
+            self.error_reason = reason
+            update_fields.append('error_reason')
         if save:
-            self.save(update_fields=['status'])
+            self.save(update_fields=update_fields)
 
     def set_status_modified(self, save=True, send_config_modified_signal=True):
         if send_config_modified_signal:
@@ -529,8 +539,8 @@ class AbstractConfig(BaseConfig):
     def set_status_applied(self, save=True):
         self._set_status('applied', save)
 
-    def set_status_error(self, save=True):
-        self._set_status('error', save)
+    def set_status_error(self, save=True, reason=None):
+        self._set_status('error', save, reason)
 
     def _has_device(self):
         return hasattr(self, 'device')

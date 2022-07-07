@@ -154,7 +154,7 @@ OPENWISP_ORGANIZATION_USER_ADMIN = True  # tests will fail without this setting
 OPENWISP_ADMIN_DASHBOARD_ENABLED = True
 OPENWISP_CONTROLLER_GROUP_PIE_CHART = True
 # during development only
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
 
 if not TESTING:
     CACHES = {
