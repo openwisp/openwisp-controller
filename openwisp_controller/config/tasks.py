@@ -73,6 +73,13 @@ def invalidate_devicegroup_cache_change(instance_id, model_name):
 
 
 @shared_task(base=OpenwispCeleryTask)
+def invalidate_vpn_server_devices_cache_change(vpn_pk):
+    Vpn = load_model('config', 'Vpn')
+    vpn = Vpn.objects.get(pk=vpn_pk)
+    vpn.invalidate_devices_cache(vpn_pk)
+
+
+@shared_task(base=OpenwispCeleryTask)
 def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
     from .api.views import DeviceGroupCommonName
 
