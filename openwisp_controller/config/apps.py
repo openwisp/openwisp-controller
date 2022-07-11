@@ -176,6 +176,10 @@ class ConfigConfig(AppConfig):
                     'The last working configuration has been restored from a backup '
                     'present on the filesystem of the device.'
                 ),
+                'target_link': (
+                    'openwisp_controller.config.utils'
+                    '.get_config_error_notification_target_url'
+                ),
             },
             models=[self.device_model, self.config_model],
         )
