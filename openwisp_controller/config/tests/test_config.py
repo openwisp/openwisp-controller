@@ -59,6 +59,35 @@ class TestConfig(
         c = Config(backend='netjsonconfig.OpenWrt', config=config)
         self.assertIsInstance(c.backend_instance, OpenWrt)
 
+    def test_error_reason_clean(self):
+        config = self._create_config(organization=self._get_org())
+        config.error_reason = 'e' * 1030
+        config.full_clean()
+        self.assertEqual(len(config.error_reason), 1024)
+        self.assertEqual(config.error_reason[1013:], '[truncated]')
+
+    def test_error_reason_status_error_modified(self):
+        error_reason = 'Configuration cannot be applied.'
+        config = self._create_config(organization=self._get_org())
+        self.assertEqual(config.status, 'modified')
+        self.assertEqual(config.error_reason, '')
+
+        with self.subTest('Test configuration status changes to modified'):
+            config.set_status_error(reason=error_reason)
+            self.assertEqual(config.status, 'error')
+            self.assertEqual(config.error_reason, error_reason)
+            config.set_status_modified()
+            self.assertEqual(config.status, 'modified')
+            self.assertEqual(config.error_reason, '')
+
+        with self.subTest('Test configuration status changes to applied'):
+            config.set_status_error(reason=error_reason)
+            self.assertEqual(config.status, 'error')
+            self.assertEqual(config.error_reason, error_reason)
+            config.set_status_applied()
+            self.assertEqual(config.status, 'applied')
+            self.assertEqual(config.error_reason, '')
+
     @patch.object(app_settings, 'DSA_DEFAULT_FALLBACK', False)
     @patch.object(
         app_settings,

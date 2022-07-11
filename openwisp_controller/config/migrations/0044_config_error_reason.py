@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 help_text='Error reason reported by the device',
-                max_length=1050,
+                max_length=1024,
                 verbose_name='error reason',
             ),
         ),

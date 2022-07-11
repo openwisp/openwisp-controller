@@ -420,17 +420,18 @@ class ConfigInline(
         qs = super().get_queryset(request)
         return qs.select_related(*self.change_select_related)
 
-    def get_readonly_fields(self, request, obj):
-        fields = super().get_readonly_fields(request, obj)
+    def _error_reason_field_conditional(self, obj, fields):
         if obj and obj.status == 'error' and 'error_reason' not in fields:
             fields.insert(fields.index('status') + 1, 'error_reason')
         return fields
 
+    def get_readonly_fields(self, request, obj):
+        fields = super().get_readonly_fields(request, obj)
+        return self._error_reason_field_conditional(obj, fields)
+
     def get_fields(self, request, obj):
         fields = super().get_fields(request, obj)
-        if obj and obj.status == 'error' and 'error_reason' not in fields:
-            fields.insert(fields.index('status') + 1, 'error_reason')
-        return fields
+        return self._error_reason_field_conditional(obj, fields)
 
 
 class ChangeDeviceGroupForm(forms.Form):

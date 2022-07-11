@@ -983,18 +983,19 @@ class TestAdmin(
         with self.subTest('Test config status "modified" or "applied"'):
             self.assertEqual(config.status, 'modified')
             response = self.client.get(url)
-            self.assertNotContains(response, '<label>Error reason:</label>')
+            self.assertNotContains(response, '<label>Error reason:</label>', html=True)
             config.set_status_applied()
             response = self.client.get(url)
-            self.assertNotContains(response, '<label>Error reason:</label>')
+            self.assertNotContains(response, '<label>Error reason:</label>', html=True)
 
         with self.subTest('Test config status "error"'):
             config.set_status_error(reason='Reason not reported by the device.')
             response = self.client.get(url)
-            self.assertContains(response, '<label>Error reason:</label>')
+            self.assertContains(response, '<label>Error reason:</label>', html=True)
             self.assertContains(
                 response,
                 '<div class="readonly">Reason not reported by the device.</div>',
+                html=True,
             )
 
     def test_download_template_config(self):

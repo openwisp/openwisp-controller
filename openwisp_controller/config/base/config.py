@@ -73,7 +73,7 @@ class AbstractConfig(BaseConfig):
     )
     error_reason = models.CharField(
         _('error reason'),
-        max_length=1050,
+        max_length=1024,
         help_text=_('Error reason reported by the device'),
         blank=True,
     )
@@ -425,6 +425,16 @@ class AbstractConfig(BaseConfig):
             kwargs['dsa'] = dsa_enabled
         return super().get_backend_instance(template_instances, context, **kwargs)
 
+    def clean_error_reason(self):
+        if len(self.error_reason) > 1024:
+            self.error_reason = f'{self.error_reason[:1012]}\n[truncated]'
+
+    def full_clean(self, exclude=None, validate_unique=True):
+        # Modify the "error_reason" before the field validation
+        # is executed by self.full_clean
+        self.clean_error_reason()
+        return super().full_clean(exclude, validate_unique)
+
     def clean(self):
         """
         * validates context field
@@ -522,12 +532,15 @@ class AbstractConfig(BaseConfig):
         config_status_changed.send(sender=self.__class__, instance=self)
 
     def _set_status(self, status, save=True, reason=None):
-        self.status = status
         self._send_config_status_changed = True
         update_fields = ['status']
-        if reason:
-            self.error_reason = reason
+        # The error reason should be updated when
+        # 1. the configuration is in "error" status
+        # 2. the configuration has changed from error status
+        if reason or (self.status == 'error' and self.status != status):
+            self.error_reason = reason or ''
             update_fields.append('error_reason')
+        self.status = status
         if save:
             self.save(update_fields=update_fields)
 
