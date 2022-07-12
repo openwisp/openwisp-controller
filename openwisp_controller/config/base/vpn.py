@@ -248,16 +248,6 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             'openssl dhparam {0} 2> /dev/null'.format(length), shell=True
         ).decode('utf-8')
 
-    def invalidate_devices_cache(self, *args, **kwargs):
-        """
-        Invalidate checksum cache for devices that uses this VPN server
-        """
-        for client in self.vpnclient_set.iterator():
-            # invalidate cache for device
-            client.config._send_config_modified_signal(
-                action='related_template_changed'
-            )
-
     def update_vpn_server_configuration(instance, **kwargs):
         if not instance._is_backend_type('wireguard'):
             return
@@ -780,3 +770,14 @@ class AbstractVpnClient(models.Model):
             if func(self):
                 return
         self.ip = self.vpn.subnet.request_ip()
+
+    @classmethod
+    def invalidate_clients_cache(cls, vpn):
+        """
+        Invalidate checksum cache for clients that uses this VPN server
+        """
+        for client in vpn.vpnclient_set.iterator():
+            # invalidate cache for device
+            client.config._send_config_modified_signal(
+                action='related_template_changed'
+            )

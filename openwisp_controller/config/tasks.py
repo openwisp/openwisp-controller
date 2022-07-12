@@ -75,8 +75,9 @@ def invalidate_devicegroup_cache_change(instance_id, model_name):
 @shared_task(base=OpenwispCeleryTask)
 def invalidate_vpn_server_devices_cache_change(vpn_pk):
     Vpn = load_model('config', 'Vpn')
+    VpnClient = load_model('config', 'VpnClient')
     vpn = Vpn.objects.get(pk=vpn_pk)
-    vpn.invalidate_devices_cache(vpn_pk)
+    VpnClient.invalidate_clients_cache(vpn)
 
 
 @shared_task(base=OpenwispCeleryTask)
