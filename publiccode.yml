@@ -3,14 +3,14 @@
 # More info at https://github.com/italia/publiccode.yml
 
 publiccodeYmlVersion: '0.3'
-name: OpenWISP 2 Controller
+name: OpenWISP Controller
 url: 'https://github.com/openwisp/openwisp-controller'
 developmentStatus: stable
 platforms:
   - linux
 softwareType: standalone/web
-releaseDate: '2021-04-09'
-softwareVersion: 0.8.4
+releaseDate: '2022-04-29'
+softwareVersion: 1.0.0
 logo: 'openwisp.org.svg'
 categories:
   - network-management
