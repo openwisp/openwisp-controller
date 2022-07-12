@@ -437,6 +437,12 @@ class TemplatesFilter(AutocompleteFilter):
     rel_model = Config
 
 
+class GroupFilter(AutocompleteFilter):
+    title = _('group')
+    field_name = 'group'
+    parameter_name = 'group_id__exact'
+
+
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     recover_form_template = 'admin/config/device_recover_form.html'
     list_display = [
@@ -453,7 +459,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         'config__status',
         ('organization', MultitenantOrgFilter),
         TemplatesFilter,
-        ('group', MultitenantRelatedOrgFilter),
+        GroupFilter,
         'created',
     ]
     search_fields = [
