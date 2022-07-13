@@ -218,6 +218,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
     def _check_changes(self):
         attrs = [
+            'config',
             'host',
             'ca',
             'cert',
