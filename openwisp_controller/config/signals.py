@@ -45,3 +45,7 @@ config_backend_changed = Signal()
 config_backend_changed.__doc__ = """
 providing arguments: ['instance', 'backend', 'old_backend']
 """
+vpn_server_modified = Signal()
+vpn_server_modified.__doc__ = """
+providing arguments: ['instance']
+"""

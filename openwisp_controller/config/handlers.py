@@ -76,6 +76,12 @@ def config_backend_change_handler(instance, **kwargs):
     devicegroup_templates_change_handler(instance, **kwargs)
 
 
+def vpn_server_change_handler(instance, **kwargs):
+    transaction.on_commit(
+        lambda: tasks.invalidate_vpn_server_devices_cache_change.delay(instance.id)
+    )
+
+
 def devicegroup_templates_change_handler(instance, **kwargs):
     if type(instance) is list:
         # instance is queryset of devices

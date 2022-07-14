@@ -21,6 +21,7 @@ from .signals import (
     device_name_changed,
     group_templates_changed,
     vpn_peers_changed,
+    vpn_server_modified,
 )
 
 # ensure Device.hardware_id field is not flagged as unique
@@ -229,6 +230,7 @@ class ConfigConfig(AppConfig):
             device_cache_invalidation_handler,
             devicegroup_change_handler,
             devicegroup_delete_handler,
+            vpn_server_change_handler,
         )
 
         post_save.connect(
@@ -269,6 +271,11 @@ class ConfigConfig(AppConfig):
             device_cache_invalidation_handler,
             sender=self.device_model,
             dispatch_uid='device.invalidate_cache',
+        )
+        vpn_server_modified.connect(
+            vpn_server_change_handler,
+            sender=self.vpn_model,
+            dispatch_uid='vpn.invalidate_checksum_cache',
         )
 
     def register_dashboard_charts(self):
