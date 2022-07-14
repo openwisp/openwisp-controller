@@ -37,3 +37,7 @@ vpn_peers_changed = Signal()
 vpn_peers_changed.__doc__ = """
 providing arguments: ['instance']
 """
+vpn_server_modified = Signal()
+vpn_server_modified.__doc__ = """
+providing arguments: ['instance']
+"""

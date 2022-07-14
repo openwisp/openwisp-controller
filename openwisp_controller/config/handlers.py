@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -62,3 +63,9 @@ def device_cache_invalidation_handler(instance, **kwargs):
     view = DeviceChecksumView()
     setattr(view, 'kwargs', {'pk': str(instance.pk)})
     view.get_device.invalidate(view)
+
+
+def vpn_server_change_handler(instance, **kwargs):
+    transaction.on_commit(
+        lambda: tasks.invalidate_vpn_server_devices_cache_change.delay(instance.id)
+    )

@@ -13,7 +13,7 @@ from openwisp_utils.tests import catch_signal
 
 from ...vpn_backends import OpenVpn
 from .. import settings as app_settings
-from ..signals import vpn_peers_changed
+from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
 from ..tasks import create_vpn_dh
 from .utils import (
     CreateConfigTemplateMixin,
@@ -442,7 +442,7 @@ class TestVpn(BaseTestVpn, TestCase):
             self.assertIn('CA is required with this VPN backend', message_dict['ca'])
 
 
-class TestVpnTransaction(BaseTestVpn, TransactionTestCase):
+class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
     @mock.patch.object(create_vpn_dh, 'delay')
     def test_create_vpn_dh_with_vpn_create(self, delay):
         vpn = self._create_vpn(dh='')
@@ -462,6 +462,28 @@ class TestVpnTransaction(BaseTestVpn, TransactionTestCase):
         vpn.refresh_from_db()
         self.assertNotEqual(vpn.dh, Vpn._placeholder_dh)
         dhparam.assert_called_once()
+
+    def test_vpn_server_change_invalidates_device_cache(self):
+        device, vpn, template = self._create_wireguard_vpn_template()
+        with catch_signal(
+            vpn_server_modified
+        ) as mocked_vpn_server_modified, catch_signal(
+            config_modified
+        ) as mocked_config_modified:
+            vpn.host = 'localhost'
+            vpn.save(update_fields=['host'])
+        mocked_vpn_server_modified.assert_called_once_with(
+            signal=vpn_server_modified, sender=Vpn, instance=vpn
+        )
+        mocked_config_modified.assert_called_once_with(
+            signal=config_modified,
+            sender=Config,
+            instance=device.config,
+            previous_status='modified',
+            action='related_template_changed',
+            config=device.config,
+            device=device,
+        )
 
 
 class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):

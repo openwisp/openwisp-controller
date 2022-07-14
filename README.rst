@@ -2990,6 +2990,17 @@ The signal is emitted when subnets and IP addresses have been provisioned
 for a ``VpnClient`` for a VPN server with a subnet with
 `subnet division rule <#subnet-division-app>`_.
 
+``vpn_server_modified``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.vpn_server_modified``
+
+**Arguments**:
+
+- ``instance``: instance of ``Vpn``.
+
+The signal is emitted when the VPN server is modified.
+
 ``vpn_peers_changed``
 ~~~~~~~~~~~~~~~~~~~~~
 

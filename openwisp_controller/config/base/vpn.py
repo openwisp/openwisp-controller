@@ -18,7 +18,7 @@ from openwisp_utils.base import KeyField
 from ...base import ShareableOrgMixinUniqueName
 from .. import crypto
 from .. import settings as app_settings
-from ..signals import vpn_peers_changed
+from ..signals import vpn_peers_changed, vpn_server_modified
 from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
 from .base import BaseConfig
 
@@ -127,6 +127,11 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         unique_together = ('organization', 'name')
         abstract = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # for internal usage
+        self._send_vpn_modified_after_save = False
+
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
         self._validate_backend()
@@ -190,6 +195,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         Calls _auto_create_cert() if cert is not set
         """
+        created = self._state.adding
+        if not created:
+            self._check_changes()
         create_dh = False
         if not self.cert and self.ca:
             self.cert = self._auto_create_cert()
@@ -203,7 +211,34 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         super().save(*args, **kwargs)
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
+        if not created and self._send_vpn_modified_after_save:
+            self._send_vpn_modified_signal()
+            self._send_vpn_modified_after_save = False
         self.update_vpn_server_configuration()
+
+    def _check_changes(self):
+        attrs = [
+            'config',
+            'host',
+            'ca',
+            'cert',
+            'key',
+            'backend',
+            'subnet',
+            'ip',
+            'dh',
+            'public_key',
+            'private_key',
+        ]
+        current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
+        for attr in attrs:
+            if getattr(self, attr) == getattr(current, attr):
+                continue
+            self._send_vpn_modified_after_save = True
+            break
+
+    def _send_vpn_modified_signal(self):
+        vpn_server_modified.send(sender=self.__class__, instance=self)
 
     @classmethod
     def dhparam(cls, length):
@@ -734,3 +769,14 @@ class AbstractVpnClient(models.Model):
             if func(self):
                 return
         self.ip = self.vpn.subnet.request_ip()
+
+    @classmethod
+    def invalidate_clients_cache(cls, vpn):
+        """
+        Invalidate checksum cache for clients that uses this VPN server
+        """
+        for client in vpn.vpnclient_set.iterator():
+            # invalidate cache for device
+            client.config._send_config_modified_signal(
+                action='related_template_changed'
+            )
