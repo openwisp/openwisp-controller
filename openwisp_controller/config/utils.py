@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404 as base_get_object_or_404
 from django.urls import path, re_path
+from openwisp_notifications.utils import _get_object_link
 
 logger = logging.getLogger(__name__)
 
@@ -199,3 +200,8 @@ def get_default_templates_queryset(
     if backend:
         queryset = queryset.filter(backend=backend)
     return queryset
+
+
+def get_config_error_notification_target_url(obj, field, absolute_url=True):
+    url = _get_object_link(obj, field, absolute_url)
+    return f'{url}#config-group'

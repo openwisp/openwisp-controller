@@ -37,6 +37,7 @@ class TestNotifications(CreateConfigMixin, TestOrganizationMixin, TransactionTes
             ' configuration encountered an error',
         )
         self.assertIn('encountered an error', notification.message)
+        self.assertEqual(notification.target_url.endswith('#config-group'), True)
 
     def test_device_registered(self):
         # To avoid adding repetitive code for registering a device,
