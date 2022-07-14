@@ -28,15 +28,13 @@ from openwisp_controller.config.views import (
     get_relevant_templates,
     get_template_default_values,
 )
-from openwisp_users.multitenancy import (
-    MultitenantOrgFilter,
-    MultitenantRelatedOrgFilter,
-)
+from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
     AlwaysHasChangedMixin,
     TimeReadonlyAdminMixin,
     UUIDAdmin,
 )
+from openwisp_utils.admin_theme.filters import AutocompleteFilter
 
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
@@ -443,6 +441,19 @@ class ChangeDeviceGroupForm(forms.Form):
     )
 
 
+class TemplatesFilter(AutocompleteFilter):
+    title = _('template')
+    field_name = 'templates'
+    parameter_name = 'config__templates'
+    rel_model = Config
+
+
+class GroupFilter(AutocompleteFilter):
+    title = _('group')
+    field_name = 'group'
+    parameter_name = 'group_id__exact'
+
+
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     recover_form_template = 'admin/config/device_recover_form.html'
     list_display = [
@@ -458,8 +469,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     list_filter = [
         'config__status',
         ('organization', MultitenantOrgFilter),
-        ('config__templates', MultitenantRelatedOrgFilter),
-        ('group', MultitenantRelatedOrgFilter),
+        TemplatesFilter,
+        GroupFilter,
         'created',
     ]
     search_fields = [

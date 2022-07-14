@@ -441,13 +441,25 @@ class TestAdmin(
         self._test_recoverlist_operator_403(self.app_label, 'vpn')
 
     def test_device_template_filter(self):
-        data = self._create_multitenancy_test_env()
-        t_special = self._create_template(name='special', organization=data['org1'])
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_device_changelist'),
-            visible=[data['t1'].name, t_special.name],
-            hidden=[data['t2'].name, data['t3_inactive'].name],
+        org = self._get_org(org_name='test-org')
+        t = self._create_template(name='test-template', organization=org)
+        d1 = self._create_device(
+            name='test-device1',
+            organization=org,
+            mac_address='00:11:22:33:44:56',
         )
+        d2 = self._create_device(
+            name='test-device2',
+            organization=org,
+            mac_address='00:11:22:33:44:57',
+        )
+        c = self._create_config(device=d1)
+        c.templates.add(t)
+        url = reverse(f'admin:{self.app_label}_device_changelist')
+        query = f'?config__templates={t.pk}'
+        response = self.client.get(f'{url}{query}')
+        self.assertContains(response, d1.name)
+        self.assertNotContains(response, d2.name)
 
     def _get_change_device_post_data(self, device):
         return {
