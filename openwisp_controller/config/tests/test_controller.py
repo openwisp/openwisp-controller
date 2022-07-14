@@ -648,18 +648,41 @@ class TestController(
 
     def test_device_report_status_error(self):
         d = self._create_device_config()
-        with catch_signal(config_status_changed) as handler:
-            response = self.client.post(
-                reverse('controller:device_report_status', args=[d.pk]),
-                {'key': d.key, 'status': 'error'},
-            )
+        url = reverse('controller:device_report_status', args=[d.pk])
+        with self.subTest('Test without error reason'):
+            with catch_signal(config_status_changed) as handler:
+                response = self.client.post(
+                    url,
+                    {'key': d.key, 'status': 'error'},
+                )
+                d.config.refresh_from_db()
+                handler.assert_called_once_with(
+                    sender=Config, signal=config_status_changed, instance=d.config
+                )
+            self._check_header(response)
             d.config.refresh_from_db()
-            handler.assert_called_once_with(
-                sender=Config, signal=config_status_changed, instance=d.config
+            self.assertEqual(d.config.status, 'error')
+
+        with self.subTest('Test with error reason'):
+            error_reason = (
+                'daemon.crit openwisp: Could not apply configuration,'
+                ' openwisp-update-config exit code was 1\n'
+                'daemon.info openwisp: The most recent configuration'
+                ' backup was restored'
             )
-        self._check_header(response)
-        d.config.refresh_from_db()
-        self.assertEqual(d.config.status, 'error')
+            with catch_signal(config_status_changed) as handler:
+                response = self.client.post(
+                    url,
+                    {'key': d.key, 'status': 'error', 'error_reason': error_reason},
+                )
+                d.config.refresh_from_db()
+                handler.assert_called_once_with(
+                    sender=Config, signal=config_status_changed, instance=d.config
+                )
+            self._check_header(response)
+            d.config.refresh_from_db()
+            self.assertEqual(d.config.status, 'error')
+            self.assertEqual(d.config.error_reason, error_reason)
 
     def test_device_report_status_bad_uuid(self):
         d = self._create_device_config()

@@ -313,6 +313,15 @@ button.show-sc{
   margin-left: 7px;
   opacity: 0.8;
 }
+.form-row.field-error_reason .readonly {
+  font-family: monospace;
+  line-height: 1.5em;
+  white-space: pre;
+  max-height: 10em;
+  padding: 0.5em;
+  overflow: auto;
+  background-color: #ffe5e582 ;
+}
 
 @media (max-width: 767px) {
   ul.tabs li {

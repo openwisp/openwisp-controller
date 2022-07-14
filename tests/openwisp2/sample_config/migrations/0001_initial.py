@@ -110,6 +110,15 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    'error_reason',
+                    models.CharField(
+                        blank=True,
+                        help_text='Error reason reported by the device',
+                        max_length=1024,
+                        verbose_name='error reason',
+                    ),
+                ),
+                (
                     'context',
                     jsonfield.fields.JSONField(
                         blank=True,

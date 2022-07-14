@@ -975,6 +975,35 @@ class TestAdmin(
         response = self.client.get(path, {})
         self.assertEqual(response.status_code, 405)
 
+    def test_config_error_reason(self):
+        device = self._create_device(name='download')
+        config = self._create_config(device=device)
+        url = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+
+        with self.subTest('Test config status "modified" or "applied"'):
+            self.assertEqual(config.status, 'modified')
+            response = self.client.get(url)
+            self.assertNotContains(response, '<label>Error reason:</label>', html=True)
+            config.set_status_applied()
+            response = self.client.get(url)
+            self.assertNotContains(response, '<label>Error reason:</label>', html=True)
+
+        with self.subTest('Test config status "error"'):
+            config.set_status_error(reason='Reason not reported by the device.')
+            response = self.client.get(url)
+            self.assertContains(response, '<label>Error reason:</label>', html=True)
+            self.assertContains(
+                response,
+                '<div class="readonly">Reason not reported by the device.</div>',
+                html=True,
+            )
+
+        with self.subTest('Test regression status "applied" after "error"'):
+            config.set_status_applied()
+            self.assertEqual(config.status, 'applied')
+            response = self.client.get(url)
+            self.assertNotContains(response, '<label>Error reason:</label>', html=True)
+
     def test_download_template_config(self):
         t = Template.objects.first()
         path = reverse(f'admin:{self.app_label}_template_download', args=[t.pk])

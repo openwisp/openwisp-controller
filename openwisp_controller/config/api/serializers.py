@@ -108,8 +108,11 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
 class BaseConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = Config
-        fields = ['status', 'backend', 'templates', 'context', 'config']
-        extra_kwargs = {'status': {'read_only': True}}
+        fields = ['status', 'error_reason', 'backend', 'templates', 'context', 'config']
+        extra_kwargs = {
+            'status': {'read_only': True},
+            'error_reason': {'read_only': True},
+        }
 
 
 class DeviceListConfigSerializer(BaseConfigSerializer):
