@@ -422,6 +422,7 @@ class ConfigInline(
 
     def _error_reason_field_conditional(self, obj, fields):
         if obj and obj.status == 'error' and 'error_reason' not in fields:
+            fields = fields.copy()
             fields.insert(fields.index('status') + 1, 'error_reason')
         return fields
 

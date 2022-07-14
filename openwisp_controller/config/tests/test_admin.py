@@ -998,6 +998,12 @@ class TestAdmin(
                 html=True,
             )
 
+        with self.subTest('Test regression status "applied" after "error"'):
+            config.set_status_applied()
+            self.assertEqual(config.status, 'applied')
+            response = self.client.get(url)
+            self.assertNotContains(response, '<label>Error reason:</label>', html=True)
+
     def test_download_template_config(self):
         t = Template.objects.first()
         path = reverse(f'admin:{self.app_label}_template_download', args=[t.pk])
