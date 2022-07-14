@@ -28,10 +28,7 @@ from openwisp_controller.config.views import (
     get_relevant_templates,
     get_template_default_values,
 )
-from openwisp_users.multitenancy import (
-    MultitenantOrgFilter,
-    MultitenantRelatedOrgFilter,
-)
+from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
     AlwaysHasChangedMixin,
     TimeReadonlyAdminMixin,
