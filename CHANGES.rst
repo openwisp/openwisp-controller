@@ -1,6 +1,17 @@
 Changelog
 =========
 
+Version 1.0.3 [2022-08-03]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- `Fixed tests failing due to openwisp-notification>=1.0.2
+  <https://github.com/openwisp/openwisp-controller/pull/670>`_
+- `Fixed checksum cache is not invalidated on VPN server change
+  <https://github.com/openwisp/openwisp-controller/issues/667>`_
+
 Version 1.0.2 [2022-07-01]
 --------------------------
 
