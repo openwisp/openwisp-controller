@@ -159,9 +159,11 @@ class CommandWritableInline(admin.StackedInline):
         ]
 
     def schema_view(self, request):
-        result = {}
-        for key, value in COMMANDS.items():
-            result.update({key: value['schema']})
+        # TODO: Check whether this user has permission
+        # to view the schema for the requested organization.
+        result = self.model.get_org_schema(
+            organization_id=request.GET.get('organization_id')
+        )
         return JsonResponse(result)
 
 

@@ -137,3 +137,13 @@ def _unregister_command_choice(command):
 # Add USER_COMMANDS
 for command_name, command_config in USER_COMMANDS:
     register_command(command_name, command_config)
+
+ORGANIZATION_ENABLED_COMMANDS = {
+    '__all__': ('custom', 'reboot', 'change_password'),
+}
+
+ORGANIZATION_COMMAND_SCHEMA = {}
+for org_id, commands in ORGANIZATION_ENABLED_COMMANDS.items():
+    ORGANIZATION_COMMAND_SCHEMA[org_id] = OrderedDict()
+    for command in commands:
+        ORGANIZATION_COMMAND_SCHEMA[org_id][command] = COMMANDS[command]['schema']

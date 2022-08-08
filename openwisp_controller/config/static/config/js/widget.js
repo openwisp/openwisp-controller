@@ -370,8 +370,10 @@
     };
 
     var bindLoadUi = function () {
+        var orgId = $('#id_organization').val();
         $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
-            $.getJSON($(el).data('schema-url'), function (schemas) {
+            var url = $(el).data('schema-url') + '?organization_id=' + orgId;
+            $.getJSON(url, function (schemas) {
                 django._schemas[$(el).data('schema-url')] = schemas;
                 var field = $(el),
                     schema = field.attr("data-schema"),

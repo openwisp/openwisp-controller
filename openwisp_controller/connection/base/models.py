@@ -21,6 +21,7 @@ from .. import settings as app_settings
 from ..commands import (
     COMMAND_CHOICES,
     DEFAULT_COMMANDS,
+    ORGANIZATION_COMMAND_SCHEMA,
     get_command_callable,
     get_command_schema,
 )
@@ -397,6 +398,12 @@ class AbstractCommand(TimeStampedEditableModel):
         abstract = True
         ordering = ('created',)
 
+    @classmethod
+    def get_org_schema(self, organization_id=None):
+        return ORGANIZATION_COMMAND_SCHEMA.get(
+            organization_id, ORGANIZATION_COMMAND_SCHEMA.get('__all__')
+        )
+
     def __str__(self):
         command = self.input['command'] if self.is_custom else self.get_type_display()
         limit = 32
@@ -417,6 +424,8 @@ class AbstractCommand(TimeStampedEditableModel):
         return super().full_clean(*args, **kwargs)
 
     def clean(self):
+        # TODO: Ensure that the selected command type is allowed
+        # for this organization in ORGANIZATION_ENABLED_COMMANDS
         try:
             jsonschema.Draft4Validator(self._schema).validate(self.input)
         except SchemaError as e:
