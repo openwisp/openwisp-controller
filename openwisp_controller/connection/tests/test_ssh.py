@@ -53,7 +53,7 @@ class TestSsh(CreateConnectionsMixin, TestCase):
             dc.connect()
         self.assertEqual(mocked_connect.call_count, 2)
         self.assertFalse(dc.is_working)
-        mocked_ssh_close.assert_called_once()
+        self.assertEqual(mocked_ssh_close.call_count, 2)
         if sys.version_info[0:2] > (3, 7):
             self.assertNotIn('disabled_algorithms', mocked_connect.mock_calls[0].kwargs)
             self.assertIn('disabled_algorithms', mocked_connect.mock_calls[1].kwargs)

@@ -145,6 +145,7 @@ class Ssh(object):
                     params['disabled_algorithms'] = {
                         'pubkeys': ['rsa-sha2-512', 'rsa-sha2-256']
                     }
+                    self.shell.close()
                     continue
                 raise e
             else:
