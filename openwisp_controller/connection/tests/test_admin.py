@@ -5,6 +5,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.connection.commands import ORGANIZATION_ENABLED_COMMANDS
+
 from ... import settings as module_settings
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
 from ...tests import _get_updated_templates_settings
@@ -180,11 +182,33 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         url = reverse(
             f'admin:{Command._meta.app_label}_{Command._meta.model_name}_schema'
         )
-        response = self.client.get(url)
-        result = json.loads(response.content)
-        self.assertIn('custom', result)
-        self.assertIn('change_password', result)
-        self.assertIn('reboot', result)
+        org = self._get_org()
+        org_admin = self._create_administrator([org])
+        with patch.dict(ORGANIZATION_ENABLED_COMMANDS, {str(org.id): ('reboot',)}):
+            with self.subTest('Test superuser request without organization_id'):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                result = json.loads(response.content)
+                self.assertIn('custom', result)
+                self.assertIn('change_password', result)
+                self.assertIn('reboot', result)
+
+            with self.subTest('Test superuser request with organization_id'):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                result = json.loads(response.content)
+                self.assertIn('reboot', result)
+
+            self.client.logout()
+            self.client.force_login(org_admin)
+            with self.subTest('Test org admin request without organization_id'):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 403)
+
+            with self.subTest('Test org admin request with organization_id'):
+                response = self.client.get(url, {'organization_id': str(org.id)})
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('reboot', result)
 
     @patch.object(
         module_settings,
