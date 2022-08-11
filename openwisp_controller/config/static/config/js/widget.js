@@ -377,8 +377,8 @@
                 queryKey;
             if (queryParams !== undefined) {
                 queryKey = Object.keys(queryParams);
-                for (var i = 0; i < queryKey.length; ++i) {
-                    url = url + '?' + queryKey[i] + '=' + $('#' + queryParams[queryKey[i]]).val();
+                for (var j = 0; j < queryKey.length; ++j) {
+                    url = url + '?' + queryKey[j] + '=' + $('#' + queryParams[queryKey[j]]).val();
                 }
             }
             $.getJSON(url, function (schemas) {
