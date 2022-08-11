@@ -91,6 +91,9 @@ li.commands {
 #ow-command-overlay-close > img{
   height: 20px;
 }
+.ow-device-command-option-container {
+  min-width: 160px;
+}
 
 /* Styles for confirmation dialog element */
 #ow-command-confirm-dialog {

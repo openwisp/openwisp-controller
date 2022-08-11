@@ -370,9 +370,17 @@
     };
 
     var bindLoadUi = function () {
-        var orgId = $('#id_organization').val();
         $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
-            var url = $(el).data('schema-url') + '?organization_id=' + orgId;
+            // Add query parameters defined in the widget
+            var url = $(el).data('schema-url'),
+                queryParams = $(el).data('data-query-params'),
+                queryKey;
+            if (queryParams !== undefined) {
+                queryKey = Object.keys(queryParams);
+                for (var i = 0; i < queryKey.length; ++i) {
+                    url = url + '?' + queryKey[i] + '=' + $('#' + queryParams[queryKey[i]]).val();
+                }
+            }
             $.getJSON(url, function (schemas) {
                 django._schemas[$(el).data('schema-url')] = schemas;
                 var field = $(el),
