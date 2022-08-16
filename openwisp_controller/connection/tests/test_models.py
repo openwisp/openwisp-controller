@@ -4,7 +4,7 @@ from unittest import mock
 import paramiko
 from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, tag
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from swapper import load_model
@@ -14,6 +14,7 @@ from openwisp_utils.tests import capture_any_output, catch_signal
 from .. import settings as app_settings
 from ..apps import _TASK_NAME
 from ..commands import (
+    COMMANDS,
     ORGANIZATION_ENABLED_COMMANDS,
     register_command,
     unregister_command,
@@ -496,6 +497,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                         ' for this organization'
                     ],
                 )
+
+    @tag('skip_prod')
+    def test_enabled_command(self):
+        self.assertEqual(
+            ORGANIZATION_ENABLED_COMMANDS['__all__'], tuple(COMMANDS.keys())
+        )
 
     def test_custom_command(self):
         command = Command(input='test', type='change_password')

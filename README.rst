@@ -2813,16 +2813,17 @@ Allows to specify a ``list`` of tuples for adding commands as described in
 OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------+------------------------------------------------------------+
-| **type**:    | ``dict``                                                   |
-+--------------+------------------------------------------------------------+
-| **default**: | .. code-block:: python                                     |
-|              |                                                            |
-|              |    {                                                       |
-|              |         '__all__': ('custom', 'reboot', 'change_password') |
-|              |    }                                                       |
-|              |                                                            |
-+--------------+------------------------------------------------------------+
++--------------+------------------------------------------------+
+| **type**:    | ``dict``                                       |
++--------------+------------------------------------------------+
+| **default**: | .. code-block:: python                         |
+|              |                                                |
+|              |    {                                           |
+|              |         # By default all commands are allowed  |
+|              |         '__all__': '*',                        |
+|              |    }                                           |
+|              |                                                |
++--------------+------------------------------------------------+
 
 Allows specifying a tuple of commands enabled for an organization. The value of
 ``__all__`` key is used if enabled commands are not specified for an organization.
@@ -2830,10 +2831,11 @@ Configure the setting as follows:
 
 .. code-block:: python
 
-   OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS = {
-       # Organization UUID: # Tuple of enabled commands
-       '7448a190-6e65-42bf-b8ea-bb6603e593a5': ('reboot', 'change_password')
-   }
+    OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS = {
+        # Organization UUID: # Tuple of enabled commands
+        '7448a190-6e65-42bf-b8ea-bb6603e593a5': ('reboot', 'change_password'),
+        '__all__': '*',
+    }
 
 In the above example, only ``reboot`` and ``change_password`` options will be
 available for devices that belong to ``7448a190-6e65-42bf-b8ea-bb6603e593a5``

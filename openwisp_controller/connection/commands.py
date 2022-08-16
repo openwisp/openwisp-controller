@@ -4,7 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 from jsonschema import Draft4Validator
 
-from .settings import USER_COMMANDS, USER_ORG_ENABLED_COMMANDS
+from .settings import ORGANIZATION_ENABLED_COMMANDS, USER_COMMANDS
 
 DEFAULT_COMMANDS = OrderedDict(
     (
@@ -138,11 +138,9 @@ def _unregister_command_choice(command):
 for command_name, command_config in USER_COMMANDS:
     register_command(command_name, command_config)
 
-ORGANIZATION_ENABLED_COMMANDS = {
-    '__all__': ('custom', 'reboot', 'change_password'),
-}
-
-ORGANIZATION_ENABLED_COMMANDS.update(USER_ORG_ENABLED_COMMANDS)
+for org, commands in ORGANIZATION_ENABLED_COMMANDS.items():
+    if commands == '*':
+        ORGANIZATION_ENABLED_COMMANDS[org] = tuple(COMMANDS.keys())
 
 ORGANIZATION_COMMAND_SCHEMA = {}
 for org_id, commands in ORGANIZATION_ENABLED_COMMANDS.items():

@@ -372,15 +372,15 @@
     var bindLoadUi = function () {
         $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
             // Add query parameters defined in the widget
-            var url = $(el).data('schema-url'),
-                queryParams = $(el).data('data-query-params'),
-                queryKey;
+            var url, queryString = '?',
+                queryParams = $('#id_command_set-0-input').data('query-params');
             if (queryParams !== undefined) {
-                queryKey = Object.keys(queryParams);
-                for (var j = 0; j < queryKey.length; ++j) {
-                    url = url + '?' + queryKey[j] + '=' + $('#' + queryParams[queryKey[j]]).val();
+                var queryKeys = Object.keys(queryParams);
+                for (var j = 0; j < queryKeys.length; ++j) {
+                    queryString += '&' + queryKeys[j] + '=' + $('#' + queryParams[queryKeys[j]]).val();
                 }
             }
+            url = $(el).data('schema-url') + queryString;
             $.getJSON(url, function (schemas) {
                 django._schemas[$(el).data('schema-url')] = schemas;
                 var field = $(el),
