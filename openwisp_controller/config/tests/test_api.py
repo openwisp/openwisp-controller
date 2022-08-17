@@ -683,8 +683,12 @@ class TestConfigApi(
             t1 = self._create_template(name='t1')
             t2 = self._create_template(name='t2', required=True)
             r = self.client.get(path, {'format': 'api'})
-            self.assertContains(r, t1.name)
-            self.assertNotContains(r, t2.name)
+            self.assertContains(
+                r, f'<option value="{t1.id}">{t1.name}</option>', html=True
+            )
+            self.assertNotContains(
+                r, f'<option value="{t2.id}">{t2.name}</option>', html=True
+            )
 
     def test_devicegroup_detail_api(self):
         device_group = self._create_device_group()
