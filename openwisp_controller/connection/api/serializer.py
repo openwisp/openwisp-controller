@@ -10,15 +10,16 @@ Credentials = load_model('connection', 'Credentials')
 Device = load_model('config', 'Device')
 
 
-class DeviceValidationMixin(object):
+class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
     def validate(self, data):
-        data['device'] = Device.objects.get(pk=self.context['device_id'])
+        # Add "device_id" to the data for validation
+        data['device_id'] = self.context['device_id']
         instance = self.instance or self.Meta.model(**data)
         instance.full_clean()
         return data
 
 
-class CommandSerializer(DeviceValidationMixin, ValidatedModelSerializer):
+class CommandSerializer(ValidatedDeviceFieldSerializer):
     input = serializers.JSONField(allow_null=True)
     device = serializers.PrimaryKeyRelatedField(
         read_only=True, pk_field=serializers.UUIDField(format='hex_verbose')
@@ -67,7 +68,7 @@ class CredentialSerializer(FilterSerializerByOrgManaged, ValidatedModelSerialize
 
 
 class DeviceConnectionSerializer(
-    FilterSerializerByOrgManaged, DeviceValidationMixin, ValidatedModelSerializer
+    FilterSerializerByOrgManaged, ValidatedDeviceFieldSerializer
 ):
     class Meta:
         model = DeviceConnection
