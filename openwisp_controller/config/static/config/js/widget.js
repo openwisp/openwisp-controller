@@ -373,7 +373,7 @@
         $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
             // Add query parameters defined in the widget
             var url, queryString = '?',
-                queryParams = $('#id_command_set-0-input').data('query-params');
+                queryParams = $(el).data('query-params');
             if (queryParams !== undefined) {
                 var queryKeys = Object.keys(queryParams);
                 for (var j = 0; j < queryKeys.length; ++j) {
