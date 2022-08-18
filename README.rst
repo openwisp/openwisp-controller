@@ -2807,8 +2807,40 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 | **default**: | ``[]``   |
 +--------------+----------+
 
-Allows to specify a `list` of tuples for adding commands as described in
+Allows to specify a ``list`` of tuples for adding commands as described in
 `'How to define custom commands" <#how-to-define-new-options-in-the-commands-menu>`_ section.
+
+OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+------------------------------------------------+
+| **type**:    | ``dict``                                       |
++--------------+------------------------------------------------+
+| **default**: | .. code-block:: python                         |
+|              |                                                |
+|              |    {                                           |
+|              |         # By default all commands are allowed  |
+|              |         '__all__': '*',                        |
+|              |    }                                           |
+|              |                                                |
++--------------+------------------------------------------------+
+
+This setting controls the command types that are enabled on the system
+By default, all command types are enabled to all the organizations,
+but it's possible to disable a specific command for a specific organization
+as shown in the following example:
+
+.. code-block:: python
+
+    OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS = {
+        '__all__': '*',
+        # Organization UUID: # Tuple of enabled commands
+        '7448a190-6e65-42bf-b8ea-bb6603e593a5': ('reboot', 'change_password'),
+    }
+
+In the example above, the organization with UUID ``7448a190-6e65-42bf-b8ea-bb6603e593a5``
+will allow to send only commands of type ``reboot`` and ``change_password``,
+while all the other organizations will have all command types enabled.
 
 ``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

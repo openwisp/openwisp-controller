@@ -13,6 +13,7 @@ from openwisp_users.tests.test_api import AuthenticationMixin
 
 from .. import settings as app_settings
 from ..api.views import ListViewPagination
+from ..commands import ORGANIZATION_ENABLED_COMMANDS
 from .utils import CreateCommandMixin, CreateConnectionsMixin
 
 Command = load_model('connection', 'Command')
@@ -284,6 +285,27 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             response = self.client.get(list_url)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
+
+    def test_non_existent_command(self):
+        url = self._get_path('device_command_list', self.device_id)
+        with patch.dict(
+            ORGANIZATION_ENABLED_COMMANDS,
+            {str(self.device_conn.device.organization_id): ('reboot',)},
+        ):
+            payload = {
+                'type': 'custom',
+                'input': {'command': 'echo test'},
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                '"custom" command is not available for this organization',
+                response.data['input'][0],
+            )
 
 
 class TestConnectionApi(

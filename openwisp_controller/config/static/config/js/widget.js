@@ -371,7 +371,17 @@
 
     var bindLoadUi = function () {
         $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
-            $.getJSON($(el).data('schema-url'), function (schemas) {
+            // Add query parameters defined in the widget
+            var url, queryString = '?',
+                queryParams = $(el).data('query-params');
+            if (queryParams !== undefined) {
+                var queryKeys = Object.keys(queryParams);
+                for (var j = 0; j < queryKeys.length; ++j) {
+                    queryString += '&' + queryKeys[j] + '=' + $('#' + queryParams[queryKeys[j]]).val();
+                }
+            }
+            url = $(el).data('schema-url') + queryString;
+            $.getJSON(url, function (schemas) {
                 django._schemas[$(el).data('schema-url')] = schemas;
                 var field = $(el),
                     schema = field.attr("data-schema"),

@@ -21,6 +21,8 @@ from .. import settings as app_settings
 from ..commands import (
     COMMAND_CHOICES,
     DEFAULT_COMMANDS,
+    ORGANIZATION_COMMAND_SCHEMA,
+    ORGANIZATION_ENABLED_COMMANDS,
     get_command_callable,
     get_command_schema,
 )
@@ -397,6 +399,18 @@ class AbstractCommand(TimeStampedEditableModel):
         abstract = True
         ordering = ('created',)
 
+    @classmethod
+    def get_org_choices(self, organization_id=None):
+        return ORGANIZATION_ENABLED_COMMANDS.get(
+            str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get('__all__')
+        )
+
+    @classmethod
+    def get_org_schema(self, organization_id=None):
+        return ORGANIZATION_COMMAND_SCHEMA.get(
+            organization_id, ORGANIZATION_COMMAND_SCHEMA.get('__all__')
+        )
+
     def __str__(self):
         command = self.input['command'] if self.is_custom else self.get_type_display()
         limit = 32
@@ -417,6 +431,19 @@ class AbstractCommand(TimeStampedEditableModel):
         return super().full_clean(*args, **kwargs)
 
     def clean(self):
+        if self.type not in self.get_org_choices(
+            organization_id=self.device.organization_id
+        ):
+            raise ValidationError(
+                {
+                    'input': _(
+                        (
+                            '"{command}" command is not available '
+                            'for this organization'
+                        ).format(command=self.type)
+                    )
+                }
+            )
         try:
             jsonschema.Draft4Validator(self._schema).validate(self.input)
         except SchemaError as e:

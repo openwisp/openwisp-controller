@@ -43,3 +43,6 @@ SSH_CONNECTION_TIMEOUT = getattr(settings, 'OPENWISP_SSH_CONNECTION_TIMEOUT', 5)
 # this may get overridden by openwisp-monitoring
 UPDATE_CONFIG_MODEL = getattr(settings, 'OPENWISP_UPDATE_CONFIG_MODEL', 'config.Device')
 USER_COMMANDS = getattr(settings, 'OPENWISP_CONTROLLER_USER_COMMANDS', [])
+ORGANIZATION_ENABLED_COMMANDS = getattr(
+    settings, 'OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS', {'__all__': '*'}
+)

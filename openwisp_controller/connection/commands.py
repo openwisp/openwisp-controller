@@ -4,7 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 from jsonschema import Draft4Validator
 
-from .settings import USER_COMMANDS
+from .settings import ORGANIZATION_ENABLED_COMMANDS, USER_COMMANDS
 
 DEFAULT_COMMANDS = OrderedDict(
     (
@@ -137,3 +137,13 @@ def _unregister_command_choice(command):
 # Add USER_COMMANDS
 for command_name, command_config in USER_COMMANDS:
     register_command(command_name, command_config)
+
+for org, commands in ORGANIZATION_ENABLED_COMMANDS.items():
+    if commands == '*':
+        ORGANIZATION_ENABLED_COMMANDS[org] = tuple(COMMANDS.keys())
+
+ORGANIZATION_COMMAND_SCHEMA = {}
+for org_id, commands in ORGANIZATION_ENABLED_COMMANDS.items():
+    ORGANIZATION_COMMAND_SCHEMA[org_id] = OrderedDict()
+    for command in commands:
+        ORGANIZATION_COMMAND_SCHEMA[org_id][command] = COMMANDS[command]['schema']

@@ -59,15 +59,17 @@ class BaseCommandView(GenericAPIView):
     def get_parent_queryset(self):
         return Device.objects.filter(pk=self.kwargs['id'])
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['device_id'] = self.kwargs['id']
+        return context
+
 
 class CommandListCreateView(BaseCommandView, ListCreateAPIView):
     pagination_class = ListViewPagination
 
     def get_queryset(self):
         return super().get_queryset().filter(device_id=self.kwargs['id'])
-
-    def perform_create(self, serializer):
-        serializer.save(device_id=self.kwargs['id'])
 
 
 class CommandDetailsView(BaseCommandView, RetrieveAPIView):

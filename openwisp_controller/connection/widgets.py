@@ -37,6 +37,7 @@ class CommandSchemaWidget(BaseJsonSchemaWidget):
     extra_attrs = {
         'data-schema-selector': '#id_command_set-0-type',
         'data-show-errors': 'never',
+        'data-query-params': '{"organization_id": "id_organization"}',
     }
 
     @property

@@ -4,7 +4,7 @@ import reversion
 import swapper
 from django import forms
 from django.contrib import admin
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import path, resolve
 from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
@@ -14,7 +14,6 @@ from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeviceAdmin
-from .commands import COMMANDS
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
@@ -159,9 +158,12 @@ class CommandWritableInline(admin.StackedInline):
         ]
 
     def schema_view(self, request):
-        result = {}
-        for key, value in COMMANDS.items():
-            result.update({key: value['schema']})
+        organization_id = request.GET.get('organization_id')
+        if not request.user.is_superuser and (
+            not organization_id or not request.user.is_manager(organization_id)
+        ):
+            return HttpResponseForbidden()
+        result = self.model.get_org_schema(organization_id=organization_id)
         return JsonResponse(result)
 
 
