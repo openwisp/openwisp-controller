@@ -232,7 +232,7 @@ Install the system dependencies:
     sudo apt update
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
-    sudo apt install -y chromium
+    sudo apt install -y chromium-browser
 
 Fork and clone the forked repository:
 
@@ -271,10 +271,31 @@ Install development dependencies:
 
     pip install -e .
     pip install -r requirements-test.txt
-    npm install -g jshint stylelint
+    sudo npm install -g jshint stylelint
 
 Install WebDriver for Chromium for your browser version from `<https://chromedriver.chromium.org/home>`_
 and Extract ``chromedriver`` to one of directories from your ``$PATH`` (example: ``~/.local/bin/``).
+
+
+Note: Introduction of a compatibility issue or bug between Django and sqlite3 beyond sqlite3 version 3.35.0 requires intervention by applying a hack to 
+/openwisp-controller/env/lib/python3.10/site-packages/django/contrib/gis/db/backends/spatialite/base.py 
+
+.. code-block:: shell
+    sed -i 's/cursor\.execute("SELECT InitSpatialMetaDataFull(1)")/cursor.execute("SELECT InitSpatialMetaData(1)")/g' \
+    env/lib/python3.10/site-packages/django/contrib/gis/db/backends/spatialite/base.py
+
+
+Note: You can change this file back after completing the migrate process below by executing:
+
+.. code-block:: shell
+    sed -i '$s/cursor\.execute("SELECT InitSpatialMetaData(1)")/cursor.execute("SELECT InitSpatialMetaDataFull(1)")/g' \
+    env/lib/python3.10/site-packages/django/contrib/gis/db/backends/spatialite/base.py
+
+Launch celery worker (for background jobs):
+
+.. code-block:: shell
+
+    celery -A openwisp2 worker -l info
 
 Create database:
 
@@ -284,11 +305,7 @@ Create database:
     ./manage.py migrate
     ./manage.py createsuperuser
 
-Launch celery worker (for background jobs):
 
-.. code-block:: shell
-
-    celery -A openwisp2 worker -l info
 
 Launch development server:
 
