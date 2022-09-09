@@ -79,13 +79,12 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         on_delete=models.SET_NULL,
     )
     # optional, helpful for updating WireGuard and VXLAN server configuration
-    webhook_endpoint = models.CharField(
+    webhook_endpoint = models.URLField(
         verbose_name=_('Webhook Endpoint'),
         help_text=_(
             'Webhook to trigger for updating server configuration '
             '(e.g. https://openwisp2.mydomain.com:8081/trigger-update)'
         ),
-        max_length=128,
         blank=True,
         null=True,
     )
