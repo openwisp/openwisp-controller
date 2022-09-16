@@ -3,7 +3,10 @@ import swapper
 from .base.config import AbstractConfig
 from .base.device import AbstractDevice
 from .base.device_group import AbstractDeviceGroup
-from .base.multitenancy import AbstractOrganizationConfigSettings
+from .base.multitenancy import (
+    AbstractOrganizationConfigSettings,
+    AbstractOrganizationLimits,
+)
 from .base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from .base.template import AbstractTemplate
 from .base.vpn import AbstractVpn, AbstractVpnClient
@@ -98,3 +101,13 @@ class OrganizationConfigSettings(AbstractOrganizationConfigSettings):
     class Meta(AbstractOrganizationConfigSettings.Meta):
         abstract = False
         swappable = swapper.swappable_setting('config', 'OrganizationConfigSettings')
+
+
+class OrganizationLimits(AbstractOrganizationLimits):
+    """
+    Number of allowed devices specific to each organization
+    """
+
+    class Meta(AbstractOrganizationLimits.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting('config', 'OrganizationLimits')

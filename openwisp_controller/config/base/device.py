@@ -22,7 +22,7 @@ class AbstractDevice(OrgMixin, BaseModel):
     physical properties of a network device
     """
 
-    _changed_checked_fields = ['name', 'group_id', 'management_ip']
+    _changed_checked_fields = ['name', 'group_id', 'management_ip', 'organization_id']
 
     name = models.CharField(
         max_length=64,
@@ -163,6 +163,30 @@ class AbstractDevice(OrgMixin, BaseModel):
         else:
             return KeyField.default_callable()
 
+    def _validate_org_device_limit(self):
+        if not self._state.adding and not self._check_organization_id_changed():
+            # This check is only executed when a new device
+            # is created.
+            return
+        if (
+            not hasattr(self, 'organization')
+            or self.organization.config_limits.device_limit == 0
+        ):
+            return
+        device_count = self._meta.model.objects.filter(
+            organization=self.organization
+        ).count()
+        device_limit = self.organization.config_limits.device_limit
+        if not device_limit or device_count >= device_limit:
+            raise ValidationError(
+                _(
+                    (
+                        'The maximum amount of allowed devices has been reached'
+                        ' for organization {org}.'
+                    ).format(org=self.organization.name)
+                )
+            )
+
     def _validate_unique_name(self):
         if app_settings.DEVICE_NAME_UNIQUE:
             if (
@@ -181,6 +205,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         super().clean(*args, **kwargs)
         self._validate_unique_name()
         self._validate_org_relation('group', field_error='group')
+        self._validate_org_device_limit()
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -270,6 +295,15 @@ class AbstractDevice(OrgMixin, BaseModel):
             )
 
         self._initial_management_ip = self.management_ip
+
+    def _check_organization_id_changed(self):
+        """
+        Returns "True" if the device's organization has changed.
+        """
+        return (
+            self._initial_organization_id != models.DEFERRED
+            and self.organization_id != self._initial_organization_id
+        )
 
     @classmethod
     def _send_device_group_changed_signal(cls, instance, group_id, old_group_id):

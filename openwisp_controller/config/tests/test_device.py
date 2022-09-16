@@ -406,7 +406,58 @@ class TestDevice(
             device.name = 'new-name'
             device.management_ip = '10.0.0.1'
             device.group_id = device_group.id
+            device.organization_id = self._create_org().id
             # Another query is generated due to "config.set_status_modified"
             # on name change
             with self.assertNumQueries(3):
                 device._check_changed_fields()
+
+    def test_exceed_organization_device_limit(self):
+        org = self._get_org()
+        org.config_limits.device_limit = 1
+        org.config_limits.save()
+        self._create_device(organization=org)
+        self.assertEqual(Device.objects.count(), 1)
+        with self.assertRaises(ValidationError) as error:
+            self._create_device(
+                organization=org,
+                name='11:22:33:44:55:66',
+                mac_address='11:22:33:44:55:66',
+            )
+        self.assertEqual(
+            str(error.exception.messages[0]),
+            'The maximum amount of allowed devices has'
+            f' been reached for organization {org}.',
+        )
+        self.assertEqual(Device.objects.count(), 1)
+
+    def test_organization_device_limit_check(self):
+        # Organization's device limit check should not be
+        # done on existing devices
+        org = self._create_org()
+        org.config_limits.device_limit = 2
+        org.config_limits.save()
+        device = self._create_device(organization=org)
+        device.name = 'changed-name'
+        with self.assertNumQueries(5):
+            device.full_clean()
+
+    def test_device_org_change_limit_check(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name='org2', slug='org2')
+        org2.config_limits.device_limit = 1
+        org2.config_limits.save()
+        self._create_device(
+            name='11:22:33:44:55:66', mac_address='11:22:33:44:55:66', organization=org2
+        )
+        device = self._create_device(organization=org1)
+        with self.assertRaises(ValidationError) as error:
+            device.organization = org2
+            device.full_clean()
+        self.assertEqual(
+            error.exception.messages[0],
+            (
+                'The maximum amount of allowed devices has been reached'
+                f' for organization {org2}.'
+            ),
+        )

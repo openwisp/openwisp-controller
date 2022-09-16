@@ -110,6 +110,42 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
 
+    def test_device_create_with_group(self):
+        self.assertEqual(Device.objects.count(), 0)
+        dg = self._create_device_group()
+        template = self._create_template()
+        dg.templates.add(template)
+        path = reverse('config_api:device_list')
+        data = self._get_device_data.copy()
+        org = self._get_org()
+        data['organization'] = org.pk
+        data['group'] = dg.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        self.assertIn(template, Device.objects.first().config.templates.all())
+
+    def test_device_create_exceeds_org_device_limit(self):
+        org = self._get_org()
+        org.config_limits.device_limit = 1
+        org.config_limits.save()
+        self._create_device(
+            organization=org, name='test-device', mac_address='11:22:33:44:55:66'
+        )
+        self.assertEqual(Device.objects.count(), 1)
+
+        path = reverse('config_api:device_list')
+        data = self._get_device_data.copy()
+        data['organization'] = org.pk
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn(
+            'The maximum amount of allowed devices has'
+            f' been reached for organization {org}.',
+            str(r.content),
+        )
+        self.assertEqual(Device.objects.count(), 1)
+
     def test_device_create_with_invalid_name_api(self):
         path = reverse('config_api:device_list')
         data = self._get_device_data.copy()

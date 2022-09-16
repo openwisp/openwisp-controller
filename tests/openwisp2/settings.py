@@ -258,6 +258,7 @@ if os.environ.get('SAMPLE_APP', False):
     CONFIG_VPN_MODEL = 'sample_config.Vpn'
     CONFIG_VPNCLIENT_MODEL = 'sample_config.VpnClient'
     CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = 'sample_config.OrganizationConfigSettings'
+    CONFIG_ORGANIZATIONLIMITS_MODEL = 'sample_config.OrganizationLimits'
     DJANGO_X509_CA_MODEL = 'sample_pki.Ca'
     DJANGO_X509_CERT_MODEL = 'sample_pki.Cert'
     GEO_LOCATION_MODEL = 'sample_geo.Location'

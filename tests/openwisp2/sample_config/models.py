@@ -5,6 +5,7 @@ from openwisp_controller.config.base.device import AbstractDevice
 from openwisp_controller.config.base.device_group import AbstractDeviceGroup
 from openwisp_controller.config.base.multitenancy import (
     AbstractOrganizationConfigSettings,
+    AbstractOrganizationLimits,
 )
 from openwisp_controller.config.base.tag import (
     AbstractTaggedTemplate,
@@ -100,4 +101,13 @@ class OrganizationConfigSettings(DetailsModel, AbstractOrganizationConfigSetting
     """
 
     class Meta(AbstractOrganizationConfigSettings.Meta):
+        abstract = False
+
+
+class OrganizationLimits(DetailsModel, AbstractOrganizationLimits):
+    """
+    Number of allowed devices specific to each organization
+    """
+
+    class Meta(AbstractOrganizationLimits.Meta):
         abstract = False
