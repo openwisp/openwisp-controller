@@ -1,3 +1,4 @@
+import json
 from hashlib import md5
 from unittest.mock import patch
 
@@ -415,7 +416,7 @@ class TestController(
         self._check_header(response)
         self.assertEqual(d.key, key)
         self.assertIsNotNone(d.last_ip)
-        self.assertEqual(d.mac_address, TEST_MACADDR)
+        self.assertEqual(d.mac_address, options['mac_address'])
         self.assertEqual(response.status_code, 201)
         count = Device.objects.filter(
             mac_address=TEST_MACADDR, organization=org
@@ -429,6 +430,56 @@ class TestController(
 
     def test_register_with_management_ip(self):
         self.test_register(management_ip='10.0.0.2')
+
+    def test_register_exceeds_org_device_limit(self):
+        org = self._get_org()
+        org.config_limits.device_limit = 1
+        org.config_limits.save()
+        self._create_device(organization=org)
+        self.assertEqual(Device.objects.count(), 1)
+        org = self._get_org()
+        response = self.client.post(
+            self.register_url,
+            data={
+                'hardware_id': '12345',
+                'secret': TEST_ORG_SHARED_SECRET,
+                'name': 'second-device',
+                'mac_address': '11:22:33:44:55:66',
+                'backend': 'netjsonconfig.OpenWrt',
+            },
+        )
+        error_dict = json.loads(response.content.decode())
+        self.assertEqual(
+            error_dict['__all__'][0],
+            'The maximum amount of allowed devices has'
+            f' been reached for organization {org}.',
+        )
+        self.assertEqual(Device.objects.count(), 1)
+
+    def test_registered_devices_exceeds_device_limit(self):
+        org = self._get_org()
+        self._create_device(organization=org)
+        self._create_device(
+            name='11:22:33:44:55:66', mac_address='11:22:33:44:55:66', organization=org
+        )
+        org.config_limits.device_limit = 1
+        with self.assertRaises(ValidationError) as error:
+            org.config_limits.full_clean()
+        expected_error_message = (
+            'The specified limit is lower than the amount of'
+            ' devices currently held by this organization.'
+            ' Please remove some devices or consider increasing'
+            ' the device limit.'
+        )
+        self.assertEqual(
+            error.exception.error_dict['device_limit'][0].message,
+            expected_error_message,
+        )
+        # "config_limits.device_limit" can be set to None to
+        # disable registering of devices.
+        org.config_limits.device_limit = None
+        with self.assertRaises(ValidationError) as error:
+            org.config_limits.full_clean()
 
     def test_default_template_selection_with_backend_filtering(self):
         self._create_template(

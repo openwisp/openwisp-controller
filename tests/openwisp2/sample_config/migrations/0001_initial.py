@@ -936,6 +936,41 @@ class Migration(migrations.Migration):
             },
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
+        migrations.CreateModel(
+            name='OrganizationLimits',
+            fields=[
+                (
+                    'device_limit',
+                    models.BigIntegerField(
+                        default=0,
+                        blank=True,
+                        null=True,
+                        help_text=(
+                            'Maximum number of devices allowed for this organization.'
+                            ' "0" means unlimited.'
+                        ),
+                        verbose_name='device limit',
+                    ),
+                ),
+                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                (
+                    'organization',
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        serialize=False,
+                        related_name='config_limits',
+                        to='sample_users.organization',
+                        verbose_name='organization',
+                    ),
+                ),
+            ],
+            options={
+                'verbose_name': 'controller limits',
+                'verbose_name_plural': 'controller limits',
+                'abstract': False,
+            },
+        ),
         migrations.AddField(
             model_name='config',
             name='device',

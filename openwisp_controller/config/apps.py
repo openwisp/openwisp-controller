@@ -51,7 +51,9 @@ class ConfigConfig(AppConfig):
         self.config_model = load_model('config', 'Config')
         self.vpn_model = load_model('config', 'Vpn')
         self.vpnclient_model = load_model('config', 'VpnClient')
+        self.org_limits = load_model('config', 'OrganizationLimits')
         self.cert_model = load_model('django_x509', 'Cert')
+        self.org_model = load_model('openwisp_users', 'Organization')
 
     def connect_signals(self):
         """
@@ -119,6 +121,11 @@ class ConfigConfig(AppConfig):
             handlers.config_backend_change_handler,
             sender=self.config_model,
             dispatch_uid='devicegroup_templates_change_handler.backend_changed',
+        )
+        post_save.connect(
+            self.org_limits.post_save_handler,
+            sender=self.org_model,
+            dispatch_uid='organization_allowed_devices_post_save_handler',
         )
 
     def register_menu_groups(self):

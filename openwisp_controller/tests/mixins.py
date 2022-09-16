@@ -11,6 +11,9 @@ class GetEditFormInlineMixin(object):
                 'config_settings-INITIAL_FORMS': 0,
                 'config_settings-MIN_NUM_FORMS': 0,
                 'config_settings-MAX_NUM_FORMS': 0,
+                # device limit inline
+                'config_limits-TOTAL_FORMS': 0,
+                'config_limits-INITIAL_FORMS': 0,
             }
         )
         return params

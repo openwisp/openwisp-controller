@@ -28,6 +28,7 @@ from openwisp_controller.config.views import (
     get_relevant_templates,
     get_template_default_values,
 )
+from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
     AlwaysHasChangedMixin,
@@ -51,6 +52,7 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Organization = load_model('openwisp_users', 'Organization')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
+OrganizationLimits = load_model('config', 'OrganizationLimits')
 
 if 'reversion' in settings.INSTALLED_APPS:
     from reversion.admin import VersionAdmin as ModelAdmin
@@ -1060,9 +1062,19 @@ admin.site.register(Vpn, VpnAdmin)
 admin.site.register(DeviceGroup, DeviceGroupAdmin)
 
 
+class DeviceLimitForm(AlwaysHasChangedMixin, forms.ModelForm):
+    pass
+
+
+class OrganizationLimitsInline(admin.StackedInline):
+    model = OrganizationLimits
+
+    def has_delete_permission(self, request, obj):
+        return False
+
+
+limits_inline_position = 0
 if getattr(app_settings, 'REGISTRATION_ENABLED', True):
-    from openwisp_users.admin import OrganizationAdmin
-    from openwisp_utils.admin import AlwaysHasChangedMixin
 
     class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         pass
@@ -1073,3 +1085,6 @@ if getattr(app_settings, 'REGISTRATION_ENABLED', True):
 
     OrganizationAdmin.save_on_top = True
     OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
+    limits_inline_position = 1
+
+OrganizationAdmin.inlines.insert(limits_inline_position, OrganizationLimitsInline)

@@ -999,6 +999,18 @@ UUID ``3cb5e18c-0312-48ab-8dbd-038b8415bd6f``::
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/import-export/import-page.png
   :alt: Import / Export
 
+Organization Limits
+~~~~~~~~~~~~~~~~~~~
+
+Allows configuring following limits for each organization:
+
+- Limit number of devices managed by the organization.
+
+You can change the limits from the organization's admin page:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
+  :alt: Organization limits
+
 How to setup WireGuard tunnels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -3494,6 +3506,7 @@ Once you have created the models, add the following to your ``settings.py``:
     CONFIG_VPN_MODEL = 'sample_config.Vpn'
     CONFIG_VPNCLIENT_MODEL = 'sample_config.VpnClient'
     CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = 'sample_config.OrganizationConfigSettings'
+    CONFIG_ORGANIZATIONLIMITS_MODEL = 'sample_config.OrganizationLimits'
     DJANGO_X509_CA_MODEL = 'sample_pki.Ca'
     DJANGO_X509_CERT_MODEL = 'sample_pki.Cert'
     GEO_LOCATION_MODEL = 'sample_geo.Location'

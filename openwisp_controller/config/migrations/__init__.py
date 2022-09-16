@@ -1,6 +1,7 @@
 import subprocess
 
 from django.contrib.auth.models import Permission
+from swapper import load_model
 
 from ...migrations import create_default_permissions, get_swapped_model
 
@@ -99,3 +100,12 @@ def assign_organization_config_settings_permissions_to_groups(apps, schema_edito
         if operation in operator_operations:
             operator.permissions.add(permission.pk)
         admin.permissions.add(permission.pk)
+
+
+def populate_organization_allowed_device(apps, schema_editor):
+    organization_model = load_model('openwisp_users', 'Organization')
+    org_limit_model = load_model('config', 'OrganizationLimits')
+    orgs = organization_model.objects.all().select_related('config_limits')
+    for org in orgs:
+        if not hasattr(org, 'config_limits'):
+            org_limit_model.post_save_handler(instance=org, created=True)
