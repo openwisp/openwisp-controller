@@ -20,8 +20,8 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         inactive = self._create_org(name='inactive-org', is_active=False)
         operator = self._create_operator(organizations=[org1, inactive])
         administrator = self._create_administrator(organizations=[org1, inactive])
-        ca1 = self._create_ca(name='ca1', organization=org1)
-        ca2 = self._create_ca(name='ca2', organization=org2)
+        ca1 = self._create_ca(name='Org1 CA', organization=org1)
+        ca2 = self._create_ca(name='Org2 CA', organization=org2)
         ca_shared = self._create_ca(name='ca-shared', organization=None)
         ca_inactive = self._create_ca(name='ca-inactive', organization=inactive)
         data = dict(
@@ -36,8 +36,8 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             administrator=administrator,
         )
         if cert:
-            cert1 = self._create_cert(name='cert1', ca=ca1, organization=org1)
-            cert2 = self._create_cert(name='cert2', ca=ca2, organization=org2)
+            cert1 = self._create_cert(name='Org1 Cert', ca=ca1, organization=org1)
+            cert2 = self._create_cert(name='Org2 Cert', ca=ca2, organization=org2)
             cert_shared = self._create_cert(
                 name='cert-shared', ca=ca_shared, organization=None
             )
