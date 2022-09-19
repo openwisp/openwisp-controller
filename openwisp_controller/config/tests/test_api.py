@@ -1,5 +1,4 @@
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
@@ -17,23 +16,12 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 VpnClient = load_model('config', 'VpnClient')
 Device = load_model('config', 'Device')
+Config = load_model('config', 'Config')
 DeviceGroup = load_model('config', 'DeviceGroup')
 OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
-class TestConfigApi(
-    TestAdminMixin,
-    TestOrganizationMixin,
-    CreateConfigTemplateMixin,
-    TestVpnX509Mixin,
-    CreateDeviceGroupMixin,
-    AuthenticationMixin,
-    TestCase,
-):
-    def setUp(self):
-        super().setUp()
-        self._login()
-
+class ApiTestMixin:
     _get_template_data = {
         'name': 'test-template',
         'organization': None,
@@ -73,8 +61,8 @@ class TestConfigApi(
             'backend': 'netjsonconfig.OpenWrt',
             'status': 'modified',
             'templates': [],
-            'context': {},
-            'config': {},
+            'context': {'lan_ip': '192.168.1.1'},
+            'config': {'interfaces': [{'name': 'wlan0', 'type': 'wireless'}]},
         },
     }
 
@@ -85,6 +73,21 @@ class TestConfigApi(
         'meta_data': {'captive_portal_url': 'https://example.com'},
         'templates': [],
     }
+
+
+class TestConfigApi(
+    ApiTestMixin,
+    TestAdminMixin,
+    TestOrganizationMixin,
+    CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
+    CreateDeviceGroupMixin,
+    AuthenticationMixin,
+    TestCase,
+):
+    def setUp(self):
+        super().setUp()
+        self._login()
 
     def test_device_create_with_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
@@ -107,21 +110,6 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
 
-    def test_device_create_with_group(self):
-        self.assertEqual(Device.objects.count(), 0)
-        dg = self._create_device_group()
-        template = self._create_template()
-        dg.templates.add(template)
-        path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
-        org = self._get_org()
-        data['organization'] = org.pk
-        data['group'] = dg.pk
-        r = self.client.post(path, data, content_type='application/json')
-        self.assertEqual(r.status_code, 201)
-        self.assertEqual(Device.objects.count(), 1)
-        self.assertIn(template, Device.objects.first().config.templates.all())
-
     def test_device_create_with_invalid_name_api(self):
         path = reverse('config_api:device_list')
         data = self._get_device_data.copy()
@@ -142,14 +130,13 @@ class TestConfigApi(
         org_2 = self._create_org(name='test org2', slug='test-org2')
         t1 = self._create_template(name='t1', organization=org_2)
         data['config']['templates'] += [str(t1.pk)]
-        with self.assertRaises(ValidationError) as error:
-            self.client.post(path, data, content_type='application/json')
-        validation_msg = '''
-                            The following templates are owned by
-                            organizations which do not match the
-                            organization of this configuration: t1
-                        '''
-        self.assertTrue(' '.join(validation_msg.split()) in error.exception.message)
+        response = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            str(response.data['config'][0]),
+            'The following templates are owned by organizations '
+            f'which do not match the organization of this configuration: {t1.name}',
+        )
 
     def test_device_create_with_devicegroup(self):
         self.assertEqual(Device.objects.count(), 0)
@@ -263,37 +250,6 @@ class TestConfigApi(
         self.assertNotIn(t1, d1.config.templates.all())
         self.assertIn(t2, d1.config.templates.all())
 
-    # test device with VPN-client type template assigned to it
-    def test_device_with_vpn_client_template_assigned(self):
-        org1 = self._create_org(name='testorg')
-        v1 = self._create_vpn(name='vpn1org', organization=org1)
-        t1 = self._create_template(name='t1', organization=org1, type='vpn', vpn=v1)
-        t2 = self._create_template(name='t2', organization=org1)
-        d1 = self._create_device(name='d1', organization=org1)
-        self._create_config(device=d1)
-        path = reverse('config_api:device_detail', args=[d1.pk])
-        self.assertEqual(d1.config.vpnclient_set.count(), 0)
-        data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
-        self.client.patch(path, data, content_type='application/json')
-        self.assertEqual(d1.config.vpnclient_set.count(), 1)
-        data1 = {'config': {'templates': []}}
-        self.client.patch(path, data1, content_type='application/json')
-        self.assertEqual(d1.config.vpnclient_set.count(), 0)
-
-    def test_device_patch_with_templates_of_same_org(self):
-        org1 = self._create_org(name='testorg')
-        d1 = self._create_device(name='org1-config', organization=org1)
-        self._create_config(device=d1)
-        self.assertEqual(d1.config.templates.count(), 0)
-        path = reverse('config_api:device_detail', args=[d1.pk])
-        t1 = self._create_template(name='t1', organization=None)
-        t2 = self._create_template(name='t2', organization=org1)
-        data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
-        r = self.client.patch(path, data, content_type='application/json')
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(d1.config.templates.count(), 2)
-        self.assertEqual(r.data['config']['templates'], [t1.id, t2.id])
-
     def test_device_patch_with_templates_of_different_org(self):
         org1 = self._create_org(name='testorg')
         d1 = self._create_device(name='org1-config', organization=org1)
@@ -306,14 +262,14 @@ class TestConfigApi(
             name='t3', organization=self._create_org(name='org2')
         )
         data = {'config': {'templates': [str(t1.id), str(t2.id), str(t3.id)]}}
-        with self.assertRaises(ValidationError) as error:
-            self.client.patch(path, data, content_type='application/json')
-        validation_msg = '''
-                            The following templates are owned by
-                            organizations which do not match the
-                            organization of this configuration: t3
-                        '''
-        self.assertTrue(' '.join(validation_msg.split()) in error.exception.message)
+
+        response = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            str(response.data['config'][0]),
+            'The following templates are owned by organizations which'
+            f' do not match the organization of this configuration: {t3}',
+        )
 
     def test_device_change_organization_required_templates(self):
         org1 = self._create_org(name='org1')
@@ -891,6 +847,7 @@ class TestConfigApi(
 
 
 class TestConfigApiTransaction(
+    ApiTestMixin,
     TestAdminMixin,
     TestOrganizationMixin,
     CreateConfigTemplateMixin,
@@ -1096,3 +1053,73 @@ class TestConfigApiTransaction(
             self.assertEqual(r.data['group'], None)
             self.assertEqual(r.data['config']['templates'], [])
             self.assertEqual(d1.config.templates.count(), 0)
+
+    def test_device_detail_api_change_config(self):
+        org = self._get_org()
+        vpn = self._create_vpn(organization=org)
+        vpn_template = self._create_template(
+            type='vpn', vpn=vpn, organization=org, name='VPN Client'
+        )
+        template = self._create_template()
+        data = {
+            'name': 'change-test-device',
+            'organization': str(org.id),
+            'mac_address': '00:11:22:33:44:55',
+            'config': {},
+        }
+
+        with self.subTest('Test creating new device without config'):
+            response = self.client.post(reverse('config_api:device_list'), data)
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(Device.objects.count(), 1)
+
+        device = Device.objects.first()
+        path = reverse('config_api:device_detail', args=[device.pk])
+
+        with self.subTest('Test creating config for device'):
+            data['config'] = {
+                'backend': 'netjsonconfig.OpenWrt',
+                'templates': [],
+                'context': {'lan_ip': '192.168.1.1'},
+                'config': {'interfaces': [{'name': 'wlan0', 'type': 'wireless'}]},
+            }
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(Config.objects.count(), 1)
+            config = Config.objects.first()
+            self.assertEqual(config.config, data['config']['config'])
+            self.assertEqual(config.context, data['config']['context'])
+
+        with self.subTest('Test adding templates'):
+            data['config']['templates'] = [str(template.pk), str(vpn_template.pk)]
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(device.config.templates.count(), 2)
+            self.assertEqual(device.config.vpnclient_set.count(), 1)
+
+        with self.subTest('Test removing VPN template'):
+            data['config']['templates'] = [str(template.pk)]
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(device.config.templates.count(), 1)
+            self.assertEqual(device.config.vpnclient_set.count(), 0)
+
+        with self.subTest('Remove all templates'):
+            data['config']['templates'] = []
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(device.config.templates.count(), 0)
+
+    def test_device_patch_with_templates_of_same_org(self):
+        org1 = self._create_org(name='testorg')
+        d1 = self._create_device(name='org1-config', organization=org1)
+        self._create_config(device=d1)
+        self.assertEqual(d1.config.templates.count(), 0)
+        path = reverse('config_api:device_detail', args=[d1.pk])
+        t1 = self._create_template(name='t1', organization=None)
+        t2 = self._create_template(name='t2', organization=org1)
+        data = {'config': {'templates': [str(t1.id), str(t2.id)]}}
+        r = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(d1.config.templates.count(), 2)
+        self.assertEqual(r.data['config']['templates'], [t1.id, t2.id])
