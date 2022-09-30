@@ -451,7 +451,7 @@ class TemplatesFilter(AutocompleteFilter):
 class GroupFilter(AutocompleteFilter):
     title = _('group')
     field_name = 'group'
-    parameter_name = 'group_id__exact'
+    parameter_name = 'group_id'
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
