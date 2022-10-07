@@ -122,6 +122,13 @@ class DeviceConfigMixin(object):
     def _get_config_templates(self, config_data):
         return [template.pk for template in config_data.pop('templates', [])]
 
+    def _prepare_config(self, device, config_data):
+        config = device.config
+        for key, value in config_data.items():
+            setattr(config, key, value)
+        config.full_clean()
+        return config
+
     @transaction.atomic
     def _create_config(self, device, config_data):
         config_templates = self._get_config_templates(config_data)
@@ -135,10 +142,7 @@ class DeviceConfigMixin(object):
                 # the config would get automatically created
                 # for the device. Hence, we perform update
                 # operation on config of a new device.
-                config = device.config
-                for key, value in config_data.items():
-                    setattr(config, key, value)
-                config.full_clean()
+                config = self._prepare_config(device, config_data)
                 config.save()
             config.templates.add(*config_templates)
         except ValidationError as error:
@@ -149,10 +153,7 @@ class DeviceConfigMixin(object):
             return self._create_config(device, config_data)
         config_templates = self._get_config_templates(config_data)
         try:
-            config = device.config
-            for key, value in config_data.items():
-                setattr(config, key, value)
-            config.full_clean()
+            config = self._prepare_config(device, config_data)
             old_templates = list(config.templates.values_list('id', flat=True))
             if config_templates != old_templates:
                 with transaction.atomic():
