@@ -1,3 +1,6 @@
+from copy import deepcopy
+
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -115,6 +118,54 @@ class BaseConfigSerializer(serializers.ModelSerializer):
         }
 
 
+class DeviceConfigMixin(object):
+    def _get_config_templates(self, config_data):
+        return [template.pk for template in config_data.pop('templates', [])]
+
+    def _prepare_config(self, device, config_data):
+        config = device.config
+        for key, value in config_data.items():
+            setattr(config, key, value)
+        config.full_clean()
+        return config
+
+    @transaction.atomic
+    def _create_config(self, device, config_data):
+        config_templates = self._get_config_templates(config_data)
+        try:
+            if not device._has_config():
+                config = Config(device=device, **config_data)
+                config.full_clean()
+                config.save()
+            else:
+                # If the "device group" was specified, then
+                # the config would get automatically created
+                # for the device. Hence, we perform update
+                # operation on config of a new device.
+                config = self._prepare_config(device, config_data)
+                config.save()
+            config.templates.add(*config_templates)
+        except ValidationError as error:
+            raise serializers.ValidationError({'config': error.messages})
+
+    def _update_config(self, device, config_data):
+        if not device._has_config():
+            return self._create_config(device, config_data)
+        config_templates = self._get_config_templates(config_data)
+        try:
+            config = self._prepare_config(device, config_data)
+            old_templates = list(config.templates.values_list('id', flat=True))
+            if config_templates != old_templates:
+                with transaction.atomic():
+                    vpn_list = config.templates.filter(type='vpn').values_list('vpn')
+                    if vpn_list:
+                        config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+                    config.templates.set(config_templates, clear=True)
+            config.save()
+        except ValidationError as error:
+            raise serializers.ValidationError({'config': error.messages})
+
+
 class DeviceListConfigSerializer(BaseConfigSerializer):
     config = serializers.JSONField(
         initial={}, help_text=_('Configuration in NetJSON format'), write_only=True
@@ -127,7 +178,9 @@ class DeviceListConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
 
 
-class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
+class DeviceListSerializer(
+    DeviceConfigMixin, FilterSerializerByOrgManaged, serializers.ModelSerializer
+):
     config = DeviceListConfigSerializer(required=False)
 
     class Meta(BaseMeta):
@@ -154,23 +207,21 @@ class DeviceListSerializer(FilterSerializerByOrgManaged, serializers.ModelSerial
             'management_ip': {'allow_blank': True},
         }
 
-    def create(self, validated_data):
-        config_data = None
-        if validated_data.get('config'):
-            config_data = validated_data.pop('config')
-            config_templates = [
-                template.pk for template in config_data.pop('templates')
-            ]
+    def validate(self, attrs):
+        device_data = deepcopy(attrs)
+        # Validation of "config" is performed after
+        # device object is created in the "create" method.
+        device_data.pop('config', None)
+        device = self.instance or self.Meta.model(**device_data)
+        device.full_clean()
+        return attrs
 
+    def create(self, validated_data):
+        config_data = validated_data.pop('config', None)
         with transaction.atomic():
             device = Device.objects.create(**validated_data)
             if config_data:
-                if not hasattr(device, 'config'):
-                    config = Config.objects.create(device=device, **config_data)
-                else:
-                    Config.objects.filter(device=device).update(**config_data)
-                    config = device.config
-                config.templates.add(*config_templates)
+                self._create_config(device, config_data)
         return device
 
 
@@ -184,7 +235,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True)
 
 
-class DeviceDetailSerializer(BaseSerializer):
+class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
 
     class Meta(BaseMeta):
@@ -209,59 +260,11 @@ class DeviceDetailSerializer(BaseSerializer):
 
     def update(self, instance, validated_data):
         config_data = validated_data.pop('config', {})
-        config_templates = [
-            template.pk for template in config_data.get('templates', [])
-        ]
         raw_data_for_signal_handlers = {
             'organization': validated_data.get('organization', instance.organization)
         }
-        if self.initial_data.get('config.backend') and instance._has_config() is False:
-            config_data = dict(config_data)
-            with transaction.atomic():
-                config = Config(device=instance, **config_data)
-                config.templates.add(*config_templates)
-                config.full_clean()
-                config.save()
-            return super().update(instance, validated_data)
-
         if config_data:
-            instance.config.backend = config_data.get(
-                'backend', instance.config.backend
-            )
-            instance.config.context = config_data.get(
-                'context', instance.config.context
-            )
-            instance.config.config = config_data.get('config', instance.config.config)
-
-            if 'templates' in config_data:
-                if config_data.get('templates'):
-                    new_config_templates = config_templates
-                    old_config_templates = [
-                        template
-                        for template in instance.config.templates.values_list(
-                            'pk', flat=True
-                        )
-                    ]
-                    if new_config_templates != old_config_templates:
-                        with transaction.atomic():
-                            vpn_list = instance.config.templates.filter(
-                                type='vpn'
-                            ).values_list('vpn')
-                            if vpn_list:
-                                instance.config.vpnclient_set.exclude(
-                                    vpn__in=vpn_list
-                                ).delete()
-                            instance.config.templates.clear()
-                            instance.config.templates.add(*new_config_templates)
-                else:
-                    vpn_list = instance.config.templates.filter(type='vpn').values_list(
-                        'vpn'
-                    )
-                    if vpn_list:
-                        instance.config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
-                    instance.config.templates.clear()
-                    instance.config.templates.add(*[])
-            instance.config.save()
+            self._update_config(instance, config_data)
 
         elif hasattr(instance, 'config') and validated_data.get('organization'):
             if instance.organization != validated_data.get('organization'):
