@@ -35,6 +35,8 @@ openwisp-controller
 
 ------------
 
+**Need a quick overview?** `Try the OpenWISP Demo <https://openwisp.org/demo.html>`_.
+
 OpenWISP Controller is a configuration manager that allows to automate several
 networking tasks like adoption, provisioning, management VPN configuration,
 X509 certificates automatic generation, revocation of x509 certificates and
