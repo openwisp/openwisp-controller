@@ -1,4 +1,3 @@
-import json
 from hashlib import md5
 from unittest.mock import patch
 
@@ -448,9 +447,8 @@ class TestController(
                 'backend': 'netjsonconfig.OpenWrt',
             },
         )
-        error_dict = json.loads(response.content.decode())
         self.assertEqual(
-            error_dict['__all__'][0],
+            response.content.decode(),
             'The maximum amount of allowed devices has'
             f' been reached for organization {org}.',
         )
