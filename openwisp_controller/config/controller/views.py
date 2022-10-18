@@ -413,7 +413,7 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             # dump message_dict as JSON,
             # this should make it easy to debug
             return ControllerResponse(
-                json.dumps(e.message_dict, indent=4, sort_keys=True),
+                ' '.join(e.messages),
                 content_type='text/plain',
                 status=400,
             )
