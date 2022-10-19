@@ -2812,8 +2812,8 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 Allows to specify a ``list`` of tuples for adding commands as described in
 `'How to define custom commands" <#how-to-define-new-options-in-the-commands-menu>`_ section.
 
-OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------+------------------------------------------------+
 | **type**:    | ``dict``                                       |
