@@ -174,6 +174,7 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         Called from signal receiver which performs cache invalidation
         """
         instance.get_cached_checksum.invalidate(instance)
+        logger.debug(f'invalidated checksum cache for device ID {device.pk}')
 
 
 class DeviceDownloadConfigView(GetDeviceView):

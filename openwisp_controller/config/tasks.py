@@ -12,7 +12,7 @@ from openwisp_utils.tasks import OpenwispCeleryTask
 logger = logging.getLogger(__name__)
 
 
-@shared_task(soft_time_limit=1200)
+@shared_task(soft_time_limit=1800)
 def update_template_related_config_status(template_pk):
     """
     Flags config objects related to the specified
