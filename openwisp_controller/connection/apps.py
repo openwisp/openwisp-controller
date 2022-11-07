@@ -120,9 +120,10 @@ class ConnectionConfig(AppConfig):
         **kwargs,
     ):
         # if old_is_working is None, it's a new device connection which wasn't
-        # used yet, so nothing is really changing and we won't notify the user
-        if old_is_working is None:
+        # used yet, we only need to notify user if the connection didn't work
+        if old_is_working is None and is_working is True:
             return
+
         # don't send notification if error occurred due to connectivity issues
         for ignore_reason in cls._ignore_connection_notification_reasons:
             if ignore_reason in failure_reason or ignore_reason in old_failure_reason:
@@ -153,6 +154,10 @@ class ConnectionConfig(AppConfig):
                     'device [{notification.target}]({notification.target_link}) '
                     'is {notification.verb}. {notification.actor.failure_reason}'
                 ),
+                'target_link': (
+                    'openwisp_controller.connection.utils'
+                    '.get_connection_working_notification_target_url'
+                ),
             },
             models=[device_model, device_conn_model],
         )
@@ -170,6 +175,10 @@ class ConnectionConfig(AppConfig):
                     '{notification.actor.credentials} connection to '
                     'device [{notification.target}]({notification.target_link}) '
                     'is {notification.verb}. {notification.actor.failure_reason}'
+                ),
+                'target_link': (
+                    'openwisp_controller.connection.utils'
+                    '.get_connection_working_notification_target_url'
                 ),
             },
             models=[device_model, device_conn_model],

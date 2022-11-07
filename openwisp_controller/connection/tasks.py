@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
 from . import settings as app_settings
+from .exceptions import NoWorkingDeviceConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ def update_config(device_id):
     of a specific device in the background
     """
     Device = swapper.load_model(*swapper.split(app_settings.UPDATE_CONFIG_MODEL))
+    DeviceConnection = swapper.load_model('connection', 'DeviceConnection')
     # wait for the saving operations of this device to complete
     # (there may be multiple ones happening at the same time)
     time.sleep(2)
@@ -32,11 +34,13 @@ def update_config(device_id):
     except ObjectDoesNotExist as e:
         logger.warning(f'update_config("{device_id}") failed: {e}')
         return
-    qs = device.deviceconnection_set.filter(device_id=device_id, enabled=True)
-    conn = qs.first()
-    if conn:
+    try:
+        device_conn = DeviceConnection.get_working_connection(device)
+    except NoWorkingDeviceConnectionError:
+        return
+    else:
         logger.info(f'Updating {device} (pk: {device_id})')
-        conn.update_config()
+        device_conn.update_config()
 
 
 # task timeout is SSH_COMMAND_TIMEOUT plus a 20% margin

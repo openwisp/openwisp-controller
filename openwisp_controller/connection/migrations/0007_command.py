@@ -84,6 +84,7 @@ class Migration(migrations.Migration):
                     'connection',
                     models.ForeignKey(
                         null=True,
+                        blank=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         to=swapper.get_model_name('connection', 'DeviceConnection'),
                     ),
