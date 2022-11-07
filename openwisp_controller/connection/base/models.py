@@ -26,6 +26,7 @@ from ..commands import (
     get_command_callable,
     get_command_schema,
 )
+from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
 from ..tasks import auto_add_credentials_to_devices, launch_command
 
@@ -260,6 +261,22 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         self._initial_is_working = self.is_working
         self._initial_failure_reason = self.failure_reason
 
+    @classmethod
+    def get_working_connection(
+        cls, device, connector='openwisp_controller.connection.connectors.ssh.Ssh'
+    ):
+        qs = cls.objects.filter(
+            device=device,
+            enabled=True,
+            credentials__connector=connector,
+        ).order_by('-is_working')
+        for device_conn in qs.iterator():
+            is_connected = device_conn.connect()
+            if is_connected:
+                return device_conn
+        # The device has no working connection
+        raise NoWorkingDeviceConnectionError(connection=device_conn)
+
     def clean(self):
         cred_org = self.credentials.organization
         if cred_org and cred_org != self.device.organization:
@@ -379,7 +396,7 @@ class AbstractCommand(TimeStampedEditableModel):
         get_model_name('connection', 'DeviceConnection'),
         on_delete=models.SET_NULL,
         null=True,
-        blank=False,
+        blank=True,
     )
     status = models.CharField(
         max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
@@ -419,16 +436,6 @@ class AbstractCommand(TimeStampedEditableModel):
         sent = _('sent on')
         created = timezone.localtime(self.created)
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
-
-    def full_clean(self, *args, **kwargs):
-        """
-        Automatically sets the connection field if empty
-        Will be done before the rest of the validation process
-        to avoid triggering validation errors.
-        """
-        if not self.connection:
-            self.connection = self.device.deviceconnection_set.first()
-        return super().full_clean(*args, **kwargs)
 
     def clean(self):
         if self.type not in self.get_org_choices(
@@ -506,7 +513,16 @@ class AbstractCommand(TimeStampedEditableModel):
         """
         Executes commands, stores output, returns exit_code
         """
-        self.connection.connect()
+        if not self.connection:
+            DeviceConnection = load_model('connection', 'DeviceConnection')
+            try:
+                self.connection = DeviceConnection.get_working_connection(
+                    device=self.device
+                )
+            except NoWorkingDeviceConnectionError as error:
+                self.connection = error.connection
+        else:
+            self.connection.connect()
         # if couldn't connect to device, stop here
         if not self.connection.is_working:
             return None

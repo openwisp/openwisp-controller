@@ -45,29 +45,6 @@ class BaseTestNotification:
 
 
 class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
-    def test_connection_is_working_none(self):
-        self.assertEqual(Notification.objects.count(), 0)
-
-        with self.subTest('no problem notification created when is_working=None'):
-            DeviceConnection.objects.all().delete()
-            device_connection = DeviceConnection.objects.create(
-                credentials=self.creds, device=self.d, is_working=None
-            )
-            self.assertIsNone(device_connection.is_working)
-            device_connection.is_working = False
-            device_connection.save()
-            self.assertEqual(Notification.objects.count(), 0)
-
-        with self.subTest('no recovery notification created when is_working=None'):
-            DeviceConnection.objects.all().delete()
-            device_connection = DeviceConnection.objects.create(
-                credentials=self.creds, device=self.d, is_working=None
-            )
-            self.assertIsNone(device_connection.is_working)
-            device_connection.is_working = True
-            device_connection.save()
-            self.assertEqual(Notification.objects.count(), 0)
-
     def test_default_notification_type_already_unregistered(self):
         # Simulates if 'default notification type is already unregistered
         # by some other module
@@ -126,11 +103,34 @@ class TestNotificationTransaction(
             exp_type='connection_is_working',
             exp_verb='working',
             exp_message=(
-                '(SSH) connection to device <a href="{target_link}">'
-                '{n.target}</a> is {n.verb}.'
+                '(SSH) connection to device <a href="{target_link}'
+                '#deviceconnection_set-group">{n.target}</a> is {n.verb}.'
             ),
             exp_email_subject='[example.com] RECOVERY: Connection to device {n.target}',
         )
+
+    def test_connection_is_working_none(self):
+        self.assertEqual(Notification.objects.count(), 0)
+
+        with self.subTest('problem notification is created when is_working=None'):
+            DeviceConnection.objects.all().delete()
+            device_connection = DeviceConnection.objects.create(
+                credentials=self.creds, device=self.d, is_working=None
+            )
+            self.assertIsNone(device_connection.is_working)
+            device_connection.is_working = False
+            device_connection.save()
+            self.assertEqual(Notification.objects.count(), 1)
+
+        with self.subTest('no recovery notification created when is_working=None'):
+            DeviceConnection.objects.all().delete()
+            device_connection = DeviceConnection.objects.create(
+                credentials=self.creds, device=self.d, is_working=None
+            )
+            self.assertIsNone(device_connection.is_working)
+            device_connection.is_working = True
+            device_connection.save()
+            self.assertEqual(Notification.objects.count(), 0)
 
     @patch(
         'openwisp_controller.connection.apps.ConnectionConfig'
@@ -170,8 +170,8 @@ class TestNotificationTransaction(
             exp_type='connection_is_not_working',
             exp_verb='not working',
             exp_message=(
-                '(SSH) connection to device <a href="{target_link}">'
-                '{n.target}</a> is {n.verb}.'
+                '(SSH) connection to device <a href="{target_link}'
+                '#deviceconnection_set-group">{n.target}</a> is {n.verb}.'
             ),
             exp_email_subject='[example.com] PROBLEM: Connection to device {n.target}',
         )
@@ -192,8 +192,8 @@ class TestNotificationTransaction(
             exp_type='connection_is_not_working',
             exp_verb='not working',
             exp_message=(
-                '(SSH) connection to device <a href="{target_link}">'
-                '{n.target}</a> is {n.verb}. '
+                '(SSH) connection to device <a href="{target_link}'
+                '#deviceconnection_set-group">{n.target}</a> is {n.verb}. '
                 'Giving up, device not reachable anymore after upgrade'
             ),
             exp_email_subject='[example.com] PROBLEM: Connection to device {n.target}',

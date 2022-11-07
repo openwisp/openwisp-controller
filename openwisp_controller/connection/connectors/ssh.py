@@ -81,6 +81,16 @@ class Ssh(object):
             params['pkey'] = self._get_ssh_key(params.pop('key'))
         return params
 
+    @property
+    def is_connected(self):
+        try:
+            return (
+                self.shell.get_transport() is not None
+                and self.shell.get_transport().is_active()
+            )
+        except AttributeError:
+            return False
+
     def _get_ssh_key(self, key):
         key_fileobj = StringIO(key)
         key_algorithms = [
@@ -107,6 +117,10 @@ class Ssh(object):
         addresses = self.addresses
         if not addresses:
             raise ValueError('No valid IP addresses to initiate connections found')
+        if self.is_connected:
+            # Do not establish a new connection if
+            # a connection was already established.
+            return
         for address in addresses:
             try:
                 self._connect(address)

@@ -97,3 +97,16 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         fl = open(os.path.join(settings.BASE_DIR, '../media/floorplan.jpg'), 'rb')
         dc.connector_instance.upload(fl, '/tmp/test')
         putfo_mocked.assert_called_once()
+
+    def test_connection_reconnect(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        dc.connect()
+        with mock.patch('paramiko.SSHClient.connect') as mocked_paramiko:
+            dc.connect()
+        mocked_paramiko.assert_not_called()
+
+    def test_is_connected_new_connection(self):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        self.assertEqual(dc.connector_instance.is_connected, False)

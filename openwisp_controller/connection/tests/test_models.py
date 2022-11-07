@@ -19,6 +19,7 @@ from ..commands import (
     register_command,
     unregister_command,
 )
+from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
 from ..tasks import update_config
 from .utils import CreateConnectionsMixin
@@ -116,6 +117,52 @@ class TestModels(BaseTestModels, TestCase):
             dc.connector_instance.params['pkey'], paramiko.ed25519key.Ed25519Key
         )
         self.assertNotIn('key', dc.connector_instance.params)
+
+    @mock.patch.object(DeviceConnection, 'connect')
+    def test_device_connection_get_working_connection(self, mocked_connect):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        conn1 = self._create_device_connection(
+            device=device,
+            credentials=self._create_credentials(organization=org, name='test1'),
+            is_working=True,
+        )
+        conn2 = self._create_device_connection(
+            device=device,
+            credentials=self._create_credentials(organization=org, name='test2'),
+            is_working=False,
+        )
+        self._create_device_connection(
+            device=device,
+            credentials=self._create_credentials(organization=org, name='test3'),
+            is_working=None,
+        )
+
+        with self.subTest('Test previously working credential is attempted first'):
+            mocked_connect.side_effect = [True]
+            conn = DeviceConnection.get_working_connection(device)
+            self.assertEqual(conn, conn1)
+
+        with self.subTest('Test attempt with other credentials on failure'):
+            mocked_connect.side_effect = [False, True]
+            conn = DeviceConnection.get_working_connection(device)
+            self.assertEqual(conn, conn2)
+
+        with self.subTest('Test no working credentials'):
+            mocked_connect.side_effect = [False, False, False]
+            with self.assertRaises(NoWorkingDeviceConnectionError) as error:
+                conn = DeviceConnection.get_working_connection(device)
+            self.assertNotEqual(error.exception.connection, None)
+
+    @mock.patch(_connect_path)
+    def test_update_config_task_use_get_working_connection(self, *args):
+        device_conn = self._create_device_connection()
+        with mock.patch.object(
+            DeviceConnection, 'get_working_connection'
+        ) as mocked_func:
+            update_config.delay(device_conn.device_id)
+        mocked_func.assert_called_once_with(device_conn.device)
 
     def test_credentials_invalid_ssh_key(self):
         invalid_keys = [
@@ -418,11 +465,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         command = Command(
             device=dc.device, type='custom', input={'command': 'echo test'}
         )
-
-        with self.subTest('auto connection'):
-            command.full_clean()
-            self.assertEqual(command.connection, dc)
-            self.assertEqual(command.input, {'command': 'echo test'})
 
         with self.subTest('custom type without input raises ValidationError'):
             command.type = 'custom'
@@ -739,6 +781,46 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest('administrator permissions'):
             self.assertEqual(admin_permissions.count(), 4)
+
+    @mock.patch(_connect_path)
+    def test_command_multiple_connections(self, connect_mocked):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        dc1 = self._create_device_connection(
+            device=device,
+            credentials=self._create_credentials(organization=org, name='test1'),
+            is_working=True,
+        )
+        dc2 = self._create_device_connection(
+            device=device,
+            credentials=self._create_credentials(organization=org, name='test2'),
+            is_working=False,
+        )
+
+        with self.subTest('Test auto assignment of connection'):
+            command = Command(device=device, type='reboot')
+            command.full_clean()
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                mocked_exec_command.return_value = self._exec_command_return_value(
+                    stdout='Rebooting.'
+                )
+                command.save()
+                command.execute()
+            connect_mocked.assert_called_once()
+            command.refresh_from_db()
+            self.assertEqual(command.connection, dc1)
+
+        connect_mocked.reset_mock()
+        with self.subTest('Test all connection failed'):
+            connect_mocked.side_effect = Exception('Authentication failed.')
+            command = Command(device=device, type='reboot')
+            command.full_clean()
+            command.save()
+            command.execute()
+            self.assertEqual(connect_mocked.call_count, 2)
+            command.refresh_from_db()
+            self.assertIn(command.connection, [dc1, dc2])
 
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
