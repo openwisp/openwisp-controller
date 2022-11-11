@@ -297,7 +297,13 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         dc = self._prepare_address_list_test(
             management_ip='10.0.0.2', last_ip='84.32.46.153'
         )
-        self.assertEqual(dc.get_addresses(), ['10.0.0.2', '84.32.46.153'])
+        with self.subTest('Test MANAGEMENT_IP_ONLY is set to True'):
+            with mock.patch.object(app_settings, 'MANAGEMENT_IP_ONLY', True):
+                self.assertEqual(dc.get_addresses(), ['10.0.0.2'])
+
+        with self.subTest('Test MANAGEMENT_IP_ONLY is set to False'):
+            with mock.patch.object(app_settings, 'MANAGEMENT_IP_ONLY', False):
+                self.assertEqual(dc.get_addresses(), ['10.0.0.2', '84.32.46.153'])
 
     def test_device_connection_credential_org_validation(self):
         dc = self._create_device_connection()

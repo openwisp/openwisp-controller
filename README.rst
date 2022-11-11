@@ -2890,6 +2890,22 @@ reset to empty state to avoid potential conflicts.
 Set this to ``False`` if every organization has its dedicated management
 tunnel with a dedicated address space that is reachable by the OpenWISP server.
 
+``OPENWISP_CONTROLLER_MANAGEMENT_IP_ONLY``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-------------+
+| **type**:    | ``bool``    |
++--------------+-------------+
+| **default**: | ``True``    |
++--------------+-------------+
+
+By default, only the management IP will be used to establish connection
+with the devices.
+
+If the devices are connecting to your OpenWISP instance using a shared layer2
+network, hence the OpenWSP server can reach the devices using the ``last_ip``
+field, you can set this to ``False``.
+
 ``OPENWISP_CONTROLLER_DSA_OS_MAPPING``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -323,7 +323,11 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         address_list = []
         if self.device.management_ip:
             address_list.append(self.device.management_ip)
-        if self.device.last_ip and self.device.last_ip != self.device.management_ip:
+        if (
+            not app_settings.MANAGEMENT_IP_ONLY
+            and self.device.last_ip
+            and self.device.last_ip != self.device.management_ip
+        ):
             address_list.append(self.device.last_ip)
         return address_list
 
