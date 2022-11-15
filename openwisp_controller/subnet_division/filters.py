@@ -8,7 +8,24 @@ from openwisp_utils.admin_theme.filters import SimpleInputFilter
 from . import settings as app_settings
 
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
+SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 Subnet = load_model('openwisp_ipam', 'Subnet')
+
+
+class SubnetDivisionRuleFilter(admin.SimpleListFilter):
+    title = _('Subnet division rule')
+    parameter_name = 'rule_type'
+
+    def lookups(self, request, model_admin):
+        return SubnetDivisionRule.type.field.get_choices(include_blank=False)
+
+    def queryset(self, request, queryset):
+        if self.value() is not None:
+            return queryset.filter(
+                id__in=SubnetDivisionRule.objects.filter(type=self.value()).values_list(
+                    'master_subnet_id'
+                )
+            )
 
 
 class SubnetFilter(SimpleInputFilter):
