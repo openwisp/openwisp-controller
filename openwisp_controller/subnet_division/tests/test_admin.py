@@ -18,7 +18,7 @@ class TestSubnetAdmin(
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
 
-    def test_related_links(self):
+    def test_device_related_links(self):
         device_changelist = reverse(f'admin:{self.config_label}_device_changelist')
         subnet = self.config.subnetdivisionindex_set.first().subnet
         url = f'{device_changelist}?subnet={subnet.subnet}'
@@ -38,6 +38,62 @@ class TestSubnetAdmin(
             self.assertContains(
                 response,
                 f'<a href="{url}">{self.config.device.name}</a>',
+            )
+
+    def test_vpn_related_links(self):
+        vpn1 = self._create_wireguard_vpn(
+            subnet=self.master_subnet, organization=self.master_subnet.organization
+        )
+        vpn1_url = reverse(f'admin:{self.config_label}_vpn_change', args=[vpn1.id])
+        with self.subTest('Test only one related VPN'):
+            # Test changelist page
+            response = self.client.get(
+                reverse(f'admin:{self.ipam_label}_subnet_changelist')
+            )
+            self.assertContains(
+                response,
+                f'<a href="{vpn1_url}">{vpn1.name}</a>',
+            )
+            # Test change page
+            response = self.client.get(
+                reverse(
+                    f'admin:{self.ipam_label}_subnet_change',
+                    args=[self.master_subnet.id],
+                )
+            )
+            self.assertContains(
+                response,
+                f'<a href="{vpn1_url}">{vpn1.name}</a>',
+            )
+
+        with self.subTest('Test only multiple related VPN'):
+            self._create_wireguard_vpn(
+                name='WireGuard 2',
+                subnet=self.master_subnet,
+                organization=self.master_subnet.organization,
+            )
+            url = '{path}?subnet={subnet}'.format(
+                path=reverse(f'admin:{self.config_label}_vpn_changelist'),
+                subnet=self.master_subnet.id,
+            )
+            # Test changelist page
+            response = self.client.get(
+                reverse(f'admin:{self.ipam_label}_subnet_changelist')
+            )
+            self.assertContains(
+                response,
+                f'<a href="{url}">See all VPNs</a>',
+            )
+            # Test change page
+            response = self.client.get(
+                reverse(
+                    f'admin:{self.ipam_label}_subnet_change',
+                    args=[self.master_subnet.id],
+                )
+            )
+            self.assertContains(
+                response,
+                f'<a href="{url}">See all VPNs</a>',
             )
 
     def test_device_filter(self):
