@@ -7,6 +7,10 @@ from django.test import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config.tests.utils import (
+    TestVpnX509Mixin,
+    TestWireguardVpnMixin,
+)
 from openwisp_controller.subnet_division.rule_types.vpn import VpnSubnetDivisionRuleType
 from openwisp_utils.tests import catch_signal
 
@@ -24,8 +28,41 @@ Device = load_model('config', 'Device')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
 
+class BaseSubnetDivisionRule:
+    @property
+    def ip_query(self):
+        return IpAddress.objects.exclude(id=self.vpn_server.ip_id)
+
+    def test_provisioned_subnets(self):
+        rule = self._get_vpn_subdivision_rule()
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.assertEqual(subnet_query.count(), 0)
+
+        self.config.templates.add(self.template)
+
+        self.assertEqual(
+            subnet_query.count(),
+            rule.number_of_subnets,
+        )
+        self.assertEqual(
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+
+        # Verify context of config
+        context = get_subnet_division_config_context(self.config)
+        self.assertIn(f'{rule.label}_prefixlen', context)
+        for subnet_id in range(1, rule.number_of_subnets + 1):
+            self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
+            for ip_id in range(1, rule.number_of_ips + 1):
+                self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
+
+
 class TestSubnetDivisionRule(
     SubnetDivisionTestMixin,
+    BaseSubnetDivisionRule,
+    TestWireguardVpnMixin,
     TransactionTestCase,
 ):
     def setUp(self):
@@ -39,10 +76,6 @@ class TestSubnetDivisionRule(
             name='vpn-test', type='vpn', vpn=self.vpn_server, organization=self.org
         )
         self.config = self._create_config(organization=self.org)
-
-    @property
-    def ip_query(self):
-        return IpAddress.objects.exclude(id=self.vpn_server.ip_id)
 
     def test_field_validations(self):
         default_options = {
@@ -184,31 +217,6 @@ class TestSubnetDivisionRule(
                 error.exception.message_dict,
                 {'organization': ['Organization should be same as the subnet']},
             )
-
-    def test_provisioned_subnets(self):
-        rule = self._get_vpn_subdivision_rule()
-        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
-            id=self.master_subnet.id
-        )
-        self.assertEqual(subnet_query.count(), 0)
-
-        self.config.templates.add(self.template)
-
-        self.assertEqual(
-            subnet_query.count(),
-            rule.number_of_subnets,
-        )
-        self.assertEqual(
-            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
-        )
-
-        # Verify context of config
-        context = get_subnet_division_config_context(self.config)
-        self.assertIn(f'{rule.label}_prefixlen', context)
-        for subnet_id in range(1, rule.number_of_subnets + 1):
-            self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
-            for ip_id in range(1, rule.number_of_ips + 1):
-                self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
 
     def test_rule_label_updated(self):
         new_rule_label = 'TSDR'
@@ -666,6 +674,25 @@ class TestSubnetDivisionRule(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
             device_rule.number_of_subnets,
         )
+
+
+class TestOpenVPNSubnetDivisionRule(
+    SubnetDivisionTestMixin,
+    BaseSubnetDivisionRule,
+    TestVpnX509Mixin,
+    TransactionTestCase,
+):
+    def setUp(self):
+        self.org = self._get_org()
+        self.master_subnet = self._get_master_subnet()
+        self.vpn_server = self._create_vpn(
+            subnet=self.master_subnet,
+            organization=self.org,
+        )
+        self.template = self._create_template(
+            name='vpn-test', type='vpn', vpn=self.vpn_server, organization=self.org
+        )
+        self.config = self._create_config(organization=self.org)
 
 
 class TestCeleryTasks(TestCase):

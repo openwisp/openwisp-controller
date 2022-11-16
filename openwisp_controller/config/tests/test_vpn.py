@@ -609,8 +609,8 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         vpn.save()
         self.assertEqual(vpn.public_key, '')
         self.assertEqual(vpn.private_key, '')
-        self.assertEqual(vpn.subnet, None)
-        self.assertEqual(vpn.ip, None)
+        self.assertEqual(vpn.subnet, subnet)
+        self.assertNotEqual(vpn.ip, None)
 
     def test_wireguard_vpn_without_subnet(self):
         with self.assertRaises(ValidationError) as context_manager:

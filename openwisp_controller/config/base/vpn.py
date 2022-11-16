@@ -177,10 +177,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             self.private_key = ''
 
     def _validate_subnet_ip(self):
-        if self._is_backend_type('openvpn'):
-            self.subnet = None
-            self.ip = None
-        elif self._is_backend_type('wireguard'):
+        if self._is_backend_type('wireguard'):
             if not self.subnet:
                 raise ValidationError(
                     {'subnet': _('Subnet is required for this VPN backend.')}
@@ -404,8 +401,6 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             context_keys.update(
                 {
                     'public_key': 'public_key_{}'.format(pk),
-                    'ip_address': 'ip_address_{}'.format(pk),
-                    'vpn_subnet': 'vpn_subnet_{}'.format(pk),
                     'private_key': 'pvt_key_{}'.format(pk),
                 }
             )
@@ -414,6 +409,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if self.ip:
             context_keys.update(
                 {
+                    'ip_address': 'ip_address_{}'.format(pk),
+                    'vpn_subnet': 'vpn_subnet_{}'.format(pk),
                     'server_ip_address': 'server_ip_address_{}'.format(pk),
                     'server_ip_network': 'server_ip_network_{}'.format(pk),
                 }
@@ -450,7 +447,13 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     **context_keys,
                 )
             else:
+                # The OpenVPN backend does not support these kwargs,
+                # hence, they are removed before creating configuration
                 del context_keys['vpn_port']
+                context_keys.pop('server_ip_address', None)
+                context_keys.pop('server_ip_network', None)
+                context_keys.pop('ip_address', None)
+                context_keys.pop('vpn_subnet', None)
                 auto = backend.auto_client(
                     host=self.host,
                     server=self.config[config_dict_key][0],

@@ -33,18 +33,11 @@ django.jQuery(function ($) {
         // Show IP and Subnet field only for WireGuard backend
         var backendValue = $('#id_backend').val() === undefined ? '' : $('#id_backend').val().toLocaleLowerCase().toLocaleLowerCase();
         if (backendValue.includes('wireguard') || backendValue.includes('vxlan')) {
-            $('label[for="id_subnet"]').parent().parent().show();
-            $('label[for="id_ip"]').parent().parent().show();
             $('label[for="id_webhook_endpoint"]').parent().parent().show();
             $('label[for="id_auth_token"]').parent().parent().show();
         } else {
-            $('label[for="id_subnet"]').parent().parent().hide();
-            $('label[for="id_ip"]').parent().parent().hide();
             $('label[for="id_webhook_endpoint"]').parent().parent().hide();
             $('label[for="id_auth_token"]').parent().parent().hide();
-            // Reset IP and Subnet fields
-            $('#id_subnet').val(null);
-            $('#id_ip').val(null);
         }
 
         if (backendValue.includes('openvpn')) {
