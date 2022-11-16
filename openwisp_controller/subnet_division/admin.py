@@ -55,6 +55,8 @@ admin.site.unregister(IpAddress)
 class SubnetAdmin(BaseSubnetAdmin):
     list_filter = BaseSubnetAdmin.list_filter + [DeviceFilter]
     inlines = [SubnetDivisionRuleInlineAdmin] + BaseSubnetAdmin.inlines
+    list_display = BaseSubnetAdmin.list_display
+    list_display.insert(list_display.index('created'), 'related_device')
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -84,10 +86,6 @@ class SubnetAdmin(BaseSubnetAdmin):
         if obj is not None and 'related_device' not in fields:
             fields = ('related_device',) + fields
         return fields
-
-    def get_list_display(self, request):
-        fields = super().get_list_display(request)
-        return fields + ['related_device']
 
     def related_device(self, obj):
         app_label = Device._meta.app_label
