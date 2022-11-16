@@ -11,7 +11,12 @@ from openwisp_users.multitenancy import MultitenantAdminMixin, MultitenantOrgFil
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import DeviceFilter, SubnetFilter, SubnetListFilter
+from .filters import (
+    DeviceFilter,
+    SubnetDivisionRuleFilter,
+    SubnetFilter,
+    SubnetListFilter,
+)
 
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
@@ -53,7 +58,10 @@ admin.site.unregister(IpAddress)
 
 @admin.register(Subnet)
 class SubnetAdmin(BaseSubnetAdmin):
-    list_filter = BaseSubnetAdmin.list_filter + [DeviceFilter]
+    list_filter = BaseSubnetAdmin.list_filter + [
+        DeviceFilter,
+        SubnetDivisionRuleFilter,
+    ]
     inlines = [SubnetDivisionRuleInlineAdmin] + BaseSubnetAdmin.inlines
     list_display = BaseSubnetAdmin.list_display
     list_display.insert(list_display.index('created'), 'related_device')

@@ -105,6 +105,31 @@ class TestSubnetAdmin(
             )
             self.assertContains(response, 'TEST_subnet')
 
+    def test_subnet_division_rule_filter(self):
+        device_subnet = self._create_subnet(
+            name='Device Subnet', subnet='192.168.0.0/16'
+        )
+        vpn_subnet = self._create_subnet(name='VPN Subnet', subnet='172.16.0.0/16')
+        device_rule = self._get_device_subdivision_rule(
+            master_subnet=device_subnet, label='LAN'
+        )
+        vpn_rule = self._get_vpn_subdivision_rule(master_subnet=vpn_subnet, label='VPN')
+
+        path = reverse(f'admin:{self.ipam_label}_subnet_changelist')
+        response = self.client.get(path)
+        self.assertContains(response, vpn_subnet.name)
+        self.assertContains(response, device_subnet.name)
+
+        url = f'{path}?rule_type={vpn_rule.type}'
+        response = self.client.get(url)
+        self.assertContains(response, vpn_subnet.name)
+        self.assertNotContains(response, device_subnet.name)
+
+        url = f'{path}?rule_type={device_rule.type}'
+        response = self.client.get(url)
+        self.assertContains(response, device_subnet.name)
+        self.assertNotContains(response, vpn_subnet.name)
+
 
 class TestIPAdmin(SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase):
     ipam_label = 'openwisp_ipam'
