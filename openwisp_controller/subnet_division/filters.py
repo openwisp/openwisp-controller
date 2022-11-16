@@ -13,7 +13,7 @@ Subnet = load_model('openwisp_ipam', 'Subnet')
 
 
 class SubnetDivisionRuleFilter(admin.SimpleListFilter):
-    title = _('Subnet division rule')
+    title = _('Subnet division rule type')
     parameter_name = 'rule_type'
 
     def lookups(self, request, model_admin):
