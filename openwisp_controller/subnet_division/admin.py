@@ -23,7 +23,6 @@ SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
 Subnet = load_model('openwisp_ipam', 'Subnet')
 IpAddress = load_model('openwisp_ipam', 'IpAddress')
 Device = load_model('config', 'Device')
-Vpn = load_model('config', 'Vpn')
 
 
 class SubnetDivisionRuleInlineAdmin(
@@ -92,13 +91,8 @@ class SubnetAdmin(BaseSubnetAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
-        extra_fields = tuple()
-        if obj is not None and 'related_vpn' not in fields:
-            extra_fields += ('related_vpn',)
         if obj is not None and 'related_device' not in fields:
-            extra_fields += ('related_device',)
-        if len(extra_fields):
-            return extra_fields + fields
+            fields = ('related_device',) + fields
         return fields
 
     def related_device(self, obj):
@@ -115,28 +109,6 @@ class SubnetAdmin(BaseSubnetAdmin):
                 return mark_safe(
                     f'<a href="{url}?subnet={str(obj.subnet)}">{device}</a>'
                 )
-
-    def related_vpn(self, obj):
-        app_label = Vpn._meta.app_label
-        vpn_count = obj.vpn_set.count()
-        if vpn_count == 0:
-            return
-        if vpn_count == 1:
-            vpn = obj.vpn_set.only('id', 'name').first()
-            return mark_safe(
-                '<a href="{url}">{vpn}</a>'.format(
-                    url=reverse(f'admin:{app_label}_vpn_change', args=[vpn.id]),
-                    vpn=vpn.name,
-                )
-            )
-        else:
-            return mark_safe(
-                '<a href="{url}?subnet={subnet}">{msg_string}</a>'.format(
-                    url=reverse(f'admin:{app_label}_vpn_changelist'),
-                    subnet=str(obj.id),
-                    msg_string=_('See all VPNs'),
-                )
-            )
 
     def has_change_permission(self, request, obj=None):
         permission = super().has_change_permission(request, obj)
