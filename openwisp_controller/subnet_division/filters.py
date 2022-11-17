@@ -1,11 +1,9 @@
-from uuid import UUID
-
 from django.contrib import admin
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
-from openwisp_utils.admin_theme.filters import SimpleInputFilter
+from openwisp_utils.admin_theme.filters import AutocompleteFilter, SimpleInputFilter
 
 from . import settings as app_settings
 
@@ -64,25 +62,15 @@ class DeviceFilter(SimpleInputFilter):
             )
 
 
-class VpnFilter(SimpleInputFilter):
+class VpnFilter(AutocompleteFilter):
     """
-    Filters Subnet queryset for input Vpn name or pk
+    Filters Subnet by VPN
+    autocomplete on inverse relation
     """
 
+    title = _('VPN Server')
+    field_name = 'vpn'
     parameter_name = 'vpn'
-    title = _('VPN name or ID')
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is not None:
-            options = {}
-            try:
-                options['pk'] = UUID(value)
-            except ValueError:
-                options['name'] = value
-            return queryset.filter(
-                id__in=Vpn.objects.filter(**options).values_list('subnet_id')
-            )
 
 
 class SubnetListFilter(admin.RelatedFieldListFilter):
