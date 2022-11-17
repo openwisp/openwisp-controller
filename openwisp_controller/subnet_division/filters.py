@@ -3,13 +3,14 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
-from openwisp_utils.admin_theme.filters import SimpleInputFilter
+from openwisp_utils.admin_theme.filters import AutocompleteFilter, SimpleInputFilter
 
 from . import settings as app_settings
 
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 Subnet = load_model('openwisp_ipam', 'Subnet')
+Vpn = load_model('config', 'Vpn')
 
 
 class SubnetDivisionRuleFilter(admin.SimpleListFilter):
@@ -59,6 +60,17 @@ class DeviceFilter(SimpleInputFilter):
                     config__device__name=self.value()
                 ).values_list('subnet_id')
             )
+
+
+class VpnFilter(AutocompleteFilter):
+    """
+    Filters Subnet by VPN
+    autocomplete on inverse relation
+    """
+
+    title = _('VPN Server')
+    field_name = 'vpn'
+    parameter_name = 'vpn'
 
 
 class SubnetListFilter(admin.RelatedFieldListFilter):

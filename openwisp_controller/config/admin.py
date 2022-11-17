@@ -35,11 +35,11 @@ from openwisp_utils.admin import (
     TimeReadonlyAdminMixin,
     UUIDAdmin,
 )
-from openwisp_utils.admin_theme.filters import AutocompleteFilter
 
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
+from .filters import DeviceGroupFilter, GroupFilter, SubnetFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
@@ -441,19 +441,6 @@ class ChangeDeviceGroupForm(forms.Form):
         label=_('Group'),
         required=False,
     )
-
-
-class TemplatesFilter(AutocompleteFilter):
-    title = _('template')
-    field_name = 'templates'
-    parameter_name = 'config__templates'
-    rel_model = Config
-
-
-class GroupFilter(AutocompleteFilter):
-    title = _('group')
-    field_name = 'group'
-    parameter_name = 'group_id'
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
@@ -916,8 +903,22 @@ class VpnAdmin(
     MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin, SystemDefinedVariableMixin
 ):
     form = VpnForm
-    list_display = ['name', 'organization', 'backend', 'created', 'modified']
-    list_filter = [('organization', MultitenantOrgFilter), 'backend', 'created']
+    list_display = [
+        'name',
+        'organization',
+        'backend',
+        'subnet',
+        'ip',
+        'created',
+        'modified',
+    ]
+    list_select_related = ['subnet', 'ip']
+    list_filter = [
+        ('organization', MultitenantOrgFilter),
+        'backend',
+        SubnetFilter,
+        'created',
+    ]
     search_fields = ['id', 'name', 'host', 'key']
     readonly_fields = ['id', 'uuid', 'system_context']
     multitenant_shared_relations = ('ca', 'cert', 'subnet')
@@ -976,22 +977,6 @@ class DeviceGroupForm(BaseForm):
                 'to this group and can be retrieved via the REST API.'
             )
         }
-
-
-class DeviceGroupFilter(admin.SimpleListFilter):
-    title = _('has devices?')
-    parameter_name = 'empty'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('true', _('No')),
-            ('false', _('Yes')),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(device__isnull=self.value() == 'true').distinct()
-        return queryset
 
 
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):

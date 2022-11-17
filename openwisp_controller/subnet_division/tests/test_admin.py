@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config.tests.utils import TestWireguardVpnMixin
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
 from .helpers import SubnetDivisionAdminTestMixin
@@ -13,7 +14,10 @@ Device = load_model('config', 'Device')
 
 
 class TestSubnetAdmin(
-    SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase
+    SubnetDivisionAdminTestMixin,
+    TestWireguardVpnMixin,
+    TestMultitenantAdminMixin,
+    TestCase,
 ):
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
@@ -77,6 +81,50 @@ class TestSubnetAdmin(
         )
         self.assertNotContains(response, self.config.device.name)
         self.assertContains(response, config2.device.name)
+
+    def test_vpn_filter(self):
+        subnet_changelist = reverse(f'admin:{self.ipam_label}_subnet_changelist')
+        org = self._get_org()
+        subnet1 = self._create_subnet(
+            name='Subnet 1', subnet='172.16.0.0/24', organization=org
+        )
+        subnet2 = self._create_subnet(
+            name='Subnet 2', subnet='172.16.1.0/24', organization=org
+        )
+        vpn = self._create_wireguard_vpn(subnet=subnet1, organization=org)
+        url = f'{subnet_changelist}?vpn={vpn.id}'
+        response = self.client.get(url)
+        self.assertContains(
+            response,
+            subnet1.name,
+        )
+        self.assertNotContains(response, self.master_subnet.name)
+        self.assertNotContains(response, subnet2.name)
+
+    def test_vpn_filter_mutitenancy(self):
+        subnet_changelist = reverse(f'admin:{self.ipam_label}_subnet_changelist')
+        org1 = self._create_org(name='org1')
+        org2 = self._create_org(name='org2')
+        subnet1 = self._create_subnet(
+            name='Subnet 1', subnet='172.16.0.0/24', organization=org1
+        )
+        subnet2 = self._create_subnet(
+            name='Subnet 2', subnet='172.16.1.0/24', organization=org2
+        )
+        vpn1 = self._create_wireguard_vpn(subnet=subnet1, organization=org1)
+        administrator = self._create_administrator([org2])
+        self.client.logout()
+        self.client.force_login(administrator)
+        url = f'{subnet_changelist}?vpn={vpn1.id}'
+        response = self.client.get(url)
+        self.assertNotContains(
+            response,
+            subnet1.name,
+        )
+        self.assertNotContains(
+            response,
+            subnet2.name,
+        )
 
     @patch('openwisp_controller.subnet_division.settings.HIDE_GENERATED_SUBNETS', True)
     def test_hide_generated_subnets(self):
