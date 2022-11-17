@@ -16,6 +16,7 @@ from .filters import (
     SubnetDivisionRuleFilter,
     SubnetFilter,
     SubnetListFilter,
+    VpnFilter,
 )
 
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
@@ -61,6 +62,7 @@ class SubnetAdmin(BaseSubnetAdmin):
     list_filter = BaseSubnetAdmin.list_filter + [
         DeviceFilter,
         SubnetDivisionRuleFilter,
+        VpnFilter,
     ]
     inlines = [SubnetDivisionRuleInlineAdmin] + BaseSubnetAdmin.inlines
     list_display = BaseSubnetAdmin.list_display

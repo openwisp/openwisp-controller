@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.contrib import admin
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -10,6 +12,7 @@ from . import settings as app_settings
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 Subnet = load_model('openwisp_ipam', 'Subnet')
+Vpn = load_model('config', 'Vpn')
 
 
 class SubnetDivisionRuleFilter(admin.SimpleListFilter):
@@ -58,6 +61,27 @@ class DeviceFilter(SimpleInputFilter):
                 id__in=SubnetDivisionIndex.objects.filter(
                     config__device__name=self.value()
                 ).values_list('subnet_id')
+            )
+
+
+class VpnFilter(SimpleInputFilter):
+    """
+    Filters Subnet queryset for input Vpn name or pk
+    """
+
+    parameter_name = 'vpn'
+    title = _('VPN name or ID')
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value is not None:
+            options = {}
+            try:
+                options['pk'] = UUID(value)
+            except ValueError:
+                options['name'] = value
+            return queryset.filter(
+                id__in=Vpn.objects.filter(**options).values_list('subnet_id')
             )
 
 
