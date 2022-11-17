@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config.tests.utils import TestWireguardVpnMixin
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
 from .helpers import SubnetDivisionAdminTestMixin
@@ -13,7 +14,10 @@ Device = load_model('config', 'Device')
 
 
 class TestSubnetAdmin(
-    SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase
+    SubnetDivisionAdminTestMixin,
+    TestWireguardVpnMixin,
+    TestMultitenantAdminMixin,
+    TestCase,
 ):
     ipam_label = 'openwisp_ipam'
     config_label = 'config'
@@ -88,18 +92,6 @@ class TestSubnetAdmin(
             name='Subnet 2', subnet='172.16.1.0/24', organization=org
         )
         vpn = self._create_wireguard_vpn(subnet=subnet1, organization=org)
-
-        # Test filtering with name
-        url = f'{subnet_changelist}?vpn={vpn.name}'
-        response = self.client.get(url)
-        self.assertContains(
-            response,
-            subnet1.name,
-        )
-        self.assertNotContains(response, self.master_subnet.name)
-        self.assertNotContains(response, subnet2.name)
-
-        # Test filtering with UUID
         url = f'{subnet_changelist}?vpn={vpn.id}'
         response = self.client.get(url)
         self.assertContains(
