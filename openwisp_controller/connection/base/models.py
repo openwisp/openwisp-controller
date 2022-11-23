@@ -270,6 +270,9 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             enabled=True,
             credentials__connector=connector,
         ).order_by('-is_working')
+        # NoWorkingDeviceConnectionError.connection will be
+        # equal to None if the device has no DeviceConnection.
+        device_conn = None
         for device_conn in qs.iterator():
             is_connected = device_conn.connect()
             if is_connected:

@@ -123,6 +123,12 @@ class TestModels(BaseTestModels, TestCase):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
+
+        with self.subTest('Test device has no connection object'):
+            with self.assertRaises(NoWorkingDeviceConnectionError) as error:
+                conn = DeviceConnection.get_working_connection(device)
+            self.assertEqual(error.exception.connection, None)
+
         conn1 = self._create_device_connection(
             device=device,
             credentials=self._create_credentials(organization=org, name='test1'),
