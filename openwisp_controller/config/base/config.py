@@ -638,7 +638,12 @@ class AbstractConfig(BaseConfig):
         if not ignore_backend_filter:
             templates = templates.filter(backend=self.backend)
             old_templates = old_templates.filter(backend=self.backend)
-        self.templates.remove(*old_templates)
+
+        for template in old_templates:
+            if template not in templates:
+                # Do not templates that are still present in
+                # the configuration
+                self.templates.remove(*old_templates)
         self.templates.add(*templates)
 
     @classmethod
