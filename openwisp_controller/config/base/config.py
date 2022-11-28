@@ -627,7 +627,8 @@ class AbstractConfig(BaseConfig):
         self, templates, old_templates, ignore_backend_filter=False
     ):
         """
-        This method is used to manage group templates for a device config.
+        This method is used to manage the group templates
+        of a device config object.
 
         Args:
             instance (Config): Config instance
@@ -638,7 +639,11 @@ class AbstractConfig(BaseConfig):
         if not ignore_backend_filter:
             templates = templates.filter(backend=self.backend)
             old_templates = old_templates.filter(backend=self.backend)
-        self.templates.remove(*old_templates)
+        # remove templates related to the old group
+        # that are not present in the new group
+        for template in old_templates:
+            if template not in templates:
+                self.templates.remove(*old_templates)
         self.templates.add(*templates)
 
     @classmethod

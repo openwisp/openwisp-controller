@@ -1502,6 +1502,35 @@ class TestAdmin(
         )
         app_settings.CONTEXT = old_context
 
+    def test_config_form_old_templates(self):
+        config = self._create_config(organization=self._get_org())
+        vpn_template = self._create_template(
+            name='vpn1-template', type='vpn', vpn=self._create_vpn(), config={}
+        )
+        config.templates.add(vpn_template)
+        group = self._create_device_group()
+        config.device.group_id = group.id
+        config.device.full_clean()
+        config.device.save()
+        vpn_client = config.vpnclient_set.first()
+        self.assertNotEqual(vpn_client, None)
+        params = self._get_device_params(org=self._get_org())
+        params.update(
+            {
+                'config-0-id': str(config.pk),
+                'config-0-device': str(config.device_id),
+                'config-INITIAL_FORMS': 1,
+                'group': str(group.id),
+                'context': '{"interval": "60"}',
+                'config-0-templates': str(vpn_template.id),
+                '_continue': True,
+            }
+        )
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
+        response = self.client.post(path, params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(vpn_client, config.vpnclient_set.first())
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
