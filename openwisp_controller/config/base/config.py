@@ -641,9 +641,11 @@ class AbstractConfig(BaseConfig):
             old_templates = old_templates.filter(backend=self.backend)
         # remove templates related to the old group
         # that are not present in the new group
+        removed_templates = []
         for template in old_templates:
             if template not in templates:
-                self.templates.remove(*old_templates)
+                removed_templates.append(template)
+        self.templates.remove(*removed_templates)
         self.templates.add(*templates)
 
     @classmethod
