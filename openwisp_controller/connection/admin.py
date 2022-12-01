@@ -44,7 +44,7 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
         'created',
         'modified',
     )
-    list_filter = [('organization', MultitenantOrgFilter), 'connector']
+    list_filter = [MultitenantOrgFilter, 'connector']
     list_select_related = ('organization',)
     form = CredentialsForm
     fields = [

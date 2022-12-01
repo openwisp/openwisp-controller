@@ -4,20 +4,16 @@ from django.utils.html import mark_safe
 from django.utils.translation import gettext_lazy as _
 from openwisp_ipam.admin import IpAddressAdmin as BaseIpAddressAdmin
 from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
+from openwisp_ipam.filters import SubnetFilter as SubnetListFilter
+from openwisp_ipam.filters import SubnetOrganizationFilter
 from swapper import load_model
 
 from openwisp_controller.config.admin import DeviceAdmin
-from openwisp_users.multitenancy import MultitenantAdminMixin, MultitenantOrgFilter
+from openwisp_users.multitenancy import MultitenantAdminMixin
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import (
-    DeviceFilter,
-    SubnetDivisionRuleFilter,
-    SubnetFilter,
-    SubnetListFilter,
-    VpnFilter,
-)
+from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
 
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
@@ -123,8 +119,8 @@ class SubnetAdmin(BaseSubnetAdmin):
 @admin.register(IpAddress)
 class IpAddressAdmin(BaseIpAddressAdmin):
     list_filter = [
-        ('subnet', SubnetListFilter),
-        ('subnet__organization', MultitenantOrgFilter),
+        SubnetListFilter,
+        SubnetOrganizationFilter,
     ]
 
     def get_queryset(self, request):

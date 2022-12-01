@@ -2,19 +2,19 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
-from openwisp_utils.admin_theme.filters import AutocompleteFilter
+from openwisp_users.multitenancy import MultitenantRelatedOrgFilter
 
 Config = load_model('config', 'Config')
 
 
-class TemplatesFilter(AutocompleteFilter):
+class TemplatesFilter(MultitenantRelatedOrgFilter):
     title = _('template')
     field_name = 'templates'
     parameter_name = 'config__templates'
     rel_model = Config
 
 
-class GroupFilter(AutocompleteFilter):
+class GroupFilter(MultitenantRelatedOrgFilter):
     title = _('group')
     field_name = 'group'
     parameter_name = 'group_id'
@@ -36,7 +36,7 @@ class DeviceGroupFilter(admin.SimpleListFilter):
         return queryset
 
 
-class SubnetFilter(AutocompleteFilter):
+class SubnetFilter(MultitenantRelatedOrgFilter):
     title = _('Subnet')
     field_name = 'subnet'
     parameter_name = 'subnet_id'

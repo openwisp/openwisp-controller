@@ -5,9 +5,9 @@ netjsonconfig~=1.0.1
 django-x509 @ https://github.com/openwisp/django-x509/tarball/master
 django-loci @ https://github.com/openwisp/django-loci/tarball/master
 django-flat-json-widget @ https://github.com/openwisp/django-flat-json-widget/tarball/master
-openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
+openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/issues/270-organization-autocomplete
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
-openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
+openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/org-filter
 djangorestframework-gis~=0.18.0
 paramiko[ed25519]~=2.10.3
 scp~=0.14.2

@@ -35,7 +35,7 @@ class FloorPlanInline(AbstractFloorPlanInline):
 
 class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     form = FloorPlanForm
-    list_filter = [('organization', MultitenantOrgFilter), 'created']
+    list_filter = [MultitenantOrgFilter, 'created']
 
 
 FloorPlanAdmin.list_display.insert(1, 'organization')
@@ -68,7 +68,7 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
 
 
 LocationAdmin.list_display.insert(1, 'organization')
-LocationAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
+LocationAdmin.list_filter.insert(0, MultitenantOrgFilter)
 
 
 class DeviceLocationInline(ObjectLocationMixin, admin.StackedInline):
