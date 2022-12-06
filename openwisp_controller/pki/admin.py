@@ -17,7 +17,7 @@ class CaAdmin(MultitenantAdminMixin, AbstractCaAdmin, VersionAdmin):
 
 
 CaAdmin.fields.insert(2, 'organization')
-CaAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
+CaAdmin.list_filter.insert(0, MultitenantOrgFilter)
 CaAdmin.list_display.insert(1, 'organization')
 CaAdmin.Media.js += ('admin/pki/js/show-org-field.js',)
 
@@ -29,7 +29,7 @@ class CertAdmin(MultitenantAdminMixin, AbstractCertAdmin, VersionAdmin):
 
 
 CertAdmin.fields.insert(2, 'organization')
-CertAdmin.list_filter.insert(0, ('organization', MultitenantOrgFilter))
+CertAdmin.list_filter.insert(0, MultitenantOrgFilter)
 CertAdmin.list_filter.remove('ca')
 CertAdmin.list_display.insert(1, 'organization')
 CertAdmin.Media.js += ('admin/pki/js/show-org-field.js',)

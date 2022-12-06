@@ -7,17 +7,11 @@ from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
 from swapper import load_model
 
 from openwisp_controller.config.admin import DeviceAdmin
-from openwisp_users.multitenancy import MultitenantAdminMixin, MultitenantOrgFilter
+from openwisp_users.multitenancy import MultitenantAdminMixin
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import (
-    DeviceFilter,
-    SubnetDivisionRuleFilter,
-    SubnetFilter,
-    SubnetListFilter,
-    VpnFilter,
-)
+from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
 
 SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
 SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
@@ -122,11 +116,6 @@ class SubnetAdmin(BaseSubnetAdmin):
 
 @admin.register(IpAddress)
 class IpAddressAdmin(BaseIpAddressAdmin):
-    list_filter = [
-        ('subnet', SubnetListFilter),
-        ('subnet__organization', MultitenantOrgFilter),
-    ]
-
     def get_queryset(self, request):
         qs = super().get_queryset(request)
 

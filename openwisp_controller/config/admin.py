@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from import_export import resources
 from import_export.admin import ImportExportMixin
+from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import (
@@ -39,7 +40,7 @@ from openwisp_utils.admin import (
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
-from .filters import DeviceGroupFilter, GroupFilter, SubnetFilter, TemplatesFilter
+from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
@@ -457,7 +458,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ]
     list_filter = [
         'config__status',
-        ('organization', MultitenantOrgFilter),
+        MultitenantOrgFilter,
         TemplatesFilter,
         GroupFilter,
         'created',
@@ -787,7 +788,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'modified',
     ]
     list_filter = [
-        ('organization', MultitenantOrgFilter),
+        MultitenantOrgFilter,
         'backend',
         'type',
         'default',
@@ -914,7 +915,7 @@ class VpnAdmin(
     ]
     list_select_related = ['subnet', 'ip']
     list_filter = [
-        ('organization', MultitenantOrgFilter),
+        MultitenantOrgFilter,
         'backend',
         SubnetFilter,
         'created',
@@ -998,7 +999,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'modified',
     ]
     search_fields = ['name', 'description', 'meta_data']
-    list_filter = [('organization', MultitenantOrgFilter), DeviceGroupFilter]
+    list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
     multitenant_shared_relations = ('templates',)
 
     class Media:
