@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from import_export import resources
 from import_export.admin import ImportExportMixin
+from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import (
@@ -39,7 +40,7 @@ from openwisp_utils.admin import (
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
-from .filters import DeviceGroupFilter, GroupFilter, SubnetFilter, TemplatesFilter
+from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 

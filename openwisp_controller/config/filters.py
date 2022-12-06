@@ -34,9 +34,3 @@ class DeviceGroupFilter(admin.SimpleListFilter):
         if self.value():
             return queryset.filter(device__isnull=self.value() == 'true').distinct()
         return queryset
-
-
-class SubnetFilter(MultitenantRelatedOrgFilter):
-    title = _('Subnet')
-    field_name = 'subnet'
-    parameter_name = 'subnet_id'
