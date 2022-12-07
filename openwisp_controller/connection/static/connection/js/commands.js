@@ -451,7 +451,7 @@ function initCommandOverlay($) {
                         <div><label>Input:</label><div class="readonly">${input}</div></div>
                     </div>
                     <div class="form-row field-output">
-                        <div><label>Output:</label><div class="readonly">${response.output}</div></div>
+                        <div><label>Output:</label><div class="readonly">${response.status === 'in-progress'? `<div class="loader"></div>` : response.output}</div></div>
                     </div>
                     <div class="form-row field-created">
                         <div><label>Created:</label> <div class="readonly">${getFormattedDateTimeString(response.created)}</div></div>
