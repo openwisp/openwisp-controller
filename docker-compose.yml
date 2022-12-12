@@ -19,3 +19,12 @@ services:
     ports:
       - "6379:6379"
     entrypoint: redis-server --appendonly yes
+
+  postgres:
+    image: mdillon/postgis:11-alpine
+    environment:
+      POSTGRES_PASSWORD: openwisp2
+      POSTGRES_USER: openwisp2
+      POSTGRES_DB: openwisp2
+    ports:
+      - 5432:5432

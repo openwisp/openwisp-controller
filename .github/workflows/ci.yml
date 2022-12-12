@@ -21,6 +21,14 @@ jobs:
         image: redis
         ports:
           - 6379:6379
+      postgres:
+        image: mdillon/postgis:11-alpine
+        env:
+          POSTGRES_PASSWORD: openwisp2
+          POSTGRES_USER: openwisp2
+          POSTGRES_DB: openwisp2
+        ports:
+          - 5432:5432
 
     strategy:
       fail-fast: false
@@ -74,6 +82,7 @@ jobs:
     - name: Tests
       run: |
         coverage run --source=openwisp_controller runtests.py
+        POSTGRESQL=1 coverage run --source=openwisp_controller runtests.py
         # SAMPLE tests
         SAMPLE_APP=1 ./runtests.py --keepdb
       env:

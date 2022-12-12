@@ -8,7 +8,10 @@ import pytest
 
 if __name__ == '__main__':
     sys.path.insert(0, 'tests')
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'openwisp2.settings')
+    if os.environ.get('POSTGRESQL', False):
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'openwisp2.postgresql_settings')
+    else:
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'openwisp2.settings')
     from django.core.management import execute_from_command_line
 
     args = sys.argv
@@ -18,6 +21,10 @@ if __name__ == '__main__':
         args.insert(2, 'openwisp_controller')
     else:
         args.insert(2, 'openwisp2')
+
+    if os.environ.get('POSTGRESQL', False):
+        args.extend(['--tag', 'db_tests'])
+
     execute_from_command_line(args)
 
     if not os.environ.get('SAMPLE_APP', False):

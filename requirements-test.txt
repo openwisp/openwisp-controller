@@ -9,3 +9,4 @@ django_redis~=4.12
 mock-ssh-server~=0.9.1
 responses~=0.12.1
 selenium~=3.141.0
+psycopg2-binary~=2.8.0
