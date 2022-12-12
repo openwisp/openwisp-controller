@@ -220,7 +220,11 @@ li.commands {
     padding: 5px 0px;
   }
 }
-.loader {
+.first-command-loader {
+  height: 7.125em;
+  width: 7.125em;
+}
+.recent-commands-loader{
   float: left;
   height: 3.125em;
   width: 3.125em;
