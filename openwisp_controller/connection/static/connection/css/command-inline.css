@@ -20,7 +20,8 @@ li.commands {
 
 /* Styles for elements of "Recent Commands" tab*/
 .field-input_data .readonly,
-.field-output .readonly{
+.field-output .readonly,
+.field-output_data .readonly{
   font-family: monospace;
   line-height: 1.5em;
   white-space: pre;
@@ -219,10 +220,6 @@ li.commands {
   #container .object-tools a {
     padding: 5px 0px;
   }
-}
-.first-command-loader {
-  height: 7.125em;
-  width: 7.125em;
 }
 .recent-commands-loader{
   float: left;

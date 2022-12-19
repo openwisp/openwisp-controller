@@ -160,6 +160,16 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             response = self.client.get(url)
             self.assertContains(response, 'Recent Commands')
 
+    def test_command_inline_output_loading_overlay(self):
+        url = reverse(
+            f'admin:{self.config_app_label}_device_change', args=(self.device.id,)
+        )
+        self._create_custom_command()
+        response = self.client.get(url)
+        self.assertContains(
+            response, '<div class="loader recent-commands-loader"></div>', html=True
+        )
+
     def test_command_writable_inline(self):
         url = reverse(
             f'admin:{self.config_app_label}_device_change', args=(self.device.id,)

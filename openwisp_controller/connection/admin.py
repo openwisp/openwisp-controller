@@ -6,6 +6,7 @@ from django import forms
 from django.contrib import admin
 from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import path, resolve
+from django.utils.html import format_html
 from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 
@@ -93,8 +94,8 @@ class CommandInline(admin.StackedInline):
     model = Command
     verbose_name = _('Recent Commands')
     verbose_name_plural = verbose_name
-    fields = ['status', 'type', 'input_data', 'output', 'created', 'modified']
-    readonly_fields = ['input_data']
+    fields = ['status', 'type', 'input_data', 'output_data', 'created', 'modified']
+    readonly_fields = ['input_data', 'output_data']
     # hack for openwisp-monitoring integration
     # TODO: remove when this issue solved:
     # https://github.com/theatlantic/django-nested-admin/issues/128#issuecomment-665833142
@@ -119,7 +120,15 @@ class CommandInline(admin.StackedInline):
     def input_data(self, obj):
         return obj.input_data
 
+    def output_data(self, obj):
+        if obj.status == 'in-progress':
+            return format_html(
+                '<div class="loader recent-commands-loader"></div>',
+            )
+        return obj.output
+
     input_data.short_description = _('input')
+    output_data.short_description = _('output')
 
     def _get_conditional_queryset(self, request, obj, select_related=False):
         return self.get_queryset(request, select_related=select_related).exists()

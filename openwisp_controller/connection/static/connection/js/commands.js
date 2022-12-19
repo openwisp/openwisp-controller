@@ -343,12 +343,7 @@ function initCommandOverlay($) {
             data: data,
             crossDomain: true,
             beforeSend: function () {
-                if (!isRecentCommandsAbsent()) {
-                    $('#loading-overlay').show();
-                }
-                else {
-                    $('#tabs-container').append('<div class="loader first-command-loader"></div');
-                }
+                $('#loading-overlay').show();
             },
             complete: function () {
                 if (!isRecentCommandsAbsent()) {
@@ -459,7 +454,7 @@ function initCommandOverlay($) {
                         <div>
                             <label>Output:</label>
                             <div class="readonly">${response.status === 'in-progress'?
-                                `<div class="loader recent-commands-loader"></div>` : response.output}
+                                '<div class="loader recent-commands-loader"></div>' : response.output}
                             </div>
                         </div>
                     </div>
@@ -513,6 +508,7 @@ function initCommandWebSockets($) {
         commandObjectFieldset.find('.field-status .readonly').html(data.status);
         commandObjectFieldset.find('.field-input .readonly').html(input);
         commandObjectFieldset.find('.field-output .readonly').html(data.output);
+        commandObjectFieldset.find('.field-output_data .readonly').html(data.output);
 
         // Is it required to update modified timestamp?
         // We will require to to manipulation for rendering dates tp maintain consistency
