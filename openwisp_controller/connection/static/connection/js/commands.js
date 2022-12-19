@@ -450,7 +450,7 @@ function initCommandOverlay($) {
                     <div class="form-row field-input">
                         <div><label>Input:</label><div class="readonly">${input}</div></div>
                     </div>
-                    <div class="form-row field-output">
+                    <div class="form-row field-output_data">
                         <div>
                             <label>Output:</label>
                             <div class="readonly">${response.status === 'in-progress'?
@@ -507,7 +507,6 @@ function initCommandWebSockets($) {
 
         commandObjectFieldset.find('.field-status .readonly').html(data.status);
         commandObjectFieldset.find('.field-input .readonly').html(input);
-        commandObjectFieldset.find('.field-output .readonly').html(data.output);
         commandObjectFieldset.find('.field-output_data .readonly').html(data.output);
 
         // Is it required to update modified timestamp?

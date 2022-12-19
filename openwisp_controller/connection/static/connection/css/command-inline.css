@@ -20,7 +20,6 @@ li.commands {
 
 /* Styles for elements of "Recent Commands" tab*/
 .field-input_data .readonly,
-.field-output .readonly,
 .field-output_data .readonly{
   font-family: monospace;
   line-height: 1.5em;
