@@ -164,14 +164,18 @@ class BaseSubnetDivisionRuleType(object):
 
     @staticmethod
     def get_max_subnet(master_subnet, division_rule):
-        qs = Subnet.objects.filter(master_subnet_id=master_subnet.id)
-        if connection.vendor == 'postgresql':
-            qs = qs.order_by('-subnet')
-        else:
-            qs = qs.order_by('-created')
+        # Only PostgreSQL supports ordering queryset using the "subnet"
+        # field. If the project is using any other database backend, then
+        # "created" field is used for ordering the queryset.
+        order_field = '-subnet' if connection.vendor == 'postgresql' else '-created'
         try:
-            # Get the highest subnet created for this master_subnet
-            max_subnet = qs.first().subnet
+            max_subnet = (
+                # Get the highest subnet created for this master_subnet
+                Subnet.objects.filter(master_subnet_id=master_subnet.id)
+                .order_by(order_field)
+                .first()
+                .subnet
+            )
         except AttributeError:
             # If there is no existing subnet, create a reserved subnet
             # and use it as starting point
