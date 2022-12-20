@@ -3,7 +3,7 @@ from ipaddress import ip_network
 from operator import attrgetter
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import connection, transaction
 from django.dispatch import Signal
 from django.utils.translation import gettext_lazy as _
 from netaddr import IPNetwork
@@ -164,11 +164,15 @@ class BaseSubnetDivisionRuleType(object):
 
     @staticmethod
     def get_max_subnet(master_subnet, division_rule):
+        # Only PostgreSQL supports ordering queryset using the "subnet"
+        # field. If the project is using any other database backend, then
+        # "created" field is used for ordering the queryset.
+        order_field = '-subnet' if connection.vendor == 'postgresql' else '-created'
         try:
             max_subnet = (
                 # Get the highest subnet created for this master_subnet
                 Subnet.objects.filter(master_subnet_id=master_subnet.id)
-                .order_by('-created')
+                .order_by(order_field)
                 .first()
                 .subnet
             )
