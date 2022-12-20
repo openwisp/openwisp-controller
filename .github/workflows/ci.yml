@@ -81,8 +81,8 @@ jobs:
         ./run-qa-checks
     - name: Tests
       run: |
-        coverage run --parallel-mode --source=openwisp_controller runtests.py
-        POSTGRESQL=1 coverage run --parallel-mode --source=openwisp_controller runtests.py
+        coverage run runtests.py --parallel
+        POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         coverage combine
         # SAMPLE tests
         SAMPLE_APP=1 ./runtests.py --keepdb
