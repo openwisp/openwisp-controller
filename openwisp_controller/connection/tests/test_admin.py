@@ -69,13 +69,14 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             administrator=True,
         )
 
-    def test_credentials_organization_fk_queryset(self):
+    def test_credentials_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_credentials_add'),
+            url=self._get_autocomplete_view_path(
+                self.app_label, 'credentials', 'organization'
+            ),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
             administrator=True,
         )
 

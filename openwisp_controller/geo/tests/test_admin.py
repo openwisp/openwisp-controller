@@ -91,14 +91,15 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
             ],
         )
 
-    def test_location_organization_fk_queryset(self):
+    def test_location_organization_fk_autocomplete_view(self):
         self._create_admin()
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_location_add'),
+            url=self._get_autocomplete_view_path(
+                self.app_label, 'location', 'organization'
+            ),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
         )
 
     def test_floorplan_queryset(self):
