@@ -74,7 +74,6 @@ jobs:
     - name: Install test dependencies
       run: |
         pip install -U -r requirements-test.txt
-        pip install -UI https://github.com/openwisp/openwisp-users/tarball/issues/333-org-autocomplete-field
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
