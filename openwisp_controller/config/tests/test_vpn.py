@@ -151,46 +151,6 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
         self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
 
-    def test_vpn_client_post_deletes_auto_cert(self):
-        org = self._get_org()
-        vpn = self._create_vpn()
-        c = self._create_config(organization=org)
-
-        def _assert_vpn_client_cert(cert, vpn_client, cert_ct, vpn_client_ct):
-            self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), 1)
-            self.assertEqual(VpnClient.objects.filter(pk=vpn_client.pk).count(), 1)
-            vpnclient.delete()
-            self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), cert_ct)
-            self.assertEqual(
-                VpnClient.objects.filter(pk=vpn_client.pk).count(), vpn_client_ct
-            )
-
-        with self.subTest(
-            'Test VpnClient post_delete handler when "auto_cert" field is set to "True"'
-        ):
-            t = self._create_template(
-                name='vpn-test-1', type='vpn', vpn=vpn, auto_cert=True
-            )
-            c.templates.add(t)
-            vpnclient = c.vpnclient_set.first()
-            cert = vpnclient.cert
-            _assert_vpn_client_cert(cert, vpnclient, 0, 0)
-
-        with self.subTest(
-            'Test VpnClient post_delete handler when "auto_cert" field is set to "False"'  # noqa
-        ):
-            t = self._create_template(
-                name='vpn-test-2', type='vpn', vpn=vpn, auto_cert=True
-            )
-            c.templates.add(t)
-            vpnclient = c.vpnclient_set.first()
-            cert = vpnclient.cert
-            # Set auto_cert field to false
-            vpnclient.auto_cert = False
-            vpnclient.full_clean()
-            vpnclient.save()
-            _assert_vpn_client_cert(cert, vpnclient, 1, 0)
-
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
         different_ca = self._create_ca(common_name='different-ca')
@@ -274,6 +234,46 @@ class TestVpn(BaseTestVpn, TestCase):
             }
         ]
         self.assertDictEqual(auto, control)
+
+    def test_vpn_client_deletion(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        c = self._create_config(organization=org)
+
+        def _assert_vpn_client_cert(cert, vpn_client, cert_ct, vpn_client_ct):
+            self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), 1)
+            self.assertEqual(VpnClient.objects.filter(pk=vpn_client.pk).count(), 1)
+            vpnclient.delete()
+            self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), cert_ct)
+            self.assertEqual(
+                VpnClient.objects.filter(pk=vpn_client.pk).count(), vpn_client_ct
+            )
+
+        with self.subTest(
+            'Test VpnClient post_delete handler when "auto_cert" field is set to "True"'
+        ):
+            t = self._create_template(
+                name='vpn-test-1', type='vpn', vpn=vpn, auto_cert=True
+            )
+            c.templates.add(t)
+            vpnclient = c.vpnclient_set.first()
+            cert = vpnclient.cert
+            _assert_vpn_client_cert(cert, vpnclient, 0, 0)
+
+        with self.subTest(
+            'Test VpnClient post_delete handler when "auto_cert" field is set to "False"'  # noqa
+        ):
+            t = self._create_template(
+                name='vpn-test-2', type='vpn', vpn=vpn, auto_cert=True
+            )
+            c.templates.add(t)
+            vpnclient = c.vpnclient_set.first()
+            cert = vpnclient.cert
+            # Set auto_cert field to false
+            vpnclient.auto_cert = False
+            vpnclient.full_clean()
+            vpnclient.save()
+            _assert_vpn_client_cert(cert, vpnclient, 1, 0)
 
     def test_vpn_client_get_common_name(self):
         vpn = self._create_vpn()
