@@ -814,6 +814,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'modified',
     ]
     readonly_fields = ['system_context']
+    autocomplete_fields = ['vpn']
 
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None

@@ -340,13 +340,14 @@ class TestAdmin(
             hidden=[data['c2'].name, data['org2'].name, data['c3_inactive'].name],
         )
 
-    def test_device_organization_fk_queryset(self):
+    def test_device_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_device_add'),
+            url=self._get_autocomplete_view_path(
+                self.app_label, 'device', 'organization'
+            ),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
+            hidden=[data['org2'].name, data['inactive'].name],
         )
 
     def test_device_templates_m2m_queryset(self):
@@ -366,22 +367,22 @@ class TestAdmin(
             hidden=[data['t2'].name, data['org2'].name, data['t3_inactive'].name],
         )
 
-    def test_template_organization_fk_queryset(self):
+    def test_template_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_template_add'),
+            url=self._get_autocomplete_view_path(
+                self.app_label, 'template', 'organization'
+            ),
             visible=[data['org1'].name],
-            hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
+            hidden=[data['org2'].name, data['inactive'].name],
         )
 
-    def test_template_vpn_fk_queryset(self):
+    def test_template_vpn_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_template_add'),
-            visible=[data['vpn1'].name, data['vpn_shared'].name],
+            url=self._get_autocomplete_view_path(self.app_label, 'template', 'vpn'),
+            visible=[data['vpn1'].name],
             hidden=[data['vpn2'].name, data['vpn_inactive'].name],
-            select_widget=True,
         )
 
     def test_vpn_queryset(self):
@@ -398,13 +399,12 @@ class TestAdmin(
             ],
         )
 
-    def test_vpn_organization_fk_queryset(self):
+    def test_vpn_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_vpn_add'),
+            url=self._get_autocomplete_view_path(self.app_label, 'vpn', 'organization'),
             visible=[data['org1'].name],
             hidden=[data['org2'].name, data['inactive']],
-            select_widget=True,
             administrator=True,
         )
 
