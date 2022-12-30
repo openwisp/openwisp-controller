@@ -37,9 +37,6 @@ pip-delete-this-directory.txt
 htmlcov/
 .tox/
 .coverage
-# When running coverage testing 
-# it creates .coverage-username.123x* files
-.coverage.*
 .cache
 nosetests.xml
 coverage.xml
