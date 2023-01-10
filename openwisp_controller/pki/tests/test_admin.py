@@ -100,13 +100,12 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             administrator=True,
         )
 
-    def test_cert_ca_fk_queryset(self):
+    def test_cert_ca_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_cert_add'),
-            visible=[data['ca1'].name, data['ca_shared'].name],
+            url=self._get_autocomplete_view_path(self.app_label, 'cert', 'ca'),
+            visible=[data['ca1'].name],
             hidden=[data['ca2'].name, data['ca_inactive'].name],
-            select_widget=True,
             administrator=True,
         )
 
