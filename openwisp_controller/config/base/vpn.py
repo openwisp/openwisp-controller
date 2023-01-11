@@ -697,7 +697,9 @@ class AbstractVpnClient(models.Model):
         # to avoid generating high load during bulk deletes
         instance.vpn._invalidate_peer_cache()
         try:
-            if instance.cert:
+            # only deletes related certificates
+            # if auto_cert field is set to True
+            if instance.cert and instance.auto_cert:
                 instance.cert.delete()
         except ObjectDoesNotExist:
             pass
