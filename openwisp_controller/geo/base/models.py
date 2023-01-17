@@ -40,10 +40,10 @@ class BaseDeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
     )
     # override parent foreign key targets
     location = models.ForeignKey(
-        get_model_name('geo', 'Location'), models.PROTECT, blank=True, null=True
+        get_model_name('geo', 'Location'), models.CASCADE, blank=True, null=True
     )
     floorplan = models.ForeignKey(
-        get_model_name('geo', 'FloorPlan'), models.PROTECT, blank=True, null=True
+        get_model_name('geo', 'FloorPlan'), models.CASCADE, blank=True, null=True
     )
 
     class Meta(AbstractObjectLocation.Meta):
