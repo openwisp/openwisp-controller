@@ -77,9 +77,23 @@ class TestDeviceAdmin(
         self.login()
         self.open(reverse('admin:config_device_add'))
         self.web_driver.find_element_by_name('name').send_keys('11:22:33:44:55:66')
-        Select(self.web_driver.find_element_by_name('organization')).select_by_value(
-            str(org.id)
+        self.web_driver.find_element_by_css_selector(
+            '#select2-id_organization-container'
+        ).click()
+        WebDriverWait(self.web_driver, 2).until(
+            EC.invisibility_of_element_located(
+                (By.CSS_SELECTOR, '.select2-results__option.loading-results')
+            )
         )
+        self.web_driver.find_element_by_class_name('select2-search__field').send_keys(
+            org.name
+        )
+        WebDriverWait(self.web_driver, 2).until(
+            EC.invisibility_of_element_located(
+                (By.CSS_SELECTOR, '.select2-results__option.loading-results')
+            )
+        )
+        self.web_driver.find_element_by_class_name('select2-results__option').click()
         self.web_driver.find_element_by_name('mac_address').send_keys(
             '11:22:33:44:55:66'
         )

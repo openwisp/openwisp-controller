@@ -248,11 +248,11 @@ Navigate into the cloned repository:
 
     cd openwisp-controller/
 
-Launch Redis:
+Launch Redis and PostgreSQL:
 
 .. code-block:: shell
 
-    docker-compose up -d redis
+    docker-compose up -d redis postgres
 
 Setup and activate a virtual-environment. (we'll be using  `virtualenv <https://pypi.org/project/virtualenv/>`_)
 
@@ -305,6 +305,8 @@ Run tests with:
 .. code-block:: shell
 
     ./runtests.py --parallel
+    # To run database tests against PostgreSQL backend
+    POSTGRESQL=1 ./runtests.py --parallel
 
 Run quality assurance tests with:
 

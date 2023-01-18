@@ -5,6 +5,7 @@ from django.db import migrations
 
 from openwisp_users.migrations import (
     allow_admins_change_organization,
+    allow_operator_view_organization,
     create_default_groups,
     set_default_organization_uuid,
     update_admins_permissions,
@@ -29,5 +30,8 @@ class Migration(migrations.Migration):
         ),
         migrations.RunPython(
             allow_admins_change_organization, reverse_code=migrations.RunPython.noop
+        ),
+        migrations.RunPython(
+            allow_operator_view_organization, reverse_code=migrations.RunPython.noop
         ),
     ]

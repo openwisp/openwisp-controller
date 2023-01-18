@@ -450,8 +450,13 @@ function initCommandOverlay($) {
                     <div class="form-row field-input">
                         <div><label>Input:</label><div class="readonly">${input}</div></div>
                     </div>
-                    <div class="form-row field-output">
-                        <div><label>Output:</label><div class="readonly">${response.output}</div></div>
+                    <div class="form-row field-output_data">
+                        <div>
+                            <label>Output:</label>
+                            <div class="readonly">${response.status === 'in-progress'?
+                                '<div class="loader recent-commands-loader"></div>' : response.output}
+                            </div>
+                        </div>
                     </div>
                     <div class="form-row field-created">
                         <div><label>Created:</label> <div class="readonly">${getFormattedDateTimeString(response.created)}</div></div>
@@ -502,7 +507,7 @@ function initCommandWebSockets($) {
 
         commandObjectFieldset.find('.field-status .readonly').html(data.status);
         commandObjectFieldset.find('.field-input .readonly').html(input);
-        commandObjectFieldset.find('.field-output .readonly').html(data.output);
+        commandObjectFieldset.find('.field-output_data .readonly').html(data.output);
 
         // Is it required to update modified timestamp?
         // We will require to to manipulation for rendering dates tp maintain consistency
