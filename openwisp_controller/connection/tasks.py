@@ -70,7 +70,7 @@ def launch_command(command_id):
         command.save()
 
 
-@shared_task(soft_time_limit=180)
+@shared_task(soft_time_limit=3600)
 def auto_add_credentials_to_devices(credential_id, organization_id):
     Credentials = load_model('connection', 'Credentials')
     Credentials.auto_add_to_devices(credential_id, organization_id)
