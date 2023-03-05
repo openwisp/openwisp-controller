@@ -47,7 +47,9 @@ class JsonSchemaWidget(AdminTextareaWidget):
             }
         )
         attrs = attrs or {}
-        attrs['class'] = 'vLargeTextField jsoneditor-raw'
+        attrs['class'] = 'vLargeTextField jsoneditor-raw {}'.format(
+            self.extra_attrs.get('class')
+        )
         attrs.update(self.extra_attrs)
         attrs.update({'data-schema-url': reverse(self.schema_view_name)})
         html += super().render(name, value, attrs, renderer)

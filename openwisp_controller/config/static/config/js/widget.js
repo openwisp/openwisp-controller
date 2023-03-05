@@ -370,7 +370,7 @@
     };
 
     var bindLoadUi = function () {
-        $('.jsoneditor-raw:not([name*="__prefix__"])').each(function (i, el) {
+        $('.jsoneditor-raw:not([name*="__prefix__"]):not(.manual)').each(function (i, el) {
             // Add query parameters defined in the widget
             var url, queryString = '?',
                 queryParams = $(el).data('query-params');
@@ -429,6 +429,8 @@
             getDefaultValues();
         });
     });
+    // Export loadUi
+    django._loadUi = loadUi;
 }(django.jQuery));
 
 var matchKey = (function () {
