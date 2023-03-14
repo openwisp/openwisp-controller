@@ -27,11 +27,7 @@ django.jQuery(function ($) {
             if (name.indexOf('config-0-') === 0) {
                 name = name.replace('config-0-', '');
             }
-            // Systemwide shared objects are identified
-            // with a "null" id in the backend. When submitting
-            // a preview form, Django will raise a validation error 
-            // if the form field corresponding to the object ID 
-            // is not empty or does not contain a valid UUID string.
+            // Avoid sending null which would raise a validation error
             if ($field.attr('name') === 'organization' && $field.val() === 'null') {
                 $field.val('');
             }
