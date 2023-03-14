@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from swapper import load_model
 
@@ -8,12 +9,14 @@ DeviceGroup = load_model('config', 'DeviceGroup')
 
 
 class BaseConfigAPIFilter(filters.FilterSet):
-    organization = filters.CharFilter(field_name='organization', label='Organization')
+    organization = filters.CharFilter(
+        field_name='organization', label=_('Organization')
+    )
 
     def _set_valid_filterform_lables(self):
         # When not filtering on a model field, an error message
         # with the label "[invalid_name]" will be displayed in filter form.
-        # To avoid this error, you need to provide the label explicitly.
+        # To avoid this error, we need to provide the label explicitly.
         raise NotImplementedError
 
 
@@ -32,7 +35,7 @@ class TemplateListFilter(BaseConfigAPIFilter):
 
 class VPNListFilter(BaseConfigAPIFilter):
 
-    subnet = filters.CharFilter(field_name='subnet', label='VPN Subnet')
+    subnet = filters.CharFilter(field_name='subnet', label=_('VPN Subnet'))
 
     class Meta:
         model = Vpn
@@ -45,9 +48,9 @@ class VPNListFilter(BaseConfigAPIFilter):
 
 class DeviceListFilter(BaseConfigAPIFilter):
     config__templates = filters.CharFilter(
-        field_name='config__templates', label='Config template'
+        field_name='config__templates', label=_('Config template')
     )
-    group = filters.CharFilter(field_name='group', label='Device group')
+    group = filters.CharFilter(field_name='group', label=_('Device group'))
     devicelocation = filters.BooleanFilter(
         field_name='devicelocation', method='filter_devicelocation'
     )
@@ -57,9 +60,9 @@ class DeviceListFilter(BaseConfigAPIFilter):
         return queryset.exclude(devicelocation__isnull=value)
 
     def _set_valid_filterform_lables(self):
-        self.filters['config__status'].label = 'Config status'
-        self.filters['config__backend'].label = 'Config backend'
-        self.filters['devicelocation'].label = 'DeviceLocation'
+        self.filters['config__status'].label = _('Config status')
+        self.filters['config__backend'].label = _('Config backend')
+        self.filters['devicelocation'].label = _('Device location')
 
     def __init__(self, *args, **kwargs):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
@@ -86,7 +89,7 @@ class DeviceGroupListFilter(BaseConfigAPIFilter):
         return queryset.exclude(device__isnull=value).distinct()
 
     def _set_valid_filterform_lables(self):
-        self.filters['device'].label = 'Has devices'
+        self.filters['device'].label = _('Has devices')
 
     def __init__(self, *args, **kwargs):
         super(DeviceGroupListFilter, self).__init__(*args, **kwargs)
