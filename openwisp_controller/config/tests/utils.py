@@ -155,9 +155,9 @@ class TestWireguardVpnMixin:
         vpn.save()
         return vpn
 
-    def _create_wireguard_vpn_template(self, auto_cert=True):
+    def _create_wireguard_vpn_template(self, auto_cert=True, **kwargs):
         vpn = self._create_wireguard_vpn()
-        org1 = vpn.organization
+        org1 = kwargs.get('organization', vpn.organization)
         template = self._create_template(
             name='wireguard',
             type='vpn',
