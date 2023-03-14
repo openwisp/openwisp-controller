@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
+from django_filters import rest_framework as filters
 from rest_framework import pagination
 from rest_framework.generics import (
     ListCreateAPIView,
@@ -37,10 +38,28 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
+class TemplateListFilter(filters.FilterSet):
+
+    organization = filters.CharFilter(field_name='organization', label='Organization')
+
+    class Meta:
+        model = Template
+        fields = {
+            'organization': ['exact'],
+            'backend': ['exact'],
+            'type': ['exact'],
+            'default': ['exact'],
+            'required': ['exact'],
+            'created': ['exact', 'gte', 'lt'],
+        }
+
+
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = TemplateSerializer
     queryset = Template.objects.order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = TemplateListFilter
 
 
 class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -57,10 +76,26 @@ class DownloadTemplateconfiguration(ProtectedAPIMixin, RetrieveAPIView):
         return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
 
 
+class VPNListFilter(filters.FilterSet):
+
+    organization = filters.CharFilter(field_name='organization', label='Organization')
+    subnet = filters.CharFilter(field_name='subnet', label='VPN Subnet')
+
+    class Meta:
+        model = Vpn
+        fields = {
+            'backend': ['exact'],
+            'subnet': ['exact'],
+            'organization': ['exact'],
+        }
+
+
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
-    queryset = Vpn.objects.order_by('-created')
+    queryset = Vpn.objects.select_related('subnet').order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = VPNListFilter
 
 
 class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -77,6 +112,45 @@ class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
         return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
 
 
+class DeviceListFilter(filters.FilterSet):
+    config__templates = filters.CharFilter(
+        field_name='config__templates', label='Config template'
+    )
+    organization = filters.CharFilter(field_name='organization', label='Organization')
+    group = filters.CharFilter(field_name='group', label='Device group')
+    devicelocation = filters.BooleanFilter(
+        field_name='devicelocation', method='filter_devicelocation'
+    )
+
+    def filter_devicelocation(self, queryset, name, value):
+        # Returns list of device that have devicelocation objects
+        return queryset.exclude(devicelocation__isnull=value)
+
+    def _set_valid_filterform_lables(self):
+        # When not filtering on a model field, an error message
+        # with the label "[invalid_name]" will be displayed in filter form.
+        # To avoid this error, you need to provide the label explicitly.
+        self.filters['config__status'].label = 'Config status'
+        self.filters['config__backend'].label = 'Config backend'
+        self.filters['devicelocation'].label = 'DeviceLocation'
+
+    def __init__(self, *args, **kwargs):
+        super(DeviceListFilter, self).__init__(*args, **kwargs)
+        self._set_valid_filterform_lables()
+
+    class Meta:
+        model = Device
+        fields = {
+            'config__status': ['exact'],
+            'config__backend': ['exact'],
+            'organization': ['exact'],
+            'config__templates': ['exact'],
+            'group': ['exact'],
+            'devicelocation': ['exact'],
+            'created': ['exact', 'gte', 'lt'],
+        }
+
+
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     """
     Templates: Templates flagged as required will be added automatically
@@ -85,9 +159,11 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
     serializer_class = DeviceListSerializer
     queryset = Device.objects.select_related(
-        'config', 'group', 'organization'
+        'config', 'group', 'organization', 'devicelocation'
     ).order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = DeviceListFilter
 
 
 class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -109,10 +185,39 @@ class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
         return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
 
 
+class DeviceGroupListFilter(filters.FilterSet):
+
+    organization = filters.CharFilter(field_name='organization', label='Organization')
+    device = filters.BooleanFilter(field_name='device', method='filter_device')
+
+    def filter_device(self, queryset, name, value):
+        # Returns list of device groups that have devicelocation objects
+        return queryset.exclude(device__isnull=value).distinct()
+
+    def _set_valid_filterform_lables(self):
+        # When not filtering on a model field, an error message
+        # with the label "[invalid_name]" will be displayed in filter form.
+        # To avoid this error, you need to provide the label explicitly.
+        self.filters['device'].label = 'Has devices'
+
+    def __init__(self, *args, **kwargs):
+        super(DeviceGroupListFilter, self).__init__(*args, **kwargs)
+        self._set_valid_filterform_lables()
+
+    class Meta:
+        model = DeviceGroup
+        fields = {
+            'organization': ['exact'],
+            'device': ['exact'],
+        }
+
+
 class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = DeviceGroupSerializer
-    queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
+    queryset = DeviceGroup.objects.prefetch_related('templates').order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = DeviceGroupListFilter
 
 
 class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
