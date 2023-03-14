@@ -430,7 +430,7 @@
         });
     });
     // Export loadUi
-    django._loadUi = loadUi;
+    django._loadJsonSchemaUi = loadUi;
 }(django.jQuery));
 
 var matchKey = (function () {
