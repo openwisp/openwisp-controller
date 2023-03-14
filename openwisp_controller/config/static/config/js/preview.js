@@ -27,6 +27,10 @@ django.jQuery(function ($) {
             if (name.indexOf('config-0-') === 0) {
                 name = name.replace('config-0-', '');
             }
+            // Avoid sending null which would raise a validation error
+            if ($field.attr('name') === 'organization' && $field.val() === 'null') {
+                $field.val('');
+            }
             data[name] = $field.val();
         });
         // show preview
