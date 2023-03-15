@@ -39,17 +39,19 @@ class JsonSchemaWidget(AdminTextareaWidget):
 
     def render(self, name, value, attrs=None, renderer=None):
         template = get_template('admin/config/jsonschema-widget.html')
-        html = template.render(
-            {
-                'schema_view_name': self.schema_view_name,
-                'netjsonconfig_hint': self.netjsonconfig_hint,
-                'advanced_mode': self.advanced_mode,
-            }
-        )
+        context = {
+            'netjsonconfig_hint': self.netjsonconfig_hint,
+            'advanced_mode': self.advanced_mode,
+        }
         attrs = attrs or {}
-        attrs['class'] = 'vLargeTextField jsoneditor-raw'
+        attrs['class'] = 'vLargeTextField jsoneditor-raw {}'.format(
+            self.extra_attrs.get('class')
+        )
         attrs.update(self.extra_attrs)
-        attrs.update({'data-schema-url': reverse(self.schema_view_name)})
+        if self.schema_view_name:
+            context['schema_view_name'] = self.schema_view_name
+            attrs.update({'data-schema-url': reverse(self.schema_view_name)})
+        html = template.render(context)
         html += super().render(name, value, attrs, renderer)
         return html
 
