@@ -37,21 +37,22 @@ class DevicePermission(BasePermission):
         return hasattr(obj, 'key') and request.query_params.get('key') == obj.key
 
 
-class BaseOrganizationSlugFilter(filters.FilterSet):
+class BaseOrganizationFilter(filters.FilterSet):
+    organization = filters.CharFilter(field_name='organization')
     organization_slug = filters.CharFilter(field_name='organization__slug')
 
     class Meta:
-        fields = ['organization_slug']
+        fields = ['organization', 'organization_slug']
 
 
-class LocationOrganizationSlugFilter(BaseOrganizationSlugFilter):
-    class Meta(BaseOrganizationSlugFilter.Meta):
+class LocationOrganizationFilter(BaseOrganizationFilter):
+    class Meta(BaseOrganizationFilter.Meta):
         model = Location
-        fields = BaseOrganizationSlugFilter.Meta.fields + ['is_mobile', 'type']
+        fields = BaseOrganizationFilter.Meta.fields + ['is_mobile', 'type']
 
 
-class FloorPlanOrganizationSlugFilter(BaseOrganizationSlugFilter):
-    class Meta(BaseOrganizationSlugFilter.Meta):
+class FloorPlanOrganizationFilter(BaseOrganizationFilter):
+    class Meta(BaseOrganizationFilter.Meta):
         model = FloorPlan
 
 
@@ -180,7 +181,7 @@ class GeoJsonLocationList(
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = LocationOrganizationSlugFilter
+    filterset_class = LocationOrganizationFilter
 
 
 class LocationDeviceList(
@@ -205,7 +206,7 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     queryset = FloorPlan.objects.select_related().order_by('-created')
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = FloorPlanOrganizationSlugFilter
+    filterset_class = FloorPlanOrganizationFilter
 
 
 class FloorPlanDetailView(
@@ -221,7 +222,7 @@ class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     queryset = Location.objects.order_by('-created')
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = LocationOrganizationSlugFilter
+    filterset_class = LocationOrganizationFilter
 
 
 class LocationDetailView(

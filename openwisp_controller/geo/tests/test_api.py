@@ -251,6 +251,14 @@ class TestMultitenantApi(
             self.assertEqual(
                 response_data['features'][0]['properties']['organization'], org_a.id
             )
+        with self.subTest('Test filtering using organization id'):
+            self.client.login(username='admin', password='tester')
+            response = self.client.get(reverse(url), data={'organization': org_a.id})
+            response_data = response.data
+            self.assertEqual(response_data['count'], 1)
+            self.assertEqual(
+                response_data['features'][0]['properties']['organization'], org_a.id
+            )
 
         with self.subTest('Test geojson list unauthenticated user'):
             self.client.logout()
@@ -310,6 +318,14 @@ class TestGeoApi(
         with self.subTest('Test filtering with organization slug'):
             with self.assertNumQueries(4):
                 response = self.client.get(path, {'organization_slug': org1.slug})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_floorplan.id)
+            self.assertNotContains(response, org2_floorplan.id)
+
+        with self.subTest('Test filtering with organization id'):
+            with self.assertNumQueries(4):
+                response = self.client.get(path, {'organization': org1.id})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
             self.assertContains(response, org1_floorplan.id)
@@ -408,6 +424,14 @@ class TestGeoApi(
         with self.subTest('Test filtering with organization slug'):
             with self.assertNumQueries(5):
                 response = self.client.get(path, {'organization_slug': org1.slug})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['count'], 1)
+            self.assertContains(response, org1_location.id)
+            self.assertNotContains(response, org2_location.id)
+
+        with self.subTest('Test filtering with organization id'):
+            with self.assertNumQueries(5):
+                response = self.client.get(path, {'organization': org1.id})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
             self.assertContains(response, org1_location.id)

@@ -265,10 +265,16 @@ class TestConfigApi(
             r2 = self.client.get(f'{path}?config__status=applied')
             _assert_device_list_fitler(response=r2, device=d2)
 
-        with self.subTest('Test filtering using organization'):
+        with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
             _assert_device_list_fitler(response=r1, device=d1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
+            _assert_device_list_fitler(response=r2, device=d2)
+
+        with self.subTest('Test filtering using organization slug'):
+            r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
+            _assert_device_list_fitler(response=r1, device=d1)
+            r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
             _assert_device_list_fitler(response=r2, device=d2)
 
         with self.subTest('Test filtering using config templates'):
@@ -585,10 +591,16 @@ class TestConfigApi(
             if template.vpn:
                 self.assertEqual(data['results'][0]['vpn'], template.vpn.pk)
 
-        with self.subTest('Test filtering using organization'):
+        with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
             _assert_template_list_fitler(response=r1, template=t1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
+            _assert_template_list_fitler(response=r2, template=t2)
+
+        with self.subTest('Test filtering using organization slug'):
+            r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
+            _assert_template_list_fitler(response=r1, template=t1)
+            r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
             _assert_template_list_fitler(response=r2, template=t2)
 
         with self.subTest('Test filtering using template backend'):
@@ -745,10 +757,16 @@ class TestConfigApi(
             r2 = self.client.get(f'{path}?subnet={vpn2.subnet.pk}')
             _assert_vpn_list_fitler(response=r2, vpn=vpn2)
 
-        with self.subTest('Test filtering using organization'):
+        with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
             _assert_vpn_list_fitler(response=r1, vpn=vpn1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
+            _assert_vpn_list_fitler(response=r2, vpn=vpn2)
+
+        with self.subTest('Test filtering using organization slug'):
+            r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
+            _assert_vpn_list_fitler(response=r1, vpn=vpn1)
+            r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
             _assert_vpn_list_fitler(response=r2, vpn=vpn2)
 
     def test_vpn_list_for_shared_objects(self):
@@ -921,10 +939,16 @@ class TestConfigApi(
                 data['results'][0]['organization'], device_group.organization.pk
             )
 
-        with self.subTest('Test filtering using organization'):
+        with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
             _assert_devicegroup_list_fitler(response=r1, device_group=dg1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
+            _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
+
+        with self.subTest('Test filtering using organization slug'):
+            r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
+            _assert_devicegroup_list_fitler(response=r1, device_group=dg1)
+            r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
             _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
 
         with self.subTest('Test filtering using device'):

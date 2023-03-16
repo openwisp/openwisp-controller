@@ -6,17 +6,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from swapper import load_model
 
+from openwisp_controller.geo.api.views import BaseOrganizationFilter
+
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 
 
-class BaseConfigAPIFilter(filters.FilterSet):
-    organization = filters.CharFilter(
-        field_name='organization', label=_('Organization')
-    )
-
+class BaseConfigAPIFilter(BaseOrganizationFilter):
     def _set_valid_filterform_lables(self):
         # When not filtering on a model field, an error message
         # with the label "[invalid_name]" will be displayed in filter form.
@@ -28,7 +26,6 @@ class TemplateListFilter(BaseConfigAPIFilter):
     class Meta:
         model = Template
         fields = {
-            'organization': ['exact'],
             'backend': ['exact'],
             'type': ['exact'],
             'default': ['exact'],
@@ -46,7 +43,6 @@ class VPNListFilter(BaseConfigAPIFilter):
         fields = {
             'backend': ['exact'],
             'subnet': ['exact'],
-            'organization': ['exact'],
         }
 
 
@@ -97,7 +93,6 @@ class DeviceListFilter(BaseConfigAPIFilter):
         fields = {
             'config__status': ['exact'],
             'config__backend': ['exact'],
-            'organization': ['exact'],
             'config__templates': ['exact'],
             'group': ['exact'],
             'created': ['exact', 'gte', 'lt'],
@@ -120,8 +115,5 @@ class DeviceGroupListFilter(BaseConfigAPIFilter):
         super(DeviceGroupListFilter, self).__init__(*args, **kwargs)
         self._set_valid_filterform_lables()
 
-    class Meta:
+    class Meta(BaseConfigAPIFilter.Meta):
         model = DeviceGroup
-        fields = {
-            'organization': ['exact'],
-        }

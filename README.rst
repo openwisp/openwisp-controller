@@ -1444,11 +1444,15 @@ using the ``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
    GET /api/v1/controller/device/?config__backend={backend}
 
 You can filter a list of devices based on their 
-organization using the ``organization_id``.
+organization using the ``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
    GET /api/v1/controller/device/?organization={organization_id}
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?organization_slug={organization_slug}
 
 You can filter a list of devices based on their 
 configuration templates using the ``template_id``.
@@ -1699,12 +1703,16 @@ List device groups
 
 **Available filters**
 
-You can filter a list of device groups based on 
-their organization using the ``organization_id``.
+You can filter a list of device groups based on their 
+organization using the ``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
    GET /api/v1/controller/group/?organization={organization_id}
+
+.. code-block:: text
+
+   GET /api/v1/controller/group/?organization_slug={organization_slug}
 
 You can filter a list of device groups that have a
 device object using the ``empty`` (eg. true or false).
@@ -1990,12 +1998,18 @@ List locations
 
     GET /api/v1/controller/location/
 
-You can filter using ``organization_slug`` to get list locations that
-belongs to an organization.
+**Available filters** 
+
+You can filter using ``organization_id`` or ``organization_slug`` 
+to get list locations that belongs to an organization.
 
 .. code-block:: text
 
-    GET /api/v1/controller/location/?organization_slug=<organization_slug>
+    GET /api/v1/controller/location/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/?organization_slug={organization_slug}
 
 Create location
 ###############
@@ -2100,12 +2114,18 @@ List locations with devices deployed (in GeoJSON format)
 
     GET /api/v1/controller/location/geojson/
 
-You can filter using ``organization_slug`` to get list location of
-devices from that organization.
+**Available filters**
+
+You can filter using ``organization_id`` or ``organization_slug`` 
+to get list location of devices from that organization.
 
 .. code-block:: text
 
-    GET /api/v1/controller/location/geojson/?organization_slug=<organization_slug>
+    GET /api/v1/controller/location/geojson/?organization_id={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/geojson/?organization_slug={organization_slug}
 
 List floorplans
 ###############
@@ -2114,12 +2134,18 @@ List floorplans
 
     GET /api/v1/controller/floorplan/
 
-You can filter using ``organization_slug`` to get list floorplans that
-belongs to an organization.
+**Available filters**
+
+You can filter using ``organization_id`` or ``organization_slug`` 
+to get list floorplans that belongs to an organization.
 
 .. code-block:: text
 
-    GET /api/v1/controller/floorplan/?organization_slug=<organization_slug>
+    GET /api/v1/controller/floorplan/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/floorplan/?organization_slug={organization_slug}
 
 Create floorplan
 ################
@@ -2158,12 +2184,16 @@ List templates
 
 **Available filters**
 
-You can filter a list of templates based on 
-their organization using the ``organization_id``.
+You can filter a list of templates based on their organization 
+using the ``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
    GET /api/v1/controller/template/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/?organization_slug={organization_slug}
 
 You can filter a list of templates based on their backend using 
 the ``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
@@ -2279,12 +2309,16 @@ You can filter a list of vpns based on their subnet using the ``subnet_id``.
 
    GET /api/v1/controller/vpn/?subnet={subnet_id}
 
-You can filter a list of vpns based on 
-their organization using the ``organization_id``.
+You can filter a list of vpns based on their organization 
+using the ``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
    GET /api/v1/controller/vpn/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/?organization_slug={organization_slug}
 
 Create VPN
 ##########
