@@ -3,7 +3,6 @@ from django.test import TestCase
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
-from rest_framework.exceptions import ValidationError
 from swapper import load_model
 
 from openwisp_controller.geo.tests.utils import TestGeoMixin
@@ -293,7 +292,7 @@ class TestConfigApi(
             _assert_device_list_fitler(response=r2, device=d2)
 
         with self.subTest('Test filtering using device location'):
-            r2 = self.client.get(f'{path}?devicelocation=true')
+            r2 = self.client.get(f'{path}?with_geo=true')
             _assert_device_list_fitler(response=r2, device=d2)
 
         with self.subTest('Test filtering using device created'):
@@ -929,7 +928,7 @@ class TestConfigApi(
             _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
 
         with self.subTest('Test filtering using device'):
-            r2 = self.client.get(f'{path}?device=true')
+            r2 = self.client.get(f'{path}?empty=true')
             _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
 
     def test_devicegroup_detail_api(self):

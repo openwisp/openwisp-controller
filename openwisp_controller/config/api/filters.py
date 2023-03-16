@@ -73,7 +73,9 @@ class DeviceListFilter(BaseConfigAPIFilter):
         field_name='config__templates', label=_('Config template')
     )
     group = filters.CharFilter(field_name='group', label=_('Device group'))
-    devicelocation = filters.BooleanFilter(
+    # Using filter query param name `with_geo`
+    # which is similar to admin filter
+    with_geo = filters.BooleanFilter(
         field_name='devicelocation', method='filter_devicelocation'
     )
 
@@ -84,7 +86,7 @@ class DeviceListFilter(BaseConfigAPIFilter):
     def _set_valid_filterform_lables(self):
         self.filters['config__status'].label = _('Config status')
         self.filters['config__backend'].label = _('Config backend')
-        self.filters['devicelocation'].label = _('Device location')
+        self.filters['with_geo'].label = _('Has geographic location set?')
 
     def __init__(self, *args, **kwargs):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
@@ -98,20 +100,21 @@ class DeviceListFilter(BaseConfigAPIFilter):
             'organization': ['exact'],
             'config__templates': ['exact'],
             'group': ['exact'],
-            'devicelocation': ['exact'],
             'created': ['exact', 'gte', 'lt'],
         }
 
 
 class DeviceGroupListFilter(BaseConfigAPIFilter):
-    device = filters.BooleanFilter(field_name='device', method='filter_device')
+    # Using filter query param name `empty`
+    # which is similar to admin filter
+    empty = filters.BooleanFilter(field_name='device', method='filter_device')
 
     def filter_device(self, queryset, name, value):
         # Returns list of device groups that have devicelocation objects
         return queryset.exclude(device__isnull=value).distinct()
 
     def _set_valid_filterform_lables(self):
-        self.filters['device'].label = _('Has devices')
+        self.filters['empty'].label = _('Has devices?')
 
     def __init__(self, *args, **kwargs):
         super(DeviceGroupListFilter, self).__init__(*args, **kwargs)
@@ -121,5 +124,4 @@ class DeviceGroupListFilter(BaseConfigAPIFilter):
         model = DeviceGroup
         fields = {
             'organization': ['exact'],
-            'device': ['exact'],
         }

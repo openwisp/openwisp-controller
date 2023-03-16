@@ -1464,12 +1464,12 @@ their device group using the ``group_id``.
 
    GET /api/v1/controller/device/?group={group_id}
 
-You can filter a list of devices that have a device location 
-object using the ``devicelocation`` (eg. true or false).
+You can filter a list of devices that have a device
+location object using the ``with_geo`` (eg. true or false).
 
 .. code-block:: text
 
-   GET /api/v1/controller/device/?devicelocation={devicelocation}
+   GET /api/v1/controller/device/?with_geo={with_geo}
 
 You can filter a list of devices based on 
 their creation time using the ``creation_time``.
@@ -1706,12 +1706,12 @@ their organization using the ``organization_id``.
 
    GET /api/v1/controller/group/?organization={organization_id}
 
-You can filter a list of device groups that have a 
-device object using the ``device`` (eg. true or false).
+You can filter a list of device groups that have a
+device object using the ``empty`` (eg. true or false).
 
 .. code-block:: text
 
-   GET /api/v1/controller/group/?device={device}
+   GET /api/v1/controller/group/?empty={empty}
 
 
 Create device group
