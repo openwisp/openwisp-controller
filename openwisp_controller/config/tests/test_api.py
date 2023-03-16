@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
+from rest_framework.exceptions import ValidationError
 from swapper import load_model
 
 from openwisp_controller.geo.tests.utils import TestGeoMixin
@@ -276,6 +277,16 @@ class TestConfigApi(
             _assert_device_list_fitler(response=r1, device=d1)
             r2 = self.client.get(f'{path}?config__templates={t2.pk}')
             _assert_device_list_fitler(response=r2, device=d2)
+
+        with self.subTest('Test filtering using config templates invalid uuid'):
+            # test with invalid uuid string
+            r1 = self.client.get(f'{path}?config__templates={t1.pk}invalid_uuid')
+            self.assertEqual(r1.status_code, 400)
+            self.assertIn('Invalid UUID format', str(r1.content))
+            # test with comma seperated uuid's string
+            r2 = self.client.get(f'{path}?config__templates={t1.pk},{t2.pk}')
+            self.assertEqual(r2.status_code, 400)
+            self.assertIn('Invalid UUID format', str(r2.content))
 
         with self.subTest('Test filtering using device groups'):
             r2 = self.client.get(f'{path}?group={dg2.pk}')

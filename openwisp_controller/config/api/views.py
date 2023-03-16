@@ -17,6 +17,7 @@ from ..admin import BaseConfigAdmin
 from .filters import (
     DeviceGroupListFilter,
     DeviceListFilter,
+    DeviceListFilterBackend,
     TemplateListFilter,
     VPNListFilter,
 )
@@ -99,7 +100,7 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
         'config', 'group', 'organization', 'devicelocation'
     ).order_by('-created')
     pagination_class = ListViewPagination
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DeviceListFilterBackend]
     filterset_class = DeviceListFilter
 
 

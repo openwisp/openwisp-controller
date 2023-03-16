@@ -1,5 +1,9 @@
+from uuid import UUID
+
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import ValidationError
 from swapper import load_model
 
 Template = load_model('config', 'Template')
@@ -44,6 +48,24 @@ class VPNListFilter(BaseConfigAPIFilter):
             'subnet': ['exact'],
             'organization': ['exact'],
         }
+
+
+class DeviceListFilterBackend(DjangoFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        """
+        Validate that the request parameters contain
+        a valid configuration template uuid format
+        """
+        config_template_uuid = request.query_params.get('config__templates')
+        if config_template_uuid:
+            try:
+                # Attempt to convert the uuid string to a UUID object
+                config_template_uuid_obj = UUID(config_template_uuid)
+            except ValueError:
+                raise ValidationError({'config__templates': 'Invalid UUID format'})
+            # Add the config__templates filter to the queryset
+            return queryset.filter(config__templates=config_template_uuid_obj)
+        return super().filter_queryset(request, queryset, view)
 
 
 class DeviceListFilter(BaseConfigAPIFilter):
