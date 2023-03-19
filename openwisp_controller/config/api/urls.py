@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.urls import path
 
+from . import download_views as api_download_views
 from . import views as api_views
 
 app_name = 'openwisp_controller'
@@ -24,7 +25,7 @@ def get_api_urls(api_views):
             ),
             path(
                 'controller/template/<str:pk>/configuration/',
-                api_views.download_template_config,
+                api_download_views.download_template_config,
                 name='download_template_config',
             ),
             path(
@@ -39,7 +40,7 @@ def get_api_urls(api_views):
             ),
             path(
                 'controller/vpn/<str:pk>/configuration/',
-                api_views.download_vpn_config,
+                api_download_views.download_vpn_config,
                 name='download_vpn_config',
             ),
             path(
@@ -69,7 +70,7 @@ def get_api_urls(api_views):
             ),
             path(
                 'controller/device/<str:pk>/configuration/',
-                api_views.download_device_config,
+                api_download_views.download_device_config,
                 name='download_device_config',
             ),
         ]
