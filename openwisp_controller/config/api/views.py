@@ -12,7 +12,6 @@ from rest_framework.generics import (
 from swapper import load_model
 
 from ...mixins import ProtectedAPIMixin
-from ..admin import BaseConfigAdmin
 from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
@@ -48,15 +47,6 @@ class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Template.objects.all()
 
 
-class DownloadTemplateconfiguration(ProtectedAPIMixin, RetrieveAPIView):
-    serializer_class = TemplateSerializer
-    queryset = Template.objects.none()
-    model = Template
-
-    def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
-
-
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
     queryset = Vpn.objects.order_by('-created')
@@ -66,15 +56,6 @@ class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = VpnSerializer
     queryset = Vpn.objects.all()
-
-
-class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
-    serializer_class = VpnSerializer
-    queryset = Vpn.objects.none()
-    model = Vpn
-
-    def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
 
 
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
@@ -98,15 +79,6 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
     serializer_class = DeviceDetailSerializer
     queryset = Device.objects.select_related('config', 'group', 'organization')
-
-
-class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
-    serializer_class = DeviceListSerializer
-    queryset = Device.objects.none()
-    model = Device
-
-    def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
 
 
 class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
@@ -248,13 +220,10 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
 
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
-download_template_config = DownloadTemplateconfiguration.as_view()
 vpn_list = VpnListCreateView.as_view()
 vpn_detail = VpnDetailView.as_view()
-download_vpn_config = DownloadVpnView.as_view()
 device_list = DeviceListCreateView.as_view()
 device_detail = DeviceDetailView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
-download_device_config = DownloadDeviceView().as_view()

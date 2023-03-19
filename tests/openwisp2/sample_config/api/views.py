@@ -1,3 +1,12 @@
+from openwisp_controller.config.api.download_views import (
+    DownloadDeviceView as BaseDownloadDeviceView,
+)
+from openwisp_controller.config.api.download_views import (
+    DownloadTemplateconfiguration as BaseDownloadTemplateconfiguration,
+)
+from openwisp_controller.config.api.download_views import (
+    DownloadVpnView as BaseDownloadVpnView,
+)
 from openwisp_controller.config.api.views import (
     DeviceDetailView as BaseDeviceDetailView,
 )
@@ -13,13 +22,6 @@ from openwisp_controller.config.api.views import (
 from openwisp_controller.config.api.views import (
     DeviceListCreateView as BaseDeviceListCreateView,
 )
-from openwisp_controller.config.api.views import (
-    DownloadDeviceView as BaseDownloadDeviceView,
-)
-from openwisp_controller.config.api.views import (
-    DownloadTemplateconfiguration as BaseDownloadTemplateconfiguration,
-)
-from openwisp_controller.config.api.views import DownloadVpnView as BaseDownloadVpnView
 from openwisp_controller.config.api.views import (
     TemplateDetailView as BaseTemplateDetailView,
 )
