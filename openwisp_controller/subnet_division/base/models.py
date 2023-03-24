@@ -2,6 +2,7 @@ from ipaddress import ip_network
 
 import swapper
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
@@ -32,17 +33,19 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         max_length=30,
         help_text=_('Label used to calculate the configuration variables'),
     )
-    number_of_subnets = models.PositiveIntegerField(
+    number_of_subnets = models.PositiveSmallIntegerField(
         verbose_name=_('Number of Subnets'),
         help_text=_('Indicates how many subnets will be created'),
+        validators=[MinValueValidator(1)],
     )
-    size = models.PositiveIntegerField(
+    size = models.PositiveSmallIntegerField(
         verbose_name=_('Size of subnets'),
         help_text=_('Indicates the size of each created subnet'),
     )
-    number_of_ips = models.PositiveIntegerField(
+    number_of_ips = models.PositiveSmallIntegerField(
         verbose_name=_('Number of IPs'),
         help_text=_('Indicates how many IP addresses will be created for each subnet'),
+        validators=[MinValueValidator(1)],
     )
 
     class Meta:
