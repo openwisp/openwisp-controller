@@ -38,7 +38,6 @@ class DevicePermission(BasePermission):
 
 
 class BaseOrganizationFilter(filters.FilterSet):
-    organization = filters.CharFilter(field_name='organization')
     organization_slug = filters.CharFilter(field_name='organization__slug')
 
     class Meta:

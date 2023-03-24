@@ -23,27 +23,46 @@ class BaseConfigAPIFilter(BaseOrganizationFilter):
 
 
 class TemplateListFilter(BaseConfigAPIFilter):
-    class Meta:
+    created__gt = filters.DateTimeFilter(
+        field_name='created',
+        lookup_expr='gte',
+    )
+    created__lt = filters.DateTimeFilter(
+        field_name='created',
+        lookup_expr='lt',
+    )
+
+    def _set_valid_filterform_lables(self):
+        self.filters['backend'].label = _('Template backend')
+        self.filters['type'].label = _('Template type')
+
+    def __init__(self, *args, **kwargs):
+        super(TemplateListFilter, self).__init__(*args, **kwargs)
+        self._set_valid_filterform_lables()
+
+    class Meta(BaseConfigAPIFilter.Meta):
         model = Template
-        fields = {
-            'backend': ['exact'],
-            'type': ['exact'],
-            'default': ['exact'],
-            'required': ['exact'],
-            'created': ['exact', 'gte', 'lt'],
-        }
+        fields = BaseConfigAPIFilter.Meta.fields + [
+            'backend',
+            'type',
+            'default',
+            'required',
+            'created',
+        ]
 
 
 class VPNListFilter(BaseConfigAPIFilter):
+    def _set_valid_filterform_lables(self):
+        self.filters['backend'].label = _('VPN Backend')
+        self.filters['subnet'].label = _('VPN Subnet')
 
-    subnet = filters.CharFilter(field_name='subnet', label=_('VPN Subnet'))
+    def __init__(self, *args, **kwargs):
+        super(VPNListFilter, self).__init__(*args, **kwargs)
+        self._set_valid_filterform_lables()
 
-    class Meta:
+    class Meta(BaseConfigAPIFilter.Meta):
         model = Vpn
-        fields = {
-            'backend': ['exact'],
-            'subnet': ['exact'],
-        }
+        fields = BaseConfigAPIFilter.Meta.fields + ['backend', 'subnet']
 
 
 class DeviceListFilterBackend(DjangoFilterBackend):
@@ -65,14 +84,18 @@ class DeviceListFilterBackend(DjangoFilterBackend):
 
 
 class DeviceListFilter(BaseConfigAPIFilter):
-    config__templates = filters.CharFilter(
-        field_name='config__templates', label=_('Config template')
-    )
-    group = filters.CharFilter(field_name='group', label=_('Device group'))
     # Using filter query param name `with_geo`
     # which is similar to admin filter
     with_geo = filters.BooleanFilter(
         field_name='devicelocation', method='filter_devicelocation'
+    )
+    created__gt = filters.DateTimeFilter(
+        field_name='created',
+        lookup_expr='gte',
+    )
+    created__lt = filters.DateTimeFilter(
+        field_name='created',
+        lookup_expr='lt',
     )
 
     def filter_devicelocation(self, queryset, name, value):
@@ -80,6 +103,8 @@ class DeviceListFilter(BaseConfigAPIFilter):
         return queryset.exclude(devicelocation__isnull=value)
 
     def _set_valid_filterform_lables(self):
+        self.filters['group'].label = _('Device group')
+        self.filters['config__templates'].label = _('Config template')
         self.filters['config__status'].label = _('Config status')
         self.filters['config__backend'].label = _('Config backend')
         self.filters['with_geo'].label = _('Has geographic location set?')
@@ -88,15 +113,16 @@ class DeviceListFilter(BaseConfigAPIFilter):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
         self._set_valid_filterform_lables()
 
-    class Meta:
+    class Meta(BaseConfigAPIFilter.Meta):
         model = Device
-        fields = {
-            'config__status': ['exact'],
-            'config__backend': ['exact'],
-            'config__templates': ['exact'],
-            'group': ['exact'],
-            'created': ['exact', 'gte', 'lt'],
-        }
+        fields = BaseConfigAPIFilter.Meta.fields + [
+            'config__status',
+            'config__backend',
+            'config__templates',
+            'group',
+            'with_geo',
+            'created',
+        ]
 
 
 class DeviceGroupListFilter(BaseConfigAPIFilter):
