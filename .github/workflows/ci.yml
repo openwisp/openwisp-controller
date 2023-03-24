@@ -76,6 +76,11 @@ jobs:
         pip install -U -r requirements-test.txt
         pip install ${{ matrix.django-version }}
 
+    - name: (Remove) openwisp-users install
+      run: |
+        pip uninstall -y openwisp-users
+        pip install git+https://github.com/openwisp/openwisp-users/@issue-346/add-multi-tenant-capablities-dj-filters
+
     - name: QA checks
       run: |
         ./run-qa-checks
