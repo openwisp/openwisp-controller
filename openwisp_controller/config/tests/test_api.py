@@ -302,13 +302,11 @@ class TestConfigApi(
             _assert_device_list_fitler(response=r2, device=d2)
 
         with self.subTest('Test filtering using device created'):
-            time1 = d1.created.strftime(('%Y-%m-%dT%H:%M:%S.%fZ'))
-            time2 = d2.created.strftime(('%Y-%m-%dT%H:%M:%S.%fZ'))
-            r1 = self.client.get(f'{path}?created={time1}')
+            r1 = self.client.get(path, {'created': d1.created})
             _assert_device_list_fitler(response=r1, device=d1)
-            r2 = self.client.get(f'{path}?created__gte={time2}')
+            r2 = self.client.get(path, {'created__gte': d2.created})
             _assert_device_list_fitler(response=r2, device=d2)
-            r2 = self.client.get(f'{path}?created__lt={time2}')
+            r2 = self.client.get(path, {'created__lt': d2.created})
             _assert_device_list_fitler(response=r2, device=d1)
 
     def test_device_filter_templates(self):
@@ -628,13 +626,11 @@ class TestConfigApi(
             _assert_template_list_fitler(response=r2, template=t2)
 
         with self.subTest('Test filtering using template created'):
-            time1 = t1.created.strftime(('%Y-%m-%dT%H:%M:%S.%fZ'))
-            time2 = t2.created.strftime(('%Y-%m-%dT%H:%M:%S.%fZ'))
-            r1 = self.client.get(f'{path}?created={time1}')
+            r1 = self.client.get(path, {'created': t1.created})
             _assert_template_list_fitler(response=r1, template=t1)
-            r2 = self.client.get(f'{path}?created__gte={time2}')
+            r2 = self.client.get(path, {'created__gte': t2.created})
             _assert_template_list_fitler(response=r2, template=t2)
-            r2 = self.client.get(f'{path}?created__lt={time2}')
+            r2 = self.client.get(path, {'created__lt': t2.created})
             _assert_template_list_fitler(response=r2, template=t1)
 
     def test_template_list_for_shared_objects(self):

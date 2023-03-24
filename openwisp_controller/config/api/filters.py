@@ -23,7 +23,7 @@ class BaseConfigAPIFilter(BaseOrganizationFilter):
 
 
 class TemplateListFilter(BaseConfigAPIFilter):
-    created__gt = filters.DateTimeFilter(
+    created__gte = filters.DateTimeFilter(
         field_name='created',
         lookup_expr='gte',
     )
@@ -89,7 +89,7 @@ class DeviceListFilter(BaseConfigAPIFilter):
     with_geo = filters.BooleanFilter(
         field_name='devicelocation', method='filter_devicelocation'
     )
-    created__gt = filters.DateTimeFilter(
+    created__gte = filters.DateTimeFilter(
         field_name='created',
         lookup_expr='gte',
     )

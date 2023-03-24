@@ -324,7 +324,7 @@ class TestGeoApi(
             self.assertNotContains(response, org2_floorplan.id)
 
         with self.subTest('Test filtering with organization id'):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(5):
                 response = self.client.get(path, {'organization': org1.id})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
@@ -430,7 +430,7 @@ class TestGeoApi(
             self.assertNotContains(response, org2_location.id)
 
         with self.subTest('Test filtering with organization id'):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(6):
                 response = self.client.get(path, {'organization': org1.id})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
