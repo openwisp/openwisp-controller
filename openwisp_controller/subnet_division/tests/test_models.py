@@ -125,6 +125,34 @@ class TestSubnetDivisionRule(
                 context_manager.exception.message_dict, expected_message_dict
             )
 
+        with self.subTest('Test rule does not provision any subnet'):
+            options = default_options.copy()
+            options['number_of_subnets'] = 0
+            rule = SubnetDivisionRule(**options)
+            with self.assertRaises(ValidationError) as context_manager:
+                rule.full_clean()
+            expected_message_dict = {
+                'number_of_subnets': [
+                    'Ensure this value is greater than or equal to 1.'
+                ]
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_message_dict
+            )
+
+        with self.subTest('Test rule does not provision any IP'):
+            options = default_options.copy()
+            options['number_of_ips'] = 0
+            rule = SubnetDivisionRule(**options)
+            with self.assertRaises(ValidationError) as context_manager:
+                rule.full_clean()
+            expected_message_dict = {
+                'number_of_ips': ['Ensure this value is greater than or equal to 1.']
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_message_dict
+            )
+
         with self.subTest('Test rule size is illegal'):
             options = default_options.copy()
             options['size'] = 33
@@ -186,7 +214,7 @@ class TestSubnetDivisionRule(
             # Test decreasing number_of_ips
             with self.assertRaises(ValidationError) as error:
                 rule.size = 28
-                rule.number_of_ips = 0
+                rule.number_of_ips = 1
                 rule.full_clean()
             self.assertDictEqual(
                 error.exception.message_dict,
