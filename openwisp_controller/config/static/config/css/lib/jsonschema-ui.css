@@ -290,12 +290,18 @@ div.jsoneditor > div > h3.controls{
   bottom: -52px;
   z-index: 99;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-row .grid-column > select.switcher{
-  top: 11px;
+.jsoneditor-wrapper div.jsoneditor .inline-related > .grid-container > div > .grid-row > .grid-column > select.switcher{
+  top: 15px;
+}
+.jsoneditor-wrapper div.jsoneditor .grid-container .grid-row > .grid-column[data-schematype="object"] > select.switcher{
+  top: 11px !important;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row > .grid-column > label {
   display: none;
 }
 .jsoneditor-wrapper div.jsoneditor .inline-group > .form-row > label {
   display: block !important;
+}
+.jsoneditor-wrapper div.jsoneditor .grid-column > div > .inline-group > .form-row > .vTextField {
+  padding-left: 100px !importrant
 }
