@@ -2,6 +2,7 @@
 
 import uuid
 
+import django.core.validators
 import django.db.models.deletion
 import django.utils.timezone
 import model_utils.fields
@@ -75,26 +76,28 @@ class Migration(migrations.Migration):
                 ),
                 (
                     'number_of_subnets',
-                    models.PositiveIntegerField(
+                    models.PositiveSmallIntegerField(
                         help_text='Indicates how many subnets will be created',
                         verbose_name='Number of Subnets',
+                        validators=[django.core.validators.MinValueValidator(1)],
                     ),
                 ),
                 (
                     'size',
-                    models.PositiveIntegerField(
+                    models.PositiveSmallIntegerField(
                         help_text='Indicates the size of each created subnet',
                         verbose_name='Size of subnets',
                     ),
                 ),
                 (
                     'number_of_ips',
-                    models.PositiveIntegerField(
+                    models.PositiveSmallIntegerField(
                         help_text=(
                             'Indicates how many IP addresses will '
                             'be created for each subnet'
                         ),
                         verbose_name='Number of IPs',
+                        validators=[django.core.validators.MinValueValidator(1)],
                     ),
                 ),
                 (
