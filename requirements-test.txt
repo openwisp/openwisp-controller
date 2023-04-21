@@ -3,9 +3,9 @@ pytest-django~=4.5.2
 pytest-asyncio~=0.14.0
 pytest-cov~=2.10.0
 openwisp-utils[qa] @ https://github.com/openwisp/openwisp-utils/tarball/master
-redis~=4.1.2
-channels_redis~=3.2.0
-django_redis~=4.12
+redis~=4.5.4
+channels_redis~=4.1.0
+django_redis~=5.2.0
 mock-ssh-server~=0.9.1
 responses~=0.12.1
 selenium~=3.141.0
