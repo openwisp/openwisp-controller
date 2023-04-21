@@ -10,11 +10,8 @@ from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
-from openwisp_users.api.mixins import (
-    FilterByOrganizationManaged,
-    FilterByParentManaged,
-    FilterDjangoByOrgManaged,
-)
+from openwisp_users.api.filters import OrganizationManagedFilter
+from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
 from ...mixins import ProtectedAPIMixin
 from .serializers import (
@@ -41,21 +38,14 @@ class DevicePermission(BasePermission):
         return hasattr(obj, 'key') and request.query_params.get('key') == obj.key
 
 
-class BaseOrganizationFilter(FilterDjangoByOrgManaged):
-    organization_slug = filters.CharFilter(field_name='organization__slug')
-
-    class Meta:
-        fields = ['organization', 'organization_slug']
-
-
-class LocationOrganizationFilter(BaseOrganizationFilter):
-    class Meta(BaseOrganizationFilter.Meta):
+class LocationOrganizationFilter(OrganizationManagedFilter):
+    class Meta(OrganizationManagedFilter.Meta):
         model = Location
-        fields = BaseOrganizationFilter.Meta.fields + ['is_mobile', 'type']
+        fields = OrganizationManagedFilter.Meta.fields + ['is_mobile', 'type']
 
 
-class FloorPlanOrganizationFilter(BaseOrganizationFilter):
-    class Meta(BaseOrganizationFilter.Meta):
+class FloorPlanOrganizationFilter(OrganizationManagedFilter):
+    class Meta(OrganizationManagedFilter.Meta):
         model = FloorPlan
 
 

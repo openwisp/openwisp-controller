@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from swapper import load_model
 
-from openwisp_controller.geo.api.views import BaseOrganizationFilter
+from openwisp_users.api.filters import OrganizationManagedFilter
 
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
@@ -14,7 +14,7 @@ Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 
 
-class BaseConfigAPIFilter(BaseOrganizationFilter):
+class BaseConfigAPIFilter(OrganizationManagedFilter):
     def _set_valid_filterform_lables(self):
         # When not filtering on a model field, an error message
         # with the label "[invalid_name]" will be displayed in filter form.
