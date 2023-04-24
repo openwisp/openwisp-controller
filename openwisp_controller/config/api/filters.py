@@ -104,7 +104,9 @@ class DeviceListFilter(BaseConfigAPIFilter):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
         self._set_valid_filterform_lables()
 
-    if apps.is_installed('openwisp_controller.geo'):
+    if apps.is_installed('openwisp_controller.geo') or apps.is_installed(
+        'openwisp2.sample_geo'
+    ):
         from openwisp_controller.geo.api.filters import DeviceLocationFilter
 
         def filter_devicelocation(self, queryset, name, value):
