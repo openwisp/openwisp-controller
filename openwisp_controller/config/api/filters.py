@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.apps import apps
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
@@ -84,11 +85,6 @@ class DeviceListFilterBackend(DjangoFilterBackend):
 
 
 class DeviceListFilter(BaseConfigAPIFilter):
-    # Using filter query param name `with_geo`
-    # which is similar to admin filter
-    with_geo = filters.BooleanFilter(
-        field_name='devicelocation', method='filter_devicelocation'
-    )
     created__gte = filters.DateTimeFilter(
         field_name='created',
         lookup_expr='gte',
@@ -98,20 +94,24 @@ class DeviceListFilter(BaseConfigAPIFilter):
         lookup_expr='lt',
     )
 
-    def filter_devicelocation(self, queryset, name, value):
-        # Returns list of device that have devicelocation objects
-        return queryset.exclude(devicelocation__isnull=value)
-
     def _set_valid_filterform_lables(self):
         self.filters['group'].label = _('Device group')
         self.filters['config__templates'].label = _('Config template')
         self.filters['config__status'].label = _('Config status')
         self.filters['config__backend'].label = _('Config backend')
-        self.filters['with_geo'].label = _('Has geographic location set?')
 
     def __init__(self, *args, **kwargs):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
         self._set_valid_filterform_lables()
+
+    if apps.is_installed('openwisp_controller.geo'):
+        from openwisp_controller.geo.api.filters import DeviceLocationFilter
+
+        def filter_devicelocation(self, queryset, name, value):
+            # Returns list of device that have devicelocation objects
+            return queryset.exclude(devicelocation__isnull=value)
+
+        with_geo = DeviceLocationFilter().filters['with_geo']
 
     class Meta(BaseConfigAPIFilter.Meta):
         model = Device
@@ -120,7 +120,6 @@ class DeviceListFilter(BaseConfigAPIFilter):
             'config__backend',
             'config__templates',
             'group',
-            'with_geo',
             'created',
         ]
 
