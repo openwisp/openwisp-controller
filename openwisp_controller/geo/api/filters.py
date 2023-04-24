@@ -1,11 +1,12 @@
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
-from swapper import load_model
 
-Device = load_model('config', 'Device')
+from openwisp_controller.config.api.filters import (
+    DeviceListFilter as BaseDeviceListFilter,
+)
 
 
-class DeviceLocationFilter(filters.FilterSet):
+class DeviceListFilter(BaseDeviceListFilter):
     # Using filter query param name `with_geo`
     # which is similar to admin filter
     with_geo = filters.BooleanFilter(
@@ -13,12 +14,14 @@ class DeviceLocationFilter(filters.FilterSet):
     )
 
     def _set_valid_filterform_lables(self):
+        super()._set_valid_filterform_lables()
         self.filters['with_geo'].label = _('Has geographic location set?')
 
-    def __init__(self, *args, **kwargs):
-        super(DeviceLocationFilter, self).__init__(*args, **kwargs)
-        self._set_valid_filterform_lables()
+    def filter_devicelocation(self, queryset, name, value):
+        # Returns list of device that have devicelocation objects
+        return queryset.exclude(devicelocation__isnull=value)
 
     class Meta:
-        model = Device
-        fields = ['with_geo']
+        model = BaseDeviceListFilter.Meta.model
+        fields = BaseDeviceListFilter.Meta.fields[:]
+        fields.insert(fields.index('created'), 'with_geo')

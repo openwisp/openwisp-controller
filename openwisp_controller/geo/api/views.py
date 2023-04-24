@@ -10,10 +10,12 @@ from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
+from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
 from ...mixins import ProtectedAPIMixin
+from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
@@ -225,6 +227,9 @@ class LocationDetailView(
     serializer_class = LocationSerializer
     queryset = Location.objects.all()
 
+
+# add with_geo filter to device API
+DeviceListCreateView.filterset_class = DeviceListFilter
 
 device_coordinates = DeviceCoordinatesView.as_view()
 device_location = DeviceLocationView.as_view()
