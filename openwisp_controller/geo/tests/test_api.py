@@ -11,7 +11,10 @@ from PIL import Image
 from rest_framework.authtoken.models import Token
 from swapper import load_model
 
-from openwisp_controller.config.tests.utils import CreateConfigTemplateMixin
+from openwisp_controller.config.tests.utils import (
+    CreateConfigTemplateMixin,
+    CreateDeviceMixin,
+)
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
@@ -271,6 +274,7 @@ class TestGeoApi(
     TestOrganizationMixin,
     TestGeoMixin,
     TestAdminMixin,
+    CreateDeviceMixin,
     TestCase,
 ):
     object_model = Device
@@ -923,3 +927,32 @@ class TestGeoApi(
         self.assertIn('image', response.data['floorplan'].keys())
         self.assertIn('created', response.data['floorplan'].keys())
         self.assertIn('modified', response.data['floorplan'].keys())
+
+    def test_device_list_api_with_geo_filter(self):
+        org_a = self._create_org()
+        org_b = self._create_org(name='test org b')
+        device_a = self._create_device(organization=org_a)
+        device_b = self._create_device(organization=org_b)
+        location_b = self._create_location(organization=org_b)
+        # create device location for device_b
+        self._create_device_location(content_object=device_b, location=location_b)
+        path = reverse('config_api:device_list')
+
+        def _assert_device_list_with_geo_filter(response=None, device=None):
+            self.assertEqual(response.status_code, 200)
+            data = response.data
+            self.assertEqual(data['count'], 1)
+            self.assertEqual(len(data['results'][0]), 15)
+            self.assertEqual(data['results'][0]['id'], str(device.pk))
+            self.assertEqual(data['results'][0]['name'], str(device.name))
+            self.assertEqual(data['results'][0]['organization'], device.organization.pk)
+            self.assertEqual(data['results'][0]['config'], None)
+            self.assertIn('created', data['results'][0].keys())
+
+        with self.subTest('Test filtering using device location'):
+            # make sure device_a is in the api response
+            r1 = self.client.get(f'{path}?with_geo=false')
+            _assert_device_list_with_geo_filter(response=r1, device=device_a)
+            # make sure device_b is in the api response
+            r2 = self.client.get(f'{path}?with_geo=true')
+            _assert_device_list_with_geo_filter(response=r2, device=device_b)

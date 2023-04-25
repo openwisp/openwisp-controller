@@ -5,7 +5,6 @@ from django.urls import reverse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from swapper import load_model
 
-from openwisp_controller.geo.tests.utils import TestGeoMixin
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
@@ -87,7 +86,6 @@ class ApiTestMixin:
 class TestConfigApi(
     ApiTestMixin,
     TestAdminMixin,
-    TestGeoMixin,
     CreateIpamModelsMixin,
     TestWireguardVpnMixin,
     TestOrganizationMixin,
@@ -97,20 +95,9 @@ class TestConfigApi(
     AuthenticationMixin,
     TestCase,
 ):
-    location_model = Location
-    object_location_model = DeviceLocation
-
     def setUp(self):
         super().setUp()
         self._login()
-
-    def _create_device_location(self, **kwargs):
-        options = dict()
-        options.update(kwargs)
-        device_location = self.object_location_model(**options)
-        device_location.full_clean()
-        device_location.save()
-        return device_location
 
     def test_device_create_with_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
@@ -231,11 +218,9 @@ class TestConfigApi(
         c2.status = 'applied'
         c2.full_clean()
         c2.save()
-        location2 = self._create_location(organization=org2)
-        self._create_device_location(content_object=d2, location=location2)
         path = reverse('config_api:device_list')
 
-        def _assert_device_list_fitler(response=None, device=None):
+        def _assert_device_list_filter(response=None, device=None):
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data['count'], 1)
@@ -255,33 +240,33 @@ class TestConfigApi(
 
         with self.subTest('Test filtering using config backend'):
             r1 = self.client.get(f'{path}?config__backend=netjsonconfig.OpenWrt')
-            _assert_device_list_fitler(response=r1, device=d1)
+            _assert_device_list_filter(response=r1, device=d1)
             r2 = self.client.get(f'{path}?config__backend=netjsonconfig.OpenWisp')
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using config status'):
             r1 = self.client.get(f'{path}?config__status=modified')
-            _assert_device_list_fitler(response=r1, device=d1)
+            _assert_device_list_filter(response=r1, device=d1)
             r2 = self.client.get(f'{path}?config__status=applied')
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
-            _assert_device_list_fitler(response=r1, device=d1)
+            _assert_device_list_filter(response=r1, device=d1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using organization slug'):
             r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
-            _assert_device_list_fitler(response=r1, device=d1)
+            _assert_device_list_filter(response=r1, device=d1)
             r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using config templates'):
             r1 = self.client.get(f'{path}?config__templates={t1.pk}')
-            _assert_device_list_fitler(response=r1, device=d1)
+            _assert_device_list_filter(response=r1, device=d1)
             r2 = self.client.get(f'{path}?config__templates={t2.pk}')
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using config templates invalid uuid'):
             # test with invalid uuid string
@@ -295,19 +280,15 @@ class TestConfigApi(
 
         with self.subTest('Test filtering using device groups'):
             r2 = self.client.get(f'{path}?group={dg2.pk}')
-            _assert_device_list_fitler(response=r2, device=d2)
-
-        with self.subTest('Test filtering using device location'):
-            r2 = self.client.get(f'{path}?with_geo=true')
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using device created'):
             r1 = self.client.get(path, {'created': d1.created})
-            _assert_device_list_fitler(response=r1, device=d1)
+            _assert_device_list_filter(response=r1, device=d1)
             r2 = self.client.get(path, {'created__gte': d2.created})
-            _assert_device_list_fitler(response=r2, device=d2)
+            _assert_device_list_filter(response=r2, device=d2)
             r2 = self.client.get(path, {'created__lt': d2.created})
-            _assert_device_list_fitler(response=r2, device=d1)
+            _assert_device_list_filter(response=r2, device=d1)
 
     def test_device_filter_templates(self):
         org1 = self._create_org(name='org1')
@@ -572,7 +553,7 @@ class TestConfigApi(
         )
         path = reverse('config_api:template_list')
 
-        def _assert_template_list_fitler(response=None, template=None):
+        def _assert_template_list_filter(response=None, template=None):
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data['count'], 1)
@@ -591,47 +572,47 @@ class TestConfigApi(
 
         with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
 
         with self.subTest('Test filtering using organization slug'):
             r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
 
         with self.subTest('Test filtering using template backend'):
             r1 = self.client.get(f'{path}?backend=netjsonconfig.OpenWrt')
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(f'{path}?backend=netjsonconfig.OpenWisp')
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
 
         with self.subTest('Test filtering using template type'):
             r1 = self.client.get(f'{path}?type=vpn')
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(f'{path}?type=generic')
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
 
         with self.subTest('Test filtering using template default'):
             r1 = self.client.get(f'{path}?default=false')
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(f'{path}?default=true')
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
 
         with self.subTest('Test filtering using template required'):
             r1 = self.client.get(f'{path}?required=false')
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(f'{path}?required=true')
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
 
         with self.subTest('Test filtering using template created'):
             r1 = self.client.get(path, {'created': t1.created})
-            _assert_template_list_fitler(response=r1, template=t1)
+            _assert_template_list_filter(response=r1, template=t1)
             r2 = self.client.get(path, {'created__gte': t2.created})
-            _assert_template_list_fitler(response=r2, template=t2)
+            _assert_template_list_filter(response=r2, template=t2)
             r2 = self.client.get(path, {'created__lt': t2.created})
-            _assert_template_list_fitler(response=r2, template=t1)
+            _assert_template_list_filter(response=r2, template=t1)
 
     def test_template_list_for_shared_objects(self):
         org1 = self._get_org()
@@ -730,7 +711,7 @@ class TestConfigApi(
         vpn2 = self._create_wireguard_vpn(organization=org2)
         path = reverse('config_api:vpn_list')
 
-        def _assert_vpn_list_fitler(response=None, vpn=None):
+        def _assert_vpn_list_filter(response=None, vpn=None):
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data['count'], 1)
@@ -743,27 +724,27 @@ class TestConfigApi(
             r1 = self.client.get(
                 f'{path}?backend=openwisp_controller.vpn_backends.OpenVpn'
             )
-            _assert_vpn_list_fitler(response=r1, vpn=vpn1)
+            _assert_vpn_list_filter(response=r1, vpn=vpn1)
             r2 = self.client.get(
                 f'{path}?backend=openwisp_controller.vpn_backends.Wireguard'
             )
-            _assert_vpn_list_fitler(response=r2, vpn=vpn2)
+            _assert_vpn_list_filter(response=r2, vpn=vpn2)
 
         with self.subTest('Test filtering using VPN subnet'):
             r2 = self.client.get(f'{path}?subnet={vpn2.subnet.pk}')
-            _assert_vpn_list_fitler(response=r2, vpn=vpn2)
+            _assert_vpn_list_filter(response=r2, vpn=vpn2)
 
         with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
-            _assert_vpn_list_fitler(response=r1, vpn=vpn1)
+            _assert_vpn_list_filter(response=r1, vpn=vpn1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
-            _assert_vpn_list_fitler(response=r2, vpn=vpn2)
+            _assert_vpn_list_filter(response=r2, vpn=vpn2)
 
         with self.subTest('Test filtering using organization slug'):
             r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
-            _assert_vpn_list_fitler(response=r1, vpn=vpn1)
+            _assert_vpn_list_filter(response=r1, vpn=vpn1)
             r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
-            _assert_vpn_list_fitler(response=r2, vpn=vpn2)
+            _assert_vpn_list_filter(response=r2, vpn=vpn2)
 
     def test_vpn_list_for_shared_objects(self):
         ca = self._create_ca(name='shared_ca', organization=None)
@@ -924,7 +905,7 @@ class TestConfigApi(
         )
         path = reverse('config_api:devicegroup_list')
 
-        def _assert_devicegroup_list_fitler(response=None, device_group=None):
+        def _assert_devicegroup_list_filter(response=None, device_group=None):
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data['count'], 1)
@@ -937,19 +918,21 @@ class TestConfigApi(
 
         with self.subTest('Test filtering using organization id'):
             r1 = self.client.get(f'{path}?organization={org1.pk}')
-            _assert_devicegroup_list_fitler(response=r1, device_group=dg1)
+            _assert_devicegroup_list_filter(response=r1, device_group=dg1)
             r2 = self.client.get(f'{path}?organization={org2.pk}')
-            _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
+            _assert_devicegroup_list_filter(response=r2, device_group=dg2)
 
         with self.subTest('Test filtering using organization slug'):
             r1 = self.client.get(f'{path}?organization_slug={org1.slug}')
-            _assert_devicegroup_list_fitler(response=r1, device_group=dg1)
+            _assert_devicegroup_list_filter(response=r1, device_group=dg1)
             r2 = self.client.get(f'{path}?organization_slug={org2.slug}')
-            _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
+            _assert_devicegroup_list_filter(response=r2, device_group=dg2)
 
         with self.subTest('Test filtering using device'):
+            r1 = self.client.get(f'{path}?empty=false')
+            _assert_devicegroup_list_filter(response=r1, device_group=dg1)
             r2 = self.client.get(f'{path}?empty=true')
-            _assert_devicegroup_list_fitler(response=r2, device_group=dg2)
+            _assert_devicegroup_list_filter(response=r2, device_group=dg2)
 
     def test_devicegroup_detail_api(self):
         device_group = self._create_device_group()
