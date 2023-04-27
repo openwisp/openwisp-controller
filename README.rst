@@ -1427,6 +1427,70 @@ List devices
 
     GET /api/v1/controller/device/
 
+**Available filters**
+
+You can filter a list of devices based on their configuration 
+status using the ``status`` (e.g modified, applied, or error).
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?config__status={status}
+
+You can filter a list of devices based on their configuration backend 
+using the ``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?config__backend={backend}
+
+You can filter a list of devices based on their 
+organization using the ``organization_id`` or ``organization_slug``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?organization={organization_id}
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?organization_slug={organization_slug}
+
+You can filter a list of devices based on their 
+configuration templates using the ``template_id``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?config__templates={template_id}
+
+You can filter a list of devices based on 
+their device group using the ``group_id``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?group={group_id}
+
+You can filter a list of devices that have a device
+location object using the ``with_geo`` (eg. true or false).
+
+.. code-block:: text
+
+   GET /api/v1/controller/device/?with_geo={with_geo}
+
+You can filter a list of devices based on 
+their creation time using the ``creation_time``.
+
+.. code-block:: text
+
+   # Created exact
+   GET /api/v1/controller/device/?created={creation_time}
+   
+   # Created greater than or equal to
+   GET /api/v1/controller/device/?created__gte={creation_time}
+
+   # Created is less than
+   GET /api/v1/controller/device/?created__lt={creation_time}
+
+
+
 Create device
 #############
 
@@ -1636,6 +1700,27 @@ List device groups
 .. code-block:: text
 
     GET /api/v1/controller/group/
+
+**Available filters**
+
+You can filter a list of device groups based on their 
+organization using the ``organization_id`` or ``organization_slug``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/group/?organization={organization_id}
+
+.. code-block:: text
+
+   GET /api/v1/controller/group/?organization_slug={organization_slug}
+
+You can filter a list of device groups that have a
+device object using the ``empty`` (eg. true or false).
+
+.. code-block:: text
+
+   GET /api/v1/controller/group/?empty={empty}
+
 
 Create device group
 ###################
@@ -1913,12 +1998,18 @@ List locations
 
     GET /api/v1/controller/location/
 
-You can filter using ``organization_slug`` to get list locations that
-belongs to an organization.
+**Available filters** 
+
+You can filter using ``organization_id`` or ``organization_slug`` 
+to get list locations that belongs to an organization.
 
 .. code-block:: text
 
-    GET /api/v1/controller/location/?organization_slug=<organization_slug>
+    GET /api/v1/controller/location/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/?organization_slug={organization_slug}
 
 Create location
 ###############
@@ -2023,12 +2114,18 @@ List locations with devices deployed (in GeoJSON format)
 
     GET /api/v1/controller/location/geojson/
 
-You can filter using ``organization_slug`` to get list location of
-devices from that organization.
+**Available filters**
+
+You can filter using ``organization_id`` or ``organization_slug`` 
+to get list location of devices from that organization.
 
 .. code-block:: text
 
-    GET /api/v1/controller/location/geojson/?organization_slug=<organization_slug>
+    GET /api/v1/controller/location/geojson/?organization_id={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/geojson/?organization_slug={organization_slug}
 
 List floorplans
 ###############
@@ -2037,12 +2134,18 @@ List floorplans
 
     GET /api/v1/controller/floorplan/
 
-You can filter using ``organization_slug`` to get list floorplans that
-belongs to an organization.
+**Available filters**
+
+You can filter using ``organization_id`` or ``organization_slug`` 
+to get list floorplans that belongs to an organization.
 
 .. code-block:: text
 
-    GET /api/v1/controller/floorplan/?organization_slug=<organization_slug>
+    GET /api/v1/controller/floorplan/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/floorplan/?organization_slug={organization_slug}
 
 Create floorplan
 ################
@@ -2078,6 +2181,64 @@ List templates
 .. code-block:: text
 
     GET /api/v1/controller/template/
+
+**Available filters**
+
+You can filter a list of templates based on their organization 
+using the ``organization_id`` or ``organization_slug``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/template/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/template/?organization_slug={organization_slug}
+
+You can filter a list of templates based on their backend using 
+the ``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
+
+.. code-block:: text
+
+   GET /api/v1/controller/template/?backend={backend}
+
+You can filter a list of templates based on their 
+type using the ``type`` (eg. vpn or generic).
+
+.. code-block:: text
+
+   GET /api/v1/controller/template/?type={type}
+
+You can filter a list of templates that are enabled 
+by default or not using the ``default`` (eg. true or false).
+
+.. code-block:: text
+
+   GET /api/v1/controller/template/?default={default}
+
+You can filter a list of templates that are required 
+or not using the ``required`` (eg. true or false).
+
+.. code-block:: text
+
+   GET /api/v1/controller/template/?required={required}
+
+You can filter a list of templates based on 
+their creation time using the ``creation_time``.
+
+.. code-block:: text
+
+   # Created exact
+
+   GET /api/v1/controller/template/?created={creation_time}
+   
+   # Created greater than or equal to
+
+   GET /api/v1/controller/template/?created__gte={creation_time}
+
+   # Created is less than
+
+   GET /api/v1/controller/template/?created__lt={creation_time}
 
 Create template
 ###############
@@ -2130,6 +2291,34 @@ List VPNs
 .. code-block:: text
 
     GET /api/v1/controller/vpn/
+
+**Available filters**
+
+You can filter a list of vpns based 
+on their backend using the ``backend`` 
+(e.g openwisp_controller.vpn_backends.OpenVpn 
+or openwisp_controller.vpn_backends.Wireguard).
+
+.. code-block:: text
+
+   GET /api/v1/controller/vpn/?backend={backend}
+
+You can filter a list of vpns based on their subnet using the ``subnet_id``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/vpn/?subnet={subnet_id}
+
+You can filter a list of vpns based on their organization 
+using the ``organization_id`` or ``organization_slug``.
+
+.. code-block:: text
+
+   GET /api/v1/controller/vpn/?organization={organization_id}
+
+.. code-block:: text
+
+    GET /api/v1/controller/vpn/?organization_slug={organization_slug}
 
 Create VPN
 ##########

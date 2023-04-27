@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import pagination
 from rest_framework.generics import (
     ListCreateAPIView,
@@ -12,6 +13,13 @@ from rest_framework.generics import (
 from swapper import load_model
 
 from ...mixins import ProtectedAPIMixin
+from .filters import (
+    DeviceGroupListFilter,
+    DeviceListFilter,
+    DeviceListFilterBackend,
+    TemplateListFilter,
+    VPNListFilter,
+)
 from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
@@ -38,8 +46,10 @@ class ListViewPagination(pagination.PageNumberPagination):
 
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = TemplateSerializer
-    queryset = Template.objects.order_by('-created')
+    queryset = Template.objects.prefetch_related('tags').order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = TemplateListFilter
 
 
 class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -49,8 +59,10 @@ class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
-    queryset = Vpn.objects.order_by('-created')
+    queryset = Vpn.objects.select_related('subnet').order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = VPNListFilter
 
 
 class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -66,9 +78,11 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
     serializer_class = DeviceListSerializer
     queryset = Device.objects.select_related(
-        'config', 'group', 'organization'
+        'config', 'group', 'organization', 'devicelocation'
     ).order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [DeviceListFilterBackend]
+    filterset_class = DeviceListFilter
 
 
 class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -83,8 +97,10 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
 class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = DeviceGroupSerializer
-    queryset = DeviceGroup.objects.select_related('organization').order_by('-created')
+    queryset = DeviceGroup.objects.prefetch_related('templates').order_by('-created')
     pagination_class = ListViewPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = DeviceGroupListFilter
 
 
 class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):

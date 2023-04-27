@@ -10,9 +10,12 @@ from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
+from openwisp_controller.config.api.views import DeviceListCreateView
+from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
 from ...mixins import ProtectedAPIMixin
+from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
@@ -37,21 +40,14 @@ class DevicePermission(BasePermission):
         return hasattr(obj, 'key') and request.query_params.get('key') == obj.key
 
 
-class BaseOrganizationSlugFilter(filters.FilterSet):
-    organization_slug = filters.CharFilter(field_name='organization__slug')
-
-    class Meta:
-        fields = ['organization_slug']
-
-
-class LocationOrganizationSlugFilter(BaseOrganizationSlugFilter):
-    class Meta(BaseOrganizationSlugFilter.Meta):
+class LocationOrganizationFilter(OrganizationManagedFilter):
+    class Meta(OrganizationManagedFilter.Meta):
         model = Location
-        fields = BaseOrganizationSlugFilter.Meta.fields + ['is_mobile', 'type']
+        fields = OrganizationManagedFilter.Meta.fields + ['is_mobile', 'type']
 
 
-class FloorPlanOrganizationSlugFilter(BaseOrganizationSlugFilter):
-    class Meta(BaseOrganizationSlugFilter.Meta):
+class FloorPlanOrganizationFilter(OrganizationManagedFilter):
+    class Meta(OrganizationManagedFilter.Meta):
         model = FloorPlan
 
 
@@ -180,7 +176,7 @@ class GeoJsonLocationList(
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = LocationOrganizationSlugFilter
+    filterset_class = LocationOrganizationFilter
 
 
 class LocationDeviceList(
@@ -205,7 +201,7 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     queryset = FloorPlan.objects.select_related().order_by('-created')
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = FloorPlanOrganizationSlugFilter
+    filterset_class = FloorPlanOrganizationFilter
 
 
 class FloorPlanDetailView(
@@ -221,7 +217,7 @@ class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     queryset = Location.objects.order_by('-created')
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = LocationOrganizationSlugFilter
+    filterset_class = LocationOrganizationFilter
 
 
 class LocationDetailView(
@@ -231,6 +227,9 @@ class LocationDetailView(
     serializer_class = LocationSerializer
     queryset = Location.objects.all()
 
+
+# add with_geo filter to device API
+DeviceListCreateView.filterset_class = DeviceListFilter
 
 device_coordinates = DeviceCoordinatesView.as_view()
 device_location = DeviceLocationView.as_view()
