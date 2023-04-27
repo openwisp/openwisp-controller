@@ -5,6 +5,7 @@
     var inFullScreenMode = false,
         prevDefaultValues = {},
         defaultValuesUrl = window.location.origin + '/admin/config/device/get-template-default-values/',
+        deviceGroupDetailUrl = window.location.origin + '/api/v1/controller/group/',
     removeDefaultValues = function(contextValue, defaultValues) {
         // remove default values when template is removed.
         Object.keys(prevDefaultValues).forEach(function (key) {
@@ -54,17 +55,36 @@
             $('.flat-json-toggle-textarea').trigger('click');
         }
     },
+    updateDeviceGroupMetaDataContext = function (isLoading, deviceGroupPk , defaultValues={}) {
+        $.get(`${deviceGroupDetailUrl}${deviceGroupPk}/`)
+        .done(function (data) {
+            updateContext(isLoading, Object.assign(defaultValues, data.meta_data));
+        })
+        .fail(function (data) {
+            window.console.error(data.responseText);
+        });
+    },
     getDefaultValues = function (isLoading=false) {
         var pks = $('input[name="config-0-templates"]').attr('value');
+        var deviceGroupPk = $('#change_id_group').attr('href') ? $('#change_id_group').attr('href').split('/')[4] : '';
         if (pks) {
             $.get(defaultValuesUrl, {pks: pks})
-                .done( function (data) {
-                    updateContext(isLoading, data.default_values);
+                .done(function (data) {
+                    if (deviceGroupPk) {
+                       updateDeviceGroupMetaDataContext(isLoading, deviceGroupPk, data.default_values);
+                    }
+                    else {
+                        updateContext(isLoading, data.default_values);
+                    }
                 })
                 .fail(function (data) {
                     window.console.error(data.responseText);
                 });
-        } else {
+        }
+        else if (deviceGroupPk) {
+            updateDeviceGroupMetaDataContext(isLoading, deviceGroupPk);
+        }
+        else {
             // remove existing default values if no template is selected
             updateContext(isLoading, {});
         }
