@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from selenium.webdriver.common.by import By
 
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
@@ -51,6 +52,6 @@ class SeleniumTestMixin:
             password = self.admin_password
         driver.get(f'{self.live_server_url}/admin/login/')
         if 'admin/login' in driver.current_url:
-            driver.find_element_by_name('username').send_keys(username)
-            driver.find_element_by_name('password').send_keys(password)
-            driver.find_element_by_xpath('//input[@type="submit"]').click()
+            driver.find_element(by=By.NAME, value='username').send_keys(username)
+            driver.find_element(by=By.NAME, value='password').send_keys(password)
+            driver.find_element(by=By.XPATH, value='//input[@type="submit"]').click()
