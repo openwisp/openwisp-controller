@@ -235,6 +235,7 @@
             $.extend(options, JSON.parse(field.attr("data-options")));
         }
 
+        ipAddrMaxLengthWorkaround(startval, options.schema);
         editor = new JSONEditor(document.getElementById(id), options);
         django._jsonEditors[id] = editor;
         // initialise advanced json editor here (disable schema validation in VPN admin)
@@ -258,6 +259,7 @@
         // update raw value on change event
         editor.on('change', updateRaw);
         editor.on('change', handleMaxLengthAttr);
+
         // update raw value before form submit
         form.submit(function (e) {
             // only submit form if the editor is clear of all validation errors
@@ -429,6 +431,27 @@
             getDefaultValues();
         });
     });
+
+    // deletes maxLength on ip address schema if address contains variable
+    // this workaround is necessary until we rewrite the config UI to
+    // deal with variables properly
+    var ipAddrMaxLengthWorkaround = function(value, schema) {
+      if (value && value.interfaces) {
+        $.each(value.interfaces, function(i, interf) {
+          if (interf.addresses) {
+            $.each(interf.addresses, function(i, ip) {
+              if (ip.address && ip.address.indexOf('{{') > -1) {
+                var ipFamily = ip.family + '_address';
+                try {
+                  delete schema.definitions[ipFamily].allOf[2].properties.address.maxLength;
+                } catch (e) {}
+              }
+            });
+          }
+        });
+      }
+    };
+
     // Export loadUi
     django._loadJsonSchemaUi = loadUi;
 }(django.jQuery));
