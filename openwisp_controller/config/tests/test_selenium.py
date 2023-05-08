@@ -7,6 +7,7 @@ from selenium.common.exceptions import (
     TimeoutException,
     UnexpectedAlertPresentException,
 )
+from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
@@ -57,14 +58,16 @@ class TestDeviceAdmin(
         try:
             self.web_driver.refresh()
         except UnexpectedAlertPresentException:
-            self.web_driver.switch_to_alert().accept()
+            alert = Alert(self.web_driver)
+            alert.accept()
         else:
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
                 pass
             else:
-                self.web_driver.switch_to_alert().accept()
+                alert = Alert(self.web_driver)
+                alert.accept()
         self.web_driver.refresh()
         WebDriverWait(self.web_driver, 2).until(
             EC.visibility_of_element_located((By.XPATH, '//*[@id="site-name"]'))
@@ -76,29 +79,33 @@ class TestDeviceAdmin(
         org = self._get_org()
         self.login()
         self.open(reverse('admin:config_device_add'))
-        self.web_driver.find_element_by_name('name').send_keys('11:22:33:44:55:66')
-        self.web_driver.find_element_by_css_selector(
-            '#select2-id_organization-container'
+        self.web_driver.find_element(by=By.NAME, value='name').send_keys(
+            '11:22:33:44:55:66'
+        )
+        self.web_driver.find_element(
+            by=By.CSS_SELECTOR, value='#select2-id_organization-container'
         ).click()
         WebDriverWait(self.web_driver, 2).until(
             EC.invisibility_of_element_located(
                 (By.CSS_SELECTOR, '.select2-results__option.loading-results')
             )
         )
-        self.web_driver.find_element_by_class_name('select2-search__field').send_keys(
-            org.name
-        )
+        self.web_driver.find_element(
+            by=By.CLASS_NAME, value='select2-search__field'
+        ).send_keys(org.name)
         WebDriverWait(self.web_driver, 2).until(
             EC.invisibility_of_element_located(
                 (By.CSS_SELECTOR, '.select2-results__option.loading-results')
             )
         )
-        self.web_driver.find_element_by_class_name('select2-results__option').click()
-        self.web_driver.find_element_by_name('mac_address').send_keys(
+        self.web_driver.find_element(
+            by=By.CLASS_NAME, value='select2-results__option'
+        ).click()
+        self.web_driver.find_element(by=By.NAME, value='mac_address').send_keys(
             '11:22:33:44:55:66'
         )
-        self.web_driver.find_element_by_xpath(
-            '//*[@id="config-group"]/fieldset/div[2]/a'
+        self.web_driver.find_element(
+            by=By.XPATH, value='//*[@id="config-group"]/fieldset/div[2]/a'
         ).click()
 
         try:
@@ -110,11 +117,11 @@ class TestDeviceAdmin(
         except TimeoutException:
             self.fail('Default template clickable timed out')
 
-        required_template_element = self.web_driver.find_element_by_xpath(
-            f'//*[@value="{required_template.id}"]'
+        required_template_element = self.web_driver.find_element(
+            by=By.XPATH, value=f'//*[@value="{required_template.id}"]'
         )
-        default_template_element = self.web_driver.find_element_by_xpath(
-            f'//*[@value="{default_template.id}"]'
+        default_template_element = self.web_driver.find_element(
+            by=By.XPATH, value=f'//*[@value="{default_template.id}"]'
         )
         self.assertEqual(required_template_element.is_enabled(), False)
         self.assertEqual(required_template_element.is_selected(), True)
@@ -124,9 +131,9 @@ class TestDeviceAdmin(
         self.web_driver.execute_script(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
-        self.web_driver.find_element_by_name('_save').click()
+        self.web_driver.find_element(by=By.NAME, value='_save').click()
         self.assertEqual(
-            self.web_driver.find_elements_by_class_name('success')[0].text,
+            self.web_driver.find_elements(by=By.CLASS_NAME, value='success')[0].text,
             'The Device “11:22:33:44:55:66” was added successfully.',
         )
 
@@ -144,14 +151,17 @@ class TestDeviceAdmin(
                 self.fail('Unsaved changes alert displayed without any change')
 
         with self.subTest('Alert should be displayed after making changes'):
-            self.web_driver.find_element_by_name('name').send_keys('new.device.name')
+            self.web_driver.find_element(by=By.NAME, value='name').send_keys(
+                'new.device.name'
+            )
             self.web_driver.refresh()
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
                 self.fail('Timed out wating for unsaved changes alert')
             else:
-                self.web_driver.switch_to_alert().accept()
+                alert = Alert(self.web_driver)
+                alert.accept()
 
     def test_multiple_organization_templates(self):
         shared_required_template = self._create_template(
@@ -224,10 +234,10 @@ class TestDeviceAdmin(
         self.open(
             reverse('admin:config_device_change', args=[device.id]) + '#config-group'
         )
-        self.web_driver.find_element_by_xpath(f'//*[@value="{template.id}"]')
+        self.web_driver.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]')
         # Change config backed to
         config_backend_select = Select(
-            self.web_driver.find_element_by_name('config-0-backend')
+            self.web_driver.find_element(by=By.NAME, value='config-0-backend')
         )
         config_backend_select.select_by_visible_text('OpenWISP Firmware 1.x')
         try:
@@ -263,13 +273,14 @@ class TestDeviceAdmin(
             )
         except TimeoutException:
             self.fail('Timed out wating for configuration variabled to get loaded')
-        self.web_driver.find_element_by_xpath(
-            '//*[@id="main-content"]/div[2]/a[3]'
+        self.web_driver.find_element(
+            by=By.XPATH, value='//*[@id="main-content"]/div[2]/a[3]'
         ).click()
         try:
             WebDriverWait(self.web_driver, 2).until(EC.alert_is_present())
         except TimeoutException:
             pass
         else:
-            self.web_driver.switch_to_alert().accept()
+            alert = Alert(self.web_driver)
+            alert.accept()
             self.fail('Unsaved changes alert displayed without any change')
