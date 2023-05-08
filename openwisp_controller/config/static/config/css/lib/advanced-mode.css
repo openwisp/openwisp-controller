@@ -720,26 +720,25 @@ div.jsoneditor-menu > div.jsoneditor-modes > button.jsoneditor-separator {
   margin-left: 10px;
 }
 div.jsoneditor-menu a {
-  font-family: arial, sans-serif;
-  font-size: 10pt;
   color: white;
-  opacity: 0.8;
   vertical-align: middle;
-}
-div.jsoneditor-menu a:hover {
-  opacity: 1;
 }
 div.jsoneditor-menu a.jsoneditor-exit {
   position: absolute;
   right: 0;
   top: 0px;
+  margin: 3px;
   padding: 0 12px;
   font-size: 13px;
   background-color: rgba(255, 255, 255, 0.8);
   color: #000;
-  height: 33px;
-  line-height: 33px;
+  height: 28px;
+  line-height: 28px;
   border-radius: 3px;
+  text-decoration: none !important;
+}
+div.jsoneditor-menu a.jsoneditor-exit:hover {
+  background-color: rgba(255, 255, 255, 1);
 }
 div.jsoneditor-menu a.jsoneditor-exit img{ margin: -2px 1px 0 0 }
 table.jsoneditor-search input,
@@ -850,9 +849,10 @@ table.jsoneditor-search button.jsoneditor-previous:hover {
   font-weight: bold;
   color: #fff !important;
 }
-.jsoneditor-menu #netjsonconfig-hint-advancedmode{
+.jsoneditor-menu #netjsonconfig-hint-advancedmode,
+.jsoneditor-menu #netjsonconfig-hint-advancedmode a{
   padding: 0;
-  font-size: 13px;
+  font-size: 14px !important;
 }
 #main .property-selector .form-row {
   padding: 5px 0 6px 10px !important;
