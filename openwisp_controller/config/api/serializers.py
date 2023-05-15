@@ -152,7 +152,7 @@ class DeviceConfigMixin(object):
 
     def _update_config(self, device, config_data):
         if (
-            config_data.get('backend') == app_settings.BACKENDS[0][0]
+            config_data.get('backend') == app_settings.DEFAULT_BACKEND
             and not config_data.get('templates')
             and not config_data.get('context')
             and not config_data.get('config')

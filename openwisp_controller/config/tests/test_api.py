@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Permission
 from django.test import TestCase
+from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
@@ -363,16 +364,14 @@ class TestConfigApi(
             'name': 'change-test-device',
             'organization': org.pk,
             'mac_address': device.mac_address,
-            'config': {
-                'backend': app_settings.BACKENDS[0][0],
-                'templates': [],
-                'context': {},
-                'config': {},
-            },
+            'config.backend': app_settings.DEFAULT_BACKEND,
+            'config.templates': [],
+            'config.context': 'null',
+            'config.config': 'null',
         }
         self.assertEqual(Config.objects.count(), 0)
         response = self.client.put(
-            path, data, content_type='application/json', format='multipart'
+            path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['name'], 'change-test-device')
