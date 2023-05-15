@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Permission
 from django.test import TestCase
+from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
@@ -10,6 +11,7 @@ from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
+from .. import settings as app_settings
 from ..signals import group_templates_changed
 from .utils import (
     CreateConfigTemplateMixin,
@@ -353,6 +355,31 @@ class TestConfigApi(
         self.assertEqual(d1.name, 'change-test-device')
         self.assertEqual(d1.organization, org)
         self.assertEqual(d1.config.backend, 'netjsonconfig.OpenWisp')
+
+    def test_device_put_api_with_default_config_values(self):
+        device = self._create_device(name='test-device')
+        path = reverse('config_api:device_detail', args=[device.pk])
+        org = self._get_org()
+        data = {
+            'name': 'change-test-device',
+            'organization': org.pk,
+            'mac_address': device.mac_address,
+            'config.backend': app_settings.DEFAULT_BACKEND,
+            'config.templates': [],
+            'config.context': 'null',
+            'config.config': 'null',
+        }
+        self.assertEqual(Config.objects.count(), 0)
+        response = self.client.put(
+            path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['name'], 'change-test-device')
+        self.assertEqual(response.data['organization'], org.pk)
+        device.refresh_from_db()
+        self.assertEqual(device.name, 'change-test-device')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(Config.objects.count(), 0)
 
     def test_device_api_change_config_backend(self):
         t1 = self._create_template(name='t1', backend='netjsonconfig.OpenWrt')

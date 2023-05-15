@@ -10,6 +10,8 @@ from swapper import load_model
 from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
+from .. import settings as app_settings
+
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Device = load_model('config', 'Device')
@@ -149,6 +151,16 @@ class DeviceConfigMixin(object):
             raise serializers.ValidationError({'config': error.messages})
 
     def _update_config(self, device, config_data):
+        if (
+            config_data.get('backend') == app_settings.DEFAULT_BACKEND
+            and not config_data.get('templates')
+            and not config_data.get('context')
+            and not config_data.get('config')
+        ):
+            # Do not create Config object if config_data only
+            # contains the default value.
+            # See https://github.com/openwisp/openwisp-controller/issues/699
+            return
         if not device._has_config():
             return self._create_config(device, config_data)
         config_templates = self._get_config_templates(config_data)
