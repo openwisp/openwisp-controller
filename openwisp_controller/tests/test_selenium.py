@@ -15,12 +15,48 @@ from swapper import load_model
 from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
 from openwisp_controller.geo.tests.utils import TestGeoMixin
 
-from .utils import SeleniumTestMixin
-
 Device = load_model('config', 'Device')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
+
+
+class SeleniumTestMixin:
+    """
+    A base test case for Selenium, providing helped methods for generating
+    clients and logging in profiles.
+    """
+
+    def open(self, url, driver=None):
+        """
+        Opens a URL
+        Argument:
+            url: URL to open
+            driver: selenium driver (default: cls.base_driver)
+        """
+        if not driver:
+            driver = self.web_driver
+        driver.get(f'{self.live_server_url}{url}')
+
+    def login(self, username=None, password=None, driver=None):
+        """
+        Log in to the admin dashboard
+        Argument:
+            driver: selenium driver (default: cls.web_driver)
+            username: username to be used for login (default: cls.admin.username)
+            password: password to be used for login (default: cls.admin.password)
+        """
+        if not driver:
+            driver = self.web_driver
+        if not username:
+            username = self.admin_username
+        if not password:
+            password = self.admin_password
+        driver.get(f'{self.live_server_url}/admin/login/')
+        if 'admin/login' in driver.current_url:
+            driver.find_element(by=By.NAME, value='username').send_keys(username)
+            driver.find_element(by=By.NAME, value='password').send_keys(password)
+            driver.find_element(by=By.XPATH, value='//input[@type="submit"]').click()
 
 
 class TestDeviceConnectionInlineAdmin(
