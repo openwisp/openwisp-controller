@@ -15,7 +15,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
-from ...tests.utils import SeleniumTestMixin
+from ...tests.test_selenium import SeleniumTestMixin
 from .utils import CreateConfigTemplateMixin
 
 
