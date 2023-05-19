@@ -1,19 +1,17 @@
-from django.conf import settings
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.management import call_command
 from django.urls.base import reverse
 from reversion.models import Version
-from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from swapper import load_model
 
 from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
 from openwisp_controller.geo.tests.utils import TestGeoMixin
+from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
 Device = load_model('config', 'Device')
 DeviceConnection = load_model('connection', 'DeviceConnection')
@@ -21,72 +19,12 @@ Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
-class SeleniumTestMixin:
-    """
-    A base test case for Selenium, providing helped methods for generating
-    clients and logging in profiles.
-    """
-
-    def open(self, url, driver=None):
-        """
-        Opens a URL
-        Argument:
-            url: URL to open
-            driver: selenium driver (default: cls.base_driver)
-        """
-        if not driver:
-            driver = self.web_driver
-        driver.get(f'{self.live_server_url}{url}')
-
-    def login(self, username=None, password=None, driver=None):
-        """
-        Log in to the admin dashboard
-        Argument:
-            driver: selenium driver (default: cls.web_driver)
-            username: username to be used for login (default: cls.admin.username)
-            password: password to be used for login (default: cls.admin.password)
-        """
-        if not driver:
-            driver = self.web_driver
-        if not username:
-            username = self.admin_username
-        if not password:
-            password = self.admin_password
-        driver.get(f'{self.live_server_url}/admin/login/')
-        if 'admin/login' in driver.current_url:
-            driver.find_element(by=By.NAME, value='username').send_keys(username)
-            driver.find_element(by=By.NAME, value='password').send_keys(password)
-            driver.find_element(by=By.XPATH, value='//input[@type="submit"]').click()
-
-
 class TestDeviceConnectionInlineAdmin(
     CreateConnectionsMixin, TestGeoMixin, SeleniumTestMixin, StaticLiveServerTestCase
 ):
     config_app_label = 'config'
-    admin_username = 'admin'
-    admin_password = 'password'
     location_model = Location
     object_location_model = DeviceLocation
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        chrome_options = webdriver.ChromeOptions()
-        if getattr(settings, 'SELENIUM_HEADLESS', True):
-            chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--window-size=1366,768')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        capabilities = DesiredCapabilities.CHROME
-        capabilities['goog:loggingPrefs'] = {'browser': 'ALL'}
-        cls.web_driver = webdriver.Chrome(
-            options=chrome_options, desired_capabilities=capabilities
-        )
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.web_driver.quit()
-        super().tearDownClass()
 
     def setUp(self):
         self.admin = self._create_admin(

@@ -1,7 +1,5 @@
-from django.conf import settings
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.urls.base import reverse
-from selenium import webdriver
 from selenium.common.exceptions import (
     StaleElementReferenceException,
     TimeoutException,
@@ -9,13 +7,12 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
-from ...tests.test_selenium import SeleniumTestMixin
 from .utils import CreateConfigTemplateMixin
 
 
@@ -25,29 +22,6 @@ class TestDeviceAdmin(
     SeleniumTestMixin,
     StaticLiveServerTestCase,
 ):
-    admin_username = 'admin'
-    admin_password = 'password'
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        chrome_options = webdriver.ChromeOptions()
-        if getattr(settings, 'SELENIUM_HEADLESS', True):
-            chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--window-size=1366,768')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        capabilities = DesiredCapabilities.CHROME
-        capabilities['goog:loggingPrefs'] = {'browser': 'ALL'}
-        cls.web_driver = webdriver.Chrome(
-            options=chrome_options, desired_capabilities=capabilities
-        )
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.web_driver.quit()
-        super().tearDownClass()
-
     def setUp(self):
         self.admin = self._create_admin(
             username=self.admin_username, password=self.admin_password
