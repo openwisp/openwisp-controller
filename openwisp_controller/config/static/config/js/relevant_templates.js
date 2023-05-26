@@ -109,6 +109,8 @@ django.jQuery(function ($) {
                 // enabled templates on the top
                 if (selectedTemplates !== undefined) {
                     selectedTemplates.forEach(function (templateId, index) {
+                        // corner case in which backend of template does not match
+                        if (!data[templateId]) { return; }
                         var element = getTemplateOptionElement(index, templateId, data[templateId], true, false),
                             prefixElement = getTemplateOptionElement(index, templateId, data[templateId], true, true);
                         sortedm2mUl.append(element);
@@ -123,6 +125,8 @@ django.jQuery(function ($) {
                 // in the database.
                 var counter = selectedTemplates !== undefined ? selectedTemplates.length : 0;
                 Object.keys(data).forEach(function (templateId, index) {
+                    // corner case in which backend of template does not match
+                    if (!data[templateId]) { return; }
                     index = index + counter;
                     var isSelected = (data[templateId].default && (selectedTemplates === undefined)) && (!data[templateId].required),
                         element = getTemplateOptionElement(index, templateId, data[templateId], isSelected),
