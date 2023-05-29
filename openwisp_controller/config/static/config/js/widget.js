@@ -235,7 +235,7 @@
             $.extend(options, JSON.parse(field.attr("data-options")));
         }
 
-        ipAddrMaxLengthWorkaround(startval, options.schema);
+        varValidationWorkaround(startval, options.schema);
         editor = new JSONEditor(document.getElementById(id), options);
         django._jsonEditors[id] = editor;
         // initialise advanced json editor here (disable schema validation in VPN admin)
@@ -435,7 +435,7 @@
     // deletes maxLength on ip address schema if address contains variable
     // this workaround is necessary until we rewrite the config UI to
     // deal with variables properly
-    var ipAddrMaxLengthWorkaround = function(value, schema) {
+    var varValidationWorkaround = function(value, schema) {
       if (value && value.interfaces) {
         $.each(value.interfaces, function(i, interf) {
           if (interf.addresses) {
@@ -447,6 +447,11 @@
                 } catch (e) {}
               }
             });
+          }
+          if (interf.wireless && interf.wireless.bssid && interf.wireless.bssid.indexOf('{{') > -1) {
+            try {
+              delete schema.definitions.bssid_wireless_property.properties.bssid.pattern;
+            } catch (e) {}
           }
         });
       }
