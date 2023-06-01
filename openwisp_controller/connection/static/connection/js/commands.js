@@ -10,6 +10,10 @@ const commandWebSocket = new ReconnectingWebSocket(
     null, {
         debug: false,
         automaticOpen: false,
+        // The library re-connects if it fails to establish a connection in "timeoutInterval".
+        // On slow internet connections, the default value of "timeoutInterval" will
+        // keep terminating and re-establishing the connection.
+        timeoutInterval: 7000,
     }
 );
 
