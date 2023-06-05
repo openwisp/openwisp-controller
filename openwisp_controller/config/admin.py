@@ -14,6 +14,7 @@ from django.core.exceptions import (
     ValidationError,
 )
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
@@ -438,10 +439,19 @@ class ConfigInline(
 
 class ChangeDeviceGroupForm(forms.Form):
     device_group = forms.ModelChoiceField(
-        queryset=DeviceGroup.objects.all(),
+        # The queryset is set in the __init__ method
+        # after filtering the groups according the
+        # device's organization
+        queryset=DeviceGroup.objects.none(),
         label=_('Group'),
         required=False,
     )
+
+    def __init__(self, org_id, **kwargs):
+        super().__init__(**kwargs)
+        self.fields['device_group'].queryset = DeviceGroup.objects.filter(
+            organization_id=org_id
+        )
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
@@ -559,20 +569,41 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return super().construct_change_message(request, form, formsets, add)
 
     def change_group(self, request, queryset):
+        # Validate all selected devices belong to the same organization
+        # which is managed by the user.
+        org_id = None
+        if queryset:
+            org_id = queryset[0].organization_id
+        if (
+            not request.user.is_superuser
+            and str(org_id) not in request.user.organizations_managed
+        ):
+            logger.warning(f'{request.user} does not manage "{org_id}" organization.')
+            return HttpResponseForbidden()
+        if len(queryset) != queryset.filter(organization_id=org_id).count():
+            self.message_user(
+                request,
+                _('Select devices from one organization'),
+                messages.ERROR,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+
         if 'apply' in request.POST:
-            form = ChangeDeviceGroupForm(request.POST)
+            form = ChangeDeviceGroupForm(data=request.POST, org_id=org_id)
             if form.is_valid():
                 group = form.cleaned_data['device_group']
-                instances, old_group_ids = map(
-                    list, zip(*queryset.values_list('id', 'group'))
-                )
+                # Evaluate queryset to store old group id
+                old_group_qs = list(queryset)
                 queryset.update(group=group or None)
                 group_id = None
                 if group:
                     group_id = group.id
-                Device._send_device_group_changed_signal(
-                    instance=instances, group_id=group_id, old_group_id=old_group_ids
-                )
+                for device in old_group_qs:
+                    Device._send_device_group_changed_signal(
+                        instance=device,
+                        group_id=group_id,
+                        old_group_id=device.group_id,
+                    )
             self.message_user(
                 request,
                 _('Successfully changed group of selected devices.'),
@@ -580,7 +611,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             )
             return HttpResponseRedirect(request.get_full_path())
 
-        form = ChangeDeviceGroupForm()
+        form = ChangeDeviceGroupForm(org_id=org_id)
         context = {
             'title': _('Change group'),
             'queryset': queryset,
