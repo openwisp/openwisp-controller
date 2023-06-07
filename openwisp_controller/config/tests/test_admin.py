@@ -1727,39 +1727,82 @@ class TestDeviceGroupAdminTransaction(
 
     def test_change_device_group_action_changes_templates(self):
         path = reverse(f'admin:{self.app_label}_device_changelist')
-        org = self._get_org(org_name='default')
+        org1 = self._create_org(name='org1', slug='org1')
+        org2 = self._create_org(name='org2', slug='org2')
         t1 = self._create_template(name='t1')
         t2 = self._create_template(name='t2')
-        dg1 = self._create_device_group(name='test-group-1', organization=org)
+        dg1 = self._create_device_group(name='test-group-1', organization=org1)
         dg1.templates.add(t1)
-        dg2 = self._create_device_group(name='test-group-2', organization=org)
+        dg2 = self._create_device_group(name='test-group-2', organization=org1)
         dg2.templates.add(t2)
-        device = self._create_device(organization=org, group=dg1)
-        templates = device.config.templates.all()
+        device1 = self._create_device(organization=org1, group=dg1)
+        device2 = self._create_device_config(
+            device_opts={'organization': org1, 'mac_address': '11:22:33:44:55:66'}
+        )
+        templates = device1.config.templates.all()
         self.assertNotIn(t2, templates)
         self.assertIn(t1, templates)
         post_data = {
-            '_selected_action': [device.pk],
+            '_selected_action': [device1.pk],
             'action': 'change_group',
             'csrfmiddlewaretoken': 'test',
+            'apply': True,
         }
+
         with self.subTest('change group'):
             post_data['device_group'] = str(dg2.pk)
-            post_data['apply'] = True
             response = self.client.post(path, post_data, follow=True)
             self.assertEqual(response.status_code, 200)
             self.assertContains(
                 response, 'Successfully changed group of selected devices.'
             )
-            templates = device.config.templates.all()
+            templates = device1.config.templates.all()
             self.assertIn(t2, templates)
             self.assertNotIn(t1, templates)
+
         with self.subTest('unassign group'):
             post_data['device_group'] = ''
             response = self.client.post(path, post_data, follow=True)
             self.assertEqual(response.status_code, 200)
-            templates = list(device.config.templates.all())
+            templates = list(device1.config.templates.all())
             self.assertEqual(templates, [])
+
+        with self.subTest('Change group for multiple devices'):
+            data = post_data.copy()
+            data['_selected_action'] = [device1.pk, device2.pk]
+            data['device_group'] = str(dg2.pk)
+            with patch.object(Device, '_send_device_group_changed_signal') as mocked:
+                response = self.client.post(path, data, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(mocked.call_args_list), 2)
+
+        device2.organization = org2
+        device2.save()
+
+        with self.subTest('Select devices from different organization'):
+            data = post_data.copy()
+            data['_selected_action'] = [device1.pk, device2.pk]
+            response = self.client.post(path, data, follow=True)
+            self.assertContains(response, 'Select devices from one organization')
+
+            data.pop('apply')
+            data.pop('device_group')
+            response = self.client.post(path, data, follow=True)
+            self.assertContains(response, 'Select devices from one organization')
+
+        org_user = self._create_administrator(organizations=[org1])
+        self.client.force_login(org_user)
+
+        with self.subTest('Select devices from org not managed by user'):
+            data = post_data.copy()
+            data['_selected_action'] = [device2.pk]
+            response = self.client.post(path, data, follow=True)
+            self.assertEqual(response.status_code, 403)
+
+            data.pop('apply')
+            data.pop('device_group')
+            response = self.client.post(path, data, follow=True)
+            self.assertEqual(response.status_code, 403)
 
     def test_change_device_group_changes_templates(self):
         org = self._get_org(org_name='default')
