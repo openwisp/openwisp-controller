@@ -97,7 +97,7 @@ if not TESTING:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {'hosts': ['redis://localhost/7']},
+            'CONFIG': {'hosts': ['redis://redis/7']},
         }
     }
 else:
@@ -139,7 +139,7 @@ if not TESTING:
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://localhost/5',
+            'LOCATION': 'redis://redis:6379/5',
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             },
@@ -161,7 +161,7 @@ if not TESTING:
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://127.0.0.1:6379/6',
+            'LOCATION': 'redis://redis:6379/6',
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             },
