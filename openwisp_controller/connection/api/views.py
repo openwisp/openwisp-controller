@@ -1,6 +1,5 @@
 from django.core.exceptions import ValidationError
 from rest_framework import pagination
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import (
     GenericAPIView,
@@ -10,8 +9,6 @@ from rest_framework.generics import (
     get_object_or_404,
 )
 from swapper import load_model
-
-from openwisp_users.api.authentication import BearerAuthentication
 
 from ...mixins import ProtectedAPIMixin
 from .serializer import (
@@ -32,18 +29,11 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class BaseCommandView(GenericAPIView):
+class BaseCommandView(ProtectedAPIMixin):
+    org_field = 'device__organization'
     model = Command
+    queryset = Command.objects.prefetch_related('device')
     serializer_class = CommandSerializer
-    authentication_classes = [BearerAuthentication, SessionAuthentication]
-
-    def get_queryset(self):
-        qs = Command.objects.prefetch_related('device')
-        if not self.request.user.is_superuser:
-            qs = qs.filter(
-                device__organization__in=self.request.user.organizations_managed
-            )
-        return qs
 
     def initial(self, *args, **kwargs):
         super().initial(*args, **kwargs)
@@ -57,7 +47,12 @@ class BaseCommandView(GenericAPIView):
             raise NotFound(detail=f'Device with ID "{device_id}" not found.')
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['id'])
+        qs = Device.objects.filter(
+            pk=self.kwargs['id'],
+        )
+        if not self.request.user.is_superuser:
+            qs = qs.filter(organization__in=self.request.user.organizations_managed)
+        return qs
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
