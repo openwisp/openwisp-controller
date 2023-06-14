@@ -42,11 +42,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         return f'{path}?{query_string}'
 
     def _get_device_not_found_error(self, device_id):
-        return {
-            'detail': ErrorDetail(
-                f'Device with ID "{device_id}" not found.', code='not_found'
-            )
-        }
+        return {'detail': ErrorDetail('Not found.', code='not_found')}
 
     @patch.object(ListViewPagination, 'page_size', 3)
     def test_command_list_api(self):
@@ -250,8 +246,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 'input': {'command': 'echo test'},
             }
             response = self.client.post(
-                url,
-                data=payload,
+                url, data=payload, content_type='application/json'
             )
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)

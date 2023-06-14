@@ -10,6 +10,9 @@ from rest_framework.generics import (
 )
 from swapper import load_model
 
+from openwisp_users.api.mixins import FilterByParentManaged
+from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
+
 from ...mixins import ProtectedAPIMixin
 from .serializer import (
     CommandSerializer,
@@ -29,30 +32,18 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class BaseCommandView(ProtectedAPIMixin):
-    org_field = 'device__organization'
+class BaseCommandView(FilterByParentManaged, BaseProtectedAPIMixin):
     model = Command
     queryset = Command.objects.prefetch_related('device')
     serializer_class = CommandSerializer
 
-    def initial(self, *args, **kwargs):
-        super().initial(*args, **kwargs)
-        self.assert_parent_exists()
-
-    def assert_parent_exists(self):
-        try:
-            assert self.get_parent_queryset().exists()
-        except (AssertionError, ValidationError):
-            device_id = self.kwargs['id']
-            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
-
     def get_parent_queryset(self):
-        qs = Device.objects.filter(
+        return Device.objects.filter(
             pk=self.kwargs['id'],
         )
-        if not self.request.user.is_superuser:
-            qs = qs.filter(organization__in=self.request.user.organizations_managed)
-        return qs
+
+    def get_queryset(self):
+        return super().get_queryset().filter(device_id=self.kwargs['id'])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -63,8 +54,9 @@ class BaseCommandView(ProtectedAPIMixin):
 class CommandListCreateView(BaseCommandView, ListCreateAPIView):
     pagination_class = ListViewPagination
 
-    def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs['id'])
+    def create(self, request, *args, **kwargs):
+        self.assert_parent_exists()
+        return super().create(request, *args, **kwargs)
 
 
 class CommandDetailsView(BaseCommandView, RetrieveAPIView):
