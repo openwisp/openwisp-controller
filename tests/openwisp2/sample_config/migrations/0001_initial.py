@@ -191,7 +191,12 @@ class Migration(migrations.Migration):
                 ),
                 (
                     'slug',
-                    models.SlugField(max_length=100, unique=True, verbose_name='slug'),
+                    models.SlugField(
+                        allow_unicode=True,
+                        max_length=100,
+                        unique=True,
+                        verbose_name='slug',
+                    ),
                 ),
                 ('details', models.CharField(blank=True, max_length=64, null=True)),
             ],

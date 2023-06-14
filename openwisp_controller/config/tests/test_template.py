@@ -12,6 +12,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
+from ...tests.utils import TransactionTestMixin
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
 from ..tasks import logger as task_logger
@@ -504,6 +505,7 @@ class TestTemplate(
 
 
 class TestTemplateTransaction(
+    TransactionTestMixin,
     TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,

@@ -41,3 +41,6 @@ class PkiConfig(DjangoX509Config):
                 'icon': 'ow-cer-group',
             },
         )
+
+
+del DjangoX509Config
