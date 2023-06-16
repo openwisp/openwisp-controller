@@ -1,9 +1,11 @@
+from unittest.mock import patch
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.management import call_command
+from django.test import tag
 from django.urls.base import reverse
 from reversion.models import Version
-from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
-from selenium.webdriver.common.alert import Alert
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -19,6 +21,7 @@ Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
+@tag('selenium_tests')
 class TestDeviceConnectionInlineAdmin(
     CreateConnectionsMixin, TestGeoMixin, SeleniumTestMixin, StaticLiveServerTestCase
 ):
@@ -31,27 +34,8 @@ class TestDeviceConnectionInlineAdmin(
             username=self.admin_username, password=self.admin_password
         )
 
-    def tearDown(self):
-        # Accept unsaved changes alert to allow other tests to run
-        try:
-            self.web_driver.refresh()
-        except UnexpectedAlertPresentException:
-            alert = Alert(self.web_driver)
-            alert.accept()
-        else:
-            try:
-                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
-            except TimeoutException:
-                pass
-            else:
-                alert = Alert(self.web_driver)
-                alert.accept()
-        self.web_driver.refresh()
-        WebDriverWait(self.web_driver, 2).until(
-            EC.visibility_of_element_located((By.XPATH, '//*[@id="site-name"]'))
-        )
-
-    def test_restoring_deleted_device(self):
+    @patch('reversion.models.logger.warning')
+    def test_restoring_deleted_device(self, *args):
         org = self._get_org()
         self._create_credentials(auto_add=True, organization=org)
         device = self._create_config(organization=org).device

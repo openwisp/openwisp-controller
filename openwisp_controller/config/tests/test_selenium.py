@@ -1,4 +1,5 @@
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.test import tag
 from django.urls.base import reverse
 from selenium.common.exceptions import (
     StaleElementReferenceException,
@@ -16,6 +17,7 @@ from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 from .utils import CreateConfigTemplateMixin
 
 
+@tag('selenium_tests')
 class TestDeviceAdmin(
     TestOrganizationMixin,
     CreateConfigTemplateMixin,

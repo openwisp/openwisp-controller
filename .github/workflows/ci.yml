@@ -22,7 +22,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: mdillon/postgis:11-alpine
+        image: postgis/postgis:13-3.3-alpine
         env:
           POSTGRES_PASSWORD: openwisp2
           POSTGRES_USER: openwisp2
@@ -80,7 +80,7 @@ jobs:
     - name: Tests
       run: |
         coverage run runtests.py --parallel
-        POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
+        POSTGRESQL=1 coverage run runtests.py --parallel
         coverage combine
         # SAMPLE tests
         SAMPLE_APP=1 ./runtests.py --keepdb
