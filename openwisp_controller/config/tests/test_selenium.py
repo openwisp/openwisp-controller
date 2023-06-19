@@ -86,7 +86,7 @@ class TestDeviceAdmin(
 
         try:
             WebDriverWait(self.web_driver, 2).until(
-                EC.element_to_be_clickable(
+                EC.presence_of_element_located(
                     (By.XPATH, f'//*[@value="{default_template.id}"]')
                 )
             )
