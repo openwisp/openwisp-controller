@@ -72,7 +72,6 @@ jobs:
     - name: Install openwisp-controller
       run: |
         pip install -U -e .
-        pip install --no-deps --no-cache-dir --force-reinstall "openwisp-utils @ https://github.com/openwisp/openwisp-utils/tarball/fix-selenium-tests"
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
