@@ -11,6 +11,7 @@ from swapper import load_model
 
 from openwisp_utils.tests import capture_any_output, catch_signal
 
+from ...tests.utils import TransactionTestMixin
 from .. import settings as app_settings
 from ..apps import _TASK_NAME
 from ..commands import (
@@ -835,7 +836,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn(command.connection, [dc1, dc2])
 
 
-class TestModelsTransaction(BaseTestModels, TransactionTestCase):
+class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTestCase):
     def _prepare_conf_object(self, organization=None):
         if not organization:
             organization = self._create_org(name='org1')

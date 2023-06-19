@@ -21,7 +21,7 @@ services:
     entrypoint: redis-server --appendonly yes
 
   postgres:
-    image: mdillon/postgis:11-alpine
+    image: postgis/postgis:13-3.3-alpine
     environment:
       POSTGRES_PASSWORD: openwisp2
       POSTGRES_USER: openwisp2

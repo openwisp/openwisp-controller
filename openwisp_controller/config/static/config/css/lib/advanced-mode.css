@@ -857,6 +857,9 @@ table.jsoneditor-search button.jsoneditor-previous:hover {
 #main .property-selector .form-row {
   padding: 5px 0 6px 10px !important;
 }
+#main .property-selector {
+  text-align: left;
+}
 @media (max-width: 768px){
   .jsoneditor-menu #netjsonconfig-hint-advancedmode{
     display: none;
