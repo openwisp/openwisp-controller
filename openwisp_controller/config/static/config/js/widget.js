@@ -543,6 +543,7 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
     },
     getCheckbox: function () {
         var el = this.getFormInputField('checkbox');
+        el.className = null;
         el.style.display = 'inline-block';
         el.style.width = 'auto';
         return el;

@@ -58,7 +58,7 @@ class SubnetAdmin(BaseSubnetAdmin):
         VpnFilter,
         DeviceFilter,
     ]
-    inlines = [SubnetDivisionRuleInlineAdmin] + BaseSubnetAdmin.inlines
+    inlines = [SubnetDivisionRuleInlineAdmin] + list(BaseSubnetAdmin.inlines)
     list_display = BaseSubnetAdmin.list_display
     list_display.insert(list_display.index('created'), 'related_device')
 

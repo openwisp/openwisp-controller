@@ -114,3 +114,6 @@ class GeoConfig(LociConfig):
                 'icon': 'ow-geo',
             },
         )
+
+
+del LociConfig

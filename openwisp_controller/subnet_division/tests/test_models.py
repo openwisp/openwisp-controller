@@ -330,7 +330,7 @@ class TestSubnetDivisionRule(
 
         self.assertEqual(subnet_query.count(), 0)
         self.assertEqual(ip_query.count(), 0)
-        self.assertEqual(index_query.count(), 0)
+        self.assertEqual(SubnetDivisionIndex.objects.count(), 0)
 
     def test_vpnclient_deleted(self):
         rule = self._get_vpn_subdivision_rule()

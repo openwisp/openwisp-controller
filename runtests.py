@@ -24,6 +24,9 @@ if __name__ == '__main__':
 
     if os.environ.get('POSTGRESQL', False):
         args.extend(['--tag', 'db_tests'])
+        args.extend(['--tag', 'selenium_tests'])
+    else:
+        args.extend(['--exclude-tag', 'selenium_tests'])
 
     execute_from_command_line(args)
 
