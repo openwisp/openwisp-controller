@@ -102,6 +102,11 @@ class ConfigConfig(AppConfig):
             sender=self.vpn_model,
             dispatch_uid='vpn.update_vpn_server_configuration',
         )
+        post_delete.connect(
+            self.vpn_model.post_delete,
+            sender=self.vpn_model,
+            dispatch_uid='vpn.post_delete',
+        )
         post_save.connect(
             self.config_model.certificate_updated,
             sender=self.cert_model,
