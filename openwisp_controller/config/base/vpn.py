@@ -18,6 +18,7 @@ from openwisp_utils.base import KeyField
 from ...base import ShareableOrgMixinUniqueName
 from .. import crypto
 from .. import settings as app_settings
+from ..api.zerotier_service import ZerotierService
 from ..signals import vpn_peers_changed, vpn_server_modified
 from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
 from .base import BaseConfig
@@ -90,7 +91,10 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     )
     auth_token = models.CharField(
         verbose_name=_('Webhook AuthToken'),
-        help_text=_('Authentication token for triggering "Webhook Endpoint"'),
+        help_text=_(
+            'Authentication token used for triggering "Webhook Endpoint" '
+            'or for calling "ZerotierService" API'
+        ),
         max_length=128,
         blank=True,
         null=True,
@@ -195,6 +199,33 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if not created:
             self._check_changes()
         create_dh = False
+        if self._is_backend_type('zerotier'):
+            if not self.auth_token:
+                raise ValidationError(
+                    {'auth_token': _('Zerotier auth token is required')}
+                )
+
+            # The network name is similar
+            # to the VPN backend's name field
+            zerotier_config = self.config.get('zerotier')[0]
+            zerotier_config['name'] = self.name
+
+            if zerotier_config and not zerotier_config.get('id'):
+                response = ZerotierService(self.host, self.auth_token).create_network(
+                    self.config.get('zerotier')[0]
+                )
+                # Append newly created zerotier
+                # controller network configuration
+                self.config = {**self.config, 'zerotier': [response]}
+
+            # When zerotier network already exists
+            if zerotier_config and zerotier_config.get('id'):
+                response = ZerotierService(self.host, self.auth_token).update_network(
+                    self.config.get('zerotier')[0]
+                )
+                # update the existing network configuration
+                self.config = {**self.config, 'zerotier': [response]}
+
         if not self.cert and self.ca:
             self.cert = self._auto_create_cert()
         if self._is_backend_type('openvpn') and not self.dh:
@@ -244,6 +275,17 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         return subprocess.check_output(  # pragma: nocover
             'openssl dhparam {0} 2> /dev/null'.format(length), shell=True
         ).decode('utf-8')
+
+    @classmethod
+    def post_delete(cls, instance, **kwargs):
+        """
+        class method for ``post_delete`` signal
+        for managing automatic deletion of vpn servers
+        """
+        if not instance._is_backend_type('zerotier'):
+            return
+        network_id = instance.config.get('zerotier')[0].get('id')
+        ZerotierService(instance.host, instance.auth_token).delete_network(network_id)
 
     def update_vpn_server_configuration(instance, **kwargs):
         if not instance._is_backend_type('wireguard'):
@@ -444,6 +486,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 auto = getattr(template_backend_class, vpn_auto_client)(
                     host=vpn_host,
                     server=self.config['wireguard'][0],
+                    **context_keys,
+                )
+            # If the backend is 'zerotier' then
+            # call auto_client and update the config
+            elif self._is_backend_type('zerotier') and template_backend_class:
+                auto = backend.auto_client(
+                    host=self.host,
+                    server=self.config[config_dict_key][0],
                     **context_keys,
                 )
             else:

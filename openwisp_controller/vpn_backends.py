@@ -3,6 +3,7 @@ from copy import deepcopy
 from netjsonconfig import OpenVpn as BaseOpenVpn
 from netjsonconfig import VxlanWireguard as BaseVxlanWireguard
 from netjsonconfig import Wireguard as BaseWireguard
+from netjsonconfig import ZeroTier as BaseZeroTier
 
 # adapt OpenVPN schema in order to limit it to 1 item only
 limited_schema = deepcopy(BaseOpenVpn.schema)
@@ -69,3 +70,16 @@ class VxlanWireguard(BaseVxlanWireguard):
     """
 
     schema = limited_wireguard_schema
+
+
+limited_zerotier_schema = deepcopy(BaseZeroTier.schema)
+zerotier_properties = limited_zerotier_schema['properties']['zerotier']
+zerotier_properties.update({'additionalItems': False, 'maxItems': 1, 'minItems': 1})
+
+
+class ZeroTier(BaseZeroTier):
+    """
+    ZeroTier
+    """
+
+    schema = limited_zerotier_schema
