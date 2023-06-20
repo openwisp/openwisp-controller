@@ -280,6 +280,7 @@ class Migration(migrations.Migration):
                                 'openwisp_controller.vpn_backends.VxlanWireguard',
                                 'VXLAN over WireGuard',
                             ),
+                            ('openwisp_controller.vpn_backends.ZeroTier', 'ZeroTier'),
                         ],
                         help_text='Select VPN configuration backend',
                         max_length=128,
@@ -354,7 +355,8 @@ class Migration(migrations.Migration):
                     models.CharField(
                         blank=True,
                         help_text=(
-                            'Authentication token for triggering "Webhook Endpoint"'
+                            'Authentication token used for triggering '
+                            '"Webhook Endpoint" or for calling "ZerotierService" API'
                         ),
                         max_length=128,
                         null=True,
