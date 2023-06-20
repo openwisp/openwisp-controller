@@ -19,6 +19,7 @@ from .utils import CreateCommandMixin, CreateConnectionsMixin
 Command = load_model('connection', 'Command')
 command_qs = Command.objects.order_by('-created')
 OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
+Group = load_model('openwisp_users', 'Group')
 
 
 class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
@@ -41,11 +42,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         return f'{path}?{query_string}'
 
     def _get_device_not_found_error(self, device_id):
-        return {
-            'detail': ErrorDetail(
-                f'Device with ID "{device_id}" not found.', code='not_found'
-            )
-        }
+        return {'detail': ErrorDetail('Not found.', code='not_found')}
 
     @patch.object(ListViewPagination, 'page_size', 3)
     def test_command_list_api(self):
@@ -249,8 +246,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
                 'input': {'command': 'echo test'},
             }
             response = self.client.post(
-                url,
-                data=payload,
+                url, data=payload, content_type='application/json'
             )
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
@@ -268,23 +264,30 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         command = self._create_command(device_conn=self.device_conn)
         device = command.device
 
-        with self.subTest('Test non organization member'):
-            operator = self._create_operator()
-            self.client.force_login(operator)
-            self.assertNotIn(device.organization, operator.organizations_managed)
-
+        with self.subTest('Test with unauthenticated user'):
+            self.client.logout()
             response = self.client.get(list_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data['count'], 0)
+            self.assertEqual(response.status_code, 401)
 
         with self.subTest('Test with organization member'):
             org_user = self._create_org_user(is_admin=True)
+            org_user.user.groups.add(Group.objects.get(name='Operator'))
             self.client.force_login(org_user.user)
             self.assertEqual(device.organization, org_user.organization)
 
             response = self.client.get(list_url)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['count'], 1)
+
+        with self.subTest('Test with org member of different org'):
+            org2 = self._create_org(name='org2', slug='org2')
+            org2_user = self._create_user(username='org2user', email='user@org2.com')
+            self._create_org_user(organization=org2, user=org2_user, is_admin=True)
+            self.client.force_login(org2_user)
+            org2_user.groups.add(Group.objects.get(name='Operator'))
+
+            response = self.client.get(list_url)
+            self.assertEqual(response.status_code, 404)
 
     def test_non_existent_command(self):
         url = self._get_path('device_command_list', self.device_id)
