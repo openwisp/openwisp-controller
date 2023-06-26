@@ -375,6 +375,7 @@ class Migration(migrations.Migration):
                         verbose_name='Webhook Endpoint',
                     ),
                 ),
+                ('network_id', models.CharField(blank=True, max_length=16)),
             ],
             options={
                 'verbose_name': 'VPN server',

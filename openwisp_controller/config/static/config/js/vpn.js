@@ -50,11 +50,6 @@ django.jQuery(function ($) {
         // For Zerotier VPN backend
         if(backendValue.includes('zerotier')){
             $('label[for="id_auth_token"]').parent().parent().show();
-            $('label[for="id_subnet"]').parent().parent().hide();
-            $('label[for="id_ip"]').parent().parent().hide();
-        } else {
-            $('label[for="id_subnet"]').parent().parent().show();
-            $('label[for="id_ip"]').parent().parent().show();
         }
     };
 
