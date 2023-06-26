@@ -3,6 +3,7 @@ import ipaddress
 import json
 import logging
 import subprocess
+from copy import deepcopy
 
 import shortuuid
 from cache_memoize import cache_memoize
@@ -20,7 +21,12 @@ from .. import crypto
 from .. import settings as app_settings
 from ..api.zerotier_service import ZerotierService
 from ..signals import vpn_peers_changed, vpn_server_modified
-from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
+from ..tasks import (
+    create_vpn_dh,
+    trigger_vpn_server_endpoint,
+    trigger_zerotier_server_delete,
+    trigger_zerotier_server_update,
+)
 from .base import BaseConfig
 
 logger = logging.getLogger(__name__)
@@ -118,6 +124,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     # needed for wireguard
     public_key = models.CharField(blank=True, max_length=44)
     private_key = models.CharField(blank=True, max_length=44)
+    # needed for zerotier
+    network_id = models.CharField(blank=True, max_length=16)
 
     __vpn__ = True
 
@@ -144,6 +152,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         self._validate_org_relation('cert')
         self._validate_org_relation('subnet')
         self._validate_subnet_ip()
+        self._validate_authtoken()
 
     def _validate_backend(self):
         if self._state.adding:
@@ -181,7 +190,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             self.private_key = ''
 
     def _validate_subnet_ip(self):
-        if self._is_backend_type('wireguard'):
+        if self._is_backend_type('wireguard') or self._is_backend_type('zerotier'):
             if not self.subnet:
                 raise ValidationError(
                     {'subnet': _('Subnet is required for this VPN backend.')}
@@ -191,6 +200,11 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     {'ip': _('VPN IP address must be within the VPN subnet')}
                 )
 
+    def _validate_authtoken(self):
+        if self._is_backend_type('zerotier'):
+            if not self.auth_token:
+                raise ValidationError({'auth_token': _('Auth token is required')})
+
     def save(self, *args, **kwargs):
         """
         Calls _auto_create_cert() if cert is not set
@@ -199,33 +213,6 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if not created:
             self._check_changes()
         create_dh = False
-        if self._is_backend_type('zerotier'):
-            if not self.auth_token:
-                raise ValidationError(
-                    {'auth_token': _('Zerotier auth token is required')}
-                )
-
-            # The network name is similar
-            # to the VPN backend's name field
-            zerotier_config = self.config.get('zerotier')[0]
-            zerotier_config['name'] = self.name
-
-            if zerotier_config and not zerotier_config.get('id'):
-                response = ZerotierService(self.host, self.auth_token).create_network(
-                    self.config.get('zerotier')[0]
-                )
-                # Append newly created zerotier
-                # controller network configuration
-                self.config = {**self.config, 'zerotier': [response]}
-
-            # When zerotier network already exists
-            if zerotier_config and zerotier_config.get('id'):
-                response = ZerotierService(self.host, self.auth_token).update_network(
-                    self.config.get('zerotier')[0]
-                )
-                # update the existing network configuration
-                self.config = {**self.config, 'zerotier': [response]}
-
         if not self.cert and self.ca:
             self.cert = self._auto_create_cert()
         if self._is_backend_type('openvpn') and not self.dh:
@@ -235,6 +222,13 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             self._generate_wireguard_keys()
         if self.subnet and not self.ip:
             self.ip = self._auto_create_ip()
+        if self._is_backend_type('zerotier'):
+            config = deepcopy(self.config['zerotier'][0])
+            config['name'] = self.name
+            if created:
+                self._create_zerotier_server(config)
+            else:
+                self._update_zerotier_server(config)
         super().save(*args, **kwargs)
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
@@ -256,6 +250,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             'dh',
             'public_key',
             'private_key',
+            'network_id',
         ]
         current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
         for attr in attrs:
@@ -284,25 +279,53 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         if not instance._is_backend_type('zerotier'):
             return
-        network_id = instance.config.get('zerotier')[0].get('id')
-        ZerotierService(instance.host, instance.auth_token).delete_network(network_id)
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_delete.delay(
+                host=instance.host,
+                auth_token=instance.auth_token,
+                network_id=instance.network_id,
+                vpn_id=instance.pk,
+            )
+        )
+
+    def _create_zerotier_server(self, config):
+        server_config = ZerotierService(
+            self.host, self.auth_token, self.subnet, self.ip
+        ).create_network(config)
+        self.network_id = server_config.pop('id', None)
+        self.config = {**self.config, 'zerotier': [server_config]}
+
+    def _update_zerotier_server(self, config):
+        config = config or {}
+        if config and self._is_backend_type('zerotier'):
+            if self.host and self.auth_token:
+                transaction.on_commit(
+                    lambda: trigger_zerotier_server_update.delay(
+                        config=config,
+                        vpn_id=self.pk,
+                    )
+                )
+            else:
+                logger.info(
+                    f'Cannot update configuration of {self.name}'
+                    'Zerotier VPN server, host and authentication token are empty.'
+                )
 
     def update_vpn_server_configuration(instance, **kwargs):
-        if not instance._is_backend_type('wireguard'):
-            return
-        if instance.webhook_endpoint and instance.auth_token:
-            transaction.on_commit(
-                lambda: trigger_vpn_server_endpoint.delay(
-                    endpoint=instance.webhook_endpoint,
-                    auth_token=instance.auth_token,
-                    vpn_id=instance.pk,
+        if instance._is_backend_type('wireguard'):
+            if instance.webhook_endpoint and instance.auth_token:
+                transaction.on_commit(
+                    lambda: trigger_vpn_server_endpoint.delay(
+                        endpoint=instance.webhook_endpoint,
+                        auth_token=instance.auth_token,
+                        vpn_id=instance.pk,
+                    )
                 )
-            )
-        else:
-            logger.info(
-                f'Cannot update configuration of {instance.name} VPN server, '
-                'webhook endpoint and authentication token are empty.'
-            )
+            else:
+                logger.info(
+                    f'Cannot update configuration of {instance.name} VPN server, '
+                    'webhook endpoint and authentication token are empty.'
+                )
 
     def _auto_create_cert(self):
         """
@@ -360,6 +383,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             c['subnet_prefixlen'] = str(self.subnet.subnet.prefixlen)
         if self.ip:
             c['ip_address'] = self.ip.ip_address
+        if self.network_id:
+            c['network_id'] = self.network_id
         c.update(sorted(super().get_context().items()))
         return c
 
@@ -391,6 +416,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 context_keys['server_ip_network']
             ] = f'{self.ip.ip_address}/{self.subnet.subnet.max_prefixlen}'
             context[context_keys['vpn_subnet']] = str(self.subnet.subnet)
+        if self._is_backend_type('zerotier') and self.network_id:
+            context[context_keys['network_name']] = self.name
+            context[context_keys['network_id']] = self.network_id
         return context
 
     def get_system_context(self):
@@ -422,6 +450,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             * ip address
         VXLAN:
             * vni (VXLAN Network Identifier)
+        ZeroTier
+            * network_id (ZeroTier Network Identifier)
         """
         pk = self.pk.hex
         context_keys = {
@@ -457,6 +487,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     'server_ip_network': 'server_ip_network_{}'.format(pk),
                 }
             )
+        if self._is_backend_type('zerotier'):
+            context_keys.update({'network_id': 'network_id_{}'.format(pk)})
+            context_keys.update({'network_name': 'network_name_{}'.format(pk)})
         return context_keys
 
     def auto_client(self, auto_cert=True, template_backend_class=None):
@@ -492,7 +525,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # call auto_client and update the config
             elif self._is_backend_type('zerotier') and template_backend_class:
                 auto = backend.auto_client(
-                    host=self.host,
+                    name=self.name,
+                    nwid=self.network_id,
                     server=self.config[config_dict_key][0],
                     **context_keys,
                 )

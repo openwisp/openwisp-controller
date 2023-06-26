@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from swapper import load_model
 
+from openwisp_controller.config.api.zerotier_service import ZerotierService
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,41 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     else:
         logger.error(
             'Failed to update VPN Server configuration. '
+            f'Response status code: {response.status_code}, '
+            f'VPN Server UUID: {vpn_id}',
+        )
+
+
+@shared_task(base=OpenwispCeleryTask)
+def trigger_zerotier_server_update(config, vpn_id):
+    Vpn = load_model('config', 'Vpn')
+    vpn = Vpn.objects.get(pk=vpn_id)
+    response, updated_config = ZerotierService(
+        vpn.host, vpn.auth_token, vpn.subnet, vpn.ip
+    ).update_network(config, vpn.network_id)
+    if response.status_code == 200:
+        vpn.network_id = updated_config.pop('id', None)
+        vpn.config = {**vpn.config, 'zerotier': [updated_config]}
+        logger.info(
+            f'Successfully updated the configuration of '
+            f'ZeroTier VPN Server with UUID: {vpn_id}'
+        )
+    else:
+        logger.error(
+            'Failed to update ZeroTier VPN Server configuration. '
+            f'Response status code: {response.status_code}, '
+            f'VPN Server UUID: {vpn_id}',
+        )
+
+
+@shared_task(base=OpenwispCeleryTask)
+def trigger_zerotier_server_delete(host, auth_token, network_id, vpn_id):
+    response = ZerotierService(host, auth_token).delete_network(network_id)
+    if response.status_code in (200, 404):
+        logger.info(f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}')
+    else:
+        logger.error(
+            'Failed to delete ZeroTier VPN Server. '
             f'Response status code: {response.status_code}, '
             f'VPN Server UUID: {vpn_id}',
         )
