@@ -26,10 +26,7 @@ from import_export.admin import ImportExportMixin
 from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
-from openwisp_controller.config.views import (
-    get_relevant_templates,
-    get_template_default_values,
-)
+from openwisp_controller.config.views import get_default_values, get_relevant_templates
 from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
@@ -677,9 +674,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 name='get_relevant_templates',
             ),
             path(
-                'get-template-default-values/',
-                self.admin_site.admin_view(get_template_default_values),
-                name='get_template_default_values',
+                'get-default-values/',
+                self.admin_site.admin_view(get_default_values),
+                name='get_default_values',
             ),
         ] + super().get_urls()
         for inline in self.inlines + self.conditional_inlines:
@@ -1002,14 +999,7 @@ class DeviceGroupForm(BaseForm):
 
     class Meta(BaseForm.Meta):
         model = DeviceGroup
-        widgets = {'meta_data': DeviceGroupJsonSchemaWidget}
-        labels = {'meta_data': _('Metadata')}
-        help_texts = {
-            'meta_data': _(
-                'Group meta data, use this field to store data which is related'
-                'to this group and can be retrieved via the REST API.'
-            )
-        }
+        widgets = {'meta_data': DeviceGroupJsonSchemaWidget, 'context': FlatJsonWidget}
 
 
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
@@ -1026,11 +1016,12 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'organization',
         'description',
         'templates',
+        'context',
         'meta_data',
         'created',
         'modified',
     ]
-    search_fields = ['name', 'description', 'meta_data']
+    search_fields = ['name', 'description', 'meta_data', 'context']
     list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
     multitenant_shared_relations = ('templates',)
 

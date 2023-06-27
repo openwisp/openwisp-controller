@@ -1,4 +1,5 @@
 import collections
+from copy import deepcopy
 
 import jsonschema
 from django.core.exceptions import ValidationError
@@ -39,6 +40,22 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         default=dict,
         load_kwargs={'object_pairs_hook': collections.OrderedDict},
         dump_kwargs={'indent': 4},
+        help_text=_(
+            'Group meta data, use this field to store data which is related'
+            ' to this group and can be retrieved via the REST API.'
+        ),
+        verbose_name=_('Metadata'),
+    )
+    context = JSONField(
+        blank=True,
+        default=dict,
+        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+        dump_kwargs={'indent': 4},
+        help_text=_(
+            'This field can be used to add meta data for the group'
+            ' or to add "Configuration Variables" to the devices.'
+        ),
+        verbose_name=_('Configuration Variables'),
     )
 
     def __str__(self):
@@ -57,6 +74,9 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
             )
         except SchemaError as e:
             raise ValidationError({'input': e.message})
+
+    def get_context(self):
+        return deepcopy(self.context)
 
     @classmethod
     def templates_changed(cls, instance, old_templates, templates, *args, **kwargs):

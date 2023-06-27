@@ -15,6 +15,7 @@ from .utils import get_object_or_404
 
 Organization = load_model('openwisp_users', 'Organization')
 Template = load_model('config', 'Template')
+DeviceGroup = load_model('config', 'DeviceGroup')
 
 
 def get_relevant_templates(request, organization_id):
@@ -92,36 +93,73 @@ def schema(request):
     return HttpResponse(c, status=status, content_type='application/json')
 
 
-def get_template_default_values(request):
+def get_default_values(request):
     """
-    returns default_values for one or more templates
+    The view returns default values from the templates
+    and group specified in the URL's query parameters.
+
+    URL query parameters:
+        pks (required): Comma separated primary keys of Template
+        group (optional): Primary key of the DeviceGroup
+
+    The conflicting keys between the templates' default_values
+    and DeviceGroup's context are overridden by the value present
+    in DeviceGroup's context, i.e. DeviceGroup takes precedence.
+
+    NOTE: Not all key-value pair of DeviceGroup.context are added
+    in the response. Only the conflicting keys are altered.
     """
-    user = request.user
-    pk_list = []
-    for pk in request.GET.get('pks', '').split(','):
-        try:
+
+    def _clean_pk(pks):
+        pk_list = []
+        for pk in pks:
             UUID(pk, version=4)
-        except ValueError:
-            return JsonResponse(
-                {'error': 'invalid template pks were received'}, status=400
-            )
-        else:
             pk_list.append(pk)
-    where = Q(pk__in=pk_list)
+        return pk_list
+
+    user = request.user
+    try:
+        templates_pk_list = _clean_pk(request.GET.get('pks', '').split(','))
+    except ValueError:
+        return JsonResponse({'error': 'invalid template pks were received'}, status=400)
+    group_pk = request.GET.get('group', None)
+    if group_pk:
+        try:
+            group_pk = _clean_pk([group_pk])[0]
+        except ValueError:
+            return JsonResponse({'error': 'invalid group pk were received'}, status=400)
+        else:
+            group_where = Q(pk=group_pk)
+            if not request.user.is_superuser:
+                group_where &= Q(organization__in=user.organizations_managed)
+
+    templates_where = Q(pk__in=templates_pk_list)
     if not user.is_superuser:
-        where = where & (
+        templates_where = templates_where & (
             Q(organization=None) | Q(organization__in=user.organizations_managed)
         )
-    qs = Template.objects.filter(where).values('id', 'default_values')
-    qs_dict = {}
-    # Create a mapping of UUID to default values of the templates in qs_dict.
-    # Iterate over received pk_list and retrieve default_values for corresponding
-    # template from qs_dict.
+    templates_qs = Template.objects.filter(templates_where).values(
+        'id', 'default_values'
+    )
+    templates_qs_dict = {}
+    # Create a mapping of UUID to default values of the templates in templates_
+    # qs_dict. Iterate over received templates_pk_list and retrieve default_values for
+    # corresponding template from templates_qs_dict.
     # This ensures that default_values of templates that come later in the order
     # will override default_values of any previous template if same keys are present.
-    for template in qs:
-        qs_dict[str(template['id'])] = template['default_values']
+    for template in templates_qs:
+        templates_qs_dict[str(template['id'])] = template['default_values']
     default_values = {}
-    for pk in pk_list:
-        default_values.update(qs_dict[pk])
+    for pk in templates_pk_list:
+        default_values.update(templates_qs_dict.get(pk, {}))
+    # Check for conflicting key's in DeviceGroup.context
+    if group_pk:
+        try:
+            group = DeviceGroup.objects.only('context').get(group_where)
+        except DeviceGroup.DoesNotExist:
+            pass
+        else:
+            for key, value in group.get_context().items():
+                if key in default_values:
+                    default_values[key] = value
     return JsonResponse({'default_values': default_values})

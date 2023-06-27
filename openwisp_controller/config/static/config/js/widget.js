@@ -4,7 +4,7 @@
     django._jsonEditors = new Map();
     var inFullScreenMode = false,
         prevDefaultValues = {},
-        defaultValuesUrl = window.location.origin + '/admin/config/device/get-template-default-values/',
+        defaultValuesUrl = window.location.origin + '/admin/config/device/get-default-values/',
     removeDefaultValues = function(contextValue, defaultValues) {
         // remove default values when template is removed.
         Object.keys(prevDefaultValues).forEach(function (key) {
@@ -55,9 +55,14 @@
         }
     },
     getDefaultValues = function (isLoading=false) {
-        var pks = $('input[name="config-0-templates"]').attr('value');
-        if (pks) {
-            $.get(defaultValuesUrl, {pks: pks})
+        var templatePks = $('input[name="config-0-templates"]').attr('value'),
+            groupPk = $('#id_group').val();
+        if (templatePks) {
+            var payload = {pks: templatePks};
+            if (groupPk) {
+                payload.group = groupPk;
+            }
+            $.get(defaultValuesUrl, payload)
                 .done( function (data) {
                     updateContext(isLoading, data.default_values);
                 })
@@ -428,6 +433,9 @@
             });
         }
         $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
+        });
+        $('#id_group').on('change', function() {
             getDefaultValues();
         });
     });

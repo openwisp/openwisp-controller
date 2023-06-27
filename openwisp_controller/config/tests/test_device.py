@@ -310,10 +310,15 @@ class TestDevice(
         self.assertEqual(config.device.organization_id, org2.pk)
 
     def test_device_get_system_context(self):
-        d = self._create_device(organization=self._get_org())
+        org = self._get_org()
+        device_group = self._create_device_group(
+            organization=org, context={'SSID': 'OpenWISP'}
+        )
+        d = self._create_device(organization=org, group=device_group)
         self._create_config(context={'test': 'name'}, device=d)
         d.refresh_from_db()
         system_context = d.get_system_context()
+        self.assertEqual(system_context['SSID'], 'OpenWISP')
         self.assertNotIn('test', system_context.keys())
 
     def test_management_ip_changed_not_emitted_on_creation(self):

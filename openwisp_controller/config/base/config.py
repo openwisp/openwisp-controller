@@ -620,7 +620,11 @@ class AbstractConfig(BaseConfig):
         return c
 
     def get_system_context(self):
-        return self.get_context(system=True)
+        context = {}
+        context.update(self.get_context(system=True))
+        if hasattr(self, 'device') and self.device._get_group():
+            context.update(self.device._get_group().get_context())
+        return context
 
     def manage_group_templates(
         self, templates, old_templates, ignore_backend_filter=False
