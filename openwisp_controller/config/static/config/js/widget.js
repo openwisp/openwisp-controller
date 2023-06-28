@@ -32,7 +32,13 @@
                 systemContextValue = JSON.parse(systemContextField.text());
             // add default values to contextValue
             Object.keys(defaultValues).forEach(function (key) {
-                if (!contextValue.hasOwnProperty(key) && !systemContextValue.hasOwnProperty(key)) {
+                if (
+                    // Handles the case when different templates and group contains the keys.
+                    // If the contextValue was set by a template or group, then
+                    // override the value.
+                    (prevDefaultValues.hasOwnProperty(key) && prevDefaultValues[key] !== defaultValues[key])
+                    // Gives precedence to device's context (saved in database) and SystemContextValue
+                    || (!contextValue.hasOwnProperty(key) && !systemContextValue.hasOwnProperty(key))) {
                     contextValue[key] = defaultValues[key];
                 }
             });
@@ -433,6 +439,9 @@
             });
         }
         $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
+        });
+        $('.sortedm2m-items').on('sortstop', function() {
             getDefaultValues();
         });
         $('#id_group').on('change', function() {

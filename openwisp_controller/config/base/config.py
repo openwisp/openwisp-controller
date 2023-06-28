@@ -600,6 +600,13 @@ class AbstractConfig(BaseConfig):
         """
         c = collections.OrderedDict()
         extra = {}
+        if hasattr(self, 'device') and self.device._get_group():
+            extra.update(self.device._get_group().get_context())
+        extra.update(self.get_vpn_context())
+        for func in self._config_context_functions:
+            extra.update(func(config=self))
+        if app_settings.HARDWARE_ID_ENABLED and self._has_device():
+            extra.update({'hardware_id': str(self.device.hardware_id)})
         if self._has_device():
             c.update(
                 [
@@ -611,13 +618,6 @@ class AbstractConfig(BaseConfig):
             )
             if self.context and not system:
                 extra.update(self.context)
-        if hasattr(self, 'device') and self.device._get_group():
-            extra.update(self.device._get_group().get_context())
-        extra.update(self.get_vpn_context())
-        for func in self._config_context_functions:
-            extra.update(func(config=self))
-        if app_settings.HARDWARE_ID_ENABLED and self._has_device():
-            extra.update({'hardware_id': str(self.device.hardware_id)})
         c.update(sorted(extra.items()))
         return c
 
