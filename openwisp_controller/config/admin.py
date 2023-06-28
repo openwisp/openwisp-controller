@@ -662,6 +662,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         c.device.name = request.POST.get('name')
         c.device.mac_address = request.POST.get('mac_address')
         c.device.key = request.POST.get('key')
+        c.device.group_id = request.POST.get('group') or None
         if 'hardware_id' in request.POST:
             c.device.hardware_id = request.POST.get('hardware_id')
         return c

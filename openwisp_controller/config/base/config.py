@@ -611,6 +611,8 @@ class AbstractConfig(BaseConfig):
             )
             if self.context and not system:
                 extra.update(self.context)
+        if hasattr(self, 'device') and self.device._get_group():
+            extra.update(self.device._get_group().get_context())
         extra.update(self.get_vpn_context())
         for func in self._config_context_functions:
             extra.update(func(config=self))
@@ -620,11 +622,7 @@ class AbstractConfig(BaseConfig):
         return c
 
     def get_system_context(self):
-        context = {}
-        context.update(self.get_context(system=True))
-        if hasattr(self, 'device') and self.device._get_group():
-            context.update(self.device._get_group().get_context())
-        return context
+        return self.get_context(system=True)
 
     def manage_group_templates(
         self, templates, old_templates, ignore_backend_filter=False
