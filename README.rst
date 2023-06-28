@@ -591,6 +591,9 @@ in read-only mode.
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/system-defined-variables.png
    :alt: system defined variables
 
+**Note:** `Group configuration variables <#group-configuration-variables>`
+are also added to the **System Defined Variables** of the device.
+
 Example usage of variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -941,6 +944,7 @@ for the devices of an organization:
   information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
   setting.
 - Define `group configuration templates <#group-templates>`_.
+- Define `group configuration variables <#group-configuration-variables>`_.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
   :alt: Device Group example
@@ -979,6 +983,15 @@ important points:
 contain templates flagged as "default" or "required" to avoid redundancy
 because those templates are automatically assigned by the system
 to new devices.
+
+This feature works also when editing group templates or the group assigned
+to a device via the `REST API <#change-device-group-detail>`__.
+
+Group Configuration Variables
+#############################
+
+Groups allow to define configuration variables which are automatically
+added to the device's context in the **System Defined Variables**.
 
 This feature works also when editing group templates or the group assigned
 to a device via the `REST API <#change-device-group-detail>`__.
