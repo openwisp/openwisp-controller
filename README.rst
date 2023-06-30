@@ -531,7 +531,14 @@ with templates, this feature is also known as *configuration context*, think of
 it like a dictionary which is passed to the function which renders the
 configuration, so that it can fill variables according to the passed context.
 
-The different ways in which variables are defined are described below.
+The different ways in which variables are defined are described below in
+the order (high to low) of their precedence:
+
+1. `User defined device variables <#user-defined-device-variables>`_
+2. `Predefined device variables <#predefined-device-variables>`_
+3. `Global variables <#global-variables>`_
+4. `Group variables <#group-variables>`_
+5. `Template default values <#template-default-values>`_
 
 Predefined device variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -574,6 +581,14 @@ The default values of variables can be manipulated from the section
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/template-default-values.png
   :alt: default values
 
+Group variables
+~~~~~~~~~~~~~~~
+
+Variables can also be defined in `Device groups <#device-groups>`__.
+
+Refer the `Group configuration variables <group-configuration-variables>`_
+section for detailed information.
+
 Global variables
 ~~~~~~~~~~~~~~~~
 
@@ -591,7 +606,7 @@ in read-only mode.
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/system-defined-variables.png
    :alt: system defined variables
 
-**Note:** `Group configuration variables <#group-configuration-variables>`
+**Note:** `Group configuration variables <#group-configuration-variables>`__
 are also added to the **System Defined Variables** of the device.
 
 Example usage of variables
@@ -938,13 +953,9 @@ Device Groups provide features aimed at adding specific management rules
 for the devices of an organization:
 
 - Group similar devices by having dedicated groups for access points, routers, etc.
-- Store additional information regarding a group in the structured metadata field
-  (which can be accessed via the REST API).
-- Customize structure and validation of metadata field of DeviceGroup to standardize
-  information across all groups using `"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
-  setting.
+- Define `group metadata <#group-metadata>`_.
 - Define `group configuration templates <#group-templates>`_.
-- Define `group configuration variables <#group-configuration-variables>`_.
+- Define `group configuration variables <#group-configuration-variables>`__.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
   :alt: Device Group example
@@ -992,9 +1003,27 @@ Group Configuration Variables
 
 Groups allow to define configuration variables which are automatically
 added to the device's context in the **System Defined Variables**.
+Check the `"How to use configuration variables" section <#how-to-use-configuration-variables>`_
+to learn about precedence of different configuration variables.
 
 This feature works also when editing group templates or the group assigned
 to a device via the `REST API <#change-device-group-detail>`__.
+
+Group Metadata
+##############
+
+Groups allow to store additional information regarding a group in the
+structured metadata field (which can be accessed via the REST API).
+
+The metadata field allows custom structure and validation to standardize
+information across all groups using the
+`"OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA" <#openwisp-controller-device-group-schema>`_
+setting.
+
+**Note:** *Group configuration variables* and *Group metadata* serves different purposes.
+The group configuration variables should be used when the device configuration is required
+to be changed for particular group of devices. Group metadata should be used to store
+additional data for the devices. Group metadata is not used for configuration generation.
 
 Export/Import Device data
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3076,7 +3105,7 @@ while all the other organizations will have all command types enabled.
 | **default**: | ``{'type': 'object', 'properties': {}}`` |
 +--------------+------------------------------------------+
 
-Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`_.
+Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`__.
 
 ``OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
