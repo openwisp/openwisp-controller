@@ -61,12 +61,12 @@ class ZerotierService:
         config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
 
-    def create_network(self, config):
-        # Call /status first to obtain
-        # the `node_id` of the controller
+    def get_node_status(self):
         url = f'{self.url}/status'
         response = requests.get(url, headers=self.headers)
-        node_id = response.json()['address']
+        return response
+
+    def create_network(self, node_id, config):
         url = f"{self.url}{self._get_endpoint('network', 'create', node_id)}"
         config = self._add_routes_and_ip_assignment(config)
         response = requests.post(url, json=config, headers=self.headers, timeout=5)
