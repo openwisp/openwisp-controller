@@ -375,6 +375,7 @@ class Migration(migrations.Migration):
                         verbose_name='Webhook Endpoint',
                     ),
                 ),
+                ('node_id', models.CharField(blank=True, max_length=10)),
                 ('network_id', models.CharField(blank=True, max_length=16)),
             ],
             options={
