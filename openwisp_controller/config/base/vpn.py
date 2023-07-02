@@ -12,6 +12,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from requests.exceptions import ConnectionError
 from swapper import get_model_name
 
 from openwisp_utils.base import KeyField
@@ -125,6 +126,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     public_key = models.CharField(blank=True, max_length=44)
     private_key = models.CharField(blank=True, max_length=44)
     # needed for zerotier
+    node_id = models.CharField(blank=True, max_length=10)
     network_id = models.CharField(blank=True, max_length=16)
 
     __vpn__ = True
@@ -152,7 +154,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         self._validate_org_relation('cert')
         self._validate_org_relation('subnet')
         self._validate_subnet_ip()
-        self._validate_authtoken()
+        self._validate_host()
 
     def _validate_backend(self):
         if self._state.adding:
@@ -200,15 +202,28 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     {'ip': _('VPN IP address must be within the VPN subnet')}
                 )
 
-    def _validate_authtoken(self):
-        if self._is_backend_type('zerotier'):
-            if not self.auth_token:
-                raise ValidationError({'auth_token': _('Auth token is required')})
+    def _validate_host(self):
+        if self.host and self.auth_token and self._is_backend_type('zerotier'):
+            try:
+                response = ZerotierService(self.host, self.auth_token).get_node_status()
+            except ConnectionError as err:
+                err_msg = f'Failed to connect to the ZeroTier controller, error: {err}'
+                raise ValidationError({'host': _(err_msg)})
+            if response.status_code != 200:
+                err_msg = (
+                    f'Failed to connect to the ZeroTier controller, '
+                    'please ensure you are using the correct hostname '
+                    f'(error: {response.reason}, status code: {response.status_code})'
+                )
+                raise ValidationError({'host': _(err_msg)})
+            else:
+                self.node_id = response.json()['address']
 
     def save(self, *args, **kwargs):
         """
         Calls _auto_create_cert() if cert is not set
         """
+        config = {}
         created = self._state.adding
         if not created:
             self._check_changes()
@@ -227,15 +242,13 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             config['name'] = self.name
             if created:
                 self._create_zerotier_server(config)
-            else:
-                self._update_zerotier_server(config)
         super().save(*args, **kwargs)
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
         if not created and self._send_vpn_modified_after_save:
             self._send_vpn_modified_signal()
             self._send_vpn_modified_after_save = False
-        self.update_vpn_server_configuration()
+        self.update_vpn_server_configuration(created=created, config=config)
 
     def _check_changes(self):
         attrs = [
@@ -291,27 +304,22 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     def _create_zerotier_server(self, config):
         server_config = ZerotierService(
             self.host, self.auth_token, self.subnet, self.ip
-        ).create_network(config)
+        ).create_network(self.node_id, config)
         self.network_id = server_config.pop('id', None)
         self.config = {**self.config, 'zerotier': [server_config]}
 
     def _update_zerotier_server(self, config):
         config = config or {}
-        if config and self._is_backend_type('zerotier'):
-            if self.host and self.auth_token:
-                transaction.on_commit(
-                    lambda: trigger_zerotier_server_update.delay(
-                        config=config,
-                        vpn_id=self.pk,
-                    )
-                )
-            else:
-                logger.info(
-                    f'Cannot update configuration of {self.name}'
-                    'Zerotier VPN server, host and authentication token are empty.'
-                )
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_update.delay(
+                config=config,
+                vpn_id=self.pk,
+            )
+        )
 
     def update_vpn_server_configuration(instance, **kwargs):
+        if not kwargs.get('created') and instance._is_backend_type('zerotier'):
+            instance._update_zerotier_server(kwargs.get('config'))
         if instance._is_backend_type('wireguard'):
             if instance.webhook_endpoint and instance.auth_token:
                 transaction.on_commit(
@@ -383,6 +391,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             c['subnet_prefixlen'] = str(self.subnet.subnet.prefixlen)
         if self.ip:
             c['ip_address'] = self.ip.ip_address
+        if self.node_id:
+            c['node_id'] = self.node_id
         if self.network_id:
             c['network_id'] = self.network_id
         c.update(sorted(super().get_context().items()))
@@ -418,6 +428,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             context[context_keys['vpn_subnet']] = str(self.subnet.subnet)
         if self._is_backend_type('zerotier') and self.network_id:
             context[context_keys['network_name']] = self.name
+            context[context_keys['node_id']] = self.node_id
             context[context_keys['network_id']] = self.network_id
         return context
 
@@ -488,6 +499,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 }
             )
         if self._is_backend_type('zerotier'):
+            context_keys.update({'node_id': 'node_id_{}'.format(pk)})
             context_keys.update({'network_id': 'network_id_{}'.format(pk)})
             context_keys.update({'network_name': 'network_name_{}'.format(pk)})
         return context_keys
