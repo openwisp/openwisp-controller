@@ -3,48 +3,38 @@ django.jQuery(function ($) {
   if ($(".add-form").length || !$("#device_form").length) {
     return;
   }
+  var editAltText = gettext("Edit"),
+    cancelAltText = gettext("Cancel");
 
   // replaces the management ip field with text with the option to edit it
-  var ip_input = $(".field-management_ip > div > input");
-  var initial_ip = ip_input.val();
-  var management_ip_alt = gettext("Edit");
-  ip_input.after(function () {
-    ip_input.hide();
+  var ipInput = $("#id_management_ip"),
+    initialIp = ipInput.val() === "" ? "-" : ipInput.val();
+  ipInput.after(function () {
+    ipInput.hide();
     return (
-      '<span class="readonly" id="management_ip_text">' +
-      (initial_ip === "" ? "-" : initial_ip) +
-      "</span>"
-    );
-  });
-  $("#management_ip_text").after(function () {
-    return (
-      `<a id="edit_management_ip"><img value="edit" src="${window.staticUrl}admin/img/icon-changelink.svg" alt="` +
-      management_ip_alt +
-      '" title="' +
-      management_ip_alt +
-      '"></a>'
+      `<span class="readonly" id="management_ip_text">${initialIp}</span>` +
+      `<a class="related-widget-wrapper-link change-related" id="edit_management_ip"><img value="edit" src="${window.staticUrl}admin/img/icon-changelink.svg"` +
+      ` alt="${editAltText}" title="${editAltText}"></a>`
     );
   });
   $("#edit_management_ip").click(function () {
-    var ip_text = $("#management_ip_text");
-    var img_element = $("#edit_management_ip > img");
-    if (img_element.attr("value") === "edit") {
-      ip_input.show();
-      ip_text.hide();
-      management_ip_alt = gettext("Cancel");
-      img_element.attr("src", `${window.staticUrl}admin/img/icon-deletelink.svg`);
-      img_element.attr("value", "cancel");
-      img_element.attr("alt", management_ip_alt);
-      img_element.attr("title", management_ip_alt);
+    var ipReadonly = $("#management_ip_text");
+    var imgEl = $("#edit_management_ip > img");
+    if (imgEl.attr("value") === "edit") {
+      ipInput.show();
+      ipReadonly.hide();
+      imgEl.attr("src", `${window.staticUrl}admin/img/icon-deletelink.svg`);
+      imgEl.attr("value", "cancel");
+      imgEl.attr("alt", cancelAltText);
+      imgEl.attr("title", cancelAltText);
     } else {
-      ip_text.show();
-      ip_input.hide();
-      ip_input.val(initial_ip);
-      management_ip_alt = gettext("Edit");
-      img_element.attr("src", `${window.staticUrl}admin/img/icon-changelink.svg`);
-      img_element.attr("value", "edit");
-      img_element.attr("alt", management_ip_alt);
-      img_element.attr("title", management_ip_alt);
+      ipReadonly.show();
+      ipInput.hide();
+      ipInput.val(initialIp);
+      imgEl.attr("src", `${window.staticUrl}admin/img/icon-changelink.svg`);
+      imgEl.attr("value", "edit");
+      imgEl.attr("alt", editAltText);
+      imgEl.attr("title", editAltText);
     }
   });
 });

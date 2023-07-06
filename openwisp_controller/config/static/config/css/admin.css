@@ -309,9 +309,14 @@ button.show-sc{
 #main .form-row.field-location .item-label {
   bottom: -7px
 }
+#main .field-management_ip .readonly {
+  padding: 7px 0px;
+  display: inline-block;
+}
 #edit_management_ip {
   margin-left: 7px;
   opacity: 0.8;
+  cursor: pointer;
 }
 .form-row.field-error_reason .readonly {
   font-family: monospace;
