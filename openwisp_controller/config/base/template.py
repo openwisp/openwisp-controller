@@ -112,13 +112,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         """
         update_related_config_status = False
         if not self._state.adding:
+            if hasattr(self, 'backend_instance'):
+                del self.backend_instance
             current = self.__class__.objects.get(pk=self.pk)
-            for attr in ['backend', 'config', 'default_values']:
-                new_value = _get_value_for_comparison(getattr(self, attr))
-                current_value = _get_value_for_comparison(getattr(current, attr))
-                if new_value != current_value:
-                    update_related_config_status = True
-                    break
+            update_related_config_status = self.checksum != current.checksum
         # save current changes
         super().save(*args, **kwargs)
         # update relations

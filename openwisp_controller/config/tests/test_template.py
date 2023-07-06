@@ -670,25 +670,49 @@ class TestTemplateTransaction(
     @mock.patch.object(update_template_related_config_status, 'delay')
     def test_task_called(self, mocked_task):
         with self.subTest('task not called when template is created'):
-            template = self._create_template()
+            template = self._create_template(default_values={'type': 'ethernet'})
             conf = self._create_config(device=self._create_device(name='test-status'))
             conf.set_status_applied()
             mocked_task.assert_not_called()
 
         with self.subTest('task is called when template conf is changed'):
             template.config['interfaces'][0]['name'] = 'eth1'
+            template.config['interfaces'][0]['type'] = '{{ type }}'
             template.full_clean()
             template.save()
             mocked_task.assert_called_with(template.pk)
 
         mocked_task.reset_mock()
 
-        with self.subTest('task is called when template default_values are changed'):
+        with self.subTest(
+            'task is called when template used default_values are changed'
+        ):
             template.refresh_from_db()
-            template.default_values = {'a': 'a'}
+            template.default_values.update({'type': 'virtual'})
             template.full_clean()
             template.save()
             mocked_task.assert_called_with(template.pk)
+
+        mocked_task.reset_mock()
+
+        with self.subTest(
+            'task is not called when template unused default_values are changed'
+        ):
+            template.refresh_from_db()
+            template.default_values.update({'a': 'a'})
+            template.full_clean()
+            template.save()
+            mocked_task.assert_not_called()
+
+        mocked_task.reset_mock()
+
+        with self.subTest('task is not called when organization is changed'):
+            org = self._get_org()
+            self.assertNotEqual(template.organization, org)
+            template.organization = org
+            template.full_clean()
+            template.save()
+            mocked_task.assert_not_called()
 
         mocked_task.reset_mock()
 
