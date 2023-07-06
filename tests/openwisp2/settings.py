@@ -11,7 +11,7 @@ ALLOWED_HOSTS = ['*']
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.spatialite',
+        'ENGINE': 'openwisp_utils.db.backends.spatialite',
         'NAME': os.path.join(BASE_DIR, 'openwisp-controller.db'),
     }
 }

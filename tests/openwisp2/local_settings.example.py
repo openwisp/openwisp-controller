@@ -3,7 +3,7 @@
 
 # DATABASES = {
 #    'default': {
-#        'ENGINE': 'django.contrib.gis.db.backends.spatialite',
+#        'ENGINE': 'openwisp_utils.db.backends.spatialite',
 #        'NAME': 'openwisp-controller.db',
 #        'USER': '',
 #        'PASSWORD': '',
