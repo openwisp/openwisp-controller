@@ -37,8 +37,14 @@
                     // If the contextValue was set by a template or group, then
                     // override the value.
                     (prevDefaultValues.hasOwnProperty(key) && prevDefaultValues[key] !== defaultValues[key]) ||
-                    // Gives precedence to device's context (saved in database) and SystemContextValue
-                    (!contextValue.hasOwnProperty(key) && !systemContextValue.hasOwnProperty(key))
+                    // Gives precedence to device's context (saved in database)
+                    (!contextValue.hasOwnProperty(key) &&
+                        // Gives precedence to systemContextValue.
+                        // But if the default value is equal to the system context value,
+                        // then add the variable in the contextValue. This allows users
+                        // to override the value.
+                        (!systemContextValue.hasOwnProperty(key) || systemContextValue[key] === defaultValues[key])
+                    )
                 ) {
                     contextValue[key] = defaultValues[key];
                 }
