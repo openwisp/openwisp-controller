@@ -128,7 +128,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         return hasattr(self, 'config')
 
     def _has_group(self):
-        return hasattr(self, 'config')
+        return hasattr(self, 'group')
 
     def _get_config_attr(self, attr):
         """
