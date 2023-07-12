@@ -919,7 +919,7 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
             self.assertEqual(conf.status, 'applied')
 
         with self.subTest('openwisp_config < 0.6.0a: exit_code 0'):
-            conf.config = '{"interfaces": []}'
+            conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(

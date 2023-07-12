@@ -305,13 +305,28 @@ class TestConfig(
         self.assertEqual(c.status, 'modified')
 
     def test_status_modified_after_context_changed(self):
-        c = self._create_config(organization=self._get_org(), status='applied')
-        self.assertEqual(c.status, 'applied')
-        c.refresh_from_db()
-        c.context = {'lan_ipv4': '192.168.40.1'}
-        c.full_clean()
-        c.save()
-        self.assertEqual(c.status, 'modified')
+        config = self._create_config(
+            organization=self._get_org(),
+            status='applied',
+            config={'interfaces': [{'name': 'eth0', 'type': '{{ interface_type }}'}]},
+            context={'interface_type': 'ethernet'},
+        )
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'applied')
+
+        with self.subTest('Test changing unused configuration variable'):
+            config.context.update({'interface_name': 'eth1'})
+            config.full_clean()
+            config.save()
+            config.refresh_from_db()
+            self.assertEqual(config.status, 'applied')
+
+        with self.subTest('Test changing used configuration variable'):
+            config.context = {'interface_type': 'virtual'}
+            config.full_clean()
+            config.save()
+            config.refresh_from_db()
+            self.assertEqual(config.status, 'modified')
 
     def test_auto_hostname(self):
         c = self._create_config(device=self._create_device(name='automate-me'))
@@ -766,7 +781,7 @@ class TestConfig(
 
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(8):
             config._check_changes()
 
     def test_config_get_system_context(self):

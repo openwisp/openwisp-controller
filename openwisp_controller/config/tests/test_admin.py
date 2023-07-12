@@ -1122,6 +1122,11 @@ class TestAdmin(
     def test_existing_template_backend(self):
         t = Template.objects.first()
         t.backend = 'netjsonconfig.OpenWisp'
+        t.config = {
+            'general': {'hostname': '{{ hostname}}'},
+        }
+        t.default_values = {'hostname': 'placeholder'}
+        t.full_clean()
         t.save()
         path = reverse(f'admin:{self.app_label}_template_change', args=[t.pk])
         response = self.client.get(path)

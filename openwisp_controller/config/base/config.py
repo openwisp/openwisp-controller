@@ -481,16 +481,15 @@ class AbstractConfig(BaseConfig):
         if self.backend != current.backend:
             # storing old backend to send backend change signal after save
             self._old_backend = current.backend
-        for attr in ['backend', 'config', 'context']:
-            if getattr(self, attr) == getattr(current, attr):
-                continue
+        if hasattr(self, 'backend_instance'):
+            del self.backend_instance
+        if self.checksum != current.checksum:
             if self.status != 'modified':
                 self.set_status_modified(save=False)
             else:
                 # config modified signal is always sent
                 # regardless of the current status
                 self._send_config_modified_after_save = True
-            break
 
     def _send_config_modified_signal(self, action):
         """
