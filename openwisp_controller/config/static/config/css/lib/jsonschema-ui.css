@@ -305,3 +305,9 @@ div.jsoneditor > div > h3.controls{
 .jsoneditor-wrapper div.jsoneditor .grid-column > div > .inline-group > .form-row > .vTextField {
   padding-left: 100px !important
 }
+.jsoneditor-wrapper div[data-schemapath^="root.radios"][data-schemapath$=".hwmode"] {
+  display: none;
+}
+.jsoneditor-wrapper div[data-schemapath^="root.radios"][data-schemapath$=".band"] {
+  display: none;
+}
