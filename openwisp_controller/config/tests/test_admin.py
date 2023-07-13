@@ -1519,16 +1519,15 @@ class TestAdmin(
             path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
             self._test_system_context_field_helper(path)
 
-    def test_no_system_context(self):
+    @patch.dict(app_settings.CONTEXT, {}, clear=True)
+    def test_no_system_context(self, *args):
         self._create_template()
-        old_context = app_settings.CONTEXT.copy()
-        app_settings.CONTEXT = {}
         path = reverse(f'admin:{self.app_label}_template_add')
         r = self.client.get(path)
+        print(app_settings.CONTEXT)
         self.assertContains(
             r, 'There are no system defined variables available right now'
         )
-        app_settings.CONTEXT = old_context
 
     def test_config_form_old_templates(self):
         config = self._create_config(organization=self._get_org())

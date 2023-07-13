@@ -536,9 +536,19 @@ the order (high to low) of their precedence:
 
 1. `User defined device variables <#user-defined-device-variables>`_
 2. `Predefined device variables <#predefined-device-variables>`_
-3. `Global variables <#global-variables>`_
-4. `Group variables <#group-variables>`_
+3. `Group variables <#group-variables>`_
+4. `Global variables <#global-variables>`_
 5. `Template default values <#template-default-values>`_
+
+User defined device variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the device configuration section you can find a section named
+"Configuration variables" where it is possible to define the configuration
+variables and their values, as shown in the example below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-context.png
+   :alt: context
 
 Predefined device variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -550,15 +560,19 @@ Each device gets the following attributes passed as configuration variables:
 * ``name``
 * ``mac_address``
 
-User defined device variables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Group variables
+~~~~~~~~~~~~~~~
 
-In the device configuration section you can find a section named
-"Configuration variables" where it is possible to define the configuration
-variables and their values, as shown in the example below:
+Variables can also be defined in `Device groups <#device-groups>`__.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-context.png
-   :alt: context
+Refer the `Group configuration variables <group-configuration-variables>`_
+section for detailed information.
+
+Global variables
+~~~~~~~~~~~~~~~~
+
+Variables can also be defined globally using the
+`OPENWISP_CONTROLLER_CONTEXT <#openwisp-controller-context>`_ setting.
 
 Template default values
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -580,20 +594,6 @@ The default values of variables can be manipulated from the section
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/template-default-values.png
   :alt: default values
-
-Group variables
-~~~~~~~~~~~~~~~
-
-Variables can also be defined in `Device groups <#device-groups>`__.
-
-Refer the `Group configuration variables <group-configuration-variables>`_
-section for detailed information.
-
-Global variables
-~~~~~~~~~~~~~~~~
-
-Variables can also be defined globally using the
-`OPENWISP_CONTROLLER_CONTEXT <#openwisp-controller-context>`_ setting.
 
 System defined variables
 ~~~~~~~~~~~~~~~~~~~~~~~~

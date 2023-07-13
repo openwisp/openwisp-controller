@@ -558,7 +558,7 @@ class AbstractConfig(BaseConfig):
         return hasattr(self, 'device')
 
     def get_vpn_context(self):
-        context = super().get_context()
+        context = {}
         for vpnclient in self.vpnclient_set.all().select_related('vpn', 'cert'):
             vpn = vpnclient.vpn
             vpn_id = vpn.pk.hex
@@ -599,15 +599,11 @@ class AbstractConfig(BaseConfig):
         additional context passed to netjsonconfig
         """
         c = collections.OrderedDict()
-        extra = {}
-        if hasattr(self, 'device') and self.device._get_group():
-            extra.update(self.device._get_group().get_context())
-        extra.update(self.get_vpn_context())
-        for func in self._config_context_functions:
-            extra.update(func(config=self))
-        if app_settings.HARDWARE_ID_ENABLED and self._has_device():
-            extra.update({'hardware_id': str(self.device.hardware_id)})
+        # Add global variables
+        context = super().get_context()
         if self._has_device():
+            # These pre-defined variables are needed at the start of OrderedDict.
+            # Hence, they are added separately.
             c.update(
                 [
                     ('name', self.name),
@@ -616,9 +612,20 @@ class AbstractConfig(BaseConfig):
                     ('key', self.key),
                 ]
             )
-            if self.context and not system:
-                extra.update(self.context)
-        c.update(sorted(extra.items()))
+            if self.device._get_group():
+                # Add device group variables
+                context.update(self.device._get_group().get_context())
+            # Add predefined variables
+            context.update(self.get_vpn_context())
+            for func in self._config_context_functions:
+                context.update(func(config=self))
+            if app_settings.HARDWARE_ID_ENABLED:
+                context.update({'hardware_id': str(self.device.hardware_id)})
+
+        if self.context and not system:
+            context.update(self.context)
+
+        c.update(sorted(context.items()))
         return c
 
     def get_system_context(self):
