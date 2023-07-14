@@ -1022,7 +1022,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         'created',
         'modified',
     ]
-    search_fields = ['name', 'description', 'meta_data', 'context']
+    search_fields = ['name', 'description', 'meta_data']
     list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
     multitenant_shared_relations = ('templates',)
 
