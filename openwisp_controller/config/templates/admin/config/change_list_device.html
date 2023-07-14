@@ -2,10 +2,6 @@
 {% load i18n admin_urls %}
 
 {% block object-tools-items %}
-    {# django-import-export #}
-    {% include "admin/import_export/change_list_import_item.html" %}
-    {% include "admin/import_export/change_list_export_item.html" %}
-    {# django-reversion #}
     {% if not is_popup and has_add_permission and has_change_permission %}
         <li><a href="{% url opts|admin_urlname:'recoverlist' %}" class="recoverlink">{% blocktrans with cl.opts.verbose_name_plural|escape as name %}Recover deleted {{name}}{% endblocktrans %}</a></li>
     {% endif %}
