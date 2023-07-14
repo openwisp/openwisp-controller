@@ -310,11 +310,50 @@ class TestDevice(
         self.assertEqual(config.device.organization_id, org2.pk)
 
     def test_device_get_system_context(self):
-        d = self._create_device(organization=self._get_org())
+        org = self._get_org()
+        device_group = self._create_device_group(
+            organization=org, context={'SSID': 'OpenWISP'}
+        )
+        d = self._create_device(organization=org, group=device_group)
         self._create_config(context={'test': 'name'}, device=d)
         d.refresh_from_db()
         system_context = d.get_system_context()
+        self.assertEqual(system_context['SSID'], 'OpenWISP')
         self.assertNotIn('test', system_context.keys())
+
+    @mock.patch.dict(app_settings.CONTEXT, {'variable_type': 'global-context-variable'})
+    def test_configuration_variable_priority(self, *args):
+        org = self._get_org()
+        device_group = self._create_device_group(
+            organization=org, context={'variable_type': 'device-group-variable'}
+        )
+        device = self._create_device(organization=org, group=device_group)
+        config = self._create_config(
+            device=device,
+            context={
+                'id': 'user-defined-variable',
+                'variable_type': 'user-defined-variable',
+            },
+        )
+
+        # User defined variable has highest precedence
+        self.assertEqual(config.get_context()['id'], 'user-defined-variable')
+        self.assertEqual(config.get_context()['variable_type'], 'user-defined-variable')
+        # Second precedence is given to predefined device variables
+        config.context = {}
+        self.assertEqual(
+            config.get_context()['id'],
+            str(device.pk),
+        )
+        # It is not possible to overwrite the pre-defined device variables.
+        # Therefore, for further tests, "tesT" variable is used.
+        # Third precedence is given to the device group variable'
+        self.assertEqual(config.get_context()['variable_type'], 'device-group-variable')
+        # Fourth precedence is given to global variables
+        device.group = None
+        self.assertEqual(
+            config.get_context()['variable_type'], 'global-context-variable'
+        )
 
     def test_management_ip_changed_not_emitted_on_creation(self):
         with catch_signal(management_ip_changed) as handler:

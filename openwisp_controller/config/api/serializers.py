@@ -304,6 +304,7 @@ class FilterGroupTemplates(FilterTemplatesByOrganization):
 
 
 class DeviceGroupSerializer(BaseSerializer):
+    context = serializers.JSONField(required=False, initial={})
     meta_data = serializers.JSONField(required=False, initial={})
     templates = FilterGroupTemplates(many=True)
     _templates = None
@@ -316,6 +317,7 @@ class DeviceGroupSerializer(BaseSerializer):
             'organization',
             'description',
             'templates',
+            'context',
             'meta_data',
             'created',
             'modified',

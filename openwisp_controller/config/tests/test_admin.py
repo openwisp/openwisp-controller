@@ -2,6 +2,7 @@ import io
 import json
 import os
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
@@ -1426,9 +1427,12 @@ class TestAdmin(
         self.assertIn('test-template (Clone)', str(response.content))
         self.assertEqual(LogEntry.objects.all().count(), 3)
 
-    def test_get_template_default_values(self):
+    def test_get_default_values(self):
         t1 = self._create_template(name='t1', default_values={'name1': 'test1'})
-        path = reverse('admin:get_template_default_values')
+        group = self._create_device_group(
+            context={'name1': 'device group', 'name2': 'should not appear'}
+        )
+        path = reverse('admin:get_default_values')
 
         with self.subTest('get default values for one template'):
             with self.assertNumQueries(3):
@@ -1445,19 +1449,38 @@ class TestAdmin(
                 expected = {'default_values': {'name1': 'test1', 'name2': 'test2'}}
                 self.assertEqual(r.json(), expected)
 
-    def test_get_template_default_values_invalid_pks(self):
-        path = reverse('admin:get_template_default_values')
-        expected = {'error': 'invalid template pks were received'}
+        with self.subTest('get default values conflicting with device group'):
+            with self.assertNumQueries(4):
+                response = self.client.get(
+                    path, {'pks': f'{t1.pk}', 'group': str(group.pk)}
+                )
+                self.assertEqual(response.status_code, 200)
+                expected = {'default_values': {'name1': 'device group'}}
+                response_data = response.json()
+                self.assertEqual(response_data, expected)
+                self.assertNotIn('name2', response_data)
 
-        with self.subTest('test with invalid pk'):
+    def test_get_default_values_invalid_pks(self):
+        path = reverse('admin:get_default_values')
+        expected = {
+            'template': {'error': 'invalid template pks were received'},
+            'group': {'error': 'invalid group pk were received'},
+        }
+
+        with self.subTest('test with invalid template pk'):
             r = self.client.get(path, {'pks': 'invalid'})
             self.assertEqual(r.status_code, 400)
-            self.assertEqual(r.json(), expected)
+            self.assertEqual(r.json(), expected['template'])
 
         with self.subTest('test with absent pk'):
             r = self.client.get(path)
             self.assertEqual(r.status_code, 400)
-            self.assertEqual(r.json(), expected)
+            self.assertEqual(r.json(), expected['template'])
+
+        with self.subTest('test with invalid group pk'):
+            r = self.client.get(path, {'group': 'invalid', 'pks': str(uuid4())})
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.json(), expected['group'])
 
     def _test_system_context_field_helper(self, path):
         r = self.client.get(path)
@@ -1496,16 +1519,15 @@ class TestAdmin(
             path = reverse(f'admin:{self.app_label}_device_change', args=[d.pk])
             self._test_system_context_field_helper(path)
 
-    def test_no_system_context(self):
+    @patch.dict(app_settings.CONTEXT, {}, clear=True)
+    def test_no_system_context(self, *args):
         self._create_template()
-        old_context = app_settings.CONTEXT.copy()
-        app_settings.CONTEXT = {}
         path = reverse(f'admin:{self.app_label}_template_add')
         r = self.client.get(path)
+        print(app_settings.CONTEXT)
         self.assertContains(
             r, 'There are no system defined variables available right now'
         )
-        app_settings.CONTEXT = old_context
 
     def test_config_form_old_templates(self):
         config = self._create_config(organization=self._get_org())

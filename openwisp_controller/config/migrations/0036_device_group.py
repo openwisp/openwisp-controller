@@ -62,6 +62,12 @@ class Migration(migrations.Migration):
                         default=dict,
                         dump_kwargs={'ensure_ascii': False, 'indent': 4},
                         load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                        help_text=(
+                            'Group meta data, use this field to store data which is'
+                            ' related to this group and can be retrieved via the'
+                            ' REST API.'
+                        ),
+                        verbose_name='Metadata',
                     ),
                 ),
                 (

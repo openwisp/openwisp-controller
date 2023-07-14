@@ -127,6 +127,9 @@ class AbstractDevice(OrgMixin, BaseModel):
     def _has_config(self):
         return hasattr(self, 'config')
 
+    def _has_group(self):
+        return hasattr(self, 'group')
+
     def _get_config_attr(self, attr):
         """
         gets property or calls method of related config object
@@ -142,6 +145,11 @@ class AbstractDevice(OrgMixin, BaseModel):
             return self.config
         else:
             return self.get_config_model()(device=self)
+
+    def _get_group(self):
+        if self._has_group():
+            return self.group
+        return self.get_group_model()(device=self)
 
     def get_context(self):
         config = self._get_config()

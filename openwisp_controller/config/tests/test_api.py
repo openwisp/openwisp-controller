@@ -81,6 +81,7 @@ class ApiTestMixin:
         'description': 'Group for APs of default organization',
         'organization': 'None',
         'meta_data': {'captive_portal_url': 'https://example.com'},
+        'context': {'SSID': 'OpenWISP'},
         'templates': [],
     }
 
@@ -900,6 +901,7 @@ class TestConfigApi(
         self.assertEqual(response.data['name'], data['name'])
         self.assertEqual(response.data['description'], data['description'])
         self.assertEqual(response.data['meta_data'], data['meta_data'])
+        self.assertEqual(response.data['context'], data['context'])
         self.assertEqual(response.data['organization'], org.pk)
         self.assertEqual(response.data['templates'], [template.pk])
 
@@ -936,7 +938,7 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data['count'], 1)
-            self.assertEqual(len(data['results'][0]), 8)
+            self.assertEqual(len(data['results'][0]), 9)
             self.assertEqual(data['results'][0]['id'], str(device_group.pk))
             self.assertEqual(data['results'][0]['name'], str(device_group.name))
             self.assertEqual(
@@ -972,6 +974,7 @@ class TestConfigApi(
             self.assertEqual(response.data['name'], device_group.name)
             self.assertEqual(response.data['description'], device_group.description)
             self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
+            self.assertDictEqual(response.data['context'], device_group.context)
             self.assertEqual(
                 response.data['organization'], device_group.organization.pk
             )
@@ -1013,6 +1016,7 @@ class TestConfigApi(
             self.assertEqual(response.data['name'], device_group.name)
             self.assertEqual(response.data['description'], device_group.description)
             self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
+            self.assertDictEqual(response.data['context'], device_group.context)
             self.assertEqual(
                 response.data['organization'], device_group.organization.pk
             )
@@ -1026,6 +1030,7 @@ class TestConfigApi(
             self.assertEqual(response.data['name'], device_group.name)
             self.assertEqual(response.data['description'], device_group.description)
             self.assertDictEqual(response.data['meta_data'], device_group.meta_data)
+            self.assertDictEqual(response.data['context'], device_group.context)
             self.assertEqual(
                 response.data['organization'], device_group.organization.pk
             )

@@ -4,7 +4,7 @@
     django._jsonEditors = new Map();
     var inFullScreenMode = false,
         prevDefaultValues = {},
-        defaultValuesUrl = window.location.origin + '/admin/config/device/get-template-default-values/',
+        defaultValuesUrl = window.location.origin + '/admin/config/device/get-default-values/',
     removeDefaultValues = function(contextValue, defaultValues) {
         // remove default values when template is removed.
         Object.keys(prevDefaultValues).forEach(function (key) {
@@ -32,7 +32,20 @@
                 systemContextValue = JSON.parse(systemContextField.text());
             // add default values to contextValue
             Object.keys(defaultValues).forEach(function (key) {
-                if (!contextValue.hasOwnProperty(key) && !systemContextValue.hasOwnProperty(key)) {
+                if (
+                    // Handles the case when different templates and group contains the keys.
+                    // If the contextValue was set by a template or group, then
+                    // override the value.
+                    (prevDefaultValues.hasOwnProperty(key) && prevDefaultValues[key] !== defaultValues[key]) ||
+                    // Gives precedence to device's context (saved in database)
+                    (!contextValue.hasOwnProperty(key) &&
+                        // Gives precedence to systemContextValue.
+                        // But if the default value is equal to the system context value,
+                        // then add the variable in the contextValue. This allows users
+                        // to override the value.
+                        (!systemContextValue.hasOwnProperty(key) || systemContextValue[key] === defaultValues[key])
+                    )
+                ) {
                     contextValue[key] = defaultValues[key];
                 }
             });
@@ -55,9 +68,14 @@
         }
     },
     getDefaultValues = function (isLoading=false) {
-        var pks = $('input[name="config-0-templates"]').attr('value');
-        if (pks) {
-            $.get(defaultValuesUrl, {pks: pks})
+        var templatePks = $('input[name="config-0-templates"]').attr('value'),
+            groupPk = $('#id_group').val();
+        if (templatePks) {
+            var payload = {pks: templatePks};
+            if (groupPk) {
+                payload.group = groupPk;
+            }
+            $.get(defaultValuesUrl, payload)
                 .done( function (data) {
                     updateContext(isLoading, data.default_values);
                 })
@@ -428,6 +446,12 @@
             });
         }
         $('.sortedm2m-items').on('change', function() {
+            getDefaultValues();
+        });
+        $('.sortedm2m-items').on('sortstop', function() {
+            getDefaultValues();
+        });
+        $('#id_group').on('change', function() {
             getDefaultValues();
         });
     });

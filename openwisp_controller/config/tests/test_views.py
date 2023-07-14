@@ -6,14 +6,18 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...tests.utils import TestAdminMixin
-from .utils import CreateConfigTemplateMixin
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
 
 Template = load_model('config', 'Template')
 User = get_user_model()
 
 
 class TestViews(
-    CreateConfigTemplateMixin, TestAdminMixin, TestOrganizationMixin, TestCase
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestAdminMixin,
+    TestOrganizationMixin,
+    TestCase,
 ):
     """
     tests for config.views
@@ -241,7 +245,7 @@ class TestViews(
         )
         self.assertEqual(response.status_code, 404)
 
-    def get_template_default_values_authorization(self):
+    def test_get_default_values_authorization(self):
         org1 = self._get_org()
         org1_template = self._create_template(
             organization=org1, default_values={'org1': 'secret1'}
@@ -253,8 +257,11 @@ class TestViews(
         shared_template = self._create_template(
             name='shared-template', default_values={'key': 'value'}
         )
+        org2_device_group = self._create_device_group(
+            organization=org2, context={'key': 'org2 device group'}
+        )
         url = (
-            reverse('admin:get_template_default_values')
+            reverse('admin:get_default_values')
             + f'?pks={org1_template.pk},{org2_template.pk},{shared_template.pk}'
         )
 
@@ -281,8 +288,9 @@ class TestViews(
             org1_user.is_staff = True
             org1_user.save()
             self.client.force_login(org1_user)
+            response = self.client.get(url + f'&group={org2_device_group.pk}')
+            # Do not override default value from device group of another org
             expected_response = {'default_values': {'org1': 'secret1', 'key': 'value'}}
-            response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertJSONEqual(response.content, expected_response)
 
@@ -295,7 +303,7 @@ class TestViews(
             self.assertEqual(response.status_code, 200)
             self.assertJSONEqual(response.content, expected_response)
 
-    def get_template_default_values_same_keys(self):
+    def test_get_default_values_same_keys(self):
         self._login()
         # Atleast 4 templates are required to create enough entropy in database
         # to make the test fail consistently without patch
@@ -312,7 +320,7 @@ class TestViews(
         template5 = self._create_template(
             name='VNI 5', default_values={'vn1': '5', 'vn2': '50', 'vn3': '500'}
         )
-        url = reverse('admin:get_template_default_values')
+        url = reverse('admin:get_default_values')
         templates = [template5, template4, template3, template2, template1]
         template_pks = ','.join([str(template.pk) for template in templates])
         response = self.client.get(url, {'pks': template_pks})
