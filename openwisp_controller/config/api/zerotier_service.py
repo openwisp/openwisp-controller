@@ -61,6 +61,36 @@ class ZerotierService:
         config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
 
+    def _authorize_and_assign_controller_ip(self, node_id, network_id):
+        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        response = requests.post(
+            url,
+            json={'authorized': True, 'ipAssignments': [str(self.ip_address)]},
+            headers=self.headers,
+            timeout=5,
+        )
+        if response.status_code != 200:
+            raise ValidationError(
+                {
+                    'ZerotierServiceAPI controller authorize ip assignment error': (
+                        f'({response.status_code}) {response.reason}'
+                    )
+                }
+            )
+
+    def _add_controller_to_network(self, node_id, network_id):
+        url = f'{self.url}/network/{network_id}'
+        response = requests.post(url, json={}, headers=self.headers, timeout=5)
+        if response.status_code != 200:
+            raise ValidationError(
+                {
+                    'ZerotierServiceAPI controller network join error': (
+                        f'({response.status_code}) {response.reason}'
+                    )
+                }
+            )
+        self._authorize_and_assign_controller_ip(node_id, network_id)
+
     def get_node_status(self):
         url = f'{self.url}/status'
         response = requests.get(url, headers=self.headers)
@@ -70,6 +100,7 @@ class ZerotierService:
         url = f"{self.url}{self._get_endpoint('network', 'create', node_id)}"
         config = self._add_routes_and_ip_assignment(config)
         response = requests.post(url, json=config, headers=self.headers, timeout=5)
+        network_config = self._get_repsonse(response.json())
         if response.status_code != 200:
             raise ValidationError(
                 {
@@ -78,7 +109,9 @@ class ZerotierService:
                     )
                 }
             )
-        return self._get_repsonse(response.json())
+        network_id = network_config.get('id')
+        self._add_controller_to_network(node_id, network_id)
+        return network_config
 
     def update_network(self, config, network_id):
         url = f"{self.url}{self._get_endpoint('network', 'update', network_id)}"
