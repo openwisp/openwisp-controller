@@ -80,3 +80,7 @@ SHARED_MANAGEMENT_IP_ADDRESS_SPACE = get_settings_value(
 DSA_OS_MAPPING = get_settings_value('DSA_OS_MAPPING', {})
 DSA_DEFAULT_FALLBACK = get_settings_value('DSA_DEFAULT_FALLBACK', True)
 GROUP_PIE_CHART = get_settings_value('GROUP_PIE_CHART', False)
+API_TASK_RETRY_OPTIONS = get_settings_value(
+    'API_TASK_RETRY_OPTIONS',
+    dict(max_retries=5, retry_backoff=True, retry_backoff_max=600, retry_jitter=True),
+)

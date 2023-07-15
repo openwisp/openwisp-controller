@@ -48,7 +48,7 @@ class ZerotierService:
         return repsonse
 
     def _add_routes_and_ip_assignment(self, config):
-        config['routes'] = [{'target': str(self.subnet), 'via': self.ip_address}]
+        config['routes'] = [{'target': str(self.subnet), 'via': ''}]
         try:
             ip_end = str(self.subnet[-2])
             ip_start = str(self.subnet[1])
@@ -61,35 +61,21 @@ class ZerotierService:
         config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
 
-    def _authorize_and_assign_controller_ip(self, node_id, network_id):
+    def join_network(self, network_id):
+        url = f'{self.url}/network/{network_id}'
+        response = requests.post(url, json={}, headers=self.headers, timeout=5)
+        return response
+
+    def update_network_member(self, node_id, network_id):
         url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        # Authorize and assign ip to the network member
         response = requests.post(
             url,
             json={'authorized': True, 'ipAssignments': [str(self.ip_address)]},
             headers=self.headers,
             timeout=5,
         )
-        if response.status_code != 200:
-            raise ValidationError(
-                {
-                    'ZerotierServiceAPI controller authorize ip assignment error': (
-                        f'({response.status_code}) {response.reason}'
-                    )
-                }
-            )
-
-    def _add_controller_to_network(self, node_id, network_id):
-        url = f'{self.url}/network/{network_id}'
-        response = requests.post(url, json={}, headers=self.headers, timeout=5)
-        if response.status_code != 200:
-            raise ValidationError(
-                {
-                    'ZerotierServiceAPI controller network join error': (
-                        f'({response.status_code}) {response.reason}'
-                    )
-                }
-            )
-        self._authorize_and_assign_controller_ip(node_id, network_id)
+        return response
 
     def get_node_status(self):
         url = f'{self.url}/status'
@@ -109,8 +95,6 @@ class ZerotierService:
                     )
                 }
             )
-        network_id = network_config.get('id')
-        self._add_controller_to_network(node_id, network_id)
         return network_config
 
     def update_network(self, config, network_id):
