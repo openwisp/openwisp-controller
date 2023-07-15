@@ -27,6 +27,7 @@ from ..tasks import (
     create_vpn_dh,
     trigger_vpn_server_endpoint,
     trigger_zerotier_server_delete,
+    trigger_zerotier_server_join,
     trigger_zerotier_server_update,
 )
 from .base import BaseConfig
@@ -155,7 +156,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         self._validate_org_relation('cert')
         self._validate_org_relation('subnet')
         self._validate_subnet_ip()
-        self._validate_host()
+        self._validate_host_and_auth_token()
 
     def _validate_backend(self):
         if self._state.adding:
@@ -203,13 +204,20 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     {'ip': _('VPN IP address must be within the VPN subnet')}
                 )
 
-    def _validate_host(self):
+    def _validate_host_and_auth_token(self):
         if self.host and self.auth_token and self._is_backend_type('zerotier'):
             try:
                 response = ZerotierService(self.host, self.auth_token).get_node_status()
             except ConnectionError as err:
                 err_msg = f'Failed to connect to the ZeroTier controller, error: {err}'
                 raise ValidationError({'host': _(err_msg)})
+            if response.status_code == 401:
+                err_msg = (
+                    f'Failed to connect to the ZeroTier controller, '
+                    'please ensure you are using the correct authorization token '
+                    f'(error: {response.reason}, status code: {response.status_code})'
+                )
+                raise ValidationError({'auth_token': _(err_msg)})
             if response.status_code != 200:
                 err_msg = (
                     f'Failed to connect to the ZeroTier controller, '
@@ -318,9 +326,19 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             )
         )
 
+    def _add_controller_to_zerotier_server(self):
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_join.delay(
+                vpn_id=self.pk,
+            )
+        )
+
     def update_vpn_server_configuration(instance, **kwargs):
-        if not kwargs.get('created') and instance._is_backend_type('zerotier'):
-            instance._update_zerotier_server(kwargs.get('config'))
+        if instance._is_backend_type('zerotier'):
+            if kwargs.get('created'):
+                instance._add_controller_to_zerotier_server()
+            else:
+                instance._update_zerotier_server(kwargs.get('config'))
         if instance._is_backend_type('wireguard'):
             if instance.webhook_endpoint and instance.auth_token:
                 transaction.on_commit(
