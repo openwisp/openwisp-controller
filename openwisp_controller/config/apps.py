@@ -214,6 +214,42 @@ class ConfigConfig(AppConfig):
             models=[self.device_model],
         )
 
+        register_notification_type(
+            'api_task_error',
+            {
+                'verbose_name': _('Background API Task ERROR'),
+                'verb': _('encountered an unrecoverable error'),
+                'level': 'error',
+                'email_subject': _(
+                    '[{site.name}] ERROR: "{notification.target}" - '
+                    'VPN Server {action} API Task {notification.verb}'
+                ),
+                'message': _(
+                    'Unable to perform {action} operation on the '
+                    '[{notification.target}]({notification.target_link}) VPN server '
+                    'due to an unrecoverable error (status code: {status_code})'
+                ),
+            },
+            models=[self.vpn_model],
+        )
+        register_notification_type(
+            'api_task_recovery',
+            {
+                'verbose_name': _('Background API Task RECOVERY'),
+                'verb': _('has been completed successfully'),
+                'level': 'info',
+                'email_subject': _(
+                    '[{site.name}] RECOVERY: "{notification.target}" - '
+                    'VPN Server {action} API Task {notification.verb}'
+                ),
+                'message': _(
+                    'The {action} operation on [{notification.target}]'
+                    '({notification.target_link}) {notification.verb}'
+                ),
+            },
+            models=[self.vpn_model],
+        )
+
         #  Unregister default notification type
         try:
             unregister_notification_type('default')

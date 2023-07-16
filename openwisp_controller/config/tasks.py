@@ -5,7 +5,9 @@ import requests
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from openwisp_notifications.signals import notify
 from requests.exceptions import RequestException
 from swapper import load_model
 
@@ -27,19 +29,46 @@ class OpenwispApiTask(OpenwispCeleryTask):
         HTTPStatus.GATEWAY_TIMEOUT,  # 504
     ]
 
-    def handle_api_call(self, fn, *args, info='', err=''):
+    def _send_api_task_notification(self, type, **kwargs):
+        vpn = kwargs.get('instance')
+        action = kwargs.get('action').replace('_', ' ')
+        status_code = kwargs.get('status_code')
+        delete_key_type = 'error' if type == 'recovery' else 'recovery'
+        if cache.add(f'{self.name}_{vpn.id}_{type}', True, None):
+            # TODO: Remove this time delay
+            import time
+
+            time.sleep(4)
+            notify.send(
+                type=f'api_task_{type}',
+                sender=vpn,
+                target=vpn,
+                action=action,
+                status_code=status_code,
+            )
+            cache.delete(f'{self.name}_{vpn.id}_{delete_key_type}')
+
+    def handle_api_call(self, fn, *args, send_notification=True, **kwargs):
         updated_config = None
         response = fn(*args)
         if isinstance(response, tuple):
             response, updated_config = response
         try:
             response.raise_for_status()
-            logger.info(info)
+            logger.info(kwargs.get('info'))
+            if send_notification:
+                self._send_api_task_notification(type='recovery', **kwargs)
             return (response, updated_config) if updated_config else response
         except RequestException as exc:
             if response.status_code in self._RECOVERABLE_API_CODES:
+                logger.error(f'{kwargs.get("err")}, Error: {str(exc)}')
+                cache.delete(f'{self.name}_{kwargs.get("instance").id}_recovery')
                 raise exc
-            logger.error(f'{err}, Error: {str(exc)}')
+            logger.error(f'{kwargs.get("err")}, Error: {str(exc)}')
+            if send_notification:
+                self._send_api_task_notification(
+                    type='error', status_code=response.status_code, **kwargs
+                )
 
 
 @shared_task(soft_time_limit=7200)
@@ -160,6 +189,8 @@ def trigger_zerotier_server_update(self, config, vpn_id):
         service_method,
         config,
         vpn.network_id,
+        instance=vpn,
+        action='update',
         info=(
             f'Successfully updated the configuration of '
             f'ZeroTier VPN Server with UUID: {vpn_id}'
@@ -194,6 +225,8 @@ def trigger_zerotier_server_update_member(self, vpn_id):
         service_method,
         vpn.node_id,
         vpn.network_id,
+        instance=vpn,
+        action='update_member',
         info=(
             f'Successfully updated ZeroTier network member: {vpn.node_id}, '
             f'ZeroTier network: {vpn.network_id}, '
@@ -223,6 +256,8 @@ def trigger_zerotier_server_join(self, vpn_id):
     response = self.handle_api_call(
         service_method,
         vpn.network_id,
+        instance=vpn,
+        action='network_join',
         info=(
             f'Successfully joined the ZeroTier network: {vpn.network_id}, '
             f'ZeroTier VPN Server UUID: {vpn_id}'
@@ -250,6 +285,7 @@ def trigger_zerotier_server_delete(self, host, auth_token, network_id, vpn_id):
         network_id,
         info=(f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}'),
         err='ZeroTier VPN Server does not exist',
+        send_notification=False,
     )
 
 
