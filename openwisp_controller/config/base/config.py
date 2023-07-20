@@ -590,8 +590,12 @@ class AbstractConfig(BaseConfig):
             if vpn.subnet:
                 if vpnclient.ip:
                     context[vpn_context_keys['ip_address']] = vpnclient.ip.ip_address
-            if 'vni' in vpn_context_keys and vpnclient.vni:
-                context[vpn_context_keys['vni']] = f'{vpnclient.vni}'
+            if 'vni' in vpn_context_keys and (
+                vpnclient.vni or vpnclient.vpn._vxlan_vni
+            ):
+                context[
+                    vpn_context_keys['vni']
+                ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
         return context
 
     def get_context(self, system=False):

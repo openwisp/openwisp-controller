@@ -576,6 +576,11 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             }
         )
 
+    @property
+    def _vxlan_vni(self):
+        if self._is_backend_type('vxlan'):
+            return self.config.get('vxlan', [{}])[0].get('vni')
+
     @cache_memoize(_PEER_CACHE_TIMEOUT, args_rewrite=_peer_cache_key)
     def _get_vxlan_peers(self):
         """
@@ -583,10 +588,11 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         peers = []
         vxlan_interface = self.config.get('vxlan', [{}])[0].get('name')
+        vni = self._vxlan_vni
         for vpnclient in self._get_peer_queryset():
             if not vpnclient.ip:
                 continue
-            peer = {'vni': vpnclient.vni, 'remote': vpnclient.ip.ip_address}
+            peer = {'vni': vpnclient.vni or vni, 'remote': vpnclient.ip.ip_address}
             if vxlan_interface:
                 peer['interface'] = vxlan_interface
             peers.append(peer)
@@ -655,8 +661,9 @@ class AbstractVpnClient(models.Model):
             unique_checks, date_checks = super()._get_unique_checks(
                 exclude, include_meta_constraints
             )
-        if self.vpn.config.get('vxlan', [{}])[0].get('vni', 0) == 0:
-            # If VNI is specified in VXLAN tunnel configuration,
+
+        if not self.vpn._vxlan_vni:
+            # If VNI is not specified in VXLAN tunnel configuration,
             # then each VXLAN tunnel should have different VNI.
             unique_checks.append((self.__class__, ('vpn', 'vni')))
         return unique_checks, date_checks
@@ -778,8 +785,7 @@ class AbstractVpnClient(models.Model):
         """
         if not self.vpn._is_backend_type('vxlan') or self.vni:
             return
-        if self.vpn.config.get('vxlan', [{}])[0].get('vni', 0) != 0:
-            self.vni = self.vpn.config['vxlan'][0]['vni']
+        if self.vpn._vxlan_vni:
             return
         last_tunnel = (
             self._meta.model.objects.filter(vpn=self.vpn).order_by('vni').last()

@@ -66,13 +66,6 @@ class Wireguard(BaseWireguard):
 
 limited_vxlan_wireguard_schema = deepcopy(limited_wireguard_schema)
 limited_vxlan_properties = deepcopy(base_vxlan_properties)
-limited_vxlan_properties['vxlan']['items']['properties']['vni']['description'] = (
-    (
-        'VXLAN Network Identifier, if set to "0", each tunnel will have'
-        ' different VNI. If a non-zero VNI is specified, then it will be'
-        ' used for all VXLAN tunnels.'
-    ),
-)
 limited_vxlan_properties['vxlan'].update({'maxItems': 1, 'minItems': 1})
 limited_vxlan_wireguard_schema['properties'].update(limited_vxlan_properties)
 
