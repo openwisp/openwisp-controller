@@ -781,7 +781,7 @@ class TestConfig(
 
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(10):
             config._check_changes()
 
     def test_config_get_system_context(self):

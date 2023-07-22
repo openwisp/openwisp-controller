@@ -663,6 +663,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         c.device.mac_address = request.POST.get('mac_address')
         c.device.key = request.POST.get('key')
         c.device.group_id = request.POST.get('group') or None
+        c.device.organization_id = request.POST.get('organization_id') or None
         if 'hardware_id' in request.POST:
             c.device.hardware_id = request.POST.get('hardware_id')
         return c
@@ -1087,7 +1088,8 @@ limits_inline_position = 0
 if getattr(app_settings, 'REGISTRATION_ENABLED', True):
 
     class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
-        pass
+        class Meta:
+            widgets = {'context': FlatJsonWidget}
 
     class ConfigSettingsInline(admin.StackedInline):
         model = OrganizationConfigSettings

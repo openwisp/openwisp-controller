@@ -537,8 +537,9 @@ the order (high to low) of their precedence:
 1. `User defined device variables <#user-defined-device-variables>`_
 2. `Predefined device variables <#predefined-device-variables>`_
 3. `Group variables <#group-variables>`_
-4. `Global variables <#global-variables>`_
-5. `Template default values <#template-default-values>`_
+4. `Organization variables <#organization-variables>`_
+5. `Global variables <#global-variables>`_
+6. `Template default values <#template-default-values>`_
 
 User defined device variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -567,6 +568,11 @@ Variables can also be defined in `Device groups <#device-groups>`__.
 
 Refer the `Group configuration variables <group-configuration-variables>`_
 section for detailed information.
+
+Organization variables
+~~~~~~~~~~~~~~~~~~~~~~
+
+Variables can also be defined at the organization level.
 
 Global variables
 ~~~~~~~~~~~~~~~~

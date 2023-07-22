@@ -616,6 +616,10 @@ class AbstractConfig(BaseConfig):
                     ('key', self.key),
                 ]
             )
+            config_settings = self.device._get_organization__config_settings()
+            if config_settings:
+                # Add organization variables
+                context.update(config_settings.get_context())
             if self.device._get_group():
                 # Add device group variables
                 context.update(self.device._get_group().get_context())

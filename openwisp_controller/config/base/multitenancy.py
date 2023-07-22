@@ -1,6 +1,10 @@
+import collections
+from copy import deepcopy
+
 import swapper
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
 
@@ -27,6 +31,16 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         verbose_name=_('shared secret'),
         help_text=_('used for automatic registration of devices'),
     )
+    context = JSONField(
+        blank=True,
+        default=dict,
+        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+        dump_kwargs={'indent': 4},
+        help_text=_(
+            'This field can be used to add "Configuration Variables"' ' to the devices.'
+        ),
+        verbose_name=_('Configuration Variables'),
+    )
 
     class Meta:
         verbose_name = _('Configuration management settings')
@@ -35,6 +49,9 @@ class AbstractOrganizationConfigSettings(UUIDModel):
 
     def __str__(self):
         return self.organization.name
+
+    def get_context(self):
+        return deepcopy(self.context)
 
 
 class AbstractOrganizationLimits(models.Model):

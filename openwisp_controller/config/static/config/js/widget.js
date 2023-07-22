@@ -69,11 +69,15 @@
     },
     getDefaultValues = function (isLoading=false) {
         var templatePks = $('input[name="config-0-templates"]').attr('value'),
-            groupPk = $('#id_group').val();
+            groupPk = $('#id_group').val(),
+            orgPk = $('#id_organization').val();
         if (templatePks) {
             var payload = {pks: templatePks};
             if (groupPk) {
                 payload.group = groupPk;
+            }
+            if (orgPk) {
+                payload.organization = orgPk;
             }
             $.get(defaultValuesUrl, payload)
                 .done( function (data) {
@@ -452,6 +456,9 @@
             getDefaultValues();
         });
         $('#id_group').on('change', function() {
+            getDefaultValues();
+        });
+        $('#id_organization').on('change', function() {
             getDefaultValues();
         });
     });
