@@ -156,7 +156,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         self._validate_org_relation('cert')
         self._validate_org_relation('subnet')
         self._validate_subnet_ip()
-        self._validate_host_and_auth_token()
+        self._validate_authtoken()
+        self._validate_host()
 
     def _validate_backend(self):
         if self._state.adding:
@@ -204,29 +205,47 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     {'ip': _('VPN IP address must be within the VPN subnet')}
                 )
 
-    def _validate_host_and_auth_token(self):
-        if self.host and self.auth_token and self._is_backend_type('zerotier'):
-            try:
-                response = ZerotierService(self.host, self.auth_token).get_node_status()
-            except ConnectionError as err:
-                err_msg = f'Failed to connect to the ZeroTier controller, error: {err}'
-                raise ValidationError({'host': _(err_msg)})
-            if response.status_code == 401:
-                err_msg = (
-                    f'Failed to connect to the ZeroTier controller, '
-                    'please ensure you are using the correct authorization token '
-                    f'(error: {response.reason}, status code: {response.status_code})'
-                )
-                raise ValidationError({'auth_token': _(err_msg)})
-            if response.status_code != 200:
-                err_msg = (
-                    f'Failed to connect to the ZeroTier controller, '
-                    'please ensure you are using the correct hostname '
-                    f'(error: {response.reason}, status code: {response.status_code})'
-                )
-                raise ValidationError({'host': _(err_msg)})
-            else:
-                self.node_id = response.json()['address']
+    def _validate_authtoken(self):
+        if self._is_backend_type('zerotier') and not self.auth_token:
+            raise ValidationError(
+                {'auth_token': _('Auth token is required for this VPN backend')}
+            )
+
+    def _validate_host(self):
+        if not (self._is_backend_type('zerotier') and self.host):
+            return
+        try:
+            response = ZerotierService(self.host, self.auth_token).get_node_status()
+        except ConnectionError as err:
+            raise ValidationError(
+                {
+                    'host': _(
+                        'Failed to connect to the ZeroTier controller, error: {0}'
+                    ).format(err)
+                }
+            )
+        if response.status_code == 401:
+            raise ValidationError(
+                {
+                    'auth_token': _(
+                        'Authorization failed for ZeroTier controller, '
+                        'ensure you are using the correct authorization token'
+                    )
+                }
+            )
+        # For cases other than unsuccessful connection and unauthorized access
+        if response.status_code != 200:
+            raise ValidationError(
+                {
+                    'host': _(
+                        'Failed to connect to the ZeroTier controller, '
+                        'ensure you are using the correct hostname '
+                        '(error: {0}, status code: {1})'
+                    ).format(response.reason, response.status_code)
+                }
+            )
+        else:
+            self.node_id = response.json()['address']
 
     def save(self, *args, **kwargs):
         """
@@ -251,7 +270,20 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             config['name'] = self.name
             if created:
                 self._create_zerotier_server(config)
-        super().save(*args, **kwargs)
+        try:
+            super().save(*args, **kwargs)
+        except Exception as exc:
+            # If the database transaction fails
+            # for any reason, we should delete the recently
+            # created zerotier network to prevent duplicate networks
+            if self.is_backend_type('zerotier'):
+                trigger_zerotier_server_delete.delay(
+                    host=self.host,
+                    auth_token=self.auth_token,
+                    network_id=self.network_id,
+                    vpn_id=self.pk,
+                )
+            raise exc
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
         if not created and self._send_vpn_modified_after_save:
@@ -312,7 +344,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
     def _create_zerotier_server(self, config):
         server_config = ZerotierService(
-            self.host, self.auth_token, self.subnet, self.ip
+            self.host, self.auth_token, self.subnet.subnet, self.ip.ip_address
         ).create_network(self.node_id, config)
         self.network_id = server_config.pop('id', None)
         self.config = {**self.config, 'zerotier': [server_config]}
