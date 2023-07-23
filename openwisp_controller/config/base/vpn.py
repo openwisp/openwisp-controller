@@ -556,11 +556,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # If the backend is 'zerotier' then
             # call auto_client and update the config
             elif self._is_backend_type('zerotier') and template_backend_class:
-                auto = backend.auto_client(
+                auto = getattr(template_backend_class, 'zerotier_auto_client')(
                     name=self.name,
-                    nwid=self.network_id,
-                    server=self.config[config_dict_key][0],
-                    **context_keys,
+                    nwid=[self.network_id],
                 )
             else:
                 # The OpenVPN backend does not support these kwargs,
