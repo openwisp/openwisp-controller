@@ -33,41 +33,78 @@ class OpenwispApiTask(OpenwispCeleryTask):
         vpn = kwargs.get('instance')
         action = kwargs.get('action').replace('_', ' ')
         status_code = kwargs.get('status_code')
-        delete_key_type = 'error' if type == 'recovery' else 'recovery'
-        if cache.add(f'{self.name}_{vpn.id}_{type}', True, None):
-            # TODO: Remove this time delay
-            import time
+        # Adding some delay here to prevent overlapping
+        # of the django success message container
+        # with the ow-notification container
+        import time
 
-            time.sleep(4)
-            notify.send(
-                type=f'api_task_{type}',
-                sender=vpn,
-                target=vpn,
-                action=action,
-                status_code=status_code,
-            )
-            cache.delete(f'{self.name}_{vpn.id}_{delete_key_type}')
+        time.sleep(2)
+        notify.send(
+            type=f'api_task_{type}',
+            sender=vpn,
+            target=vpn,
+            action=action,
+            status_code=status_code,
+        )
 
     def handle_api_call(self, fn, *args, send_notification=True, **kwargs):
+        """
+        This method handles API calls and their responses
+        and triggers appropriate web notifications, which include:
+
+        Error notification
+          - Sent on any unrecoverable API call failure
+        Recovery notification
+          - Sent only when an error notification was previously triggered
+
+        Also raises an exception for recoverable
+        API calls leading to the retrying of the API task
+
+        NOTE: The method utilizes a cache key
+        to prevent flooding of similar task notifications
+
+        Parameters:
+            fn: API service method
+            *args: Arguments for the API service method
+            send_notification: If True, send notifications for API tasks
+            **kwargs: Arguments used by the _send_api_task_notification method
+        """
         updated_config = None
+        err_msg = kwargs.get('err')
+        info_msg = kwargs.get('info')
+        vpn = kwargs.get('instance')
+        task_key = f'{self.name}_{vpn.id}_last_operation'
+        # Execute API call and get response
         response = fn(*args)
         if isinstance(response, tuple):
             response, updated_config = response
         try:
             response.raise_for_status()
-            logger.info(kwargs.get('info'))
+            logger.info(info_msg)
             if send_notification:
-                self._send_api_task_notification(type='recovery', **kwargs)
+                task_result = cache.get(task_key)
+                if task_result == 'error':
+                    self._send_api_task_notification('recovery', **kwargs)
+                    cache.set(task_key, 'success', None)
             return (response, updated_config) if updated_config else response
         except RequestException as exc:
+            task_result = cache.get(task_key)
             if response.status_code in self._RECOVERABLE_API_CODES:
-                logger.error(f'{kwargs.get("err")}, Error: {str(exc)}')
-                cache.delete(f'{self.name}_{kwargs.get("instance").id}_recovery')
+                retry_logger = logger.warn
+                # When retry limit is reached, use error logging
+                if self.request.retries == self.max_retries:
+                    retry_logger = logger.error
+                retry_logger(
+                    f'Try [{self.request.retries}/{self.max_retries}] '
+                    f'{err_msg}, Error: {exc}'
+                )
+                cache.set(task_key, 'error', None)
                 raise exc
-            logger.error(f'{kwargs.get("err")}, Error: {str(exc)}')
-            if send_notification:
+            logger.error(f'{err_msg}, Error: {exc}')
+            if send_notification and task_result in (None, 'success'):
+                cache.set(task_key, 'error', None)
                 self._send_api_task_notification(
-                    type='error', status_code=response.status_code, **kwargs
+                    'error', status_code=response.status_code, **kwargs
                 )
 
 

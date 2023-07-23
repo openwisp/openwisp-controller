@@ -925,16 +925,6 @@ class VpnForm(forms.ModelForm):
                 kwargs['initial'].update({'backend': app_settings.DEFAULT_VPN_BACKEND})
             super().__init__(*args, **kwargs)
 
-        def clean(self):
-            cleaned_data = super().clean()
-            backend = cleaned_data.get('backend')
-            auth_token = cleaned_data.get('auth_token')
-            if backend == app_settings.VPN_BACKENDS[3][0] and not auth_token:
-                self.add_error(
-                    'auth_token', _('Auth token is required for this VPN backend.')
-                )
-            return cleaned_data
-
     class Meta:
         model = Vpn
         widgets = {'config': JsonSchemaWidget, 'dh': forms.widgets.HiddenInput}

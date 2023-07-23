@@ -17,8 +17,8 @@ class ZerotierService:
     def __init__(self, host, token, subnet='', ip=''):
         self.host = host
         self.token = token
-        self.subnet = subnet and subnet.subnet
-        self.ip_address = ip and ip.ip_address
+        self.subnet = str(subnet)
+        self.ip = str(ip)
         self.url = f'http://{host}'
         self.headers = {
             'X-ZT1-Auth': self.token,
@@ -48,15 +48,15 @@ class ZerotierService:
         return repsonse
 
     def _add_routes_and_ip_assignment(self, config):
-        config['routes'] = [{'target': str(self.subnet), 'via': ''}]
+        config['routes'] = [{'target': self.subnet, 'via': ''}]
         try:
-            ip_end = str(self.subnet[-2])
-            ip_start = str(self.subnet[1])
+            ip_end = self.subnet[-2]
+            ip_start = self.subnet[1]
         # In case of prefix length 32 (ipv4)
         # or 128 (ipv6) only single host is available
         except IndexError:
-            ip_end = str(self.subnet[0])
-            ip_start = str(self.subnet[0])
+            ip_end = self.subnet[0]
+            ip_start = self.subnet[0]
 
         config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
@@ -71,7 +71,7 @@ class ZerotierService:
         # Authorize and assign ip to the network member
         response = requests.post(
             url,
-            json={'authorized': True, 'ipAssignments': [str(self.ip_address)]},
+            json={'authorized': True, 'ipAssignments': [self.ip]},
             headers=self.headers,
             timeout=5,
         )
@@ -79,7 +79,7 @@ class ZerotierService:
 
     def get_node_status(self):
         url = f'{self.url}/status'
-        response = requests.get(url, headers=self.headers)
+        response = requests.get(url, headers=self.headers, timeout=5)
         return response
 
     def create_network(self, node_id, config):
@@ -105,5 +105,5 @@ class ZerotierService:
 
     def delete_network(self, network_id):
         url = f"{self.url}{self._get_endpoint('network', 'delete', network_id)}"
-        response = requests.delete(url, headers=self.headers)
+        response = requests.delete(url, headers=self.headers, timeout=5)
         return response
