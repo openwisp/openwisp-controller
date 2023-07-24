@@ -272,10 +272,10 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         try:
             super().save(*args, **kwargs)
         except Exception as exc:
-            # If the database transaction fails
+            # If the db transaction for zt vpn server creation fails
             # for any reason, we should delete the recently
-            # created zerotier network to prevent duplicate networks
-            if self.is_backend_type('zerotier'):
+            # created zt network to prevent duplicate networks
+            if created and self._is_backend_type('zerotier'):
                 trigger_zerotier_server_delete.delay(
                     host=self.host,
                     auth_token=self.auth_token,
@@ -571,7 +571,12 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # do not include cert and key if auto_cert is False
             if not auto_cert:
                 for key in ['cert_path', 'cert_contents', 'key_path', 'key_contents']:
-                    del context_keys[key]
+                    try:
+                        del context_keys[key]
+                    # In case of zerotier backend
+                    # these keys doesn't exist
+                    except KeyError:
+                        pass
             config_dict_key = self.backend_class.__name__.lower()
             vpn_host = context_keys.pop('vpn_host', self.host)
             if self._is_backend_type('wireguard') and template_backend_class:
@@ -634,16 +639,13 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         Invalidates peer cache, if update=True is passed,
         the peer cache will be regenerated
         """
-        if self._is_backend_type('wireguard'):
-            self._get_wireguard_peers.invalidate(self)
-            if update:
-                self._get_wireguard_peers()
-        if self._is_backend_type('vxlan'):
-            self._get_vxlan_peers.invalidate(self)
-            if update:
-                self._get_vxlan_peers()
-        # Send signal for peers changed
-        vpn_peers_changed.send(sender=self.__class__, instance=self)
+        for backend in ['wireguard', 'vxlan']:
+            if self._is_backend_type(backend):
+                getattr(self, f'_get_{backend}_peers').invalidate(self)
+                if update:
+                    getattr(self, f'_get_{backend}_peers')()
+                # Send signal for peers changed
+                vpn_peers_changed.send(sender=self.__class__, instance=self)
 
     def _get_peer_queryset(self):
         """

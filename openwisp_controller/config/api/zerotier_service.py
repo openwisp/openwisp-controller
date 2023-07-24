@@ -1,5 +1,6 @@
 import requests
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 
 class ZerotierService:
@@ -89,11 +90,10 @@ class ZerotierService:
         network_config = self._get_repsonse(response.json())
         if response.status_code != 200:
             raise ValidationError(
-                {
-                    'ZerotierServiceAPI create network error': (
-                        f'({response.status_code}) {response.reason}'
-                    )
-                }
+                _(
+                    'Failed to create ZeroTier network '
+                    '(error: {0}, status code: {1})'
+                ).format(response.reason, response.status_code)
             )
         return network_config
 

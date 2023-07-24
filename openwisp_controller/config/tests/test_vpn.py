@@ -1,18 +1,21 @@
 import json
 from unittest import mock
 
-from celery.exceptions import SoftTimeLimitExceeded
+from celery.exceptions import Retry, SoftTimeLimitExceeded
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
+from django.db.utils import IntegrityError
 from django.http.response import HttpResponse, HttpResponseNotFound
 from django.test import TestCase, TransactionTestCase
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
+from requests.exceptions import ConnectionError, RequestException
 from swapper import load_model
 
 from openwisp_utils.tests import catch_signal
 
 from ...vpn_backends import OpenVpn
 from .. import settings as app_settings
+from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
 from ..tasks import create_vpn_dh
 from .utils import (
@@ -20,6 +23,7 @@ from .utils import (
     TestVpnX509Mixin,
     TestVxlanWireguardVpnMixin,
     TestWireguardVpnMixin,
+    TestZeroTierVpnMixin,
 )
 
 Config = load_model('config', 'Config')
@@ -953,3 +957,594 @@ class TestVxlanTransaction(
                 config = vpn.get_config()
             self.assertEqual(config['wireguard'][0]['name'], 'wg2')
             self.assertEqual(config['wireguard'][0]['port'], 51821)
+
+
+class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
+    _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_config_creation(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        vpn = self._create_zerotier_vpn()
+
+        with self.subTest('test context'):
+            context = vpn.get_context()
+            self.assertEqual(context['subnet'], str(vpn.subnet.subnet))
+            self.assertEqual(
+                context['subnet_prefixlen'], str(vpn.subnet.subnet.prefixlen)
+            )
+            self.assertEqual(context['ip_address'], vpn.ip.ip_address)
+            # Make sure zerotier network related context keys are present
+            self.assertEqual(context['node_id'], vpn.node_id)
+            self.assertEqual(context['network_id'], vpn.network_id)
+
+        with self.subTest('test context keys'):
+            context_keys = vpn._get_auto_context_keys()
+            self.assertIn('vpn_host', context_keys)
+            self.assertIn('vpn_port', context_keys)
+            self.assertIn('ip_address', context_keys)
+            self.assertIn('server_ip_address', context_keys)
+            self.assertIn('server_ip_network', context_keys)
+            # Make sure zerotier network related context keys are present
+            self.assertIn('node_id', context_keys)
+            self.assertIn('network_id', context_keys)
+            self.assertIn('network_name', context_keys)
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_creation_error(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            # (internal server error)
+            self._get_mock_response(500, response={}, err='Internal Server Error')
+        ]
+        expected_error = (
+            'Failed to create ZeroTier network '
+            '(error: Internal Server Error, status code: 500)'
+        )
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_zerotier_vpn()
+        # Make sure zt vpn server is not created
+        self.assertEqual(Vpn.objects.count(), 0)
+        self.assertIn(expected_error, str(context_manager.exception))
+
+    def test_zerotier_schema(self):
+        with self.subTest('zerotier schema shall be valid'):
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_zerotier_vpn(config={'zerotier': []})
+            self.assertIn(
+                'Invalid configuration triggered by "#/zerotier"',
+                str(context_manager.exception),
+            )
+            # Delete subnet created for previous assertion
+            Subnet.objects.all().delete()
+
+        with self.subTest('zerotier property shall be present'):
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_zerotier_vpn(config={})
+            self.assertIn('zerotier', str(context_manager.exception))
+            self.assertIn('is a required property', str(context_manager.exception))
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_auto_client(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        device, vpn, template = self._create_zerotier_vpn_template()
+        auto = vpn.auto_client(template_backend_class=template.backend_class)
+        context_keys = vpn._get_auto_context_keys()
+        for key in context_keys.keys():
+            context_keys[key] = '{{%s}}' % context_keys[key]
+        expected = template.backend_class.zerotier_auto_client(
+            name=vpn.name,
+            nwid=[vpn.network_id],
+        )
+        self.assertEqual(auto, expected)
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_change_vpn_backend(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        subnet = self._create_subnet(
+            name='test-zerotier-subnet',
+            subnet='10.0.0.0/16',
+            organization=vpn.organization,
+        )
+        ca = vpn.ca
+
+        vpn.backend = self._BACKENDS['zerotier']
+        vpn.subnet = subnet
+        vpn.config = {
+            'zerotier': [
+                {
+                    'private': True,
+                    'enableBroadcast': True,
+                    'mtu': 2800,
+                    'multicastLimit': 32,
+                }
+            ]
+        }
+        vpn.auth_token = 'test_auth_token'
+        vpn.full_clean()
+        vpn.save()
+        self.assertEqual(vpn.ca, None)
+        self.assertEqual(vpn.cert, None)
+        self.assertEqual(vpn.subnet, subnet)
+        self.assertNotEqual(vpn.ip, None)
+
+        vpn.backend = self._BACKENDS['openvpn']
+        vpn.ca = ca
+        vpn.full_clean()
+        vpn.save()
+        self.assertEqual(vpn.public_key, '')
+        self.assertEqual(vpn.private_key, '')
+        self.assertEqual(vpn.subnet, subnet)
+        self.assertNotEqual(vpn.ip, None)
+
+    def test_zerotier_vpn_without_subnet(self):
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_zerotier_vpn(subnet=None)
+        expected_error_dict = {'subnet': ['Subnet is required for this VPN backend.']}
+        self.assertEqual(expected_error_dict, context_manager.exception.message_dict)
+
+    def test_zerotier_vpn_without_auth_token(self):
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_zerotier_vpn(auth_token=None)
+        expected_error_dict = {
+            'auth_token': ['Auth token is required for this VPN backend']
+        }
+        self.assertEqual(expected_error_dict, context_manager.exception.message_dict)
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_host_validation(self, mock_requests):
+        with self.subTest('Test host connection error'):
+            # node status (connection error)
+            mock_requests.get.side_effect = ConnectionError()
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_zerotier_vpn()
+            expected_error_dict = {
+                'host': ['Failed to connect to the ZeroTier controller, error: ']
+            }
+            self.assertEqual(
+                expected_error_dict, context_manager.exception.message_dict
+            )
+        mock_requests.reset_mock()
+        # Delete subnet created for previous assertion
+        Subnet.objects.all().delete()
+
+        with self.subTest('Test auth token unauthorized error'):
+            mock_requests.get.side_effect = [self._get_mock_response(401, response={})]
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_zerotier_vpn()
+            expected_error_dict = {
+                'auth_token': [
+                    (
+                        'Authorization failed for ZeroTier controller, '
+                        'ensure you are using the correct authorization token'
+                    )
+                ]
+            }
+            self.assertEqual(
+                expected_error_dict, context_manager.exception.message_dict
+            )
+        mock_requests.reset_mock()
+        Subnet.objects.all().delete()
+
+        with self.subTest('Test for any other request errors'):
+            # node status (internal server error)
+            mock_requests.get.side_effect = [
+                self._get_mock_response(500, response={}, err='Internal Server Error')
+            ]
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_zerotier_vpn()
+            expected_error_dict = {
+                'host': [
+                    (
+                        'Failed to connect to the ZeroTier controller, '
+                        'ensure you are using the correct hostname '
+                        '(error: Internal Server Error, status code: 500)'
+                    )
+                ]
+            }
+            self.assertEqual(
+                expected_error_dict, context_manager.exception.message_dict
+            )
+
+    def test_zerotier_change_vpn_backend_with_vpnclient(self):
+        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        subnet = self._create_subnet(
+            name='zerotier', subnet='10.0.0.0/16', organization=vpn.organization
+        )
+        template = self._create_template(name='VPN', type='vpn', vpn=vpn)
+        config = self._create_config(organization=self._get_org())
+        config.templates.add(template)
+        self.assertEqual(VpnClient.objects.count(), 1)
+
+        with self.subTest(
+            'Test validation error is not raised when backend is unchanged'
+        ):
+            try:
+                vpn.full_clean()
+            except ValidationError as error:
+                self.fail(f'Unexpected ValidationError: {error}')
+
+        with self.subTest('Test validation error is raised when backend is changed'):
+            with self.assertRaises(ValidationError) as context_manager:
+                vpn.backend = self._BACKENDS['zerotier']
+                vpn.subnet = subnet
+                vpn.full_clean()
+            expected_error_dict = {
+                'backend': [
+                    'Backend cannot be changed because the VPN is currently in use.'
+                ]
+            }
+            self.assertDictEqual(
+                context_manager.exception.message_dict, expected_error_dict
+            )
+
+
+class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTestCase):
+    _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
+    _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks.logger.info'
+    _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks.logger.warn'
+    _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks.logger.error'
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_auto_clients_configuration(self, mock_requests):
+        # We are testing zerotier transactions
+        # using `mock_requests` calls, this includes
+        # background tasks that execute on commit
+        # such as `join_network`,`update_network`, `delete_network`, etc
+
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200),
+            # For controller network join
+            self._get_mock_response(200),
+            # For controller auth and ip assignment
+            self._get_mock_response(200),
+        ]
+        self.assertEqual(IpAddress.objects.count(), 0)
+        device, vpn, template = self._create_zerotier_vpn_template()
+        vpnclient_qs = device.config.vpnclient_set
+        self.assertEqual(vpnclient_qs.count(), 1)
+        self.assertEqual(IpAddress.objects.count(), 2)
+
+        with self.subTest('Test zerotier vpn related device context'):
+            context = device.get_context()
+            pk = vpn.pk.hex
+            self.assertEqual(context[f'vpn_host_{pk}'], vpn.host)
+            self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
+            self.assertEqual(context[f'server_ip_address_{pk}'], '10.0.0.1')
+            self.assertEqual(context[f'server_ip_network_{pk}'], '10.0.0.1/32')
+            self.assertEqual(context[f'vpn_subnet_{pk}'], '10.0.0.0/16')
+            self.assertEqual(
+                context[f'node_id_{pk}'], self._TEST_ZT_NODE_CONFIG['address']
+            )
+            self.assertEqual(
+                context[f'network_id_{pk}'], self._TEST_ZT_NETWORK_CONFIG['id']
+            )
+            self.assertEqual(
+                context[f'network_name_{pk}'], self._TEST_ZT_NETWORK_CONFIG['name']
+            )
+
+    @mock.patch(_ZT_API_TASKS_ERR_LOGGER)
+    @mock.patch(_ZT_API_TASKS_WARN_LOGGER)
+    @mock.patch(_ZT_API_TASKS_INFO_LOGGER)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_update_vpn_server_configuration(
+        self, mock_requests, mock_info, mock_warn, mock_error
+    ):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200),
+            # For controller network join
+            self._get_mock_response(200),
+            # For controller auth and ip assignment
+            self._get_mock_response(200),
+        ]
+        # Now create zerotier network
+        vpn = self._create_zerotier_vpn()
+        self.assertEqual(Vpn.objects.count(), 1)
+        self.assertEqual(vpn.name, self._TEST_ZT_NETWORK_CONFIG['name'])
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+
+        with self.subTest('Test zerotier successful configuration update'):
+            mock_requests.get.side_effect = [
+                # For node status
+                self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+            ]
+            mock_requests.post.side_effect = [
+                # For update network
+                self._get_mock_response(200),
+                # For controller auth and ip assignment
+                self._get_mock_response(200),
+            ]
+            _EXPECTED_INFO_CALLS = [
+                mock.call(
+                    (
+                        f'Successfully updated the configuration of '
+                        f'ZeroTier VPN Server with UUID: {vpn.id}'
+                    )
+                ),
+                mock.call(
+                    (
+                        f'Successfully updated ZeroTier network member: {vpn.node_id}, '
+                        f'ZeroTier network: {vpn.network_id}, '
+                        f'ZeroTier VPN server UUID: {vpn.id}'
+                    )
+                ),
+            ]
+            config = vpn.get_config()['zerotier'][0]
+            config.update({'private': True})
+            vpn.full_clean()
+            vpn.save()
+            self.assertEqual(mock_info.call_count, 2)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+
+        with self.subTest('Test zerotier configuration update (unrecoverable errors)'):
+            mock_requests.get.side_effect = [
+                # For node status
+                self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+            ]
+            mock_requests.post.side_effect = [
+                # For update network
+                self._get_mock_response(200),
+                # For controller auth and ip assignment (bad request)
+                self._get_mock_response(
+                    400,
+                    response={},
+                    exc=RequestException,
+                ),
+            ]
+            _EXPECTED_INFO_CALLS = [
+                mock.call(
+                    (
+                        f'Successfully updated the configuration of '
+                        f'ZeroTier VPN Server with UUID: {vpn.id}'
+                    )
+                ),
+            ]
+            _EXPECTED_ERROR_CALLS = [
+                mock.call(
+                    (
+                        f'Failed to update ZeroTier network member: {vpn.node_id}, '
+                        f'ZeroTier network: {vpn.network_id}, '
+                        f'ZeroTier VPN server UUID: {vpn.id}, Error: '
+                    )
+                ),
+            ]
+            config = vpn.get_config()['zerotier'][0]
+            config.update({'private': True})
+            vpn.full_clean()
+            vpn.save()
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            # For unrecoverable error
+            self.assertEqual(mock_error.call_count, 1)
+            mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
+            mock_error.assert_has_calls(_EXPECTED_ERROR_CALLS)
+        mock_info.reset_mock()
+        mock_error.reset_mock()
+        mock_requests.reset_mock()
+
+        with self.subTest(
+            'Test zerotier configuration update '
+            'with retry mechanism (recoverable errors)'
+        ), mock.patch('celery.app.task.Task.request') as mock_task_request:
+            max_retries = API_TASK_RETRY_OPTIONS.get('max_retries')
+            mock_task_request.called_directly = False
+            config = vpn.get_config()['zerotier'][0]
+            config.update({'private': True})
+
+            with self.subTest(
+                'Test update when max retry limit is not reached'
+            ), self.assertRaises(Retry):
+                mock_requests.get.side_effect = [
+                    # For node status
+                    self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+                ]
+                mock_requests.post.side_effect = [
+                    # For update network
+                    self._get_mock_response(200),
+                    # For controller auth and ip assignment
+                    # (internal server error)
+                    self._get_mock_response(
+                        500,
+                        response={},
+                        exc=RequestException,
+                    ),
+                ]
+                _EXPECTED_INFO_CALLS = [
+                    mock.call(
+                        (
+                            f'Successfully updated the configuration of '
+                            f'ZeroTier VPN Server with UUID: {vpn.id}'
+                        )
+                    ),
+                ]
+                _EXPECTED_WARN_CALLS = [
+                    mock.call(
+                        (
+                            f'Try [{max_retries - 1}/{max_retries}] Failed to update '
+                            f'ZeroTier network member: {vpn.node_id}, '
+                            f'ZeroTier network: {vpn.network_id}, '
+                            f'ZeroTier VPN server UUID: {vpn.id}, Error: '
+                        )
+                    ),
+                ]
+                # Second last retry attempt (4th)
+                mock_task_request.retries = max_retries - 1
+                vpn.full_clean()
+                vpn.save()
+            self.assertEqual(mock_info.call_count, 1)
+            # Ensure that it logs with the 'warning' level
+            self.assertEqual(mock_warn.call_count, 1)
+            self.assertEqual(mock_error.call_count, 0)
+            mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
+            mock_warn.assert_has_calls(_EXPECTED_WARN_CALLS)
+            mock_info.reset_mock()
+            mock_warn.reset_mock()
+            mock_requests.reset_mock()
+
+            # During the last attempt, the task will give up
+            # retrying and raise a 'RequestException',
+            # which will be handled and logged as an error
+            with self.subTest(
+                'Test update when max retry limit is reached'
+            ), self.assertRaises(RequestException):
+                mock_requests.get.side_effect = [
+                    # For node status
+                    self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+                ]
+                mock_requests.post.side_effect = [
+                    # For update network
+                    self._get_mock_response(200),
+                    # For controller auth and ip assignment
+                    # (internal server error)
+                    self._get_mock_response(
+                        500,
+                        response={},
+                        exc=RequestException,
+                    ),
+                ]
+                _EXPECTED_INFO_CALLS = [
+                    mock.call(
+                        (
+                            f'Successfully updated the configuration of '
+                            f'ZeroTier VPN Server with UUID: {vpn.id}'
+                        )
+                    ),
+                ]
+                _EXPECTED_ERROR_CALLS = [
+                    mock.call(
+                        (
+                            f'Try [{max_retries}/{max_retries}] Failed to update '
+                            f'ZeroTier network member: {vpn.node_id}, '
+                            f'ZeroTier network: {vpn.network_id}, '
+                            f'ZeroTier VPN server UUID: {vpn.id}, Error: '
+                        )
+                    ),
+                ]
+                # Last retry attempt (5th)
+                mock_task_request.retries = max_retries
+                vpn.full_clean()
+                vpn.save()
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            # Ensure that it logs last attempt with the 'error' level
+            self.assertEqual(mock_error.call_count, 1)
+            mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
+            mock_error.assert_has_calls(_EXPECTED_ERROR_CALLS)
+
+    @mock.patch(_ZT_API_TASKS_ERR_LOGGER)
+    @mock.patch(_ZT_API_TASKS_WARN_LOGGER)
+    @mock.patch(_ZT_API_TASKS_INFO_LOGGER)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_server_deletion(
+        self, mock_requests, mock_info, mock_warn, mock_error
+    ):
+        with self.subTest(
+            'Test db transaction fails on vpn.save(), it should delete the zt network'
+        ):
+            invalid_response = {'test-key': 'raise integrity error on save'}
+            mock_requests.get.side_effect = [
+                # For node status
+                self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+            ]
+            mock_requests.post.side_effect = [
+                # For create network
+                self._get_mock_response(200, response=invalid_response),
+                # For controller network join
+                self._get_mock_response(200),
+                # For controller auth and ip assignment
+                self._get_mock_response(200),
+                # For delete network
+                self._get_mock_response(200, response={}),
+            ]
+            with self.assertRaises(IntegrityError):
+                vpn = self._create_zerotier_vpn()
+            self.assertEqual(Vpn.objects.count(), 0)
+            _EXPECTED_INFO_MSG = (
+                'Successfully deleted the ZeroTier VPN Server with UUID:'
+            )
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            self.assertIn(_EXPECTED_INFO_MSG, mock_info.call_args.args[0])
+
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+        # Delete subnet created for previous assertion
+        Subnet.objects.all().delete()
+
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200),
+            # For controller network join
+            self._get_mock_response(200),
+            # For controller auth and ip assignment
+            self._get_mock_response(200),
+        ]
+
+        vpn = self._create_zerotier_vpn()
+        self.assertEqual(Vpn.objects.count(), 1)
+        vpn_id = vpn.id
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+
+        with self.subTest('Test post_delete signal triggers deletion of vpn server'):
+            mock_requests.delete.side_effect = [
+                # For delete network
+                self._get_mock_response(200, response={}),
+            ]
+            vpn.delete()
+            self.assertEqual(Vpn.objects.count(), 0)
+            _EXPECTED_INFO_CALLS = [
+                mock.call(
+                    f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}'
+                ),
+            ]
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)

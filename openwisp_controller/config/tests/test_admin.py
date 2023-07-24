@@ -1524,7 +1524,6 @@ class TestAdmin(
         self._create_template()
         path = reverse(f'admin:{self.app_label}_template_add')
         r = self.client.get(path)
-        print(app_settings.CONTEXT)
         self.assertContains(
             r, 'There are no system defined variables available right now'
         )
