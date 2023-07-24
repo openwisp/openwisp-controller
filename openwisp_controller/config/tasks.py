@@ -73,7 +73,8 @@ class OpenwispApiTask(OpenwispCeleryTask):
         err_msg = kwargs.get('err')
         info_msg = kwargs.get('info')
         vpn = kwargs.get('instance')
-        task_key = f'{self.name}_{vpn.id}_last_operation'
+        if send_notification:
+            task_key = f'{self.name}_{vpn.id}_last_operation'
         # Execute API call and get response
         response = fn(*args)
         if isinstance(response, tuple):
@@ -86,7 +87,6 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 if task_result == 'error':
                     self._send_api_task_notification('recovery', **kwargs)
                     cache.set(task_key, 'success', None)
-            return (response, updated_config) if updated_config else response
         except RequestException as exc:
             task_result = cache.get(task_key)
             if response.status_code in self._RECOVERABLE_API_CODES:
@@ -98,7 +98,8 @@ class OpenwispApiTask(OpenwispCeleryTask):
                     f'Try [{self.request.retries}/{self.max_retries}] '
                     f'{err_msg}, Error: {exc}'
                 )
-                cache.set(task_key, 'error', None)
+                if send_notification:
+                    cache.set(task_key, 'error', None)
                 raise exc
             logger.error(f'{err_msg}, Error: {exc}')
             if send_notification and task_result in (None, 'success'):
@@ -106,6 +107,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 self._send_api_task_notification(
                     'error', status_code=response.status_code, **kwargs
                 )
+        return (response, updated_config) if updated_config else response
 
 
 @shared_task(soft_time_limit=7200)
@@ -320,7 +322,7 @@ def trigger_zerotier_server_delete(self, host, auth_token, network_id, vpn_id):
     self.handle_api_call(
         service_method,
         network_id,
-        info=(f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}'),
+        info=f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}',
         err='ZeroTier VPN Server does not exist',
         send_notification=False,
     )
