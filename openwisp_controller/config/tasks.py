@@ -88,7 +88,6 @@ class OpenwispApiTask(OpenwispCeleryTask):
                     self._send_api_task_notification('recovery', **kwargs)
                     cache.set(task_key, 'success', None)
         except RequestException as exc:
-            task_result = cache.get(task_key)
             if response.status_code in self._RECOVERABLE_API_CODES:
                 retry_logger = logger.warn
                 # When retry limit is reached, use error logging
@@ -102,11 +101,13 @@ class OpenwispApiTask(OpenwispCeleryTask):
                     cache.set(task_key, 'error', None)
                 raise exc
             logger.error(f'{err_msg}, Error: {exc}')
-            if send_notification and task_result in (None, 'success'):
-                cache.set(task_key, 'error', None)
-                self._send_api_task_notification(
-                    'error', status_code=response.status_code, **kwargs
-                )
+            if send_notification:
+                task_result = cache.get(task_key)
+                if task_result in (None, 'success'):
+                    cache.set(task_key, 'error', None)
+                    self._send_api_task_notification(
+                        'error', status_code=response.status_code, **kwargs
+                    )
         return (response, updated_config) if updated_config else response
 
 
