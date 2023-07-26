@@ -97,8 +97,6 @@ class OpenwispApiTask(OpenwispCeleryTask):
                     f'Try [{self.request.retries}/{self.max_retries}] '
                     f'{err_msg}, Error: {exc}'
                 )
-                if send_notification:
-                    cache.set(task_key, 'error', None)
                 raise exc
             logger.error(f'{err_msg}, Error: {exc}')
             if send_notification:
