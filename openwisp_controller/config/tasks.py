@@ -322,7 +322,11 @@ def trigger_zerotier_server_delete(self, host, auth_token, network_id, vpn_id):
         service_method,
         network_id,
         info=f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}',
-        err='ZeroTier VPN Server does not exist',
+        err=(
+            'Failed to delete ZeroTier VPN Server '
+            f'with UUID: {vpn_id}, Network ID: {network_id}, '
+            'as it does not exist on the ZeroTier Controller Networks'
+        ),
         send_notification=False,
     )
 

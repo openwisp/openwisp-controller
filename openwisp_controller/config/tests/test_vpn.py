@@ -1479,6 +1479,25 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
     def test_zerotier_vpn_server_deletion(
         self, mock_requests, mock_info, mock_warn, mock_error
     ):
+        def _setup_requests_mocks():
+            mock_requests.get.side_effect = [
+                # For node status
+                self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+            ]
+            mock_requests.post.side_effect = [
+                # For create network
+                self._get_mock_response(200),
+                # For controller network join
+                self._get_mock_response(200),
+                # For controller auth and ip assignment
+                self._get_mock_response(200),
+            ]
+
+        def _reset_requests_mocks():
+            mock_requests.reset_mock()
+            # Delete subnet created for previous assertion
+            Subnet.objects.all().delete()
+
         with self.subTest(
             'Test db transaction fails on vpn.save(), it should delete the zt network'
         ):
@@ -1490,12 +1509,6 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             mock_requests.post.side_effect = [
                 # For create network
                 self._get_mock_response(200, response=invalid_response),
-                # For controller network join
-                self._get_mock_response(200),
-                # For controller auth and ip assignment
-                self._get_mock_response(200),
-                # For delete network
-                self._get_mock_response(200, response={}),
             ]
             with self.assertRaises(IntegrityError):
                 vpn = self._create_zerotier_vpn()
@@ -1508,31 +1521,15 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             self.assertEqual(mock_error.call_count, 0)
             self.assertIn(_EXPECTED_INFO_MSG, mock_info.call_args.args[0])
 
-        mock_info.reset_mock()
-        mock_requests.reset_mock()
-        # Delete subnet created for previous assertion
-        Subnet.objects.all().delete()
-
-        mock_requests.get.side_effect = [
-            # For node status
-            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
-        ]
-        mock_requests.post.side_effect = [
-            # For create network
-            self._get_mock_response(200),
-            # For controller network join
-            self._get_mock_response(200),
-            # For controller auth and ip assignment
-            self._get_mock_response(200),
-        ]
-
-        vpn = self._create_zerotier_vpn()
-        self.assertEqual(Vpn.objects.count(), 1)
-        vpn_id = vpn.id
-        mock_info.reset_mock()
-        mock_requests.reset_mock()
+        _reset_requests_mocks()
+        _setup_requests_mocks()
 
         with self.subTest('Test post_delete signal triggers deletion of vpn server'):
+            vpn = self._create_zerotier_vpn()
+            self.assertEqual(Vpn.objects.count(), 1)
+            vpn_id = vpn.id
+            # Reset vpn creation logs
+            mock_info.reset_mock()
             mock_requests.delete.side_effect = [
                 # For delete network
                 self._get_mock_response(200, response={}),
@@ -1548,3 +1545,33 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
+
+        _reset_requests_mocks()
+        _setup_requests_mocks()
+
+        with self.subTest('Test for zerotier vpn server deletion encountered an error'):
+            vpn = self._create_zerotier_vpn()
+            vpn_id = vpn.id
+            network_id = vpn.network_id
+            self.assertEqual(Vpn.objects.count(), 1)
+            # Reset vpn creation logs
+            mock_info.reset_mock()
+            mock_requests.delete.side_effect = [
+                # For delete network
+                self._get_mock_response(404, response={}, exc=RequestException),
+            ]
+            vpn.delete()
+            self.assertEqual(Vpn.objects.count(), 0)
+            _EXPECTED_ERROR_CALLS = [
+                mock.call(
+                    (
+                        'Failed to delete ZeroTier VPN Server with '
+                        f'UUID: {vpn_id}, Network ID: {network_id}, as it '
+                        'does not exist on the ZeroTier Controller Networks, Error: '
+                    )
+                ),
+            ]
+            self.assertEqual(mock_info.call_count, 0)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 1)
+            mock_error.assert_has_calls(_EXPECTED_ERROR_CALLS)
