@@ -238,7 +238,7 @@ def trigger_zerotier_server_update(self, config, vpn_id):
             f'VPN Server UUID: {vpn_id}'
         ),
     )
-    if response.ok:
+    if response.status_code == 200:
         vpn.network_id = updated_config.pop('id', None)
         vpn.config = {**vpn.config, 'zerotier': [updated_config]}
         # Update zerotier network controller
