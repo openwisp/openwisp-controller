@@ -368,6 +368,32 @@ class TestDevice(
             config.get_context()['variable_type'], 'global-context-variable'
         )
 
+    def test_changing_org_variable_invalidates_cache(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={}
+        )
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            config={'interfaces': [{'name': 'eth0', 'type': '{{ interface_type }}'}]},
+            default_values={'interface_type': 'ethernet'},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+
+        # Changing OrganizationConfigSettings.context should invalidate the cache
+        # and a new checksum should be returned in the following request.
+        config_settings.context = {'interface_type': 'virtual'}
+        config_settings.full_clean()
+        config_settings.save()
+
+        # Config.backend_instance is a "cached_property", hence deleting
+        # the attribute is required for testing.
+        del config.backend_instance
+
+        new_checksum = config.get_cached_checksum()
+        self.assertNotEqual(old_checksum, new_checksum)
+
     def test_management_ip_changed_not_emitted_on_creation(self):
         with catch_signal(management_ip_changed) as handler:
             self._create_device(organization=self._get_org())

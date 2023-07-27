@@ -151,6 +151,11 @@ class AbstractConfig(BaseConfig):
         return self.checksum
 
     @classmethod
+    def bulk_invalidate_get_cached_checksum(cls, query_params):
+        for config in cls.objects.only('id').filter(**query_params).iterator():
+            config.get_cached_checksum.invalidate(config)
+
+    @classmethod
     def get_template_model(cls):
         return cls.templates.rel.model
 
