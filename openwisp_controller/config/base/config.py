@@ -590,12 +590,13 @@ class AbstractConfig(BaseConfig):
             if vpn.subnet:
                 if vpnclient.ip:
                     context[vpn_context_keys['ip_address']] = vpnclient.ip.ip_address
-            if 'vni' in vpn_context_keys and (
-                vpnclient.vni or vpnclient.vpn._vxlan_vni
-            ):
+            if vpnclient.zt_identity_secret:
+                context[vpn_context_keys['member_id']] = vpnclient.member_id
                 context[
-                    vpn_context_keys['vni']
-                ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
+                    vpn_context_keys['zt_identity_secret']
+                ] = vpnclient.zt_identity_secret
+            if 'vni' in vpn_context_keys and vpnclient.vni:
+                context[vpn_context_keys['vni']] = f'{vpnclient.vni}'
         return context
 
     def get_context(self, system=False):
@@ -679,6 +680,14 @@ class AbstractConfig(BaseConfig):
             templates = device_group.templates.filter(backend=backend)
             old_templates = device_group.templates.filter(backend=old_backend)
         config.manage_group_templates(templates, old_templates, not created)
+
+    def _check_zt_vpn_client(self):
+        # TODO: Improve this implementation
+        vpn_client = self.vpnclient_set.filter(
+            vpn__backend=app_settings.VPN_BACKENDS[3][0]
+        ).first()
+        if vpn_client:
+            vpn_client._update_zt_network_member()
 
 
 AbstractConfig._meta.get_field('config').blank = True

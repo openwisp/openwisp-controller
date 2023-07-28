@@ -451,6 +451,8 @@ class Migration(migrations.Migration):
                         to='sample_config.vpn',
                     ),
                 ),
+                ('member_id', models.CharField(blank=True, max_length=10)),
+                ('zt_identity_secret', models.CharField(blank=True, max_length=44)),
             ],
             options={
                 'verbose_name': 'VPN client',

@@ -22,6 +22,7 @@ from ...base import ShareableOrgMixinUniqueName
 from .. import crypto
 from .. import settings as app_settings
 from ..api.zerotier_service import ZerotierService
+from ..exceptions import ZeroTierIdentityGenerationError
 from ..signals import vpn_peers_changed, vpn_server_modified
 from ..tasks import (
     create_vpn_dh,
@@ -29,6 +30,7 @@ from ..tasks import (
     trigger_zerotier_server_delete,
     trigger_zerotier_server_join,
     trigger_zerotier_server_update,
+    trigger_zerotier_server_update_member,
 )
 from .base import BaseConfig
 
@@ -552,6 +554,10 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             context_keys.update({'node_id': 'node_id_{}'.format(pk)})
             context_keys.update({'network_id': 'network_id_{}'.format(pk)})
             context_keys.update({'network_name': 'network_name_{}'.format(pk)})
+            context_keys.update({'member_id': 'member_id_{}'.format(pk)})
+            context_keys.update(
+                {'zt_identity_secret': 'zt_identity_secret_{}'.format(pk)}
+            )
         return context_keys
 
     def auto_client(self, auto_cert=True, template_backend_class=None):
@@ -596,6 +602,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     name=self.name,
                     nwid=[self.network_id],
                 )
+                # TODO: Add the 'secret' property for ZeroTier in netjsonconfig
+                identity_key = f'{{{{ zt_identity_secret_{self.pk.hex} }}}}'
+                auto['zerotier'][0].update({'secret': identity_key})
             else:
                 # The OpenVPN backend does not support these kwargs,
                 # hence, they are removed before creating configuration
@@ -772,6 +781,9 @@ class AbstractVpnClient(models.Model):
     # needed for wireguard
     public_key = models.CharField(blank=True, max_length=44)
     private_key = models.CharField(blank=True, max_length=44)
+    # needed for zerotier
+    member_id = models.CharField(blank=True, max_length=10)
+    zt_identity_secret = models.CharField(blank=True, max_length=44)
     # needed for vxlan
     vni = models.PositiveIntegerField(
         null=True,
@@ -823,6 +835,7 @@ class AbstractVpnClient(models.Model):
             self._auto_ip()
             self._auto_wireguard()
             self._auto_vxlan()
+            self._auto_zt_identity_secret()
         super().save(*args, **kwargs)
 
     def _auto_x509(self):
@@ -947,6 +960,41 @@ class AbstractVpnClient(models.Model):
             if func(self):
                 return
         self.ip = self.vpn.subnet.request_ip()
+
+    def _generate_zt_identity(self):
+        try:
+            result = subprocess.run(
+                'zerotier-idtool generate',
+                shell=True,
+                check=True,
+                # in seconds
+                timeout=5,
+                capture_output=True,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            err, exit_code = getattr(exc, 'stderr'), getattr(exc, 'returncode', 124)
+            # In case of timeout
+            # err: exc msg, code: 124
+            if err is None:
+                err = exc
+            err_msg = (
+                f'Unable to generate zerotier identity secret, '
+                f'Error: {err}, Exit code: {exit_code}'
+            )
+            raise ZeroTierIdentityGenerationError(err_msg)
+        return result.stdout.decode('utf-8')
+
+    def _auto_zt_identity_secret(self):
+        if self.vpn._is_backend_type('zerotier'):
+            self.zt_identity_secret = self._generate_zt_identity()
+            self.member_id = self.zt_identity_secret[:10]
+
+    def _update_zt_network_member(self):
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_update_member.delay(
+                vpn_id=self.vpn.pk, ip=str(self.ip.ip_address), node_id=self.member_id
+            )
+        )
 
     @classmethod
     def invalidate_clients_cache(cls, vpn):

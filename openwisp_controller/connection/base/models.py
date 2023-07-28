@@ -368,6 +368,10 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                 logger.exception(e)
             else:
                 self.device.config.set_status_applied()
+                # After successfully applying the configuration
+                # to the device, run this check for ZeroTier member
+                # authentication and IP assignment
+                self.device.config._check_zt_vpn_client()
                 self.disconnect()
 
     def save(self, *args, **kwargs):

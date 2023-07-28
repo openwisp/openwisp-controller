@@ -251,27 +251,29 @@ def trigger_zerotier_server_update(self, config, vpn_id):
     autoretry_for=(RequestException,),
     **API_TASK_RETRY_OPTIONS,
 )
-def trigger_zerotier_server_update_member(self, vpn_id):
+def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    ip = ip or vpn.ip
+    node_id = node_id or vpn.node_id
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
     ).update_network_member
     self.handle_api_call(
         service_method,
-        vpn.node_id,
+        node_id,
         vpn.network_id,
         vpn.ip.ip_address,
         instance=vpn,
         action='update_member',
         info=(
-            f'Successfully updated ZeroTier network member: {vpn.node_id}, '
+            f'Successfully updated ZeroTier network member: {node_id}, '
             f'ZeroTier network: {vpn.network_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
         err=(
-            f'Failed to update ZeroTier network member: {vpn.node_id}, '
+            f'Failed to update ZeroTier network member: {node_id}, '
             f'ZeroTier network: {vpn.network_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
