@@ -985,8 +985,15 @@ class AbstractVpnClient(models.Model):
         return result.stdout.decode('utf-8')
 
     def _auto_zt_identity_secret(self):
+        zt_identity_key = (
+            f'ow_controller_device_zt_identity_{self.config.device.pk.hex}'
+        )
         if self.vpn._is_backend_type('zerotier'):
-            self.zt_identity_secret = self._generate_zt_identity()
+            if not cache.get(zt_identity_key):
+                self.zt_identity_secret = self._generate_zt_identity()
+                cache.set(zt_identity_key, self.zt_identity_secret, None)
+            else:
+                self.zt_identity_secret = cache.get(zt_identity_key)
             self.member_id = self.zt_identity_secret[:10]
 
     def _update_zt_network_member(self):
