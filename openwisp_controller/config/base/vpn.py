@@ -601,10 +601,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 auto = getattr(template_backend_class, 'zerotier_auto_client')(
                     name=self.name,
                     nwid=[self.network_id],
+                    identity_secret=context_keys['zt_identity_secret'],
                 )
-                # TODO: Add the 'secret' property for ZeroTier in netjsonconfig
-                identity_key = f'{{{{ zt_identity_secret_{self.pk.hex} }}}}'
-                auto['zerotier'][0].update({'secret': identity_key})
             else:
                 # The OpenVPN backend does not support these kwargs,
                 # hence, they are removed before creating configuration
@@ -783,7 +781,7 @@ class AbstractVpnClient(models.Model):
     private_key = models.CharField(blank=True, max_length=44)
     # needed for zerotier
     member_id = models.CharField(blank=True, max_length=10)
-    zt_identity_secret = models.CharField(blank=True, max_length=44)
+    zt_identity_secret = models.TextField(blank=True)
     # needed for vxlan
     vni = models.PositiveIntegerField(
         null=True,

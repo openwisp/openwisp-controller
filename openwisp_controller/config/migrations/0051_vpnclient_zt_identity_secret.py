@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='vpnclient',
             name='zt_identity_secret',
-            field=models.CharField(blank=True, max_length=44),
+            field=models.TextField(blank=True),
         ),
     ]

@@ -452,7 +452,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ('member_id', models.CharField(blank=True, max_length=10)),
-                ('zt_identity_secret', models.CharField(blank=True, max_length=44)),
+                ('zt_identity_secret', models.TextField(blank=True)),
             ],
             options={
                 'verbose_name': 'VPN client',
