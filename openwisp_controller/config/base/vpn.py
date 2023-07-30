@@ -7,6 +7,7 @@ from copy import deepcopy
 
 import shortuuid
 from cache_memoize import cache_memoize
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
@@ -340,6 +341,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 vpn_id=instance.pk,
             )
         )
+        # Delete ZT API tasks notification cache keys
+        cache.delete_many(cache.keys(f'*{instance.pk.hex}_last_operation'))
 
     def _create_zerotier_server(self, config):
         server_config = ZerotierService(

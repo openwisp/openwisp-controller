@@ -35,6 +35,10 @@ class TestNotifications(
     _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks.logger.info'
     _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks.logger.warn'
     _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks.logger.error'
+    # As the locmem cache does not support the redis backend cache.keys() method
+    _ZT_API_TASKS_LOCMEM_CACHE_KEYS = (
+        'django.core.cache.backends.locmem.LocMemCache.keys'
+    )
 
     def setUp(self):
         self.admin = self._get_admin()
@@ -98,6 +102,7 @@ class TestNotifications(
         app = apps.get_app_config(self.app_label)
         app.ready()
 
+    @patch(_ZT_API_TASKS_LOCMEM_CACHE_KEYS, create=True)
     @patch(_ZT_API_TASKS_ERR_LOGGER)
     @patch(_ZT_API_TASKS_WARN_LOGGER)
     @patch(_ZT_API_TASKS_INFO_LOGGER)
@@ -108,6 +113,7 @@ class TestNotifications(
         mock_info,
         mock_warn,
         mock_error,
+        mock_locmem_cache_keys,
     ):
         mock_requests.get.side_effect = [
             # For node status
@@ -121,6 +127,7 @@ class TestNotifications(
             # For controller auth and ip assignment
             self._get_mock_response(200),
         ]
+        mock_locmem_cache_keys.return_value = ['test_zt_api_tasks_notification_key']
         vpn = self._create_zerotier_vpn()
         self.assertEqual(Vpn.objects.count(), 1)
         notification_qs = Notification.objects.all()
@@ -328,11 +335,13 @@ class TestNotifications(
             mock_requests.delete.side_effect = [
                 # For delete network
                 self._get_mock_response(200, response={}),
+                # For controller leave network
+                self._get_mock_response(200, response={}),
             ]
             vpn.delete()
             self.assertEqual(Vpn.objects.count(), 0)
-            # Only logging for vpn deletion
-            self.assertEqual(mock_info.call_count, 1)
+            # Only logging for vpn deletion & leave network
+            self.assertEqual(mock_info.call_count, 2)
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             self.assertEqual(notification_qs.count(), 0)
