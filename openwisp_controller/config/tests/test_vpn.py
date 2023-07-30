@@ -1510,16 +1510,24 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
                 # For create network
                 self._get_mock_response(200, response=invalid_response),
             ]
+            mock_requests.delete.side_effect = [
+                # For delete network
+                self._get_mock_response(200, response={}),
+                # For controller leave network
+                self._get_mock_response(200, response={}),
+            ]
             with self.assertRaises(IntegrityError):
                 vpn = self._create_zerotier_vpn()
             self.assertEqual(Vpn.objects.count(), 0)
             _EXPECTED_INFO_MSG = (
-                'Successfully deleted the ZeroTier VPN Server with UUID:'
+                'Successfully deleted the ZeroTier VPN Server with UUID:',
+                'Successfully left the ZeroTier Network with ID:',
             )
-            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_info.call_count, 2)
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
-            self.assertIn(_EXPECTED_INFO_MSG, mock_info.call_args.args[0])
+            self.assertIn(_EXPECTED_INFO_MSG[0], mock_info.call_args_list[0][0][0])
+            self.assertIn(_EXPECTED_INFO_MSG[1], mock_info.call_args_list[1][0][0])
 
         _reset_requests_mocks()
         _setup_requests_mocks()
@@ -1528,20 +1536,29 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             vpn = self._create_zerotier_vpn()
             self.assertEqual(Vpn.objects.count(), 1)
             vpn_id = vpn.id
+            network_id = vpn.network_id
             # Reset vpn creation logs
             mock_info.reset_mock()
             mock_requests.delete.side_effect = [
                 # For delete network
+                self._get_mock_response(200, response={}),
+                # For controller leave network
                 self._get_mock_response(200, response={}),
             ]
             vpn.delete()
             self.assertEqual(Vpn.objects.count(), 0)
             _EXPECTED_INFO_CALLS = [
                 mock.call(
-                    f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}'
+                    (
+                        f'Successfully deleted the ZeroTier VPN Server '
+                        f'with UUID: {vpn_id}, Network ID: {network_id}'
+                    )
+                ),
+                mock.call(
+                    f'Successfully left the ZeroTier Network with ID: {network_id}'
                 ),
             ]
-            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_info.call_count, 2)
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
