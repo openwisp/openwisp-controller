@@ -74,7 +74,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
         info_msg = kwargs.get('info')
         vpn = kwargs.get('instance')
         if send_notification:
-            task_key = f'{self.name}_{vpn.id}_last_operation'
+            task_key = f'{self.name}_{vpn.pk.hex}_last_operation'
         # Execute API call and get response
         response = fn(*args)
         if isinstance(response, tuple):

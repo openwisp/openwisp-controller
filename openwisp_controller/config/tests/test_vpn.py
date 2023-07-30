@@ -1252,6 +1252,10 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
     _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks.logger.info'
     _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks.logger.warn'
     _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks.logger.error'
+    # As the locmem cache does not support the redis backend cache.keys() method
+    _ZT_API_TASKS_LOCMEM_CACHE_KEYS = (
+        'django.core.cache.backends.locmem.LocMemCache.keys'
+    )
 
     @mock.patch(_ZT_SERVICE_REQUESTS)
     def test_zerotier_auto_clients_configuration(self, mock_requests):
@@ -1514,12 +1518,13 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             mock_info.assert_has_calls(_EXPECTED_INFO_CALLS)
             mock_error.assert_has_calls(_EXPECTED_ERROR_CALLS)
 
+    @mock.patch(_ZT_API_TASKS_LOCMEM_CACHE_KEYS, create=True)
     @mock.patch(_ZT_API_TASKS_ERR_LOGGER)
     @mock.patch(_ZT_API_TASKS_WARN_LOGGER)
     @mock.patch(_ZT_API_TASKS_INFO_LOGGER)
     @mock.patch(_ZT_SERVICE_REQUESTS)
     def test_zerotier_vpn_server_deletion(
-        self, mock_requests, mock_info, mock_warn, mock_error
+        self, mock_requests, mock_info, mock_warn, mock_error, mock_locmem_cache_keys
     ):
         def _setup_requests_mocks():
             mock_requests.get.side_effect = [
@@ -1534,9 +1539,11 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
                 # For controller auth and ip assignment
                 self._get_mock_response(200),
             ]
+            mock_locmem_cache_keys.return_value = ['test_zt_api_tasks_notification_key']
 
         def _reset_requests_mocks():
             mock_requests.reset_mock()
+            mock_locmem_cache_keys.reset_mock()
             # Delete subnet created for previous assertion
             Subnet.objects.all().delete()
 
