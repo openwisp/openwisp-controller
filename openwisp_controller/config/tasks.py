@@ -1,5 +1,6 @@
 import logging
 from http import HTTPStatus
+from time import sleep
 
 import requests
 from celery import shared_task
@@ -36,9 +37,8 @@ class OpenwispApiTask(OpenwispCeleryTask):
         # Adding some delay here to prevent overlapping
         # of the django success message container
         # with the ow-notification container
-        import time
-
-        time.sleep(2)
+        # https://github.com/openwisp/openwisp-notifications/issues/264
+        sleep(2)
         notify.send(
             type=f'api_task_{type}',
             sender=vpn,
@@ -221,7 +221,7 @@ def trigger_zerotier_server_update(self, config, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
     service_method = ZerotierService(
-        vpn.host, vpn.auth_token, vpn.subnet, vpn.ip
+        vpn.host, vpn.auth_token, vpn.subnet.subnet, vpn.ip.ip_address
     ).update_network
     response, updated_config = self.handle_api_call(
         service_method,
@@ -318,15 +318,39 @@ def trigger_zerotier_server_join(self, vpn_id):
 )
 def trigger_zerotier_server_delete(self, host, auth_token, network_id, vpn_id):
     service_method = ZerotierService(host, auth_token).delete_network
-    self.handle_api_call(
+    response = self.handle_api_call(
         service_method,
         network_id,
-        info=f'Successfully deleted the ZeroTier VPN Server with UUID: {vpn_id}',
+        info=(
+            f'Successfully deleted the ZeroTier VPN Server '
+            f'with UUID: {vpn_id}, Network ID: {network_id}'
+        ),
         err=(
             'Failed to delete ZeroTier VPN Server '
             f'with UUID: {vpn_id}, Network ID: {network_id}, '
             'as it does not exist on the ZeroTier Controller Networks'
         ),
+        send_notification=False,
+    )
+    # In case of successful deletion of the network
+    # we should also remove controller node from the network
+    if response.status_code == 200:
+        trigger_zerotier_server_leave.delay(host, auth_token, network_id)
+
+
+@shared_task(
+    bind=True,
+    base=OpenwispApiTask,
+    autoretry_for=(RequestException,),
+    **API_TASK_RETRY_OPTIONS,
+)
+def trigger_zerotier_server_leave(self, host, auth_token, network_id):
+    service_method = ZerotierService(host, auth_token).leave_network
+    self.handle_api_call(
+        service_method,
+        network_id,
+        info=f'Successfully left the ZeroTier Network with ID: {network_id}',
+        err=f'Failed to leave ZeroTier Network with ID: {network_id}',
         send_notification=False,
     )
 
