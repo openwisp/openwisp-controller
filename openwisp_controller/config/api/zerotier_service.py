@@ -18,7 +18,7 @@ class ZerotierService:
     def __init__(self, host, token, subnet='', ip=''):
         self.host = host
         self.token = token
-        self.subnet = str(subnet)
+        self.subnet = subnet
         self.ip = str(ip)
         self.url = f'http://{host}'
         self.headers = {
@@ -49,15 +49,15 @@ class ZerotierService:
         return repsonse
 
     def _add_routes_and_ip_assignment(self, config):
-        config['routes'] = [{'target': self.subnet, 'via': ''}]
+        config['routes'] = [{'target': str(self.subnet), 'via': ''}]
         try:
-            ip_end = self.subnet[-2]
-            ip_start = self.subnet[1]
+            ip_end = str(self.subnet[-2])
+            ip_start = str(self.subnet[1])
         # In case of prefix length 32 (ipv4)
         # or 128 (ipv6) only single host is available
         except IndexError:
-            ip_end = self.subnet[0]
-            ip_start = self.subnet[0]
+            ip_end = str(self.subnet[0])
+            ip_start = str(self.subnet[0])
 
         config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
@@ -65,6 +65,11 @@ class ZerotierService:
     def join_network(self, network_id):
         url = f'{self.url}/network/{network_id}'
         response = requests.post(url, json={}, headers=self.headers, timeout=5)
+        return response
+
+    def leave_network(self, network_id):
+        url = f'{self.url}/network/{network_id}'
+        response = requests.delete(url, headers=self.headers, timeout=5)
         return response
 
     def update_network_member(self, node_id, network_id):
