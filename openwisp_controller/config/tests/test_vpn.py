@@ -851,14 +851,14 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
             client.refresh_from_db()
             self.assertEqual(client.vni, None)
 
-    def test_vxlan_vni_conflict(self):
+    def test_duplicate_vxlan_tunnels_same_vni(self):
         tunnel, subnet = self._create_vxlan_tunnel()
         d1 = self._create_device()
         c1 = self._create_config(device=d1)
         client = VpnClient(vpn=tunnel, config=c1, vni=1)
         client.full_clean()
         client.save()
-        with self.subTest('vni with same ID should fail'):
+        with self.subTest('Test server configuration does not define VNI'):
             d2 = self._create_device(name='d2', mac_address='16:DB:7F:E8:50:01')
             c2 = self._create_config(device=d2)
             client = VpnClient(vpn=tunnel, config=c2, vni=1)
@@ -870,6 +870,14 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
                 message_dict['__all__'],
                 ['VPN client with this Vpn and Vni already exists.'],
             )
+
+        with self.subTest('Test server configuration defines VNI'):
+            tunnel.config['vxlan'] = [{'interface': 'vxlan1', 'vni': 1}]
+            tunnel.full_clean()
+            tunnel.save()
+            client = VpnClient(vpn=tunnel, config=c2, vni=1)
+            client.full_clean()
+            client.save()
 
     def test_vxlan_schema(self):
         with self.assertRaises(ValidationError) as context_manager:
@@ -953,3 +961,38 @@ class TestVxlanTransaction(
                 config = vpn.get_config()
             self.assertEqual(config['wireguard'][0]['name'], 'wg2')
             self.assertEqual(config['wireguard'][0]['port'], 51821)
+
+    def test_unicast_vxlan_tunnels(self):
+        tunnel, _ = self._create_vxlan_tunnel(
+            config={
+                'wireguard': [{'name': 'wg0', 'port': 51820}],
+                'vxlan': [{'name': 'vxlan1', 'vni': 1}],
+            }
+        )
+        device1 = self._create_device_config(
+            device_opts={'organization': tunnel.organization}
+        )
+        device2 = self._create_device_config(
+            device_opts={
+                'organization': tunnel.organization,
+                'name': 'device2',
+                'mac_address': '16:DB:7F:E8:50:01',
+            }
+        )
+        vpn_template = self._create_template(
+            name='vxlan-wireguard',
+            type='vpn',
+            vpn=tunnel,
+            organization=tunnel.organization,
+            auto_cert=True,
+        )
+        device1.config.templates.add(vpn_template)
+        device2.config.templates.add(vpn_template)
+        self.assertEqual(VpnClient.objects.count(), 2)
+        self.assertListEqual(
+            tunnel._get_vxlan_peers(),
+            [
+                {'interface': 'vxlan1', 'remote': '10.0.0.2', 'vni': 1},
+                {'interface': 'vxlan1', 'remote': '10.0.0.3', 'vni': 1},
+            ],
+        )
