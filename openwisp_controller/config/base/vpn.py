@@ -555,10 +555,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             context_keys.update({'node_id': 'node_id_{}'.format(pk)})
             context_keys.update({'network_id': 'network_id_{}'.format(pk)})
             context_keys.update({'network_name': 'network_name_{}'.format(pk)})
-            context_keys.update({'member_id': 'member_id_{}'.format(pk)})
-            context_keys.update(
-                {'zt_identity_secret': 'zt_identity_secret_{}'.format(pk)}
-            )
+            context_keys.update({'member_id': 'member_id'})
+            context_keys.update({'zt_identity_secret': 'zt_identity_secret'})
         return context_keys
 
     def auto_client(self, auto_cert=True, template_backend_class=None):
