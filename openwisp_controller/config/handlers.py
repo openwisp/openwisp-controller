@@ -1,4 +1,3 @@
-from django.core.cache import cache
 from django.db import transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
@@ -70,8 +69,6 @@ def devicegroup_delete_handler(instance, **kwargs):
 def device_cache_invalidation_handler(instance, **kwargs):
     view = DeviceChecksumView()
     setattr(view, 'kwargs', {'pk': str(instance.pk)})
-    zt_identity_key = f'ow_controller_device_zt_identity_{instance.pk.hex}'
-    cache.delete(zt_identity_key)
     view.get_device.invalidate(view)
 
 

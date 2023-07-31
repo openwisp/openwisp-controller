@@ -598,7 +598,6 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # call auto_client and update the config
             elif self._is_backend_type('zerotier') and template_backend_class:
                 auto = getattr(template_backend_class, 'zerotier_auto_client')(
-                    name=self.name,
                     nwid=[self.network_id],
                     identity_secret=context_keys['zt_identity_secret'],
                 )
