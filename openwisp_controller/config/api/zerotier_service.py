@@ -80,6 +80,11 @@ class ZerotierService:
         )
         return response
 
+    def leave_network_member(self, node_id, network_id):
+        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        response = requests.delete(url, headers=self.headers, timeout=5)
+        return response
+
     def get_node_status(self):
         url = f'{self.url}/status'
         try:

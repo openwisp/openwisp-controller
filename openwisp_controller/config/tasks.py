@@ -286,6 +286,38 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     autoretry_for=(RequestException,),
     **API_TASK_RETRY_OPTIONS,
 )
+def trigger_zerotier_server_leave_member(self, vpn_id, node_id=None):
+    Vpn = load_model('config', 'Vpn')
+    vpn = Vpn.objects.get(pk=vpn_id)
+    service_method = ZerotierService(
+        vpn.host,
+        vpn.auth_token,
+    ).leave_network_member
+    self.handle_api_call(
+        service_method,
+        node_id,
+        vpn.network_id,
+        instance=vpn,
+        action='leave_member',
+        info=(
+            f'Successfully left ZeroTier Network with ID: {vpn.network_id}, '
+            f'ZeroTier Member ID: {node_id}, '
+            f'ZeroTier VPN server UUID: {vpn_id}'
+        ),
+        err=(
+            f'Failed to leave ZeroTier Network with ID: {vpn.network_id}, '
+            f'ZeroTier Member ID: {node_id}, '
+            f'ZeroTier VPN server UUID: {vpn_id}'
+        ),
+    )
+
+
+@shared_task(
+    bind=True,
+    base=OpenwispApiTask,
+    autoretry_for=(RequestException,),
+    **API_TASK_RETRY_OPTIONS,
+)
 def trigger_zerotier_server_join(self, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)

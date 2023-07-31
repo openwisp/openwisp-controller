@@ -253,12 +253,27 @@ class AbstractConfig(BaseConfig):
         # when adding or removing specific templates
         for template in templates.filter(type='vpn'):
             if action == 'post_add':
+                zt_clients_fields = {}
                 if vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn
                 ).exists():
                     continue
+                # If a ZT VPN client object already exists for the device,
+                # then utilize its ZeroTier identity and member_id fields
+                # Otherwise, generate new ones in the vpn_client model
+                zt_client = vpn_client_model.objects.filter(
+                    config=instance, vpn__backend=template.vpn.backend
+                ).first()
+                if zt_client:
+                    zt_clients_fields = dict(
+                        zt_identity_secret=zt_client.zt_identity_secret,
+                        member_id=zt_client.member_id,
+                    )
                 client = vpn_client_model(
-                    config=instance, vpn=template.vpn, auto_cert=template.auto_cert
+                    config=instance,
+                    vpn=template.vpn,
+                    auto_cert=template.auto_cert,
+                    **zt_clients_fields,
                 )
                 client.full_clean()
                 client.save()
@@ -680,14 +695,6 @@ class AbstractConfig(BaseConfig):
             templates = device_group.templates.filter(backend=backend)
             old_templates = device_group.templates.filter(backend=old_backend)
         config.manage_group_templates(templates, old_templates, not created)
-
-    def _check_zt_vpn_client(self):
-        # TODO: Improve this implementation
-        vpn_client = self.vpnclient_set.filter(
-            vpn__backend=app_settings.VPN_BACKENDS[3][0]
-        ).first()
-        if vpn_client:
-            vpn_client._update_zt_network_member()
 
 
 AbstractConfig._meta.get_field('config').blank = True

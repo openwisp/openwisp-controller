@@ -29,6 +29,7 @@ from ..tasks import (
     trigger_vpn_server_endpoint,
     trigger_zerotier_server_delete,
     trigger_zerotier_server_join,
+    trigger_zerotier_server_leave_member,
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
 )
@@ -866,6 +867,10 @@ class AbstractVpnClient(models.Model):
             instance.vpn._invalidate_peer_cache(update=True)
 
         transaction.on_commit(_post_save)
+        # ZT network member should be authorized and assigned
+        # an IP after the creation of the VPN client object
+        if instance.vpn._is_backend_type('zerotier'):
+            instance._update_zt_network_member()
 
     @classmethod
     def post_delete(cls, instance, **kwargs):
@@ -877,6 +882,10 @@ class AbstractVpnClient(models.Model):
         # only invalidates, does not regenerate the cache
         # to avoid generating high load during bulk deletes
         instance.vpn._invalidate_peer_cache()
+        # Zt network member should leave the
+        # network after deletion of vpn client object
+        if instance.vpn._is_backend_type('zerotier'):
+            instance._zt_member_leave_network()
         try:
             # only deletes related certificates
             # if auto_cert field is set to True
@@ -983,21 +992,21 @@ class AbstractVpnClient(models.Model):
         return result.stdout.decode('utf-8')
 
     def _auto_zt_identity_secret(self):
-        zt_identity_key = (
-            f'ow_controller_device_zt_identity_{self.config.device.pk.hex}'
-        )
-        if self.vpn._is_backend_type('zerotier'):
-            if not cache.get(zt_identity_key):
-                self.zt_identity_secret = self._generate_zt_identity()
-                cache.set(zt_identity_key, self.zt_identity_secret, None)
-            else:
-                self.zt_identity_secret = cache.get(zt_identity_key)
+        if not self.zt_identity_secret and self.vpn._is_backend_type('zerotier'):
+            self.zt_identity_secret = self._generate_zt_identity()
             self.member_id = self.zt_identity_secret[:10]
 
     def _update_zt_network_member(self):
         transaction.on_commit(
             lambda: trigger_zerotier_server_update_member.delay(
                 vpn_id=self.vpn.pk, ip=str(self.ip.ip_address), node_id=self.member_id
+            )
+        )
+
+    def _zt_member_leave_network(self):
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_leave_member.delay(
+                vpn_id=self.vpn.pk, node_id=self.member_id
             )
         )
 
