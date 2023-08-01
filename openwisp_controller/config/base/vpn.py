@@ -14,7 +14,6 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
-from requests.exceptions import ConnectionError
 from swapper import get_model_name
 
 from openwisp_utils.base import KeyField
@@ -215,16 +214,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     def _validate_host(self):
         if not (self._is_backend_type('zerotier') and self.host):
             return
-        try:
-            response = ZerotierService(self.host, self.auth_token).get_node_status()
-        except ConnectionError as err:
-            raise ValidationError(
-                {
-                    'host': _(
-                        'Failed to connect to the ZeroTier controller, error: {0}'
-                    ).format(err)
-                }
-            )
+        response = ZerotierService(self.host, self.auth_token).get_node_status()
         if response.status_code == 401:
             raise ValidationError(
                 {
@@ -290,6 +280,12 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if not created and self._send_vpn_modified_after_save:
             self._send_vpn_modified_signal()
             self._send_vpn_modified_after_save = False
+        # For ZeroTier VPN server, if the
+        # ZeroTier network is created successfully,
+        # this method triggers a background task to
+        # add the controller node to the ZeroTier network
+        # Otherwise, in the case of an update, this method triggers
+        # a background task to update the ZeroTier network configuration
         self.update_vpn_server_configuration(created=created, config=config)
 
     def _check_changes(self):
@@ -347,7 +343,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
     def _create_zerotier_server(self, config):
         server_config = ZerotierService(
-            self.host, self.auth_token, self.subnet.subnet, self.ip.ip_address
+            self.host, self.auth_token, self.subnet.subnet
         ).create_network(self.node_id, config)
         self.network_id = server_config.pop('id', None)
         self.config = {**self.config, 'zerotier': [server_config]}
