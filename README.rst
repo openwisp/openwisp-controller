@@ -574,6 +574,13 @@ Organization variables
 
 Variables can also be defined at the organization level.
 
+You can set the *organization variables* from the organization change page
+``/admin/openwisp_users/organization/<organization-id>/change/``, under the
+**Configuration Management Settings**.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/organization-variables.png
+  :alt: organization variables
+
 Global variables
 ~~~~~~~~~~~~~~~~
 
