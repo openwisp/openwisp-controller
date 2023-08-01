@@ -220,13 +220,14 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
 def trigger_zerotier_server_update(self, config, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    network_id = vpn.network_id
     service_method = ZerotierService(
         vpn.host, vpn.auth_token, vpn.subnet.subnet
     ).update_network
     response, updated_config = self.handle_api_call(
         service_method,
         config,
-        vpn.network_id,
+        network_id,
         instance=vpn,
         action='update',
         info=(
@@ -254,8 +255,9 @@ def trigger_zerotier_server_update(self, config, vpn_id):
 def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
-    ip = ip or vpn.ip
+    network_id = vpn.network_id
     node_id = node_id or vpn.node_id
+    member_ip = ip or vpn.ip.ip_address
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
@@ -263,18 +265,18 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     self.handle_api_call(
         service_method,
         node_id,
-        vpn.network_id,
-        vpn.ip.ip_address,
+        network_id,
+        member_ip,
         instance=vpn,
         action='update_member',
         info=(
             f'Successfully updated ZeroTier network member: {node_id}, '
-            f'ZeroTier network: {vpn.network_id}, '
+            f'ZeroTier network: {network_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
         err=(
             f'Failed to update ZeroTier network member: {node_id}, '
-            f'ZeroTier network: {vpn.network_id}, '
+            f'ZeroTier network: {network_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
     )
@@ -289,6 +291,7 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
 def trigger_zerotier_server_leave_member(self, vpn_id, node_id=None):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    network_id = vpn.network_id
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
@@ -296,16 +299,16 @@ def trigger_zerotier_server_leave_member(self, vpn_id, node_id=None):
     self.handle_api_call(
         service_method,
         node_id,
-        vpn.network_id,
+        network_id,
         instance=vpn,
         action='leave_member',
         info=(
-            f'Successfully left ZeroTier Network with ID: {vpn.network_id}, '
+            f'Successfully left ZeroTier Network with ID: {network_id}, '
             f'ZeroTier Member ID: {node_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
         err=(
-            f'Failed to leave ZeroTier Network with ID: {vpn.network_id}, '
+            f'Failed to leave ZeroTier Network with ID: {network_id}, '
             f'ZeroTier Member ID: {node_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
@@ -321,21 +324,22 @@ def trigger_zerotier_server_leave_member(self, vpn_id, node_id=None):
 def trigger_zerotier_server_join(self, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    network_id = vpn.network_id
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
     ).join_network
     response = self.handle_api_call(
         service_method,
-        vpn.network_id,
+        network_id,
         instance=vpn,
         action='network_join',
         info=(
-            f'Successfully joined the ZeroTier network: {vpn.network_id}, '
+            f'Successfully joined the ZeroTier network: {network_id}, '
             f'ZeroTier VPN Server UUID: {vpn_id}'
         ),
         err=(
-            f'Failed to join ZeroTier network: {vpn.network_id}, '
+            f'Failed to join ZeroTier network: {network_id}, '
             f'VPN Server UUID: {vpn_id}'
         ),
     )

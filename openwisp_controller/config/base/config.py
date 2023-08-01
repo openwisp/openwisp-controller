@@ -262,7 +262,7 @@ class AbstractConfig(BaseConfig):
                 # then utilize its ZeroTier identity and member_id fields
                 # Otherwise, generate new ones in the vpn_client model
                 zt_client = vpn_client_model.objects.filter(
-                    config=instance, vpn__backend=template.vpn.backend
+                    config=instance, vpn__backend__endswith='ZeroTier'
                 ).first()
                 if zt_client:
                     zt_clients_fields = dict(

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('config', '0050_vpn_node_network_id'),
+        ('config', '0051_vpn_node_network_id'),
     ]
 
     operations = [
