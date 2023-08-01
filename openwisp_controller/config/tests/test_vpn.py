@@ -2,13 +2,14 @@ import json
 from unittest import mock
 
 from celery.exceptions import Retry, SoftTimeLimitExceeded
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.db.utils import IntegrityError
 from django.http.response import HttpResponse, HttpResponseNotFound
 from django.test import TestCase, TransactionTestCase
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
-from requests.exceptions import ConnectionError, RequestException
+from requests.exceptions import ConnectionError, RequestException, Timeout
 from swapper import load_model
 
 from openwisp_utils.tests import catch_signal
@@ -1048,12 +1049,9 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         mock_requests.post.side_effect = [
             # For create network
             # (internal server error)
-            self._get_mock_response(500, response={}, err='Internal Server Error')
+            self._get_mock_response(500, response={}, exc=RequestException)
         ]
-        expected_error = (
-            'Failed to create ZeroTier network '
-            '(error: Internal Server Error, status code: 500)'
-        )
+        expected_error = 'Failed to create ZeroTier network, Error: '
         with self.assertRaises(ValidationError) as context_manager:
             self._create_zerotier_vpn()
         # Make sure zt vpn server is not created
@@ -1068,8 +1066,8 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
                 'Invalid configuration triggered by "#/zerotier"',
                 str(context_manager.exception),
             )
-            # Delete subnet created for previous assertion
-            Subnet.objects.all().delete()
+        # Delete subnet created for previous assertion
+        Subnet.objects.all().delete()
 
         with self.subTest('zerotier property shall be present'):
             with self.assertRaises(ValidationError) as context_manager:
@@ -1167,13 +1165,27 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_zerotier_vpn()
             expected_error_dict = {
-                'host': ['Failed to connect to the ZeroTier controller, error: ']
+                'host': ['Failed to connect to the ZeroTier controller, Error: ']
             }
             self.assertEqual(
                 expected_error_dict, context_manager.exception.message_dict
             )
         mock_requests.reset_mock()
         # Delete subnet created for previous assertion
+        Subnet.objects.all().delete()
+
+        with self.subTest('Test host timeout error'):
+            # node status (timeout error)
+            mock_requests.get.side_effect = Timeout()
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_zerotier_vpn()
+            expected_error_dict = {
+                'host': ['Failed to connect to the ZeroTier controller, Error: ']
+            }
+            self.assertEqual(
+                expected_error_dict, context_manager.exception.message_dict
+            )
+        mock_requests.reset_mock()
         Subnet.objects.all().delete()
 
         with self.subTest('Test auth token unauthorized error'):
@@ -1253,9 +1265,7 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
     _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks.logger.warn'
     _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks.logger.error'
     # As the locmem cache does not support the redis backend cache.keys() method
-    _ZT_API_TASKS_LOCMEM_CACHE_KEYS = (
-        'django.core.cache.backends.locmem.LocMemCache.keys'
-    )
+    _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
 
     @mock.patch(_ZT_SERVICE_REQUESTS)
     def test_zerotier_auto_clients_configuration(self, mock_requests):
