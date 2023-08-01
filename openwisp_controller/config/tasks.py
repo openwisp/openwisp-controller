@@ -221,7 +221,7 @@ def trigger_zerotier_server_update(self, config, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
     service_method = ZerotierService(
-        vpn.host, vpn.auth_token, vpn.subnet.subnet, vpn.ip.ip_address
+        vpn.host, vpn.auth_token, vpn.subnet.subnet
     ).update_network
     response, updated_config = self.handle_api_call(
         service_method,
@@ -257,12 +257,12 @@ def trigger_zerotier_server_update_member(self, vpn_id):
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
-        ip=vpn.ip,
     ).update_network_member
     self.handle_api_call(
         service_method,
         vpn.node_id,
         vpn.network_id,
+        vpn.ip.ip_address,
         instance=vpn,
         action='update_member',
         info=(
