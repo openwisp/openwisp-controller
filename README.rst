@@ -1282,17 +1282,14 @@ organization.
 
 If you haven't already set up a self-hosted Zerotier network controller on your server,
 now is a good time to do so. You can start by simply installing Zerotier on your server
-from the `official website <https://www.zerotier.com/download/>`_. Since self-hosted
-controllers do not come with a web UI, you can consider installing other open-source solutions,
-such as `ztnci by key-networks <https://key-networks.com/ztncui/>`_,
-to manage your Zerotier network effectively.
+from the `official website <https://www.zerotier.com/download/>`_.
 
 2. Create VPN server configuration for ZeroTier
 ###############################################
 
 1. Visit ``/admin/config/vpn/add/`` to add a new VPN server.
 2. We will set **Name** of this VPN server ``ZeroTier`` and **Host** as
-   ``localhost:9993`` (update this to point to your ZeroTier VPN server).
+   ``my-zerotier-server.mydomain.com:9993`` (update this to point to your ZeroTier VPN server).
 3. Select ``ZeroTier`` from the dropdown as **VPN Backend**.
 4. When using ZeroTier, OpenWISP takes care of managing IP addresses
    (assigning an IP address to each VPN clients (Zerotier network members).
@@ -1300,10 +1297,8 @@ to manage your Zerotier network effectively.
    You can also assign an **Internal IP** to the Zerotier controller or
    leave it empty for OpenWISP to configure. This IP address will be used
    to assign it to the Zerotier controller running on the server.
-5. Set the **Webhook AuthToken**, which will serve as your Zerotier controller
-   authorization token. OpenWISP will use this token to manage Zerotier networks.
-
-   **Note**: To obtain your authorization token, run the following command:
+5. Set the **Webhook AuthToken**, this will be ZeroTier authorization token which you
+   can obtain by running the following command on the ZeroTier controller:
 
    .. code-block:: shell
 
@@ -1323,8 +1318,8 @@ to manage your Zerotier network effectively.
 
 6. After clicking on **Save and continue editing**, OpenWISP automatically detects
    the node address of the Zerotier controller and creates a Zerotier network.
-   This network can be viewed in the **System Defined Variables** section,
-   where it also provides internal IP address information.
+   The **network_id**  of this network can be viewed in the **System Defined Variables**
+   section, where it also provides internal IP address information.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-5.png
    :alt: ZeroTier VPN server configuration example 5
