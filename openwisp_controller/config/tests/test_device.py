@@ -18,6 +18,7 @@ TEST_ORG_SHARED_SECRET = 'functional_testing_secret'
 Config = load_model('config', 'Config')
 Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
+OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 _original_context = app_settings.CONTEXT.copy()
 
 
@@ -311,19 +312,26 @@ class TestDevice(
 
     def test_device_get_system_context(self):
         org = self._get_org()
-        device_group = self._create_device_group(
+        OrganizationConfigSettings.objects.create(
             organization=org, context={'SSID': 'OpenWISP'}
+        )
+        device_group = self._create_device_group(
+            organization=org, context={'radio': 'radio0'}
         )
         d = self._create_device(organization=org, group=device_group)
         self._create_config(context={'test': 'name'}, device=d)
         d.refresh_from_db()
         system_context = d.get_system_context()
         self.assertEqual(system_context['SSID'], 'OpenWISP')
+        self.assertEqual(system_context['radio'], 'radio0')
         self.assertNotIn('test', system_context.keys())
 
     @mock.patch.dict(app_settings.CONTEXT, {'variable_type': 'global-context-variable'})
     def test_configuration_variable_priority(self, *args):
         org = self._get_org()
+        OrganizationConfigSettings.objects.create(
+            organization=org, context={'variable_type': 'organization-context-variable'}
+        )
         device_group = self._create_device_group(
             organization=org, context={'variable_type': 'device-group-variable'}
         )
@@ -349,11 +357,42 @@ class TestDevice(
         # Therefore, for further tests, "tesT" variable is used.
         # Third precedence is given to the device group variable'
         self.assertEqual(config.get_context()['variable_type'], 'device-group-variable')
-        # Fourth precedence is given to global variables
+        # Fourth precedence is given to organization variables
         device.group = None
+        self.assertEqual(
+            config.get_context()['variable_type'], 'organization-context-variable'
+        )
+        # Fifth precedence is given to global variables
+        device.organization = None
         self.assertEqual(
             config.get_context()['variable_type'], 'global-context-variable'
         )
+
+    def test_changing_org_variable_invalidates_cache(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={}
+        )
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            config={'interfaces': [{'name': 'eth0', 'type': '{{ interface_type }}'}]},
+            default_values={'interface_type': 'ethernet'},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+
+        # Changing OrganizationConfigSettings.context should invalidate the cache
+        # and a new checksum should be returned in the following request.
+        config_settings.context = {'interface_type': 'virtual'}
+        config_settings.full_clean()
+        config_settings.save()
+
+        # Config.backend_instance is a "cached_property", hence deleting
+        # the attribute is required for testing.
+        del config.backend_instance
+
+        new_checksum = config.get_cached_checksum()
+        self.assertNotEqual(old_checksum, new_checksum)
 
     def test_management_ip_changed_not_emitted_on_creation(self):
         with catch_signal(management_ip_changed) as handler:

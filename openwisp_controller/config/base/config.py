@@ -151,6 +151,11 @@ class AbstractConfig(BaseConfig):
         return self.checksum
 
     @classmethod
+    def bulk_invalidate_get_cached_checksum(cls, query_params):
+        for config in cls.objects.only('id').filter(**query_params).iterator():
+            config.get_cached_checksum.invalidate(config)
+
+    @classmethod
     def get_template_model(cls):
         return cls.templates.rel.model
 
@@ -616,6 +621,10 @@ class AbstractConfig(BaseConfig):
                     ('key', self.key),
                 ]
             )
+            config_settings = self.device._get_organization__config_settings()
+            if config_settings:
+                # Add organization variables
+                context.update(config_settings.get_context())
             if self.device._get_group():
                 # Add device group variables
                 context.update(self.device._get_group().get_context())
