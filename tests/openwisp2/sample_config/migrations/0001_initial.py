@@ -456,7 +456,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'VPN client',
                 'verbose_name_plural': 'VPN clients',
                 'abstract': False,
-                'unique_together': {('vpn', 'vni'), ('config', 'vpn')},
+                'unique_together': {('config', 'vpn')},
             },
         ),
         migrations.CreateModel(

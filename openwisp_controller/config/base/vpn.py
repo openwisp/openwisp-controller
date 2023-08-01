@@ -5,6 +5,7 @@ import logging
 import subprocess
 from copy import deepcopy
 
+import django
 import shortuuid
 from cache_memoize import cache_memoize
 from django.core.cache import cache
@@ -585,6 +586,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 auto = getattr(template_backend_class, vpn_auto_client)(
                     host=vpn_host,
                     server=self.config['wireguard'][0],
+                    vxlan=self.config.get('vxlan', [{}])[0],
                     **context_keys,
                 )
             # If the backend is 'zerotier' then
@@ -719,15 +721,26 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             }
         )
 
+    @property
+    def _vxlan_vni(self):
+        if self._is_backend_type('vxlan'):
+            return self.config.get('vxlan', [{}])[0].get('vni')
+
     @cache_memoize(_PEER_CACHE_TIMEOUT, args_rewrite=_peer_cache_key)
     def _get_vxlan_peers(self):
         """
         Returns list of vxlan peers, the result is cached.
         """
         peers = []
+        vxlan_interface = self.config.get('vxlan', [{}])[0].get('name')
+        vni = self._vxlan_vni
         for vpnclient in self._get_peer_queryset():
-            if vpnclient.ip:
-                peers.append({'vni': vpnclient.vni, 'remote': vpnclient.ip.ip_address})
+            if not vpnclient.ip:
+                continue
+            peer = {'vni': vpnclient.vni or vni, 'remote': vpnclient.ip.ip_address}
+            if vxlan_interface:
+                peer['interface'] = vxlan_interface
+            peers.append(peer)
         return peers
 
 
@@ -770,10 +783,7 @@ class AbstractVpnClient(models.Model):
 
     class Meta:
         abstract = True
-        unique_together = (
-            ('config', 'vpn'),
-            ('vpn', 'vni'),
-        )
+        unique_together = (('config', 'vpn'),)
         verbose_name = _('VPN client')
         verbose_name_plural = _('VPN clients')
 
@@ -787,6 +797,21 @@ class AbstractVpnClient(models.Model):
         """
         if func not in cls._auto_ip_stopper_funcs:
             cls._auto_ip_stopper_funcs.append(func)
+
+    def _get_unique_checks(self, exclude=None, include_meta_constraints=False):
+        if django.VERSION < (4, 1):
+            # TODO: Remove when dropping support for Django 3.2
+            unique_checks, date_checks = super()._get_unique_checks(exclude)
+        else:
+            unique_checks, date_checks = super()._get_unique_checks(
+                exclude, include_meta_constraints
+            )
+
+        if not self.vpn._vxlan_vni:
+            # If VNI is not specified in VXLAN tunnel configuration,
+            # then each VXLAN tunnel should have different VNI.
+            unique_checks.append((self.__class__, ('vpn', 'vni')))
+        return unique_checks, date_checks
 
     def save(self, *args, **kwargs):
         """
@@ -904,6 +929,8 @@ class AbstractVpnClient(models.Model):
         Automatically generates VNI for VXLAN
         """
         if not self.vpn._is_backend_type('vxlan') or self.vni:
+            return
+        if self.vpn._vxlan_vni:
             return
         last_tunnel = (
             self._meta.model.objects.filter(vpn=self.vpn).order_by('vni').last()

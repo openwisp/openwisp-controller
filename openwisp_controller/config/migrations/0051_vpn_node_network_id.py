@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('config', '0049_devicegroup_context'),
+        ('config', '0050_alter_vpnclient_unique_together'),
     ]
 
     operations = [
