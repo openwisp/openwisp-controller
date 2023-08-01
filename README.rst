@@ -2806,6 +2806,7 @@ Available configuration backends. For more information, see `netjsonconfig backe
 |              |     ('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN'),                     |
 |              |     ('openwisp_controller.vpn_backends.Wireguard', 'WireGuard'),                 |
 |              |     ('openwisp_controller.vpn_backends.VxlanWireguard', 'VXLAN over WireGuard'), |
+|              |     ('openwisp_controller.vpn_backends.ZeroTier', 'ZeroTier'),                   |
 |              |   )                                                                              |
 +--------------+----------------------------------------------------------------------------------+
 
@@ -3326,6 +3327,39 @@ Allows to show a pie chart like the one in the screenshot.
 
 Active groups are groups which have at least one device in them,
 while emtpy groups do not have any device assigned.
+
+``OPENWISP_CONTROLLER_API_TASK_RETRY_OPTIONS``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    | ``dict``  |
++--------------+-----------+
+| **default**: | see below |
++--------------+-----------+
+
+.. code-block:: python
+
+    # default value of OPENWISP_CONTROLLER_API_TASK_RETRY_OPTIONS:
+
+    dict(
+        max_retries=5, # total number of retries
+        retry_backoff=True, # exponential backoff
+        retry_backoff_max=600, # 10 minutes
+        retry_jitter=True, # randomness into exponential backoff
+    )
+
+
+This setting is utilized by background API tasks executed
+by `ZeroTier VPN servers and ZeroTier VPN clients <#how-to-setup-zerotier-tunnels>`_ to handle recoverable
+HTTP status codes such as 429, 500, 502, 503, and 504. These tasks are retried with a maximum
+of 5 attempts with an exponential backoff and jitter, with a maximum delay of 10 minutes.
+
+This feature ensures that ZeroTier Service API calls
+are resilient to recoverable failures, improving the reliability of the system.
+
+For more information on these settings, you can refer to the `the celery documentation regarding automatic retries
+for known errors. <https://docs.celeryq.dev/en/stable/userguide/tasks.html#automatic-retry-for-known-exceptions>`_
+
 
 Signals
 -------

@@ -285,7 +285,6 @@ class TestNotifications(
                     'and error notification on second call (update network member)'
                 )
             ):
-                # mock_get.return_value = None
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
