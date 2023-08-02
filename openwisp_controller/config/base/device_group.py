@@ -15,6 +15,7 @@ from openwisp_utils.base import TimeStampedEditableModel
 from .. import settings as app_settings
 from ..signals import group_templates_changed
 from ..sortedm2m.fields import SortedManyToManyField
+from ..tasks import bulk_invalidate_config_get_cached_checksum
 from .config import TemplatesThrough
 
 
@@ -74,6 +75,19 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
             )
         except SchemaError as e:
             raise ValidationError({'input': e.message})
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        context_changed = False
+        if not self._state.adding:
+            db_instance = self.__class__.objects.only('context').get(id=self.id)
+            context_changed = db_instance.context != self.context
+        super().save(force_insert, force_update, using, update_fields)
+        if context_changed:
+            bulk_invalidate_config_get_cached_checksum.delay(
+                {'device__group_id': str(self.id)}
+            )
 
     def get_context(self):
         return deepcopy(self.context)

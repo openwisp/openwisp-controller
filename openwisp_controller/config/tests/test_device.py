@@ -394,6 +394,31 @@ class TestDevice(
         new_checksum = config.get_cached_checksum()
         self.assertNotEqual(old_checksum, new_checksum)
 
+    def test_changing_group_variable_invalidates_cache(self):
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org, context={})
+        device = self._create_device(organization=org, group=device_group)
+        config = self._create_config(device=device)
+        template = self._create_template(
+            config={'interfaces': [{'name': 'eth0', 'type': '{{ interface_type }}'}]},
+            default_values={'interface_type': 'ethernet'},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+
+        # Changing DeviceGroup.context should invalidate the cache
+        # and a new checksum should be returned in the following request.
+        device_group.context = {'interface_type': 'virtual'}
+        device_group.full_clean()
+        device_group.save()
+
+        # Config.backend_instance is a "cached_property", hence deleting
+        # the attribute is required for testing.
+        del config.backend_instance
+
+        new_checksum = config.get_cached_checksum()
+        self.assertNotEqual(old_checksum, new_checksum)
+
     def test_management_ip_changed_not_emitted_on_creation(self):
         with catch_signal(management_ip_changed) as handler:
             self._create_device(organization=self._get_org())
