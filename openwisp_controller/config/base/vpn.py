@@ -4,6 +4,7 @@ import json
 import logging
 import subprocess
 from copy import deepcopy
+from subprocess import CalledProcessError, TimeoutExpired
 
 import django
 import shortuuid
@@ -975,16 +976,12 @@ class AbstractVpnClient(models.Model):
                 timeout=5,
                 capture_output=True,
             )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            err, exit_code = getattr(exc, 'stderr'), getattr(exc, 'returncode', 124)
+        except (CalledProcessError, TimeoutExpired) as exc:
+            err = getattr(exc, 'stderr', None)
             # In case of timeout
-            # err: exc msg, code: 124
             if err is None:
                 err = exc
-            err_msg = (
-                f'Unable to generate zerotier identity secret, '
-                f'Error: {err}, Exit code: {exit_code}'
-            )
+            err_msg = f'Unable to generate zerotier identity secret, Error: {err}'
             raise ZeroTierIdentityGenerationError(err_msg)
         return result.stdout.decode('utf-8')
 

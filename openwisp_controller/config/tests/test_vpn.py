@@ -1,4 +1,5 @@
 import json
+from subprocess import CalledProcessError, TimeoutExpired
 from unittest import mock
 
 from celery.exceptions import Retry, SoftTimeLimitExceeded
@@ -16,6 +17,7 @@ from openwisp_utils.tests import catch_signal
 
 from ...vpn_backends import OpenVpn
 from .. import settings as app_settings
+from ..exceptions import ZeroTierIdentityGenerationError
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
 from ..tasks import create_vpn_dh
@@ -1266,9 +1268,11 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
     _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks.logger.error'
     # As the locmem cache does not support the redis backend cache.keys() method
     _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
+    _ZT_GENERATE_IDENTITY_SUBPROCESS = 'openwisp_controller.config.base.vpn.subprocess'
 
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)
-    def test_zerotier_auto_clients_configuration(self, mock_requests):
+    def test_zerotier_auto_clients_configuration(self, mock_requests, mock_subprocess):
         # We are testing zerotier transactions
         # using `mock_requests` calls, this includes
         # background tasks that execute on commit
@@ -1288,14 +1292,17 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             # For member auth and ip assignment
             self._get_mock_response(200),
         ]
+        mock_stdout = mock.MagicMock()
+        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG['identity']
+        mock_subprocess.run.return_value = mock_stdout
         self.assertEqual(IpAddress.objects.count(), 0)
         device, vpn, template = self._create_zerotier_vpn_template()
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
+        context = device.get_context()
 
         with self.subTest('Test zerotier vpn related device context'):
-            context = device.get_context()
             pk = vpn.pk.hex
             self.assertEqual(context[f'vpn_host_{pk}'], vpn.host)
             self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
@@ -1311,6 +1318,76 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             self.assertEqual(
                 context[f'network_name_{pk}'], self._TEST_ZT_NETWORK_CONFIG['name']
             )
+
+        with self.subTest('Test zerotier vpn client device context'):
+            self.assertEqual(
+                context['member_id'], self._TEST_ZT_MEMBER_CONFIG['address']
+            )
+            self.assertEqual(
+                context['zt_identity_secret'], self._TEST_ZT_MEMBER_CONFIG['identity']
+            )
+
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_client_identity_error(self, mock_requests, mock_subprocess):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200),
+            # For controller network join
+            self._get_mock_response(200),
+            # For controller auth and ip assignment
+            self._get_mock_response(200),
+            # For member auth and ip assignment
+            self._get_mock_response(200),
+        ]
+        self.assertEqual(IpAddress.objects.count(), 0)
+        zt_cmd = ['zerotier-idtool generate']
+        # command not found, timeout error
+        mock_subprocess.run.side_effect = [
+            CalledProcessError(returncode=127, cmd=zt_cmd),
+            TimeoutExpired(timeout=5, cmd=zt_cmd),
+        ]
+        mock_subprocess.stderr.return_value = None
+
+        vpn = self._create_zerotier_vpn()
+        self.assertEqual(IpAddress.objects.count(), 1)
+        template = self._create_template(
+            name='test-zerotier-template',
+            type='vpn',
+            vpn=vpn,
+            organization=vpn.organization,
+            auto_cert=True,
+        )
+        device = self._create_device_config()
+
+        with self.subTest(
+            'Test zt identity error due to CalledProcessError (zt is not installed)'
+        ):
+            expected_err = (
+                'Unable to generate zerotier identity secret, '
+                f"Error: Command '{zt_cmd}' returned non-zero exit status 127."
+            )
+            with self.assertRaises(ZeroTierIdentityGenerationError) as exc:
+                device.config.templates.add(template)
+
+            self.assertEqual(expected_err, str(exc.exception))
+
+        # Delete subnet created for previous assertion
+        Subnet.objects.all().delete()
+
+        with self.subTest('Test zt identity error due to TimeoutExpired'):
+            expected_err = (
+                'Unable to generate zerotier identity secret, '
+                f"Error: Command '{zt_cmd}' timed out after 5 seconds"
+            )
+
+            with self.assertRaises(ZeroTierIdentityGenerationError) as exc:
+                device.config.templates.add(template)
+            self.assertEqual(expected_err, str(exc.exception))
 
     @mock.patch(_ZT_API_TASKS_ERR_LOGGER)
     @mock.patch(_ZT_API_TASKS_WARN_LOGGER)
