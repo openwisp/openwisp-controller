@@ -1092,8 +1092,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         for key in context_keys.keys():
             context_keys[key] = '{{%s}}' % context_keys[key]
         expected = template.backend_class.zerotier_auto_client(
-            name=vpn.name,
-            nwid=[vpn.network_id],
+            nwid=[vpn.network_id], identity_secret=context_keys['zt_identity_secret']
         )
         self.assertEqual(auto, expected)
 
@@ -1285,6 +1284,8 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             # For controller network join
             self._get_mock_response(200),
             # For controller auth and ip assignment
+            self._get_mock_response(200),
+            # For member auth and ip assignment
             self._get_mock_response(200),
         ]
         self.assertEqual(IpAddress.objects.count(), 0)
