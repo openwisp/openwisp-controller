@@ -1001,9 +1001,17 @@ class AbstractVpnClient(models.Model):
         )
 
     def _zt_member_leave_network(self):
+        vpn = self.vpn
+        member_id = self.member_id
+        vpn_kwargs = dict(
+            id=vpn.id,
+            host=vpn.host,
+            auth_token=vpn.auth_token,
+            network_id=vpn.network_id,
+        )
         transaction.on_commit(
             lambda: trigger_zerotier_server_leave_member.delay(
-                vpn_id=self.vpn.pk, node_id=self.member_id
+                node_id=member_id, **vpn_kwargs
             )
         )
 

@@ -288,20 +288,30 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     autoretry_for=(RequestException,),
     **API_TASK_RETRY_OPTIONS,
 )
-def trigger_zerotier_server_leave_member(self, vpn_id, node_id=None):
+def trigger_zerotier_server_leave_member(self, node_id=None, **vpn_kwargs):
     Vpn = load_model('config', 'Vpn')
-    vpn = Vpn.objects.get(pk=vpn_id)
-    network_id = vpn.network_id
+    vpn_id = vpn_kwargs.get('id')
+    host = vpn_kwargs.get('host')
+    auth_token = vpn_kwargs.get('auth_token')
+    network_id = vpn_kwargs.get('network_id')
+    try:
+        vpn = Vpn.objects.get(pk=vpn_id)
+        notification_kwargs = dict(instance=vpn, action='leave_member')
+    # When a ZeroTier VPN server is deleted
+    # and this is followed by the deletion of ZeroTier VPN clients
+    # we won't have access to the VPN server instance. Therefore, we should
+    # refrain from sending a notification for the 'leave member' operation
+    except ObjectDoesNotExist:
+        notification_kwargs = dict(send_notification=False)
     service_method = ZerotierService(
-        vpn.host,
-        vpn.auth_token,
+        host,
+        auth_token,
     ).leave_network_member
     self.handle_api_call(
         service_method,
         node_id,
         network_id,
-        instance=vpn,
-        action='leave_member',
+        **notification_kwargs,
         info=(
             f'Successfully left ZeroTier Network with ID: {network_id}, '
             f'ZeroTier Member ID: {node_id}, '
