@@ -130,6 +130,11 @@ class AbstractDevice(OrgMixin, BaseModel):
     def _has_group(self):
         return hasattr(self, 'group')
 
+    def _has_organization__config_settings(self):
+        return hasattr(self, 'organization') and hasattr(
+            self.organization, 'config_settings'
+        )
+
     def _get_config_attr(self, attr):
         """
         gets property or calls method of related config object
@@ -150,6 +155,13 @@ class AbstractDevice(OrgMixin, BaseModel):
         if self._has_group():
             return self.group
         return self.get_group_model()(device=self)
+
+    def _get_organization__config_settings(self):
+        if self._has_organization__config_settings():
+            return self.organization.config_settings
+        return load_model('config', 'OrganizationConfigSettings')(
+            organization=self.organization if hasattr(self, 'organization') else None
+        )
 
     def get_context(self):
         config = self._get_config()
@@ -356,6 +368,14 @@ class AbstractDevice(OrgMixin, BaseModel):
     @classmethod
     def get_config_model(cls):
         return cls._meta.get_field('config').related_model
+
+    @classmethod
+    def get_group_model(cls):
+        return cls._meta.get_field('group').related_model
+
+    @classmethod
+    def get_config_settings_model(cls):
+        return
 
     def get_temp_config_instance(self, **options):
         config = self.get_config_model()(**options)

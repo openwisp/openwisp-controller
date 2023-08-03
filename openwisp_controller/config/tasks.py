@@ -429,3 +429,9 @@ def change_devices_templates(instance_id, model_name, **kwargs):
             backend=kwargs.pop('backend'),
             **kwargs,
         )
+
+
+@shared_task(soft_time_limit=7200)
+def bulk_invalidate_config_get_cached_checksum(query_params):
+    Config = load_model('config', 'Config')
+    Config.bulk_invalidate_get_cached_checksum(query_params)

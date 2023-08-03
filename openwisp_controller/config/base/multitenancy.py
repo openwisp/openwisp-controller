@@ -1,10 +1,15 @@
+import collections
+from copy import deepcopy
+
 import swapper
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
 
 from ..exceptions import OrganizationDeviceLimitExceeded
+from ..tasks import bulk_invalidate_config_get_cached_checksum
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
@@ -27,6 +32,16 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         verbose_name=_('shared secret'),
         help_text=_('used for automatic registration of devices'),
     )
+    context = JSONField(
+        blank=True,
+        default=dict,
+        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+        dump_kwargs={'indent': 4},
+        help_text=_(
+            'This field can be used to add "Configuration Variables"' ' to the devices.'
+        ),
+        verbose_name=_('Configuration Variables'),
+    )
 
     class Meta:
         verbose_name = _('Configuration management settings')
@@ -35,6 +50,22 @@ class AbstractOrganizationConfigSettings(UUIDModel):
 
     def __str__(self):
         return self.organization.name
+
+    def get_context(self):
+        return deepcopy(self.context)
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        context_changed = False
+        if not self._state.adding:
+            db_instance = self.__class__.objects.only('context').get(id=self.id)
+            context_changed = db_instance.context != self.context
+        super().save(force_insert, force_update, using, update_fields)
+        if context_changed:
+            bulk_invalidate_config_get_cached_checksum.delay(
+                {'device__organization_id': str(self.organization_id)}
+            )
 
 
 class AbstractOrganizationLimits(models.Model):

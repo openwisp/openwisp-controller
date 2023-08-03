@@ -38,6 +38,7 @@ Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
+OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 User = get_user_model()
@@ -1428,9 +1429,24 @@ class TestAdmin(
         self.assertEqual(LogEntry.objects.all().count(), 3)
 
     def test_get_default_values(self):
-        t1 = self._create_template(name='t1', default_values={'name1': 'test1'})
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(
+            organization=org,
+            context={
+                'name1': 'organization variable',
+                'name3': 'should not appear',
+            },
+        )
+        t1 = self._create_template(
+            name='t1', default_values={'name1': 'test1'}, organization=org
+        )
         group = self._create_device_group(
-            context={'name1': 'device group', 'name2': 'should not appear'}
+            organization=org,
+            context={
+                'name1': 'device group',
+                'name2': 'should not appear',
+                'name4': 'should not appear',
+            },
         )
         path = reverse('admin:get_default_values')
 
@@ -1459,12 +1475,43 @@ class TestAdmin(
                 response_data = response.json()
                 self.assertEqual(response_data, expected)
                 self.assertNotIn('name2', response_data)
+                self.assertNotIn('name4', response_data)
+
+        with self.subTest('get default values conflicting with organization'):
+            with self.assertNumQueries(4):
+                response = self.client.get(
+                    path, {'pks': f'{t1.pk}', 'organization': str(org.pk)}
+                )
+                self.assertEqual(response.status_code, 200)
+                expected = {'default_values': {'name1': 'organization variable'}}
+                response_data = response.json()
+                self.assertEqual(response_data, expected)
+                self.assertNotIn('name3', response_data)
+
+        with self.subTest('get default values conflicting with organization and group'):
+            with self.assertNumQueries(5):
+                response = self.client.get(
+                    path,
+                    {
+                        'pks': f'{t1.pk}',
+                        'group': str(group.pk),
+                        'organization': str(org.pk),
+                    },
+                )
+                self.assertEqual(response.status_code, 200)
+                expected = {'default_values': {'name1': 'device group'}}
+                response_data = response.json()
+                self.assertEqual(response_data, expected)
+                self.assertNotIn('name2', response_data)
+                self.assertNotIn('name3', response_data)
+                self.assertNotIn('name4', response_data)
 
     def test_get_default_values_invalid_pks(self):
         path = reverse('admin:get_default_values')
         expected = {
             'template': {'error': 'invalid template pks were received'},
-            'group': {'error': 'invalid group pk were received'},
+            'group': {'error': 'invalid group pk was received'},
+            'organization': {'error': 'invalid organization pk was received'},
         }
 
         with self.subTest('test with invalid template pk'):
@@ -1481,6 +1528,11 @@ class TestAdmin(
             r = self.client.get(path, {'group': 'invalid', 'pks': str(uuid4())})
             self.assertEqual(r.status_code, 400)
             self.assertEqual(r.json(), expected['group'])
+
+        with self.subTest('test with invalid organization pk'):
+            r = self.client.get(path, {'organization': 'invalid', 'pks': str(uuid4())})
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.json(), expected['organization'])
 
     def _test_system_context_field_helper(self, path):
         r = self.client.get(path)

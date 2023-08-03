@@ -16,6 +16,7 @@ from .utils import get_object_or_404
 Organization = load_model('openwisp_users', 'Organization')
 Template = load_model('config', 'Template')
 DeviceGroup = load_model('config', 'DeviceGroup')
+OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
 
 def get_relevant_templates(request, organization_id):
@@ -95,18 +96,23 @@ def schema(request):
 
 def get_default_values(request):
     """
-    The view returns default values from the templates
-    and group specified in the URL's query parameters.
+    The view returns default values from the templates, group,
+    and organization specified in the URL's query parameters.
 
     URL query parameters:
         pks (required): Comma separated primary keys of Template
         group (optional): Primary key of the DeviceGroup
+        organization (optional): Primary key of the Organization
 
-    The conflicting keys between the templates' default_values
-    and DeviceGroup's context are overridden by the value present
-    in DeviceGroup's context, i.e. DeviceGroup takes precedence.
+    The conflicting keys between the templates' default_values,
+    DeviceGroup's context and Organization's context are overridden
+    by the value present according to following precedence (highest to lowest):
+        1. DeviceGroup context
+        2. Organization context
+        3. Template default_values
 
-    NOTE: Not all key-value pair of DeviceGroup.context are added
+    NOTE: Not all key-value pair of
+    DeviceGroup.context / Organization.config_setting.context are added
     in the response. Only the conflicting keys are altered.
     """
 
@@ -117,21 +123,43 @@ def get_default_values(request):
             pk_list.append(pk)
         return pk_list
 
+    def _update_default_values(model, model_where, default_values):
+        try:
+            instance = model.objects.only('context').get(model_where)
+        except model.DoesNotExist:
+            pass
+        else:
+            for key, value in instance.get_context().items():
+                if key in default_values:
+                    default_values[key] = value
+
     user = request.user
     try:
         templates_pk_list = _clean_pk(request.GET.get('pks', '').split(','))
     except ValueError:
         return JsonResponse({'error': 'invalid template pks were received'}, status=400)
     group_pk = request.GET.get('group', None)
+    organization_pk = request.GET.get('organization', None)
     if group_pk:
         try:
             group_pk = _clean_pk([group_pk])[0]
         except ValueError:
-            return JsonResponse({'error': 'invalid group pk were received'}, status=400)
+            return JsonResponse({'error': 'invalid group pk was received'}, status=400)
         else:
             group_where = Q(pk=group_pk)
             if not request.user.is_superuser:
                 group_where &= Q(organization__in=user.organizations_managed)
+    if organization_pk:
+        try:
+            organization_pk = _clean_pk([organization_pk])[0]
+        except ValueError:
+            return JsonResponse(
+                {'error': 'invalid organization pk was received'}, status=400
+            )
+        else:
+            config_settings_where = Q(organization_id=organization_pk)
+            if not request.user.is_superuser:
+                config_settings_where &= Q(organization__in=user.organizations_managed)
 
     templates_where = Q(pk__in=templates_pk_list)
     if not user.is_superuser:
@@ -152,14 +180,13 @@ def get_default_values(request):
     default_values = {}
     for pk in templates_pk_list:
         default_values.update(templates_qs_dict.get(pk, {}))
+    # Check for conflicting key's in OrganizationConfigSettings.context
+    if organization_pk:
+        _update_default_values(
+            OrganizationConfigSettings, config_settings_where, default_values
+        )
+
     # Check for conflicting key's in DeviceGroup.context
     if group_pk:
-        try:
-            group = DeviceGroup.objects.only('context').get(group_where)
-        except DeviceGroup.DoesNotExist:
-            pass
-        else:
-            for key, value in group.get_context().items():
-                if key in default_values:
-                    default_values[key] = value
+        _update_default_values(DeviceGroup, group_where, default_values)
     return JsonResponse({'default_values': default_values})
