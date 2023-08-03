@@ -1002,6 +1002,7 @@ class TestVxlanTransaction(
             ],
         )
 
+
 class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
     _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
 

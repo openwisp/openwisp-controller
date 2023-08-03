@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('config', '0049_devicegroup_context'),
+        ('config', '0051_organizationconfigsettings_context'),
     ]
 
     operations = [
