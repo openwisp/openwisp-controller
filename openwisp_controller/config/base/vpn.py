@@ -13,6 +13,7 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
+from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from swapper import get_model_name
@@ -30,7 +31,7 @@ from ..tasks import (
     trigger_vpn_server_endpoint,
     trigger_zerotier_server_delete,
     trigger_zerotier_server_join,
-    trigger_zerotier_server_leave_member,
+    trigger_zerotier_server_remove_member,
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
 )
@@ -264,7 +265,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             config = deepcopy(self.config['zerotier'][0])
             config['name'] = self.name
             if created:
-                self._create_zerotier_server(config)
+                self._create_zt_server(config)
         try:
             super().save(*args, **kwargs)
         except Exception as exc:
@@ -345,14 +346,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         # Delete ZT API tasks notification cache keys
         cache.delete_many(cache.keys(f'*{instance.pk.hex}_last_operation'))
 
-    def _create_zerotier_server(self, config):
+    def _create_zt_server(self, config):
         server_config = ZerotierService(
             self.host, self.auth_token, self.subnet.subnet
         ).create_network(self.node_id, config)
         self.network_id = server_config.pop('id', None)
         self.config = {**self.config, 'zerotier': [server_config]}
 
-    def _update_zerotier_server(self, config):
+    def _update_zt_server(self, config):
         config = config or {}
         transaction.on_commit(
             lambda: trigger_zerotier_server_update.delay(
@@ -361,19 +362,39 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             )
         )
 
-    def _add_controller_to_zerotier_server(self):
+    def _add_controller_to_zt_server(self):
         transaction.on_commit(
             lambda: trigger_zerotier_server_join.delay(
                 vpn_id=self.pk,
             )
         )
 
+    def _add_zt_network_member(self, member_id, member_ip):
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_update_member.delay(
+                vpn_id=self.pk, ip=str(member_ip), node_id=member_id
+            )
+        )
+
+    def _remove_zt_network_member(self, member_id):
+        vpn_kwargs = dict(
+            id=self.pk,
+            host=self.host,
+            auth_token=self.auth_token,
+            network_id=self.network_id,
+        )
+        transaction.on_commit(
+            lambda: trigger_zerotier_server_remove_member.delay(
+                node_id=member_id, **vpn_kwargs
+            )
+        )
+
     def update_vpn_server_configuration(instance, **kwargs):
         if instance._is_backend_type('zerotier'):
             if kwargs.get('created'):
-                instance._add_controller_to_zerotier_server()
+                instance._add_controller_to_zt_server()
             else:
-                instance._update_zerotier_server(kwargs.get('config'))
+                instance._update_zt_server(kwargs.get('config'))
         if instance._is_backend_type('wireguard'):
             if instance.webhook_endpoint and instance.auth_token:
                 transaction.on_commit(
@@ -553,11 +574,15 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 }
             )
         if self._is_backend_type('zerotier'):
-            context_keys.update({'node_id': 'node_id_{}'.format(pk)})
-            context_keys.update({'network_id': 'network_id_{}'.format(pk)})
-            context_keys.update({'network_name': 'network_name_{}'.format(pk)})
-            context_keys.update({'member_id': 'member_id'})
-            context_keys.update({'zt_identity_secret': 'zt_identity_secret'})
+            context_keys.update(
+                {
+                    'node_id': 'node_id_{}'.format(pk),
+                    'network_id': 'network_id_{}'.format(pk),
+                    'network_name': 'network_name_{}'.format(pk),
+                    'member_id': 'member_id',
+                    'zt_identity_secret': 'zt_identity_secret',
+                }
+            )
         return context_keys
 
     def auto_client(self, auto_cert=True, template_backend_class=None):
@@ -599,6 +624,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # call auto_client and update the config
             elif self._is_backend_type('zerotier') and template_backend_class:
                 auto = getattr(template_backend_class, 'zerotier_auto_client')(
+                    name='ow_zt',
                     nwid=[self.network_id],
                     identity_secret=context_keys['zt_identity_secret'],
                 )
@@ -779,7 +805,6 @@ class AbstractVpnClient(models.Model):
     public_key = models.CharField(blank=True, max_length=44)
     private_key = models.CharField(blank=True, max_length=44)
     # needed for zerotier
-    member_id = models.CharField(blank=True, max_length=10)
     zt_identity_secret = models.TextField(blank=True)
     # needed for vxlan
     vni = models.PositiveIntegerField(
@@ -795,6 +820,13 @@ class AbstractVpnClient(models.Model):
         unique_together = (('config', 'vpn'),)
         verbose_name = _('VPN client')
         verbose_name_plural = _('VPN clients')
+
+    @cached_property
+    def member_id(self):
+        """
+        Needed for ZeroTier VPN Clients
+        """
+        return self.zt_identity_secret[:10]
 
     @classmethod
     def register_auto_ip_stopper(cls, func):
@@ -868,7 +900,10 @@ class AbstractVpnClient(models.Model):
         # ZT network member should be authorized and assigned
         # an IP after the creation of the VPN client object
         if instance.vpn._is_backend_type('zerotier'):
-            instance._update_zt_network_member()
+            if instance.member_id and instance.ip:
+                instance.vpn._add_zt_network_member(
+                    instance.member_id, instance.ip.ip_address
+                )
 
     @classmethod
     def post_delete(cls, instance, **kwargs):
@@ -883,7 +918,7 @@ class AbstractVpnClient(models.Model):
         # Zt network member should leave the
         # network after deletion of vpn client object
         if instance.vpn._is_backend_type('zerotier'):
-            instance._zt_member_leave_network()
+            instance.vpn._remove_zt_network_member(instance.member_id)
         try:
             # only deletes related certificates
             # if auto_cert field is set to True
@@ -966,6 +1001,22 @@ class AbstractVpnClient(models.Model):
                 return
         self.ip = self.vpn.subnet.request_ip()
 
+    def _auto_zt_identity_secret(self):
+        if not self.vpn._is_backend_type('zerotier') or self.zt_identity_secret:
+            return
+        # If there's an existing ZeroTier VpnClient
+        # for the device, then re-use that zt_identity_secret
+        existing_zt_client = (
+            self.__class__.objects.only('vpn__backend')
+            .exclude(id=self.id)
+            .filter(config_id=self.config_id, vpn__backend__endswith='ZeroTier')
+            .first()
+        )
+        if existing_zt_client:
+            self.zt_identity_secret = existing_zt_client.zt_identity_secret
+        else:
+            self.zt_identity_secret = self._generate_zt_identity()
+
     def _generate_zt_identity(self):
         try:
             result = subprocess.run(
@@ -984,33 +1035,6 @@ class AbstractVpnClient(models.Model):
             err_msg = f'Unable to generate zerotier identity secret, Error: {err}'
             raise ZeroTierIdentityGenerationError(err_msg)
         return result.stdout.decode('utf-8')
-
-    def _auto_zt_identity_secret(self):
-        if not self.zt_identity_secret and self.vpn._is_backend_type('zerotier'):
-            self.zt_identity_secret = self._generate_zt_identity()
-            self.member_id = self.zt_identity_secret[:10]
-
-    def _update_zt_network_member(self):
-        transaction.on_commit(
-            lambda: trigger_zerotier_server_update_member.delay(
-                vpn_id=self.vpn.pk, ip=str(self.ip.ip_address), node_id=self.member_id
-            )
-        )
-
-    def _zt_member_leave_network(self):
-        vpn = self.vpn
-        member_id = self.member_id
-        vpn_kwargs = dict(
-            id=vpn.id,
-            host=vpn.host,
-            auth_token=vpn.auth_token,
-            network_id=vpn.network_id,
-        )
-        transaction.on_commit(
-            lambda: trigger_zerotier_server_leave_member.delay(
-                node_id=member_id, **vpn_kwargs
-            )
-        )
 
     @classmethod
     def invalidate_clients_cache(cls, vpn):

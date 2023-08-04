@@ -288,7 +288,7 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     autoretry_for=(RequestException,),
     **API_TASK_RETRY_OPTIONS,
 )
-def trigger_zerotier_server_leave_member(self, node_id=None, **vpn_kwargs):
+def trigger_zerotier_server_remove_member(self, node_id=None, **vpn_kwargs):
     Vpn = load_model('config', 'Vpn')
     vpn_id = vpn_kwargs.get('id')
     host = vpn_kwargs.get('host')
@@ -296,7 +296,7 @@ def trigger_zerotier_server_leave_member(self, node_id=None, **vpn_kwargs):
     network_id = vpn_kwargs.get('network_id')
     try:
         vpn = Vpn.objects.get(pk=vpn_id)
-        notification_kwargs = dict(instance=vpn, action='leave_member')
+        notification_kwargs = dict(instance=vpn, action='remove_member')
     # When a ZeroTier VPN server is deleted
     # and this is followed by the deletion of ZeroTier VPN clients
     # we won't have access to the VPN server instance. Therefore, we should
@@ -306,7 +306,7 @@ def trigger_zerotier_server_leave_member(self, node_id=None, **vpn_kwargs):
     service_method = ZerotierService(
         host,
         auth_token,
-    ).leave_network_member
+    ).remove_network_member
     self.handle_api_call(
         service_method,
         node_id,

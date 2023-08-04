@@ -51,41 +51,24 @@ class ZerotierService:
         return repsonse
 
     def _add_routes_and_ip_assignment(self, config):
+        """
+        Adds ZeroTier network routes
+        and IP assignmentpools through OpenWISP subnet
+
+        Params:
+            config (dict): ZeroTier network config dict
+        """
         config['routes'] = [{'target': str(self.subnet), 'via': ''}]
         ip_end = str(self.subnet.broadcast_address)
         ip_start = str(next(self.subnet.hosts()))
         config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
 
-    def join_network(self, network_id):
-        url = f'{self.url}/network/{network_id}'
-        response = requests.post(
-            url, json={}, headers=self.headers, timeout=REQUEST_TIMEOUT
-        )
-        return response
-
-    def leave_network(self, network_id):
-        url = f'{self.url}/network/{network_id}'
-        response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
-        return response
-
-    def update_network_member(self, node_id, network_id, member_ip):
-        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
-        # Authorize and assign ip to the network member
-        response = requests.post(
-            url,
-            json={'authorized': True, 'ipAssignments': [str(member_ip)]},
-            headers=self.headers,
-            timeout=5,
-        )
-        return response
-
-    def leave_network_member(self, node_id, network_id):
-        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
-        response = requests.delete(url, headers=self.headers, timeout=5)
-        return response
-
     def get_node_status(self):
+        """
+        Fetches status running of the ZeroTier controller
+        This method is used for host validation during VPN creation
+        """
         url = f'{self.url}/status'
         try:
             response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
@@ -99,7 +82,41 @@ class ZerotierService:
                 }
             )
 
+    def join_network(self, network_id):
+        """
+        Adds ZeroTier Controller to the specified network
+
+        Params:
+            network_id (str): ID of the network to join
+        """
+        url = f'{self.url}/network/{network_id}'
+        response = requests.post(
+            url, json={}, headers=self.headers, timeout=REQUEST_TIMEOUT
+        )
+        return response
+
+    def leave_network(self, network_id):
+        """
+        Removes ZeroTier Controller from the specified network
+
+        Params:
+            network_id (str): ID of the network to leave
+        """
+        url = f'{self.url}/network/{network_id}'
+        response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
+        return response
+
     def create_network(self, node_id, config):
+        """
+        Creates a new network in the ZeroTier Controller
+
+        Params:
+            node_id (str): ID of the controller node
+            config (dict): Configuration of the new network
+
+        Returns:
+            network_config(dict): Filtered response from the ZeroTier Controller API
+        """
         url = f"{self.url}{self._get_endpoint('network', 'create', node_id)}"
         config = self._add_routes_and_ip_assignment(config)
         try:
@@ -115,6 +132,13 @@ class ZerotierService:
             )
 
     def update_network(self, config, network_id):
+        """
+        Update configuration of an existing ZeroTier Controller network
+
+        Params:
+            config (dict): New configuration data for the network
+            network_id (str): ID of the network to update
+        """
         url = f"{self.url}{self._get_endpoint('network', 'update', network_id)}"
         config = self._add_routes_and_ip_assignment(config)
         response = requests.post(
@@ -123,6 +147,45 @@ class ZerotierService:
         return response, self._get_repsonse(response.json())
 
     def delete_network(self, network_id):
+        """
+        Deletes ZeroTier Controller network
+
+        Params:
+            network_id (str): ID of the ZeroTier network to be deleted
+        """
         url = f"{self.url}{self._get_endpoint('network', 'delete', network_id)}"
         response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
+        return response
+
+    def update_network_member(self, node_id, network_id, member_ip):
+        """
+        Update ZeroTier Network Member Configuration
+
+        This method is currenlty used to authorize
+        and assign an IP address to a network member
+
+        Params:
+            node_id (str): Node ID of the network member
+            network_id (str): Network ID to which the member belongs
+            member_ip (str): IP address to be assigned to the network member
+        """
+        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        response = requests.post(
+            url,
+            json={'authorized': True, 'ipAssignments': [str(member_ip)]},
+            headers=self.headers,
+            timeout=5,
+        )
+        return response
+
+    def remove_network_member(self, node_id, network_id):
+        """
+        Remove a member from ZeroTier network
+
+        Params:
+            node_id (str): ID of the network member
+            network_id (str): ID of the ZeroTier network
+        """
+        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        response = requests.delete(url, headers=self.headers, timeout=5)
         return response

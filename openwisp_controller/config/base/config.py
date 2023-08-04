@@ -258,27 +258,14 @@ class AbstractConfig(BaseConfig):
         # when adding or removing specific templates
         for template in templates.filter(type='vpn'):
             if action == 'post_add':
-                zt_clients_fields = {}
                 if vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn
                 ).exists():
                     continue
-                # If a ZT VPN client object already exists for the device,
-                # then utilize its ZeroTier identity and member_id fields
-                # Otherwise, generate new ones in the vpn_client model
-                zt_client = vpn_client_model.objects.filter(
-                    config=instance, vpn__backend__endswith='ZeroTier'
-                ).first()
-                if zt_client:
-                    zt_clients_fields = dict(
-                        zt_identity_secret=zt_client.zt_identity_secret,
-                        member_id=zt_client.member_id,
-                    )
                 client = vpn_client_model(
                     config=instance,
                     vpn=template.vpn,
                     auto_cert=template.auto_cert,
-                    **zt_clients_fields,
                 )
                 client.full_clean()
                 client.save()
@@ -610,13 +597,17 @@ class AbstractConfig(BaseConfig):
             if vpn.subnet:
                 if vpnclient.ip:
                     context[vpn_context_keys['ip_address']] = vpnclient.ip.ip_address
+            if 'vni' in vpn_context_keys and (
+                vpnclient.vni or vpnclient.vpn._vxlan_vni
+            ):
+                context[
+                    vpn_context_keys['vni']
+                ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
             if vpnclient.zt_identity_secret:
                 context[vpn_context_keys['member_id']] = vpnclient.member_id
                 context[
                     vpn_context_keys['zt_identity_secret']
                 ] = vpnclient.zt_identity_secret
-            if 'vni' in vpn_context_keys and vpnclient.vni:
-                context[vpn_context_keys['vni']] = f'{vpnclient.vni}'
         return context
 
     def get_context(self, system=False):
