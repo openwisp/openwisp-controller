@@ -1347,14 +1347,19 @@ from the `official website <https://www.zerotier.com/download/>`_.
    be applied to. For this example, we will leave it to ``OpenWRT``.
 4. Select the correct VPN server from the dropdown for the **VPN** field. Here
    it is ``ZeroTier``.
-5. Make sure to check the **Automatic tunnel provisioning** option.
-   This will enable OpenWISP to automatically provision an IP address
-   for each ZeroTier VPN client.
+5. Ensure that the **Automatic tunnel provisioning** option is checked.
+   This will enable OpenWISP to automatically provision an IP address and
+   ZeroTier identity secrets (used for assigning member IDs) for each ZeroTier VPN client.
 6. After clicking on **Save and continue editing** button, you will see details
    of *ZeroTier* VPN server in **System Defined Variables**. The template
    configuration will be automatically generated which you can tweak
    accordingly. We will use the automatically generated VPN client configuration
    for this example.
+
+**Note:** OpenWISP uses `zerotier-idtool
+<https://github.com/zerotier/ZeroTierOne/blob/dev/doc/zerotier-idtool.1.md>`_
+to manage **ZeroTier identity secrets**. Please make sure that you have
+`ZeroTier installed <https://www.zerotier.com/download/>` on the server.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/template.png
     :alt: ZeroTier VPN client template example
