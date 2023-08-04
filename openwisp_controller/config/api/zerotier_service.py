@@ -66,7 +66,7 @@ class ZerotierService:
 
     def get_node_status(self):
         """
-        Fetches status running of the ZeroTier controller
+        Fetches the status of the running ZeroTier controller
         This method is used for host validation during VPN creation
         """
         url = f'{self.url}/status'

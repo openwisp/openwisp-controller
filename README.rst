@@ -1359,7 +1359,7 @@ from the `official website <https://www.zerotier.com/download/>`_.
 **Note:** OpenWISP uses `zerotier-idtool
 <https://github.com/zerotier/ZeroTierOne/blob/dev/doc/zerotier-idtool.1.md>`_
 to manage **ZeroTier identity secrets**. Please make sure that you have
-`ZeroTier installed <https://www.zerotier.com/download/>` on the server.
+`ZeroTier installed <https://www.zerotier.com/download/>`_ on the server.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/template.png
     :alt: ZeroTier VPN client template example

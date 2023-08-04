@@ -1492,6 +1492,11 @@ class TestZeroTierTransaction(
     def test_zerotier_vpn_client_template(
         self, mock_requests, mock_info, mock_warn, mock_error, mock_subprocess
     ):
+        def _reset_mocks():
+            mock_info.reset_mock()
+            mock_requests.reset_mock()
+            mock_subprocess.reset_mock()
+
         mock_requests.get.side_effect = [
             # For node status (vpn1)
             self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG),
@@ -1575,12 +1580,11 @@ class TestZeroTierTransaction(
         self.assertEqual(mock_info.call_count, 4)
         self.assertEqual(mock_warn.call_count, 0)
         self.assertEqual(mock_error.call_count, 0)
+        self.assertEqual(mock_subprocess.run.call_count, 0)
         self.assertEqual(mock_requests.get.call_count, 2)
         self.assertEqual(mock_requests.post.call_count, 6)
         self.assertEqual(mock_requests.delete.call_count, 0)
-
-        mock_info.reset_mock()
-        mock_requests.reset_mock()
+        _reset_mocks()
 
         with self.subTest(
             (
@@ -1606,9 +1610,7 @@ class TestZeroTierTransaction(
         device.config.templates.remove(wg_template)
         self.assertEqual(IpAddress.objects.count(), 3)
         self.assertEqual(mock_requests.delete.call_count, 1)
-        mock_info.reset_mock()
-        mock_requests.reset_mock()
-        mock_subprocess.reset_mock()
+        _reset_mocks()
 
         with self.subTest(
             (
@@ -1627,10 +1629,7 @@ class TestZeroTierTransaction(
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             self.assertEqual(mock_requests.post.call_count, 1)
-
-        mock_info.reset_mock()
-        mock_requests.reset_mock()
-        mock_subprocess.reset_mock()
+        _reset_mocks()
 
         with self.subTest(
             (
@@ -1651,10 +1650,7 @@ class TestZeroTierTransaction(
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             self.assertEqual(mock_requests.post.call_count, 0)
-
-        mock_info.reset_mock()
-        mock_requests.reset_mock()
-        mock_subprocess.reset_mock()
+        _reset_mocks()
 
         with self.subTest(
             (
