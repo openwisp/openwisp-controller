@@ -1044,6 +1044,97 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             self.assertIn('network_name', context_keys)
 
     @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_auto_cert_false(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        device, vpn, template = self._create_zerotier_vpn_template(auto_cert=False)
+        vpnclient_qs = device.config.vpnclient_set
+        self.assertEqual(vpnclient_qs.count(), 1)
+        self.assertEqual(IpAddress.objects.count(), 1)
+        vpnclient = vpnclient_qs.first()
+        self.assertEqual(vpnclient.member_id, '')
+        self.assertEqual(vpnclient.zt_identity_secret, '')
+        self.assertEqual(vpnclient.private_key, '')
+        self.assertEqual(vpnclient.public_key, '')
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_ip_deleted_when_vpnclient_deleted(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        device, vpn, template = self._create_zerotier_vpn_template()
+        self.assertEqual(IpAddress.objects.count(), 2)
+        vpnclient_qs = device.config.vpnclient_set
+        self.assertEqual(vpnclient_qs.count(), 1)
+        vpnclient_qs.first().delete()
+        self.assertEqual(IpAddress.objects.count(), 1)
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_ip_deleted_when_device_deleted(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        device, vpn, template = self._create_zerotier_vpn_template()
+        self.assertEqual(device.config.vpnclient_set.count(), 1)
+        device.delete()
+        self.assertEqual(IpAddress.objects.count(), 1)
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_delete_vpnclient_ip(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        device, vpn, template = self._create_zerotier_vpn_template()
+        self.assertEqual(device.config.vpnclient_set.count(), 1)
+        vpnclient = device.config.vpnclient_set.first()
+        vpnclient.ip.delete()
+        self.assertEqual(device.config.vpnclient_set.count(), 1)
+        self.assertEqual(IpAddress.objects.count(), 1)
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_ip_within_subnet(self, mock_requests):
+        mock_requests.get.side_effect = [
+            # For node status
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            # For create network
+            self._get_mock_response(200)
+        ]
+        org = self._get_org()
+        subnet1 = self._create_subnet(subnet='10.0.1.0/24', organization=org)
+        subnet2 = self._create_subnet(subnet='10.150.0.0/24', organization=org)
+        ip_subnet2 = subnet2.request_ip()
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_zerotier_vpn(organization=org, subnet=subnet1, ip=ip_subnet2)
+        message_dict = context_manager.exception.message_dict
+        self.assertIn('ip', message_dict)
+        self.assertIn(
+            'VPN IP address must be within the VPN subnet', message_dict['ip']
+        )
+
+    @mock.patch(_ZT_SERVICE_REQUESTS)
     def test_zerotier_creation_error(self, mock_requests):
         mock_requests.get.side_effect = [
             # For node status
@@ -1094,7 +1185,9 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         for key in context_keys.keys():
             context_keys[key] = '{{%s}}' % context_keys[key]
         expected = template.backend_class.zerotier_auto_client(
-            nwid=[vpn.network_id], identity_secret=context_keys['zt_identity_secret']
+            name='ow_zt',
+            nwid=[vpn.network_id],
+            identity_secret=context_keys['zt_identity_secret'],
         )
         self.assertEqual(auto, expected)
 
@@ -1261,7 +1354,9 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             )
 
 
-class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTestCase):
+class TestZeroTierTransaction(
+    BaseTestVpn, TestZeroTierVpnMixin, TestWireguardVpnMixin, TransactionTestCase
+):
     _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
     _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks.logger.info'
     _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks.logger.warn'
@@ -1388,6 +1483,198 @@ class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTest
             with self.assertRaises(ZeroTierIdentityGenerationError) as exc:
                 device.config.templates.add(template)
             self.assertEqual(expected_err, str(exc.exception))
+
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
+    @mock.patch(_ZT_API_TASKS_ERR_LOGGER)
+    @mock.patch(_ZT_API_TASKS_WARN_LOGGER)
+    @mock.patch(_ZT_API_TASKS_INFO_LOGGER)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_client_template(
+        self, mock_requests, mock_info, mock_warn, mock_error, mock_subprocess
+    ):
+        mock_requests.get.side_effect = [
+            # For node status (vpn1)
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG),
+            # For node status (vpn2)
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG),
+        ]
+        mock_requests.post.side_effect = [
+            # For create network (vpn1)
+            self._get_mock_response(200),
+            # For controller network join (vpn1)
+            self._get_mock_response(200),
+            # For controller auth and ip assignment (vpn1)
+            self._get_mock_response(200),
+            # For create network (vpn2)
+            self._get_mock_response(200),
+            # For controller network join (vpn2)
+            self._get_mock_response(200),
+            # For controller auth and ip assignment (vpn2)
+            self._get_mock_response(200),
+            # For member auth and ip assignment (wirguard + vpn1)
+            self._get_mock_response(200),
+            # For member auth and ip assignment (only vpn1)
+            self._get_mock_response(200),
+            # For member auth and ip assignment (vpn1 + vpn2)
+            self._get_mock_response(200),
+        ]
+        mock_requests.delete.side_effect = [
+            # Forremove network member (vpn1)
+            self._get_mock_response(200),
+        ]
+        mock_stdout = mock.MagicMock()
+        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG['identity']
+        mock_subprocess.run.return_value = mock_stdout
+        self.assertEqual(IpAddress.objects.count(), 0)
+
+        subnet1 = self._create_subnet(
+            name='test-zerotier-subnet-1', subnet='10.150.0.0/24', organization=None
+        )
+        subnet2 = self._create_subnet(
+            name='test-zerotier-subnet-2', subnet='10.250.0.0/24', organization=None
+        )
+        zt_vpn1 = self._create_zerotier_vpn(subnet=subnet1)
+        zt_vpn2 = self._create_zerotier_vpn(name='test-zerotier-vpn-2', subnet=subnet2)
+        device = self._create_device_config()
+        vpnclient_qs = device.config.vpnclient_set
+        zt1 = self._create_template(
+            name='test-zt-template-1',
+            type='vpn',
+            vpn=zt_vpn1,
+            organization=zt_vpn1.organization,
+            auto_cert=True,
+        )
+        zt_1_copy = self._create_template(
+            name='test-zt-template-1-copy',
+            type='vpn',
+            vpn=zt_vpn1,
+            organization=zt_vpn1.organization,
+            auto_cert=True,
+        )
+        zt2 = self._create_template(
+            name='test-zt-template-2',
+            type='vpn',
+            vpn=zt_vpn2,
+            organization=zt_vpn2.organization,
+            auto_cert=True,
+        )
+        wg_vpn = self._create_wireguard_vpn()
+        wg_template = self._create_template(
+            name='wireguard',
+            type='vpn',
+            vpn=wg_vpn,
+            organization=wg_vpn.organization,
+            auto_cert=True,
+        )
+        # Let's add wireguard vpn client template to the device
+        device.config.templates.add(wg_template)
+        # Ensure ip address objects are created
+        # for all three vpn servers and wg vpn client
+        self.assertEqual(IpAddress.objects.count(), 4)
+        self.assertEqual(vpnclient_qs.count(), 1)
+        self.assertEqual(mock_info.call_count, 4)
+        self.assertEqual(mock_warn.call_count, 0)
+        self.assertEqual(mock_error.call_count, 0)
+        self.assertEqual(mock_requests.get.call_count, 2)
+        self.assertEqual(mock_requests.post.call_count, 6)
+        self.assertEqual(mock_requests.delete.call_count, 0)
+
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+
+        with self.subTest(
+            (
+                'Test zt identity generation when different vpn client '
+                '(wireguard) template is already applied to the device'
+            )
+        ):
+            device.config.templates.add(zt1)
+            # New vpn client object is created
+            self.assertEqual(vpnclient_qs.count(), 2)
+            self.assertEqual(vpnclient_qs.filter(vpn=zt_vpn1).exists(), True)
+            # New ip address object for zt vpn client object is created
+            self.assertEqual(IpAddress.objects.count(), 5)
+            # Make sure subprocess is called for identity generation
+            self.assertEqual(mock_subprocess.run.call_count, 1)
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            self.assertEqual(mock_requests.post.call_count, 1)
+
+        # Now remove zt and wg vpn template from the device
+        device.config.templates.remove(zt1)
+        device.config.templates.remove(wg_template)
+        self.assertEqual(IpAddress.objects.count(), 3)
+        self.assertEqual(mock_requests.delete.call_count, 1)
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+        mock_subprocess.reset_mock()
+
+        with self.subTest(
+            (
+                'Test zt identity generation when only zt '
+                'vpn client template is applied to the device'
+            )
+        ):
+            device.config.templates.add(zt1)
+            self.assertEqual(vpnclient_qs.count(), 1)
+            self.assertEqual(vpnclient_qs.first().vpn, zt_vpn1)
+            # New ip address object for zt vpn client object is created
+            self.assertEqual(IpAddress.objects.count(), 4)
+            # Make sure subprocess is called for identity generation
+            self.assertEqual(mock_subprocess.run.call_count, 1)
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            self.assertEqual(mock_requests.post.call_count, 1)
+
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+        mock_subprocess.reset_mock()
+
+        with self.subTest(
+            (
+                'Test zt no identity generation when same zt vpn server '
+                'vpn client template is already applied to the device'
+            )
+        ):
+            device.config.templates.add(zt_1_copy)
+            # No new zt vpn client object
+            self.assertEqual(vpnclient_qs.count(), 1)
+            # Make sure only previously applied 'zt_vpn1' vpn client object is exist
+            self.assertEqual(vpnclient_qs.first().vpn, zt_vpn1)
+            self.assertEqual(IpAddress.objects.count(), 4)
+            # Make sure subprocess is not called for identity generation
+            self.assertEqual(mock_subprocess.run.call_count, 0)
+            # No configuration changed
+            self.assertEqual(mock_info.call_count, 0)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            self.assertEqual(mock_requests.post.call_count, 0)
+
+        mock_info.reset_mock()
+        mock_requests.reset_mock()
+        mock_subprocess.reset_mock()
+
+        with self.subTest(
+            (
+                'Test zt no identity generation when different '
+                'zt vpn server vpn client template is applied to the device'
+            )
+        ):
+            device.config.templates.add(zt2)
+            # New zt vpn client object is created
+            self.assertEqual(vpnclient_qs.count(), 2)
+            self.assertEqual(vpnclient_qs.first().vpn, zt_vpn1)
+            self.assertEqual(vpnclient_qs.last().vpn, zt_vpn2)
+            # Ensure that new ip address object are created
+            self.assertEqual(IpAddress.objects.count(), 5)
+            # Make sure subprocess is not called for identity generation
+            self.assertEqual(mock_subprocess.run.call_count, 0)
+            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_warn.call_count, 0)
+            self.assertEqual(mock_error.call_count, 0)
+            self.assertEqual(mock_requests.post.call_count, 1)
 
     @mock.patch(_ZT_API_TASKS_ERR_LOGGER)
     @mock.patch(_ZT_API_TASKS_WARN_LOGGER)
