@@ -104,9 +104,9 @@ class ZerotierService:
             response.raise_for_status()
             network_config = self._get_repsonse(response.json())
             return network_config
-        except RequestException as exc:
+        except RequestException as e:
             raise ValidationError(
-                _('Failed to create ZeroTier network, Error: {0}').format(exc)
+                _('Failed to create ZeroTier network, Error: {0}').format(e)
             )
 
     def update_network(self, config, network_id):
