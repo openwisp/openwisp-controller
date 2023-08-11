@@ -1262,9 +1262,9 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
 
 class TestZeroTierTransaction(BaseTestVpn, TestZeroTierVpnMixin, TransactionTestCase):
     _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
-    _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks.logger.info'
-    _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks.logger.warn'
-    _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks.logger.error'
+    _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.info'
+    _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.warn'
+    _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.error'
     # As the locmem cache does not support the redis backend cache.keys() method
     _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
 

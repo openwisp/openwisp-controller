@@ -23,9 +23,8 @@ from .. import crypto
 from .. import settings as app_settings
 from ..api.zerotier_service import ZerotierService
 from ..signals import vpn_peers_changed, vpn_server_modified
-from ..tasks import (
-    create_vpn_dh,
-    trigger_vpn_server_endpoint,
+from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
+from ..tasks_zerotier import (
     trigger_zerotier_server_delete,
     trigger_zerotier_server_join,
     trigger_zerotier_server_update,
@@ -263,7 +262,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 self._create_zerotier_server(config)
         try:
             super().save(*args, **kwargs)
-        except Exception as exc:
+        except Exception as e:
             # If the db transaction for zt vpn server creation fails
             # for any reason, we should delete the recently
             # created zt network to prevent duplicate networks
@@ -274,7 +273,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     network_id=self.network_id,
                     vpn_id=self.pk,
                 )
-            raise exc
+            raise e
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
         if not created and self._send_vpn_modified_after_save:
