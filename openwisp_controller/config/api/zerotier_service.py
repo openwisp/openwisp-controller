@@ -85,12 +85,12 @@ class ZerotierService:
         try:
             response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             return response
-        except (Timeout, ConnectionError) as err:
+        except (Timeout, ConnectionError) as e:
             raise ValidationError(
                 {
                     'host': _(
                         'Failed to connect to the ZeroTier controller, Error: {0}'
-                    ).format(err)
+                    ).format(e)
                 }
             )
 
@@ -104,9 +104,9 @@ class ZerotierService:
             response.raise_for_status()
             network_config = self._get_repsonse(response.json())
             return network_config
-        except RequestException as exc:
+        except RequestException as e:
             raise ValidationError(
-                _('Failed to create ZeroTier network, Error: {0}').format(exc)
+                _('Failed to create ZeroTier network, Error: {0}').format(e)
             )
 
     def update_network(self, config, network_id):
