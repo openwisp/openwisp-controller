@@ -1212,6 +1212,9 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             name='ow_zt',
             nwid=[vpn.network_id],
             identity_secret=context_keys['zt_identity_secret'],
+            config_path='/etc/ow_zerotier',
+            copy_config_path='1',
+            zt_ifname=f'owzt{vpn.network_id[-6:]}',
         )
         self.assertEqual(auto, expected)
 

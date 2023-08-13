@@ -626,6 +626,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     name='ow_zt',
                     nwid=[self.network_id],
                     identity_secret=context_keys['zt_identity_secret'],
+                    config_path='/etc/ow_zerotier',
+                    copy_config_path='1',
+                    zt_ifname=f'owzt{self.network_id[-6:]}',
                 )
             else:
                 # The OpenVPN backend does not support these kwargs,
