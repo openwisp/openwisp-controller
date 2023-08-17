@@ -1547,7 +1547,7 @@ class TestZeroTierTransaction(
             self._get_mock_response(200),
         ]
         mock_requests.delete.side_effect = [
-            # Forremove network member (vpn1)
+            # For remove network member (vpn1)
             self._get_mock_response(200),
         ]
         mock_stdout = mock.MagicMock()

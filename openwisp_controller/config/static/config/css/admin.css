@@ -267,9 +267,8 @@ div.tabs-divider {
 }
 
 /*
-To prevent overflow of large system context
-variables text such as `zt_identity_secret`
-we should set a max-width with the word-wrap property
+Prevents the overflow of large text in system
+defined variables such as zt_identity_secret
 */
 .form-row.field-system_context {
   max-width: 51.25em;
