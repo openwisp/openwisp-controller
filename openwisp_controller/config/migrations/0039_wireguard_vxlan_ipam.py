@@ -46,7 +46,10 @@ class Migration(migrations.Migration):
             name='auth_token',
             field=models.CharField(
                 blank=True,
-                help_text=('Authentication token for triggering "Webhook Endpoint"'),
+                help_text=(
+                    'Authentication token used for triggering '
+                    '"Webhook Endpoint" or for calling "ZerotierService" API'
+                ),
                 max_length=128,
                 null=True,
                 verbose_name='Webhook AuthToken',
