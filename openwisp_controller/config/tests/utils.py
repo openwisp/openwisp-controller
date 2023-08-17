@@ -3,6 +3,7 @@ test utilities shared among test classes
 these mixins are reused also in openwisp2
 change with care.
 """
+from copy import deepcopy
 from unittest import mock
 from uuid import uuid4
 
@@ -85,6 +86,7 @@ class CreateVpnMixin(object):
         'openvpn': 'openwisp_controller.vpn_backends.OpenVpn',
         'wireguard': 'openwisp_controller.vpn_backends.Wireguard',
         'vxlan': 'openwisp_controller.vpn_backends.VxlanWireguard',
+        'zerotier': 'openwisp_controller.vpn_backends.ZeroTier',
     }
 
     _dh = """-----BEGIN DH PARAMETERS-----
@@ -196,6 +198,131 @@ class TestVxlanWireguardVpnMixin:
             vpn=vpn,
             organization=org1,
             auto_cert=True,
+        )
+        device = self._create_device_config()
+        device.config.templates.add(template)
+        return device, vpn, template
+
+
+class TestZeroTierVpnMixin:
+    _TEST_ZT_NETWORK_CONFIG = {
+        'authTokens': [None],
+        'authorizationEndpoint': '',
+        'capabilities': [],
+        'clientId': '',
+        'creationTime': 1690149114186,
+        'dns': {'domain': '', 'servers': []},
+        'enableBroadcast': True,
+        'id': '9536600adf2e3db9',
+        'ipAssignmentPools': [],
+        'mtu': 2800,
+        'multicastLimit': 32,
+        'name': 'test-zerotier-vpn',
+        'nwid': '9536600adf2e3db9',
+        'objtype': 'network',
+        'private': True,
+        'remoteTraceLevel': 0,
+        'remoteTraceTarget': None,
+        'revision': 2,
+        'routes': [{'target': '0.0.0.0/24', 'via': None}],
+        'rules': [
+            {'etherType': 2048, 'not': True, 'or': False, 'type': 'MATCH_ETHERTYPE'},
+            {'etherType': 2054, 'not': True, 'or': False, 'type': 'MATCH_ETHERTYPE'},
+            {'etherType': 34525, 'not': True, 'or': False, 'type': 'MATCH_ETHERTYPE'},
+            {'type': 'ACTION_DROP'},
+            {'type': 'ACTION_ACCEPT'},
+        ],
+        'rulesSource': '',
+        'ssoEnabled': False,
+        'tags': [],
+        'v4AssignMode': {'zt': False},
+        'v6AssignMode': {'6plane': False, 'rfc4193': False, 'zt': False},
+    }
+    _TEST_ZT_NODE_CONFIG = {
+        'address': '9536600adf',
+        'clock': 1690196627974,
+        'config': {
+            'settings': {
+                'allowTcpFallbackRelay': True,
+                'forceTcpRelay': False,
+                'listeningOn': [
+                    '172.17.0.1/9993',
+                    '172.18.0.1/9993',
+                ],
+                'portMappingEnabled': True,
+                'primaryPort': 9993,
+                'secondaryPort': 64166,
+                'softwareUpdate': 'disable',
+                'softwareUpdateChannel': 'release',
+                'surfaceAddresses': ['103.172.72.9/36684'],
+                'tertiaryPort': 0,
+            }
+        },
+        'online': True,
+        'planetWorldId': 149604618,
+        'planetWorldTimestamp': 1644592324813,
+        'publicIdentity': (
+            '9536600adf:0:cd1e650df2b2e77abe8433'
+            'b44960b23823451216aeb7a0158eb6f3745'
+            'eb17bf724457c07e29de8b965871479ca77'
+            'be46261b6d570db6ab86fa960382ac89c8a1'
+        ),
+        'tcpFallbackActive': False,
+        'version': '1.10.6',
+        'versionBuild': 0,
+        'versionMajor': 1,
+        'versionMinor': 10,
+        'versionRev': 6,
+    }
+
+    def _get_mock_response(self, status_code, response=None, err=None, exc=None):
+        response = (
+            deepcopy(self._TEST_ZT_NETWORK_CONFIG) if response is None else response
+        )
+        mock_response = mock.Mock(status_code=status_code, reason=err)
+        mock_response.json.return_value = response
+        mock_response.raise_for_status.side_effect = exc
+        return mock_response
+
+    def _create_zerotier_vpn(self, config=None, **kwargs):
+        if config is None:
+            config = {
+                'zerotier': [
+                    {
+                        'private': True,
+                        'enableBroadcast': True,
+                        'mtu': 2800,
+                        'multicastLimit': 32,
+                    }
+                ]
+            }
+        org = kwargs.get('organization', None)
+        if 'subnet' not in kwargs:
+            kwargs['subnet'] = self._create_subnet(
+                name='test-zerotier-subnet', subnet='10.0.0.0/16', organization=org
+            )
+        vpn_options = {
+            'backend': 'openwisp_controller.vpn_backends.ZeroTier',
+            'config': config,
+            'name': 'test-zerotier-vpn',
+            'host': 'localhost:9993',
+            'auth_token': 'a6uo9egbutyg9i399x3aocan',
+        }
+        vpn_options.update(kwargs)
+        vpn = Vpn(**vpn_options)
+        vpn.full_clean()
+        vpn.save()
+        return vpn
+
+    def _create_zerotier_vpn_template(self, auto_cert=True, **kwargs):
+        vpn = self._create_zerotier_vpn()
+        org1 = kwargs.get('organization', vpn.organization)
+        template = self._create_template(
+            name='test-zerotier-template',
+            type='vpn',
+            vpn=vpn,
+            organization=org1,
+            auto_cert=auto_cert,
         )
         device = self._create_device_config()
         device.config.templates.add(template)

@@ -39,6 +39,7 @@ VPN_BACKENDS = get_settings_value(
         ('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN'),
         ('openwisp_controller.vpn_backends.Wireguard', 'WireGuard'),
         ('openwisp_controller.vpn_backends.VxlanWireguard', 'VXLAN over WireGuard'),
+        ('openwisp_controller.vpn_backends.ZeroTier', 'ZeroTier'),
     ),
 )
 DEFAULT_BACKEND = get_settings_value('DEFAULT_BACKEND', BACKENDS[0][0])
@@ -79,3 +80,7 @@ SHARED_MANAGEMENT_IP_ADDRESS_SPACE = get_settings_value(
 DSA_OS_MAPPING = get_settings_value('DSA_OS_MAPPING', {})
 DSA_DEFAULT_FALLBACK = get_settings_value('DSA_DEFAULT_FALLBACK', True)
 GROUP_PIE_CHART = get_settings_value('GROUP_PIE_CHART', False)
+API_TASK_RETRY_OPTIONS = get_settings_value(
+    'API_TASK_RETRY_OPTIONS',
+    dict(max_retries=5, retry_backoff=True, retry_backoff_max=600, retry_jitter=True),
+)

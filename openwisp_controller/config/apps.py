@@ -102,6 +102,11 @@ class ConfigConfig(AppConfig):
             sender=self.vpn_model,
             dispatch_uid='vpn.update_vpn_server_configuration',
         )
+        post_delete.connect(
+            self.vpn_model.post_delete,
+            sender=self.vpn_model,
+            dispatch_uid='vpn.post_delete',
+        )
         post_save.connect(
             self.config_model.certificate_updated,
             sender=self.cert_model,
@@ -207,6 +212,46 @@ class ConfigConfig(AppConfig):
                 ),
             },
             models=[self.device_model],
+        )
+
+        register_notification_type(
+            'api_task_error',
+            {
+                'verbose_name': _('Background API Task ERROR'),
+                'verb': _('encountered an unrecoverable error'),
+                'level': 'error',
+                'email_subject': _(
+                    '[{site.name}] ERROR: "{notification.target}" - '
+                    'VPN Server {action} API Task {notification.verb}'
+                ),
+                'message': _(
+                    'Unable to perform {action} operation on the '
+                    '[{notification.target}]({notification.target_link}) VPN server '
+                    'due to an unrecoverable error (status code: {status_code})'
+                ),
+                # Disable email notifications by default
+                'email_notification': False,
+            },
+            models=[self.vpn_model],
+        )
+        register_notification_type(
+            'api_task_recovery',
+            {
+                'verbose_name': _('Background API Task RECOVERY'),
+                'verb': _('has been completed successfully'),
+                'level': 'info',
+                'email_subject': _(
+                    '[{site.name}] RECOVERY: "{notification.target}" - '
+                    'VPN Server {action} API Task {notification.verb}'
+                ),
+                'message': _(
+                    'The {action} operation on [{notification.target}]'
+                    '({notification.target_link}) {notification.verb}'
+                ),
+                # Disable email notifications by default
+                'email_notification': False,
+            },
+            models=[self.vpn_model],
         )
 
         #  Unregister default notification type
