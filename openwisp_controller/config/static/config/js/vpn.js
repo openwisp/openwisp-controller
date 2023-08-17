@@ -47,6 +47,10 @@ django.jQuery(function ($) {
             $('label[for="id_ca"]').parent().parent().hide();
             $('label[for="id_cert"]').parent().parent().hide();
         }
+        // For Zerotier VPN backend
+        if(backendValue.includes('zerotier')){
+            $('label[for="id_auth_token"]').parent().parent().show();
+        }
     };
 
     // clean config when VPN backend is changed

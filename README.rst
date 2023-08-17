@@ -1280,6 +1280,103 @@ OpenWISP. Register or create a device before proceeding.
 **Voila!** You have successfully configured OpenWISP to manage VXLAN over
 WireGuard tunnels for your devices.
 
+How to setup ZeroTier Tunnels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Follow the procedure described below to setup ZeroTier tunnels on your devices.
+
+**Note:** This example uses **Shared systemwide (no organization)** option as
+the organization for VPN server and VPN client template. You can use any
+organization as long as VPN server, VPN client template and Device has same
+organization.
+
+1. Configure Self-Hosted ZeroTier Network Controller
+####################################################
+
+If you haven't already set up a self-hosted Zerotier network controller on your server,
+now is a good time to do so. You can start by simply installing Zerotier on your server
+from the `official website <https://www.zerotier.com/download/>`_.
+
+2. Create VPN server configuration for ZeroTier
+###############################################
+
+1. Visit ``/admin/config/vpn/add/`` to add a new VPN server.
+2. We will set **Name** of this VPN server ``ZeroTier`` and **Host** as
+   ``my-zerotier-server.mydomain.com:9993`` (update this to point to your ZeroTier VPN server).
+3. Select ``ZeroTier`` from the dropdown as **VPN Backend**.
+4. When using ZeroTier, OpenWISP takes care of managing IP addresses
+   (assigning an IP address to each VPN clients (Zerotier network members).
+   You can create a new subnet or select an existing one from the dropdown menu.
+   You can also assign an **Internal IP** to the Zerotier controller or
+   leave it empty for OpenWISP to configure. This IP address will be used
+   to assign it to the Zerotier controller running on the server.
+5. Set the **Webhook AuthToken**, this will be ZeroTier authorization token which you
+   can obtain by running the following command on the ZeroTier controller:
+
+   .. code-block:: shell
+
+        sudo cat /var/lib/zerotier-one/authtoken.secret
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-1.png
+   :alt: ZeroTier VPN server configuration example 1
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-2.png
+   :alt: ZeroTier VPN server configuration example 2
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-3.png
+   :alt: ZeroTier VPN server configuration example 3
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-4.png
+   :alt: ZeroTier VPN server configuration example 4
+
+6. After clicking on **Save and continue editing**, OpenWISP automatically detects
+   the node address of the Zerotier controller and creates a Zerotier network.
+   The **network_id**  of this network can be viewed in the **System Defined Variables**
+   section, where it also provides internal IP address information.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-5.png
+   :alt: ZeroTier VPN server configuration example 5
+
+3. Create VPN client template for ZeroTier VPN Server
+#####################################################
+
+1. Visit ``/admin/config/template/add/`` to add a new template.
+2. Set ``ZeroTier Client`` as **Name** (you can set whatever you want) and
+   select ``VPN-client`` as **type** from the dropdown list.
+3. The **Backend** field refers to the backend of the device this template can
+   be applied to. For this example, we will leave it to ``OpenWRT``.
+4. Select the correct VPN server from the dropdown for the **VPN** field. Here
+   it is ``ZeroTier``.
+5. Make sure to check the **Automatic tunnel provisioning** option.
+   This will enable OpenWISP to automatically provision an IP address
+   for each ZeroTier VPN client.
+6. After clicking on **Save and continue editing** button, you will see details
+   of *ZeroTier* VPN server in **System Defined Variables**. The template
+   configuration will be automatically generated which you can tweak
+   accordingly. We will use the automatically generated VPN client configuration
+   for this example.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/template.png
+    :alt: ZeroTier VPN client template example
+
+4. Apply ZeroTier VPN template to devices
+#########################################
+
+**Note**: This step assumes that you already have a device registered on
+OpenWISP. Register or create a device before proceeding.
+
+1. Open the **Configuration** tab of the concerned device.
+2. Select the *ZeroTier Client* template.
+3. Upon clicking on **Save and continue editing** button, you will see some
+   entries in **System Defined Variables**. It will contain internal IP address
+   for the ZeroTier client on the device along with details of VPN server.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/device-configuration.png
+   :alt: ZeroTier VPN device configuration example
+
+**Voila!** You have successfully configured OpenWISP
+to manage ZeroTier tunnels for your devices.
+
 How to configure automatic provisioning of subnets and IPs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -2709,6 +2806,7 @@ Available configuration backends. For more information, see `netjsonconfig backe
 |              |     ('openwisp_controller.vpn_backends.OpenVpn', 'OpenVPN'),                     |
 |              |     ('openwisp_controller.vpn_backends.Wireguard', 'WireGuard'),                 |
 |              |     ('openwisp_controller.vpn_backends.VxlanWireguard', 'VXLAN over WireGuard'), |
+|              |     ('openwisp_controller.vpn_backends.ZeroTier', 'ZeroTier'),                   |
 |              |   )                                                                              |
 +--------------+----------------------------------------------------------------------------------+
 
@@ -3229,6 +3327,39 @@ Allows to show a pie chart like the one in the screenshot.
 
 Active groups are groups which have at least one device in them,
 while emtpy groups do not have any device assigned.
+
+``OPENWISP_CONTROLLER_API_TASK_RETRY_OPTIONS``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------+-----------+
+| **type**:    | ``dict``  |
++--------------+-----------+
+| **default**: | see below |
++--------------+-----------+
+
+.. code-block:: python
+
+    # default value of OPENWISP_CONTROLLER_API_TASK_RETRY_OPTIONS:
+
+    dict(
+        max_retries=5, # total number of retries
+        retry_backoff=True, # exponential backoff
+        retry_backoff_max=600, # 10 minutes
+        retry_jitter=True, # randomness into exponential backoff
+    )
+
+
+This setting is utilized by background API tasks executed
+by `ZeroTier VPN servers and ZeroTier VPN clients <#how-to-setup-zerotier-tunnels>`_ to handle recoverable
+HTTP status codes such as 429, 500, 502, 503, and 504. These tasks are retried with a maximum
+of 5 attempts with an exponential backoff and jitter, with a maximum delay of 10 minutes.
+
+This feature ensures that ZeroTier Service API calls
+are resilient to recoverable failures, improving the reliability of the system.
+
+For more information on these settings, you can refer to the `the celery documentation regarding automatic retries
+for known errors. <https://docs.celeryq.dev/en/stable/userguide/tasks.html#automatic-retry-for-known-exceptions>`_
+
 
 Signals
 -------
