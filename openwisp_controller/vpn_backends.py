@@ -3,6 +3,7 @@ from copy import deepcopy
 from netjsonconfig import OpenVpn as BaseOpenVpn
 from netjsonconfig import VxlanWireguard as BaseVxlanWireguard
 from netjsonconfig import Wireguard as BaseWireguard
+from netjsonconfig import ZeroTier as BaseZeroTier
 from netjsonconfig.backends.vxlan.schema import base_vxlan_properties
 
 # adapt OpenVPN schema in order to limit it to 1 item only
@@ -76,3 +77,30 @@ class VxlanWireguard(BaseVxlanWireguard):
     """
 
     schema = limited_vxlan_wireguard_schema
+
+
+limited_zerotier_schema = deepcopy(BaseZeroTier.schema)
+zerotier_server_properties = limited_zerotier_schema['definitions']['zerotier_server'][
+    'properties'
+]
+# these properties handled automatically without the need of user input
+del zerotier_server_properties['name']
+del zerotier_server_properties['id']
+del zerotier_server_properties['nwid']
+del zerotier_server_properties['objtype']
+del zerotier_server_properties['routes']
+del zerotier_server_properties['revision']
+del zerotier_server_properties['creationTime']
+del zerotier_server_properties['ipAssignmentPools']
+limited_zerotier_schema['definitions']['zerotier_server']['required'].remove('name')
+
+zerotier_properties = limited_zerotier_schema['properties']['zerotier']
+zerotier_properties.update({'additionalItems': False, 'maxItems': 1, 'minItems': 1})
+
+
+class ZeroTier(BaseZeroTier):
+    """
+    ZeroTier
+    """
+
+    schema = limited_zerotier_schema
