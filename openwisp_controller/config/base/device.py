@@ -128,7 +128,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         return hasattr(self, 'config')
 
     def _has_group(self):
-        return hasattr(self, 'group')
+        return hasattr(self, 'group') and self.group is not None
 
     def _has_organization__config_settings(self):
         return hasattr(self, 'organization') and hasattr(
