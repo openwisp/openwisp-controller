@@ -1108,6 +1108,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         device, vpn, template = self._create_zerotier_vpn_template()
         self.assertEqual(mock_subprocess.run.call_count, 1)
         self.assertEqual(device.config.vpnclient_set.count(), 1)
+        self.assertEqual(IpAddress.objects.count(), 2)
         device.delete()
         self.assertEqual(IpAddress.objects.count(), 1)
 
@@ -1126,6 +1127,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         device, vpn, template = self._create_zerotier_vpn_template()
         self.assertEqual(mock_subprocess.run.call_count, 1)
         self.assertEqual(device.config.vpnclient_set.count(), 1)
+        self.assertEqual(IpAddress.objects.count(), 2)
         vpnclient = device.config.vpnclient_set.first()
         vpnclient.ip.delete()
         self.assertEqual(device.config.vpnclient_set.count(), 1)
