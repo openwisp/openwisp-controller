@@ -564,3 +564,11 @@ class TestDevice(
                 f' for organization {org2}.'
             ),
         )
+
+    def test_has_methods(self):
+        device = self._create_device(
+            name='11:22:33:44:55:66',
+            mac_address='11:22:33:44:55:66',
+            organization=self._get_org(),
+        )
+        self.assertFalse(device._has_group())
