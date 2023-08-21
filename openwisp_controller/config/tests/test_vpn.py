@@ -1210,9 +1210,10 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             context_keys[key] = '{{%s}}' % context_keys[key]
         expected = template.backend_class.zerotier_auto_client(
             name='ow_zt',
-            nwid=[vpn.network_id],
+            nwid_ifname=[
+                {'id': vpn.network_id, 'ifname': f'owzt{vpn.network_id[-6:]}'}
+            ],
             identity_secret=context_keys['zt_identity_secret'],
-            ifname=f'owzt{vpn.network_id[-6:]}',
         )
         self.assertEqual(auto, expected)
 
