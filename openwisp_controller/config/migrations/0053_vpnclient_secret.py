@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='vpnclient',
-            name='zt_identity_secret',
+            name='secret',
             field=models.TextField(blank=True),
         ),
     ]

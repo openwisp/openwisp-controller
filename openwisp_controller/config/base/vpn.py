@@ -579,7 +579,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     'network_id': 'network_id_{}'.format(pk),
                     'network_name': 'network_name_{}'.format(pk),
                     'member_id': 'member_id',
-                    'zt_identity_secret': 'zt_identity_secret',
+                    'secret': 'secret',
                 }
             )
         return context_keys
@@ -627,7 +627,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     nwid_ifname=[
                         {'id': self.network_id, 'ifname': f'owzt{self.network_id[-6:]}'}
                     ],
-                    identity_secret=context_keys['zt_identity_secret'],
+                    identity_secret=context_keys['secret'],
                 )
             else:
                 # The OpenVPN backend does not support these kwargs,
@@ -806,7 +806,7 @@ class AbstractVpnClient(models.Model):
     public_key = models.CharField(blank=True, max_length=44)
     private_key = models.CharField(blank=True, max_length=44)
     # needed for zerotier
-    zt_identity_secret = models.TextField(blank=True)
+    secret = models.TextField(blank=True)
     # needed for vxlan
     vni = models.PositiveIntegerField(
         null=True,
@@ -827,7 +827,7 @@ class AbstractVpnClient(models.Model):
         """
         Needed for ZeroTier VPN Clients
         """
-        return self.zt_identity_secret[:10]
+        return self.secret[:10]
 
     @classmethod
     def register_auto_ip_stopper(cls, func):
@@ -865,7 +865,7 @@ class AbstractVpnClient(models.Model):
             self._auto_ip()
             self._auto_wireguard()
             self._auto_vxlan()
-            self._auto_zt_identity_secret()
+            self._auto_secret()
         super().save(*args, **kwargs)
 
     def _auto_x509(self):
@@ -1002,11 +1002,11 @@ class AbstractVpnClient(models.Model):
                 return
         self.ip = self.vpn.subnet.request_ip()
 
-    def _auto_zt_identity_secret(self):
-        if not self.vpn._is_backend_type('zerotier') or self.zt_identity_secret:
+    def _auto_secret(self):
+        if not self.vpn._is_backend_type('zerotier') or self.secret:
             return
         # If there's an existing ZeroTier VpnClient
-        # for the device, then re-use that zt_identity_secret
+        # for the device, then re-use that secret
         existing_zt_client = (
             self.__class__.objects.only('vpn__backend')
             .exclude(id=self.id)
@@ -1014,9 +1014,9 @@ class AbstractVpnClient(models.Model):
             .first()
         )
         if existing_zt_client:
-            self.zt_identity_secret = existing_zt_client.zt_identity_secret
+            self.secret = existing_zt_client.secret
         else:
-            self.zt_identity_secret = self._generate_zt_identity()
+            self.secret = self._generate_zt_identity()
 
     def _generate_zt_identity(self):
         try:

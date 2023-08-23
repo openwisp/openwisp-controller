@@ -161,7 +161,7 @@ class ZerotierService:
         """
         Update ZeroTier Network Member Configuration
 
-        This method is currenlty used to authorize
+        This method is currently used to authorize, enable the bridge
         and assign an IP address to a network member
 
         Params:
@@ -172,7 +172,11 @@ class ZerotierService:
         url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
         response = requests.post(
             url,
-            json={'authorized': True, 'ipAssignments': [str(member_ip)]},
+            json={
+                'authorized': True,
+                'activeBridge': True,
+                'ipAssignments': [str(member_ip)],
+            },
             headers=self.headers,
             timeout=5,
         )

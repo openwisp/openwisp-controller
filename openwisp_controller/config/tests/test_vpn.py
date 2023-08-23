@@ -1069,7 +1069,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         self.assertEqual(mock_subprocess.run.call_count, 0)
         vpnclient = vpnclient_qs.first()
         self.assertEqual(vpnclient.member_id, '')
-        self.assertEqual(vpnclient.zt_identity_secret, '')
+        self.assertEqual(vpnclient.secret, '')
         self.assertEqual(vpnclient.private_key, '')
         self.assertEqual(vpnclient.public_key, '')
 
@@ -1213,7 +1213,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             nwid_ifname=[
                 {'id': vpn.network_id, 'ifname': f'owzt{vpn.network_id[-6:]}'}
             ],
-            identity_secret=context_keys['zt_identity_secret'],
+            identity_secret=context_keys['secret'],
         )
         self.assertEqual(auto, expected)
 
@@ -1445,9 +1445,7 @@ class TestZeroTierTransaction(
             self.assertEqual(
                 context['member_id'], self._TEST_ZT_MEMBER_CONFIG['address']
             )
-            self.assertEqual(
-                context['zt_identity_secret'], self._TEST_ZT_MEMBER_CONFIG['identity']
-            )
+            self.assertEqual(context['secret'], self._TEST_ZT_MEMBER_CONFIG['identity'])
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)

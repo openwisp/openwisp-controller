@@ -603,11 +603,9 @@ class AbstractConfig(BaseConfig):
                 context[
                     vpn_context_keys['vni']
                 ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
-            if vpnclient.zt_identity_secret:
+            if vpnclient.secret:
                 context[vpn_context_keys['member_id']] = vpnclient.member_id
-                context[
-                    vpn_context_keys['zt_identity_secret']
-                ] = vpnclient.zt_identity_secret
+                context[vpn_context_keys['secret']] = vpnclient.secret
         return context
 
     def get_context(self, system=False):
