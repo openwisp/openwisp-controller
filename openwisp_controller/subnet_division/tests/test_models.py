@@ -358,6 +358,63 @@ class TestSubnetDivisionRule(
         )
         self.assertEqual(self.ip_query.count(), 0)
 
+    def test_multiple_vpnclient_delete(self):
+        """
+        When a VpnClient object is deleted, it should only delete
+        the related provisioned subnets.
+        """
+        rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.config.templates.add(self.template)
+        self.assertEqual(
+            subnet_query.count(),
+            rule.number_of_subnets,
+        )
+        self.assertEqual(
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+
+        # Create another VPN and VPN template and add this
+        # template to the Config object
+        vpn2_subnet = self._create_subnet(subnet='172.18.0.0/24')
+        subnet_query = subnet_query.exclude(id=vpn2_subnet.id)
+        vpn_server2 = self._create_wireguard_vpn(
+            name='wg1',
+            subnet=vpn2_subnet,
+            organization=self.org,
+        )
+        ip_query = self.ip_query.exclude(id=vpn_server2.ip_id)
+        vpn2_template = self._create_template(
+            name='vpn2-test', type='vpn', vpn=vpn_server2, organization=self.org
+        )
+        self.config.templates.add(vpn2_template)
+
+        # Number of subnets should remain same
+        self.assertEqual(
+            subnet_query.count(),
+            rule.number_of_subnets,
+        )
+        # Number of IPs should increase by one:
+        # 1 IP for the VpnClient (auto_ip)
+        self.assertEqual(
+            ip_query.count(), (rule.number_of_subnets * rule.number_of_ips) + 1
+        )
+
+        # Remove the template for the second VPN.
+        # Number of subnets would return to the original numbers
+        # Number of IPs would stay increased by 1
+        self.config.templates.remove(vpn2_template)
+        self.assertEqual(
+            subnet_query.count(),
+            rule.number_of_subnets,
+        )
+        self.assertEqual(
+            ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+
     @patch('logging.Logger.error')
     def test_subnets_exhausted(self, mocked_logger):
         subnet = self._get_master_subnet(
