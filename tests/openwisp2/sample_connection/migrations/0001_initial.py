@@ -195,6 +195,7 @@ class Migration(migrations.Migration):
             options={
                 'verbose_name': 'Device connection',
                 'verbose_name_plural': 'Device connections',
+                'unique_together': {('device', 'credentials')},
                 'abstract': False,
             },
             bases=(

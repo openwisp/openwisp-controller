@@ -17,6 +17,7 @@ from ..commands import ORGANIZATION_ENABLED_COMMANDS
 from .utils import CreateCommandMixin, CreateConnectionsMixin
 
 Command = load_model('connection', 'Command')
+DeviceConnection = load_model('connection', 'DeviceConnection')
 command_qs = Command.objects.order_by('-created')
 OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 Group = load_model('openwisp_users', 'Group')
@@ -423,7 +424,7 @@ class TestConnectionApi(
             'enabled': True,
             'failure_reason': '',
         }
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(12):
             response = self.client.post(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
@@ -436,7 +437,7 @@ class TestConnectionApi(
             'enabled': True,
             'failure_reason': '',
         }
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(12):
             response = self.client.post(path, data, content_type='application/json')
         error_msg = '''
             the update strategy can be determined automatically only if
@@ -468,7 +469,7 @@ class TestConnectionApi(
             'enabled': False,
             'failure_reason': '',
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             response = self.client.put(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -482,7 +483,7 @@ class TestConnectionApi(
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {'update_strategy': app_settings.UPDATE_STRATEGIES[1][0]}
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -501,8 +502,8 @@ class TestConnectionApi(
         self.client.logout()
         token = self._obtain_auth_token(username='admin', password='tester')
         credentials = self._create_credentials(auto_add=True)
-        device_conn = self._create_device_connection(credentials=credentials)
-        device = device_conn.device
+        device = self._create_config(organization=credentials.organization).device
+        device_conn = device.deviceconnection_set.first()
 
         with self.subTest('Test CredentialListCreateView'):
             response = self.client.get(
