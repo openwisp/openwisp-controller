@@ -328,6 +328,18 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         else:
             self.fail('ValidationError not raised')
 
+    def test_device_connection_same_credential_twice(self):
+        device_conn = self._create_device_connection()
+        with self.assertRaises(ValidationError) as context_manager:
+            device_conn = DeviceConnection(
+                device=device_conn.device, credentials=device_conn.credentials
+            )
+            device_conn.full_clean()
+        self.assertEqual(
+            context_manager.exception.message_dict['__all__'][0],
+            'Device connection with this Device and Credentials already exists.',
+        )
+
     def test_auto_add_to_new_device(self):
         c = self._create_credentials(auto_add=True, organization=None)
         self._create_credentials(name='cred2', auto_add=False, organization=None)
@@ -1049,12 +1061,12 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
                 organization=org, name='device3', mac_address='33:33:33:33:33:33'
             )
         )
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(31):
             credential = self._create_credentials(auto_add=True, organization=org)
         self.assertEqual(credential.deviceconnection_set.count(), 3)
 
         with mock.patch.object(Credentials, 'chunk_size', 2):
-            with self.assertNumQueries(30):
+            with self.assertNumQueries(33):
                 credential = self._create_credentials(
                     name='Mocked Credential', auto_add=True, organization=org
                 )
