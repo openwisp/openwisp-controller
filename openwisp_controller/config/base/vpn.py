@@ -624,7 +624,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             elif self._is_backend_type('zerotier') and template_backend_class:
                 auto = getattr(template_backend_class, 'zerotier_auto_client')(
                     name='ow_zt',
-                    nwid_ifname=[
+                    networks=[
                         {'id': self.network_id, 'ifname': f'owzt{self.network_id[-6:]}'}
                     ],
                     identity_secret=context_keys['secret'],
