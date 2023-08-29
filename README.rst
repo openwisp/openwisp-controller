@@ -1373,7 +1373,7 @@ OpenWISP. Register or create a device before proceeding.
 1. Open the **Configuration** tab of the concerned device.
 2. Select the *ZeroTier Client* template.
 3. Upon clicking the **Save and Continue Editing** button, you will see entries
-   in the **System Defined Variables** section. These entries will include **member_id**, **identity_secret**,
+   in the **System Defined Variables** section. These entries will include **zerotier_member_id**, **identity_secret**,
    and the internal **IP address** of the ZeroTier client (network member) on the device, along with details of the VPN server.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/device-configuration-1.png

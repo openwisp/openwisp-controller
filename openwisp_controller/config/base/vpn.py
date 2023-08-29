@@ -368,14 +368,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             )
         )
 
-    def _add_zt_network_member(self, member_id, member_ip):
+    def _add_zt_network_member(self, zt_member_id, member_ip):
         transaction.on_commit(
             lambda: trigger_zerotier_server_update_member.delay(
-                vpn_id=self.pk, ip=str(member_ip), node_id=member_id
+                vpn_id=self.pk, ip=str(member_ip), node_id=zt_member_id
             )
         )
 
-    def _remove_zt_network_member(self, member_id):
+    def _remove_zt_network_member(self, zt_member_id):
         vpn_kwargs = dict(
             id=self.pk,
             host=self.host,
@@ -384,7 +384,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         )
         transaction.on_commit(
             lambda: trigger_zerotier_server_remove_member.delay(
-                node_id=member_id, **vpn_kwargs
+                node_id=zt_member_id, **vpn_kwargs
             )
         )
 
@@ -578,7 +578,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     'node_id': 'node_id_{}'.format(pk),
                     'network_id': 'network_id_{}'.format(pk),
                     'network_name': 'network_name_{}'.format(pk),
-                    'member_id': 'member_id',
+                    'zerotier_member_id': 'zerotier_member_id',
                     'secret': 'secret',
                 }
             )
@@ -823,7 +823,7 @@ class AbstractVpnClient(models.Model):
         verbose_name_plural = _('VPN clients')
 
     @cached_property
-    def member_id(self):
+    def zerotier_member_id(self):
         """
         Needed for ZeroTier VPN Clients
         """
@@ -901,9 +901,9 @@ class AbstractVpnClient(models.Model):
         # ZT network member should be authorized and assigned
         # an IP after the creation of the VPN client object
         if instance.vpn._is_backend_type('zerotier'):
-            if instance.member_id and instance.ip:
+            if instance.zerotier_member_id and instance.ip:
                 instance.vpn._add_zt_network_member(
-                    instance.member_id, instance.ip.ip_address
+                    instance.zerotier_member_id, instance.ip.ip_address
                 )
 
     @classmethod
@@ -919,7 +919,7 @@ class AbstractVpnClient(models.Model):
         # Zt network member should leave the
         # network after deletion of vpn client object
         if instance.vpn._is_backend_type('zerotier'):
-            instance.vpn._remove_zt_network_member(instance.member_id)
+            instance.vpn._remove_zt_network_member(instance.zerotier_member_id)
         try:
             # only deletes related certificates
             # if auto_cert field is set to True

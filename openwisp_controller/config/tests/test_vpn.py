@@ -1068,7 +1068,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         # When auto_cert is 'False', make sure subprocess.run is not called
         self.assertEqual(mock_subprocess.run.call_count, 0)
         vpnclient = vpnclient_qs.first()
-        self.assertEqual(vpnclient.member_id, '')
+        self.assertEqual(vpnclient.zerotier_member_id, '')
         self.assertEqual(vpnclient.secret, '')
         self.assertEqual(vpnclient.private_key, '')
         self.assertEqual(vpnclient.public_key, '')
@@ -1441,7 +1441,7 @@ class TestZeroTierTransaction(
 
         with self.subTest('Test zerotier vpn client device context'):
             self.assertEqual(
-                context['member_id'], self._TEST_ZT_MEMBER_CONFIG['address']
+                context['zerotier_member_id'], self._TEST_ZT_MEMBER_CONFIG['address']
             )
             self.assertEqual(context['secret'], self._TEST_ZT_MEMBER_CONFIG['identity'])
 

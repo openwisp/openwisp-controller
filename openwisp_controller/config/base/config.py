@@ -604,7 +604,9 @@ class AbstractConfig(BaseConfig):
                     vpn_context_keys['vni']
                 ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
             if vpnclient.secret:
-                context[vpn_context_keys['member_id']] = vpnclient.member_id
+                context[
+                    vpn_context_keys['zerotier_member_id']
+                ] = vpnclient.zerotier_member_id
                 context[vpn_context_keys['secret']] = vpnclient.secret
         return context
 
