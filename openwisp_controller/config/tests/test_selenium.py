@@ -108,6 +108,14 @@ class TestDeviceAdmin(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
         self.web_driver.find_element(by=By.NAME, value='_save').click()
+        try:
+            WebDriverWait(self.web_driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, '.messagelist .success')
+                )
+            )
+        except TimeoutException:
+            self.fail('Device added success message timed out')
         self.assertEqual(
             self.web_driver.find_elements(by=By.CLASS_NAME, value='success')[0].text,
             'The Device “11:22:33:44:55:66” was added successfully.',
