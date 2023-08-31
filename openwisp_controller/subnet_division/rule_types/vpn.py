@@ -6,6 +6,7 @@ from .base import BaseSubnetDivisionRuleType
 
 Vpn = load_model('config', 'Vpn')
 VpnClient = load_model('config', 'VpnClient')
+Subnet = load_model('openwisp_ipam', 'Subnet')
 
 
 class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
@@ -51,3 +52,14 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
             instance.ip = provisioned['ip_addresses'][0]
             instance.full_clean()
             instance.save()
+
+    @classmethod
+    def destroy_provisioned_subnets_ips(cls, instance, **kwargs):
+        # Deleting related subnets automatically deletes related IpAddress
+        # and SubnetDivisionIndex objects
+        config = cls.get_config(instance)
+        rule_type = f'{cls.__module__}.{cls.__name__}'
+        subnet_ids = config.subnetdivisionindex_set.filter(
+            rule__master_subnet_id=instance.vpn.subnet_id, rule__type=rule_type
+        ).values_list('subnet_id')
+        Subnet.objects.filter(id__in=subnet_ids).delete()

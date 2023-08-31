@@ -254,6 +254,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     class Meta:
         verbose_name = _('Device connection')
         verbose_name_plural = _('Device connections')
+        unique_together = (('device', 'credentials'),)
         abstract = True
 
     def __init__(self, *args, **kwargs):
