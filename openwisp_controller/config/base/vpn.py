@@ -1008,9 +1008,9 @@ class AbstractVpnClient(models.Model):
         # If there's an existing ZeroTier VpnClient
         # for the device, then re-use that secret
         existing_zt_client = (
-            self.__class__.objects.only('vpn__backend')
+            self.__class__.objects.only('secret')
             .exclude(id=self.id)
-            .filter(config_id=self.config_id, vpn__backend__endswith='ZeroTier')
+            .filter(config_id=self.config_id, vpn__backend=self.vpn.backend)
             .first()
         )
         if existing_zt_client:
