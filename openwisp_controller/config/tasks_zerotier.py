@@ -4,6 +4,7 @@ from time import sleep
 
 from celery import shared_task
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from openwisp_notifications.signals import notify
 from requests.exceptions import RequestException
 from swapper import load_model
@@ -114,13 +115,14 @@ class OpenwispApiTask(OpenwispCeleryTask):
 def trigger_zerotier_server_update(self, config, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    network_id = vpn.network_id
     service_method = ZerotierService(
         vpn.host, vpn.auth_token, vpn.subnet.subnet
     ).update_network
     response, updated_config = self.handle_api_call(
         service_method,
         config,
-        vpn.network_id,
+        network_id,
         instance=vpn,
         action='update',
         info=(
@@ -145,28 +147,74 @@ def trigger_zerotier_server_update(self, config, vpn_id):
     autoretry_for=(RequestException,),
     **API_TASK_RETRY_OPTIONS,
 )
-def trigger_zerotier_server_update_member(self, vpn_id):
+def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    network_id = vpn.network_id
+    node_id = node_id or vpn.node_id
+    member_ip = ip or vpn.ip.ip_address
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
     ).update_network_member
     self.handle_api_call(
         service_method,
-        vpn.node_id,
-        vpn.network_id,
-        vpn.ip.ip_address,
+        node_id,
+        network_id,
+        member_ip,
         instance=vpn,
         action='update_member',
         info=(
-            f'Successfully updated ZeroTier network member: {vpn.node_id}, '
-            f'ZeroTier network: {vpn.network_id}, '
+            f'Successfully updated ZeroTier network member: {node_id}, '
+            f'ZeroTier network: {network_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
         err=(
-            f'Failed to update ZeroTier network member: {vpn.node_id}, '
-            f'ZeroTier network: {vpn.network_id}, '
+            f'Failed to update ZeroTier network member: {node_id}, '
+            f'ZeroTier network: {network_id}, '
+            f'ZeroTier VPN server UUID: {vpn_id}'
+        ),
+    )
+
+
+@shared_task(
+    bind=True,
+    base=OpenwispApiTask,
+    autoretry_for=(RequestException,),
+    **API_TASK_RETRY_OPTIONS,
+)
+def trigger_zerotier_server_remove_member(self, node_id=None, **vpn_kwargs):
+    Vpn = load_model('config', 'Vpn')
+    vpn_id = vpn_kwargs.get('id')
+    host = vpn_kwargs.get('host')
+    auth_token = vpn_kwargs.get('auth_token')
+    network_id = vpn_kwargs.get('network_id')
+    try:
+        vpn = Vpn.objects.get(pk=vpn_id)
+        notification_kwargs = dict(instance=vpn, action='remove_member')
+    # When a ZeroTier VPN server is deleted
+    # and this is followed by the deletion of ZeroTier VPN clients
+    # we won't have access to the VPN server instance. Therefore, we should
+    # refrain from sending a notification for the 'leave member' operation
+    except ObjectDoesNotExist:
+        notification_kwargs = dict(send_notification=False)
+    service_method = ZerotierService(
+        host,
+        auth_token,
+    ).remove_network_member
+    self.handle_api_call(
+        service_method,
+        node_id,
+        network_id,
+        **notification_kwargs,
+        info=(
+            f'Successfully left ZeroTier Network with ID: {network_id}, '
+            f'ZeroTier Member ID: {node_id}, '
+            f'ZeroTier VPN server UUID: {vpn_id}'
+        ),
+        err=(
+            f'Failed to leave ZeroTier Network with ID: {network_id}, '
+            f'ZeroTier Member ID: {node_id}, '
             f'ZeroTier VPN server UUID: {vpn_id}'
         ),
     )
@@ -181,21 +229,22 @@ def trigger_zerotier_server_update_member(self, vpn_id):
 def trigger_zerotier_server_join(self, vpn_id):
     Vpn = load_model('config', 'Vpn')
     vpn = Vpn.objects.get(pk=vpn_id)
+    network_id = vpn.network_id
     service_method = ZerotierService(
         vpn.host,
         vpn.auth_token,
     ).join_network
     response = self.handle_api_call(
         service_method,
-        vpn.network_id,
+        network_id,
         instance=vpn,
         action='network_join',
         info=(
-            f'Successfully joined the ZeroTier network: {vpn.network_id}, '
+            f'Successfully joined the ZeroTier network: {network_id}, '
             f'ZeroTier VPN Server UUID: {vpn_id}'
         ),
         err=(
-            f'Failed to join ZeroTier network: {vpn.network_id}, '
+            f'Failed to join ZeroTier network: {network_id}, '
             f'VPN Server UUID: {vpn_id}'
         ),
     )

@@ -265,6 +265,15 @@ div.tabs-divider {
   padding: 17em 0;
   font-size: 16px;
 }
+
+/*
+Prevents the overflow of large text in system
+defined variables such as `secret`
+*/
+.form-row.field-system_context {
+  max-width: 51.25em;
+  word-wrap: break-word;
+}
 .form-row.field-system_context .readonly { padding: 0 }
 .form-row.field-system_context pre {
   margin: 0;

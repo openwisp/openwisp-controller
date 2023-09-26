@@ -275,6 +275,39 @@ class TestZeroTierVpnMixin:
         'versionRev': 6,
     }
 
+    _TEST_ZT_MEMBER_CONFIG = {
+        'activeBridge': False,
+        'address': '89e327619d',
+        'authenticationExpiryTime': 0,
+        'authorized': True,
+        'capabilities': [],
+        'creationTime': 1690971894880,
+        'id': '89e327619d',
+        'identity': (
+            '89e327619d:0:022a66a1939f1e786e45be7f46'
+            'baeac8c59e07a6a746eb02d8c42036072d0c67c'
+            '7eb8674d5c4a9869cc78b84549496c5e64b7552'
+            'def984effd9ea92ef5c109a9'
+        ),
+        'ipAssignments': ['10.0.0.155'],
+        'lastAuthorizedCredential': None,
+        'lastAuthorizedCredentialType': 'api',
+        'lastAuthorizedTime': 1690971894990,
+        'lastDeauthorizedTime': 0,
+        'noAutoAssignIps': False,
+        'nwid': '9536600adf1570e3',
+        'objtype': 'member',
+        'remoteTraceLevel': 0,
+        'remoteTraceTarget': None,
+        'revision': 2,
+        'ssoExempt': False,
+        'tags': [],
+        'vMajor': 1,
+        'vMinor': 10,
+        'vProto': 12,
+        'vRev': 3,
+    }
+
     def _get_mock_response(self, status_code, response=None, err=None, exc=None):
         response = (
             deepcopy(self._TEST_ZT_NETWORK_CONFIG) if response is None else response

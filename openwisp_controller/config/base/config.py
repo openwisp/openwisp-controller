@@ -263,7 +263,9 @@ class AbstractConfig(BaseConfig):
                 ).exists():
                     continue
                 client = vpn_client_model(
-                    config=instance, vpn=template.vpn, auto_cert=template.auto_cert
+                    config=instance,
+                    vpn=template.vpn,
+                    auto_cert=template.auto_cert,
                 )
                 client.full_clean()
                 client.save()
@@ -601,6 +603,11 @@ class AbstractConfig(BaseConfig):
                 context[
                     vpn_context_keys['vni']
                 ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
+            if vpnclient.secret:
+                context[
+                    vpn_context_keys['zerotier_member_id']
+                ] = vpnclient.zerotier_member_id
+                context[vpn_context_keys['secret']] = vpnclient.secret
         return context
 
     def get_context(self, system=False):
