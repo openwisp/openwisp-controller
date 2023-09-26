@@ -18,3 +18,7 @@ class OrganizationDeviceLimitExceeded(ValidationError):
     def __init__(self):
         error = {'device_limit': [self.error_message]}
         super().__init__(error, code=None, params=None)
+
+
+class ZeroTierIdentityGenerationError(Exception):
+    pass

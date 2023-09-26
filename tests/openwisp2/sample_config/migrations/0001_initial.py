@@ -451,6 +451,7 @@ class Migration(migrations.Migration):
                         to='sample_config.vpn',
                     ),
                 ),
+                ('secret', models.TextField(blank=True)),
             ],
             options={
                 'verbose_name': 'VPN client',
