@@ -6,11 +6,9 @@ on:
   push:
     branches:
       - master
-      - gsoc23
   pull_request:
     branches:
       - master
-      - gsoc23
 
 jobs:
 
