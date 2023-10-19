@@ -2,9 +2,7 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.8.x   | :white_check_mark: |
+Latest release and development version.
 
 ## Reporting a Vulnerability
 
