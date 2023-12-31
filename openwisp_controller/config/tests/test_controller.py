@@ -36,6 +36,7 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
+Organization = load_model('openwisp_users', 'Organization')
 
 
 class TestController(
@@ -429,6 +430,20 @@ class TestController(
 
     def test_register_with_management_ip(self):
         self.test_register(management_ip='10.0.0.2')
+
+    def test_register_with_org_id(self):
+        org1 = self._get_org()
+        org2 = Organization.objects.create(name='org2', slug='org2')
+        device = self.test_register(organization_id=str(org2.id))
+        self.assertEqual(device.organization, org1)
+        self.assertNotEqual(device.organization, org2)
+
+    def test_register_with_org_param(self):
+        org1 = self._get_org()
+        org2 = Organization.objects.create(name='org2', slug='org2')
+        device = self.test_register(organization=str(org2.id))
+        self.assertEqual(device.organization, org1)
+        self.assertNotEqual(device.organization, org2)
 
     def test_register_exceeds_org_device_limit(self):
         org = self._get_org()

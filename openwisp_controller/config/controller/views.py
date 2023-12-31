@@ -280,6 +280,8 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         config_model = device_model.get_config_model()
         options = {}
         for attr in kwargs.keys():
+            if attr in ['organization', 'organization_id']:
+                continue
             # skip attributes that are not model fields
             try:
                 device_model._meta.get_field(attr)
