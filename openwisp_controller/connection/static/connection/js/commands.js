@@ -4,23 +4,22 @@ var gettext = window.gettext || function (word) { return word; };
 var interpolate = interpolate || function(){};
 
 const deviceId = getObjectIdFromUrl();
-const commandApiUrl = `${owControllerApiHost.origin}${owCommandApiEndpoint.replace('00000000-0000-0000-0000-000000000000', deviceId)}`;
-const commandWebSocket = new ReconnectingWebSocket(
-    `${getWebSocketProtocol()}${owControllerApiHost.host}/ws/controller/device/${deviceId}/command`,
-    null, {
-        debug: false,
-        automaticOpen: false,
-        // The library re-connects if it fails to establish a connection in "timeoutInterval".
-        // On slow internet connections, the default value of "timeoutInterval" will
-        // keep terminating and re-establishing the connection.
-        timeoutInterval: 7000,
-    }
-);
 
 django.jQuery(function ($) {
-    if (isDeviceRecoverForm()) {
+    if((typeof(owControllerApiHost) !== 'undefined')|| isDeviceRecoverForm()) {
         return;
     }
+    const commandWebSocket = new ReconnectingWebSocket(
+        `${getWebSocketProtocol()}${owControllerApiHost.host}/ws/controller/device/${deviceId}/command`,
+        null, {
+            debug: false,
+            automaticOpen: false,
+            // The library re-connects if it fails to establish a connection in "timeoutInterval".
+            // On slow internet connections, the default value of "timeoutInterval" will
+            // keep terminating and re-establishing the connection.
+            timeoutInterval: 7000,
+        }
+    );
     commandWebSocket.open();
     let selector = $('#id_command_set-0-type'),
         showFields = function () {
@@ -42,7 +41,7 @@ django.jQuery(function ($) {
 
         initCommandDropdown($);
         initCommandOverlay($);
-        initCommandWebSockets($);
+        initCommandWebSockets($, commandWebSocket);
     });
 });
 
@@ -336,7 +335,7 @@ function initCommandOverlay($) {
         };
         $.ajax({
             type: 'POST',
-            url: commandApiUrl,
+            url: getCommandApiUrl(),
             headers: {
                 'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
             },
@@ -482,7 +481,7 @@ function initCommandOverlay($) {
     }
 }
 
-function initCommandWebSockets($) {
+function initCommandWebSockets($, commandWebSocket) {
     commandWebSocket.addEventListener('message', function (e) {
         let data = JSON.parse(e.data);
         // Done for keeping future use of these websocket
@@ -555,6 +554,11 @@ function getWebSocketProtocol() {
     }
     return protocol;
 }
+
+function getCommandApiUrl() {
+    return `${owControllerApiHost.origin}${owCommandApiEndpoint.replace('00000000-0000-0000-0000-000000000000', deviceId)}`;
+}
+
 
 function dateTimeStampToDateTimeLocaleString(dateTimeStamp) {
     let userLanguage = navigator.language || navigator.userLanguage,
