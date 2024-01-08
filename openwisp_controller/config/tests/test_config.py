@@ -652,18 +652,36 @@ class TestConfig(
                 ]
             },
         )
-        config = self._create_config(organization=self._get_org())
-        config.templates.add(template1)
-        config.templates.add(template2)
-        config.refresh_from_db()
-        try:
-            result = config.get_backend_instance(
-                template_instances=[template1, template2]
-            ).render()
-        except ValidationError:
-            self.fail('ValidationError raised!')
-        else:
-            self.assertIn('# path: /etc/vpnserver1', result)
+        org = self._get_org()
+        with self.subTest('Test template applied on creating config'):
+            try:
+                config = self._create_config(
+                    organization=org,
+                    templates=[template1, template2],
+                )
+                result = config.get_backend_instance(
+                    template_instances=[template1, template2]
+                ).render()
+            except ValidationError:
+                self.fail('ValidationError raised!')
+            else:
+                self.assertIn('# path: /etc/vpnserver1', result)
+
+        config.device.delete()
+        config.delete()
+        with self.subTest('Test template applied after creating config object'):
+            config = self._create_config(organization=org)
+            config.templates.add(template1)
+            config.templates.add(template2)
+            config.refresh_from_db()
+            try:
+                result = config.get_backend_instance(
+                    template_instances=[template1, template2]
+                ).render()
+            except ValidationError:
+                self.fail('ValidationError raised!')
+            else:
+                self.assertIn('# path: /etc/vpnserver1', result)
 
     def test_duplicated_files_in_config(self):
         try:

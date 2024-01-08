@@ -59,7 +59,10 @@ class CreateConfigMixin(CreateDeviceMixin):
             options['device'] = self._create_device(
                 organization=self._get_org(), name='test-device'
             )
+        templates = options.pop('templates', [])
         c = Config(**options)
+        if templates:
+            c.templates.set(templates)
         c.full_clean()
         c.save()
         return c
