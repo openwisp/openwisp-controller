@@ -8,14 +8,6 @@
                 "ignore": ["stylelint-commands", "after-comment"]
             }
         ],
-        "declaration-colon-space-after": "always",
-        "indentation": [
-            2,
-            {
-                "except": ["value"]
-            }
-        ],
-        "max-empty-lines": 4,
         "rule-empty-line-before": [
             "never-multi-line",
             {

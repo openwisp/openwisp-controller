@@ -6,8 +6,8 @@ a.jsoneditor-exit:focus {
 .field-config .vLargeTextField,
 .jsoneditor .vLargeTextField {
   font-size: 1em;
-  font-family: 'Bitstream Vera Sans Mono', 'Monaco', 'Droid Sans Mono', 'DejaVu Sans Mono',
-  'Ubuntu Mono', 'Courier New', Courier, monospace;
+  font-family: "Bitstream Vera Sans Mono", "Monaco", "Droid Sans Mono",
+    "DejaVu Sans Mono", "Ubuntu Mono", "Courier New", Courier, monospace;
   color: #f9f9f9;
   overflow: auto;
   background-color: #222;
@@ -160,13 +160,17 @@ input.readonly {
   height: auto;
   min-height: auto;
 }
-#container .sortedm2m-container { margin-right: 0 }
+#container .sortedm2m-container {
+  margin-right: 0;
+}
 #container .sortedm2m-container .help {
   margin-bottom: 20px;
   color: #333;
   font-weight: bold;
 }
-#main ul.sortedm2m li { padding: 3px 0 }
+#main ul.sortedm2m li {
+  padding: 3px 0;
+}
 #main ul.sortedm2m li input {
   margin-right: 2px;
 }
@@ -190,28 +194,44 @@ input.readonly {
   white-space: pre;
   color: #777;
 }
-div.change-form #device_form div.inline-group.tab-content > fieldset.module > h2,
-div.change-form #device_form div.inline-group.tab-content > .tabular > fieldset.module > h2,
+div.change-form
+  #device_form
+  div.inline-group.tab-content
+  > fieldset.module
+  > h2,
+div.change-form
+  #device_form
+  div.inline-group.tab-content
+  > .tabular
+  > fieldset.module
+  > h2,
 div.change-form #device_form > div > fieldset.module.aligned,
 div.change-form #device_form > div > div.inline-group {
   display: none;
 }
-.change-form #device_form div.inline-group.tab-content > fieldset.module > div.inline-related > h3 {
+.change-form
+  #device_form
+  div.inline-group.tab-content
+  > fieldset.module
+  > div.inline-related
+  > h3 {
   border-top: 0 none;
   padding: 1em;
 }
 .change-form
-#device_form
-div.inline-group.tab-content
-> fieldset.module
-> div.inline-related:nth-of-type(1)
-> h3 {
+  #device_form
+  div.inline-group.tab-content
+  > fieldset.module
+  > div.inline-related:nth-of-type(1)
+  > h3 {
   margin-top: -1em;
 }
 .change-form #device_form div.inline-group.tab-content > .tabular {
   margin-top: -1em;
 }
-#main .tab-content .inline-related > h3 { background: transparent }
+#main .tab-content .inline-related > h3 {
+  background: transparent;
+}
 ul.tabs {
   margin: 0;
   padding: 0;
@@ -274,7 +294,9 @@ defined variables such as `secret`
   max-width: 51.25em;
   word-wrap: break-word;
 }
-.form-row.field-system_context .readonly { padding: 0 }
+.form-row.field-system_context .readonly {
+  padding: 0;
+}
 .form-row.field-system_context pre {
   margin: 0;
   padding: 0;
@@ -292,31 +314,33 @@ defined variables such as `secret`
 .submit-row .previewlink:focus {
   background: #576a7c;
 }
-#system-context{
+#system-context {
   overflow: hidden;
 }
 #system-context div {
   margin-bottom: 5px;
 }
-.hide-sc{
+.hide-sc {
   height: 182px;
 }
-button.system-context{
+button.system-context {
   padding: 6px 12px;
   display: none;
 }
-button.show-sc{
+button.show-sc {
   display: block;
   margin-top: 10px;
 }
-.form-row.field-location .related-lookup { text-indent: 0 }
+.form-row.field-location .related-lookup {
+  text-indent: 0;
+}
 .form-row .related-lookup,
 #main .form-row.field-location .item-label {
   position: relative;
-  bottom: -6px
+  bottom: -6px;
 }
 #main .form-row.field-location .item-label {
-  bottom: -7px
+  bottom: -7px;
 }
 #main .field-management_ip .readonly {
   padding: 7px 0px;
@@ -334,7 +358,7 @@ button.show-sc{
   max-height: 10em;
   padding: 0.5em;
   overflow: auto;
-  background-color: #ffe5e582 ;
+  background-color: #ffe5e582;
 }
 
 @media (max-width: 767px) {

@@ -60,7 +60,7 @@ jobs:
           libsqlite3-mod-spatialite
 
     - name: Install npm dependencies
-      run: sudo npm install -g jshint stylelint@15.11.0
+      run: sudo npm install -g jshint stylelint
 
     - name: Upgrade python system packages
       run: pip install -U pip wheel setuptools
