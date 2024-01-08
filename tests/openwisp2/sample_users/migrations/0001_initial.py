@@ -194,6 +194,12 @@ class Migration(migrations.Migration):
                         max_length=8,
                     ),
                 ),
+                (
+                    'password_updated',
+                    models.DateField(
+                        blank=True, null=True, verbose_name="password updated"
+                    ),
+                ),
             ],
             options={
                 'verbose_name': 'user',
