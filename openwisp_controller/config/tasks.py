@@ -146,3 +146,14 @@ def change_devices_templates(instance_id, model_name, **kwargs):
 def bulk_invalidate_config_get_cached_checksum(query_params):
     Config = load_model('config', 'Config')
     Config.bulk_invalidate_get_cached_checksum(query_params)
+
+
+@shared_task(base=OpenwispCeleryTask)
+def invalidate_device_checksum_view_cache(organization_id):
+    from .controller.views import DeviceChecksumView
+
+    Device = load_model('config', 'Device')
+    for device in (
+        Device.objects.filter(organization_id=organization_id).only('id').iterator()
+    ):
+        DeviceChecksumView.invalidate_get_device_cache(device)

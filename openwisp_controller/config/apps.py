@@ -2,7 +2,13 @@ from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Case, Count, When
-from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
+from django.db.models.signals import (
+    m2m_changed,
+    post_delete,
+    post_save,
+    pre_delete,
+    pre_save,
+)
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -126,6 +132,11 @@ class ConfigConfig(AppConfig):
             handlers.config_backend_change_handler,
             sender=self.config_model,
             dispatch_uid='devicegroup_templates_change_handler.backend_changed',
+        )
+        pre_save.connect(
+            handlers.organization_disabled_handler,
+            sender=self.org_model,
+            dispatch_uid='organization_disabled_pre_save_clear_device_checksum_cache',
         )
         post_save.connect(
             self.org_limits.post_save_handler,
