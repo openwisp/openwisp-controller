@@ -1080,12 +1080,13 @@ How to setup WireGuard tunnels
 
 Follow the procedure described below to setup WireGuard tunnels on your devices.
 
-**Note 1:** This example uses **Shared systemwide (no organization)** option as
-the organization for VPN server and VPN client template. You can use any
-organization as long as VPN server, VPN client template and Device has same
-organization.
 
-**Note 2:** This guide assumes you have already installed wireguard on the client and server. If you haven't done so already you can find instructions here: [Wireguard Installation](https://github.com/openwisp/ansible-wireguard-openwisp)
+**Note:** This example uses **Shared systemwide (no organization)**
+option as the organization for VPN server and VPN client
+template. You can use any organization as long as VPN server,
+VPN client template and Device has same
+organization. Aditionally, this guide assumes you have already installed wireguard on the client and server. If you haven't done so already you can find instructions here: `Wireguard Installation <https://www.wireguard.com/install/>`_
+
 
 1. Create VPN server configuration for WireGuard
 ################################################
