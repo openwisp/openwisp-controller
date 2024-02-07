@@ -362,7 +362,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         return templates
 
     def save(self, *args, **kwargs):
-        templates = self.cleaned_data.pop('templates', [])
+        templates = self.cleaned_data.get('templates', [])
         instance = super().save(*args, **kwargs)
         # as group templates are not forced so if user remove any selected
         # group template, we need to remove it from the config instance
