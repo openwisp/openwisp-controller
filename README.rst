@@ -364,7 +364,7 @@ Add ``openwisp_controller`` applications to ``INSTALLED_APPS``:
 .. code-block:: python
 
     INSTALLED_APPS = [
-        ...
+        #...
         # openwisp2 modules
         'openwisp_controller.config',
         'openwisp_controller.pki',
@@ -900,7 +900,7 @@ Here is a detailed explanation of the schema used in above example:
             },
         },
         # Error message to be shown if validation fails
-        'message': 'Destination Address cannot be empty'),
+        'message': 'Destination Address cannot be empty',
         # Whether specifying addtionaly inputs is allowed from the input form
         'additionalProperties': False,
     }
@@ -1995,7 +1995,7 @@ object in a single request.
                 "type": "Point",
                 "coordinates": [12.512124, 41.898903]
             },
-            "type": "outdoor",
+            "type": "outdoor"
         }
     }
 
@@ -2027,7 +2027,7 @@ format, like following:
             "name": "Via del Corso",
             "address": "Via del Corso, Roma, Italia",
             "geometry": "POINT (12.512124 41.898903)",
-            "type": "outdoor",
+            "type": "outdoor"
         }
     }
 
@@ -2146,7 +2146,7 @@ assumes that the device is updating it's position.
         "geometry": {
             "type": "Point",
             "coordinates": [12.512124, 41.898903]
-        },
+        }
     }
 
 .. code-block:: text
@@ -4047,6 +4047,7 @@ sample_config
         TemplateAdmin as BaseTemplateAdmin,
         VpnAdmin as BaseVpnAdmin,
         DeviceGroupAdmin as BaseDeviceGroupAdmin,
+    )
     from swapper import load_model
 
     Vpn = load_model('openwisp_controller', 'Vpn')
@@ -4062,18 +4063,22 @@ sample_config
     @admin.register(Vpn)
     class VpnAdmin(BaseVpnAdmin):
         # add your changes here
+        pass
 
     @admin.register(Device)
     class DeviceAdmin(BaseDeviceAdmin):
         # add your changes here
+        pass
 
     @admin.register(DeviceGroup)
     class DeviceGroupAdmin(BaseDeviceGroupAdmin):
         # add your changes here
+        pass
 
     @admin.register(Template)
     class TemplateAdmin(BaseTemplateAdmin):
         # add your changes here
+        pass
 
 sample_connection
 ^^^^^^^^^^^^^^^^^
@@ -4091,6 +4096,7 @@ sample_connection
     @admin.register(Device)
     class CredentialsAdmin(BaseCredentialsAdmin):
         # add your changes here
+        pass
 
 sample_geo
 ^^^^^^^^^^
@@ -4113,10 +4119,12 @@ sample_geo
     @admin.register(FloorPlan)
     class FloorPlanAdmin(BaseFloorPlanAdmin):
         # add your changes here
+        pass
 
     @admin.register(Location)
     class LocationAdmin(BaseLocationAdmin):
         # add your changes here
+        pass
 
 sample_pki
 ^^^^^^^^^^
@@ -4139,10 +4147,12 @@ sample_pki
     @admin.register(Ca)
     class CaAdmin(BaseCaAdmin):
         # add your changes here
+        pass
 
     @admin.register(Cert)
     class CertAdmin(BaseCertAdmin):
         # add your changes here
+        pass
 
 sample_subnet_division
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -4168,14 +4178,17 @@ sample_subnet_division
     @admin.register(Subnet)
     class SubnetAdmin(BaseSubnetAdmin):
         # add your changes here
+        pass
 
     @admin.register(IpAddress)
     class IpAddressAdmin(BaseIpAddressAdmin):
         # add your changes here
+        pass
 
     @admin.register(SubnetDivisionRule)
     class SubnetDivisionRuleInlineAdmin(BaseSubnetDivisionRuleInlineAdmin):
         # add your changes here
+        pass
 
 11. Create root URL configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4338,10 +4351,10 @@ setting as follows:
 
 .. code-block:: python
 
-    OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES = (                                                                                           |
-       ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),
-       ('openwisp_controller.subnet_division.rule_types.device.DeviceSubnetDivisionRuleType', 'Device'),
-       ('mycontroller.sample_subnet_division.rules_types.custom.CustomRuleType', 'Custom Rule'),
+    OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES = (
+        ('openwisp_controller.subnet_division.rule_types.vpn.VpnSubnetDivisionRuleType', 'VPN'),
+        ('openwisp_controller.subnet_division.rule_types.device.DeviceSubnetDivisionRuleType', 'Device'),
+        ('mycontroller.sample_subnet_division.rules_types.custom.CustomRuleType', 'Custom Rule'),
     )
 
 Registering new notification types
