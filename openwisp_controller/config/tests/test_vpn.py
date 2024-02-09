@@ -132,7 +132,7 @@ class TestVpn(BaseTestVpn, TestCase):
         else:
             self.fail('unique_together clause not triggered')
 
-    def test_vpn_client_auto_cert_deletes_cert(self):
+    def test_vpn_client_auto_cert_revokes_cert(self):
         org = self._get_org()
         vpn = self._create_vpn()
         t = self._create_template(name='vpn-test', type='vpn', vpn=vpn, auto_cert=True)
@@ -143,7 +143,7 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 1)
         c.delete()
         self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
-        self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
+        self.assertEqual(Cert.objects.filter(pk=cert_pk, revoked=True).count(), 1)
 
     def test_vpn_client_cert_post_deletes_cert(self):
         org = self._get_org()
@@ -251,7 +251,9 @@ class TestVpn(BaseTestVpn, TestCase):
             self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), 1)
             self.assertEqual(VpnClient.objects.filter(pk=vpn_client.pk).count(), 1)
             vpnclient.delete()
-            self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), cert_ct)
+            self.assertEqual(
+                Cert.objects.filter(pk=cert.pk, revoked=False).count(), cert_ct
+            )
             self.assertEqual(
                 VpnClient.objects.filter(pk=vpn_client.pk).count(), vpn_client_ct
             )
