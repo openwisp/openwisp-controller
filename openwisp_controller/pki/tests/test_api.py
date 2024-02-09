@@ -287,7 +287,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name='cert1')
         self.assertFalse(cert1.revoked)
         path = reverse('pki_api:cert_revoke', args=[cert1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             r = self.client.post(path)
         cert1.refresh_from_db()
         self.assertEqual(r.status_code, 200)

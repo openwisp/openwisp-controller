@@ -356,7 +356,7 @@ class AbstractConfig(BaseConfig):
 
     @classmethod
     def certificate_updated(cls, instance, created, **kwargs):
-        if created:
+        if created or instance.revoked:
             return
         try:
             config = instance.vpnclient.config

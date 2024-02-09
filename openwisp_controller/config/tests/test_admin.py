@@ -1399,6 +1399,8 @@ class TestAdmin(
             auto_cert=True,
         )
         cert_query = Cert.objects.exclude(pk=vpn.cert_id)
+        valid_cert_query = cert_query.filter(revoked=False)
+        revoked_cert_query = cert_query.filter(revoked=True)
 
         # Add a new device
         path = reverse(f'admin:{self.app_label}_device_add')
@@ -1427,13 +1429,16 @@ class TestAdmin(
             self.assertEqual(config.templates.count(), 1)
             self.assertEqual(config.vpnclient_set.count(), 1)
             self.assertEqual(cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 1)
 
             # Remove VpnClient template from the device
             _update_template(templates=[])
 
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.vpnclient_set.count(), 0)
-            self.assertEqual(cert_query.count(), 0)
+            # Removing VPN template marks the related certificate as revoked
+            self.assertEqual(revoked_cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 0)
 
         with self.subTest('Add VpnClient template along with another template'):
             # Adding templates to the device
@@ -1441,14 +1446,15 @@ class TestAdmin(
 
             self.assertEqual(config.templates.count(), 2)
             self.assertEqual(config.vpnclient_set.count(), 1)
-            self.assertEqual(cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 1)
 
             # Remove VpnClient template from the device
             _update_template(templates=[template])
 
             self.assertEqual(config.templates.count(), 1)
             self.assertEqual(config.vpnclient_set.count(), 0)
-            self.assertEqual(cert_query.count(), 0)
+            self.assertEqual(valid_cert_query.count(), 0)
+            self.assertEqual(revoked_cert_query.count(), 2)
 
     def test_ip_not_in_add_device(self):
         path = reverse(f'admin:{self.app_label}_device_add')

@@ -921,10 +921,14 @@ class AbstractVpnClient(models.Model):
         if instance.vpn._is_backend_type('zerotier'):
             instance.vpn._remove_zt_network_member(instance.zerotier_member_id)
         try:
-            # only deletes related certificates
-            # if auto_cert field is set to True
+            # For OpenVPN, the related certificates are revoked, not deleted.
+            # This is because if the device retains a copy of the certificate,
+            # it could continue using it against the OpenVPN CA.
+            # By revoking the certificate, it gets added to the
+            # Certificate Revocation List (CRL). OpenVPN can then use this
+            # CRL to reject the certificate, thereby ensuring its invalidation.
             if instance.cert and instance.auto_cert:
-                instance.cert.delete()
+                instance.cert.revoke()
         except ObjectDoesNotExist:
             pass
         try:
