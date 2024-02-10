@@ -804,6 +804,38 @@ class TestAdmin(
         config.refresh_from_db()
         self.assertEqual(config.templates.count(), 0)
 
+    def test_change_device_reorder_templates(self):
+        org = self._get_org()
+        template1 = self._create_template(name='template1')
+        template2 = self._create_template(name='template2')
+        config = self._create_config(organization=org)
+        device = config.device
+        config.templates.add(template1, template2)
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(
+            list(config.templates.values_list('id', flat=True)),
+            [template1.id, template2.id],
+        )
+
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        params = self._get_device_params(org=org)
+        params.update(
+            {
+                'config-0-id': str(config.pk),
+                'config-0-device': str(device.pk),
+                'config-0-templates': f'{template2.id},{template1.id}',
+                'config-INITIAL_FORMS': 1,
+            }
+        )
+        response = self.client.post(path, params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(
+            list(config.templates.values_list('id', flat=True)),
+            [template2.id, template1.id],
+        )
+
     def test_download_device_config(self):
         d = self._create_device(name='download')
         self._create_config(device=d)
