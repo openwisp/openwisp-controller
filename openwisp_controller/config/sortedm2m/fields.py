@@ -14,6 +14,8 @@ from sortedm2m.fields import (
     create_sorted_many_related_manager as base_create_sorted_many_related_manager,
 )
 
+from .forms import SortedMultipleChoiceField
+
 
 def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
     BaseSortedRelatedManager = base_create_sorted_many_related_manager(
@@ -64,3 +66,12 @@ class SortedManyToManyField(BaseSortedManyToManyField):
     def contribute_to_class(self, cls, name, **kwargs):
         super().contribute_to_class(cls, name, **kwargs)
         setattr(cls, self.name, SortedManyToManyDescriptor(self))
+
+    def formfield(self, **kwargs):
+        # TODO: Remove this when stacked inline admin is fixed in django-sortedm2m
+        # https://github.com/jazzband/django-sortedm2m/pull/213
+        defaults = {}
+        if self.sorted:
+            defaults['form_class'] = SortedMultipleChoiceField
+        defaults.update(kwargs)
+        return super().formfield(**defaults)
