@@ -136,3 +136,19 @@ def devicegroup_templates_change_handler(instance, **kwargs):
             backend=kwargs.get('backend'),
             old_backend=kwargs.get('old_backend'),
         )
+
+
+def organization_disabled_handler(instance, **kwargs):
+    """
+    Asynchronously invalidates DeviceCheckView.get_device cache
+    """
+    if instance.is_active:
+        return
+    try:
+        db_instance = Organization.objects.only('is_active').get(id=instance.id)
+    except Organization.DoesNotExist:
+        return
+    if instance.is_active == db_instance.is_active:
+        # No change in is_active
+        return
+    tasks.invalidate_device_checksum_view_cache.delay(str(instance.id))

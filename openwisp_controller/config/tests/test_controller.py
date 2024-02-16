@@ -60,6 +60,21 @@ class TestController(
     def _check_header(self, response):
         self.assertEqual(response['X-Openwisp-Controller'], 'true')
 
+    def _test_view_organization_disabled(
+        self, obj, url, http_method='get', org=None, data=None
+    ):
+        method = getattr(self.client, http_method)
+        data = data or {}
+        payload = {'key': obj.key, **data}
+        response = method(url, payload)
+        self.assertEqual(response.status_code, 200)
+        # Disable organization
+        org = org or getattr(obj, 'organization')
+        org.is_active = False
+        org.save()
+        response = method(url, {'key': obj.key})
+        self.assertEqual(response.status_code, 404)
+
     def test_device_checksum(self):
         d = self._create_device_config()
         c = d.config
@@ -356,6 +371,12 @@ class TestController(
         )
         self.assertEqual(response.status_code, 405)
 
+    def test_vpn_checksum_org_disabled(self):
+        vpn = self._create_vpn(organization=self._get_org())
+        self._test_view_organization_disabled(
+            vpn, reverse('controller:vpn_checksum', args=[vpn.pk])
+        )
+
     def test_vpn_download_config(self):
         v = self._create_vpn()
         url = reverse('controller:vpn_download_config', args=[v.pk])
@@ -396,6 +417,13 @@ class TestController(
             reverse('controller:vpn_download_config', args=[v.pk]), {'key': v.key}
         )
         self.assertEqual(response.status_code, 405)
+
+    def test_vpn_download_config_org_disabled(self):
+        vpn = self._create_vpn(organization=self._get_org())
+        self._test_view_organization_disabled(
+            vpn,
+            reverse('controller:vpn_download_config', args=[vpn.pk]),
+        )
 
     def test_register(self, **kwargs):
         options = {
@@ -890,6 +918,20 @@ class TestController(
         )
         self.assertEqual(response.status_code, 405)
 
+    def test_device_update_info_org_disabled(self):
+        device = self._create_device_config()
+        self._test_view_organization_disabled(
+            device,
+            reverse('controller:device_update_info', args=[device.pk]),
+            http_method='post',
+            data={
+                'key': device.key,
+                'model': 'TP-Link TL-WDR4300 v2',
+                'os': 'OpenWrt 18.06-SNAPSHOT r7312-e60be11330',
+                'system': 'Atheros AR9344 rev 3',
+            },
+        )
+
     def test_device_checksum_no_config(self):
         d = self._create_device()
         response = self.client.get(
@@ -1140,8 +1182,16 @@ class TestController(
         self.assertContains(response, 'error: unrecognized secret', status_code=403)
 
     def test_checksum_404_disabled_org(self):
-        org = self._create_org(is_active=False)
+        org = self._create_org()
         c = self._create_config(organization=org)
+        # Cache checksum
+        response = self.client.get(
+            reverse('controller:device_checksum', args=[c.device.pk]),
+            {'key': c.device.key},
+        )
+        self.assertEqual(response.status_code, 200)
+        org.is_active = False
+        org.save()
         response = self.client.get(
             reverse('controller:device_checksum', args=[c.device.pk]),
             {'key': c.device.key},
