@@ -45,6 +45,7 @@ User = get_user_model()
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 Group = load_model('openwisp_users', 'Group')
+OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class TestImportExportMixin:
@@ -695,13 +696,50 @@ class TestAdmin(
         path = reverse(f'admin:{self.app_label}_template_changelist')
         t = self._create_template()
         post_data = self._get_clone_template_post_data(t)
+        org1 = self._get_org()
+        org2 = self._get_org('org_2')
         operator = self._create_operator(
-            organizations=[self._get_org(), self._get_org('org_2')]
+            organizations=[org1, org2]
         )
         self.client.force_login(operator)
         response = self.client.post(path, post_data)
-        self.assertContains(response, 'Clone templates')
+        self.assertContains(response, org1.name)
+        self.assertContains(response, org2.name)
         self.assertNotContains(response, 'Shared systemwide')
+
+    def test_clone_templates_only_managed_orgs(self):
+        path = reverse(f'admin:{self.app_label}_template_changelist')
+        t = self._create_template()
+        post_data = self._get_clone_template_post_data(t)
+        org1 = self._get_org()
+        org2 = self._get_org('org_2')
+        operator = self._create_operator(
+            organizations=[org1, org2]
+        )
+        orguser = OrganizationUser.objects.get(user=operator, organization=org2)
+        orguser.is_admin = False
+        orguser.save()
+        self.client.force_login(operator)
+        response = self.client.post(path, post_data, follow=True)
+        self.assertContains(response, 'Successfully cloned selected templates')
+
+    def test_clone_templates_validation_error(self):
+        path = reverse(f'admin:{self.app_label}_template_changelist')
+        # very long name will trigger validation error
+        n = 'Testing B - NameHere WiFi WPA Enterprise - Dual Band Wireless'
+        t = self._create_template(name=n, organization=self._get_org(org_name='default'))
+        post_data = self._get_clone_template_post_data(t)
+        self.client.force_login(self._get_admin())
+        response = self.client.post(path, post_data, follow=True)
+        self.assertContains(response, 'There were errors while cloning the following templates')
+
+        with self.subTest('test multiorg case'):
+            self._get_org('org_2')
+            post_data = self._get_clone_template_post_data(t)
+            post_data['organization'] = str(t.organization.id)
+            self.client.force_login(self._get_admin())
+            response = self.client.post(path, post_data, follow=True)
+            self.assertContains(response, 'There were errors while cloning the following templates')
 
     def test_change_device_clean_templates(self):
         o = self._get_org()

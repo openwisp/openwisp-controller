@@ -859,29 +859,53 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 action_flag=ADDITION,
             )
 
-        if user.is_superuser:
-            all_orgs = Organization.objects.all()
-            if all_orgs.count() > 1:
-                selectable_orgs = all_orgs
-        elif len(user.organizations_dict.keys()) > 1:
-            selectable_orgs = Organization.objects.filter(
-                pk__in=user.organizations_dict.keys()
-            )
-        if selectable_orgs:
-            organization = request.POST.get('organization')
-            if organization or organization == '':
-                for template in queryset:
+        def save_clones(view, user, queryset, organization=None, multi_org=False):
+            errors = []
+            for template in queryset:
+                try:
                     clone = template.clone(user)
-                    clone.organization = None
+                    if multi_org:
+                        clone.organization = None
                     if organization:
                         clone.organization = Organization.objects.get(pk=organization)
                     create_log_entry(user, clone)
                     clone.save()
-                self.message_user(
+                except ValidationError as e:
+                    errors.append([template, e])
+            if errors:
+                msg = ''
+                for error in errors:
+                    info = ''
+                    for attr, reasons in dict(error[1]).items():
+                        reasons = ', '.join(reasons)
+                        info = f'{attr}: {reasons}'
+                    msg += f'"{error[0].name}", {info} - '
+                msg = msg[0:-3]  # remove trailing ", "
+                view.message_user(
+                    request,
+                    _('There were errors while cloning '
+                      'the following templates. %s') % msg,
+                    messages.ERROR,
+                )
+            else:
+                view.message_user(
                     request,
                     _('Successfully cloned selected templates.'),
                     messages.SUCCESS,
                 )
+
+        if user.is_superuser:
+            all_orgs = Organization.objects.all()
+            if all_orgs.count() > 1:
+                selectable_orgs = all_orgs
+        elif len(user.organizations_managed) > 1:
+            selectable_orgs = Organization.objects.filter(
+                pk__in=user.organizations_managed
+            )
+        if selectable_orgs:
+            organization = request.POST.get('organization')
+            if organization or organization == '':
+                save_clones(self, user, queryset, organization, multi_org=True)
                 return None
             context = {
                 'title': _('Clone templates'),
@@ -898,10 +922,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 request, 'admin/config/clone_template_form.html', context
             )
         else:
-            for template in queryset:
-                clone = template.clone(user)
-                create_log_entry(user, clone)
-                clone.save()
+            save_clones(self, user, queryset, multi_org=False)
 
     actions = ['clone_selected_templates']
 
