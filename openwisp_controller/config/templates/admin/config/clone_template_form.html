@@ -4,7 +4,11 @@
 {% block extrahead %}
     {{ block.super }}
     {{ media }}
-    <link rel="stylesheet" type="text/css" href="{% static 'config/css/admin-actions-intermediate-page.css' %}">
+    <style>
+      .admin-actions form select {
+        margin: 10px;
+      }
+    </style>
 {% endblock %}
 
 {% block bodyclass %}
@@ -21,18 +25,22 @@ organization-selection admin-actions
 {% endblock %}
 
 {% block content %}
-
-<p>{% blocktrans %}What organization do you want clone selected templates to?{% endblocktrans %}</p>
-<form method="post">{% csrf_token %}
-    <div>
-        {% for obj in queryset %}
-        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
-        {% endfor %}
-        {{ form }}
-        <br>
-        <input type="hidden" name="action" value="clone_selected_templates">
-        <input type="submit" value="{% trans 'Clone' %}">
-        <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
-    </div>
-</form>
+<div class="delete-confirmation">
+    <p>{% blocktrans %}What organization do you want clone selected templates to?{% endblocktrans %}</p>
+    <form method="post">{% csrf_token %}
+        <div>
+            {% for obj in queryset %}
+            <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
+            {% endfor %}
+            <p>
+              {{ form }}
+            <p>
+            <input type="hidden" name="action" value="clone_selected_templates">
+            <p>
+              <input type="submit" value="{% trans 'Clone' %}">
+              <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+            </p>
+        </div>
+    </form>
+</div>
 {% endblock %}
