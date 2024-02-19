@@ -666,13 +666,34 @@ class TestAdmin(
             'csrfmiddlewaretoken': 'test',
         }
 
+    def test_clone_template(self):
+        path = reverse(f'admin:{self.app_label}_template_changelist')
+        t = self._create_template(organization=self._get_org(org_name='default'))
+        count = Template.objects.count()
+        data = self._get_clone_template_post_data(t)
+        response = self.client.post(path, data, follow=True)
+        self.assertContains(response, '{} (Clone)'.format(t.name))
+        response = self.client.post(path, data, follow=True)
+        self.assertContains(response, '{} (Clone 2)'.format(t.name))
+        response = self.client.post(path, data, follow=True)
+        self.assertContains(response, '{} (Clone 3)'.format(t.name))
+        self.assertEqual(Template.objects.count(), count + 3)
+        path = reverse('admin:index')
+        self.assertEqual(LogEntry.objects.all().count(), 3)
+        response = self.client.get(path)
+        self.assertContains(response, '{} (Clone)'.format(t.name))
+        self.assertContains(response, '{} (Clone 2)'.format(t.name))
+        self.assertContains(response, '{} (Clone 3)'.format(t.name))
+
     def test_clone_templates_superuser_1_org(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
         t = self._create_template(organization=self._get_org(org_name='default'))
         post_data = self._get_clone_template_post_data(t)
         self.client.force_login(self._get_admin())
+        count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, '{} (Clone)'.format(t.name))
+        self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_superuser_multi_orgs(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
@@ -683,55 +704,74 @@ class TestAdmin(
         self.assertContains(response, 'Clone templates')
         self.assertContains(response, 'Shared systemwide')
 
+        with self.subTest('confirm cloning'):
+            count = Template.objects.count()
+            post_data['organization'] = str(t.organization.id)
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(Template.objects.count(), count + 1)
+
     def test_clone_templates_operator_1_org(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
         t = self._create_template(organization=self._get_org())
         test_user = self._create_operator(organizations=[self._get_org()])
         post_data = self._get_clone_template_post_data(t)
         self.client.force_login(test_user)
+        count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, '{} (Clone)'.format(t.name))
+        self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_operator_multi_orgs(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
-        t = self._create_template()
+        t = self._create_template(organization=self._get_org())
         post_data = self._get_clone_template_post_data(t)
-        org1 = self._get_org()
+        org1 = t.organization
         org2 = self._get_org('org_2')
-        operator = self._create_operator(
-            organizations=[org1, org2]
-        )
+        operator = self._create_operator(organizations=[org1, org2])
         self.client.force_login(operator)
+        count = Template.objects.count()
         response = self.client.post(path, post_data)
         self.assertContains(response, org1.name)
         self.assertContains(response, org2.name)
         self.assertNotContains(response, 'Shared systemwide')
+        self.assertEqual(Template.objects.count(), count)
+
+        with self.subTest('confirm cloning'):
+            post_data['organization'] = str(org1.id)
+            response = self.client.post(path, post_data, follow=True)
+            self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_only_managed_orgs(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
-        t = self._create_template()
+        t = self._create_template(organization=self._get_org())
         post_data = self._get_clone_template_post_data(t)
-        org1 = self._get_org()
+        org1 = t.organization
         org2 = self._get_org('org_2')
-        operator = self._create_operator(
-            organizations=[org1, org2]
-        )
+        operator = self._create_operator(organizations=[org1, org2])
         orguser = OrganizationUser.objects.get(user=operator, organization=org2)
         orguser.is_admin = False
         orguser.save()
         self.client.force_login(operator)
+        count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, 'Successfully cloned selected templates')
+        self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_validation_error(self):
         path = reverse(f'admin:{self.app_label}_template_changelist')
         # very long name will trigger validation error
         n = 'Testing B - NameHere WiFi WPA Enterprise - Dual Band Wireless'
-        t = self._create_template(name=n, organization=self._get_org(org_name='default'))
+        t = self._create_template(
+            name=n, organization=self._get_org(org_name='default')
+        )
         post_data = self._get_clone_template_post_data(t)
         self.client.force_login(self._get_admin())
+        count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
-        self.assertContains(response, 'There were errors while cloning the following templates')
+        self.assertContains(
+            response, 'There were errors while cloning the following templates'
+        )
+        self.assertEqual(Template.objects.count(), count)
 
         with self.subTest('test multiorg case'):
             self._get_org('org_2')
@@ -739,7 +779,11 @@ class TestAdmin(
             post_data['organization'] = str(t.organization.id)
             self.client.force_login(self._get_admin())
             response = self.client.post(path, post_data, follow=True)
-            self.assertContains(response, 'There were errors while cloning the following templates')
+            self.assertContains(
+                response, 'There were errors while cloning the following templates'
+            )
+            self.assertEqual(Template.objects.count(), count)
+            self.assertEqual(Template.objects.count(), count)
 
     def test_change_device_clean_templates(self):
         o = self._get_org()
@@ -1477,26 +1521,6 @@ class TestAdmin(
         self.assertEqual(response.json(), template.get_context())
         self.assertEqual(response.status_code, 200)
 
-    def test_clone_template(self):
-        path = reverse(f'admin:{self.app_label}_template_changelist')
-        t = self._create_template()
-        data = {
-            '_selected_action': [t.pk],
-            'action': 'clone_selected_templates',
-            'csrfmiddlewaretoken': 'test',
-        }
-        response = self.client.post(path, data, follow=True)
-        self.assertContains(response, '{} (Clone)'.format(t.name))
-        response = self.client.post(path, data, follow=True)
-        self.assertContains(response, '{} (Clone 2)'.format(t.name))
-        response = self.client.post(path, data, follow=True)
-        self.assertContains(response, '{} (Clone 3)'.format(t.name))
-        path = reverse('admin:index')
-        response = self.client.get(path)
-        self.assertIn('test-template (Clone 3)', str(response.content))
-        self.assertIn('test-template (Clone 2)', str(response.content))
-        self.assertIn('test-template (Clone)', str(response.content))
-        self.assertEqual(LogEntry.objects.all().count(), 3)
 
     def test_get_default_values(self):
         org = self._get_org()
