@@ -45,7 +45,6 @@ User = get_user_model()
 Location = load_model('geo', 'Location')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 Group = load_model('openwisp_users', 'Group')
-OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class TestImportExportMixin:
@@ -693,6 +692,7 @@ class TestAdmin(
         count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, '{} (Clone)'.format(t.name))
+        self.assertNotContains(response, '<h1>Clone templates</h1>', html=True)
         self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_superuser_multi_orgs(self):
@@ -719,6 +719,7 @@ class TestAdmin(
         count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, '{} (Clone)'.format(t.name))
+        self.assertNotContains(response, '<h1>Clone templates</h1>', html=True)
         self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_operator_multi_orgs(self):
@@ -747,14 +748,13 @@ class TestAdmin(
         post_data = self._get_clone_template_post_data(t)
         org1 = t.organization
         org2 = self._get_org('org_2')
-        operator = self._create_operator(organizations=[org1, org2])
-        orguser = OrganizationUser.objects.get(user=operator, organization=org2)
-        orguser.is_admin = False
-        orguser.save()
+        operator = self._create_operator(organizations=[org1])
+        self._create_org_user(organization=org2, user=operator, is_admin=False)
         self.client.force_login(operator)
         count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
         self.assertContains(response, 'Successfully cloned selected templates')
+        self.assertNotContains(response, '<h1>Clone templates</h1>', html=True)
         self.assertEqual(Template.objects.count(), count + 1)
 
     def test_clone_templates_validation_error(self):
@@ -768,9 +768,7 @@ class TestAdmin(
         self.client.force_login(self._get_admin())
         count = Template.objects.count()
         response = self.client.post(path, post_data, follow=True)
-        self.assertContains(
-            response, 'There were errors while cloning the following templates'
-        )
+        self.assertContains(response, 'Errors detected while cloning')
         self.assertEqual(Template.objects.count(), count)
 
         with self.subTest('test multiorg case'):
@@ -779,10 +777,47 @@ class TestAdmin(
             post_data['organization'] = str(t.organization.id)
             self.client.force_login(self._get_admin())
             response = self.client.post(path, post_data, follow=True)
-            self.assertContains(
-                response, 'There were errors while cloning the following templates'
-            )
+            self.assertContains(response, 'Errors detected while cloning')
             self.assertEqual(Template.objects.count(), count)
+
+    def test_clone_templates_org_errors(self):
+        path = reverse(f'admin:{self.app_label}_template_changelist')
+        t = self._create_template(organization=self._get_org())
+        post_data = self._get_clone_template_post_data(t)
+        org1 = t.organization
+        org2 = self._get_org('org_2')
+        org3 = self._get_org('org_3')
+        operator = self._create_operator(organizations=[org1, org2])
+        t2 = self._create_template(organization=org3)
+        t3 = self._create_template(name='shared-template', organization=None)
+        self.client.force_login(operator)
+        count = Template.objects.count()
+
+        with self.subTest('nonexisting org'):
+            post_data['organization'] = '00000000-0bde-4f98-8517-0e99bcaa4883'
+            response = self.client.post(path, post_data, follow=True)
+            self.assertNotContains(response, 'Successfully cloned selected templates')
+        with self.subTest('invalid org'):
+            post_data['organization'] = 'invalid_uuid'
+            response = self.client.post(path, post_data, follow=True)
+            self.assertNotContains(response, 'Successfully cloned selected templates')
+        with self.subTest('org user does not manage'):
+            post_data['organization'] = str(org3.id)
+            response = self.client.post(path, post_data, follow=True)
+            self.assertNotContains(response, 'Successfully cloned selected templates')
+        with self.subTest('non superuser not allowed to clone as shared'):
+            post_data['organization'] = ''
+            response = self.client.post(path, post_data, follow=True)
+            self.assertNotContains(response, 'Successfully cloned selected templates')
+        with self.subTest('non superuser not allowed to clone template of other org'):
+            post_data = self._get_clone_template_post_data(t2)
+            response = self.client.post(path, post_data, follow=True)
+            self.assertNotContains(response, 'Successfully cloned selected templates')
+        with self.subTest('non superuser not allowed to clone shared template'):
+            post_data = self._get_clone_template_post_data(t3)
+            response = self.client.post(path, post_data, follow=True)
+            self.assertNotContains(response, 'Successfully cloned selected templates')
+        with self.subTest('template count should not change'):
             self.assertEqual(Template.objects.count(), count)
 
     def test_change_device_clean_templates(self):
@@ -1520,7 +1555,6 @@ class TestAdmin(
         response = self.client.get(url)
         self.assertEqual(response.json(), template.get_context())
         self.assertEqual(response.status_code, 200)
-
 
     def test_get_default_values(self):
         org = self._get_org()

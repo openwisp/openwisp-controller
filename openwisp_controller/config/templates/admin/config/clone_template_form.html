@@ -26,7 +26,7 @@ organization-selection admin-actions
 
 {% block content %}
 <div class="delete-confirmation">
-    <p>{% blocktrans %}What organization do you want clone selected templates to?{% endblocktrans %}</p>
+    <p>{% trans 'What organization do you want clone selected templates to?' %}</p>
     <form method="post">{% csrf_token %}
         <div>
             {% for obj in queryset %}
