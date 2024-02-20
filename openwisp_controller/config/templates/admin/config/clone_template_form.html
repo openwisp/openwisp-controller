@@ -6,7 +6,7 @@
     {{ media }}
     <style>
       .admin-actions form select {
-        margin: 10px;
+        margin-left: 10px;
       }
     </style>
 {% endblock %}
@@ -26,21 +26,22 @@ organization-selection admin-actions
 
 {% block content %}
 <div class="delete-confirmation">
-    <p>{% trans 'What organization do you want clone selected templates to?' %}</p>
-    <form method="post">{% csrf_token %}
-        <div>
-            {% for obj in queryset %}
+    <p>
+      {% trans 'What organization do you want clone selected templates to?' %}
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        {% for obj in queryset %}
             <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
-            {% endfor %}
-            <p>
-              {{ form }}
-            <p>
-            <input type="hidden" name="action" value="clone_selected_templates">
-            <p>
-              <input type="submit" value="{% trans 'Clone' %}">
-              <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
-            </p>
-        </div>
+        {% endfor %}
+        <p class="form-row">
+          {{ form }}
+        </p>
+        <input type="hidden" name="action" value="clone_selected_templates">
+        <p>
+          <input type="submit" value="{% trans 'Clone' %}">
+          <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+        </p>
     </form>
 </div>
 {% endblock %}
