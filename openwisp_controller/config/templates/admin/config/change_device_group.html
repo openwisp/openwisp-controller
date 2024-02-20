@@ -2,7 +2,13 @@
 {% load i18n l10n admin_urls static %}
 
 {% block extrahead %}
-<link rel="stylesheet" type="text/css" href="{% static 'config/css/admin-actions-intermediate-page.css' %}">
+    {{ block.super }}
+    {{ media }}
+    <style>
+      .admin-actions form select {
+        margin-left: 10px;
+      }
+    </style>
 {% endblock %}
 
 {% block bodyclass %}
@@ -19,18 +25,23 @@ change-device-group admin-actions
 {% endblock %}
 
 {% block content %}
-
-<p>{% blocktrans %}What group do you want to assign to the selected devices?{% endblocktrans %}</p>
-<form method="post">{% csrf_token %}
-    <div>
+<div class="delete-confirmation">
+    <p>
+      {% trans 'What group do you want to assign to the selected devices?' %}
+    </p>
+    <form method="post">
+        {% csrf_token %}
         {% for obj in queryset %}
-        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
+            <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
         {% endfor %}
-        {{ form }}
-        <br>
+        <p class="form-row">
+          {{ form }}
+        </p>
         <input type="hidden" name="action" value="change_group">
-        <input type="submit" name='apply' value="{% trans 'Change group' %}">
-        <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
-    </div>
-</form>
+        <p>
+            <input type="submit" name='apply' value="{% trans 'Change group' %}">
+            <a href="{% url changelist_url %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+        </p>
+    </form>
+</div>
 {% endblock %}

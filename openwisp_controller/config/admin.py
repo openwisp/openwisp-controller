@@ -570,10 +570,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         org_id = None
         if queryset:
             org_id = queryset[0].organization_id
-        if (
-            not request.user.is_superuser
-            and str(org_id) not in request.user.organizations_managed
-        ):
+        if not request.user.is_superuser and request.user.is_manager(org_id):
             logger.warning(f'{request.user} does not manage "{org_id}" organization.')
             return HttpResponseForbidden()
         if len(queryset) != queryset.filter(organization_id=org_id).count():
