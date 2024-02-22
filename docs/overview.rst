@@ -3,7 +3,7 @@ OpenWISP Controller
 
 .. note::
 
-  This is the latest version
+  This is the stable version
 
 OpenWISP Controller is a configuration manager that allows to automate several
 networking tasks like adoption, provisioning, management VPN configuration,
