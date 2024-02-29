@@ -822,6 +822,27 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         )
         self.assertEqual(response.status_code, 405)
 
+    def test_device_report_status_applied_after_deactivating(self):
+        """
+        Ensure that when a device sends a "applied" status while
+        it is in "deactivating" state, the configuration status
+        of the device changes to "deactivated".
+        """
+        device = self._create_device_config()
+        device.deactivate()
+        with catch_signal(config_status_changed) as handler:
+            response = self.client.post(
+                reverse('controller:device_report_status', args=[device.pk]),
+                {'key': device.key, 'status': 'applied'},
+            )
+            device.config.refresh_from_db()
+            handler.assert_called_once_with(
+                sender=Config, signal=config_status_changed, instance=device.config
+            )
+        self._check_header(response)
+        device.config.refresh_from_db()
+        self.assertEqual(device.config.status, 'deactivated')
+
     def test_device_update_info(self):
         d = self._create_device_config()
         url = reverse('controller:device_update_info', args=[d.pk])
