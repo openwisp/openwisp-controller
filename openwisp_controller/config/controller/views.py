@@ -247,6 +247,11 @@ class DeviceReportStatusView(CsrfExtemptMixin, GetDeviceView):
         # mantain backward compatibility with old agents
         # ("running" was changed to "applied")
         status = status if status != 'running' else 'applied'
+        # If the Config.status is "deactivating", then set the
+        # status to "deactivated". This will stop the device
+        # from receiving new configurations.
+        if config.status == 'deactivating':
+            status = 'deactivated'
         # call set_status_{status} method on Config model
         method_name = f'set_status_{status}'
         if status == 'error':
