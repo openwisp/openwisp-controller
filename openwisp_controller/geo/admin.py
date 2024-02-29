@@ -15,7 +15,7 @@ from swapper import load_model
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeviceAdmin
+from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
 
 DeviceLocation = load_model('geo', 'DeviceLocation')
 FloorPlan = load_model('geo', 'FloorPlan')
@@ -71,7 +71,9 @@ LocationAdmin.list_display.insert(1, 'organization')
 LocationAdmin.list_filter.insert(0, MultitenantOrgFilter)
 
 
-class DeviceLocationInline(ObjectLocationMixin, admin.StackedInline):
+class DeviceLocationInline(
+    ObjectLocationMixin, DeactivatedDeviceReadOnlyMixin, admin.StackedInline
+):
     model = DeviceLocation
     form = ObjectLocationForm
     verbose_name = _('Map')
