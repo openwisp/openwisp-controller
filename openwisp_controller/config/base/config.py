@@ -14,7 +14,12 @@ from packaging import version
 from swapper import get_model_name, load_model
 
 from .. import settings as app_settings
-from ..signals import config_backend_changed, config_modified, config_status_changed
+from ..signals import (
+    config_backend_changed,
+    config_deactivated,
+    config_modified,
+    config_status_changed,
+)
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
@@ -105,6 +110,7 @@ class AbstractConfig(BaseConfig):
         self._just_created = False
         self._initial_status = self.status
         self._send_config_modified_after_save = False
+        self._send_config_deactivated = False
         self._send_config_status_changed = False
 
     def __str__(self):
@@ -492,6 +498,8 @@ class AbstractConfig(BaseConfig):
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
             self._send_config_status_changed = False
+        if self._send_config_deactivated and self.is_deactivated():
+            self._send_config_deactivated_signal()
         self._initial_status = self.status
         return result
 
@@ -539,6 +547,16 @@ class AbstractConfig(BaseConfig):
             # kept for backward compatibility
             config=self,
             device=self.device,
+        )
+
+    def _send_config_deactivated_signal(self):
+        """
+        Emits ``config_deactivated`` signal.
+        """
+        config_deactivated.send(
+            sender=self.__class__,
+            instance=self,
+            previous_status=self._initial_status,
         )
 
     def _send_config_backend_changed_signal(self):
@@ -595,6 +613,7 @@ class AbstractConfig(BaseConfig):
         self.templates.clear()
 
     def set_status_deactivated(self, save=True):
+        self._send_config_deactivated = True
         self._set_status('deactivated', save)
 
     def _has_device(self):

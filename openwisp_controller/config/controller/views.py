@@ -54,8 +54,10 @@ class GetDeviceView(SingleObjectMixin, View):
             'organization__created',
             'organization__modified',
         )
-        queryset = self.model.objects.select_related('organization', 'config').defer(
-            *defer
+        queryset = (
+            self.model.objects.select_related('organization', 'config')
+            .defer(*defer)
+            .exclude(config__status='deactivated')
         )
         return get_object_or_404(queryset, *args, **kwargs)
 
@@ -167,6 +169,14 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         view.kwargs = {'pk': pk}
         view.get_device.invalidate(view)
         logger.debug(f'invalidated view cache for device ID {pk}')
+
+    @classmethod
+    def invalidate_get_device_cache_on_config_deactivated(cls, instance, **kwargs):
+        """
+        Called from signal receiver which performs cache invalidation
+        when the configuration status is set to "deactivated".
+        """
+        cls.invalidate_get_device_cache(instance=instance.device, **kwargs)
 
     @classmethod
     def invalidate_checksum_cache(cls, instance, device, **kwargs):

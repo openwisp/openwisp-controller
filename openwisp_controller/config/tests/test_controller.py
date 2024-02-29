@@ -245,6 +245,31 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                 request=response.wsgi_request,
             )
 
+    def test_device_config_deactivated_checksum(self):
+        device = self._create_device_config()
+        config = device.config
+        # The endpoint returns 200 when config.status is modified
+        config.set_status_modified()
+        path = reverse('controller:device_checksum', args=[device.pk])
+        response = self.client.get(path, {'key': device.key})
+        self.assertEqual(response.status_code, 200)
+
+        # The endpoint returns 200 when config.status is deactivating
+        config.set_status_deactivating()
+        path = reverse('controller:device_checksum', args=[device.pk])
+        response = self.client.get(path, {'key': device.key})
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'deactivating')
+
+        # The endpoint returns 404 when config.status is deactivated
+        config.set_status_deactivated()
+        path = reverse('controller:device_checksum', args=[device.pk])
+        response = self.client.get(path, {'key': device.key})
+        self.assertEqual(response.status_code, 404)
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'deactivated')
+
     @capture_any_output()
     def test_device_checksum_400(self):
         d = self._create_device_config()

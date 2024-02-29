@@ -22,6 +22,7 @@ from openwisp_utils.admin_theme.menu import register_menu_group
 from . import settings as app_settings
 from .signals import (
     config_backend_changed,
+    config_deactivated,
     config_modified,
     device_group_changed,
     device_name_changed,
@@ -304,6 +305,10 @@ class ConfigConfig(AppConfig):
             DeviceChecksumView.invalidate_get_device_cache,
             sender=self.device_model,
             dispatch_uid='invalidate_get_device_cache',
+        )
+        config_deactivated.connect(
+            DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated,
+            dispatch_uid='config_deactivated_invalidate_get_device_cache',
         )
         config_modified.connect(
             DeviceChecksumView.invalidate_checksum_cache,
