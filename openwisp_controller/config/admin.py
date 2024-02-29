@@ -73,6 +73,20 @@ class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
     history_latest_first = True
 
 
+class DeactivatedDeviceReadOnlyMixin(object):
+    def has_add_permission(self, request, obj):
+        perm = super().has_add_permission(request, obj)
+        if not obj:
+            return perm
+        return perm and not obj.is_deactivated()
+
+    def has_change_permission(self, request, obj=None):
+        perm = super().has_change_permission(request)
+        if not obj:
+            return perm
+        return perm and not obj.is_deactivated()
+
+
 class BaseConfigAdmin(BaseAdmin):
     change_form_template = 'admin/config/change_form.html'
     preview_template = None
@@ -390,6 +404,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
 
 
 class ConfigInline(
+    DeactivatedDeviceReadOnlyMixin,
     MultitenantAdminMixin,
     TimeReadonlyAdminMixin,
     SystemDefinedVariableMixin,
@@ -424,10 +439,6 @@ class ConfigInline(
             fields = fields.copy()
             fields.insert(fields.index('status') + 1, 'error_reason')
         return fields
-
-    def get_readonly_fields(self, request, obj):
-        fields = super().get_readonly_fields(request, obj)
-        return self._error_reason_field_conditional(obj, fields)
 
     def get_fields(self, request, obj):
         fields = super().get_fields(request, obj)
@@ -499,7 +510,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ]
     inlines = [ConfigInline]
     conditional_inlines = []
-    actions = ['change_group']
+    actions = ['deactivate_device', 'change_group', 'activate_device']
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
     _state_adding = False
@@ -519,6 +530,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/management_ip.js',
             f'{prefix}js/relevant_templates.js',
         ]
+
+    def has_change_permission(self, request, obj=None):
+        perm = super().has_change_permission(request)
+        if not obj:
+            return perm
+        return perm and not obj.is_deactivated()
 
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding
@@ -623,6 +640,34 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return TemplateResponse(
             request, 'admin/config/change_device_group.html', context
         )
+
+    def _change_device_status(self, request, queryset, method):
+        """
+        This helper method provides re-usability of code for
+        device activation and deactivation actions.
+        """
+        # Validate selected devices can be managed by the user
+        if not request.user.is_superuser:
+            # There could be multiple devices selected by the user.
+            # Validate that all the devices can be managed by the user.
+            for org_id in set(queryset.values_list('organization_id', flat=True)):
+                if not request.user.is_manager(str(org_id)):
+                    logger.warning(
+                        f'{request.user} attempted to deactivate device of "{org_id}"'
+                        ' organization which they do not manage.'
+                        ' The operation was rejected.'
+                    )
+                    return HttpResponseForbidden()
+        for device in queryset.iterator():
+            getattr(device, method)()
+
+    @admin.actions(description=_('Deactivate selected devices'), permissions=['change'])
+    def deactivate_device(self, request, queryset):
+        self._change_device_status(request, queryset, 'deactivate')
+
+    @admin.actions(description=_('Activate selected devices'), permissions=['change'])
+    def activate_device(self, request, queryset):
+        self._change_device_status(request, queryset, 'activate')
 
     def get_fields(self, request, obj=None):
         """

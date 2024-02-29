@@ -2,7 +2,7 @@ from hashlib import md5
 from unittest import mock
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
@@ -589,3 +589,46 @@ class TestDevice(
         device.config.refresh_from_db()
         self.assertEqual(device.config.context, {'ssid': 'test'})
         self.assertEqual(device.config.config, {'general': {}})
+
+
+class TestTransactionDevice(
+    CreateConfigTemplateMixin,
+    TestOrganizationMixin,
+    AssertNumQueriesSubTestMixin,
+    CreateDeviceGroupMixin,
+    TransactionTestCase,
+):
+    def test_deactivating_device_with_config(self):
+        self._create_template(required=True)
+        config = self._create_config(organization=self._get_org())
+        device = config.device
+        self.assertEqual(config.templates.count(), 1)
+
+        device.deactivate()
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+        self.assertEqual(config.status, 'deactivating')
+        self.assertEqual(config.config, {})
+        self.assertEqual(config.templates.count(), 0)
+
+        device.activate()
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), False)
+        self.assertEqual(config.status, 'modified')
+        # Required templates are automatically added
+        self.assertEqual(config.templates.count(), 1)
+
+    def test_deactivating_device_without_config(self):
+        device = self._create_device()
+        self.assertEqual(device._has_config(), False)
+        device.deactivate()
+        device.refresh_from_db()
+        self.assertEqual(device._has_config(), False)
+        self.assertEqual(device.is_deactivated(), True)
+
+        device.activate()
+        device.refresh_from_db()
+        self.assertEqual(device._has_config(), False)
+        self.assertEqual(device.is_deactivated(), False)

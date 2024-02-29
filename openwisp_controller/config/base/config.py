@@ -62,7 +62,7 @@ class AbstractConfig(BaseConfig):
         blank=True,
     )
 
-    STATUS = Choices('modified', 'applied', 'error')
+    STATUS = Choices('modified', 'applied', 'error', 'deactivating', 'deactivated')
     status = StatusField(
         _('configuration status'),
         help_text=_(
@@ -331,6 +331,8 @@ class AbstractConfig(BaseConfig):
         """
         if action not in ['pre_remove', 'post_clear']:
             return False
+        if instance.is_deactivating_or_deactivated():
+            return
         raw_data = raw_data or {}
         template_query = models.Q(required=True, backend=instance.backend)
         # trying to remove a required template will raise PermissionDenied
@@ -483,6 +485,15 @@ class AbstractConfig(BaseConfig):
         self._initial_status = self.status
         return result
 
+    def is_deactivating_or_deactivated(self):
+        return self.status in ['deactivating', 'deactivated']
+
+    def is_deactivating(self):
+        return self.status == 'deactivating'
+
+    def is_deactivated(self):
+        return self.status == 'deactivated'
+
     def _check_changes(self):
         current = self._meta.model.objects.only(
             'backend', 'config', 'context', 'status'
@@ -539,9 +550,10 @@ class AbstractConfig(BaseConfig):
         """
         config_status_changed.send(sender=self.__class__, instance=self)
 
-    def _set_status(self, status, save=True, reason=None):
+    def _set_status(self, status, save=True, reason=None, extra_update_fields=None):
         self._send_config_status_changed = True
-        update_fields = ['status']
+        extra_update_fields = extra_update_fields or []
+        update_fields = ['status'] + extra_update_fields
         # The error reason should be updated when
         # 1. the configuration is in "error" status
         # 2. the configuration has changed from error status
@@ -562,6 +574,18 @@ class AbstractConfig(BaseConfig):
 
     def set_status_error(self, save=True, reason=None):
         self._set_status('error', save, reason)
+
+    def set_status_deactivating(self, save=True):
+        """
+        Set Config status as deactivating and
+        clears configuration and templates.
+        """
+        self.config = {}
+        self._set_status('deactivating', save, extra_update_fields=['config'])
+        self.templates.clear()
+
+    def set_status_deactivated(self, save=True):
+        self._set_status('deactivated', save)
 
     def _has_device(self):
         return hasattr(self, 'device')
