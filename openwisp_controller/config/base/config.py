@@ -235,7 +235,9 @@ class AbstractConfig(BaseConfig):
         This method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
         """
-        if action not in ['post_add', 'post_remove']:
+        if (action not in ['post_add', 'post_remove']) and not (
+            action == 'post_clear' and instance.is_deactivating_or_deactivated()
+        ):
             return
         vpn_client_model = cls.vpn.through
         # coming from signal
@@ -250,6 +252,11 @@ class AbstractConfig(BaseConfig):
         # coming from admin ModelForm
         else:
             templates = pk_set
+        if action == 'post_clear' and instance.is_deactivating_or_deactivated():
+            # If the config is being deactivting or deactivated, then
+            # delete all vpn clients and return.
+            instance.vpnclient_set.all().delete()
+            return
         # delete VPN clients which have been cleared
         # by sortedm2m and have not been added back
         if action == 'post_add':
