@@ -101,7 +101,7 @@ class BaseConfigAdmin(BaseAdmin):
             for file_ in ('preview.js', 'unsaved_changes.js', 'switcher.js')
         ]
 
-    def get_extra_context(self, pk=None):
+    def get_extra_context(self, request, pk=None):
         prefix = 'admin:{0}_{1}'.format(
             self.opts.app_label, self.model.__name__.lower()
         )
@@ -136,7 +136,7 @@ class BaseConfigAdmin(BaseAdmin):
 
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = extra_context or {}
-        extra_context.update(self.get_extra_context())
+        extra_context.update(self.get_extra_context(request))
         instance = self.model()
         if hasattr(instance, 'get_default_templates'):
             templates = instance.get_default_templates()
@@ -145,7 +145,7 @@ class BaseConfigAdmin(BaseAdmin):
         return super().add_view(request, form_url, extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = self.get_extra_context(object_id)
+        extra_context = self.get_extra_context(request, object_id)
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_urls(self):
@@ -541,6 +541,14 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             return perm
         return perm and not obj.is_deactivated()
 
+    def has_delete_permission(self, request, obj=None):
+        perm = super().has_delete_permission(request)
+        if not obj:
+            return perm
+        if obj._has_config():
+            perm = perm and obj.config.is_deactivated()
+        return perm and obj.is_deactivated()
+
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding
         return super().save_form(request, form, change)
@@ -734,8 +742,17 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 pass
         return urls
 
-    def get_extra_context(self, pk=None):
-        ctx = super().get_extra_context(pk)
+    def get_extra_context(self, request, pk=None):
+        ctx = super().get_extra_context(request, pk)
+        if pk:
+            device = self.get_object(request, pk)
+            ctx.update(
+                {
+                    'show_deactivate': not device.is_deactivated(),
+                    'show_activate': device.is_deactivated(),
+                    'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                }
+            )
         ctx.update(
             {
                 'relevant_template_url': reverse(
@@ -750,7 +767,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return ctx
 
     def add_view(self, request, form_url='', extra_context=None):
-        extra_context = self.get_extra_context()
+        extra_context = self.get_extra_context(request)
         return super().add_view(request, form_url, extra_context)
 
     def get_inlines(self, request, obj):
@@ -1124,14 +1141,14 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
 
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = extra_context or {}
-        extra_context.update(self.get_extra_context())
+        extra_context.update(self.get_extra_context(request))
         return super().add_view(request, form_url, extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = self.get_extra_context(object_id)
+        extra_context = self.get_extra_context(request, object_id)
         return super().change_view(request, object_id, form_url, extra_context)
 
-    def get_extra_context(self, pk=None):
+    def get_extra_context(self, request, pk=None):
         ctx = {
             'relevant_template_url': reverse(
                 'admin:get_relevant_templates', args=['org_id']
