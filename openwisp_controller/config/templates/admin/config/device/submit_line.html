@@ -1,0 +1,19 @@
+{% extends "admin/submit_line.html" %}
+{% load i18n l10n admin_urls %}
+
+{% block submit-row %}
+{% url opts|admin_urlname:'changelist' as changelist_url %}
+<form method="post" action="{{ changelist_url }}">
+    {% csrf_token %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ original.pk|unlocalize }}">
+    {% if show_activate %}
+        <input type="hidden" name="action" value="activate_device">
+        <input class="default" type="submit" value="{% trans "Activate" %}">
+    {% endif %}
+    {% if show_deactivate %}
+    <input type="hidden" name="action" value="deactivate_device">
+    <p class="deletelink-box"><input class="deletelink" type="submit" value="{% trans "Deactivate" %}"></p>
+    {% endif %}
+</form>
+{{ block.super }}
+{% endblock %}
