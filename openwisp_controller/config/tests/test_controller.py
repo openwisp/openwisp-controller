@@ -75,6 +75,35 @@ class TestController(
         response = method(url, {'key': obj.key})
         self.assertEqual(response.status_code, 404)
 
+    def _test_deactivating_deactivated_device_view(
+        self, url_name, method='get', data=None
+    ):
+        data = data or {}
+        device = self._create_device_config()
+        config = device.config
+        # The endpoint returns 200 when config.status is modified
+        config.set_status_modified()
+        path = reverse(f'controller:{url_name}', args=[device.pk])
+        payload = {'key': device.key, **data}
+        response = getattr(self.client, method)(path, payload)
+        self.assertEqual(response.status_code, 200)
+
+        # The endpoint returns 200 when config.status is deactivating
+        config.set_status_deactivating()
+        path = reverse('controller:device_checksum', args=[device.pk])
+        response = self.client.get(path, {'key': device.key})
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'deactivating')
+
+        # The endpoint returns 404 when config.status is deactivated
+        config.set_status_deactivated()
+        path = reverse('controller:device_checksum', args=[device.pk])
+        response = self.client.get(path, {'key': device.key})
+        self.assertEqual(response.status_code, 404)
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'deactivated')
+
     def test_device_checksum(self):
         d = self._create_device_config()
         c = d.config
@@ -250,29 +279,7 @@ class TestController(
             )
 
     def test_device_config_deactivated_checksum(self):
-        device = self._create_device_config()
-        config = device.config
-        # The endpoint returns 200 when config.status is modified
-        config.set_status_modified()
-        path = reverse('controller:device_checksum', args=[device.pk])
-        response = self.client.get(path, {'key': device.key})
-        self.assertEqual(response.status_code, 200)
-
-        # The endpoint returns 200 when config.status is deactivating
-        config.set_status_deactivating()
-        path = reverse('controller:device_checksum', args=[device.pk])
-        response = self.client.get(path, {'key': device.key})
-        self.assertEqual(response.status_code, 200)
-        config.refresh_from_db()
-        self.assertEqual(config.status, 'deactivating')
-
-        # The endpoint returns 404 when config.status is deactivated
-        config.set_status_deactivated()
-        path = reverse('controller:device_checksum', args=[device.pk])
-        response = self.client.get(path, {'key': device.key})
-        self.assertEqual(response.status_code, 404)
-        config.refresh_from_db()
-        self.assertEqual(config.status, 'deactivated')
+        self._test_deactivating_deactivated_device_view('device_checksum')
 
     @capture_any_output()
     def test_device_checksum_400(self):
@@ -313,6 +320,27 @@ class TestController(
         d.refresh_from_db()
         self.assertIsNotNone(d.last_ip)
         self.assertIsNone(d.management_ip)
+
+    def test_deactivated_device_download_config(self):
+        device = self._create_device_config()
+        config = device.config
+        url = reverse('controller:device_download_config', args=[device.pk])
+
+        response = self.client.get(url, {'key': device.key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.cn)
+
+        config.set_status_deactivating()
+        response = self.client.get(url, {'key': device.key})
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'deactivating')
+
+        config.set_status_deactivated()
+        response = self.client.get(url, {'key': device.key})
+        self.assertEqual(response.status_code, 404)
+        config.refresh_from_db()
+        self.assertEqual(config.status, 'deactivated')
 
     def test_device_download_config_bad_uuid(self):
         d = self._create_device_config()
@@ -801,6 +829,11 @@ class TestController(
             self.assertEqual(d.config.status, 'error')
             self.assertEqual(d.config.error_reason, error_reason)
 
+    def test_deactivated_device_report_status(self):
+        self._test_deactivating_deactivated_device_view(
+            'device_report_status', method='post', data={'status': 'applied'}
+        )
+
     def test_device_report_status_bad_uuid(self):
         d = self._create_device_config()
         pk = '{}-wrong'.format(d.pk)
@@ -905,6 +938,11 @@ class TestController(
             self.assertEqual(d.os, params['os'])
             self.assertEqual(d.system, params['system'])
             self.assertEqual(d.model, params['model'])
+
+    def test_deactivated_device_update_info(self):
+        self._test_deactivating_deactivated_device_view(
+            'device_update_info', method='post', data={}
+        )
 
     def test_device_update_info_bad_uuid(self):
         d = self._create_device_config()
