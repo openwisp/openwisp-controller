@@ -318,25 +318,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertIsNone(d.management_ip)
 
     def test_deactivated_device_download_config(self):
-        device = self._create_device_config()
-        config = device.config
-        url = reverse('controller:device_download_config', args=[device.pk])
-
-        response = self.client.get(url, {'key': device.key})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.cn)
-
-        config.set_status_deactivating()
-        response = self.client.get(url, {'key': device.key})
-        self.assertEqual(response.status_code, 200)
-        config.refresh_from_db()
-        self.assertEqual(config.status, 'deactivating')
-
-        config.set_status_deactivated()
-        response = self.client.get(url, {'key': device.key})
-        self.assertEqual(response.status_code, 404)
-        config.refresh_from_db()
-        self.assertEqual(config.status, 'deactivated')
+        self._test_deactivating_deactivated_device_view('device_download_config')
 
     def test_device_download_config_bad_uuid(self):
         d = self._create_device_config()
