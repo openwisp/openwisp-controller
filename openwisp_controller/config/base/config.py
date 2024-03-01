@@ -17,6 +17,7 @@ from .. import settings as app_settings
 from ..signals import (
     config_backend_changed,
     config_deactivated,
+    config_deactivating,
     config_modified,
     config_status_changed,
 )
@@ -111,6 +112,7 @@ class AbstractConfig(BaseConfig):
         self._initial_status = self.status
         self._send_config_modified_after_save = False
         self._send_config_deactivated = False
+        self._send_config_deactivating = False
         self._send_config_status_changed = False
 
     def __str__(self):
@@ -498,6 +500,8 @@ class AbstractConfig(BaseConfig):
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
             self._send_config_status_changed = False
+        if self._send_config_deactivating and self.is_deactivating():
+            self._send_config_deactivating_signal()
         if self._send_config_deactivated and self.is_deactivated():
             self._send_config_deactivated_signal()
         self._initial_status = self.status
@@ -547,6 +551,17 @@ class AbstractConfig(BaseConfig):
             # kept for backward compatibility
             config=self,
             device=self.device,
+        )
+
+    def _send_config_deactivating_signal(self):
+        """
+        Emits ``config_deactivating`` signal.
+        """
+        config_deactivating.send(
+            sender=self.__class__,
+            instance=self,
+            device=self.device,
+            previous_status=self._initial_status,
         )
 
     def _send_config_deactivated_signal(self):
@@ -609,6 +624,7 @@ class AbstractConfig(BaseConfig):
         clears configuration and templates.
         """
         self.config = {}
+        self._send_config_deactivating = True
         self._set_status('deactivating', save, extra_update_fields=['config'])
         self.templates.clear()
 

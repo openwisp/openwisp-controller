@@ -21,6 +21,10 @@ config_deactivated = Signal()
 config_deactivated.__doc__ = """
 Providing arguments: ['instance', 'previous_status']
 """
+config_deactivating = Signal()
+config_deactivating.__doc__ = """
+Providing arguments: ['instance', 'previous_status']
+"""
 device_registered = Signal()
 device_registered.__doc__ = """
 Providing arguments: ['instance', 'is_new']
