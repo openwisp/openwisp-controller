@@ -468,7 +468,7 @@ class TestConfig(
         self.assertNotEqual(c.vpnclient_set.count(), 0)
         self.assertNotEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
 
-    def test_automatically_created_cert_deleted_post_remove(self):
+    def test_automatically_created_cert_revoked_post_remove(self):
         self.test_create_cert()
         c = Config.objects.get(device__name='test-create-cert')
         t = Template.objects.get(name='test-create-cert')
@@ -477,7 +477,7 @@ class TestConfig(
         cert_model = cert.__class__
         c.templates.remove(t)
         self.assertEqual(c.vpnclient_set.count(), 0)
-        self.assertEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
+        self.assertEqual(cert_model.objects.filter(pk=cert.pk, revoked=True).count(), 1)
 
     def test_create_cert_false(self):
         vpn = self._create_vpn()
