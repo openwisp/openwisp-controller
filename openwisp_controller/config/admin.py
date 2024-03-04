@@ -19,6 +19,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
 from django.urls import path, re_path, reverse
+from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from import_export.admin import ImportExportMixin
@@ -653,6 +654,18 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             request, 'admin/config/change_device_group.html', context
         )
 
+    def _get_device_path(self, device):
+        app_label = self.opts.app_label
+        model_name = self.model._meta.model_name
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse(
+                f'admin:{app_label}_{model_name}_change',
+                args=[device.id],
+            ),
+            device,
+        )
+
     def _change_device_status(self, request, queryset, method):
         """
         This helper method provides re-usability of code for
@@ -670,8 +683,44 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                         ' The operation was rejected.'
                     )
                     return HttpResponseForbidden()
+        success_devices = []
         for device in queryset.iterator():
-            getattr(device, method)()
+            try:
+                getattr(device, method)()
+            except Exception:
+                self.message_user(
+                    request,
+                    _('An error occurred while trying to "%(method)s" "%(device)s.')
+                    % {'method': method, 'device': device},
+                    messages.ERROR,
+                )
+            else:
+                success_devices.append(self._get_device_path(device))
+        if not success_devices:
+            # There were zero successful devices, return
+            return
+        if len(success_devices) == 1:
+            self.message_user(
+                request,
+                format_html(
+                    _('The device {device} was {method}d successfully'),
+                    device=self._get_device_path(device),
+                    method=method,
+                ),
+                messages.SUCCESS,
+            )
+        else:
+            devices_html = ', '.join(success_devices[0:-1])
+            devices_html = f'{devices_html} and {success_devices[-1]}'
+            self.message_user(
+                request,
+                format_html(
+                    _('The following devices were {method}d successfully: {devices}'),
+                    method=method,
+                    devices=mark_safe(devices_html),
+                ),
+                messages.SUCCESS,
+            )
 
     @admin.actions(description=_('Deactivate selected devices'), permissions=['change'])
     def deactivate_device(self, request, queryset):
