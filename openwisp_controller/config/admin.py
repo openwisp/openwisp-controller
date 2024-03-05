@@ -515,7 +515,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ]
     inlines = [ConfigInline]
     conditional_inlines = []
-    actions = ['deactivate_device', 'change_group', 'activate_device']
+    actions = [
+        'change_group',
+        'deactivate_device',
+        'activate_device',
+        'delete_selected',
+    ]
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
     _state_adding = False
