@@ -1,0 +1,23 @@
+{% extends "admin/config/change_form.html" %}
+{% load admin_urls %}
+
+{% block content %}
+    {% comment %}
+    Due to HTML's limitation in supporting nested forms, we employ a
+    workaround for activating and deactivating device operations within
+    the change form.
+
+    We utilize a distinct form element (id="act_deact_device")
+    specifically for these actions. The form attribute of the submit buttons (Acivate/Deactivate)
+    within the submit-row div references this form. By doing so, we ensure that
+    these actions can be submitted independently without causing any
+    disruption to the device form.
+
+    For further information, refer to: https://www.impressivewebs.com/html5-form-attribute/
+    {% endcomment %}
+    {% url opts|admin_urlname:'changelist' as changelist_url %}
+    <form method="post" action="{{ changelist_url }}" id="act_deact_device">
+        {% csrf_token %}
+    </form>
+    {{ block.super }}
+{% endblock content %}

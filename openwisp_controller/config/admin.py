@@ -468,6 +468,7 @@ class ChangeDeviceGroupForm(forms.Form):
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+    change_form_template = None
     list_display = [
         'name',
         'backend',
