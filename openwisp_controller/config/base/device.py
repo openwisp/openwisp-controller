@@ -10,7 +10,12 @@ from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
-from ..signals import device_group_changed, device_name_changed, management_ip_changed
+from ..signals import (
+    device_deactivated,
+    device_group_changed,
+    device_name_changed,
+    management_ip_changed,
+)
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -180,6 +185,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.config.set_status_deactivating()
             self._is_deactivated = True
             self.save()
+            device_deactivated.send(sender=self.__class__, instance=self)
 
     def activate(self):
         if not self.is_deactivated():
