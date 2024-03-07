@@ -677,6 +677,38 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             device,
         )
 
+    def _message_user_device_status(self, request, devices, method, message_level):
+        if not devices:
+            return
+        if len(devices) == 1:
+            devices_html = devices[0]
+            if message_level == messages.SUCCESS:
+                message = _('The device {devices_html} was {method}ed successfully')
+            elif message_level == messages.ERROR:
+                message = _(
+                    'An error occurred while {method}ing the device {devices_html}'
+                )
+        else:
+            devices_html = mark_safe(', '.join(devices[:-1]) + ' and ' + devices[-1])
+            if message_level == messages.SUCCESS:
+                message = _(
+                    'The following devices were {method}ed successfully: {devices_html}'
+                )
+            elif message_level == messages.ERROR:
+                message = _(
+                    'An error occurred while {method}ing the following'
+                    ' devices: {devices_html}'
+                )
+        self.message_user(
+            request,
+            format_html(
+                message,
+                devices_html=devices_html,
+                method=method[:-1],
+            ),
+            message_level,
+        )
+
     def _change_device_status(self, request, queryset, method):
         """
         This helper method provides re-usability of code for
@@ -695,43 +727,18 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                     )
                     return HttpResponseForbidden()
         success_devices = []
+        error_devices = []
         for device in queryset.iterator():
             try:
                 getattr(device, method)()
             except Exception:
-                self.message_user(
-                    request,
-                    _('An error occurred while trying to "%(method)s" "%(device)s.')
-                    % {'method': method, 'device': device},
-                    messages.ERROR,
-                )
+                error_devices.append(self._get_device_path(device))
             else:
                 success_devices.append(self._get_device_path(device))
-        if not success_devices:
-            # There were zero successful devices, return
-            return
-        if len(success_devices) == 1:
-            self.message_user(
-                request,
-                format_html(
-                    _('The device {device} was {method}d successfully'),
-                    device=self._get_device_path(device),
-                    method=method,
-                ),
-                messages.SUCCESS,
-            )
-        else:
-            devices_html = ', '.join(success_devices[0:-1])
-            devices_html = f'{devices_html} and {success_devices[-1]}'
-            self.message_user(
-                request,
-                format_html(
-                    _('The following devices were {method}d successfully: {devices}'),
-                    method=method,
-                    devices=mark_safe(devices_html),
-                ),
-                messages.SUCCESS,
-            )
+        self._message_user_device_status(
+            request, success_devices, method, messages.SUCCESS
+        )
+        self._message_user_device_status(request, error_devices, method, messages.ERROR)
 
     @admin.actions(description=_('Deactivate selected devices'), permissions=['change'])
     def deactivate_device(self, request, queryset):
