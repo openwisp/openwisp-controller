@@ -1951,6 +1951,124 @@ class TestAdmin(
         devnull.close()
 
 
+class TestTransactionAdmin(
+    CreateConfigTemplateMixin,
+    TestAdminMixin,
+    TestOrganizationMixin,
+    TransactionTestCase,
+):
+    app_label = 'config'
+    _deactivated_device_warning = (
+        '<li class="warning">This device has been deactivated.</li>'
+    )
+    _deactivate_btn_html = (
+        '<p class="deletelink-box"><input class="deletelink"'
+        ' type="submit" value="Deactivate" form="act_deact_device"></p>'
+    )
+    _activate_btn_html = (
+        '<input class="default" type="submit" value="Activate" form="act_deact_device">'
+    )
+    _save_btn_html = '<input type="submit" value="Save" class="default" name="_save">'
+
+    def setUp(self):
+        self.client.force_login(self._get_admin())
+
+    def _get_delete_btn_html(self, device):
+        return (
+            '<p class="deletelink-box"><a href="/admin/'
+            f'{self.app_label}/device/{device.id}/delete/" class="deletelink">'
+            'Delete</a></p>'
+        )
+
+    def test_device_with_config_change_deactivate_deactivate(self):
+        """
+        This test checks the following things
+            - deactivate button is shown on device's change page
+            - all the fields become readonly on deactivated device
+            - deleting a device is possible once device's config.status is deactivated
+            - activate button is shown on deactivated device
+        """
+        device = self._create_config(organization=self._get_org()).device
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        delete_btn_html = self._get_delete_btn_html(device)
+        # Deactivate button is shown instead of delete button
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            self._deactivate_btn_html,
+        )
+        # Verify the inline objects can be added and deleted
+        self.assertContains(response, 'TOTAL_FORMS" value="1"', count=3)
+        self.assertContains(response, '<span class="delete"><input type="checkbox" ')
+        self.assertNotContains(
+            response,
+            delete_btn_html,
+        )
+        self.assertNotContains(response, self._deactivated_device_warning)
+
+        # All fields are readonly on deactivated device
+        device.deactivate()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self._deactivated_device_warning)
+        # Checking for individual fields would be a pain, hence we verify the
+        # number of div.readonly. If the device is not deactivate, the number
+        # of div.readonly isn only 15.
+        self.assertContains(
+            response,
+            '<div class="readonly">',
+            22,
+        )
+        # Save buttons are absent on deactivated device
+        self.assertNotContains(response, self._save_btn_html)
+        # Delete button is not present if config status is deactivating
+        self.assertEqual(device.config.status, 'deactivating')
+        self.assertNotContains(response, delete_btn_html)
+        self.assertNotContains(response, self._deactivate_btn_html)
+        self.assertContains(response, self._activate_btn_html)
+        # Verify adding a new DeviceLocation and DeviceConnection is not allowed
+        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=3)
+        # Verify deleting existing Inline objects is not allowed
+        self.assertNotContains(response, '<span class="delete"><input type="checkbox" ')
+
+        # Delete button is present if config status is deactivated
+        device.config.set_status_deactivated()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self._deactivated_device_warning)
+        self.assertContains(response, delete_btn_html)
+        self.assertNotContains(response, self._deactivate_btn_html)
+        self.assertContains(response, self._activate_btn_html)
+
+    def test_device_without_config_change_activate_deactivate(self):
+        """
+        This test verifies the effects of activate and deactivate
+        operation on a device without related config.
+        """
+        device = self._create_device(organization=self._get_org())
+        self.assertEqual(device._has_config(), False)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        delete_btn_html = self._get_delete_btn_html(device)
+        # Verify deactivate button is present on device's change page instead
+        # of delete button
+        response = self.client.get(path)
+        self.assertContains(response, self._deactivate_btn_html)
+        self.assertContains(response, 'TOTAL_FORMS" value="1"', count=2)
+        self.assertNotContains(response, delete_btn_html)
+
+        # Since this device does not have config, delete button will
+        # appear on the device's change page directly.
+        device.deactivate()
+        response = self.client.get(path)
+        self.assertContains(response, delete_btn_html)
+        self.assertContains(response, self._activate_btn_html)
+        self.assertNotContains(response, self._save_btn_html)
+        self.assertNotContains(response, self._deactivate_btn_html)
+        # Verify adding a new inline objects is not allowed
+        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=4)
+
+
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
