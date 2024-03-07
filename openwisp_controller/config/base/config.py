@@ -74,7 +74,10 @@ class AbstractConfig(BaseConfig):
         help_text=_(
             '"modified" means the configuration is not applied yet; \n'
             '"applied" means the configuration is applied successfully; \n'
-            '"error" means the configuration caused issues and it was rolled back;'
+            '"error" means the configuration caused issues and it was rolled back; \n'
+            '"deactivating" means the device has been deactivated and all the'
+            ' configuration is being removed; \n'
+            '"deactivated" means the configuration has been removed from the device;'
         ),
     )
     error_reason = models.CharField(
