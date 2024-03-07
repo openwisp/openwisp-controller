@@ -8,6 +8,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import IntegrityError
 from django.db.models.signals import post_save
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
@@ -1950,6 +1951,58 @@ class TestAdmin(
         super().tearDownClass()
         devnull.close()
 
+    @patch.object(Device, 'deactivate')
+    def test_device_changelist_activate_deactivate_admin_action_security(
+        self, mocked_deactivate
+    ):
+        org1 = self._get_org()
+        org2 = self._create_org(name='org2')
+        org1_device = self._create_device(organization=org1)
+        org2_device = self._create_device(organization=org2)
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+
+        with self.subTest('Test superuser deactivates different org devices'):
+            self.client.post(
+                path,
+                {
+                    'action': 'deactivate_device',
+                    '_selected_action': [str(org1_device.pk), str(org2_device.pk)],
+                },
+                follow=True,
+            )
+            self.assertEqual(mocked_deactivate.call_count, 2)
+
+        mocked_deactivate.reset_mock()
+        with self.subTest('Test user deactivates device of unmanaged org'):
+            # The device changelist page is filtered with the devices of
+            # the organizations managed by the user. The selected device
+            # pks are also filtered from this queryset before executing the
+            # deactivate action. Therefore, no operation is performed on
+            # the devices of other organization.
+            administrator = self._create_administrator(organizations=[org1])
+            self.client.force_login(administrator)
+            self.client.post(
+                path,
+                {
+                    'action': 'deactivate_device',
+                    '_selected_action': [str(org2_device.pk)],
+                },
+                follow=True,
+            )
+            self.assertEqual(mocked_deactivate.call_count, 0)
+
+        mocked_deactivate.reset_mock()
+        with self.subTest('Test user deactivates device of managed org'):
+            self.client.post(
+                path,
+                {
+                    'action': 'deactivate_device',
+                    '_selected_action': [str(org1_device.pk)],
+                },
+                follow=True,
+            )
+            self.assertEqual(mocked_deactivate.call_count, 1)
+
 
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,
@@ -2067,6 +2120,180 @@ class TestTransactionAdmin(
         self.assertNotContains(response, self._deactivate_btn_html)
         # Verify adding a new inline objects is not allowed
         self.assertContains(response, '-TOTAL_FORMS" value="0"', count=4)
+
+    def _test_device_changelist_activate_deactivate_admin_action(
+        self, method='activate', is_initially_deactivated=True
+    ):
+        """
+        This helper function is used by
+        test_device_changelist_activate_admin_action  and
+        test_device_changelist_deactivate_admin_action test cases.
+        It verifies that activate/deactivate operation works as expected.
+        It also verifies the success/error operation for the operation.
+        """
+        org = self._get_org()
+        device1 = self._create_device(
+            organization=org, _is_deactivated=is_initially_deactivated
+        )
+        device2 = self._create_device(
+            name='device2',
+            mac_address='11:22:33:44:55:77',
+            organization=org,
+            _is_deactivated=is_initially_deactivated,
+        )
+        device3 = self._create_device(
+            name='device3',
+            mac_address='11:22:33:44:55:88',
+            organization=org,
+            _is_deactivated=is_initially_deactivated,
+        )
+        html_method = method[:-1]
+        single_success_message_html = (
+            f'<li class="success">The device <a href="/admin/{self.app_label}/'
+            'device/{device_id}/change/">{device_name}</a>'
+            f' was {html_method}ed successfully.</li>'
+        )
+        multiple_success_message_html = (
+            f'<li class="success">The following devices were {html_method}ed'
+            f' successfully: <a href="/admin/config/device/{device1.id}/change/">'
+            f'{device1.name}</a>, <a href="/admin/config/device/{device2.id}/change/">'
+            f'{device2.name}</a> and <a href="/admin/config/device/{device3.id}/'
+            f'change/">{device3.name}</a></li>'
+        )
+        single_error_message_html = (
+            f'<li class="error">An error occurred while {html_method}ing the device'
+            f' <a href="/admin/{self.app_label}/device/'
+            '{device_id}/change/">{device_name}</a>.</li>'
+        )
+        multiple_error_message_html = (
+            f'<li class="error">An error occurred while {html_method}ing the following'
+            f' devices: <a href="/admin/{self.app_label}/device/{device1.id}/change/">'
+            f'{device1.name}</a>, <a href="/admin/{self.app_label}/device/{device2.id}/'
+            f'change/">{device2.name}</a> and <a href="/admin/{self.app_label}/device/'
+            f'{device3.id}/change/">{device3.name}</a></li>'
+        )
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+
+        with self.subTest(f'Test {method}ing a single device'):
+            response = self.client.post(
+                path,
+                {
+                    'action': f'{method}_device',
+                    '_selected_action': str(device1.pk),
+                },
+                follow=True,
+            )
+            self.assertEqual(response.status_code, 200)
+            for device in [device1, device2, device3]:
+                device.refresh_from_db(fields=['_is_deactivated'])
+            self.assertEqual(device1.is_deactivated(), not is_initially_deactivated)
+            self.assertEqual(device2.is_deactivated(), is_initially_deactivated)
+            self.assertEqual(device3.is_deactivated(), is_initially_deactivated)
+            self.assertContains(
+                response,
+                single_success_message_html.format(
+                    device_id=device1.id,
+                    device_name=device1.name,
+                ),
+            )
+
+        with self.subTest(f'Test {html_method}ing multiple devices'):
+            response = self.client.post(
+                path,
+                {
+                    'action': f'{method}_device',
+                    '_selected_action': [
+                        str(device1.pk),
+                        str(device2.pk),
+                        str(device3.pk),
+                    ],
+                },
+                follow=True,
+            )
+            self.assertEqual(response.status_code, 200)
+            for device in [device1, device2, device3]:
+                device.refresh_from_db(fields=['_is_deactivated'])
+                self.assertEqual(device.is_deactivated(), not is_initially_deactivated)
+            self.assertContains(response, multiple_success_message_html)
+
+        with self.subTest(f'Test error occurred {html_method}ing a single device'):
+            with patch.object(Device, method, side_effect=IntegrityError):
+                response = self.client.post(
+                    path,
+                    {
+                        'action': f'{method}_device',
+                        '_selected_action': str(device1.pk),
+                    },
+                    follow=True,
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response,
+                single_error_message_html.format(
+                    device_id=device1.id, device_name=device1.name
+                ),
+            )
+
+        with self.subTest(f'Test error occurred {html_method}ing multiple devices'):
+            with patch.object(Device, method, side_effect=IntegrityError):
+                response = self.client.post(
+                    path,
+                    {
+                        'action': f'{method}_device',
+                        '_selected_action': [
+                            str(device1.pk),
+                            str(device2.pk),
+                            str(device3.pk),
+                        ],
+                    },
+                    follow=True,
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, multiple_error_message_html)
+
+        with self.subTest('Test mix of error and success operations'):
+            with patch.object(Device, method, side_effect=[None, IntegrityError]):
+                response = self.client.post(
+                    path,
+                    {
+                        'action': f'{method}_device',
+                        '_selected_action': [str(device1.pk), str(device2.pk)],
+                    },
+                    follow=True,
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response,
+                single_success_message_html.format(
+                    device_name=device1.name, device_id=device1.id
+                ),
+            )
+            self.assertContains(
+                response,
+                single_error_message_html.format(
+                    device_name=device2.name, device_id=device2.id
+                ),
+            )
+
+    def test_device_changelist_activate_admin_action(self):
+        """
+        This test verifies that activate admin action works as expected.
+        It also asserts for the success and error messages.
+        """
+        self._test_device_changelist_activate_deactivate_admin_action(
+            method='activate',
+            is_initially_deactivated=True,
+        )
+
+    def test_device_changelist_deactivate_admin_action(self):
+        """
+        This test verifies that deactivate admin action works as expected.
+        It also asserts for the success and error messages.
+        """
+        self._test_device_changelist_activate_deactivate_admin_action(
+            method='deactivate',
+            is_initially_deactivated=False,
+        )
 
 
 class TestDeviceGroupAdmin(

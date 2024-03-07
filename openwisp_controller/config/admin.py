@@ -683,10 +683,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         if len(devices) == 1:
             devices_html = devices[0]
             if message_level == messages.SUCCESS:
-                message = _('The device {devices_html} was {method}ed successfully')
+                message = _('The device {devices_html} was {method}ed successfully.')
             elif message_level == messages.ERROR:
                 message = _(
-                    'An error occurred while {method}ing the device {devices_html}'
+                    'An error occurred while {method}ing the device {devices_html}.'
                 )
         else:
             devices_html = mark_safe(', '.join(devices[:-1]) + ' and ' + devices[-1])
@@ -714,18 +714,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         This helper method provides re-usability of code for
         device activation and deactivation actions.
         """
-        # Validate selected devices can be managed by the user
-        if not request.user.is_superuser:
-            # There could be multiple devices selected by the user.
-            # Validate that all the devices can be managed by the user.
-            for org_id in set(queryset.values_list('organization_id', flat=True)):
-                if not request.user.is_manager(str(org_id)):
-                    logger.warning(
-                        f'{request.user} attempted to deactivate device of "{org_id}"'
-                        ' organization which they do not manage.'
-                        ' The operation was rejected.'
-                    )
-                    return HttpResponseForbidden()
         success_devices = []
         error_devices = []
         for device in queryset.iterator():
