@@ -1,5 +1,14 @@
 {% extends "admin/config/change_form.html" %}
-{% load admin_urls %}
+{% load admin_urls i18n %}
+
+{% block messages %}
+    {{ block.super }}
+    {% if original and original.is_deactivated %}
+    <ul class="messagelist">
+        <li class="warning">{% trans "This device has been deactivated." %}</li>
+    </ul>
+    {% endif %}
+{% endblock messages %}
 
 {% block content %}
     {% comment %}
