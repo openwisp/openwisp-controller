@@ -87,6 +87,11 @@ class DeactivatedDeviceReadOnlyMixin(object):
             return perm
         return perm and not obj.is_deactivated()
 
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj and obj.is_deactivated():
+            return 0
+        return super().get_extra(request, obj, **kwargs)
+
 
 class BaseConfigAdmin(BaseAdmin):
     change_form_template = 'admin/config/change_form.html'
@@ -754,6 +759,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ip.short_description = _('IP address')
 
     def config_status(self, obj):
+        # if obj
         return obj.config.status
 
     config_status.short_description = _('config status')
