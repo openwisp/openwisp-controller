@@ -83,16 +83,15 @@ class TestDeviceAdmin(
         self.web_driver.find_element(
             by=By.XPATH, value='//*[@id="config-group"]/fieldset/div[2]/a'
         ).click()
-
         try:
             WebDriverWait(self.web_driver, 2).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, f'//*[@value="{default_template.id}"]')
+                EC.text_to_be_present_in_element_value(
+                    (By.CSS_SELECTOR, 'input[name="config-0-templates"]'),
+                    f'{required_template.id},{default_template.id}',
                 )
             )
         except TimeoutException:
             self.fail('Default template clickable timed out')
-
         required_template_element = self.web_driver.find_element(
             by=By.XPATH, value=f'//*[@value="{required_template.id}"]'
         )
