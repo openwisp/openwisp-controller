@@ -85,13 +85,24 @@ class TestDeviceAdmin(
         ).click()
         try:
             WebDriverWait(self.web_driver, 2).until(
+                # This WebDriverWait ensures that Selenium waits until the
+                # "config-0-templates" input field on the page gets updated
+                # with the IDs of the default and required templates after
+                # the user clicks on the "Add another config" link. This update
+                # is essential because it signifies that the logic in
+                # relevant_template.js has executed successfully, selecting
+                # the appropriate default and required templates. This logic
+                # also changes the ordering of the templates.
+                # Failing to wait for this update could lead to
+                # StaleElementReferenceException like in
+                # https://github.com/openwisp/openwisp-controller/issues/834
                 EC.text_to_be_present_in_element_value(
                     (By.CSS_SELECTOR, 'input[name="config-0-templates"]'),
                     f'{required_template.id},{default_template.id}',
                 )
             )
         except TimeoutException:
-            self.fail('Default template clickable timed out')
+            self.fail('Relevant templates logic was not executed')
         required_template_element = self.web_driver.find_element(
             by=By.XPATH, value=f'//*[@value="{required_template.id}"]'
         )
