@@ -368,7 +368,6 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             except Exception as e:
                 logger.exception(e)
             else:
-                self.device.config.set_status_applied()
                 self.disconnect()
 
     def save(self, *args, **kwargs):

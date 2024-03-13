@@ -19,6 +19,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
 from django.urls import path, re_path, reverse
+from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
 from import_export import resources
@@ -71,6 +72,25 @@ class SystemDefinedVariableMixin(object):
 
 class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
     history_latest_first = True
+
+
+class DeactivatedDeviceReadOnlyMixin(object):
+    def has_add_permission(self, request, obj):
+        perm = super().has_add_permission(request, obj)
+        if not obj:
+            return perm
+        return perm and not obj.is_deactivated()
+
+    def has_change_permission(self, request, obj=None):
+        perm = super().has_change_permission(request)
+        if not obj:
+            return perm
+        return perm and not obj.is_deactivated()
+
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj and obj.is_deactivated():
+            return 0
+        return super().get_extra(request, obj, **kwargs)
 
 
 class BaseConfigAdmin(BaseAdmin):
@@ -390,6 +410,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
 
 
 class ConfigInline(
+    DeactivatedDeviceReadOnlyMixin,
     MultitenantAdminMixin,
     TimeReadonlyAdminMixin,
     SystemDefinedVariableMixin,
@@ -452,6 +473,7 @@ class ChangeDeviceGroupForm(forms.Form):
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+    change_form_template = None
     list_display = [
         'name',
         'backend',
@@ -499,7 +521,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ]
     inlines = [ConfigInline]
     conditional_inlines = []
-    actions = ['change_group']
+    actions = [
+        'change_group',
+        'deactivate_device',
+        'activate_device',
+        'delete_selected',
+    ]
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, 'organization')
     _state_adding = False
@@ -519,6 +546,20 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             f'{prefix}js/management_ip.js',
             f'{prefix}js/relevant_templates.js',
         ]
+
+    def has_change_permission(self, request, obj=None):
+        perm = super().has_change_permission(request)
+        if not obj:
+            return perm
+        return perm and not obj.is_deactivated()
+
+    def has_delete_permission(self, request, obj=None):
+        perm = super().has_delete_permission(request)
+        if not obj:
+            return perm
+        if obj._has_config():
+            perm = perm and obj.config.is_deactivated()
+        return perm and obj.is_deactivated()
 
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding
@@ -621,7 +662,84 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             request, 'admin/config/change_device_group.html', context
         )
 
+    def _get_device_path(self, device):
+        app_label = self.opts.app_label
+        model_name = self.model._meta.model_name
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse(
+                f'admin:{app_label}_{model_name}_change',
+                args=[device.id],
+            ),
+            device,
+        )
+
     change_group.short_description = _('Change group of selected Devices')
+
+    def _message_user_device_status(self, request, devices, method, message_level):
+        if not devices:
+            return
+        if len(devices) == 1:
+            devices_html = devices[0]
+            if message_level == messages.SUCCESS:
+                message = _('The device {devices_html} was {method}ed successfully.')
+            elif message_level == messages.ERROR:
+                message = _(
+                    'An error occurred while {method}ing the device {devices_html}.'
+                )
+        else:
+            devices_html = mark_safe(', '.join(devices[:-1]) + ' and ' + devices[-1])
+            if message_level == messages.SUCCESS:
+                message = _(
+                    'The following devices were {method}ed successfully: {devices_html}'
+                )
+            elif message_level == messages.ERROR:
+                message = _(
+                    'An error occurred while {method}ing the following'
+                    ' devices: {devices_html}'
+                )
+        self.message_user(
+            request,
+            format_html(
+                message,
+                devices_html=devices_html,
+                method=method[:-1],
+            ),
+            message_level,
+        )
+
+    def _change_device_status(self, request, queryset, method):
+        """
+        This helper method provides re-usability of code for
+        device activation and deactivation actions.
+        """
+        success_devices = []
+        error_devices = []
+        for device in queryset.iterator():
+            try:
+                getattr(device, method)()
+            except Exception:
+                error_devices.append(self._get_device_path(device))
+            else:
+                success_devices.append(self._get_device_path(device))
+        self._message_user_device_status(
+            request, success_devices, method, messages.SUCCESS
+        )
+        self._message_user_device_status(request, error_devices, method, messages.ERROR)
+
+    @admin.action(
+        permissions=('change',),
+        description=_('Deactivate selected devices'),
+    )
+    def deactivate_device(self, request, queryset):
+        self._change_device_status(request, queryset, 'deactivate')
+
+    @admin.action(
+        permissions=('change',),
+        description=_('Activate selected devices'),
+    )
+    def activate_device(self, request, queryset):
+        self._change_device_status(request, queryset, 'activate')
 
     def get_fields(self, request, obj=None):
         """
@@ -641,6 +759,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ip.short_description = _('IP address')
 
     def config_status(self, obj):
+        # if obj
         return obj.config.status
 
     config_status.short_description = _('config status')
@@ -686,6 +805,15 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     def get_extra_context(self, pk=None):
         ctx = super().get_extra_context(pk)
+        if pk:
+            device = self.model.objects.select_related('config').get(id=pk)
+            ctx.update(
+                {
+                    'show_deactivate': not device.is_deactivated(),
+                    'show_activate': device.is_deactivated(),
+                    'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                }
+            )
         ctx.update(
             {
                 'relevant_template_url': reverse(
