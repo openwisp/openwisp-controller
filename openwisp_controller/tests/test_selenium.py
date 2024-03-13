@@ -68,6 +68,16 @@ class TestDeviceConnectionInlineAdmin(
                 f'admin:{self.config_app_label}_device_recover', args=[version_obj.id]
             )
         )
+        # The StaticLiveServerTestCase class only starts a server for Django and
+        # does not support websockets (channels). This causes multiple errors to
+        # be logged when trying to establish a WebSocket connection at SEVERE level,
+        # which is problematic because the error for the issue described in
+        # https://github.com/openwisp/openwisp-controller/issues/681
+        # is logged at WARNING level.
+        # By checking that there are no WARNING level errors logged in the
+        # browser console, we ensure that this issue is not happening.
+        for error in self.web_driver.get_log('browser'):
+            self.assertNotEqual(error['level'], 'WARNING')
         self.web_driver.find_element(
             by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[1]'
         ).click()

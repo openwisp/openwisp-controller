@@ -6,7 +6,7 @@ var interpolate = interpolate || function(){};
 const deviceId = getObjectIdFromUrl();
 
 django.jQuery(function ($) {
-    if((typeof(owControllerApiHost) !== 'undefined')|| isDeviceRecoverForm()) {
+    if((typeof(owControllerApiHost) === 'undefined')|| isDeviceRecoverForm()) {
         return;
     }
     const commandWebSocket = new ReconnectingWebSocket(
