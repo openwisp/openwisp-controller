@@ -29,18 +29,18 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     # all-auth
     'django.contrib.sites',
+    'openwisp_users.accounts',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'django_extensions',
     # openwisp2 modules
+    'openwisp_users',
     'openwisp_controller.config',
     'openwisp_controller.pki',
     'openwisp_controller.geo',
     'openwisp_controller.connection',
     'openwisp_controller.subnet_division',
-    'openwisp_users',
-    'openwisp_users.accounts',
     'openwisp_notifications',
     'openwisp_ipam',
     # openwisp2 admin theme
