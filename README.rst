@@ -1660,8 +1660,6 @@ their creation time using the ``creation_time``.
    # Created is less than
    GET /api/v1/controller/device/?created__lt={creation_time}
 
-
-
 Create device
 #############
 
