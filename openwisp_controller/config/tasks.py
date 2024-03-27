@@ -114,7 +114,7 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
         )
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=7200)
 def change_devices_templates(instance_id, model_name, **kwargs):
     Device = load_model('config', 'Device')
     DeviceGroup = load_model('config', 'DeviceGroup')
