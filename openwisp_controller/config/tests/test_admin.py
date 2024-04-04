@@ -1468,6 +1468,40 @@ class TestAdmin(
             response = self.client.get(path, {'q': 'Estonia'})
             self.assertContains(response, 'admin-search-test')
 
+    def test_device_changelist_config_status(self):
+        device = self._create_device()
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        expected_html = '<td class="field-config_status">{expected_status}</td>'
+        with self.subTest('Test device does not have a config object'):
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='unknown')
+            )
+            # Device without config is deactivated
+            device.deactivate()
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='deactivated')
+            )
+
+        device.activate()
+        self._create_config(device=device)
+        with self.subTest('Test device has config object'):
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='modified')
+            )
+            device.config.set_status_deactivating()
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='deactivating')
+            )
+            device.config.set_status_deactivated()
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='deactivated')
+            )
+
     def test_default_template_backend(self):
         path = reverse(f'admin:{self.app_label}_template_add')
         response = self.client.get(path)

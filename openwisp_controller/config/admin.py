@@ -754,8 +754,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     ip.short_description = _('IP address')
 
     def config_status(self, obj):
-        # if obj
-        return obj.config.status
+        if obj._has_config():
+            return obj.config.status
+        # The device does not have a related config object
+        if obj.is_deactivated():
+            return _('deactivated')
+        return _('unknown')
 
     config_status.short_description = _('config status')
 
