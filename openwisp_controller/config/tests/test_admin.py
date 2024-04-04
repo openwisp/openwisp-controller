@@ -2192,7 +2192,7 @@ class TestTransactionAdmin(
             f' successfully: <a href="/admin/config/device/{device1.id}/change/">'
             f'{device1.name}</a>, <a href="/admin/config/device/{device2.id}/change/">'
             f'{device2.name}</a> and <a href="/admin/config/device/{device3.id}/'
-            f'change/">{device3.name}</a></li>'
+            f'change/">{device3.name}</a>.</li>'
         )
         single_error_message_html = (
             f'<li class="error">An error occurred while {html_method}ing the device'
@@ -2204,7 +2204,7 @@ class TestTransactionAdmin(
             f' devices: <a href="/admin/{self.app_label}/device/{device1.id}/change/">'
             f'{device1.name}</a>, <a href="/admin/{self.app_label}/device/{device2.id}/'
             f'change/">{device2.name}</a> and <a href="/admin/{self.app_label}/device/'
-            f'{device3.id}/change/">{device3.name}</a></li>'
+            f'{device3.id}/change/">{device3.name}</a>.</li>'
         )
         path = reverse(f'admin:{self.app_label}_device_changelist')
 

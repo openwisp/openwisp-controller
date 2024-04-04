@@ -21,6 +21,7 @@ from django.template.response import TemplateResponse
 from django.urls import path, re_path, reverse
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext_lazy
 from flat_json_widget.widgets import FlatJsonWidget
 from import_export.admin import ImportExportMixin
 from openwisp_ipam.filters import SubnetFilter
@@ -677,34 +678,54 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             device,
         )
 
+    _device_status_messages = {
+        'deactivate': {
+            messages.SUCCESS: ngettext_lazy(
+                'The device %(devices_html)s was deactivated successfully.',
+                (
+                    'The following devices were deactivated successfully:'
+                    ' %(devices_html)s.'
+                ),
+                'devices',
+            ),
+            messages.ERROR: ngettext_lazy(
+                'An error occurred while deactivating the device %(devices_html)s.',
+                (
+                    'An error occurred while deactivating the following devices:'
+                    ' %(devices_html)s.'
+                ),
+                'devices',
+            ),
+        },
+        'activate': {
+            messages.SUCCESS: ngettext_lazy(
+                'The device %(devices_html)s was activated successfully.',
+                'The following devices were activated successfully: %(devices_html)s.',
+                'devices',
+            ),
+            messages.ERROR: ngettext_lazy(
+                'An error occurred while activating the device %(devices_html)s.',
+                (
+                    'An error occurred while activating the following devices:'
+                    ' %(devices_html)s.'
+                ),
+                'devices',
+            ),
+        },
+    }
+
     def _message_user_device_status(self, request, devices, method, message_level):
         if not devices:
             return
         if len(devices) == 1:
             devices_html = devices[0]
-            if message_level == messages.SUCCESS:
-                message = _('The device {devices_html} was {method}ed successfully.')
-            elif message_level == messages.ERROR:
-                message = _(
-                    'An error occurred while {method}ing the device {devices_html}.'
-                )
         else:
-            devices_html = mark_safe(', '.join(devices[:-1]) + ' and ' + devices[-1])
-            if message_level == messages.SUCCESS:
-                message = _(
-                    'The following devices were {method}ed successfully: {devices_html}'
-                )
-            elif message_level == messages.ERROR:
-                message = _(
-                    'An error occurred while {method}ing the following'
-                    ' devices: {devices_html}'
-                )
+            devices_html = ', '.join(devices[:-1]) + ' and ' + devices[-1]
+        message = self._device_status_messages[method][message_level]
         self.message_user(
             request,
-            format_html(
-                message,
-                devices_html=devices_html,
-                method=method[:-1],
+            mark_safe(
+                message % {'devices_html': devices_html, 'devices': len(devices)}
             ),
             message_level,
         )
