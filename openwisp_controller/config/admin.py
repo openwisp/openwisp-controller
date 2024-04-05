@@ -757,6 +757,23 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def activate_device(self, request, queryset):
         self._change_device_status(request, queryset, 'activate')
 
+    def get_deleted_objects(self, objs, request, *args, **kwargs):
+        # Ensure that all selected devices can be deleted, i.e.
+        # the device should be flagged as deactivated and if it has
+        # a config object, it's status should be "deactivated".
+        active_devices = []
+        for obj in objs:
+            if not self.has_delete_permission(request, obj):
+                active_devices.append(obj)
+        if active_devices:
+            return (
+                active_devices,
+                {self.model._meta.verbose_name_plural: len(active_devices)},
+                ['active_devices'],
+                [],
+            )
+        return super().get_deleted_objects(objs, request, *args, **kwargs)
+
     def get_fields(self, request, obj=None):
         """
         Do not show readonly fields in add form
