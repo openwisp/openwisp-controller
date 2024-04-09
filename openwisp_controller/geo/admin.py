@@ -15,7 +15,8 @@ from swapper import load_model
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeviceAdmin
+from ..config.admin import DeviceAdminExportable
+from .exportable import GeoDeviceResource
 
 DeviceLocation = load_model('geo', 'DeviceLocation')
 FloorPlan = load_model('geo', 'FloorPlan')
@@ -98,8 +99,9 @@ class DeviceLocationFilter(admin.SimpleListFilter):
         return queryset
 
 
-# Prepend DeviceLocationInline to config.DeviceAdmin
-DeviceAdmin.inlines.insert(1, DeviceLocationInline)
-DeviceAdmin.list_filter.append(DeviceLocationFilter)
+# Prepend DeviceLocationInline to config.DeviceAdminExportable
+DeviceAdminExportable.inlines.insert(1, DeviceLocationInline)
+DeviceAdminExportable.list_filter.append(DeviceLocationFilter)
+DeviceAdminExportable.resource_class = GeoDeviceResource
 reversion.register(model=DeviceLocation, follow=['device'])
-DeviceAdmin.add_reversion_following(follow=['devicelocation'])
+DeviceAdminExportable.add_reversion_following(follow=['devicelocation'])

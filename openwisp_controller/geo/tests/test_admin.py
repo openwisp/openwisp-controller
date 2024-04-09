@@ -4,6 +4,9 @@ from django.urls import reverse
 from django_loci.tests.base.test_admin import BaseTestAdmin
 from swapper import load_model
 
+from openwisp_users.tests.utils import TestOrganizationMixin
+
+from ...config.tests.test_admin import TestImportExportMixin
 from ...tests.utils import TestAdminMixin
 from .utils import TestGeoMixin
 
@@ -132,3 +135,30 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
                 '<div class="mg-dropdown-label">Geographic Info </div>',
                 html=True,
             )
+
+
+class TestDeviceAdmin(
+    TestImportExportMixin, TestAdminMixin, TestGeoMixin, TestOrganizationMixin, TestCase
+):
+    app_label = 'config'
+    fixtures = ['test_templates']
+    object_model = Device
+    location_model = Location
+    floorplan_model = FloorPlan
+    object_location_model = DeviceLocation
+    user_model = get_user_model()
+
+    resource_fields = TestImportExportMixin.resource_fields[:] + [
+        'venue',
+        'address',
+        'coords',
+        'is_mobile',
+        'venue_type',
+        'floor',
+        'floor_position',
+        'location_id',
+        'floorplan_id',
+    ]
+
+    def setUp(self):
+        self.client.force_login(self._get_admin())

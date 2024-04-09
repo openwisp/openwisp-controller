@@ -55,18 +55,24 @@ class TestImportExportMixin:
     resource_fields = [
         'name',
         'mac_address',
-        'organization__name',
-        'group__name',
-        'config__status',
-        'config__backend',
+        'organization',
+        'group',
+        'model',
+        'os',
+        'system',
         'last_ip',
         'management_ip',
+        'config_status',
+        'config_backend',
+        'config_data',
+        'config_context',
+        'config_templates',
         'created',
         'modified',
         'key',
         'id',
-        'organization',
-        'group',
+        'organization_id',
+        'group_id',
     ]
 
     def test_device_import_export_buttons(self):
@@ -90,7 +96,8 @@ class TestImportExportMixin:
     def test_device_import(self):
         org = self._get_org()
         contents = (
-            'organization,name,mac_address\n' f'{org.pk},TestImport,00:11:22:09:44:55'
+            'organization_id,name,mac_address\n'
+            f'{org.pk},TestImport,00:11:22:09:44:55'
         )
         csv = ContentFile(contents)
         response = self.client.post(
@@ -487,7 +494,7 @@ class TestAdmin(
         dg = self._create_device_group(name='test-group', organization=org)
         dg.templates.add(template)
         contents = (
-            'organization,name,mac_address,group\n'
+            'organization_id,name,mac_address,group_id\n'
             f'{org.pk},TestImport,00:11:22:09:44:55,{dg.pk}'
         )
         csv = ContentFile(contents)

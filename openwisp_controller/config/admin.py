@@ -21,7 +21,6 @@ from django.template.response import TemplateResponse
 from django.urls import path, re_path, reverse
 from django.utils.translation import gettext_lazy as _
 from flat_json_widget.widgets import FlatJsonWidget
-from import_export import resources
 from import_export.admin import ImportExportMixin
 from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
@@ -38,6 +37,7 @@ from openwisp_utils.admin import (
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
+from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
@@ -740,28 +740,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             ignore_duplicates=device_reversion_options.ignore_duplicates,
             use_natural_foreign_keys=device_reversion_options.use_natural_foreign_keys,
         )
-
-
-class DeviceResource(resources.ModelResource):
-    class Meta:
-        model = Device
-        fields = [
-            'name',
-            'mac_address',
-            'organization__name',
-            'group__name',
-            'config__status',
-            'config__backend',
-            'last_ip',
-            'management_ip',
-            'created',
-            'modified',
-            'id',
-            'key',
-            'organization',
-            'group',
-        ]
-        export_order = fields
 
 
 class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):
