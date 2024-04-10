@@ -572,3 +572,22 @@ class TestDevice(
             organization=self._get_org(),
         )
         self.assertFalse(device._has_group())
+
+    def test_create_default_config_existing(self):
+        org = self._get_org()
+        template = self._create_template()
+        group = self._create_device_group(organization=org)
+        group.templates.add(template)
+        config = Config(context={'ssid': 'test'}, config={'general': {}})
+        device = Device(
+            name='default-config-test',
+            organization=org,
+            mac_address=self.TEST_MAC_ADDRESS,
+            config=config,
+            group=group,
+        )
+        device.full_clean()
+        device.save()
+        device.config.refresh_from_db()
+        self.assertEqual(device.config.context, {'ssid': 'test'})
+        self.assertEqual(device.config.config, {'general': {}})
