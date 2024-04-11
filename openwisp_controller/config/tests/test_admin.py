@@ -108,6 +108,120 @@ class TestImportExportMixin:
         self.assertNotContains(response, 'Errors')
         self.assertContains(response, 'Confirm import')
 
+    def test_device_import_empty_config(self):
+        org = self._get_org(org_name='default')
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context,'
+            'config_templates,created,modified,id,key,organization_id,group_id\n'
+            'test,00:11:22:33:44:66,{org_name},,model,os,system,notes,127.0.0.1,'
+            '10.0.0.2,,,,,,2022-10-17 15:26:51,2022-10-17 15:26:51,'
+            '559871c5-ce3d-4c7e-9176-fb6623d562f3,934d0799b1ce3a454bbb585cda1d7a49,'
+            '{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertFalse(device._has_config())
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(device.mac_address, '00:11:22:33:44:66')
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.model, 'model')
+        self.assertEqual(device.os, 'os')
+        self.assertEqual(device.system, 'system')
+        self.assertEqual(device.notes, 'notes')
+        self.assertEqual(device.last_ip, '127.0.0.1')
+        self.assertEqual(device.management_ip, '10.0.0.2')
+
+    def test_device_import_missing_config(self):
+        org = self._get_org(org_name='default')
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,created,modified,id,key,organization_id,group_id\n'
+            'test,00:11:22:33:44:66,{org_name},,,,,,,,'
+            '2022-10-17 15:26:51,2022-10-17 15:26:51,'
+            '559871c5-ce3d-4c7e-9176-fb6623d562f3,'
+            '934d0799b1ce3a454bbb585cda1d7a49,{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertFalse(device._has_config())
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(device.mac_address, '00:11:22:33:44:66')
+        self.assertIsNone(device.group)
+
+    def test_device_import_config_not_templates(self):
+        org = self._get_org(org_name='default')
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context,'
+            'config_templates,created,modified,id,key,organization_id,group_id\n'
+            'TestImport-WG,11:22:33:44:55:78,{org_name},,test model,test os,test '
+            'system,test notes,127.0.0.1,127.0.0.1,modified,netjsonconfig.OpenWrt,'
+            '"{config}","{context}",,2021-09-22 02:53:16,2023-04-19 23:00:44,'
+            '6c0ad2ab-236f-4bf0-86f9-fcb817c6c917,'
+            'd2c911ae4fa9eebc7c8ff222862df12d,{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+            config='{""general"": {}}',
+            context='{""ssid"": ""test""}',
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertIsNone(device.group)
+        self.assertTrue(device._has_config())
+        self.assertEqual(list(device.config.templates.all()), [])
+
 
 class TestAdmin(
     TestImportExportMixin,
@@ -515,6 +629,58 @@ class TestAdmin(
         self.assertEqual(device.group, dg)
         self.assertIsNotNone(device.config)
         self.assertIn(template, device.config.templates.all())
+
+    def test_device_import_templates_and_config(self):
+        org = self._get_org(org_name='default')
+        template1 = self._create_template(name='template1')
+        vpn = self._create_vpn()
+        vpn_template = self._create_template(
+            name='vpn-test',
+            type='vpn',
+            vpn=vpn,
+            auto_cert=True,
+        )
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context,'
+            'config_templates,created,modified,id,key,organization_id,group_id\n'
+            'TestImport-WG,11:22:33:44:55:78,{org_name},,test model,test os,test '
+            'system,test notes,127.0.0.1,127.0.0.1,modified,netjsonconfig.OpenWrt,'
+            '"{config}","{context}","{templates}",2021-09-22 02:53:16,'
+            '2023-04-19 23:00:44,6c0ad2ab-236f-4bf0-86f9-fcb817c6c917,'
+            'd2c911ae4fa9eebc7c8ff222862df12d,{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+            templates=','.join([str(template1.id), str(vpn_template.id)]),
+            config='{""general"": {}}',
+            context='{""ssid"": ""test""}',
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertIsNone(device.group)
+        self.assertTrue(device._has_config())
+        config = device.config
+        templates = list(config.templates.all())
+        self.assertEqual(config.backend, 'netjsonconfig.OpenWrt')
+        self.assertEqual(config.config, {'general': {}})
+        self.assertEqual(config.context, {'ssid': 'test'})
+        self.assertIn(template1, templates)
+        self.assertIn(vpn_template, templates)
 
     def test_add_device_with_group_templates(self):
         org = self._get_org(org_name='default')

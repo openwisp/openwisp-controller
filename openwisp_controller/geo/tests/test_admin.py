@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.urls import reverse
 from django_loci.tests.base.test_admin import BaseTestAdmin
@@ -162,3 +163,122 @@ class TestDeviceAdmin(
 
     def setUp(self):
         self.client.force_login(self._get_admin())
+
+    def test_device_import_geo(self):
+        org = self._get_org(org_name='default')
+        location = self._create_location(
+            name='location1org', type='indoor', organization=org
+        )
+        floorplan = self._create_floorplan(location=location, organization=org)
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,venue,'
+            'address,coords,is_mobile,venue_type,floor,floor_position,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context'
+            ',config_templates,created,modified,id,key,organization_id,group_id,'
+            'location_id,floorplan_id\n'
+            'test,00:11:22:33:44:66,{org_name},,model,os,system,notes,Test,'
+            'Via Test 29,POINT (-57.63463382632019 -25.28397344703963),False,'
+            'indoor,-1,"-279.21875,442",127.0.0.1,10.0.0.2,'
+            'applied,netjsonconfig.OpenWrt,"{config}","{context}",,'
+            '2022-10-17 15:26:51,2022-10-17 15:26:51,'
+            '559871c5-ce3d-4c7e-9176-fb6623d562f3,'
+            '934d0799b1ce3a454bbb585cda1d7a49,{org_id},'
+            ',{location_id},{floorplan_id}'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+            config='{""general"": {}}',
+            context='{""ssid"": ""test""}',
+            location_id=location.id,
+            floorplan_id=floorplan.id,
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        # assert geo fields
+        self.assertTrue(hasattr(device, 'devicelocation'))
+        self.assertEqual(device.devicelocation.location, location)
+        self.assertEqual(device.devicelocation.floorplan, floorplan)
+        self.assertEqual(device.devicelocation.indoor, '-279.21875,442')
+        # double check device fields (repetita juvant)
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(device.mac_address, '00:11:22:33:44:66')
+        self.assertEqual(device.model, 'model')
+        self.assertEqual(device.os, 'os')
+        self.assertEqual(device.system, 'system')
+        self.assertEqual(device.notes, 'notes')
+        self.assertEqual(device.last_ip, '127.0.0.1')
+        self.assertEqual(device.management_ip, '10.0.0.2')
+        self.assertTrue(device._has_config())
+        self.assertIsNone(device.group)
+
+    def test_device_import_geo_no_floorplan(self):
+        org = self._get_org(org_name='default')
+        location = self._create_location(
+            name='location1org', type='indoor', organization=org
+        )
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,venue,address,'
+            'coords,is_mobile,venue_type,floor,floor_position,last_ip,management_ip,'
+            'config_status,config_backend,config_data,config_context,config_templates,'
+            'created,modified,id,key,organization_id,group_id,location_id,floorplan_id\n'  # noqa: E501
+            'test,00:11:22:33:44:66,{org_name},,model,os,system,notes,Test,'
+            'Via Test 29/c,POINT (-57.63463382632019 -25.28397344703963),False,'
+            'indoor,-1,,127.0.0.1,10.0.0.2,applied,netjsonconfig.OpenWrt,'
+            '"{config}","{context}",,2022-10-17 15:26:51,2022-10-17 15:26:51,'
+            '559871c5-ce3d-4c7e-9176-fb6623d562f3,934d0799b1ce3a454bbb585cda1d7a49,'
+            '{org_id},,{location_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+            config='{""general"": {}}',
+            context='{""ssid"": ""test""}',
+            location_id=location.id,
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        # assert geo fields
+        self.assertTrue(hasattr(device, 'devicelocation'))
+        self.assertEqual(device.devicelocation.location, location)
+        self.assertIsNone(device.devicelocation.floorplan)
+        self.assertIsNone(device.devicelocation.indoor)
+        # double check device fields (repetita juvant)
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(device.mac_address, '00:11:22:33:44:66')
+        self.assertEqual(device.model, 'model')
+        self.assertEqual(device.os, 'os')
+        self.assertEqual(device.system, 'system')
+        self.assertEqual(device.notes, 'notes')
+        self.assertEqual(device.last_ip, '127.0.0.1')
+        self.assertEqual(device.management_ip, '10.0.0.2')
+        self.assertTrue(device._has_config())
+        self.assertIsNone(device.group)

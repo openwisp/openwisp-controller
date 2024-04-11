@@ -211,7 +211,8 @@ class AbstractConfig(BaseConfig):
         (m2m relationships are first cleared and then added back),
         there fore we need to ignore it to avoid emitting signals twice
         """
-        if action not in ['post_add', 'post_remove']:
+        # execute only after a config has been saved or deleted
+        if action not in ['post_add', 'post_remove'] or instance._state.adding:
             return
         # use atomic to ensure any code bound to
         # be executed via transaction.on_commit
@@ -235,7 +236,8 @@ class AbstractConfig(BaseConfig):
         This method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
         """
-        if action not in ['post_add', 'post_remove']:
+        # execute only after a config has been saved or deleted
+        if action not in ['post_add', 'post_remove'] or instance._state.adding:
             return
         vpn_client_model = cls.vpn.through
         # coming from signal
