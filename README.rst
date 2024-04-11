@@ -35,6 +35,8 @@ openwisp-controller
 
 ------------
 
+ONLY A TEST: this branch will be deleted.
+
 **Need a quick overview?** `Try the OpenWISP Demo <https://openwisp.org/demo.html>`_.
 
 OpenWISP Controller is a configuration manager that allows to automate several
