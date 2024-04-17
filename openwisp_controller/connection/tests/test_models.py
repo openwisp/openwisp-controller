@@ -928,7 +928,7 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
                 args, _ = mocked_exec_command.call_args_list[1]
                 self.assertIn('OW_CONFIG_PID', args[0])
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'applied')
+            self.assertEqual(conf.status, 'modified')
 
         with self.subTest('openwisp_config < 0.6.0a: exit_code 0'):
             conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
@@ -942,7 +942,7 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
                 _assert_version_check_command(mocked_exec_command)
                 _assert_applying_conf_test_command(mocked_exec_command)
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'applied')
+            self.assertEqual(conf.status, 'modified')
 
         with self.subTest('openwisp_config < 0.6.0a: exit_code 1'):
             conf.config = '{"radios": []}'
