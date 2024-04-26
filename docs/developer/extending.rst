@@ -739,9 +739,9 @@ Registering new notification types
 You can define your own notification types using
 ``register_notification_type`` function from OpenWISP Notifications.
 
-For more information, see the relevant `documentation section about
+For more information, see the relevant :ref:`documentation section about
 registering notification types in openwisp-notifications
-<https://github.com/openwisp/openwisp-notifications#registering--unregistering-notification-types>`_.
+<Registering / Unregistering Chart Configuration>`_.
 
 Once a new notification type is registered, you have to use the
 `"notify" signal provided in openwisp-notifications
