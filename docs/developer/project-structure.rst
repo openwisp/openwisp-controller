@@ -1,7 +1,7 @@
 Project Structure & main features
 ----------------------------------
 
-.. include:: /paritals/developers-docs-warning.rst
+.. include:: /partials/developers-docs-warning.rst
 
 OpenWISP Controller is a python package consisting of four django apps:
 

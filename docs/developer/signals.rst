@@ -1,7 +1,7 @@
 Signals
 -------
 
-.. include:: /paritals/developers-docs-warning.rst
+.. include:: /partials/developers-docs-warning.rst
 
 ``config_modified``
 ~~~~~~~~~~~~~~~~~~~
