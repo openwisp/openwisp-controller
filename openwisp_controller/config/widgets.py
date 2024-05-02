@@ -19,7 +19,7 @@ class JsonSchemaWidget(AdminTextareaWidget):
 
     @property
     def media(self):
-        js = [
+        js = ['admin/js/jquery.init.js'] + [
             f'config/js/{path}'
             for path in (
                 'lib/advanced-mode.js',
