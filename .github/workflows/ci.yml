@@ -84,6 +84,7 @@ jobs:
         # only for specific test cases which are tagged with "db_tests"
         POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         coverage combine
+        coverage xml
         # tests the extension capability
         SAMPLE_APP=1 ./runtests.py --keepdb
       env:
@@ -93,6 +94,7 @@ jobs:
       uses: coverallsapp/github-action@v2
       with:
         parallel: true
+        format: cobertura
         flag-name: python-${{ matrix.env.env }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
