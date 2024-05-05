@@ -98,5 +98,11 @@
         });
         // bind unload event
         $(window).bind('beforeunload', unsavedChanges);
+        $(document).on("click", "input.previewlink", function () {
+          $(window).unbind("beforeunload", unsavedChanges);
+        });
+        $(document).on("click", "a.close", function () {
+          $(window).bind("beforeunload", unsavedChanges);
+        });
     });
 }(django.jQuery));
