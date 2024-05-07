@@ -11,3 +11,26 @@ div#main-content table tbody th,
 div#main-content table tbody td {
   padding: 0.2rem 10px;
 }
+@media (prefers-color-scheme: dark) {
+  table.import-preview tr.skip {
+    background-color: #d2d2d2;
+  }
+  table.import-preview tr.new {
+    background-color: #bdd8b2;
+  }
+  table.import-preview tr.delete {
+    background-color: #f9bebf;
+  }
+  table.import-preview tr.update {
+    background-color: #fdfdcf;
+  }
+  .validation-error-container {
+    background-color: #ffc1c1;
+  }
+  table.import-preview td ins {
+    background-color: #ededed;
+  }
+  table.import-preview td del {
+    background-color: #ededed;
+  }
+}
