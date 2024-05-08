@@ -43,6 +43,9 @@
             message = 'You haven\'t saved your changes yet!',
             initialValue,
             name;
+        if (currentValues['organization'] === '') {
+            currentValues['organization'] = 'null';
+        }
         if (gettext) { message = gettext(message); }  // i18n if enabled
         // compare initial with current values
         for (name in django._owcInitialValues) {
@@ -98,11 +101,5 @@
         });
         // bind unload event
         $(window).bind('beforeunload', unsavedChanges);
-        $(document).on('click', 'input.previewlink', function () {
-          $(window).unbind('beforeunload', unsavedChanges);
-        });
-        $(document).on('click', 'a.close', function () {
-          $(window).bind('beforeunload', unsavedChanges);
-        });
     });
 }(django.jQuery));
