@@ -43,8 +43,8 @@
             message = 'You haven\'t saved your changes yet!',
             initialValue,
             name;
-        if (currentValues['organization'] === '') {
-            currentValues['organization'] = 'null';
+        if (currentValues.organization === '') {
+            currentValues.organization = 'null';
         }
         if (gettext) { message = gettext(message); }  // i18n if enabled
         // compare initial with current values
