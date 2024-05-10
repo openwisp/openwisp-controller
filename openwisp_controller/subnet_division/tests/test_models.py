@@ -185,12 +185,25 @@ class TestSubnetDivisionRule(
             options = default_options.copy()
             options['number_of_ips'] = 99999999
             rule = SubnetDivisionRule(**options)
-            with self.assertRaises(ValidationError) as context_manager:
-                rule.full_clean()
+            if rule.size == 32:
+                if options['number_of_ips'] != 1:
+                    with self.assertRaises(ValidationError) as context_manager:
+                        rule.full_clean()
+                expected_message_dict = {
+                    'number_of_ips': [
+                        'For subnets of size /32, only 1 IP Address is allowed.'
+                    ]
+                }
+                self.assertDictEqual(
+                    context_manager.exception.message_dict, expected_message_dict
+                )
+            else:
+                with self.assertRaises(ValidationError) as context_manager:
+                    rule.full_clean()
             expected_message_dict = {
                 'number_of_ips': [
-                    'Generated subnets of size /28 cannot accommodate 99999999 '
-                    'IP Addresses.'
+                    'Generated subnets of size /{} cannot accommodate '
+                    '{} IP Addresses.'.format(rule.size, options["number_of_ips"])
                 ]
             }
             self.assertDictEqual(
