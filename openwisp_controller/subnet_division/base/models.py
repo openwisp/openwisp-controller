@@ -139,7 +139,18 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
 
     def _validate_ip_address_consistency(self):
-        # Validate individual generated subnet can accommodate required number of IPs
+        if self.size == 32:
+            if self.number_of_ips != 1:
+                raise ValidationError(
+                    {
+                        'number_of_ips': (
+                            'Generated subnets of size /32 can '
+                            'only accommodate 1 IP Address.'
+                        )
+                    }
+                )
+            return
+
         try:
             next(
                 ip_network(str(self.master_subnet.subnet)).subnets(new_prefix=self.size)

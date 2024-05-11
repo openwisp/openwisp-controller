@@ -185,25 +185,12 @@ class TestSubnetDivisionRule(
             options = default_options.copy()
             options['number_of_ips'] = 99999999
             rule = SubnetDivisionRule(**options)
-            if rule.size == 32:
-                if options['number_of_ips'] != 1:
-                    with self.assertRaises(ValidationError) as context_manager:
-                        rule.full_clean()
-                expected_message_dict = {
-                    'number_of_ips': [
-                        'For subnets of size /32, only 1 IP Address is allowed.'
-                    ]
-                }
-                self.assertDictEqual(
-                    context_manager.exception.message_dict, expected_message_dict
-                )
-            else:
-                with self.assertRaises(ValidationError) as context_manager:
-                    rule.full_clean()
+            with self.assertRaises(ValidationError) as context_manager:
+                rule.full_clean()
             expected_message_dict = {
                 'number_of_ips': [
-                    'Generated subnets of size /{} cannot accommodate '
-                    '{} IP Addresses.'.format(rule.size, options["number_of_ips"])
+                    'Generated subnets of size /28 cannot accommodate 99999999 '
+                    'IP Addresses.'
                 ]
             }
             self.assertDictEqual(
@@ -259,22 +246,14 @@ class TestSubnetDivisionRule(
                 {'organization': ['Organization should be same as the subnet']},
             )
 
-        with self.subTest('Test cannot assign 1 IP in /32 subnet (bug)'):
-            options = default_options.copy()
-            options['size'] = 32
-            options['number_of_ips'] = 1
-            rule = SubnetDivisionRule(**options)
-            with self.assertRaises(ValidationError) as context_manager:
-                rule.full_clean()
-                expected_message_dict = {
-                    'number_of_ips': [
-                        '''Generated subnets of size /32 cannot
-                        accommodate 1 IP Addresses.'''
-                    ]
-                }
-            self.assertDictEqual(
-                context_manager.exception.message_dict, expected_message_dict
-            )
+    def test_create_rule_with_32_subnet(self):
+        rule = self._get_vpn_subdivision_rule(
+            size=32, number_of_ips=1, number_of_subnets=1
+        )
+        rule.full_clean()
+        rule.save()
+        self.assertEqual(rule.size, 32)
+        self.assertEqual(rule.number_of_ips, 1)
 
     def test_rule_label_updated(self):
         new_rule_label = 'TSDR'
