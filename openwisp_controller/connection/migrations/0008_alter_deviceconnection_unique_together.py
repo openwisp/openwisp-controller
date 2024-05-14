@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.db import migrations, models
 
+
 def remove_conflicting_deviceconnections(apps, schema_editor):
     DeviceConnection = apps.get_model('connection', 'DeviceConnection')
     duplicates = (
@@ -12,12 +13,9 @@ def remove_conflicting_deviceconnections(apps, schema_editor):
     )
     for duplicate in duplicates:
         # Get all instances of this duplicate and order them by ID
-        instances = (
-            DeviceConnection.objects.filter(
-                device_id=duplicate['device_id'],
-                credentials_id=duplicate['credentials_id']
-            ).order_by('id')
-        )
+        instances = DeviceConnection.objects.filter(
+            device_id=duplicate['device_id'], credentials_id=duplicate['credentials_id']
+        ).order_by('id')
         # Keep the first instance and delete the rest
         for instance in instances[1:]:
             instance.delete()
