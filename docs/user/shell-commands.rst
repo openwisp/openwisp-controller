@@ -15,21 +15,23 @@ allows you to execute any command on the device as shown in the example below.
    :alt: Executing commands on device example
 
 **Note**: in order for this feature to work, a device needs to have at least
-one **Access Credential** (see `How to configure push updates <~how-to-configure-push-updates>`__).
+one **Access Credential** (see
+:doc:`How to configure push updates <push-updates>`).
 
 The **Send Command** button will be hidden until the device
 has at least one **Access Credential**.
 
 If you need to allow your users to quickly send specific commands that are used often in your
 network regardless of your users' knowledge of Linux shell commands, you can add new commands
-by following instructions in the `^How to define new options in the commands menu^
-<~how-to-define-new-options-in-the-commands-menu>`_ section below.
+by following instructions in the :ref:`defining_new_menu_options` section below.
 
 If you are an advanced user and want to register commands programatically, then refer to
 `^Register / Unregistering commands^ <~registering--unregistering-commands>`_ section.
 
-How to define new options in the commands menu
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _defining_new_menu_options:
+
+Defining new options in the commands menu
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let's explore to define new custom commands
 to help users perform additional management actions
@@ -150,43 +152,9 @@ passed as arguments to this callable.
 The example above includes a callable(``ping_command_callable``) for
 ``ping`` command.
 
-Registering / Unregistering Commands
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to register or unregister commands
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-OpenWISP Controller provides registering and unregistering commands
-through utility functions ``openwisp_controller.connection.commands.register_command``
-and ``openwisp_notifications.types.unregister_notification_type``.
-You can use these functions to register or unregister commands
-from your code.
-
-**Note**: These functions are to be used as an alternative to the
-`^OPENWISP_CONTROLLER_USER_COMMANDS^ <~openwisp-controller-user-commands>`_
-when `developing custom modules based on openwisp-controller
-<~extending-openwisp-controller>`_ or when developing custom third party
-apps.
-
-``register_command``
-####################
-
-+--------------------+------------------------------------------------------------------+
-| Parameter          | Description                                                      |
-+--------------------+------------------------------------------------------------------+
-| ``command_name``   | A ``str`` defining identifier for the command.                   |
-+--------------------+------------------------------------------------------------------+
-| ``command_config`` | A ``dict`` defining configuration of the command                 |
-|                    | as shown in `^Command Configuration^ <~command-configuration>`_. |
-+--------------------+------------------------------------------------------------------+
-
-**Note:** It will raise ``ImproperlyConfigured`` exception if a command is already
-registered with the same name.
-
-``unregister_command``
-######################
-
-+--------------------+-----------------------------------------+
-| Parameter          | Description                             |
-+--------------------+-----------------------------------------+
-| ``command_name``   | A ``str`` defining name of the command. |
-+--------------------+-----------------------------------------+
-
-**Note:** It will raise ``ImproperlyConfigured`` exception if such command does not exists.
+Refer to
+:ref:`registering_unregistering_commands`
+in the developer documentation.

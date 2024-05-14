@@ -363,6 +363,8 @@ Get device group detail
 
     GET /api/v1/controller/group/{id}/
 
+.. _change_device_group_detail:
+
 Change device group detail
 ##########################
 

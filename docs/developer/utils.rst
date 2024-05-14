@@ -1,7 +1,14 @@
+Code Utilities
+==============
+
+.. include:: ../partials/developer-docs.rst
+
+.. contents::
+    :depth: 2
+    :local:
+
 Signals
 -------
-
-.. include:: /partials/developers-docs-warning.rst
 
 ``config_modified``
 ~~~~~~~~~~~~~~~~~~~
@@ -60,6 +67,8 @@ The signal is emitted also when the m2m template relationships of a config
 object are changed, but only on ``post_add`` or ``post_remove`` actions,
 ``post_clear`` is ignored for the same reason explained
 in the previous section.
+
+.. _config_backend_changed:
 
 ``config_backend_changed``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,9 +191,10 @@ The signal is emitted when the device group changes.
 
 It is not emitted when the device is created.
 
+.. _group_templates_changed:
+
 ``group_templates_changed``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 **Path**: ``openwisp_controller.config.signals.group_templates_changed``
 
@@ -237,3 +247,80 @@ The signal is emitted when the peers of VPN server gets changed.
 
 It is only emitted for ``Vpn`` object with **WireGuard** or
 **VXLAN over WireGuard** backend.
+
+.. _registering_unregistering_commands:
+
+Registering / Unregistering Commands
+------------------------------------
+
+OpenWISP Controller allows to register new command options
+or unregister existing command options
+through two utility functions:
+
+- ``openwisp_controller.connection.commands.register_command``
+- ``openwisp_controller.connection.commands.unregister_command``
+
+You can use these functions to register new custom commands
+or unregister existing commands from your code.
+
+.. note::
+
+    These functions are to be used as an alternative to
+    the :ref:`OPENWISP_CONTROLLER_USER_COMMANDS` setting
+    when :doc:`extending openwisp-controller <extending>`
+    or when developing custom applications based on OpenWISP Controller.
+
+``register_command``
+~~~~~~~~~~~~~~~~~~~~
+
++--------------------+------------------------------------------------------------------+
+| Parameter          | Description                                                      |
++--------------------+------------------------------------------------------------------+
+| ``command_name``   | A ``str`` defining identifier for the command.                   |
++--------------------+------------------------------------------------------------------+
+| ``command_config`` | A ``dict`` defining configuration of the command                 |
+|                    | as shown in `^Command Configuration^ <~command-configuration>`_. |
++--------------------+------------------------------------------------------------------+
+
+**Note:** It will raise ``ImproperlyConfigured`` exception if a command is already
+registered with the same name.
+
+``unregister_command``
+~~~~~~~~~~~~~~~~~~~~~~
+
++--------------------+-----------------------------------------+
+| Parameter          | Description                             |
++--------------------+-----------------------------------------+
+| ``command_name``   | A ``str`` defining name of the command. |
++--------------------+-----------------------------------------+
+
+**Note:** It will raise ``ImproperlyConfigured`` exception if such command does not exists.
+
+Controller Notifications
+------------------------
+
+The notification types registered and used by OpenWISP Controller are
+listed in the following table.
+
++-----------------------+----------------------------------------------------------------------+
+| Notification Type     | Use                                                                  |
++-----------------------+----------------------------------------------------------------------+
+| ``config_error``      | Fires when the status of a device configuration changes to ``error``.|
++-----------------------+----------------------------------------------------------------------+
+| ``device_registered`` | Fires when a new device registers itself.                            |
++-----------------------+----------------------------------------------------------------------+
+
+Registering notification types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can define your own notification types using
+``register_notification_type`` function from OpenWISP Notifications.
+
+For more information, see the relevant :ref:`documentation section about
+registering notification types in openwisp-notifications
+<Registering / Unregistering Chart Configuration>`_.
+
+Once a new notification type is registered, you have to use the
+`"notify" signal provided in openwisp-notifications
+<https://github.com/openwisp/openwisp-notifications#sending-notifications>`_
+to send notifications for this type.

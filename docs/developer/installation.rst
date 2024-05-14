@@ -1,43 +1,16 @@
-Developer installation instructions
------------------------------------
+Developer Installation Instructions
+===================================
 
-.. include:: /partials/developers-docs-warning.rst
+.. include:: ../partials/dev-docs-warn.rst
 
 Dependencies
-~~~~~~~~~~~~
+------------
 
-* Python >= 3.7
+* Python >= 3.8
 * OpenSSL
 
-Install stable version from pypi
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Install from pypi:
-
-.. code-block:: shell
-
-    pip install openwisp-controller
-
-Install development version
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Install tarball:
-
-.. code-block:: shell
-
-    pip install https://github.com/openwisp/openwisp-controller/tarball/master
-
-Alternatively you can install via pip using git:
-
-.. code-block:: shell
-
-    pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
-
-If you want to contribute, follow the instructions in
-`Installing for development <#installing-for-development>`_.
-
 Installing for development
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 Install the system dependencies:
 
@@ -66,14 +39,16 @@ Launch Redis and PostgreSQL:
 
     docker-compose up -d redis postgres
 
-Setup and activate a virtual-environment. (we'll be using  `virtualenv <https://pypi.org/project/virtualenv/>`_)
+Setup and activate a virtual-environment
+(we'll be using  `virtualenv <https://pypi.org/project/virtualenv/>`_):
 
 .. code-block:: shell
 
     python -m virtualenv env
     source env/bin/activate
 
-Make sure that you are using pip version 20.2.4 before moving to the next step:
+Make sure that your base python packages are up to date
+before moving to the next step:
 
 .. code-block:: shell
 
@@ -126,12 +101,42 @@ Run quality assurance tests with:
 
     ./run-qa-checks
 
-Install and run on docker
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Alternative sources
+-------------------
 
-NOTE: This Docker image is for development purposes only.
-For the official OpenWISP Docker images, see: `docker-openwisp
-<https://github.com/openwisp/docker-openwisp>`_.
+Pypi
+~~~~
+
+To install the latest stable version from pypi:
+
+.. code-block:: shell
+
+    pip install openwisp-controller
+
+Github
+~~~~~~
+
+To install the latest development version tarball via HTTPs:
+
+.. code-block:: shell
+
+    pip install https://github.com/openwisp/openwisp-controller/tarball/master
+
+Alternatively you can use the git protocol:
+
+.. code-block:: shell
+
+    pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
+
+Install and run on Docker
+-------------------------
+
+.. warning::
+
+  This Docker image is for development purposes only.
+
+  For the official OpenWISP Docker images, see: `docker-openwisp
+  <https://github.com/openwisp/docker-openwisp>`_.
 
 Build from the Dockerfile:
 
@@ -146,23 +151,24 @@ Run the docker container:
     docker-compose up
 
 Troubleshooting steps for common installation issues
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------------------------
 
 You may encounter some issues while installing GeoDjango.
 
 Unable to load SpatiaLite library extension?
-############################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you are getting below exception::
+If you are incurring in the following exception::
 
    django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
 
-then, You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in
+You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py``
+as explained in
 `django documentation regarding how to install and configure spatialte
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with other geospatial libraries?
-##############################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Please refer
 `troubleshooting issues related to geospatial libraries
@@ -170,7 +176,7 @@ Please refer
 
 .. important::
 
-    If you want to add ``openwisp-controller`` in an existing Django
-    project, then you can take reference from the
-    `test project in openwisp-controller repository
+    If you want to add OpenWISP Controller to an
+    existing Django project, then you can refer to the
+    `test project in the openwisp-controller repository
     <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2>`_

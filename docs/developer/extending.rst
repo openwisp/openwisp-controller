@@ -1,7 +1,7 @@
 Extending openwisp-controller
 -----------------------------
 
-.. include:: /partials/developers-docs-warning.rst
+.. include:: ../partials/developer-docs.rst
 
 One of the core values of the OpenWISP project is
 `Software Reusability <http://openwisp.io/docs/general/values.html#software-reusability-means-long-term-sustainability>`_,
@@ -736,14 +736,4 @@ setting as follows:
 Registering new notification types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can define your own notification types using
-``register_notification_type`` function from OpenWISP Notifications.
-
-For more information, see the relevant :ref:`documentation section about
-registering notification types in openwisp-notifications
-<Registering / Unregistering Chart Configuration>`_.
-
-Once a new notification type is registered, you have to use the
-`"notify" signal provided in openwisp-notifications
-<https://github.com/openwisp/openwisp-notifications#sending-notifications>`_
-to send notifications for this type.
+Refer to ...

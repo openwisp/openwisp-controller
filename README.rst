@@ -1,3 +1,5 @@
+:orphan:
+
 openwisp-controller
 ===================
 
@@ -78,13 +80,11 @@ see the
 **Want to help OpenWISP?** `Find out how to help us grow here
 <http://openwisp.io/docs/general/help-us.html>`_.
 
-------------
+Documentation
+-------------
 
-.. contents:: **Table of Contents**:
-   :backlinks: none
-   :depth: 3
-
-------------
+- Developer documentation (TODO: add link)
+- User documentation (TODO: add link)
 
 Contributing
 ------------

@@ -1,8 +1,7 @@
 Settings
 --------
 
-You can change the values for the following variables in
-``settings.py`` to configure your instance of openwisp-controller.
+.. include:: /partials/settings-note.rst
 
 ``OPENWISP_SSH_AUTH_TIMEOUT``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,6 +157,8 @@ A VPN backend must follow some basic rules in order to be compatible with *openw
   ``config['openvpn']``
 * it SHOULD focus on the server capabilities of the VPN software being used
 
+.. _OPENWISP_CONTROLLER_DEFAULT_BACKEND:
+
 ``OPENWISP_CONTROLLER_DEFAULT_BACKEND``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -239,6 +240,8 @@ Whether devices that are not already present in the system are allowed to regist
 Turn this off if you still want to use auto-registration to avoid having to
 manually set the device UUID and key in its configuration file but also want
 to avoid indiscriminate registration of new devices without explicit permission.
+
+.. _context_setting:
 
 ``OPENWISP_CONTROLLER_CONTEXT``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -500,6 +503,8 @@ To disable the API by default add `OPENWISP_CONTROLLER_API = False` in `settings
 
 Allows to specify backend URL for API requests, if the frontend is hosted separately.
 
+.. _OPENWISP_CONTROLLER_USER_COMMANDS:
+
 ``OPENWISP_CONTROLLER_USER_COMMANDS``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -543,6 +548,8 @@ as shown in the following example:
 In the example above, the organization with UUID ``7448a190-6e65-42bf-b8ea-bb6603e593a5``
 will allow to send only commands of type ``reboot`` and ``change_password``,
 while all the other organizations will have all command types enabled.
+
+.. _OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA:
 
 ``OPENWISP_CONTROLLER_DEVICE_GROUP_SCHEMA``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
