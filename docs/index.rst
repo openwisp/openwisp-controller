@@ -26,7 +26,7 @@ For a full introduction please refer to
    user/wireguard.rst
    user/vxlan-wireguard.rst
    user/zerotier.rst
-   user/automatic-provisioning-of-subnets.rst
+   user/subnet-division-rules.rst
    user/rest-api.rst
    user/settings.rst
 
