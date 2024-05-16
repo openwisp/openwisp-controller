@@ -20,7 +20,7 @@ subnet and IP address allocation and more.
    user/shell-commands.rst
    user/import-export.rst
    user/organization-limits.rst
-   user/how-to-setup-wireguard.rst
+   user/wireguard.rst
    user/how-to-setup-vxlan-over-wireguard.rst
    user/zerotier.rst
    user/automatic-provisioning-of-subnets.rst
