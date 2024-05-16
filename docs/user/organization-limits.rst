@@ -12,5 +12,6 @@ To set these limits:
 
 Refer to the screenshot below for guidance:
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
+.. figure:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
+   :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
    :alt: Organization limits

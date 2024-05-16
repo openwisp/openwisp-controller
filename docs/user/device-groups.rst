@@ -13,8 +13,9 @@ Features provided by Device Groups:
     :depth: 2
     :local:
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
-  :alt: Device Group example
+.. figure:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
+   :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/device-groups.png
+   :alt: Device Group example
 
 .. _device_group_templates:
 

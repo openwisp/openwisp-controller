@@ -179,4 +179,4 @@ Please refer
     If you want to add OpenWISP Controller to an
     existing Django project, then you can refer to the
     `test project in the openwisp-controller repository
-    <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2>`_
+    <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2>`_.
