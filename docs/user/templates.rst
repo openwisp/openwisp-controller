@@ -121,14 +121,14 @@ per each organization.
 With :ref:`device_group_templates` it is possible to specify a
 set of default templates for each device group.
 
+.. _templates_tags:
+
 Template tags
 -------------
 
 .. image:: /images/templates/template-tags.gif
    :align: center
    :alt: Template tags
-
-
 
 In some cases, you may have multiple set of default settings to use,
 let's explain this with a practical example: you may have 2 different

@@ -8,6 +8,9 @@ adoption, provisioning, VPN tunnel configuration,
 generation of X509 certificates,
 subnet and IP address allocation and more.
 
+For a full introduction please refer to
+:doc:`user/intro`.
+
 .. toctree::
    :caption: User Docs
    :maxdepth: 1

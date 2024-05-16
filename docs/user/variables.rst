@@ -94,6 +94,8 @@ The default values of variables can be manipulated from the section
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/template-default-values.png
   :alt: default values
 
+.. _system_defined_variables:
+
 7. System defined variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

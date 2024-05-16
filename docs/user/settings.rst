@@ -113,6 +113,8 @@ A dictionary that maps configuration backends to update strategies in order to
 automatically determine the update strategy of a device connection if the
 update strategy field is left blank by the user.
 
+.. _OPENWISP_CONTROLLER_BACKENDS:
+
 ``OPENWISP_CONTROLLER_BACKENDS``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
