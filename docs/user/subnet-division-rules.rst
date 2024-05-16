@@ -31,6 +31,12 @@ are assigned to devices.
 
 The currently supported rule types are described below.
 
+.. note::
+
+  For information on how to write your own subnet division rule types,
+  please refer to:
+  :ref:`custom_subnet_division_rule_types`.
+
 .. _device_rule:
 
 Device Subnet Division Rule
@@ -53,12 +59,10 @@ VPN Subnet Division Rule
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 This rule triggers when a template flagged as *VPN-client*
-is assigned to a device configuration, but only if the following
-conditions are true:
-
-- The VPN server associated with the template
-  uses the same subnet as the subnet division rule.
-- The VPN server is a **WireGuard** or **VXLAN over WireGuard** type.
+is assigned to a device configuration, but only if the
+VPN server associated with the VPN-client template
+uses the same subnet to which the subnet division rule
+is assignated to.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/subnet-division-rule.png
    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/subnet-division-rule.png
@@ -99,7 +103,7 @@ With everything in place, you can now apply the VPN Client Template to devices.
    :alt: Adding template to device example
 
 After saving the device, you should see all provisioned Subnets and IPs for this device
-under :ref:`System Defined Variables *system_defined_variables>`.
+under :ref:`System Defined Variables <system_defined_variables>`.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/system-defined-variables.png
    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/system-defined-variables.png

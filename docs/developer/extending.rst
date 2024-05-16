@@ -1,5 +1,5 @@
 Extending openwisp-controller
------------------------------
+=============================
 
 .. include:: ../partials/developer-docs.rst
 
@@ -27,7 +27,7 @@ we suggest to start with it since the beginning, because migrating your data
 from the default module to your extended version may be time consuming.
 
 1. Initialize your project & custom apps
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------------
 
 Firstly, to get started you need to create a django project::
 
@@ -60,14 +60,14 @@ For more information about how to work with django projects and django apps,
 please refer to the `django documentation <https://docs.djangoproject.com/en/dev/intro/tutorial01/>`_.
 
 2. Install ``openwisp-controller``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------
 
 Install (and add to the requirement of your project) openwisp-controller::
 
     pip install openwisp-controller
 
 3. Add your apps in INSTALLED_APPS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------
 
 Now you need to add ``mycontroller.sample_config``,
 ``mycontroller.sample_pki``, ``mycontroller.sample_connection``,
@@ -120,7 +120,7 @@ Substitute ``mycontroller``, ``sample_config``, ``sample_pki``, ``sample_connect
 ``sample_geo`` & ``sample_subnet_division`` with the name you chose in step 1.
 
 4. Add ``EXTENDED_APPS``
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Add the following to your ``settings.py``:
 
@@ -137,7 +137,7 @@ Add the following to your ``settings.py``:
     )
 
 5. Add ``openwisp_utils.staticfiles.DependencyFinder``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------------------
 
 Add ``openwisp_utils.staticfiles.DependencyFinder`` to
 ``STATICFILES_FINDERS`` in your ``settings.py``:
@@ -151,7 +151,7 @@ Add ``openwisp_utils.staticfiles.DependencyFinder`` to
     ]
 
 6. Add ``openwisp_utils.loaders.DependencyLoader``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------------------
 
 Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES``
 in your ``settings.py``, but ensure it comes before
@@ -181,7 +181,7 @@ in your ``settings.py``, but ensure it comes before
     ]
 
 5. Initial Database setup
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 Ensure you are using one of the available geodjango backends, eg:
 
@@ -197,7 +197,7 @@ Ensure you are using one of the available geodjango backends, eg:
 For more information about GeoDjango, please refer to the `geodjango documentation <https://docs.djangoproject.com/en/dev/ref/contrib/gis/>`_.
 
 6. Django Channels Setup
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Create ``asgi.py`` in your project folder and add following lines in it:
 
@@ -221,7 +221,7 @@ Create ``asgi.py`` in your project folder and add following lines in it:
     )
 
 7. Other Settings
-~~~~~~~~~~~~~~~~~
+-----------------
 
 Add the following settings to ``settings.py``:
 
@@ -244,7 +244,7 @@ For more information about CHANNEL_LAYERS setting, please refer to the
 `CHANNEL_LAYERS documentation <https://channels.readthedocs.io/en/latest/deploying.html#setting-up-a-channel-backend>`_.
 
 6. Inherit the AppConfig class
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 Please refer to the following files in the sample app of the test project:
 
@@ -274,7 +274,7 @@ For more information regarding the concept of ``AppConfig`` please refer to
 the `"Applications" section in the django documentation <https://docs.djangoproject.com/en/dev/ref/applications/>`_.
 
 7. Create your custom models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 For the purpose of showing an example, we added a simple "details" field
 to the models of the sample app in the test project.
@@ -291,7 +291,7 @@ You can add fields in a similar way in your ``models.py`` file.
 the `"Models" section in the django documentation <https://docs.djangoproject.com/en/dev/topics/db/models/>`_.
 
 8. Add swapper configurations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 Once you have created the models, add the following to your ``settings.py``:
 
@@ -323,7 +323,7 @@ Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
 ``sample_geo`` & ``sample_subnet_division`` with the name you chose in step 1.
 
 9. Create database migrations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 Create database migrations::
 
@@ -347,7 +347,7 @@ For more information, refer to the
 `"Migrations" section in the django documentation <https://docs.djangoproject.com/en/dev/topics/migrations/>`_.
 
 10. Create the admin
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 Refer to the ``admin.py`` file of the sample app.
 
@@ -567,7 +567,7 @@ sample_subnet_division
         # add your changes here
 
 11. Create root URL configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------
 
 .. code-block:: python
 
@@ -594,7 +594,7 @@ For more information about URL configuration in django, please refer to the
 `"URL dispatcher" section in the django documentation <https://docs.djangoproject.com/en/dev/topics/http/urls/>`_.
 
 12. Import the automated tests
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 When developing a custom application based on this module, it's a good
 idea to import and run the base tests too, so that you can be sure the changes
@@ -628,7 +628,7 @@ For more information about automated tests in django, please refer to
 `"Testing in Django" <https://docs.djangoproject.com/en/dev/topics/testing/>`_.
 
 Other base classes that can be inherited and extended
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------------------
 
 The following steps are not required and are intended for more advanced customization.
 
@@ -650,10 +650,13 @@ Remember to change ``geo_views`` location in ``urls.py`` in point 11 for extendi
 
 For more information about django views, please refer to the `views section in the django documentation <https://docs.djangoproject.com/en/dev/topics/http/views/>`_.
 
-Custom Subnet Division Rule Types
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _custom_subnet_division_rule_types:
 
-It is possible to create your own `subnet division rule types <#subnet-division-app>`_.
+Custom Subnet Division Rule Types
+---------------------------------
+
+It is possible to create your own
+:doc:`subnet division rule types <../user/subnet-division-rules>`.
 The rule type determines when subnets and IPs will be provisioned and when they
 will be destroyed.
 
@@ -722,7 +725,7 @@ for that device.
                 cls.provision_receiver(device, created=True)
 
 After creating a class for your custom rule type, you will need to set
-`OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES <#openwisp-controller-subnet-division-types>`_
+:ref:`OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES <OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES>`
 setting as follows:
 
 .. code-block:: python
@@ -733,7 +736,7 @@ setting as follows:
        ('mycontroller.sample_subnet_division.rules_types.custom.CustomRuleType', 'Custom Rule'),
     )
 
-Registering new notification types
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+More Utilities to Extend OpenWISP Controller
+--------------------------------------------
 
-Refer to ...
+See :doc:`utils`.

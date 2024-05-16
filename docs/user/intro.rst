@@ -67,7 +67,7 @@ SSH
 
 The SSH connector allows the controller to initialize connections
 to the devices in order to perform
-:doc:`push operations <push-updates>`, e.g.:
+:doc:`push operations <push-operations>`, e.g.:
 
 - Sending configuration updates.
 - :doc:`Executing shell commands <shell-commands>`.

@@ -221,7 +221,7 @@ It is not emitted when the device is created.
 
 The signal is emitted when subnets and IP addresses have been provisioned
 for a ``VpnClient`` for a VPN server with a subnet with
-`subnet division rule <#subnet-division-app>`_.
+:doc:`subnet division rule <../user/subnet-division-rules>`.
 
 ``vpn_server_modified``
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -278,8 +278,8 @@ or unregister existing commands from your code.
 +--------------------+------------------------------------------------------------------+
 | ``command_name``   | A ``str`` defining identifier for the command.                   |
 +--------------------+------------------------------------------------------------------+
-| ``command_config`` | A ``dict`` defining configuration of the command                 |
-|                    | as shown in `^Command Configuration^ <~command-configuration>`_. |
+| ``command_config`` | A ``dict`` like the one shown in                                 |
+|                    | :ref:`Command Configuration: schema <comand_configuration>`.     |
 +--------------------+------------------------------------------------------------------+
 
 **Note:** It will raise ``ImproperlyConfigured`` exception if a command is already
@@ -316,11 +316,11 @@ Registering notification types
 You can define your own notification types using
 ``register_notification_type`` function from OpenWISP Notifications.
 
-For more information, see the relevant :ref:`documentation section about
-registering notification types in openwisp-notifications
-<Registering / Unregistering Chart Configuration>`_.
+For more information, see the relevant :doc:`documentation section about
+registering notification types in the Notifications module
+</modules/openwisp-notifications/docs/developer/registering-unregistering-notification-types>`.
 
 Once a new notification type is registered, you have to use the
-`"notify" signal provided in openwisp-notifications
-<https://github.com/openwisp/openwisp-notifications#sending-notifications>`_
+:doc:`"notify" signal provided the Notifications module
+</modules/openwisp-notifications/docs/developer/sending-notifications>`
 to send notifications for this type.

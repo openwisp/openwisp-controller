@@ -259,7 +259,7 @@ Additional context that is passed to the default context of each device object.
 ``OPENWISP_CONTROLLER_CONTEXT`` can be used to define system-wide configuration variables.
 
 For more information regarding how to use configuration variables in OpenWISP,
-see `How to use configuration variables <#how-to-use-configuration-variables>`_.
+refer to :doc:`variables`.
 
 For technical information about how variables are handled in the lower levels
 of OpenWISP, see `netjsonconfig context: configuration variables
@@ -460,8 +460,12 @@ For example, if we want to change the verbose name to "Hotspot", we could write:
 | **default**: | ``False`` |
 +--------------+-----------+
 
-Setting this to ``True`` will hide subnets and IPs generated using `subnet division rules <#subnet-division-app>`_
-from being displayed on the changelist view of Subnet and IP admin.
+Setting this to ``True`` will hide subnets and IP addresses generated
+by :doc:`subnet division rules <subnet-division-rules>`
+from being displayed in the list of Subnets and IP addresses in the
+admin dashboard.
+
+.. _OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES:
 
 ``OPENWISP_CONTROLLER_SUBNET_DIVISION_TYPES``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -478,9 +482,11 @@ from being displayed on the changelist view of Subnet and IP admin.
 |              |                                                                                                         |
 +--------------+---------------------------------------------------------------------------------------------------------+
 
-`Available types for Subject Division Rule <#device-subnet-division-rule>`_ objects.
-For more information on how to write your own types, read
-`"Custom Subnet Division Rule Types" section of this documentation <#custom-subnet-division-rule-types>`_
+Available types for
+:doc:`Subject Division Rule <subnet-division-rules>` objects.
+
+For more information on how to write your own types, please refer to:
+:ref:`custom_subnet_division_rule_types`.
 
 ``OPENWISP_CONTROLLER_API``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -492,7 +498,8 @@ For more information on how to write your own types, read
 +--------------+-----------+
 
 Indicates whether the API for Openwisp Controller is enabled or not.
-To disable the API by default add `OPENWISP_CONTROLLER_API = False` in `settings.py` file.
+To disable the API by default add ``OPENWISP_CONTROLLER_API = False``
+in your project ``settings.py`` file.
 
 ``OPENWISP_CONTROLLER_API_HOST``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -516,8 +523,8 @@ Allows to specify backend URL for API requests, if the frontend is hosted separa
 | **default**: | ``[]``   |
 +--------------+----------+
 
-Allows to specify a ``list`` of tuples for adding commands as described in
-`'How to define custom commands" <#how-to-define-new-options-in-the-commands-menu>`_ section.
+Allows to specify a ``list`` of tuples for adding commands
+as described in the section: :ref:`defining_new_menu_options`.
 
 ``OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -562,7 +569,8 @@ while all the other organizations will have all command types enabled.
 | **default**: | ``{'type': 'object', 'properties': {}}`` |
 +--------------+------------------------------------------+
 
-Allows specifying JSONSchema used for validating meta-data of `Device Group <#device-groups>`__.
+Allows specifying JSONSchema used for
+validating the meta-data of :doc:`device-groups`.
 
 ``OPENWISP_CONTROLLER_SHARED_MANAGEMENT_IP_ADDRESS_SPACE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -617,7 +625,7 @@ for DSA interfaces (Distributed Switch Architecture) introduced in OpenWrt 21 by
 reading the ``os`` field of the ``Device`` object. However, if the firmware you
 are using has a custom firmware identifier, the system will not be able to figure
 out whether it should use the new syntax and it will default to
-`OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK <#>`_.
+:ref:`OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK <OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK>`.
 
 If you want to make sure the system can parse your custom firmware
 identifier properly, you can follow the example below.
@@ -643,6 +651,8 @@ Example:
     }
 
 **Note**: The OS identifier should be a regular expression as shown in above example.
+
+.. _OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK:
 
 ``OPENWISP_CONTROLLER_DSA_DEFAULT_FALLBACK``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -696,12 +706,18 @@ while emtpy groups do not have any device assigned.
 
 
 This setting is utilized by background API tasks executed
-by `ZeroTier VPN servers and ZeroTier VPN clients <#how-to-setup-zerotier-tunnels>`_ to handle recoverable
-HTTP status codes such as 429, 500, 502, 503, and 504. These tasks are retried with a maximum
-of 5 attempts with an exponential backoff and jitter, with a maximum delay of 10 minutes.
+by :doc:`ZeroTier VPN servers and ZeroTier VPN clients <zerotier>`
+to handle recoverable HTTP status codes such as 429, 500, 502, 503,
+and 504.
+
+These tasks are retried with a maximum of 5 attempts with an
+exponential backoff and jitter, with a maximum delay of 10 minutes.
 
 This feature ensures that ZeroTier Service API calls
-are resilient to recoverable failures, improving the reliability of the system.
+are resilient to recoverable failures, improving the
+reliability of the system.
 
-For more information on these settings, you can refer to the `the celery documentation regarding automatic retries
-for known errors. <https://docs.celeryq.dev/en/stable/userguide/tasks.html#automatic-retry-for-known-exceptions>`_
+For more information on these settings, you can refer to the
+`the celery documentation regarding automatic retries
+for known errors.
+<https://docs.celeryq.dev/en/stable/userguide/tasks.html#automatic-retry-for-known-exceptions>`_

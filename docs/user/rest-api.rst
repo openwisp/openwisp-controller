@@ -1,35 +1,40 @@
 REST API Reference
-------------------
+==================
+
+.. _controller_live_documentation:
 
 Live documentation
-~~~~~~~~~~~~~~~~~~
+------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/live-docu-api.png
 
 A general live API documentation (following the OpenAPI specification) at ``/api/v1/docs/``.
 
+.. _controller_browsable_web_interface:
+
 Browsable web interface
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/browsable-api-ui.png
 
-Additionally, opening any of the endpoints `listed below <#list-of-endpoints>`_
-directly in the browser will show the `browsable API interface of Django-REST-Framework
+Additionally, opening any of the endpoints
+:ref:`listed below <controller_rest_endpoints>`
+directly in the browser will show the
+`browsable API interface of Django-REST-Framework
 <https://www.django-rest-framework.org/topics/browsable-api/>`_,
 which makes it even easier to find out the details of each endpoint.
 
 Authentication
-~~~~~~~~~~~~~~
+--------------
 
-See openwisp-users: `authenticating with the user token
-<https://github.com/openwisp/openwisp-users#authenticating-with-the-user-token>`_.
+See :ref:`authenticating_rest_api`.
 
-When browsing the API via the `Live documentation <#live-documentation>`_
-or the `Browsable web page <#browsable-web-interface>`_, you can also use
+When browsing the API via the :ref:`controller_live_documentation`
+or the :ref:`controller_browsable_web_interface`, you can also use
 the session authentication by logging in the django admin.
 
 Pagination
-~~~~~~~~~~
+----------
 
 All *list* endpoints support the ``page_size`` parameter that allows paginating
 the results in conjunction with the ``page`` parameter.
@@ -39,16 +44,22 @@ the results in conjunction with the ``page`` parameter.
     GET /api/v1/controller/template/?page_size=10
     GET /api/v1/controller/template/?page_size=10&page=2
 
-List of endpoints
-~~~~~~~~~~~~~~~~~
+.. _controller_rest_endpoints:
 
-Since the detailed explanation is contained in the `Live documentation <#live-documentation>`_
-and in the `Browsable web page <#browsable-web-interface>`_ of each point,
+List of endpoints
+-----------------
+
+Since the detailed explanation is contained in the
+:ref:`controller_live_documentation`
+and in the
+:ref:`controller_browsable_web_interface`
+of each point,
 here we'll provide just a list of the available endpoints,
-for further information please open the URL of the endpoint in your browser.
+for further information please open the URL of the endpoint
+in your browser.
 
 List devices
-############
+~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -116,24 +127,22 @@ their creation time using the ``creation_time``.
    # Created is less than
    GET /api/v1/controller/device/?created__lt={creation_time}
 
-
-
 Create device
-#############
+~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/
 
 Get device detail
-#################
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/
 
 Download device configuration
-#############################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -142,14 +151,14 @@ Download device configuration
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific device.
 
 Change details of device
-########################
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/device/{id}/
 
 Patch details of device
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -210,119 +219,119 @@ to the ``config`` and cannot be removed.
             }'
 
 Delete device
-#############
+~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/
 
 List device connections
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/connection/
 
 Create device connection
-########################
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/{id}/connection/
 
 Get device connection detail
-############################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/connection/{id}/
 
 Change device connection detail
-###############################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/device/{id}/connection/{id}/
 
 Patch device connection detail
-##############################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/device/{id}/connection/{id}/
 
 Delete device connection
-########################
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/connection/{id}/
 
 List credentials
-################
+~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/connection/credential/
 
 Create credential
-#################
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/connection/credential/
 
 Get credential detail
-#####################
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/connection/credential/{id}/
 
 Change credential detail
-########################
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/connection/credential/{id}/
 
 Patch credential detail
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/connection/credential/{id}/
 
 Delete credential
-#################
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/connection/credential/{id}/
 
 List commands of a device
-#########################
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/command/
 
 Execute a command a device
-##########################
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/{id}/command/
 
 Get command details
-###################
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{device_id}/command/{command_id}/
 
 List device groups
-##################
+~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -350,14 +359,14 @@ device object using the ``empty`` (eg. true or false).
 
 
 Create device group
-###################
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/group/
 
 Get device group detail
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -366,16 +375,17 @@ Get device group detail
 .. _change_device_group_detail:
 
 Change device group detail
-##########################
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/group/{id}/
 
-This endpoint allows to change the `group templates <#group-templates>`_ too.
+This endpoint allows to change the
+:ref:`device_group_templates` too.
 
 Get device group from certificate common name
-#############################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -393,16 +403,17 @@ of certificate's organization as show in the example below:
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
 Get device location
-###################
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
 
     GET /api/v1/controller/device/{id}/location/
 
+.. _create_device_location:
 
 Create device location
-######################
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -549,25 +560,27 @@ floorplan for that location using this endpoint.
         -F 'floorplan.image=@floorplan.png'
 
 Change details of device location
-#################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/device/{id}/location/
 
 **Note:** This endpoint can be used to update related ``Location``
-and ``Floorplan`` objects. Refer `examples of "Create device location"
-section for information on payload format <#create-device-location>`_.
+and ``Floorplan`` objects. Refer to the
+:ref:`examples in the "Create device location"
+section <create_device_location>`
+for information on payload format.
 
 Delete device location
-######################
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/location/
 
 Get device coordinates
-######################
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -585,7 +598,7 @@ assumes that the device is updating it's position.
         'http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/coordinates/?key=10a0cb5a553c71099c0e4ef236435496'
 
 Update device coordinates
-#########################
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -621,7 +634,7 @@ assumes that the device is updating it's position.
             }'
 
 List locations
-##############
+~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -641,7 +654,7 @@ to get list locations that belongs to an organization.
     GET /api/v1/controller/location/?organization_slug={organization_slug}
 
 Create location
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -700,14 +713,14 @@ format, like following:
     }
 
 Get location details
-####################
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/location/{pk}/
 
 Change location details
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -717,25 +730,27 @@ Change location details
 edited or changed. Setting the ``type`` of location to
 outdoor will remove all the floorplans associated with it.
 
-Refer `examples of "Create location"
-section for information on payload format <#create-location>`_.
+Refer to the
+:ref:`examples in the "Create device location"
+section <create_device_location>`
+for information on payload format.
 
 Delete location
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/location/{pk}/
 
 List devices in a location
-##########################
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/location/{id}/device/
 
 List locations with devices deployed (in GeoJSON format)
-########################################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Note**: this endpoint will only list locations that have been assigned to a device.
 
@@ -757,7 +772,7 @@ to get list location of devices from that organization.
     GET /api/v1/controller/location/geojson/?organization_slug={organization_slug}
 
 List floorplans
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -777,35 +792,35 @@ to get list floorplans that belongs to an organization.
     GET /api/v1/controller/floorplan/?organization_slug={organization_slug}
 
 Create floorplan
-################
+~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/floorplan/
 
 Get floorplan details
-#####################
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/floorplan/{pk}/
 
 Change floorplan details
-########################
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/floorplan/{pk}/
 
 Delete floorplan
-################
+~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/floorplan/{pk}/
 
 List templates
-##############
+~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -870,21 +885,21 @@ their creation time using the ``creation_time``.
    GET /api/v1/controller/template/?created__lt={creation_time}
 
 Create template
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/template/
 
 Get template detail
-###################
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/template/{id}/
 
 Download template configuration
-###############################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -894,28 +909,28 @@ The above endpoint triggers the download of a ``tar.gz`` file
 containing the generated configuration for that specific template.
 
 Change details of template
-##########################
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/template/{id}/
 
 Patch details of template
-#########################
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/template/{id}/
 
 Delete template
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/template/{id}/
 
 List VPNs
-#########
+~~~~~~~~~
 
 .. code-block:: text
 
@@ -950,21 +965,21 @@ using the ``organization_id`` or ``organization_slug``.
     GET /api/v1/controller/vpn/?organization_slug={organization_slug}
 
 Create VPN
-##########
+~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/vpn/
 
 Get VPN detail
-##############
+~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/vpn/{id}/
 
 Download VPN configuration
-##########################
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -974,42 +989,42 @@ The above endpoint triggers the download of a ``tar.gz`` file
 containing the generated configuration for that specific VPN.
 
 Change details of VPN
-#####################
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/vpn/{id}/
 
 Patch details of VPN
-####################
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/vpn/{id}/
 
 Delete VPN
-##########
+~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/vpn/{id}/
 
 List CA
-#######
+~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/ca/
 
 Create new CA
-#############
+~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/ca/
 
 Import existing CA
-##################
+~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -1020,28 +1035,28 @@ and ``private_key`` fields have to be filled in the ``HTML`` form or
 included in the ``JSON`` format.
 
 Get CA Detail
-#############
+~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/ca/{id}/
 
 Change details of CA
-####################
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/ca/{id}/
 
 Patch details of CA
-###################
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/ca/{id}/
 
 Download CA(crl)
-################
+~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -1051,35 +1066,35 @@ The above endpoint triggers the download of ``{id}.crl`` file containing
 up to date CRL of that specific CA.
 
 Delete CA
-#########
+~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/ca/{id}/
 
 Renew CA
-########
+~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/ca/{id}/renew/
 
 List Cert
-#########
+~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/cert/
 
 Create new Cert
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/cert/
 
 Import existing Cert
-####################
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -1090,42 +1105,42 @@ Import existing Cert
 in the ``HTML`` form or included in the ``JSON`` format.
 
 Get Cert Detail
-###############
+~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/cert/{id}/
 
 Change details of Cert
-######################
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/cert/{id}/
 
 Patch details of Cert
-#####################
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/cert/{id}/
 
 Delete Cert
-###########
+~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/cert/{id}/
 
 Renew Cert
-##########
+~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/cert/{id}/renew/
 
 Revoke Cert
-###########
+~~~~~~~~~~~
 
 .. code-block:: text
 
