@@ -1,19 +1,23 @@
-Configuring Push updates
-------------------------
+Configuring Push Operations
+---------------------------
 
-**Note**: If you have installed OpenWISP with
-`ansbile-openwisp2 role <https://galaxy.ansible.com/openwisp/openwisp2>`_
-then you can skip the following steps.
+.. important::
+
+   If you have installed OpenWISP with the
+   `ansbile-openwisp2 role <https://galaxy.ansible.com/openwisp/openwisp2>`_
+   you can skip the following steps, which are handled automatically
+   by the ansible role during the first installation.
 
 The Ansible role automatically creates a default template
 to update ``authorized_keys`` on networking devices using the
 default access credentials.
 
 Follow the procedure described below to enable secure SSH access from OpenWISP to your
-devices, this is required to enable push updates (whenever the configuration is changed,
-OpenWISP will trigger the update in the background) and/or
+devices, this is required to enable push operations
+(whenever the configuration is changed, OpenWISP will trigger
+the update in the background) and/or
 :doc:`firmware upgrades (via the additional
-module openwisp-firmware-upgrader) <../../../openwisp-firmware-upgrader/docs/index>`
+module openwisp-firmware-upgrader) <../../../openwisp-firmware-upgrader/docs/index>`.
 
 1. Generate SSH key
 ~~~~~~~~~~~~~~~~~~~

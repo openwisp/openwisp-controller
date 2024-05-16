@@ -19,7 +19,7 @@ For a full introduction please refer to
    user/templates.rst
    user/variables.rst
    user/device-groups.rst
-   user/push-updates.rst
+   user/push-operations.rst
    user/shell-commands.rst
    user/import-export.rst
    user/organization-limits.rst
