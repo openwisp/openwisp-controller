@@ -1,7 +1,7 @@
 Developer Installation Instructions
 ===================================
 
-.. include:: ../partials/dev-docs-warn.rst
+.. include:: ../partials/developer-docs.rst
 
 Dependencies
 ------------

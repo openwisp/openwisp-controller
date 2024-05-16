@@ -119,4 +119,4 @@ The purpose of this app is to allow users to automatically
 provision and configure specific subnets and IP addresses
 to the devices without the need of manual intervention.
 
-Refer to :doc:`automatic-provisioning-of-subnets` for more information.
+Refer to :doc:`subnet-division-rules` for more information.

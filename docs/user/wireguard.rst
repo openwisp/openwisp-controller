@@ -2,16 +2,9 @@ Automating WireGuard Tunnels
 ============================
 
 This guide will help you to set up the automatic provisioning of
-WireGuard tunnels for your devices.
+`WireGuard <https://www.wireguard.com/>`_ tunnels for your devices.
 
-.. note::
-
-   This guide creates the VPN server and VPN client templates
-   as **Shared systemwide (no organization)** objects. This allows
-   any device of any organization to use the automation.
-
-   If needed, you can use any organization as long as the VPN server,
-   the VPN client template, and devices have the same organization.
+.. include:: ../partials/shared-object.rst
 
 1. Create VPN server configuration for WireGuard
 ------------------------------------------------
