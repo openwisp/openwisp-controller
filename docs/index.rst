@@ -21,7 +21,7 @@ subnet and IP address allocation and more.
    user/import-export.rst
    user/organization-limits.rst
    user/wireguard.rst
-   user/how-to-setup-vxlan-over-wireguard.rst
+   user/vxlan-wireguard.rst
    user/zerotier.rst
    user/automatic-provisioning-of-subnets.rst
    user/rest-api.rst
