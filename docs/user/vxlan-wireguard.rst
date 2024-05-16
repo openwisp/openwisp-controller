@@ -1,8 +1,9 @@
-Automating VXLAN over WireGuard tunnels
+Automating VXLAN over WireGuard Tunnels
 =======================================
 
 By following these steps, you will be able to setup layer 2 VXLAN tunnels
-encapsulated in WireGuard tunnels which work on layer 3.
+encapsulated in `WireGuard <https://www.wireguard.com/>`_
+tunnels which work on layer 3.
 
 .. include:: ../partials/shared-object.rst
 
