@@ -25,5 +25,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(remove_conflicting_deviceconnections),
+        migrations.RunPython(
+            remove_conflicting_deviceconnections, reverse_code=migrations.RunPython.noop
+        ),
     ]
