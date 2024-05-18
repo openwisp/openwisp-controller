@@ -3,7 +3,7 @@ REST API Reference
 
 .. _controller_live_documentation:
 
-Live documentation
+Live Documentation
 ------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/live-docu-api.png
@@ -14,7 +14,7 @@ A general live API documentation (following the OpenAPI specification) at
 
 .. _controller_browsable_web_interface:
 
-Browsable web interface
+Browsable Web Interface
 -----------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/browsable-api-ui.png
@@ -48,7 +48,7 @@ results in conjunction with the ``page`` parameter.
 
 .. _controller_rest_endpoints:
 
-List of endpoints
+List of Endpoints
 -----------------
 
 Since the detailed explanation is contained in the :ref:`controller_live_documentation`
@@ -56,7 +56,7 @@ and in the :ref:`controller_browsable_web_interface` of each point, here we'll p
 just a list of the available endpoints, for further information please open the URL of
 the endpoint in your browser.
 
-List devices
+List Devices
 ~~~~~~~~~~~~
 
 .. code-block:: text
@@ -124,21 +124,21 @@ You can filter a list of devices based on their creation time using the
     # Created is less than
     GET /api/v1/controller/device/?created__lt={creation_time}
 
-Create device
+Create Device
 ~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/
 
-Get device detail
+Get Device Detail
 ~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/
 
-Download device configuration
+Download Device Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -148,14 +148,14 @@ Download device configuration
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated
 configuration for that specific device.
 
-Change details of device
+Change Details of Device
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/device/{id}/
 
-Patch details of device
+Patch Details of Device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -220,119 +220,119 @@ config of a device,
                 }
             }'
 
-Delete device
+Delete Device
 ~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/
 
-List device connections
+List Device Connections
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/connection/
 
-Create device connection
+Create Device Connection
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/{id}/connection/
 
-Get device connection detail
+Get Device Connection Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/connection/{id}/
 
-Change device connection detail
+Change Device Connection Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/device/{id}/connection/{id}/
 
-Patch device connection detail
+Patch Device Connection Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/device/{id}/connection/{id}/
 
-Delete device connection
+Delete Device Connection
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/connection/{id}/
 
-List credentials
+List Credentials
 ~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/connection/credential/
 
-Create credential
+Create Credential
 ~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/connection/credential/
 
-Get credential detail
+Get Credential Detail
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/connection/credential/{id}/
 
-Change credential detail
+Change Credential Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/connection/credential/{id}/
 
-Patch credential detail
+Patch Credential Detail
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/connection/credential/{id}/
 
-Delete credential
+Delete Credential
 ~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/connection/credential/{id}/
 
-List commands of a device
+List Commands of a Device
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/command/
 
-Execute a command a device
+Execute a Command a Device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/{id}/command/
 
-Get command details
+Get Command Details
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{device_id}/command/{command_id}/
 
-List device groups
+List Device Groups
 ~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -359,14 +359,14 @@ You can filter a list of device groups that have a device object using the ``emp
 
     GET /api/v1/controller/group/?empty={empty}
 
-Create device group
+Create Device Group
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/group/
 
-Get device group detail
+Get Device Group Detail
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -375,7 +375,7 @@ Get device group detail
 
 .. _change_device_group_detail:
 
-Change device group detail
+Change Device Group Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -384,7 +384,7 @@ Change device group detail
 
 This endpoint allows to change the :ref:`device_group_templates` too.
 
-Get device group from certificate common name
+Get Device Group from Certificate Common Name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -402,7 +402,7 @@ certificate's organization as show in the example below:
 
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
-Get device location
+Get Device Location
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -411,7 +411,7 @@ Get device location
 
 .. _create_device_location:
 
-Create device location
+Create Device Location
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -555,7 +555,7 @@ location using this endpoint.
         -F floorplan.floor=1 \
         -F 'floorplan.image=@floorplan.png'
 
-Change details of device location
+Change Details of Device Location
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -566,14 +566,14 @@ Change details of device location
 objects. Refer to the :ref:`examples in the "Create device location" section
 <create_device_location>` for information on payload format.
 
-Delete device location
+Delete Device Location
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/location/
 
-Get device coordinates
+Get Device Coordinates
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -590,7 +590,7 @@ as ``query_param`` because the system assumes that the device is updating it's p
     curl -X GET \
         'http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/coordinates/?key=10a0cb5a553c71099c0e4ef236435496'
 
-Update device coordinates
+Update Device Coordinates
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -625,7 +625,7 @@ as ``query_param`` because the system assumes that the device is updating it's p
                 },
             }'
 
-List locations
+List Locations
 ~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -645,7 +645,7 @@ that belongs to an organization.
 
     GET /api/v1/controller/location/?organization_slug={organization_slug}
 
-Create location
+Create Location
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -704,14 +704,14 @@ like following:
         "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
     }
 
-Get location details
+Get Location Details
 ~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/location/{pk}/
 
-Change location details
+Change Location Details
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -724,21 +724,21 @@ Change location details
 Refer to the :ref:`examples in the "Create device location" section
 <create_device_location>` for information on payload format.
 
-Delete location
+Delete Location
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     DELETE /api/v1/controller/location/{pk}/
 
-List devices in a location
+List Devices in a Location
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/location/{id}/device/
 
-List locations with devices deployed (in GeoJSON format)
+List Locations with Devices Deployed (in GeoJSON Format)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Note**: this endpoint will only list locations that have been assigned to a device.
@@ -760,7 +760,7 @@ of devices from that organization.
 
     GET /api/v1/controller/location/geojson/?organization_slug={organization_slug}
 
-List floorplans
+List Floorplans
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -780,21 +780,21 @@ that belongs to an organization.
 
     GET /api/v1/controller/floorplan/?organization_slug={organization_slug}
 
-Create floorplan
+Create Floorplan
 ~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/floorplan/
 
-Get floorplan details
+Get Floorplan Details
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/floorplan/{pk}/
 
-Change floorplan details
+Change Floorplan Details
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -808,7 +808,7 @@ Delete floorplan
 
     DELETE /api/v1/controller/floorplan/{pk}/
 
-List templates
+List Templates
 ~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -873,21 +873,21 @@ You can filter a list of templates based on their creation time using the
 
     GET /api/v1/controller/template/?created__lt={creation_time}
 
-Create template
+Create Template
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/template/
 
-Get template detail
+Get Template Detail
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/template/{id}/
 
-Download template configuration
+Download Template Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -897,21 +897,21 @@ Download template configuration
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated
 configuration for that specific template.
 
-Change details of template
+Change Details of Template
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/template/{id}/
 
-Patch details of template
+Patch Details of Template
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PATCH /api/v1/controller/template/{id}/
 
-Delete template
+Delete Template
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -965,7 +965,7 @@ Get VPN detail
 
     GET /api/v1/controller/vpn/{id}/
 
-Download VPN configuration
+Download VPN Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -975,14 +975,14 @@ Download VPN configuration
 The above endpoint triggers the download of a ``tar.gz`` file containing the generated
 configuration for that specific VPN.
 
-Change details of VPN
+Change Details of VPN
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/vpn/{id}/
 
-Patch details of VPN
+Patch Details of VPN
 ~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -1003,14 +1003,14 @@ List CA
 
     GET /api/v1/controller/ca/
 
-Create new CA
+Create New CA
 ~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/ca/
 
-Import existing CA
+Import Existing CA
 ~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -1027,14 +1027,14 @@ Get CA Detail
 
     GET /api/v1/controller/ca/{id}/
 
-Change details of CA
+Change Details of CA
 ~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/ca/{id}/
 
-Patch details of CA
+Patch Details of CA
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -1072,14 +1072,14 @@ List Cert
 
     GET /api/v1/controller/cert/
 
-Create new Cert
+Create New Cert
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/cert/
 
-Import existing Cert
+Import Existing Cert
 ~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -1097,14 +1097,14 @@ Get Cert Detail
 
     GET /api/v1/controller/cert/{id}/
 
-Change details of Cert
+Change Details of Cert
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/cert/{id}/
 
-Patch details of Cert
+Patch Details of Cert
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text

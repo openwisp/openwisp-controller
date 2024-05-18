@@ -9,7 +9,7 @@ templates, this feature is also known as *configuration context*, think of it li
 dictionary which is passed to the function which renders the configuration, so that it
 can fill variables according to the passed context.
 
-Different types of variables
+Different Types of Variables
 ----------------------------
 
 The different ways in which variables are defined are described below in the order (high
@@ -21,7 +21,7 @@ to low) of their precedence.
 
 .. _user_defined_variables:
 
-1. User defined device variables
+1. User Defined Device Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the device configuration section you can find a section named "Configuration
@@ -32,8 +32,8 @@ as shown in the example below:
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-context.png
     :alt: context
 
-2 Predefined device variables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2. Predefined Device Variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each device gets the following attributes passed as configuration variables:
 
@@ -42,14 +42,14 @@ Each device gets the following attributes passed as configuration variables:
 - ``name``
 - ``mac_address``
 
-3. Group variables
+3. Group Variables
 ~~~~~~~~~~~~~~~~~~
 
 Variables can also be defined in :doc:`./device-groups`.
 
 Refer to :ref:`device_group_variables` for more information.
 
-4. Organization variables
+4. Organization Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Variables can also be defined at the organization level.
@@ -62,13 +62,13 @@ You can set the *organization variables* from the organization change page
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/organization-variables.png
     :alt: organization variables
 
-5. Global variables
+5. Global Variables
 ~~~~~~~~~~~~~~~~~~~
 
 Variables can also be defined globally using the :ref:`context_setting` setting, see
 also :doc:`How to Edit Django Settings <../../../../user/django-settings>`.
 
-6. Template default values
+6. Template Default Values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It's possible to specify the default values of variables defined in a template.
@@ -92,7 +92,7 @@ variables" in the edit template page:
 
 .. _system_defined_variables:
 
-7. System defined variables
+7. System Defined Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Predefined device variables, global variables and other variables that are automatically
@@ -103,7 +103,7 @@ admin UI as *System Defined Variables* in read-only mode.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/system-defined-variables.png
     :alt: system defined variables
 
-Example usage of variables
+Example Usage of Variables
 --------------------------
 
 Here's a typical use case, the WiFi SSID and WiFi password. You don't want to define
@@ -153,7 +153,7 @@ The default values can then be overridden at :ref:`device level
         "wlan0_password": "room_23pwd!321654"
     }
 
-Implementation details of variables
+Implementation Details of Variables
 -----------------------------------
 
 Variables are implemented under the hood by the OpenWISP configuration engine:

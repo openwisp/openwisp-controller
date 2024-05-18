@@ -1,23 +1,23 @@
-Extending openwisp-controller
+Extending OpenWISP Controller
 =============================
 
 .. include:: ../partials/developer-docs.rst
 
 One of the core values of the OpenWISP project is `Software Reusability
 <http://openwisp.io/docs/general/values.html#software-reusability-means-long-term-sustainability>`_,
-for this reason *openwisp-controller* provides a set of base classes which can be
+for this reason *OpenWISP Controller* provides a set of base classes which can be
 imported, extended and reused to create derivative apps.
 
-In order to implement your custom version of *openwisp-controller*, you need to perform
+In order to implement your custom version of *OpenWISP Controller*, you need to perform
 the steps described in this section.
 
 When in doubt, the code in the `test project
 <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/>`_ will
 serve you as source of truth: just replicate and adapt that code to get a basic
-derivative of *openwisp-controller* working.
+derivative of *OpenWISP Controller* working.
 
-If you want to add new users fields, please follow the `tutorial to extend the
-openwisp-users <https://github.com/openwisp/openwisp-users/#extend-openwisp-users>`_. As
+If you want to add new users fields, please follow the :doc:`tutorial to extend the
+openwisp-users module </modules/openwisp-users/docs/developer/extending>`. As
 an example, we have extended *openwisp-users* to *sample_users* app and added a field
 ``social_security_number`` in the `sample_users/models.py
 <https://github.com/openwisp/openwisp-controller/blob/master/tests/openwisp2/sample_users/models.py>`_.
@@ -26,7 +26,7 @@ an example, we have extended *openwisp-users* to *sample_users* app and added a 
 start with it since the beginning, because migrating your data from the default module
 to your extended version may be time consuming.
 
-1. Initialize your project & custom apps
+1. Initialize Your Project & Custom Apps
 ----------------------------------------
 
 Firstly, to get started you need to create a django project:
@@ -36,7 +36,7 @@ Firstly, to get started you need to create a django project:
     django-admin startproject mycontroller
 
 Now, you need to do is to create some new django apps which will contain your custom
-version of *openwisp-controller*.
+version of *OpenWISP Controller*.
 
 A django project is a collection of django apps. There are 4 django apps in the
 openwisp_controller project, namely config, pki, connection & geo. You'll need to create
@@ -63,7 +63,7 @@ import the result into your project.
 
 For more information about how to work with django projects and django apps, please
 refer to the `django documentation
-<https://docs.djangoproject.com/en/dev/intro/tutorial01/>`_.
+<https://docs.djangoproject.com/en/4.2/intro/tutorial01/>`_.
 
 2. Install ``openwisp-controller``
 ----------------------------------
@@ -74,8 +74,8 @@ Install (and add to the requirement of your project) openwisp-controller:
 
     pip install openwisp-controller
 
-3. Add your apps in INSTALLED_APPS
-----------------------------------
+3. Add Your Apps to ``INSTALLED_APPS``
+--------------------------------------
 
 Now you need to add ``mycontroller.sample_config``, ``mycontroller.sample_pki``,
 ``mycontroller.sample_connection``, ``mycontroller.sample_geo`` &
@@ -187,7 +187,7 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your
         }
     ]
 
-5. Initial Database setup
+5. Initial Database Setup
 -------------------------
 
 Ensure you are using one of the available geodjango backends, eg:
@@ -202,7 +202,7 @@ Ensure you are using one of the available geodjango backends, eg:
     }
 
 For more information about GeoDjango, please refer to the `geodjango documentation
-<https://docs.djangoproject.com/en/dev/ref/contrib/gis/>`_.
+<https://docs.djangoproject.com/en/4.2/ref/contrib/gis/>`_.
 
 6. Django Channels Setup
 ------------------------
@@ -245,7 +245,7 @@ Add the following settings to ``settings.py``:
     }
 
 For more information about FORM_RENDERER setting, please refer to the `FORM_RENDERER
-documentation <https://docs.djangoproject.com/en/dev/ref/settings/#form-renderer>`_. For
+documentation <https://docs.djangoproject.com/en/4.2/ref/settings/#form-renderer>`_. For
 more information about ASGI_APPLICATION setting, please refer to the `ASGI_APPLICATION
 documentation
 <https://channels.readthedocs.io/en/latest/deploying.html#configuring-the-asgi-application>`_.
@@ -253,44 +253,44 @@ For more information about CHANNEL_LAYERS setting, please refer to the `CHANNEL_
 documentation
 <https://channels.readthedocs.io/en/latest/deploying.html#setting-up-a-channel-backend>`_.
 
-6. Inherit the AppConfig class
+6. Inherit the AppConfig Class
 ------------------------------
 
 Please refer to the following files in the sample app of the test project:
 
-- sample_config:
+- ``sample_config``:
       - `sample_config/__init__.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/__init__.py>`_.
       - `sample_config/apps.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/apps.py>`_.
-- sample_geo:
+- ``sample_geo``:
       - `sample_geo/__init__.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/__init__.py>`_.
       - `sample_geo/apps.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/apps.py>`_.
-- sample_pki:
+- ``sample_pki``:
       - `sample_pki/__init__.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/__init__.py>`_.
       - `sample_pki/apps.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_pki/apps.py>`_.
-- sample_connection:
+- ``sample_connection``:
       - `sample_connection/__init__.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/__init__.py>`_.
       - `sample_connection/apps.py
         <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/apps.py>`_.
-- sample_subnet_division:
+- ``sample_subnet_division``:
       - `sample_subnet_division/__init__.py
-        <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/__init__.py>`_.
+        <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/__init__.py>`_.
       - `sample_subnet_division/apps.py
-        <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/apps.py>`_.
+        <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/apps.py>`_.
 
 You have to replicate and adapt that code in your project.
 
 For more information regarding the concept of ``AppConfig`` please refer to the
 `"Applications" section in the django documentation
-<https://docs.djangoproject.com/en/dev/ref/applications/>`_.
+<https://docs.djangoproject.com/en/4.2/ref/applications/>`_.
 
-7. Create your custom models
+7. Create Your Custom Models
 ----------------------------
 
 For the purpose of showing an example, we added a simple "details" field to the models
@@ -305,15 +305,15 @@ of the sample app in the test project.
 - `sample_connection models
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/models.py>`_
 - `sample_subnet_division
-  <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/models.py>`_
+  <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/models.py>`_
 
 You can add fields in a similar way in your ``models.py`` file.
 
-**Note**: for doubts regarding how to use, extend or develop models please refer to the
+.. Note:: for doubts regarding how to use, extend or develop models please refer to the
 `"Models" section in the django documentation
-<https://docs.djangoproject.com/en/dev/topics/db/models/>`_.
+<https://docs.djangoproject.com/en/4.2/topics/db/models/>`_.
 
-8. Add swapper configurations
+8. Add Swapper Configurations
 -----------------------------
 
 Once you have created the models, add the following to your ``settings.py``:
@@ -345,7 +345,7 @@ Once you have created the models, add the following to your ``settings.py``:
 Substitute ``sample_config``, ``sample_pki``, ``sample_connection``, ``sample_geo`` &
 ``sample_subnet_division`` with the name you chose in step 1.
 
-9. Create database migrations
+9. Create Database Migrations
 -----------------------------
 
 Create database migrations:
@@ -367,7 +367,7 @@ would look like:
 - `sample_connection/migrations/0002_default_group_permissions.py
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/migrations/0002_default_group_permissions.py>`_
 - `sample_subnet_division/migrations/0002_default_group_permissions.py
-  <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/migrations/0002_default_group_permissions.py>`_
+  <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/migrations/0002_default_group_permissions.py>`_
 
 Create database migrations:
 
@@ -376,9 +376,9 @@ Create database migrations:
     ./manage.py migrate
 
 For more information, refer to the `"Migrations" section in the django documentation
-<https://docs.djangoproject.com/en/dev/topics/migrations/>`_.
+<https://docs.djangoproject.com/en/4.2/topics/migrations/>`_.
 
-10. Create the admin
+10. Create the Admin
 --------------------
 
 Refer to the ``admin.py`` file of the sample app.
@@ -392,24 +392,24 @@ Refer to the ``admin.py`` file of the sample app.
 - `sample_connection admin.py
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/admin.py>`_.
 - `sample_subnet_division admin.py
-  <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/admin.py>`_.
+  <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/admin.py>`_.
 
 To introduce changes to the admin, you can do it in two main ways which are described
 below.
 
 **Note**: for more information regarding how the django admin works, or how it can be
 customized, please refer to `"The django admin site" section in the django documentation
-<https://docs.djangoproject.com/en/dev/ref/contrib/admin/>`_.
+<https://docs.djangoproject.com/en/4.2/ref/contrib/admin/>`_.
 
-1. Monkey patching
+1. Monkey Patching
 ~~~~~~~~~~~~~~~~~~
 
 If the changes you need to add are relatively small, you can resort to monkey patching.
 
 For example:
 
-sample_config
-+++++++++++++
+``sample_config``
++++++++++++++++++
 
 .. code-block:: python
 
@@ -420,43 +420,43 @@ sample_config
         VpnAdmin,
     )
 
-    # DeviceAdmin.fields += ['example'] <-- monkey patching example
+    DeviceAdmin.fields += ['example'] # <-- monkey patching example
 
-sample_connection
-+++++++++++++++++
+``sample_connection``
++++++++++++++++++++++
 
 .. code-block:: python
 
     from openwisp_controller.connection.admin import CredentialsAdmin
 
-    # CredentialsAdmin.fields += ['example'] <-- monkey patching example
+    CredentialsAdmin.fields += ['example'] # <-- monkey patching example
 
-sample_geo
-++++++++++
+``sample_geo``
+++++++++++++++
 
 .. code-block:: python
 
     from openwisp_controller.geo.admin import FloorPlanAdmin, LocationAdmin
 
-    # FloorPlanAdmin.fields += ['example'] <-- monkey patching example
+    FloorPlanAdmin.fields += ['example'] # <-- monkey patching example
 
-sample_pki
-++++++++++
+``sample_pki``
+++++++++++++++
 
 .. code-block:: python
 
     from openwisp_controller.pki.admin import CaAdmin, CertAdmin
 
-    # CaAdmin.fields += ['example'] <-- monkey patching example
+    CaAdmin.fields += ['example'] # <-- monkey patching example
 
-sample_subnet_division
-++++++++++++++++++++++
+``sample_subnet_division``
+++++++++++++++++++++++++++
 
 .. code-block:: python
 
     from openwisp_controller.subnet_division.admin import SubnetDivisionRuleInlineAdmin
 
-    # SubnetDivisionRuleInlineAdmin.fields += ['example'] <-- monkey patching example
+    SubnetDivisionRuleInlineAdmin.fields += ['example'] # <-- monkey patching example
 
 2. Inheriting admin classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -464,8 +464,8 @@ sample_subnet_division
 If you need to introduce significant changes and/or you don't want to resort to monkey
 patching, you can proceed as follows:
 
-sample_config
-+++++++++++++
+``sample_config``
++++++++++++++++++
 
 .. code-block:: python
 
@@ -512,8 +512,8 @@ sample_config
         # add your changes here
         pass
 
-sample_connection
-+++++++++++++++++
+``sample_connection``
++++++++++++++++++++++
 
 .. code-block:: python
 
@@ -533,8 +533,8 @@ sample_connection
         pass
         # add your changes here
 
-sample_geo
-++++++++++
+``sample_geo``
+++++++++++++++
 
 .. code-block:: python
 
@@ -563,8 +563,8 @@ sample_geo
         pass
         # add your changes here
 
-sample_pki
-++++++++++
+``sample_pki``
+++++++++++++++
 
 .. code-block:: python
 
@@ -593,8 +593,8 @@ sample_pki
         pass
         # add your changes here
 
-sample_subnet_division
-++++++++++++++++++++++
+``sample_subnet_division``
+++++++++++++++++++++++++++
 
 .. code-block:: python
 
@@ -632,7 +632,7 @@ sample_subnet_division
         pass
         # add your changes here
 
-11. Create root URL configuration
+11. Create Root URL Configuration
 ---------------------------------
 
 .. code-block:: python
@@ -659,14 +659,14 @@ sample_subnet_division
 
 For more information about URL configuration in django, please refer to the `"URL
 dispatcher" section in the django documentation
-<https://docs.djangoproject.com/en/dev/topics/http/urls/>`_.
+<https://docs.djangoproject.com/en/4.2/topics/http/urls/>`_.
 
-12. Import the automated tests
+12. Import the Automated Tests
 ------------------------------
 
 When developing a custom application based on this module, it's a good idea to import
 and run the base tests too, so that you can be sure the changes you're introducing are
-not breaking some of the existing features of *openwisp-controller*.
+not breaking some of the existing features of *OpenWISP Controller*.
 
 In case you need to add breaking changes, you can overwrite the tests defined in the
 base classes to test your own behavior.
@@ -686,7 +686,7 @@ See the tests in sample_app to find out how to do this.
 - `sample_connection tests.py
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_connection/tests.py>`_
 - `sample_subnet_division tests.py
-  <https://github.com/openwisp/openwisp-controller/tree/issues/400-subnet-subdivision-rule/tests/openwisp2/sample_subnet_division/tests.py>`_
+  <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/tests.py>`_
 
 For running the tests, you need to copy fixtures as well:
 
@@ -704,9 +704,9 @@ You can then run tests with:
 Substitute ``mycontroller`` with the name you chose in step 1.
 
 For more information about automated tests in django, please refer to `"Testing in
-Django" <https://docs.djangoproject.com/en/dev/topics/testing/>`_.
+Django" <https://docs.djangoproject.com/en/4.2/topics/testing/>`_.
 
-Other base classes that can be inherited and extended
+Other Base Classes that Can Be Inherited and Extended
 -----------------------------------------------------
 
 The following steps are not required and are intended for more advanced customization.
@@ -720,7 +720,7 @@ is required only when you want to make changes in the controller API, Remember t
 ``config_views`` location in ``urls.py`` in point 11 for extending views.
 
 For more information about django views, please refer to the `views section in the
-django documentation <https://docs.djangoproject.com/en/dev/topics/http/views/>`_.
+django documentation <https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
 
 2. Extending the Geo API Views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -731,7 +731,7 @@ is required only when you want to make changes in the geo API, Remember to chang
 ``geo_views`` location in ``urls.py`` in point 11 for extending views.
 
 For more information about django views, please refer to the `views section in the
-django documentation <https://docs.djangoproject.com/en/dev/topics/http/views/>`_.
+django documentation <https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
 
 .. _custom_subnet_division_rule_types:
 

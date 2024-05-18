@@ -15,7 +15,7 @@ updating the template.
     :backlinks: none
     :depth: 3
 
-Template ordering and override
+Template Ordering and Override
 ------------------------------
 
 A device can use multiple templates, **the order in which templates are assigned to each
@@ -38,7 +38,7 @@ should be used as a last resort**. The recommended way to define parts of the
 configuration that are specific for each device is to use :doc:`Configuration variables
 <./variables>`.
 
-Shared templates vs organization specific
+Shared Templates vs Organization Specific
 -----------------------------------------
 
 Templates can be *organization specific* or *shared* (no organization specified).
@@ -119,7 +119,7 @@ for each device group.
 
 .. _templates_tags:
 
-Template tags
+Template Tags
 -------------
 
 .. image:: /images/templates/template-tags.gif
@@ -184,7 +184,7 @@ tagged as ``dumb-ap`` (as in the screenshot below) will be assigned to them.
     :align: center
     :alt: Template tags: dumb AP example
 
-Implementation details of templates
+Implementation Details of Templates
 -----------------------------------
 
 Templates are implemented under the hood by the OpenWISP configuration engine:

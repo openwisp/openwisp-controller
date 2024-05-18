@@ -16,7 +16,7 @@ changed, OpenWISP will trigger the update in the background) and/or :doc:`firmwa
 upgrades (via the additional module openwisp-firmware-upgrader)
 <../../../openwisp-firmware-upgrader/docs/index>`.
 
-1. Generate SSH key
+1. Generate SSH Key
 -------------------
 
 First of all, we need to generate the SSH key which will be used by OpenWISP to access
@@ -39,8 +39,8 @@ keys:
 
     echo './sshkey' | ssh-keygen -t rsa -b 4096 -C "openwisp"
 
-2. Save SSH private key in OpenWISP (access credentials)
---------------------------------------------------------
+2. Save SSH Private Key in "Access Credentials"
+-----------------------------------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-ssh-credentials-private-key.png
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-ssh-credentials-private-key.png
@@ -59,7 +59,7 @@ Now hit save.
 The credentials just created will be automatically enabled for all the devices in the
 system (both existing devices and devices which will be added in the future).
 
-3. Add the public key to your devices
+3. Add the Public Key to Your Devices
 -------------------------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-authorized-ssh-keys-template.png
@@ -83,7 +83,7 @@ Now hit save.
 
 **There's a catch**: you will need to assign the template to any existing device.
 
-4. Test it
+4. Test It
 ----------
 
 Once you have performed the 3 steps above, you can test it as follows:

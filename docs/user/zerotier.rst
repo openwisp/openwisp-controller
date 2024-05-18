@@ -13,7 +13,7 @@ If you haven't already set up a self-hosted ZeroTier network controller on your 
 now is a good time to do so. You can start by simply installing ZeroTier on your server
 from the `official website <https://www.zerotier.com/download/>`_.
 
-2. Create VPN server configuration for ZeroTier
+2. Create VPN Server Configuration for ZeroTier
 -----------------------------------------------
 
 1. Visit ``/admin/config/vpn/add/`` to add a new VPN server.
@@ -58,7 +58,7 @@ from the `official website <https://www.zerotier.com/download/>`_.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/vpn-server-5.png
     :alt: ZeroTier VPN server configuration example 5
 
-3. Create VPN client template for ZeroTier VPN Server
+3. Create VPN Client Template for ZeroTier VPN Server
 -----------------------------------------------------
 
 1. Visit ``/admin/config/template/add/`` to add a new template.
@@ -87,7 +87,7 @@ from the `official website <https://www.zerotier.com/download/>`_.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/template.png
     :alt: ZeroTier VPN client template example
 
-4. Apply ZeroTier VPN template to devices
+4. Apply ZeroTier VPN Template to Devices
 -----------------------------------------
 
 .. note::

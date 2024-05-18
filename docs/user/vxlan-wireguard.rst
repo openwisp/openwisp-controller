@@ -6,7 +6,7 @@ in `WireGuard <https://www.wireguard.com/>`_ tunnels which work on layer 3.
 
 .. include:: ../partials/shared-object.rst
 
-1. Create VPN server configuration for VXLAN over WireGuard
+1. Create VPN Server Configuration for VXLAN Over WireGuard
 -----------------------------------------------------------
 
 1. Visit ``/admin/config/vpn/add/`` to add a new VPN server.
@@ -60,7 +60,7 @@ along with VXLAN tunnels.
 Pay attention to the VPN server attributes used in your playbook. It should be the same
 as the VPN server configuration in OpenWISP.
 
-3. Create VPN client template for WireGuard VXLAN VPN Server
+3. Create VPN Client Template for WireGuard VXLAN VPN Server
 ------------------------------------------------------------
 
 1. Visit ``/admin/config/template/add/`` to add a new template.
@@ -82,7 +82,7 @@ as the VPN server configuration in OpenWISP.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/template.png
     :alt: WireGuard VXLAN VPN client template example
 
-4. Apply Wireguard VXLAN VPN template to devices
+4. Apply Wireguard VXLAN VPN Template to Devices
 ------------------------------------------------
 
 .. note::

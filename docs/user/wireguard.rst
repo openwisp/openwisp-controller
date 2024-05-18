@@ -6,7 +6,7 @@ This guide will help you to set up the automatic provisioning of `WireGuard
 
 .. include:: ../partials/shared-object.rst
 
-1. Create VPN server configuration for WireGuard
+1. Create VPN Server Configuration for WireGuard
 ------------------------------------------------
 
 1. Visit ``/admin/config/vpn/add/`` to add a new VPN server.
@@ -62,7 +62,7 @@ server.
 Ensure that the VPN server attributes used in your playbook match the VPN server
 configuration in OpenWISP.
 
-3. Create VPN client template for WireGuard VPN Server
+3. Create VPN Client Template for WireGuard VPN Server
 ------------------------------------------------------
 
 1. Visit ``/admin/config/template/add/`` to add a new template.
@@ -84,7 +84,7 @@ configuration in OpenWISP.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/template.png
     :alt: WireGuard VPN client template example
 
-4. Apply WireGuard VPN template to devices
+4. Apply WireGuard VPN Template to Devices
 ------------------------------------------
 
 .. note::
