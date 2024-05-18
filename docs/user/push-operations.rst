@@ -46,9 +46,10 @@ keys:
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-ssh-credentials-private-key.png
     :alt: add SSH private key as access credential in OpenWISP
 
-From the first page of OpenWISP click on "Access credentials", then click on the **"ADD
-ACCESS CREDENTIALS"** button in the upper right corner (alternatively, go to the
-following URL: ``/admin/connection/credentials/add/``).
+From the first page of OpenWISP click on "CONFIGURATIONS" in the left navigation menu,
+then "Access credentials", then click on the **"ADD ACCESS CREDENTIALS"** button in the
+upper right corner (alternatively, go to the following URL path:
+``/admin/connection/credentials/add/``).
 
 Select SSH as ``type``, enable the **Auto add** checkbox, then at the field "Credentials
 type" select "SSH (private key)", now type "root" in the ``username`` field, while in
@@ -70,9 +71,9 @@ Now we need to instruct your devices to allow OpenWISP accessing via SSH, in ord
 this we need to add the contents of the public key file created in step 1
 (``sshkey.pub``) in the file ``/etc/dropbear/authorized_keys`` on the devices, the
 recommended way to do this is to create a configuration template in OpenWISP: from the
-first page of OpenWISP, click on "Templates", then and click on the **"ADD TEMPLATE"**
-button in the upper right corner (alternatively, go to the following URL:
-``/admin/config/template/add/``).
+first page of OpenWISP, click on "CONFIGURATIONS" in the left navigation menu, then and
+click on the **"ADD TEMPLATE"** button in the upper right corner (alternatively, go to
+the following URL: ``/admin/config/template/add/``).
 
 Check **enabled by default**, then scroll down the configuration section, click on
 "Configuration Menu", scroll down, click on "Files" then close the menu by clicking
