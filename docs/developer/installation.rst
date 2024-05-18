@@ -6,8 +6,8 @@ Developer Installation Instructions
 Dependencies
 ------------
 
-* Python >= 3.8
-* OpenSSL
+- Python >= 3.8
+- OpenSSL
 
 Installing for development
 --------------------------
@@ -39,16 +39,15 @@ Launch Redis and PostgreSQL:
 
     docker-compose up -d redis postgres
 
-Setup and activate a virtual-environment
-(we'll be using  `virtualenv <https://pypi.org/project/virtualenv/>`_):
+Setup and activate a virtual-environment (we'll be using `virtualenv
+<https://pypi.org/project/virtualenv/>`_):
 
 .. code-block:: shell
 
     python -m virtualenv env
     source env/bin/activate
 
-Make sure that your base python packages are up to date
-before moving to the next step:
+Make sure that your base python packages are up to date before moving to the next step:
 
 .. code-block:: shell
 
@@ -62,8 +61,9 @@ Install development dependencies:
     pip install -r requirements-test.txt
     npm install -g jshint stylelint
 
-Install WebDriver for Chromium for your browser version from `<https://chromedriver.chromium.org/home>`_
-and Extract ``chromedriver`` to one of directories from your ``$PATH`` (example: ``~/.local/bin/``).
+Install WebDriver for Chromium for your browser version from
+https://chromedriver.chromium.org/home and Extract ``chromedriver`` to one of
+directories from your ``$PATH`` (example: ``~/.local/bin/``).
 
 Create database:
 
@@ -133,10 +133,10 @@ Install and run on Docker
 
 .. warning::
 
-  This Docker image is for development purposes only.
+    This Docker image is for development purposes only.
 
-  For the official OpenWISP Docker images, see: `docker-openwisp
-  <https://github.com/openwisp/docker-openwisp>`_.
+    For the official OpenWISP Docker images, see: `docker-openwisp
+    <https://github.com/openwisp/docker-openwisp>`_.
 
 Build from the Dockerfile:
 
@@ -158,25 +158,24 @@ You may encounter some issues while installing GeoDjango.
 Unable to load SpatiaLite library extension?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you are incurring in the following exception::
+If you are incurring in the following exception:
 
-   django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
+.. code-block::
 
-You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py``
-as explained in
+    django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
+
+You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in
 `django documentation regarding how to install and configure spatialte
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with other geospatial libraries?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Please refer
-`troubleshooting issues related to geospatial libraries
+Please refer `troubleshooting issues related to geospatial libraries
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
 
 .. important::
 
-    If you want to add OpenWISP Controller to an
-    existing Django project, then you can refer to the
-    `test project in the openwisp-controller repository
+    If you want to add OpenWISP Controller to an existing Django project, then you can
+    refer to the `test project in the openwisp-controller repository
     <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2>`_.

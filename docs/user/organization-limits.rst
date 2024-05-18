@@ -1,5 +1,5 @@
 Organization Limits
--------------------
+===================
 
 You can restrict the number of devices managed by each organization.
 
@@ -13,5 +13,5 @@ To set these limits:
 Refer to the screenshot below for guidance:
 
 .. figure:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
-   :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
-   :alt: Organization limits
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.1/organization-limits.png
+    :alt: Organization limits

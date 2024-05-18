@@ -8,7 +8,8 @@ Live documentation
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/live-docu-api.png
 
-A general live API documentation (following the OpenAPI specification) at ``/api/v1/docs/``.
+A general live API documentation (following the OpenAPI specification) at
+``/api/v1/docs/``.
 
 .. _controller_browsable_web_interface:
 
@@ -17,27 +18,26 @@ Browsable web interface
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/browsable-api-ui.png
 
-Additionally, opening any of the endpoints
-:ref:`listed below <controller_rest_endpoints>`
-directly in the browser will show the
-`browsable API interface of Django-REST-Framework
-<https://www.django-rest-framework.org/topics/browsable-api/>`_,
-which makes it even easier to find out the details of each endpoint.
+Additionally, opening any of the endpoints :ref:`listed below
+<controller_rest_endpoints>` directly in the browser will show the `browsable API
+interface of Django-REST-Framework
+<https://www.django-rest-framework.org/topics/browsable-api/>`_, which makes it even
+easier to find out the details of each endpoint.
 
 Authentication
 --------------
 
 See :ref:`authenticating_rest_api`.
 
-When browsing the API via the :ref:`controller_live_documentation`
-or the :ref:`controller_browsable_web_interface`, you can also use
-the session authentication by logging in the django admin.
+When browsing the API via the :ref:`controller_live_documentation` or the
+:ref:`controller_browsable_web_interface`, you can also use the session authentication
+by logging in the django admin.
 
 Pagination
 ----------
 
-All *list* endpoints support the ``page_size`` parameter that allows paginating
-the results in conjunction with the ``page`` parameter.
+All *list* endpoints support the ``page_size`` parameter that allows paginating the
+results in conjunction with the ``page`` parameter.
 
 .. code-block:: text
 
@@ -49,14 +49,10 @@ the results in conjunction with the ``page`` parameter.
 List of endpoints
 -----------------
 
-Since the detailed explanation is contained in the
-:ref:`controller_live_documentation`
-and in the
-:ref:`controller_browsable_web_interface`
-of each point,
-here we'll provide just a list of the available endpoints,
-for further information please open the URL of the endpoint
-in your browser.
+Since the detailed explanation is contained in the :ref:`controller_live_documentation`
+and in the :ref:`controller_browsable_web_interface` of each point, here we'll provide
+just a list of the available endpoints, for further information please open the URL of
+the endpoint in your browser.
 
 List devices
 ~~~~~~~~~~~~
@@ -67,65 +63,64 @@ List devices
 
 **Available filters**
 
-You can filter a list of devices based on their configuration
-status using the ``status`` (e.g modified, applied, or error).
+You can filter a list of devices based on their configuration status using the
+``status`` (e.g modified, applied, or error).
 
 .. code-block:: text
 
-   GET /api/v1/controller/device/?config__status={status}
+    GET /api/v1/controller/device/?config__status={status}
 
-You can filter a list of devices based on their configuration backend
-using the ``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
-
-.. code-block:: text
-
-   GET /api/v1/controller/device/?config__backend={backend}
-
-You can filter a list of devices based on their
-organization using the ``organization_id`` or ``organization_slug``.
+You can filter a list of devices based on their configuration backend using the
+``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
 
 .. code-block:: text
 
-   GET /api/v1/controller/device/?organization={organization_id}
+    GET /api/v1/controller/device/?config__backend={backend}
+
+You can filter a list of devices based on their organization using the
+``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
-   GET /api/v1/controller/device/?organization_slug={organization_slug}
-
-You can filter a list of devices based on their
-configuration templates using the ``template_id``.
+    GET /api/v1/controller/device/?organization={organization_id}
 
 .. code-block:: text
 
-   GET /api/v1/controller/device/?config__templates={template_id}
+    GET /api/v1/controller/device/?organization_slug={organization_slug}
 
-You can filter a list of devices based on
-their device group using the ``group_id``.
-
-.. code-block:: text
-
-   GET /api/v1/controller/device/?group={group_id}
-
-You can filter a list of devices that have a device
-location object using the ``with_geo`` (eg. true or false).
+You can filter a list of devices based on their configuration templates using the
+``template_id``.
 
 .. code-block:: text
 
-   GET /api/v1/controller/device/?with_geo={with_geo}
+    GET /api/v1/controller/device/?config__templates={template_id}
 
-You can filter a list of devices based on
-their creation time using the ``creation_time``.
+You can filter a list of devices based on their device group using the ``group_id``.
 
 .. code-block:: text
 
-   # Created exact
-   GET /api/v1/controller/device/?created={creation_time}
+    GET /api/v1/controller/device/?group={group_id}
 
-   # Created greater than or equal to
-   GET /api/v1/controller/device/?created__gte={creation_time}
+You can filter a list of devices that have a device location object using the
+``with_geo`` (eg. true or false).
 
-   # Created is less than
-   GET /api/v1/controller/device/?created__lt={creation_time}
+.. code-block:: text
+
+    GET /api/v1/controller/device/?with_geo={with_geo}
+
+You can filter a list of devices based on their creation time using the
+``creation_time``.
+
+.. code-block:: text
+
+    # Created exact
+    GET /api/v1/controller/device/?created={creation_time}
+
+    # Created greater than or equal to
+    GET /api/v1/controller/device/?created__gte={creation_time}
+
+    # Created is less than
+    GET /api/v1/controller/device/?created__lt={creation_time}
 
 Create device
 ~~~~~~~~~~~~~
@@ -148,7 +143,8 @@ Download device configuration
 
     GET /api/v1/controller/device/{id}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file containing the generated configuration for that specific device.
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated
+configuration for that specific device.
 
 Change details of device
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -165,13 +161,15 @@ Patch details of device
     PATCH /api/v1/controller/device/{id}/
 
 **Note**: To assign, unassign, and change the order of the assigned templates add,
-remove, and change the order of the ``{id}`` of the templates under the ``config`` field in the JSON response respectively.
-Moreover, you can also select and unselect templates in the HTML Form of the Browsable API.
+remove, and change the order of the ``{id}`` of the templates under the ``config`` field
+in the JSON response respectively. Moreover, you can also select and unselect templates
+in the HTML Form of the Browsable API.
 
 The required template(s) from the organization(s) of the device will added automatically
 to the ``config`` and cannot be removed.
 
-**Example usage**: For assigning template(s) add the/their {id} to the config of a device,
+**Example usage**: For assigning template(s) add the/their {id} to the config of a
+device,
 
 .. code-block:: shell
 
@@ -185,7 +183,8 @@ to the ``config`` and cannot be removed.
                 }
             }'
 
-**Example usage**: For removing assigned templates, simply remove the/their {id} from the config of a device,
+**Example usage**: For removing assigned templates, simply remove the/their {id} from
+the config of a device,
 
 .. code-block:: shell
 
@@ -199,7 +198,8 @@ to the ``config`` and cannot be removed.
                 }
             }'
 
-**Example usage**: For reordering the templates simply change their order from the config of a device,
+**Example usage**: For reordering the templates simply change their order from the
+config of a device,
 
 .. code-block:: shell
 
@@ -339,24 +339,23 @@ List device groups
 
 **Available filters**
 
-You can filter a list of device groups based on their
-organization using the ``organization_id`` or ``organization_slug``.
+You can filter a list of device groups based on their organization using the
+``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
-   GET /api/v1/controller/group/?organization={organization_id}
+    GET /api/v1/controller/group/?organization={organization_id}
 
 .. code-block:: text
 
-   GET /api/v1/controller/group/?organization_slug={organization_slug}
+    GET /api/v1/controller/group/?organization_slug={organization_slug}
 
-You can filter a list of device groups that have a
-device object using the ``empty`` (eg. true or false).
+You can filter a list of device groups that have a device object using the ``empty``
+(eg. true or false).
 
 .. code-block:: text
 
-   GET /api/v1/controller/group/?empty={empty}
-
+    GET /api/v1/controller/group/?empty={empty}
 
 Create device group
 ~~~~~~~~~~~~~~~~~~~
@@ -381,8 +380,7 @@ Change device group detail
 
     PUT /api/v1/controller/group/{id}/
 
-This endpoint allows to change the
-:ref:`device_group_templates` too.
+This endpoint allows to change the :ref:`device_group_templates` too.
 
 Get device group from certificate common name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -391,12 +389,12 @@ Get device group from certificate common name
 
     GET /api/v1/controller/cert/{common_name}/group/
 
-This endpoint can be used to retrieve group information and metadata by the
-common name of a certificate used in a VPN client tunnel, this endpoint is
-used in layer 2 tunneling solutions for firewall/captive portals.
+This endpoint can be used to retrieve group information and metadata by the common name
+of a certificate used in a VPN client tunnel, this endpoint is used in layer 2 tunneling
+solutions for firewall/captive portals.
 
-It is also possible to filter device group by providing organization slug
-of certificate's organization as show in the example below:
+It is also possible to filter device group by providing organization slug of
+certificate's organization as show in the example below:
 
 .. code-block:: text
 
@@ -406,7 +404,6 @@ Get device location
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
-
 
     GET /api/v1/controller/device/{id}/location/
 
@@ -419,9 +416,8 @@ Create device location
 
     PUT /api/v1/controller/device/{id}/location/
 
-You can create ``DeviceLocation`` object by using primary
-keys of existing ``Location`` and ``FloorPlan`` objects as shown in
-the example below.
+You can create ``DeviceLocation`` object by using primary keys of existing ``Location``
+and ``FloorPlan`` objects as shown in the example below.
 
 .. code-block:: json
 
@@ -431,10 +427,9 @@ the example below.
         "indoor": "-36,264"
     }
 
-**Note:** The ``indoor`` field represents the coordinates of the
-point placed on the image from the top left corner. E.g. if you
-placed the pointer on the top left corner of the floorplan image,
-its indoor coordinates will be ``0,0``.
+**Note:** The ``indoor`` field represents the coordinates of the point placed on the
+image from the top left corner. E.g. if you placed the pointer on the top left corner of
+the floorplan image, its indoor coordinates will be ``0,0``.
 
 .. code-block:: text
 
@@ -448,11 +443,10 @@ its indoor coordinates will be ``0,0``.
             "indoor": "-36,264"
             }'
 
-You can also create related ``Location`` and ``FloorPlan`` objects for the
-device directly from this endpoint.
+You can also create related ``Location`` and ``FloorPlan`` objects for the device
+directly from this endpoint.
 
-The following example demonstrates creating related location
-object in a single request.
+The following example demonstrates creating related location object in a single request.
 
 .. code-block:: json
 
@@ -486,8 +480,8 @@ object in a single request.
                 }
             }'
 
-**Note:** You can also specify the ``geometry`` in **Well-known text (WKT)**
-format, like following:
+**Note:** You can also specify the ``geometry`` in **Well-known text (WKT)** format,
+like following:
 
 .. code-block:: json
 
@@ -500,10 +494,10 @@ format, like following:
         }
     }
 
-Similarly, you can create ``Floorplan`` object with the same request.
-But, note that a ``FloorPlan`` can be added to ``DeviceLocation`` only
-if the related ``Location`` object defines an indoor location. The example
-below demonstrates creating both ``Location`` and ``FloorPlan`` objects.
+Similarly, you can create ``Floorplan`` object with the same request. But, note that a
+``FloorPlan`` can be added to ``DeviceLocation`` only if the related ``Location`` object
+defines an indoor location. The example below demonstrates creating both ``Location``
+and ``FloorPlan`` objects.
 
 .. code-block:: text
 
@@ -533,11 +527,11 @@ below demonstrates creating both ``Location`` and ``FloorPlan`` objects.
         -F floorplan.floor=1 \
         -F 'floorplan.image=@floorplan.png'
 
-**Note:** The request in above example uses ``multipart content-type``
-for uploading floorplan image.
+**Note:** The request in above example uses ``multipart content-type`` for uploading
+floorplan image.
 
-You can also use an existing ``Location`` object and create a new
-floorplan for that location using this endpoint.
+You can also use an existing ``Location`` object and create a new floorplan for that
+location using this endpoint.
 
 .. code-block:: text
 
@@ -566,11 +560,9 @@ Change details of device location
 
     PUT /api/v1/controller/device/{id}/location/
 
-**Note:** This endpoint can be used to update related ``Location``
-and ``Floorplan`` objects. Refer to the
-:ref:`examples in the "Create device location"
-section <create_device_location>`
-for information on payload format.
+**Note:** This endpoint can be used to update related ``Location`` and ``Floorplan``
+objects. Refer to the :ref:`examples in the "Create device location" section
+<create_device_location>` for information on payload format.
 
 Delete device location
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -588,9 +580,8 @@ Get device coordinates
 
 **Note:** This endpoint is intended to be used by devices.
 
-This endpoint skips multi-tenancy and permission checks if the
-device ``key`` is passed as ``query_param`` because the system
-assumes that the device is updating it's position.
+This endpoint skips multi-tenancy and permission checks if the device ``key`` is passed
+as ``query_param`` because the system assumes that the device is updating it's position.
 
 .. code-block:: text
 
@@ -606,9 +597,8 @@ Update device coordinates
 
 **Note:** This endpoint is intended to be used by devices.
 
-This endpoint skips multi-tenancy and permission checks if the
-device ``key`` is passed as ``query_param`` because the system
-assumes that the device is updating it's position.
+This endpoint skips multi-tenancy and permission checks if the device ``key`` is passed
+as ``query_param`` because the system assumes that the device is updating it's position.
 
 .. code-block:: json
 
@@ -642,8 +632,8 @@ List locations
 
 **Available filters**
 
-You can filter using ``organization_id`` or ``organization_slug``
-to get list locations that belongs to an organization.
+You can filter using ``organization_id`` or ``organization_slug`` to get list locations
+that belongs to an organization.
 
 .. code-block:: text
 
@@ -660,11 +650,11 @@ Create location
 
     POST /api/v1/controller/location/
 
-If you are creating an ``indoor`` location, you can use this endpoint
-to create floorplan for the location.
+If you are creating an ``indoor`` location, you can use this endpoint to create
+floorplan for the location.
 
-The following example demonstrates creating floorplan along with location
-in a single request.
+The following example demonstrates creating floorplan along with location in a single
+request.
 
 .. code-block:: text
 
@@ -696,8 +686,8 @@ in a single request.
         -F 'floorplan.image=@floorplan.png' \
         -F organization=1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05
 
-**Note:** You can also specify the ``geometry`` in **Well-known text (WKT)**
-format, like following:
+**Note:** You can also specify the ``geometry`` in **Well-known text (WKT)** format,
+like following:
 
 .. code-block:: text
 
@@ -726,14 +716,11 @@ Change location details
 
     PUT /api/v1/controller/location/{pk}/
 
-**Note**: Only the first floorplan data present can be
-edited or changed. Setting the ``type`` of location to
-outdoor will remove all the floorplans associated with it.
+**Note**: Only the first floorplan data present can be edited or changed. Setting the
+``type`` of location to outdoor will remove all the floorplans associated with it.
 
-Refer to the
-:ref:`examples in the "Create device location"
-section <create_device_location>`
-for information on payload format.
+Refer to the :ref:`examples in the "Create device location" section
+<create_device_location>` for information on payload format.
 
 Delete location
 ~~~~~~~~~~~~~~~
@@ -760,8 +747,8 @@ List locations with devices deployed (in GeoJSON format)
 
 **Available filters**
 
-You can filter using ``organization_id`` or ``organization_slug``
-to get list location of devices from that organization.
+You can filter using ``organization_id`` or ``organization_slug`` to get list location
+of devices from that organization.
 
 .. code-block:: text
 
@@ -780,8 +767,8 @@ List floorplans
 
 **Available filters**
 
-You can filter using ``organization_id`` or ``organization_slug``
-to get list floorplans that belongs to an organization.
+You can filter using ``organization_id`` or ``organization_slug`` to get list floorplans
+that belongs to an organization.
 
 .. code-block:: text
 
@@ -828,61 +815,61 @@ List templates
 
 **Available filters**
 
-You can filter a list of templates based on their organization
-using the ``organization_id`` or ``organization_slug``.
+You can filter a list of templates based on their organization using the
+``organization_id`` or ``organization_slug``.
 
 .. code-block:: text
 
-   GET /api/v1/controller/template/?organization={organization_id}
+    GET /api/v1/controller/template/?organization={organization_id}
 
 .. code-block:: text
 
     GET /api/v1/controller/template/?organization_slug={organization_slug}
 
-You can filter a list of templates based on their backend using
-the ``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
+You can filter a list of templates based on their backend using the ``backend`` (e.g
+netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
 
 .. code-block:: text
 
-   GET /api/v1/controller/template/?backend={backend}
+    GET /api/v1/controller/template/?backend={backend}
 
-You can filter a list of templates based on their
-type using the ``type`` (eg. vpn or generic).
-
-.. code-block:: text
-
-   GET /api/v1/controller/template/?type={type}
-
-You can filter a list of templates that are enabled
-by default or not using the ``default`` (eg. true or false).
+You can filter a list of templates based on their type using the ``type`` (eg. vpn or
+generic).
 
 .. code-block:: text
 
-   GET /api/v1/controller/template/?default={default}
+    GET /api/v1/controller/template/?type={type}
 
-You can filter a list of templates that are required
-or not using the ``required`` (eg. true or false).
-
-.. code-block:: text
-
-   GET /api/v1/controller/template/?required={required}
-
-You can filter a list of templates based on
-their creation time using the ``creation_time``.
+You can filter a list of templates that are enabled by default or not using the
+``default`` (eg. true or false).
 
 .. code-block:: text
 
-   # Created exact
+    GET /api/v1/controller/template/?default={default}
 
-   GET /api/v1/controller/template/?created={creation_time}
+You can filter a list of templates that are required or not using the ``required`` (eg.
+true or false).
 
-   # Created greater than or equal to
+.. code-block:: text
 
-   GET /api/v1/controller/template/?created__gte={creation_time}
+    GET /api/v1/controller/template/?required={required}
 
-   # Created is less than
+You can filter a list of templates based on their creation time using the
+``creation_time``.
 
-   GET /api/v1/controller/template/?created__lt={creation_time}
+.. code-block:: text
+
+    # Created exact
+
+    GET /api/v1/controller/template/?created={creation_time}
+
+    # Created greater than or equal to
+
+    GET /api/v1/controller/template/?created__gte={creation_time}
+
+    # Created is less than
+
+    GET /api/v1/controller/template/?created__lt={creation_time}
 
 Create template
 ~~~~~~~~~~~~~~~
@@ -905,8 +892,8 @@ Download template configuration
 
     GET /api/v1/controller/template/{id}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file
-containing the generated configuration for that specific template.
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated
+configuration for that specific template.
 
 Change details of template
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -938,27 +925,25 @@ List VPNs
 
 **Available filters**
 
-You can filter a list of vpns based
-on their backend using the ``backend``
-(e.g openwisp_controller.vpn_backends.OpenVpn
-or openwisp_controller.vpn_backends.Wireguard).
+You can filter a list of vpns based on their backend using the ``backend`` (e.g
+openwisp_controller.vpn_backends.OpenVpn or openwisp_controller.vpn_backends.Wireguard).
 
 .. code-block:: text
 
-   GET /api/v1/controller/vpn/?backend={backend}
+    GET /api/v1/controller/vpn/?backend={backend}
 
 You can filter a list of vpns based on their subnet using the ``subnet_id``.
 
 .. code-block:: text
 
-   GET /api/v1/controller/vpn/?subnet={subnet_id}
+    GET /api/v1/controller/vpn/?subnet={subnet_id}
 
-You can filter a list of vpns based on their organization
-using the ``organization_id`` or ``organization_slug``.
+You can filter a list of vpns based on their organization using the ``organization_id``
+or ``organization_slug``.
 
 .. code-block:: text
 
-   GET /api/v1/controller/vpn/?organization={organization_id}
+    GET /api/v1/controller/vpn/?organization={organization_id}
 
 .. code-block:: text
 
@@ -985,8 +970,8 @@ Download VPN configuration
 
     GET /api/v1/controller/vpn/{id}/configuration/
 
-The above endpoint triggers the download of a ``tar.gz`` file
-containing the generated configuration for that specific VPN.
+The above endpoint triggers the download of a ``tar.gz`` file containing the generated
+configuration for that specific VPN.
 
 Change details of VPN
 ~~~~~~~~~~~~~~~~~~~~~
@@ -1030,9 +1015,8 @@ Import existing CA
 
     POST /api/v1/controller/ca/
 
-**Note**: To import an existing CA, only ``name``, ``certificate``
-and ``private_key`` fields have to be filled in the ``HTML`` form or
-included in the ``JSON`` format.
+**Note**: To import an existing CA, only ``name``, ``certificate`` and ``private_key``
+fields have to be filled in the ``HTML`` form or included in the ``JSON`` format.
 
 Get CA Detail
 ~~~~~~~~~~~~~
@@ -1062,8 +1046,8 @@ Download CA(crl)
 
     GET /api/v1/controller/ca/{id}/crl/
 
-The above endpoint triggers the download of ``{id}.crl`` file containing
-up to date CRL of that specific CA.
+The above endpoint triggers the download of ``{id}.crl`` file containing up to date CRL
+of that specific CA.
 
 Delete CA
 ~~~~~~~~~
@@ -1100,9 +1084,9 @@ Import existing Cert
 
     POST /api/v1/controller/cert/
 
-**Note**: To import an existing Cert, only ``name``, ``ca``,
-``certificate`` and ``private_key`` fields have to be filled
-in the ``HTML`` form or included in the ``JSON`` format.
+**Note**: To import an existing Cert, only ``name``, ``ca``, ``certificate`` and
+``private_key`` fields have to be filled in the ``HTML`` form or included in the
+``JSON`` format.
 
 Get Cert Detail
 ~~~~~~~~~~~~~~~
