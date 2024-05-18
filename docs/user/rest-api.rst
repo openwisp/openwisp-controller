@@ -7,6 +7,7 @@ Live documentation
 ------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/live-docu-api.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/live-docu-api.png
 
 A general live API documentation (following the OpenAPI specification) at
 ``/api/v1/docs/``.
@@ -17,6 +18,7 @@ Browsable web interface
 -----------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/browsable-api-ui.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/browsable-api-ui.png
 
 Additionally, opening any of the endpoints :ref:`listed below
 <controller_rest_endpoints>` directly in the browser will show the `browsable API

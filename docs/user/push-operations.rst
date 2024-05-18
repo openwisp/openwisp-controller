@@ -43,6 +43,7 @@ keys:
 --------------------------------------------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-ssh-credentials-private-key.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-ssh-credentials-private-key.png
     :alt: add SSH private key as access credential in OpenWISP
 
 From the first page of OpenWISP click on "Access credentials", then click on the **"ADD
@@ -62,6 +63,7 @@ system (both existing devices and devices which will be added in the future).
 -------------------------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-authorized-ssh-keys-template.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-authorized-ssh-keys-template.png
     :alt: Add authorized SSH public keys template to OpenWISP (OpenWRT)
 
 Now we need to instruct your devices to allow OpenWISP accessing via SSH, in order to do

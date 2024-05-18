@@ -24,6 +24,7 @@ order can be changed by drag and dropping the template in the device configurati
 as in the animated screenshot below.
 
 .. image:: /images/templates/template-ordering.gif
+    :target: ../../../../_images/template-ordering.gif
     :align: center
     :alt: Template ordering: drag and drop to change order
 
@@ -43,6 +44,7 @@ Shared templates vs organization specific
 Templates can be *organization specific* or *shared* (no organization specified).
 
 .. image:: /images/templates/organization-specific-vs-shared.gif
+    :target: ../../../../_images/organization-specific-vs-shared.gif
     :align: center
     :alt: Shared templates vs organization specific
 
@@ -64,6 +66,7 @@ Default Templates
 -----------------
 
 .. image:: /images/templates/default-templates.gif
+    :target: ../../../../_images/default-templates.gif
     :align: center
     :alt: Templates enabled by default
 
@@ -93,6 +96,7 @@ Required Templates
 ------------------
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/required-templates.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/required-templates.png
     :alt: Required template example
 
 Required templates are similar to :ref:`default_templates` but cannot be unassigned from
@@ -119,6 +123,7 @@ Template tags
 -------------
 
 .. image:: /images/templates/template-tags.gif
+    :target: ../../../../_images/template-tags.gif
     :align: center
     :alt: Template tags
 
@@ -157,6 +162,7 @@ Once devices with the above configuration will register into the system, any tem
 tagged as ``mesh`` (as in the screenshot below) will be assigned to them.
 
 .. image:: /images/templates/mesh-template-tag.png
+    :target: ../../../../_images/mesh-template-tag.png
     :align: center
     :alt: Template tags: mesh example
 
@@ -174,6 +180,7 @@ Once devices with the above configuration will register into the system, any tem
 tagged as ``dumb-ap`` (as in the screenshot below) will be assigned to them.
 
 .. image:: /images/templates/dumb-ap-template-tag.png
+    :target: ../../../../_images/dumb-ap-template-tag.png
     :align: center
     :alt: Template tags: dumb AP example
 

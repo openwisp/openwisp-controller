@@ -29,6 +29,7 @@ variables" where it is possible to define the configuration variables and their 
 as shown in the example below:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-context.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/device-context.png
     :alt: context
 
 2 Predefined device variables
@@ -58,6 +59,7 @@ You can set the *organization variables* from the organization change page
 **Configuration Management Settings**.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/organization-variables.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/organization-variables.png
     :alt: organization variables
 
 5. Global variables
@@ -85,6 +87,7 @@ The default values of variables can be manipulated from the section "configurati
 variables" in the edit template page:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/template-default-values.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/template-default-values.png
     :alt: default values
 
 .. _system_defined_variables:
@@ -97,6 +100,7 @@ managed by the system (eg: when using templates of type VPN-client) are displaye
 admin UI as *System Defined Variables* in read-only mode.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/system-defined-variables.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/system-defined-variables.png
     :alt: system defined variables
 
 Example usage of variables
