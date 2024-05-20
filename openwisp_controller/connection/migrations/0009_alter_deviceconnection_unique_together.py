@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.CONFIG_DEVICE_MODEL),
-        ('connection', '0007_command'),
+        ('connection', '0008_remove_conflicting_deviceconnections'),
     ]
 
     operations = [
