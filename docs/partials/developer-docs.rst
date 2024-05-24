@@ -9,4 +9,4 @@
     OpenWISP, please refer to:
 
     - :doc:`General OpenWISP Quickstart </user/quickstart>`
-    - :doc:`OpenWISP Controller User Docs </modules/openwisp-controller/docs/index>`
+    - :doc:`OpenWISP Controller User Docs </controller/index>`

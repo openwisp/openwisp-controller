@@ -65,7 +65,7 @@ order to perform :doc:`push operations <push-operations>`, e.g.:
 - Sending configuration updates.
 - :doc:`Executing shell commands <shell-commands>`.
 - Perform firmware upgrades via the additional :doc:`firmware upgrade module
-  </modules/openwisp-firmware-upgrader/docs/index>`.
+  </firmware-upgrader/index>`.
 
 The default connection protocol implemented is SSH, but other protocol mechanism is
 extensible and custom protocols can be implemented as well.
@@ -79,7 +79,7 @@ SNMP
 ~~~~
 
 The SNMP connector is useful to collect monitoring information and it's used in
-:doc:`OpenWISP Monitoring </modules/openwisp-monitoring/docs/index>` for performing
+:doc:`OpenWISP Monitoring </monitoring/index>` for performing
 checks to collect monitoring information. `Read more
 <https://github.com/openwisp/openwisp-monitoring/pull/309#discussion_r692566202>`_ on
 how to use it.
