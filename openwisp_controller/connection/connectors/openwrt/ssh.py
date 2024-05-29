@@ -24,7 +24,7 @@ class OpenWrt(Ssh):
     def exec_signal_reload(self):
         self.exec_command(
             (
-                'OW_CONFIG_PID=$(ps | grep "openwisp_config" | '
+                'OW_CONFIG_PID=$(ps | grep openwisp | grep config | '
                 'grep -v "grep" | awk \'{print $1}\'); '
                 'kill -SIGUSR1 $OW_CONFIG_PID'
             )
