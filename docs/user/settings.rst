@@ -572,6 +572,8 @@ field reset to empty state to avoid potential conflicts.
 Set this to ``False`` if every organization has its dedicated management tunnel with a
 dedicated address space that is reachable by the OpenWISP server.
 
+.. _openwisp_controller_management_ip_only:
+
 ``OPENWISP_CONTROLLER_MANAGEMENT_IP_ONLY``
 ------------------------------------------
 
