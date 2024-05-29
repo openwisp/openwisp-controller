@@ -19,7 +19,7 @@ Install the system dependencies:
     sudo apt update
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
-    sudo apt install -y chromium
+    sudo apt install -y chromium-browser
 
 Fork and clone the forked repository:
 
@@ -59,7 +59,7 @@ Install development dependencies:
 
     pip install -e .
     pip install -r requirements-test.txt
-    npm install -g jshint stylelint
+    sudo npm install -g jshint stylelint
 
 Install WebDriver for Chromium for your browser version from
 https://chromedriver.chromium.org/home and Extract ``chromedriver`` to one of
