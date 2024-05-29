@@ -657,9 +657,9 @@ class TestSubnetDivisionRule(
             'backend': 'netjsonconfig.OpenWrt',
         }
         response = self.client.post(reverse('controller:device_register'), options)
-        lines = response.content.decode().split('\n')
-        self.assertEqual(lines[0], 'registration-result: success')
+        self.assertEqual(response.status_code, 201)
 
+        # Verify generated subnets and IP addresses match expectations
         self.assertEqual(
             subnet_query.count(),
             rule.number_of_subnets,
@@ -667,6 +667,84 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
+        subnets = subnet_query.order_by('created')
+        subnet1 = subnets[0]
+        subnet2 = subnets[1]
+        self.assertEqual(str(subnet1.subnet), '10.0.0.16/28')
+        self.assertEqual(str(subnet2.subnet), '10.0.0.32/28')
+        self.assertEqual(subnet1.ipaddress_set.count(), 2)
+        self.assertEqual(subnet2.ipaddress_set.count(), 2)
+        subnet1_ips = list(subnet1.ipaddress_set.order_by('created').all())
+        with self.subTest('Check IP addresses of subnet1'):
+            self.assertEqual(str(subnet1_ips[0].ip_address), '10.0.0.17')
+            self.assertEqual(str(subnet1_ips[1].ip_address), '10.0.0.18')
+        subnet2_ips = list(subnet2.ipaddress_set.order_by('created').all())
+        with self.subTest('Check IP addresses of subnet2'):
+            self.assertEqual(str(subnet2_ips[0].ip_address), '10.0.0.33')
+            self.assertEqual(str(subnet2_ips[1].ip_address), '10.0.0.34')
+
+        # Verify context of config
+        device = Device.objects.get(mac_address='FF:FF:FF:FF:FF:FF')
+        context = get_subnet_division_config_context(device.config)
+        self.assertIn(f'{rule.label}_prefixlen', context)
+        for subnet_id in range(1, rule.number_of_subnets + 1):
+            self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
+            for ip_id in range(1, rule.number_of_ips + 1):
+                self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
+
+        # Verify working of delete handler
+        device.delete()
+        self.assertEqual(
+            subnet_query.count(),
+            0,
+        )
+        self.assertEqual(self.ip_query.count(), 0)
+
+    def test_device_rule_use_entire_subnet(self):
+        self.config.delete()
+        rule = self._get_device_subdivision_rule(size=29, number_of_ips=8)
+        OrganizationConfigSettings.objects.create(
+            organization=self.org, shared_secret='shared_secret'
+        )
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.assertEqual(subnet_query.count(), 0)
+
+        # Register device
+        options = {
+            'hardware_id': '1234',
+            'secret': 'shared_secret',
+            'name': 'FF:FF:FF:FF:FF:FF',
+            'mac_address': 'FF:FF:FF:FF:FF:FF',
+            'backend': 'netjsonconfig.OpenWrt',
+        }
+        response = self.client.post(reverse('controller:device_register'), options)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify generated subnets and IP addresses match expectations
+        self.assertEqual(
+            subnet_query.count(),
+            rule.number_of_subnets,
+        )
+        self.assertEqual(
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+        subnets = subnet_query.order_by('created')
+        subnet1 = subnets[0]
+        subnet2 = subnets[1]
+        self.assertEqual(str(subnet1.subnet), '10.0.0.8/29')
+        self.assertEqual(str(subnet2.subnet), '10.0.0.16/29')
+        self.assertEqual(subnet1.ipaddress_set.count(), 8)
+        self.assertEqual(subnet2.ipaddress_set.count(), 8)
+
+        number = 8
+        for subnet in [subnet1, subnet2]:
+            for ip in subnet.ipaddress_set.order_by('created').all():
+                expected_ip = f'10.0.0.{number}'
+                with self.subTest(f'Expect IP address: {expected_ip}'):
+                    self.assertEqual(str(ip.ip_address), expected_ip)
+                number += 1
 
         # Verify context of config
         device = Device.objects.get(mac_address='FF:FF:FF:FF:FF:FF')
