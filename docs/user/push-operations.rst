@@ -14,7 +14,7 @@ Follow the procedure described below to enable secure SSH access from OpenWISP t
 devices, this is required to enable push operations (whenever the configuration is
 changed, OpenWISP will trigger the update in the background) and/or :doc:`firmware
 upgrades (via the additional module openwisp-firmware-upgrader)
-<../../../openwisp-firmware-upgrader/docs/index>`.
+</firmware-upgrader/index>`.
 
 1. Generate SSH Key
 -------------------
