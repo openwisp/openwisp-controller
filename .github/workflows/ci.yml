@@ -72,6 +72,8 @@ jobs:
     - name: Install openwisp-controller
       run: |
         pip install -U -e .
+        # TODO: Remove before merging
+        pip install -IU --no-deps "openwisp-notifications @ https://github.com/Dhanus3133/openwisp-notifications/tarball/feat/display-description-notification-dialog"
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
