@@ -174,7 +174,11 @@ class TestSubnetDivisionRule(
                 rule.full_clean()
             expected_message_dict = {
                 'number_of_subnets': [
-                    'Master subnet cannot accommodate 99999999 subnets of size /28'
+                    'The master subnet is too small to acommodate '
+                    'the requested "number of subnets" plus the '
+                    'reserved subnet, please increase the size of '
+                    'the master subnet or decrease the '
+                    '"size of subnets" field.'
                 ]
             }
             self.assertDictEqual(
@@ -245,6 +249,73 @@ class TestSubnetDivisionRule(
                 error.exception.message_dict,
                 {'organization': ['Organization should be same as the subnet']},
             )
+
+    def test_slash_32_rule_ipv4(self):
+        rule = self._get_vpn_subdivision_rule(
+            size=32, number_of_ips=1, number_of_subnets=1
+        )
+        self.config.templates.add(self.template)
+        rule.subnetdivisionindex_set.count()
+        index_queryset = rule.subnetdivisionindex_set.filter(
+            config_id=self.config.id, subnet_id__isnull=False, ip_id__isnull=False
+        )
+        self.assertEqual(index_queryset.count(), 1)
+        index = index_queryset.first()
+        self.assertEqual(str(index.subnet.subnet), '10.0.0.1/32')
+        self.assertEqual(index.ip.ip_address, '10.0.0.1')
+
+    def test_slash_32_rule_ipv4_error(self):
+        master_ipv4 = self._get_master_subnet(subnet='192.168.1.1/32')
+        self.vpn_server.subnet = master_ipv4
+        self.vpn_server.save()
+        try:
+            self._get_vpn_subdivision_rule(
+                size=32, number_of_ips=1, number_of_subnets=1, master_subnet=master_ipv4
+            )
+        except ValidationError as e:
+            self.assertIn('number_of_subnets', e.message_dict)
+            self.assertIn(
+                'The master subnet is too small to acommodate',
+                e.message_dict['number_of_subnets'][0],
+            )
+        else:
+            self.fail('Expected error not raised')
+
+    def test_slash_128_rule_ipv6(self):
+        master_ipv6 = self._get_master_subnet(subnet='fd12:3456:7890::/48')
+        self.vpn_server.subnet = master_ipv6
+        self.vpn_server.save()
+        rule = self._get_vpn_subdivision_rule(
+            size=128, number_of_ips=1, number_of_subnets=1, master_subnet=master_ipv6
+        )
+        self.config.templates.add(self.template)
+        index_queryset = rule.subnetdivisionindex_set.filter(
+            config_id=self.config.id, subnet_id__isnull=False, ip_id__isnull=False
+        )
+        self.assertEqual(index_queryset.count(), 1)
+        index = index_queryset.first()
+        self.assertEqual(str(index.subnet.subnet), 'fd12:3456:7890::1/128')
+        self.assertEqual(index.ip.ip_address, 'fd12:3456:7890::1')
+
+    def test_slash_128_rule_ipv6_error(self):
+        master_ipv6 = self._get_master_subnet(subnet='fd12:3456:7890::/128')
+        self.vpn_server.subnet = master_ipv6
+        self.vpn_server.save()
+        try:
+            self._get_vpn_subdivision_rule(
+                size=128,
+                number_of_ips=1,
+                number_of_subnets=1,
+                master_subnet=master_ipv6,
+            )
+        except ValidationError as e:
+            self.assertIn('number_of_subnets', e.message_dict)
+            self.assertIn(
+                'The master subnet is too small to acommodate',
+                e.message_dict['number_of_subnets'][0],
+            )
+        else:
+            self.fail('Expected error not raised')
 
     def test_rule_label_updated(self):
         new_rule_label = 'TSDR'
@@ -418,11 +489,20 @@ class TestSubnetDivisionRule(
     @patch('logging.Logger.error')
     def test_subnets_exhausted(self, mocked_logger):
         subnet = self._get_master_subnet(
-            '10.0.0.0/28', master_subnet=self.master_subnet
+            '10.0.0.0/29', master_subnet=self.master_subnet
         )
+        # The master subnet can acommodate
+        # this rule only once:
+        # A /29 has 4 /31 slots available
+        # Minus the reserved subnet = 3
+        # Each run will eat 2 slots.
+        # Hence we expect this to run fine the
+        # first time but fail the second time.
         self._get_vpn_subdivision_rule(
             master_subnet=subnet,
-            size=29,
+            size=31,
+            number_of_ips=2,
+            number_of_subnets=2,
         )
         self.vpn_server.subnet = subnet
         self.vpn_server.save()
@@ -577,9 +657,9 @@ class TestSubnetDivisionRule(
             'backend': 'netjsonconfig.OpenWrt',
         }
         response = self.client.post(reverse('controller:device_register'), options)
-        lines = response.content.decode().split('\n')
-        self.assertEqual(lines[0], 'registration-result: success')
+        self.assertEqual(response.status_code, 201)
 
+        # Verify generated subnets and IP addresses match expectations
         self.assertEqual(
             subnet_query.count(),
             rule.number_of_subnets,
@@ -587,6 +667,84 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
+        subnets = subnet_query.order_by('created')
+        subnet1 = subnets[0]
+        subnet2 = subnets[1]
+        self.assertEqual(str(subnet1.subnet), '10.0.0.16/28')
+        self.assertEqual(str(subnet2.subnet), '10.0.0.32/28')
+        self.assertEqual(subnet1.ipaddress_set.count(), 2)
+        self.assertEqual(subnet2.ipaddress_set.count(), 2)
+        subnet1_ips = list(subnet1.ipaddress_set.order_by('created').all())
+        with self.subTest('Check IP addresses of subnet1'):
+            self.assertEqual(str(subnet1_ips[0].ip_address), '10.0.0.17')
+            self.assertEqual(str(subnet1_ips[1].ip_address), '10.0.0.18')
+        subnet2_ips = list(subnet2.ipaddress_set.order_by('created').all())
+        with self.subTest('Check IP addresses of subnet2'):
+            self.assertEqual(str(subnet2_ips[0].ip_address), '10.0.0.33')
+            self.assertEqual(str(subnet2_ips[1].ip_address), '10.0.0.34')
+
+        # Verify context of config
+        device = Device.objects.get(mac_address='FF:FF:FF:FF:FF:FF')
+        context = get_subnet_division_config_context(device.config)
+        self.assertIn(f'{rule.label}_prefixlen', context)
+        for subnet_id in range(1, rule.number_of_subnets + 1):
+            self.assertIn(f'{rule.label}_subnet{subnet_id}', context)
+            for ip_id in range(1, rule.number_of_ips + 1):
+                self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
+
+        # Verify working of delete handler
+        device.delete()
+        self.assertEqual(
+            subnet_query.count(),
+            0,
+        )
+        self.assertEqual(self.ip_query.count(), 0)
+
+    def test_device_rule_use_entire_subnet(self):
+        self.config.delete()
+        rule = self._get_device_subdivision_rule(size=29, number_of_ips=8)
+        OrganizationConfigSettings.objects.create(
+            organization=self.org, shared_secret='shared_secret'
+        )
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.assertEqual(subnet_query.count(), 0)
+
+        # Register device
+        options = {
+            'hardware_id': '1234',
+            'secret': 'shared_secret',
+            'name': 'FF:FF:FF:FF:FF:FF',
+            'mac_address': 'FF:FF:FF:FF:FF:FF',
+            'backend': 'netjsonconfig.OpenWrt',
+        }
+        response = self.client.post(reverse('controller:device_register'), options)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify generated subnets and IP addresses match expectations
+        self.assertEqual(
+            subnet_query.count(),
+            rule.number_of_subnets,
+        )
+        self.assertEqual(
+            self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
+        )
+        subnets = subnet_query.order_by('created')
+        subnet1 = subnets[0]
+        subnet2 = subnets[1]
+        self.assertEqual(str(subnet1.subnet), '10.0.0.8/29')
+        self.assertEqual(str(subnet2.subnet), '10.0.0.16/29')
+        self.assertEqual(subnet1.ipaddress_set.count(), 8)
+        self.assertEqual(subnet2.ipaddress_set.count(), 8)
+
+        number = 8
+        for subnet in [subnet1, subnet2]:
+            for ip in subnet.ipaddress_set.order_by('created').all():
+                expected_ip = f'10.0.0.{number}'
+                with self.subTest(f'Expect IP address: {expected_ip}'):
+                    self.assertEqual(str(ip.ip_address), expected_ip)
+                number += 1
 
         # Verify context of config
         device = Device.objects.get(mac_address='FF:FF:FF:FF:FF:FF')
