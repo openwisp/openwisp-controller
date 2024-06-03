@@ -211,11 +211,11 @@ class BaseSubnetDivisionRuleType(object):
                     target=config.device,
                     action_object=master_subnet,
                     level='error',
-                    message=(
+                    message=_(
                         'Failed to provision subnets for'
                         ' [{notification.target}]({notification.target_link})'
                     ),
-                    description=(
+                    description=_(
                         'The [{notification.action_object}]({notification.action_link})'
                         ' subnet has run out of space.'
                     ),
