@@ -9,7 +9,7 @@ Dependencies
 - Python >= 3.8
 - OpenSSL
 
-Installing for development
+Installing for Development
 --------------------------
 
 Install the system dependencies:
@@ -101,7 +101,7 @@ Run quality assurance tests with:
 
     ./run-qa-checks
 
-Alternative sources
+Alternative Sources
 -------------------
 
 Pypi
@@ -128,7 +128,7 @@ Alternatively you can use the git protocol:
 
     pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
 
-Install and run on Docker
+Install and Run on Docker
 -------------------------
 
 .. warning::
@@ -150,12 +150,12 @@ Run the docker container:
 
     docker-compose up
 
-Troubleshooting steps for common installation issues
+Troubleshooting Steps for Common Installation Issues
 ----------------------------------------------------
 
 You may encounter some issues while installing GeoDjango.
 
-Unable to load SpatiaLite library extension?
+Unable to Load SpatiaLite library Extension?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you are incurring in the following exception:
@@ -168,7 +168,7 @@ You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as expla
 `django documentation regarding how to install and configure spatialte
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
 
-Having Issues with other geospatial libraries?
+Having Issues with Other Geospatial Libraries?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Please refer `troubleshooting issues related to geospatial libraries
