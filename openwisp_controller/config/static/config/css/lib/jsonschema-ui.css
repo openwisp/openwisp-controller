@@ -188,6 +188,9 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
   background-color: #fff;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row .grid-column{ position: relative }
+.jsoneditor-wrapper .grid-column[data-schemapath="root.files"]{
+  margin-top: 15px;
+}
 .jsoneditor-wrapper div.jsoneditor .modal{
   position: absolute;
   z-index: 10;
