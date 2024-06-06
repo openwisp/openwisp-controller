@@ -92,8 +92,20 @@ Run tests with:
 .. code-block:: shell
 
     ./runtests.py --parallel
-    # To run database tests against PostgreSQL backend
+
+Some tests, such as the Selenium UI tests, require a PostgreSQL database to run. If you
+don't have a PostgreSQL database running on your system, you can use :ref:`the Docker
+Compose configuration provided in this repository <controller_dev_docker>`. Once set up,
+you can run these specific tests as follows:
+
+.. code-block:: shell
+
+    # Run database tests against PostgreSQL backend
     POSTGRESQL=1 ./runtests.py --parallel
+
+    # Run only specific selenium tests classes
+    cd tests/
+    DJANGO_SETTINGS_MODULE=openwisp2.postgresql_settings ./manage.py test openwisp_controller.config.tests.test_selenium.TestDeviceAdmin
 
 Run quality assurance tests with:
 
@@ -127,6 +139,8 @@ Alternatively you can use the git protocol:
 .. code-block:: shell
 
     pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
+
+.. _controller_dev_docker:
 
 Install and Run on Docker
 -------------------------
