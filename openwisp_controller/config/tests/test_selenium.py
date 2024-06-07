@@ -13,20 +13,21 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
-from .utils import CreateConfigTemplateMixin
+from .utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
 
 
-@tag('selenium_tests')
-class TestDeviceAdmin(
-    CreateConfigTemplateMixin,
-    SeleniumTestMixin,
-    StaticLiveServerTestCase,
-):
+class SeleniumBaseMixin(CreateConfigTemplateMixin, SeleniumTestMixin):
     def setUp(self):
         self.admin = self._create_admin(
             username=self.admin_username, password=self.admin_password
         )
 
+
+@tag('selenium_tests')
+class TestDeviceAdmin(
+    SeleniumBaseMixin,
+    StaticLiveServerTestCase,
+):
     def tearDown(self):
         # Accept unsaved changes alert to allow other tests to run
         try:
@@ -276,3 +277,27 @@ class TestDeviceAdmin(
             alert = Alert(self.web_driver)
             alert.accept()
             self.fail('Unsaved changes alert displayed without any change')
+
+
+class TestVpnAdmin(SeleniumBaseMixin, TestWireguardVpnMixin, StaticLiveServerTestCase):
+    def test_vpn_edit(self):
+        self.login()
+        device, vpn, template = self._create_wireguard_vpn_template()
+        self.open(reverse('admin:config_vpn_change', args=[vpn.id]))
+        with self.subTest('Ca and Cert should not be visible'):
+            el = self.web_driver.find_element(by=By.CLASS_NAME, value='field-ca')
+            self.assertFalse(el.is_displayed())
+            el = self.web_driver.find_element(by=By.CLASS_NAME, value='field-cert')
+            self.assertFalse(el.is_displayed())
+
+        with self.subTest('Changing VPN backend should hide webhook and authtoken'):
+            backend = Select(self.web_driver.find_element(by=By.ID, value='id_backend'))
+            backend.select_by_visible_text('OpenVPN')
+            el = self.web_driver.find_element(
+                by=By.CLASS_NAME, value='field-webhook_endpoint'
+            )
+            self.assertFalse(el.is_displayed())
+            el = self.web_driver.find_element(
+                by=By.CLASS_NAME, value='field-auth_token'
+            )
+            self.assertFalse(el.is_displayed())
