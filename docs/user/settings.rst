@@ -206,6 +206,8 @@ automatic registration
 <https://github.com/openwisp/openwisp-config#automatic-registration>`_ for more
 information.
 
+.. _openwisp_controller_consistent_registration:
+
 ``OPENWISP_CONTROLLER_CONSISTENT_REGISTRATION``
 -----------------------------------------------
 
@@ -363,6 +365,8 @@ enforce this is case-insensitive.
 
 Note: For this constraint to be optional, it is enforced on an application level and not
 on database.
+
+.. _openwisp_controller_hardware_id_enabled:
 
 ``OPENWISP_CONTROLLER_HARDWARE_ID_ENABLED``
 -------------------------------------------
