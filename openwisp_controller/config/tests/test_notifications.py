@@ -4,7 +4,6 @@ from celery.exceptions import Retry
 from django.apps.registry import apps
 from django.conf import settings
 from django.test import TransactionTestCase
-from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from requests.exceptions import RequestException
 from swapper import load_model
 
@@ -12,7 +11,6 @@ from openwisp_controller.config.tests.utils import (
     CreateConfigMixin,
     TestZeroTierVpnMixin,
 )
-from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import device_registered
@@ -26,8 +24,6 @@ notification_qs = Notification.objects.all()
 
 class TestNotifications(
     CreateConfigMixin,
-    CreateIpamModelsMixin,
-    TestOrganizationMixin,
     TestZeroTierVpnMixin,
     TransactionTestCase,
 ):

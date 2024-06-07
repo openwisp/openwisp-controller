@@ -11,7 +11,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
 from .utils import CreateConfigTemplateMixin
@@ -19,7 +18,6 @@ from .utils import CreateConfigTemplateMixin
 
 @tag('selenium_tests')
 class TestDeviceAdmin(
-    TestOrganizationMixin,
     CreateConfigTemplateMixin,
     SeleniumTestMixin,
     StaticLiveServerTestCase,

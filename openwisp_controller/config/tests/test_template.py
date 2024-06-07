@@ -9,7 +9,6 @@ from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
 from ...tests.utils import TransactionTestMixin
@@ -30,9 +29,7 @@ User = get_user_model()
 _original_context = app_settings.CONTEXT.copy()
 
 
-class TestTemplate(
-    TestOrganizationMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
-):
+class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
     """
     tests for Template model
     """
@@ -506,7 +503,6 @@ class TestTemplate(
 
 class TestTemplateTransaction(
     TransactionTestMixin,
-    TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     TransactionTestCase,

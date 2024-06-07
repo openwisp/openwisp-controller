@@ -3,12 +3,10 @@ from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
-from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
@@ -89,9 +87,7 @@ class ApiTestMixin:
 class TestConfigApi(
     ApiTestMixin,
     TestAdminMixin,
-    CreateIpamModelsMixin,
     TestWireguardVpnMixin,
-    TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,
@@ -1169,7 +1165,6 @@ class TestConfigApi(
 class TestConfigApiTransaction(
     ApiTestMixin,
     TestAdminMixin,
-    TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,

@@ -9,7 +9,6 @@ from django.db.models.signals import post_save
 from django.db.utils import IntegrityError
 from django.http.response import HttpResponse, HttpResponseNotFound
 from django.test import TestCase, TransactionTestCase
-from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from requests.exceptions import ConnectionError, RequestException, Timeout
 from swapper import load_model
 
@@ -40,7 +39,7 @@ Subnet = load_model('openwisp_ipam', 'Subnet')
 IpAddress = load_model('openwisp_ipam', 'IpAddress')
 
 
-class BaseTestVpn(CreateIpamModelsMixin, TestVpnX509Mixin, CreateConfigTemplateMixin):
+class BaseTestVpn(TestVpnX509Mixin, CreateConfigTemplateMixin):
     maxDiff = None
 
 

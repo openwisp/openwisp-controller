@@ -13,7 +13,6 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
 from ...geo.tests.utils import TestGeoMixin
@@ -230,7 +229,6 @@ class TestAdmin(
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     TestAdminMixin,
-    TestOrganizationMixin,
     TestCase,
 ):
     """
@@ -1925,7 +1923,6 @@ class TestAdmin(
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
-    TestOrganizationMixin,
     TestAdminMixin,
     TestCase,
 ):
@@ -2007,7 +2004,6 @@ class TestDeviceGroupAdminTransaction(
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
-    TestOrganizationMixin,
     TestAdminMixin,
     TransactionTestCase,
 ):

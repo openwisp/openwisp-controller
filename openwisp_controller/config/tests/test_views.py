@@ -3,8 +3,6 @@ from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
-
 from ...tests.utils import TestAdminMixin
 from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
 
@@ -16,7 +14,6 @@ class TestViews(
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
     TestAdminMixin,
-    TestOrganizationMixin,
     TestCase,
 ):
     """

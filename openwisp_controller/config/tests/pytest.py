@@ -8,8 +8,6 @@ from django.contrib.auth.models import Permission
 from django.urls import re_path
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
-
 from ..base.channels_consumer import BaseDeviceConsumer
 from .utils import CreateDeviceMixin
 
@@ -18,7 +16,7 @@ Device = load_model('config', 'Device')
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-class TestDeviceConsumer(CreateDeviceMixin, TestOrganizationMixin):
+class TestDeviceConsumer(CreateDeviceMixin):
     model = Device
     application = ProtocolTypeRouter(
         {
