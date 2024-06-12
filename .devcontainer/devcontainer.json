@@ -1,0 +1,111 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.245.2/containers/docker-existing-dockerfile
+{
+	"name": "OpenWISP Dev Container",
+	// Sets the run context to one level up instead of the .devcontainer folder.
+	// Useful if you are using your own service's Dockerfile or need to work with other files in the directory above
+	"context": "..",
+	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+	// We assume that your service will provide its own Dockerfile
+	"dockerFile": "./Dockerfile",
+	// Add extensions to the VS Code dev container environment here
+	"extensions": [
+		"ms-python.python",
+		"ms-python.vscode-pylance",
+		"streetsidesoftware.code-spell-checker",
+		"aaron-bond.better-comments",
+		"timonwong.shellcheck",
+		"ZainChen.json",
+		"quicktype.quicktype",
+		"esbenp.prettier-vscode",
+		"ecmel.vscode-html-css"
+	],
+	"settings": {
+		"editor.formatOnSave": true,
+		"python.formatting.provider": "black",
+		"python.defaultInterpreterPath": "/usr/local/bin/python",
+		"python.languageServer": "Pylance",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.linting.pycodestyleEnabled": true,
+		"python.formatting.blackPath": "/usr/local/bin/black",
+		"python.linting.flake8Path": "/usr/local/bin/flake8",
+		"python.linting.pycodestylePath": "/usr/local/bin/pycodestyle"
+	},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [
+		8000
+	],
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Set *default* container specific VS Code settings.json values on container create.
+			"settings": {
+				"editor.formatOnSave": true,
+				"editor.formatOnSaveMode": "file"
+			}
+		}
+	},
+	// Allow devcontainer to access local network
+	// Useful for allowing the container to access the host's VPN conection
+	"build": {
+		"args": {
+			"network": "host"
+		}
+	},
+	// Run commands on the host machine before the container is created.
+	// "initializeCommand": [
+	// 	"./.devcontainer/initialize.sh"
+	// ],
+	// Run commands inside the container immediately after it has started for the first time.
+	// "onCreateCommand": [
+	// 	"./.devcontainer/on_create.sh"
+	// ],
+	// Run commands inside the container when refreshing cached or prebuilt container. Runs at least once.
+	// "updateContentCommand": [
+	// 	"./.devcontainer/update_content.sh"
+	// ],
+	// Run commands after the container is created - for example installing curl. Runs after container user has been created.
+	// Runs with container user permissions, so it has access to user profile and secrets.
+	"postCreateCommand": [
+		"/workspace/.devcontainer/post_create.sh"
+	],
+	// Run commands after the container is started, For example, use it to run `npm start`
+	// Runs with container user permissions, so it has access to user profile and secrets.
+	"postStartCommand": [
+		"/workspace/.devcontainer/post_start.sh"
+	],
+	// Run commands each time a tool has successfully attached to the container.
+	// Runs with container user permissions, so it has access to user profile and secrets.
+	// "postAttachCommand": [
+	// 	"./.devcontainer/post_attach.sh"
+	// ],
+	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
+	// Read more https://code.visualstudio.com/remote/advancedcontainers/environment-variables
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+	// Uncomment to mount local files inside the container
+	// Read more https://code.visualstudio.com/remote/advancedcontainers/add-local-file-mount
+	// "mounts": [
+	// 	"source=/local/source/path/goes/here,target=/target/path/in/container/goes/here,type=bind,consistency=cached"
+	//   ]
+	// Uncomment to connect as a non-root user if you've added one.
+	// Note this user must be added during dev container creation.
+	// Add the indicated five lines to your *Dockerfile* to create the user
+	// inside the container, then uncomment the "remoteUser" property of this file
+	// to make the container use that user.
+	// Read more https://aka.ms/vscode-remote/containers/non-root.
+	// ** Add these next 5 lines (uncommented of course) to your Dockerfile to create the user
+	// ARG USERNAME=vscode
+	// ARG USER_UID=1000
+	// ARG USER_GID=$USER_UID
+	// groupadd --gid $USER_GID $USERNAME \
+	// && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME
+	// ** end Dockerfile lines
+	"remoteUser": "vscode",
+	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+	"workspaceFolder": "/workspace",
+	"runArgs": [
+		"--userns=keep-id"
+	],
+	"containerUser": "vscode"
+}
