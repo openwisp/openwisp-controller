@@ -5,7 +5,7 @@ from .. import commands
 
 
 class TestCommandUtilities(TestCase):
-    REBOOT_SCHEMA = {'title': 'Reboot', 'type': 'null'}
+    REBOOT_SCHEMA = {'title': 'Reboot', 'type': 'null', 'additionalProperties': False}
 
     def test_get_command_schema(self):
         with self.subTest('Test existing command option'):

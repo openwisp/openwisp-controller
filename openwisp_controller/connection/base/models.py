@@ -545,7 +545,8 @@ class AbstractCommand(TimeStampedEditableModel):
             command = self.get_type_display()
         # user registered command
         else:
-            command = self._callable(**self.input)
+            input = self.input or {}
+            command = self._callable(**input)
             output, exit_code = self.connection.connector_instance.exec_command(
                 command, raise_unexpected_exit=False
             )
