@@ -805,6 +805,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         'name',
         'organization',
         'type',
+        'list_handling',
         'backend',
         'vpn',
         'auto_cert',
