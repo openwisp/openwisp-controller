@@ -209,7 +209,10 @@ class TestConfigApi(
         org2 = self._create_org(name='test org 2')
         dg2 = self._create_device_group(organization=org2)
         d2 = self._create_device(
-            mac_address='00:11:22:33:44:66', group=dg2, organization=org2
+            name='second.device',
+            mac_address='A0:11:B2:33:44:66',
+            group=dg2,
+            organization=org2,
         )
         t2 = self._create_template(name='t2', organization=org2)
         c2 = self._create_config(device=d2, backend='netjsonconfig.OpenWisp')
@@ -236,6 +239,18 @@ class TestConfigApi(
             self.assertIn('created', data['results'][0].keys())
             if device.group:
                 self.assertEqual(data['results'][0]['group'], device.group.pk)
+
+        with self.subTest('Test filtering by name'):
+            r1 = self.client.get(f'{path}?name={d1.name.upper()}')
+            _assert_device_list_filter(response=r1, device=d1)
+            r2 = self.client.get(f'{path}?name={d1.name[0:3]}')
+            _assert_device_list_filter(response=r2, device=d1)
+
+        with self.subTest('Test filtering by mac_address'):
+            r1 = self.client.get(f'{path}?mac_address={d2.mac_address.lower()}')
+            _assert_device_list_filter(response=r1, device=d2)
+            r2 = self.client.get(f'{path}?mac_address={d2.mac_address[0:8]}')
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using config backend'):
             r1 = self.client.get(f'{path}?config__backend=netjsonconfig.OpenWrt')
