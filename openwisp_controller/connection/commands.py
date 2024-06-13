@@ -25,12 +25,20 @@ DEFAULT_COMMANDS = OrderedDict(
                     },
                     'message': _('Command cannot be empty.'),
                     'required': ['command'],
+                    'additionalProperties': False,
                 },
             },
         ),
         (
             'reboot',
-            {'label': _('Reboot'), 'schema': {'title': _('Reboot'), 'type': 'null'}},
+            {
+                'label': _('Reboot'),
+                'schema': {
+                    'title': _('Reboot'),
+                    'type': 'null',
+                    'additionalProperties': False,
+                },
+            },
         ),
         (
             'change_password',

@@ -786,6 +786,47 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         unregister_command('callable_ping')
         unregister_command('path_ping')
 
+    @mock.patch(_connect_path)
+    @mock.patch.dict(COMMANDS, {})
+    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network')})
+    @mock.patch(_exec_command_path)
+    def test_execute_user_registered_command_without_input(
+        self, mocked_exec_command, connect_mocked
+    ):
+        restart_network_schema = {
+            'label': 'Restart Network',
+            'schema': {
+                'title': 'Restart Network',
+                'type': 'null',
+                'additionalProperties': False,
+            },
+            'callable': 'openwisp_controller.connection.tests.utils'
+            '._restart_network_command_callable',
+        }
+        dc = self._create_device_connection()
+        register_command('restart_network', restart_network_schema)
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type='restart_network',
+        )
+        command.full_clean()
+        mocked_exec_command.return_value = self._exec_command_return_value(
+            stdout='Network restarted'
+        )
+        command.save()
+        # must call this explicitly because lack of transactions in this test case
+        command.execute()
+        connect_mocked.assert_called()
+        mocked_exec_command.assert_called_once()
+        mocked_exec_command.assert_called_with(
+            '/etc/init.d/networking restart',
+            timeout=app_settings.SSH_COMMAND_TIMEOUT,
+        )
+        command.refresh_from_db()
+        self.assertEqual(command.status, 'success')
+        self.assertEqual(command.output, 'Network restarted\n')
+
     def test_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(
             app_label=self.app_label, model='command'
