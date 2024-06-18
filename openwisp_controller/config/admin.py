@@ -564,13 +564,16 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             formsets[0] = self._config_formset
         return super().construct_change_message(request, form, formsets, add)
 
+    @admin.action(
+        description=_('Change group of selected Devices'), permissions=['change']
+    )
     def change_group(self, request, queryset):
         # Validate all selected devices belong to the same organization
         # which is managed by the user.
         org_id = None
         if queryset:
             org_id = queryset[0].organization_id
-        if not request.user.is_superuser and request.user.is_manager(org_id):
+        if not request.user.is_superuser and not request.user.is_manager(org_id):
             logger.warning(f'{request.user} does not manage "{org_id}" organization.')
             return HttpResponseForbidden()
         if len(queryset) != queryset.filter(organization_id=org_id).count():
@@ -620,8 +623,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return TemplateResponse(
             request, 'admin/config/change_device_group.html', context
         )
-
-    change_group.short_description = _('Change group of selected Devices')
 
     def get_fields(self, request, obj=None):
         """
@@ -820,6 +821,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     readonly_fields = ['system_context']
     autocomplete_fields = ['vpn']
 
+    @admin.action(permissions=['add'])
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
         user = request.user
