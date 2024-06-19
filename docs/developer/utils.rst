@@ -73,11 +73,11 @@ from OpenWISP Notifications.
 
 For more information, see the relevant :doc:`documentation section about registering
 notification types in the Notifications module
-</notifications/developer/registering-unregistering-notification-types>`.
+</notifications/developer/utils>`.
 
 Once a new notification type is registered, you have to use the :doc:`"notify" signal
 provided the Notifications module
-</notifications/developer/sending-notifications>` to send
+</notifications/user/sending-notifications>` to send
 notifications for this type.
 
 Signals
