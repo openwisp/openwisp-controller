@@ -491,7 +491,7 @@ class TestSubnetDivisionRule(
         )
 
     @patch('logging.Logger.info')
-    def test_subnets_exhausted(self, mocked_logger):
+    def test_subnets_exhausted(self, mocked_logger, *args):
         subnet = self._get_master_subnet(
             '10.0.0.0/29', master_subnet=self.master_subnet
         )
@@ -518,7 +518,10 @@ class TestSubnetDivisionRule(
             device=self._create_device(mac_address='00:11:22:33:44:66')
         )
         config2.templates.add(self.template)
-        mocked_logger.assert_called_with(f'Cannot create more subnets of {subnet}')
+        self.assertEqual(
+            mocked_logger.call_args_list[4][0][0],
+            f'Cannot create more subnets of {subnet}',
+        )
         notification = Notification.objects.first()
         self.assertEqual(notification.level, 'error')
         self.assertEqual(notification.type, 'generic_message')
