@@ -134,6 +134,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                     'pk', flat=True
                 )
             )
+            # flag all related configs as modified with 1 update query
+            self.config_relations.exclude(status='modified').update(status='modified')
             # the following loop should not take too long
             for config in self.config_relations.select_related('device').iterator():
                 # config modified signal sent regardless
@@ -141,8 +143,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 # config status changed signal sent only if status changed
                 if config.pk in changing_status:
                     config._send_config_status_changed_signal()
-            # flag all related configs as modified with 1 update query
-            self.config_relations.exclude(status='modified').update(status='modified')
 
     def clean(self, *args, **kwargs):
         """

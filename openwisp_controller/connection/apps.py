@@ -64,12 +64,7 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def config_modified_receiver(cls, **kwargs):
-        device = kwargs['device']
-        conn_count = device.deviceconnection_set.count()
-        # if device has no connection specified stop here
-        if conn_count < 1:
-            return
-        transaction.on_commit(lambda: cls._launch_update_config(device.pk))
+        transaction.on_commit(lambda: cls._launch_update_config(kwargs['device'].pk))
 
     @classmethod
     def command_save_receiver(cls, sender, created, instance, **kwargs):

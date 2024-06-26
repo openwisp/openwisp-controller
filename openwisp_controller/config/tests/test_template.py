@@ -539,7 +539,7 @@ class TestTemplateTransaction(
             with catch_signal(config_status_changed) as handler:
                 t.config['interfaces'][0]['name'] = 'eth2'
                 t.full_clean()
-                with self.assertNumQueries(8):
+                with self.assertNumQueries(9):
                     t.save()
                 c.refresh_from_db()
                 handler.assert_not_called()
@@ -638,7 +638,7 @@ class TestTemplateTransaction(
                     instance=conf,
                     device=conf.device,
                     config=conf,
-                    previous_status='applied',
+                    previous_status='modified',
                     action='related_template_changed',
                 )
                 conf.refresh_from_db()
@@ -646,7 +646,7 @@ class TestTemplateTransaction(
 
         with self.subTest('signal sent also if config is already in modified status'):
             # status has already changed to modified
-            # sgnal should be triggered anyway
+            # signal should be triggered anyway
             with catch_signal(config_modified) as handler:
                 template1.config['interfaces'][0]['name'] = 'eth2'
                 template1.full_clean()
