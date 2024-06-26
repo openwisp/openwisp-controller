@@ -5,8 +5,6 @@ from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
-from openwisp_utils.tasks import OpenwispCeleryTask
-
 logger = logging.getLogger(__name__)
 
 Subnet = load_model('openwisp_ipam', 'Subnet')
@@ -71,7 +69,7 @@ def update_subnet_name_description(rule_id):
     )
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=7200)
 def provision_extra_ips(rule_id, old_number_of_ips):
     def _create_ipaddress_and_subnetdivision_index_objects(ips, indexes):
         IpAddress.objects.bulk_create(ips)
