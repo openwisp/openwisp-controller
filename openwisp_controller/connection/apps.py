@@ -1,5 +1,4 @@
 from asgiref.sync import async_to_sync
-from celery import current_app
 from channels import layers
 from django.apps import AppConfig
 from django.db import transaction
@@ -13,8 +12,6 @@ from openwisp_utils.admin_theme.menu import register_menu_subitem
 
 from ..config.signals import config_modified
 from .signals import is_working_changed
-
-_TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
 
 
 class ConnectionConfig(AppConfig):
@@ -86,23 +83,9 @@ class ConnectionConfig(AppConfig):
         Calls the background task update_config only if
         no other tasks are running for the same device
         """
-        if cls._is_update_in_progress(device_pk):
-            return
         from .tasks import update_config
 
         update_config.delay(device_pk)
-
-    @classmethod
-    def _is_update_in_progress(cls, device_pk):
-        active = current_app.control.inspect().active()
-        if not active:
-            return False
-        # check if there's any other running task before adding it
-        for task_list in active.values():
-            for task in task_list:
-                if task['name'] == _TASK_NAME and str(device_pk) in task['args']:
-                    return True
-        return False
 
     @classmethod
     def is_working_changed_receiver(

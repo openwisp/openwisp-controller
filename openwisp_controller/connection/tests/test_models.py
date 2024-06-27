@@ -13,7 +13,6 @@ from openwisp_utils.tests import capture_any_output, catch_signal
 
 from ...tests.utils import TransactionTestMixin
 from .. import settings as app_settings
-from ..apps import _TASK_NAME
 from ..commands import (
     COMMANDS,
     ORGANIZATION_ENABLED_COMMANDS,
@@ -22,7 +21,7 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import update_config
+from ..tasks import _TASK_NAME, update_config
 from .utils import CreateConnectionsMixin
 
 Config = load_model('config', 'Config')
@@ -1008,29 +1007,33 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
             # exit code 1 considers the update not successful
             self.assertEqual(conf.status, 'modified')
 
-    @mock.patch.object(update_config, 'delay')
-    def test_device_update_config_in_progress(self, mocked_update_config):
+    @mock.patch('time.sleep')
+    def test_device_update_config_in_progress(self, mocked_sleep):
         conf = self._prepare_conf_object()
 
         with mock.patch('celery.app.control.Inspect.active') as mocked_active:
             mocked_active.return_value = {
                 'task': [{'name': _TASK_NAME, 'args': [str(conf.device.pk)]}]
             }
+            conf.config = {'general': {'timezone': 'UTC'}}
+            conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
-            mocked_update_config.assert_not_called()
+            mocked_sleep.assert_called_once()
 
-    @mock.patch.object(update_config, 'delay')
-    def test_device_update_config_not_in_progress(self, mocked_update_config):
+    @mock.patch('time.sleep')
+    def test_device_update_config_not_in_progress(self, mocked_sleep):
         conf = self._prepare_conf_object()
 
         with mock.patch('celery.app.control.Inspect.active') as mocked_active:
             mocked_active.return_value = {
                 'task': [{'name': _TASK_NAME, 'args': ['...']}]
             }
+            conf.config = {'general': {'timezone': 'UTC'}}
+            conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
-            mocked_update_config.assert_called_once_with(conf.device.pk)
+            mocked_sleep.assert_called_once()
 
     @mock.patch(_connect_path)
     def test_schedule_command_called(self, connect_mocked):

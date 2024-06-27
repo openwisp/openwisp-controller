@@ -2,7 +2,7 @@ import logging
 import time
 
 import swapper
-from celery import shared_task
+from celery import current_app, shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
@@ -12,6 +12,19 @@ from . import settings as app_settings
 from .exceptions import NoWorkingDeviceConnectionError
 
 logger = logging.getLogger(__name__)
+_TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
+
+
+def _is_update_in_progress(device_pk):
+    active = current_app.control.inspect().active()
+    if not active:
+        return False
+    # check if there's any other running task before adding it
+    for task_list in active.values():
+        for task in task_list:
+            if task['name'] == _TASK_NAME and str(device_pk) in task['args']:
+                return True
+    return False
 
 
 @shared_task
@@ -33,6 +46,8 @@ def update_config(device_id):
             return
     except ObjectDoesNotExist as e:
         logger.warning(f'update_config("{device_id}") failed: {e}')
+        return
+    if _is_update_in_progress(device_id):
         return
     try:
         device_conn = DeviceConnection.get_working_connection(device)
