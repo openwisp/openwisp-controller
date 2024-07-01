@@ -73,8 +73,6 @@ jobs:
       run: |
         pip install -U -e .
         pip install ${{ matrix.django-version }}
-        # TODO: Remove before merging
-        pip install --force-reinstall --no-cache-dir --no-deps --upgrade https://github.com/openwisp/openwisp-utils/tarball/admin-action-perm
 
     - name: QA checks
       run: |
