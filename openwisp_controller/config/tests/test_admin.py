@@ -13,7 +13,7 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import AdminActionPermTestMixin, catch_signal
 
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
@@ -223,6 +223,7 @@ class TestImportExportMixin:
 
 
 class TestAdmin(
+    AdminActionPermTestMixin,
     TestImportExportMixin,
     TestGeoMixin,
     CreateDeviceGroupMixin,
@@ -598,6 +599,22 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response, 'What group do you want to assign to the selected devices?'
+        )
+
+    def test_change_device_group_action_perms(self):
+        org = self._get_org()
+        user = self._create_user(is_staff=True)
+        self._create_org_user(is_admin=True, organization=org, user=user)
+        device = self._create_device(organization=org)
+        group = self._create_device_group(name='default', organization=org)
+        self._test_action_permission(
+            path=reverse(f'admin:{self.app_label}_device_changelist'),
+            action='change_group',
+            user=user,
+            obj=device,
+            message='Successfully changed group of selected devices.',
+            required_perms=['change'],
+            extra_payload={'device_group': group.pk, 'apply': True},
         )
 
     def test_device_import_with_group_apply_templates(self):
@@ -990,6 +1007,20 @@ class TestAdmin(
             self.assertNotContains(response, 'Successfully cloned selected templates')
         with self.subTest('template count should not change'):
             self.assertEqual(Template.objects.count(), count)
+
+    def test_clone_selected_templates_action_perms(self):
+        org = self._get_org()
+        user = self._create_user(is_staff=True)
+        self._create_org_user(is_admin=True, organization=org, user=user)
+        template = self._create_template(organization=org)
+        self._test_action_permission(
+            path=reverse(f'admin:{self.app_label}_template_changelist'),
+            action='clone_selected_templates',
+            user=user,
+            obj=template,
+            message='Successfully cloned selected templates.',
+            required_perms=['add'],
+        )
 
     def test_change_device_clean_templates(self):
         o = self._get_org()
