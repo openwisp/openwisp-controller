@@ -1008,7 +1008,11 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
             self.assertEqual(conf.status, 'modified')
 
     @mock.patch('time.sleep')
-    def test_device_update_config_in_progress(self, mocked_sleep):
+    @mock.patch.object(DeviceConnection, 'update_config')
+    @mock.patch.object(DeviceConnection, 'get_working_connection')
+    def test_device_update_config_in_progress(
+        self, mocked_get_working_connection, update_config, mocked_sleep
+    ):
         conf = self._prepare_conf_object()
 
         with mock.patch('celery.app.control.Inspect.active') as mocked_active:
@@ -1019,11 +1023,19 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
             conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
-            mocked_sleep.assert_called_once()
+            mocked_get_working_connection.assert_not_called()
+            update_config.assert_not_called()
 
     @mock.patch('time.sleep')
-    def test_device_update_config_not_in_progress(self, mocked_sleep):
+    @mock.patch.object(DeviceConnection, 'update_config')
+    @mock.patch.object(DeviceConnection, 'get_working_connection')
+    def test_device_update_config_not_in_progress(
+        self, mocked_get_working_connection, mocked_update_config, mocked_sleep
+    ):
         conf = self._prepare_conf_object()
+        mocked_get_working_connection.return_value = (
+            conf.device.deviceconnection_set.first()
+        )
 
         with mock.patch('celery.app.control.Inspect.active') as mocked_active:
             mocked_active.return_value = {
@@ -1033,7 +1045,8 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
             conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
-            mocked_sleep.assert_called_once()
+            mocked_get_working_connection.assert_called_once()
+            mocked_update_config.assert_called_once()
 
     @mock.patch(_connect_path)
     def test_schedule_command_called(self, connect_mocked):
