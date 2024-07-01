@@ -21,7 +21,7 @@ class TestSubnetAdmin(BaseTestSubnetAdmin):
 
 
 class TestSubnetDivsionRule(BaseTestSubnetDivisionRule):
-    pass
+    config_label = 'sample_config'
 
 
 class TestIPAdmin(BaseTestIPAdmin):

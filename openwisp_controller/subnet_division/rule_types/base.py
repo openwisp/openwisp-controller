@@ -7,6 +7,7 @@ from django.db import connection, transaction
 from django.dispatch import Signal
 from django.utils.translation import gettext_lazy as _
 from netaddr import IPNetwork
+from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from ..signals import subnet_provisioned
@@ -204,7 +205,22 @@ class BaseSubnetDivisionRuleType(object):
 
         for subnet_id in range(1, division_rule.number_of_subnets + 1):
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
-                logger.error(f'Cannot create more subnets of {master_subnet}')
+                notify.send(
+                    sender=config,
+                    type='generic_message',
+                    target=config.device,
+                    action_object=master_subnet,
+                    level='error',
+                    message=_(
+                        'Failed to provision subnets for'
+                        ' [{notification.target}]({notification.target_link})'
+                    ),
+                    description=_(
+                        'The [{notification.action_object}]({notification.action_link})'
+                        ' subnet has run out of space.'
+                    ),
+                )
+                logger.info(f'Cannot create more subnets of {master_subnet}')
                 break
             subnet_obj = Subnet(
                 name=f'{division_rule.label}_subnet{subnet_id}',

@@ -26,9 +26,13 @@ SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
 VpnClient = load_model('config', 'VpnClient')
 Device = load_model('config', 'Device')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
+Notification = load_model('openwisp_notifications', 'Notification')
 
 
 class BaseSubnetDivisionRule:
+    config_label = 'config'
+    ipam_label = 'openwisp_ipam'
+
     @property
     def ip_query(self):
         return IpAddress.objects.exclude(id=self.vpn_server.ip_id)
@@ -486,8 +490,8 @@ class TestSubnetDivisionRule(
             ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
-    @patch('logging.Logger.error')
-    def test_subnets_exhausted(self, mocked_logger):
+    @patch('logging.Logger.info')
+    def test_subnets_exhausted(self, mocked_logger, *args):
         subnet = self._get_master_subnet(
             '10.0.0.0/29', master_subnet=self.master_subnet
         )
@@ -504,6 +508,8 @@ class TestSubnetDivisionRule(
             number_of_ips=2,
             number_of_subnets=2,
         )
+        # A user is required to verify notification is created
+        self._get_admin()
         self.vpn_server.subnet = subnet
         self.vpn_server.save()
         self.config.templates.add(self.template)
@@ -512,7 +518,40 @@ class TestSubnetDivisionRule(
             device=self._create_device(mac_address='00:11:22:33:44:66')
         )
         config2.templates.add(self.template)
-        mocked_logger.assert_called_with(f'Cannot create more subnets of {subnet}')
+        self.assertEqual(
+            mocked_logger.call_args_list[4][0][0],
+            f'Cannot create more subnets of {subnet}',
+        )
+        notification = Notification.objects.first()
+        self.assertEqual(notification.level, 'error')
+        self.assertEqual(notification.type, 'generic_message')
+        self.assertEqual(notification.target, config2.device)
+        self.assertEqual(notification.action_object, subnet)
+        self.assertEqual(
+            notification.message,
+            (
+                '<p>Failed to provision subnets for '
+                '<a href="https://example.com{device_path}">'
+                '{device_name}</a></p>'
+            ).format(
+                device_path=reverse(
+                    f'admin:{self.config_label}_device_change', args=[config2.device_id]
+                ),
+                device_name=config2.device.name,
+            ),
+        )
+        self.assertEqual(
+            notification.rendered_description,
+            (
+                '<p>The <a href="https://example.com{subnet_path}">'
+                '{subnet_name}</a> subnet has run out of space.</p>'
+            ).format(
+                subnet_path=reverse(
+                    f'admin:{self.ipam_label}_subnet_change', args=[subnet.id]
+                ),
+                subnet_name=subnet,
+            ),
+        )
 
     def test_vpn_subnet_none(self):
         self.vpn_server.subnet = None
