@@ -469,6 +469,11 @@
     var varValidationWorkaround = function(value, schema) {
       if (value && value.interfaces) {
         $.each(value.interfaces, function(i, interf) {
+          if (interf.mac && interf.mac.indexOf('{{') > -1) {
+            try {
+              delete schema.definitions.interface_settings.properties.mac.pattern;
+            } catch (e) {}
+          }
           if (interf.addresses) {
             $.each(interf.addresses, function(i, ip) {
               if (ip.address && ip.address.indexOf('{{') > -1) {
