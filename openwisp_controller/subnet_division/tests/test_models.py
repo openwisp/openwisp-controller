@@ -490,7 +490,7 @@ class TestSubnetDivisionRule(
             ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
-    @patch('logging.Logger.info')
+    @patch('openwisp_controller.subnet_division.rule_types.base.logger.info')
     def test_subnets_exhausted(self, mocked_logger, *args):
         subnet = self._get_master_subnet(
             '10.0.0.0/29', master_subnet=self.master_subnet
@@ -518,8 +518,7 @@ class TestSubnetDivisionRule(
             device=self._create_device(mac_address='00:11:22:33:44:66')
         )
         config2.templates.add(self.template)
-        self.assertEqual(
-            mocked_logger.call_args_list[4][0][0],
+        mocked_logger.assert_called_with(
             f'Cannot create more subnets of {subnet}',
         )
         notification = Notification.objects.first()
