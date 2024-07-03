@@ -52,34 +52,24 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install system packages
+    - name: Install Dependencies
+      id: deps
       run: |
         sudo apt update
         sudo apt-get -qq -y install sqlite3 gdal-bin libproj-dev \
           libgeos-dev libspatialite-dev spatialite-bin \
           libsqlite3-mod-spatialite
-
-    - name: Install npm dependencies
-      run: sudo npm install -g jshint stylelint
-
-    - name: Upgrade python system packages
-      run: pip install -U pip wheel setuptools
-
-    - name: Install test dependencies
-      run: |
+        sudo npm install -g jshint stylelint
+        pip install -U pip wheel setuptools
         pip install -U -r requirements-test.txt
-
-    - name: Install openwisp-controller
-      run: |
         pip install -U -e .
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
-      continue-on-error: true
-      run: |
-        ./run-qa-checks
+      run: ./run-qa-checks
 
     - name: Tests
+      if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
         coverage run runtests.py --parallel
         # the following command runs tests with Postgres/PostGIS but
@@ -93,6 +83,7 @@ jobs:
         SELENIUM_HEADLESS: 1
 
     - name: Upload Coverage
+      if: ${{ success() }}
       uses: coverallsapp/github-action@v2
       with:
         parallel: true
