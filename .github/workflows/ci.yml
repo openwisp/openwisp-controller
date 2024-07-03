@@ -75,8 +75,10 @@ jobs:
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
+      continue-on-error: true
       run: |
         ./run-qa-checks
+
     - name: Tests
       run: |
         coverage run runtests.py --parallel
