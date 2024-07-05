@@ -1,5 +1,5 @@
 pytest-django~=4.5.2
-pytest-asyncio~=0.21.0
+pytest-asyncio~=0.23.7
 pytest-cov~=5.0.0
 openwisp-utils[qa,selenium] @ https://github.com/openwisp/openwisp-utils/tarball/master
 channels_redis~=4.1.0
