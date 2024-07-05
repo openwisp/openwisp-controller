@@ -17,9 +17,9 @@ serve you as source of truth: just replicate and adapt that code to get a basic
 derivative of *OpenWISP Controller* working.
 
 If you want to add new users fields, please follow the :doc:`tutorial to extend the
-openwisp-users module </users/developer/extending>`. As an
-example, we have extended *openwisp-users* to *sample_users* app and added a field
-``social_security_number`` in the `sample_users/models.py
+openwisp-users module </users/developer/extending>`. As an example, we have extended
+*openwisp-users* to *sample_users* app and added a field ``social_security_number`` in
+the `sample_users/models.py
 <https://github.com/openwisp/openwisp-controller/blob/master/tests/openwisp2/sample_users/models.py>`_.
 
 **Premise**: if you plan on using a customized version of this module, we suggest to

@@ -72,13 +72,11 @@ You can define your own notification types using ``register_notification_type`` 
 from OpenWISP Notifications.
 
 For more information, see the relevant :doc:`documentation section about registering
-notification types in the Notifications module
-</notifications/developer/utils>`.
+notification types in the Notifications module </notifications/developer/utils>`.
 
-Once a new notification type is registered, you have to use the :doc:`"notify" signal
-provided the Notifications module
-</notifications/user/sending-notifications>` to send
-notifications for this type.
+Once a new notification type is registered, you can use the :doc:`"notify" signal
+provided by the Notifications module </notifications/user/sending-notifications>` to
+send notifications with this new type.
 
 Signals
 -------

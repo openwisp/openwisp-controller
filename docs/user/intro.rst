@@ -79,8 +79,8 @@ SNMP
 ~~~~
 
 The SNMP connector is useful to collect monitoring information and it's used in
-:doc:`OpenWISP Monitoring </monitoring/index>` for performing
-checks to collect monitoring information. `Read more
+:doc:`OpenWISP Monitoring </monitoring/index>` for performing checks to collect
+monitoring information. `Read more
 <https://github.com/openwisp/openwisp-monitoring/pull/309#discussion_r692566202>`_ on
 how to use it.
 
