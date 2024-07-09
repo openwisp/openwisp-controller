@@ -54,7 +54,7 @@ django.jQuery(function ($) {
         getParentRow($('label[for="id_cert"]'))[op]();
         // For Zerotier VPN backend
         if(backendValue.includes('zerotier')){
-            getParentRow($('label[for="id_ca"]')).show();
+            getParentRow($('label[for="id_auth_token"]')).show();
         }
     };
 
