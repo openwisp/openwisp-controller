@@ -144,8 +144,8 @@ in specific templates which are then tagged with specific keywords:
 - ``mesh``: tag to use for mesh configuration
 - ``dumb-ap``: tag to use for dumb AP configuration
 
-The `openwisp-config
-<https://github.com/openwisp/openwisp-config/#configuration-options>`_ configuration of
+The :ref:`openwisp-config
+<openwrt_config_agent_configuration_options>` configuration of
 each device type must specify the correct tag before each device registers in the
 system.
 
