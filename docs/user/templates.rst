@@ -24,7 +24,7 @@ order can be changed by drag and dropping the template in the device configurati
 as in the animated screenshot below.
 
 .. image:: /images/templates/template-ordering.gif
-    :target: ../../../../_images/template-ordering.gif
+    :target: ../../_images/template-ordering.gif
     :align: center
     :alt: Template ordering: drag and drop to change order
 
@@ -44,7 +44,7 @@ Shared Templates vs Organization Specific
 Templates can be *organization specific* or *shared* (no organization specified).
 
 .. image:: /images/templates/organization-specific-vs-shared.gif
-    :target: ../../../../_images/organization-specific-vs-shared.gif
+    :target: ../../_images/organization-specific-vs-shared.gif
     :align: center
     :alt: Shared templates vs organization specific
 
@@ -66,7 +66,7 @@ Default Templates
 -----------------
 
 .. image:: /images/templates/default-templates.gif
-    :target: ../../../../_images/default-templates.gif
+    :target: ../../_images/default-templates.gif
     :align: center
     :alt: Templates enabled by default
 
@@ -123,7 +123,7 @@ Template Tags
 -------------
 
 .. image:: /images/templates/template-tags.gif
-    :target: ../../../../_images/template-tags.gif
+    :target: ../../_images/template-tags.gif
     :align: center
     :alt: Template tags
 
@@ -144,8 +144,8 @@ in specific templates which are then tagged with specific keywords:
 - ``mesh``: tag to use for mesh configuration
 - ``dumb-ap``: tag to use for dumb AP configuration
 
-The `openwisp-config
-<https://github.com/openwisp/openwisp-config/#configuration-options>`_ configuration of
+The :ref:`openwisp-config
+<openwrt_config_agent_configuration_options>` configuration of
 each device type must specify the correct tag before each device registers in the
 system.
 
@@ -162,7 +162,7 @@ Once devices with the above configuration will register into the system, any tem
 tagged as ``mesh`` (as in the screenshot below) will be assigned to them.
 
 .. image:: /images/templates/mesh-template-tag.png
-    :target: ../../../../_images/mesh-template-tag.png
+    :target: ../../_images/mesh-template-tag.png
     :align: center
     :alt: Template tags: mesh example
 
@@ -180,7 +180,7 @@ Once devices with the above configuration will register into the system, any tem
 tagged as ``dumb-ap`` (as in the screenshot below) will be assigned to them.
 
 .. image:: /images/templates/dumb-ap-template-tag.png
-    :target: ../../../../_images/dumb-ap-template-tag.png
+    :target: ../../_images/dumb-ap-template-tag.png
     :align: center
     :alt: Template tags: dumb AP example
 

@@ -48,28 +48,28 @@ on top of its building blocks.
 
 Other popular building blocks that are part of the OpenWISP ecosystem are:
 
-- `openwisp-monitoring <https://github.com/openwisp/openwisp-monitoring>`_:
+- `openwisp-monitoring <https://openwisp.io/docs/dev/monitoring/>`_:
   provides device status monitoring, collection of metrics, charts, alerts,
   possibility to define custom checks
-- `openwisp-firmware-upgrader <https://github.com/openwisp/openwisp-firmware-upgrader>`_:
+- `openwisp-firmware-upgrader <https://openwisp.io/docs/dev/firmware-upgrader/>`_:
   automated firmware upgrades (single devices or mass network upgrades)
-- `openwisp-radius <https://github.com/openwisp/openwisp-radius>`_:
+- `openwisp-radius <https://openwisp.io/docs/dev/user/radius.html>`_:
   based on FreeRADIUS, allows to implement network access authentication systems like
   802.1x WPA2 Enterprise, captive portal authentication, Hotspot 2.0 (802.11u)
-- `openwisp-network-topology <https://github.com/openwisp/openwisp-network-topology>`_:
+- `openwisp-network-topology <https://openwisp.io/docs/dev/network-topology/>`_:
   provides way to collect and visualize network topology data from
   dynamic mesh routing daemons or other network software (eg: OpenVPN);
   it can be used in conjunction with openwisp-monitoring to get a better idea
   of the state of the network
-- `openwisp-ipam <https://github.com/openwisp/openwisp-ipam>`_:
+- `openwisp-ipam <https://openwisp.io/docs/dev/ipam/>`_:
   allows to manage the assignment of IP addresses used in the network
-- `openwisp-notifications <https://github.com/openwisp/openwisp-notifications>`_:
+- `openwisp-notifications <https://openwisp.io/docs/dev/notifications/>`_:
   allows users to be aware of important events happening in the network.
 
 **For a more complete overview of the OpenWISP modules and architecture**,
 see the
 `OpenWISP Architecture Overview
-<https://openwisp.io/docs/general/architecture.html>`_.
+<https://openwisp.io/docs/dev/general/architecture.html>`_.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp2-docs/master/assets/design/openwisp-logo-black.svg
   :target: http://openwisp.org

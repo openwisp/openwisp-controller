@@ -201,9 +201,9 @@ Whether devices can automatically register through the controller or not.
 
 This feature is enabled by default.
 
-Autoregistration must be supported on the devices in order to work, see `openwisp-config
-automatic registration
-<https://github.com/openwisp/openwisp-config#automatic-registration>`_ for more
+Auto-registration must be supported on the devices in order to work, see
+:doc:`openwisp-config automatic registration
+</openwrt-config-agent/user/automatic-registration>` for more
 information.
 
 .. _openwisp_controller_consistent_registration:
@@ -221,9 +221,9 @@ hence keeping the existing configuration without creating a new one.
 
 This feature is enabled by default.
 
-Autoregistration must be enabled also on the devices in order to work, see
-`openwisp-config consistent key generation
-<https://github.com/openwisp/openwisp-config#consistent-key-generation>`_ for more
+Auto-registration must be enabled also on the devices in order to work, see
+:ref:`openwisp-config consistent key generation
+<config_consistent_key_generation>` for more
 information.
 
 ``OPENWISP_CONTROLLER_REGISTRATION_SELF_CREATION``
