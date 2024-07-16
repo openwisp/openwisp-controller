@@ -6,9 +6,7 @@ a common characteristic but also some kind of organizational need: they need to 
 specific configuration templates, variables and/or associated metadata which differs
 from the rest of the network.
 
-Features provided by Device Groups:
-
-.. contents::
+.. contents:: **Features provided by Device Groups:**
     :depth: 2
     :local:
 

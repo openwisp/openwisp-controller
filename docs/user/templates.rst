@@ -1,6 +1,13 @@
 Configuration Templates
 =======================
 
+.. contents:: **Table of Contents**:
+    :depth: 3
+    :local:
+
+What is a Template?
+-------------------
+
 Templates are designed to store configuration that can be reused by some or all the
 devices in the system.
 
@@ -10,10 +17,6 @@ all the devices that have that template assigned.
 This means that configuration can be defined only once for multiple devices, and if the
 need to update a specific piece of configuration arises, it can be easily achieved by
 updating the template.
-
-.. contents:: **Table of Contents**:
-    :backlinks: none
-    :depth: 3
 
 Template Ordering and Override
 ------------------------------
@@ -37,6 +40,8 @@ the template.
 should be used as a last resort**. The recommended way to define parts of the
 configuration that are specific for each device is to use :doc:`Configuration variables
 <./variables>`.
+
+.. _controller_shared_vs_org:
 
 Shared Templates vs Organization Specific
 -----------------------------------------

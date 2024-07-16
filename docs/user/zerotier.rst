@@ -6,6 +6,10 @@ tunnels on your devices.
 
 .. include:: ../partials/shared-object.rst
 
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
+
 1. Configure Self-Hosted ZeroTier Network Controller
 ----------------------------------------------------
 
@@ -65,7 +69,7 @@ from the `official website <https://www.zerotier.com/download/>`_.
 2. Set ``ZeroTier Client`` as **Name** (you can set whatever you want) and select
    ``VPN-client`` as **type** from the dropdown list.
 3. The **Backend** field refers to the backend of the device this template can be
-   applied to. For this example, we will leave it to ``OpenWRT``.
+   applied to. For this example, we will leave it to ``OpenWrt``.
 4. Select the correct VPN server from the dropdown for the **VPN** field. Here it is
    ``ZeroTier``.
 5. Ensure that the **Automatic tunnel provisioning** option is checked. This will enable

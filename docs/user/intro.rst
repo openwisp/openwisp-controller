@@ -3,7 +3,7 @@ Controller: Structure & Features
 
 OpenWISP Controller is a Python package which ships five Django apps.
 
-.. contents::
+.. contents:: **These Django apps are listed below**:
     :depth: 1
     :local:
 
@@ -14,7 +14,7 @@ The config app is the core of the controller module and implements all the follo
 features:
 
 - **Configuration management** for embedded devices supporting:
-      - `OpenWRT <http://openwrt.org>`_
+      - `OpenWrt <http://openwrt.org>`_
       - `OpenWISP Firmware <https://github.com/openwisp/OpenWISP-Firmware>`_
       - additional firmware can be added by :ref:`specifying custom configuration
         backends <OPENWISP_CONTROLLER_BACKENDS>`

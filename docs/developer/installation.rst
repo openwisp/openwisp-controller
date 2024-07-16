@@ -3,6 +3,10 @@ Developer Installation Instructions
 
 .. include:: ../partials/developer-docs.rst
 
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
+
 Dependencies
 ------------
 
@@ -85,7 +89,7 @@ Launch development server:
 
     ./manage.py runserver 0.0.0.0:8000
 
-You can access the admin interface at http://127.0.0.1:8000/admin/.
+You can access the admin interface at ``http://127.0.0.1:8000/admin/``.
 
 Run tests with:
 

@@ -1,6 +1,13 @@
 Sending Commands to Devices
 ===========================
 
+.. contents:: **Table of Contents**:
+    :depth: 3
+    :local:
+
+Default Commands
+----------------
+
 By default, there are three options in the **Send Command** dropdown:
 
 1. Reboot

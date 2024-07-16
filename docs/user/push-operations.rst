@@ -1,6 +1,13 @@
 Configuring Push Operations
 ===========================
 
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
+
+Introduction
+------------
+
 .. important::
 
     If you have installed OpenWISP with the `ansbile-openwisp2 role
@@ -65,7 +72,7 @@ system (both existing devices and devices which will be added in the future).
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-authorized-ssh-keys-template.png
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/add-authorized-ssh-keys-template.png
-    :alt: Add authorized SSH public keys template to OpenWISP (OpenWRT)
+    :alt: Add authorized SSH public keys template to OpenWISP (OpenWrt)
 
 Now we need to instruct your devices to allow OpenWISP accessing via SSH, in order to do
 this we need to add the contents of the public key file created in step 1

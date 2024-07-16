@@ -1,6 +1,10 @@
 REST API Reference
 ==================
 
+.. contents:: **Table of contents**:
+    :depth: 1
+    :local:
+
 .. _controller_live_documentation:
 
 Live Documentation

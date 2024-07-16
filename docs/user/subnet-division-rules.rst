@@ -4,6 +4,10 @@ Automating Subnet and IP Address Provisioning
 This guide helps you automate provisioning subnets and IP addresses for your network
 devices.
 
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
+
 .. _step1_rule:
 
 1. Create a Subnet and a Subnet Division Rule

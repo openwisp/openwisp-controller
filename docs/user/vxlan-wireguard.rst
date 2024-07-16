@@ -6,6 +6,10 @@ in `WireGuard <https://www.wireguard.com/>`_ tunnels which work on layer 3.
 
 .. include:: ../partials/shared-object.rst
 
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
+
 1. Create VPN Server Configuration for VXLAN Over WireGuard
 -----------------------------------------------------------
 
@@ -67,7 +71,7 @@ as the VPN server configuration in OpenWISP.
 2. Set ``Wireguard VXLAN Client`` as **Name** (you can set whatever you want) and select
    ``VPN-client`` as **type** from the dropdown list.
 3. The **Backend** field refers to the backend of the device this template can be
-   applied to. For this example, we will leave it as ``OpenWRT``.
+   applied to. For this example, we will leave it as ``OpenWrt``.
 4. Select the correct VPN server from the dropdown for the **VPN** field. Here it is
    ``Wireguard VXLAN``.
 5. Ensure that **Automatic tunnel provisioning** is checked. This will make OpenWISP

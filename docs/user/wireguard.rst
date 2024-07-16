@@ -6,6 +6,10 @@ This guide will help you to set up the automatic provisioning of `WireGuard
 
 .. include:: ../partials/shared-object.rst
 
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
+
 1. Create VPN Server Configuration for WireGuard
 ------------------------------------------------
 
@@ -69,7 +73,7 @@ configuration in OpenWISP.
 2. Set ``WireGuard Client`` as **Name** (you can set whatever you want) and select
    ``VPN-client`` as **type** from the dropdown list.
 3. The **Backend** field refers to the backend of the device this template can be
-   applied to. For this example, we will leave it to ``OpenWRT``.
+   applied to. For this example, we will leave it to ``OpenWrt``.
 4. Select the correct VPN server from the dropdown for the **VPN** field. Here it is
    ``WireGuard``.
 5. Ensure that **Automatic tunnel provisioning** is checked. This will make OpenWISP to

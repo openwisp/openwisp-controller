@@ -3,8 +3,7 @@ Extending OpenWISP Controller
 
 .. include:: ../partials/developer-docs.rst
 
-One of the core values of the OpenWISP project is `Software Reusability
-<http://openwisp.io/docs/general/values.html#software-reusability-means-long-term-sustainability>`_,
+One of the core values of the OpenWISP project is :ref:`Software Reusability <values_software_reusability>`,
 for this reason *OpenWISP Controller* provides a set of base classes which can be
 imported, extended and reused to create derivative apps.
 
@@ -22,9 +21,15 @@ openwisp-users module </users/developer/extending>`. As an example, we have exte
 the `sample_users/models.py
 <https://github.com/openwisp/openwisp-controller/blob/master/tests/openwisp2/sample_users/models.py>`_.
 
-**Premise**: if you plan on using a customized version of this module, we suggest to
-start with it since the beginning, because migrating your data from the default module
-to your extended version may be time consuming.
+.. important::
+
+    If you plan on using a customized version of this module, we suggest
+    to start with it since the beginning, because migrating your data from
+    the default module to your extended version may be time consuming.
+
+.. contents:: **Table of Contents**:
+    :depth: 2
+    :local:
 
 1. Initialize Your Project & Custom Apps
 ----------------------------------------
