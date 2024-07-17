@@ -1,6 +1,21 @@
 Automating ZeroTier Tunnels
 ===========================
 
+.. raw:: html
+
+    <p style="text-align: center">
+      <iframe
+        width="560"
+        height="315"
+        src="https://www.youtube.com/embed/VThvUHi-4l4?si=MI6Koda404IqPldw"
+        title="OpenWISP ZeroTier"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen>
+      </iframe>
+    </p>
+
 Follow the procedure described below to set up `ZeroTier <https://www.zerotier.com/>`_
 tunnels on your devices.
 
