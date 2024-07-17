@@ -109,3 +109,12 @@ configuration in OpenWISP.
 
 **Voila!** You have successfully configured OpenWISP to manage WireGuard tunnels for
 your devices.
+
+
+.. seealso::
+
+    You may also want to explore other automated VPN tunnel provisioning options:
+
+    - :doc:`Wireguard over VXLAN </controller/user/vxlan-wireguard>`
+    - :doc:`Zerotier </controller/user/zerotier>`
+    - :doc:`OpenVPN </controller/user/openvpn>`

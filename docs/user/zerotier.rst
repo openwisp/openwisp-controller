@@ -121,3 +121,11 @@ from the `official website <https://www.zerotier.com/download/>`_.
 
 **Congratulations!** You've successfully configured OpenWISP to manage ZeroTier tunnels
 on your devices.
+
+.. seealso::
+
+    You may also want to explore other automated VPN tunnel provisioning options:
+
+    - :doc:`Wireguard </controller/user/wireguard>`
+    - :doc:`Wireguard over VXLAN </controller/user/vxlan-wireguard>`
+    - :doc:`OpenVPN </controller/user/openvpn>`
