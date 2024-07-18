@@ -51,7 +51,8 @@ Setup and activate a virtual-environment (we'll be using `virtualenv
     python -m virtualenv env
     source env/bin/activate
 
-Make sure that your base python packages are up to date before moving to the next step:
+Make sure that your base python packages are up to date before moving to
+the next step:
 
 .. code-block:: shell
 
@@ -66,8 +67,8 @@ Install development dependencies:
     sudo npm install -g jshint stylelint
 
 Install WebDriver for Chromium for your browser version from
-https://chromedriver.chromium.org/home and Extract ``chromedriver`` to one of
-directories from your ``$PATH`` (example: ``~/.local/bin/``).
+https://chromedriver.chromium.org/home and Extract ``chromedriver`` to one
+of directories from your ``$PATH`` (example: ``~/.local/bin/``).
 
 Create database:
 
@@ -97,10 +98,11 @@ Run tests with:
 
     ./runtests.py --parallel
 
-Some tests, such as the Selenium UI tests, require a PostgreSQL database to run. If you
-don't have a PostgreSQL database running on your system, you can use :ref:`the Docker
-Compose configuration provided in this repository <controller_dev_docker>`. Once set up,
-you can run these specific tests as follows:
+Some tests, such as the Selenium UI tests, require a PostgreSQL database
+to run. If you don't have a PostgreSQL database running on your system,
+you can use :ref:`the Docker Compose configuration provided in this
+repository <controller_dev_docker>`. Once set up, you can run these
+specific tests as follows:
 
 .. code-block:: shell
 
@@ -182,8 +184,9 @@ If you are incurring in the following exception:
 
     django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
 
-You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as explained in
-`django documentation regarding how to install and configure spatialte
+You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as
+explained in `django documentation regarding how to install and configure
+spatialte
 <https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with Other Geospatial Libraries?
@@ -194,6 +197,7 @@ Please refer `troubleshooting issues related to geospatial libraries
 
 .. important::
 
-    If you want to add OpenWISP Controller to an existing Django project, then you can
-    refer to the `test project in the openwisp-controller repository
+    If you want to add OpenWISP Controller to an existing Django project,
+    then you can refer to the `test project in the openwisp-controller
+    repository
     <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2>`_.

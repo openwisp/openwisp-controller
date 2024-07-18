@@ -14,38 +14,42 @@ By default, there are three options in the **Send Command** dropdown:
 2. Change Password
 3. Custom Command
 
-While the first two options are self-explanatory, the **custom command** option allows
-you to execute any command on the device as shown in the example below.
+While the first two options are self-explanatory, the **custom command**
+option allows you to execute any command on the device as shown in the
+example below.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/commands_demo.gif
     :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/commands_demo.gif
     :alt: Executing commands on device example
 
-**Note**: in order for this feature to work, a device needs to have at least one
-**Access Credential** (see :doc:`How to configure push updates <push-operations>`).
+**Note**: in order for this feature to work, a device needs to have at
+least one **Access Credential** (see :doc:`How to configure push updates
+<push-operations>`).
 
-The **Send Command** button will be hidden until the device has at least one **Access
-Credential**.
+The **Send Command** button will be hidden until the device has at least
+one **Access Credential**.
 
-If you need to allow your users to quickly send specific commands that are used often in
-your network regardless of your users' knowledge of Linux shell commands, you can add
-new commands by following instructions in the :ref:`defining_new_menu_options` section
-below.
+If you need to allow your users to quickly send specific commands that are
+used often in your network regardless of your users' knowledge of Linux
+shell commands, you can add new commands by following instructions in the
+:ref:`defining_new_menu_options` section below.
 
 .. note::
 
     If you're an advanced user and want to learn how to register commands
-    programmatically, refer to the :ref:`registering_unregistering_commands` section.
+    programmatically, refer to the
+    :ref:`registering_unregistering_commands` section.
 
 .. _defining_new_menu_options:
 
 Defining New Options in the Commands Menu
 -----------------------------------------
 
-Let's explore to define new custom commands to help users perform additional management
-actions without having to be Linux/Unix experts.
+Let's explore to define new custom commands to help users perform
+additional management actions without having to be Linux/Unix experts.
 
-We can do so by using the ``OPENWISP_CONTROLLER_USER_COMMANDS`` django setting.
+We can do so by using the ``OPENWISP_CONTROLLER_USER_COMMANDS`` django
+setting.
 
 The following example defines a simple command that can ``ping`` an input
 ``destination_address`` through a network interface, ``interface_name``.
@@ -89,24 +93,25 @@ The following example defines a simple command that can ``ping`` an input
         )
     ]
 
-The above code will add the *Ping* command in the user interface as show in the GIF
-below:
+The above code will add the *Ping* command in the user interface as show
+in the GIF below:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/ping_command_example.gif
     :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/ping_command_example.gif
     :alt: Adding a *ping* command
 
-The ``OPENWISP_CONTROLLER_USER_COMMANDS`` setting takes a ``list`` of ``tuple`` each
-containing two elements. The first element of the tuple should contain an identifier for
-the command and the second element should contain a ``dict`` defining configuration of
-the command.
+The ``OPENWISP_CONTROLLER_USER_COMMANDS`` setting takes a ``list`` of
+``tuple`` each containing two elements. The first element of the tuple
+should contain an identifier for the command and the second element should
+contain a ``dict`` defining configuration of the command.
 
 .. _comand_configuration:
 
 Command Configuration
 ~~~~~~~~~~~~~~~~~~~~~
 
-The ``dict`` defining configuration for command should contain following keys:
+The ``dict`` defining configuration for command should contain following
+keys:
 
 1. ``label``
 ++++++++++++
@@ -116,9 +121,9 @@ A ``str`` defining label for the command used internally by Django.
 2. ``schema``
 +++++++++++++
 
-A ``dict`` defining `JSONSchema <https://json-schema.org/>`_ for inputs of command. You
-can specify the inputs for your command, add rules for performing validation and make
-inputs required or optional.
+A ``dict`` defining `JSONSchema <https://json-schema.org/>`_ for inputs of
+command. You can specify the inputs for your command, add rules for
+performing validation and make inputs required or optional.
 
 Here is a detailed explanation of the schema used in above example:
 
@@ -151,19 +156,22 @@ Here is a detailed explanation of the schema used in above example:
         "additionalProperties": False,
     }
 
-This example uses only handful of properties available in JSONSchema. You can experiment
-with other properties of JSONSchema for schema of your command.
+This example uses only handful of properties available in JSONSchema. You
+can experiment with other properties of JSONSchema for schema of your
+command.
 
 3. ``callable``
 +++++++++++++++
 
-A ``callable`` or ``str`` defining dotted path to a callable. It should return the
-command (``str``) to be executed on the device. Inputs of the command are passed as
-arguments to this callable.
+A ``callable`` or ``str`` defining dotted path to a callable. It should
+return the command (``str``) to be executed on the device. Inputs of the
+command are passed as arguments to this callable.
 
-The example above includes a callable(``ping_command_callable``) for ``ping`` command.
+The example above includes a callable(``ping_command_callable``) for
+``ping`` command.
 
 How to register or unregister commands
 --------------------------------------
 
-Refer to :ref:`registering_unregistering_commands` in the developer documentation.
+Refer to :ref:`registering_unregistering_commands` in the developer
+documentation.

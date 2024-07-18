@@ -3,22 +3,23 @@ Extending OpenWISP Controller
 
 .. include:: ../partials/developer-docs.rst
 
-One of the core values of the OpenWISP project is :ref:`Software Reusability <values_software_reusability>`,
-for this reason *OpenWISP Controller* provides a set of base classes which can be
-imported, extended and reused to create derivative apps.
+One of the core values of the OpenWISP project is :ref:`Software
+Reusability <values_software_reusability>`, for this reason *OpenWISP
+Controller* provides a set of base classes which can be imported, extended
+and reused to create derivative apps.
 
-In order to implement your custom version of *OpenWISP Controller*, you need to perform
-the steps described in this section.
+In order to implement your custom version of *OpenWISP Controller*, you
+need to perform the steps described in this section.
 
 When in doubt, the code in the `test project
-<https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/>`_ will
-serve you as source of truth: just replicate and adapt that code to get a basic
-derivative of *OpenWISP Controller* working.
+<https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/>`_
+will serve you as source of truth: just replicate and adapt that code to
+get a basic derivative of *OpenWISP Controller* working.
 
-If you want to add new users fields, please follow the :doc:`tutorial to extend the
-openwisp-users module </users/developer/extending>`. As an example, we have extended
-*openwisp-users* to *sample_users* app and added a field ``social_security_number`` in
-the `sample_users/models.py
+If you want to add new users fields, please follow the :doc:`tutorial to
+extend the openwisp-users module </users/developer/extending>`. As an
+example, we have extended *openwisp-users* to *sample_users* app and added
+a field ``social_security_number`` in the `sample_users/models.py
 <https://github.com/openwisp/openwisp-controller/blob/master/tests/openwisp2/sample_users/models.py>`_.
 
 .. important::
@@ -40,18 +41,19 @@ Firstly, to get started you need to create a django project:
 
     django-admin startproject mycontroller
 
-Now, you need to do is to create some new django apps which will contain your custom
-version of *OpenWISP Controller*.
+Now, you need to do is to create some new django apps which will contain
+your custom version of *OpenWISP Controller*.
 
-A django project is a collection of django apps. There are 4 django apps in the
-openwisp_controller project, namely config, pki, connection & geo. You'll need to create
-4 apps in your project for each app in openwisp_controller.
+A django project is a collection of django apps. There are 4 django apps
+in the openwisp_controller project, namely config, pki, connection & geo.
+You'll need to create 4 apps in your project for each app in
+openwisp_controller.
 
 A django app is nothing more than a `python package
-<https://docs.python.org/3/tutorial/modules.html#packages>`_ (a directory of python
-scripts), in the following examples we'll call these django app ``sample_config``,
-``sample_pki``, ``sample_connection``, ``sample_geo`` & ``sample_subnet_division``. but
-you can name it how you want:
+<https://docs.python.org/3/tutorial/modules.html#packages>`_ (a directory
+of python scripts), in the following examples we'll call these django app
+``sample_config``, ``sample_pki``, ``sample_connection``, ``sample_geo`` &
+``sample_subnet_division``. but you can name it how you want:
 
 .. code-block::
 
@@ -61,13 +63,13 @@ you can name it how you want:
     django-admin startapp sample_geo
     django-admin startapp sample_subnet_division
 
-Keep in mind that the command mentioned above must be called from a directory which is
-available in your `PYTHON_PATH
-<https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH>`_ so that you can then
-import the result into your project.
+Keep in mind that the command mentioned above must be called from a
+directory which is available in your `PYTHON_PATH
+<https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH>`_ so that
+you can then import the result into your project.
 
-For more information about how to work with django projects and django apps, please
-refer to the `django documentation
+For more information about how to work with django projects and django
+apps, please refer to the `django documentation
 <https://docs.djangoproject.com/en/4.2/intro/tutorial01/>`_.
 
 2. Install ``openwisp-controller``
@@ -82,10 +84,11 @@ Install (and add to the requirement of your project) openwisp-controller:
 3. Add Your Apps to ``INSTALLED_APPS``
 --------------------------------------
 
-Now you need to add ``mycontroller.sample_config``, ``mycontroller.sample_pki``,
-``mycontroller.sample_connection``, ``mycontroller.sample_geo`` &
-``mycontroller.sample_subnet_division`` to ``INSTALLED_APPS`` in your ``settings.py``,
-ensuring also that ``openwisp_controller.config``, ``openwisp_controller.geo``,
+Now you need to add ``mycontroller.sample_config``,
+``mycontroller.sample_pki``, ``mycontroller.sample_connection``,
+``mycontroller.sample_geo`` & ``mycontroller.sample_subnet_division`` to
+``INSTALLED_APPS`` in your ``settings.py``, ensuring also that
+``openwisp_controller.config``, ``openwisp_controller.geo``,
 ``openwisp_controller.pki``, ``openwisp_controller.connnection`` &
 ``openwisp_controller.subnet_division`` have been removed:
 
@@ -128,8 +131,9 @@ ensuring also that ``openwisp_controller.config``, ``openwisp_controller.geo``,
         "import_export",
     ]
 
-Substitute ``mycontroller``, ``sample_config``, ``sample_pki``, ``sample_connection``,
-``sample_geo`` & ``sample_subnet_division`` with the name you chose in step 1.
+Substitute ``mycontroller``, ``sample_config``, ``sample_pki``,
+``sample_connection``, ``sample_geo`` & ``sample_subnet_division`` with
+the name you chose in step 1.
 
 4. Add ``EXTENDED_APPS``
 ------------------------
@@ -151,8 +155,8 @@ Add the following to your ``settings.py``:
 5. Add ``openwisp_utils.staticfiles.DependencyFinder``
 ------------------------------------------------------
 
-Add ``openwisp_utils.staticfiles.DependencyFinder`` to ``STATICFILES_FINDERS`` in your
-``settings.py``:
+Add ``openwisp_utils.staticfiles.DependencyFinder`` to
+``STATICFILES_FINDERS`` in your ``settings.py``:
 
 .. code-block:: python
 
@@ -206,8 +210,8 @@ Ensure you are using one of the available geodjango backends, eg:
         }
     }
 
-For more information about GeoDjango, please refer to the `geodjango documentation
-<https://docs.djangoproject.com/en/4.2/ref/contrib/gis/>`_.
+For more information about GeoDjango, please refer to the `geodjango
+documentation <https://docs.djangoproject.com/en/4.2/ref/contrib/gis/>`_.
 
 6. Django Channels Setup
 ------------------------
@@ -249,13 +253,14 @@ Add the following settings to ``settings.py``:
         "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
     }
 
-For more information about FORM_RENDERER setting, please refer to the `FORM_RENDERER
-documentation <https://docs.djangoproject.com/en/4.2/ref/settings/#form-renderer>`_. For
-more information about ASGI_APPLICATION setting, please refer to the `ASGI_APPLICATION
-documentation
+For more information about FORM_RENDERER setting, please refer to the
+`FORM_RENDERER documentation
+<https://docs.djangoproject.com/en/4.2/ref/settings/#form-renderer>`_. For
+more information about ASGI_APPLICATION setting, please refer to the
+`ASGI_APPLICATION documentation
 <https://channels.readthedocs.io/en/latest/deploying.html#configuring-the-asgi-application>`_.
-For more information about CHANNEL_LAYERS setting, please refer to the `CHANNEL_LAYERS
-documentation
+For more information about CHANNEL_LAYERS setting, please refer to the
+`CHANNEL_LAYERS documentation
 <https://channels.readthedocs.io/en/latest/deploying.html#setting-up-a-channel-backend>`_.
 
 6. Inherit the AppConfig Class
@@ -291,15 +296,15 @@ Please refer to the following files in the sample app of the test project:
 
 You have to replicate and adapt that code in your project.
 
-For more information regarding the concept of ``AppConfig`` please refer to the
-`"Applications" section in the django documentation
+For more information regarding the concept of ``AppConfig`` please refer
+to the `"Applications" section in the django documentation
 <https://docs.djangoproject.com/en/4.2/ref/applications/>`_.
 
 7. Create Your Custom Models
 ----------------------------
 
-For the purpose of showing an example, we added a simple "details" field to the models
-of the sample app in the test project.
+For the purpose of showing an example, we added a simple "details" field
+to the models of the sample app in the test project.
 
 - `sample_config models
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/models.py>`_
@@ -316,14 +321,15 @@ You can add fields in a similar way in your ``models.py`` file.
 
 .. note::
 
-    If you have any doubt regarding how to use, extend or develop models please refer to
-    the `"Models" section in the django documentation
+    If you have any doubt regarding how to use, extend or develop models
+    please refer to the `"Models" section in the django documentation
     <https://docs.djangoproject.com/en/4.2/topics/db/models/>`_.
 
 8. Add Swapper Configurations
 -----------------------------
 
-Once you have created the models, add the following to your ``settings.py``:
+Once you have created the models, add the following to your
+``settings.py``:
 
 .. code-block:: python
 
@@ -336,7 +342,9 @@ Once you have created the models, add the following to your ``settings.py``:
     CONFIG_TEMPLATE_MODEL = "sample_config.Template"
     CONFIG_VPN_MODEL = "sample_config.Vpn"
     CONFIG_VPNCLIENT_MODEL = "sample_config.VpnClient"
-    CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = "sample_config.OrganizationConfigSettings"
+    CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = (
+        "sample_config.OrganizationConfigSettings"
+    )
     CONFIG_ORGANIZATIONLIMITS_MODEL = "sample_config.OrganizationLimits"
     DJANGO_X509_CA_MODEL = "sample_pki.Ca"
     DJANGO_X509_CERT_MODEL = "sample_pki.Cert"
@@ -346,11 +354,16 @@ Once you have created the models, add the following to your ``settings.py``:
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"
-    SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = "sample_subnet_division.SubnetDivisionRule"
-    SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = "sample_subnet_division.SubnetDivisionIndex"
+    SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = (
+        "sample_subnet_division.SubnetDivisionRule"
+    )
+    SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = (
+        "sample_subnet_division.SubnetDivisionIndex"
+    )
 
-Substitute ``sample_config``, ``sample_pki``, ``sample_connection``, ``sample_geo`` &
-``sample_subnet_division`` with the name you chose in step 1.
+Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
+``sample_geo`` & ``sample_subnet_division`` with the name you chose in
+step 1.
 
 9. Create Database Migrations
 -----------------------------
@@ -361,9 +374,9 @@ Create database migrations:
 
     ./manage.py makemigrations
 
-Now, to use the default ``administrator`` and ``operator`` user groups like the used in
-the openwisp_controller module, you'll manually need to make a migrations file which
-would look like:
+Now, to use the default ``administrator`` and ``operator`` user groups
+like the used in the openwisp_controller module, you'll manually need to
+make a migrations file which would look like:
 
 - `sample_config/migrations/0002_default_groups_permissions.py
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/migrations/0002_default_groups_permissions.py>`_
@@ -382,7 +395,8 @@ Create database migrations:
 
     ./manage.py migrate
 
-For more information, refer to the `"Migrations" section in the django documentation
+For more information, refer to the `"Migrations" section in the django
+documentation
 <https://docs.djangoproject.com/en/4.2/topics/migrations/>`_.
 
 10. Create the Admin
@@ -401,17 +415,19 @@ Refer to the ``admin.py`` file of the sample app.
 - `sample_subnet_division admin.py
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_subnet_division/admin.py>`_.
 
-To introduce changes to the admin, you can do it in two main ways which are described
-below.
+To introduce changes to the admin, you can do it in two main ways which
+are described below.
 
-**Note**: for more information regarding how the django admin works, or how it can be
-customized, please refer to `"The django admin site" section in the django documentation
+**Note**: for more information regarding how the django admin works, or
+how it can be customized, please refer to `"The django admin site" section
+in the django documentation
 <https://docs.djangoproject.com/en/4.2/ref/contrib/admin/>`_.
 
 1. Monkey Patching
 ~~~~~~~~~~~~~~~~~~
 
-If the changes you need to add are relatively small, you can resort to monkey patching.
+If the changes you need to add are relatively small, you can resort to
+monkey patching.
 
 For example:
 
@@ -461,15 +477,19 @@ For example:
 
 .. code-block:: python
 
-    from openwisp_controller.subnet_division.admin import SubnetDivisionRuleInlineAdmin
+    from openwisp_controller.subnet_division.admin import (
+        SubnetDivisionRuleInlineAdmin,
+    )
 
-    SubnetDivisionRuleInlineAdmin.fields += ["example"]  # <-- monkey patching example
+    SubnetDivisionRuleInlineAdmin.fields += [
+        "example"
+    ]  # <-- monkey patching example
 
 2. Inheriting admin classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you need to introduce significant changes and/or you don't want to resort to monkey
-patching, you can proceed as follows:
+If you need to introduce significant changes and/or you don't want to
+resort to monkey patching, you can proceed as follows:
 
 ``sample_config``
 +++++++++++++++++
@@ -659,24 +679,29 @@ patching, you can proceed as follows:
         # url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
         # openwisp-controller urls
         url(
-            r"", include(("openwisp_controller.config.urls", "config"), namespace="config")
+            r"",
+            include(
+                ("openwisp_controller.config.urls", "config"),
+                namespace="config",
+            ),
         ),
         url(r"", include("openwisp_controller.urls")),
     ]
 
-For more information about URL configuration in django, please refer to the `"URL
-dispatcher" section in the django documentation
+For more information about URL configuration in django, please refer to
+the `"URL dispatcher" section in the django documentation
 <https://docs.djangoproject.com/en/4.2/topics/http/urls/>`_.
 
 12. Import the Automated Tests
 ------------------------------
 
-When developing a custom application based on this module, it's a good idea to import
-and run the base tests too, so that you can be sure the changes you're introducing are
-not breaking some of the existing features of *OpenWISP Controller*.
+When developing a custom application based on this module, it's a good
+idea to import and run the base tests too, so that you can be sure the
+changes you're introducing are not breaking some of the existing features
+of *OpenWISP Controller*.
 
-In case you need to add breaking changes, you can overwrite the tests defined in the
-base classes to test your own behavior.
+In case you need to add breaking changes, you can overwrite the tests
+defined in the base classes to test your own behavior.
 
 See the tests in sample_app to find out how to do this.
 
@@ -697,7 +722,8 @@ See the tests in sample_app to find out how to do this.
 
 For running the tests, you need to copy fixtures as well:
 
-- Change `sample_config` to your config app's name in `sample_config fixtures
+- Change `sample_config` to your config app's name in `sample_config
+  fixtures
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/fixtures/>`_
   and paste it in the ``sample_config/fixtures/`` directory.
 
@@ -710,35 +736,41 @@ You can then run tests with:
 
 Substitute ``mycontroller`` with the name you chose in step 1.
 
-For more information about automated tests in django, please refer to `"Testing in
-Django" <https://docs.djangoproject.com/en/4.2/topics/testing/>`_.
+For more information about automated tests in django, please refer to
+`"Testing in Django"
+<https://docs.djangoproject.com/en/4.2/topics/testing/>`_.
 
 Other Base Classes that Can Be Inherited and Extended
 -----------------------------------------------------
 
-The following steps are not required and are intended for more advanced customization.
+The following steps are not required and are intended for more advanced
+customization.
 
 1. Extending the Controller API Views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Extending the `sample_config/views.py
 <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/views.py>`_
-is required only when you want to make changes in the controller API, Remember to change
-``config_views`` location in ``urls.py`` in point 11 for extending views.
+is required only when you want to make changes in the controller API,
+Remember to change ``config_views`` location in ``urls.py`` in point 11
+for extending views.
 
-For more information about django views, please refer to the `views section in the
-django documentation <https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
+For more information about django views, please refer to the `views
+section in the django documentation
+<https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
 
 2. Extending the Geo API Views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Extending the `sample_geo/views.py
 <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_geo/views.py>`_
-is required only when you want to make changes in the geo API, Remember to change
-``geo_views`` location in ``urls.py`` in point 11 for extending views.
+is required only when you want to make changes in the geo API, Remember to
+change ``geo_views`` location in ``urls.py`` in point 11 for extending
+views.
 
-For more information about django views, please refer to the `views section in the
-django documentation <https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
+For more information about django views, please refer to the `views
+section in the django documentation
+<https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
 
 .. _custom_subnet_division_rule_types:
 
@@ -746,14 +778,15 @@ Custom Subnet Division Rule Types
 ---------------------------------
 
 It is possible to create your own :doc:`subnet division rule types
-<../user/subnet-division-rules>`. The rule type determines when subnets and IPs will be
-provisioned and when they will be destroyed.
+<../user/subnet-division-rules>`. The rule type determines when subnets
+and IPs will be provisioned and when they will be destroyed.
 
 You can create your custom rule types by extending
 ``openwisp_controller.subnet_division.rule_types.base.BaseSubnetDivisionRuleType``.
 
-Below is an example to create a subnet division rule type that will provision subnets
-and IPs when a new device is created and will delete them upon deletion for that device.
+Below is an example to create a subnet division rule type that will
+provision subnets and IPs when a new device is created and will delete
+them upon deletion for that device.
 
 .. code-block:: python
 
@@ -808,7 +841,9 @@ and IPs when a new device is created and will delete them upon deletion for that
         # performs no operation for existing objects.
         @classmethod
         def provision_for_existing_objects(cls, rule_obj):
-            for device in Device.objects.filter(organization=rule_obj.organization):
+            for device in Device.objects.filter(
+                organization=rule_obj.organization
+            ):
                 cls.provision_receiver(device, created=True)
 
 After creating a class for your custom rule type, you will need to set

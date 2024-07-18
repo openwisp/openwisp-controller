@@ -210,8 +210,8 @@ Finally you can add the new template to your devices.
 .. tip::
 
     If you need to troubleshoot any issue, increase the verbosity of the
-    OpenVPN logging, both on the server and the clients, and check both logs
-    (on the server and on the client).
+    OpenVPN logging, both on the server and the clients, and check both
+    logs (on the server and on the client).
 
 .. seealso::
 
