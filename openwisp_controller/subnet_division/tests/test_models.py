@@ -956,6 +956,57 @@ class TestSubnetDivisionRule(
             device_rule.number_of_subnets,
         )
 
+    def test_empty_master_subnet(self):
+        try:
+            rule = SubnetDivisionRule(
+                type='openwisp_controller.subnet_division.rule_types.vpn.'
+                'VpnSubnetDivisionRuleType',
+                label='TEST',
+                size=28,
+                number_of_subnets=2,
+                number_of_ips=2,
+                organization=self.org,
+                # master_subnet is intentionally omitted
+            )
+            rule.full_clean()
+        except ValidationError as e:
+            # Ensure custom error message is present
+            self.assertIn(
+                'Master subnet is required and cannot be empty.',
+                e.message_dict.get('master_subnet', []),
+            )
+            # Ensure default error message is also present
+            self.assertIn(
+                'This field cannot be null.', e.message_dict.get('master_subnet', [])
+            )
+        else:
+            self.fail('ValidationError not raised')
+
+    def test_invalid_master_subnet(self):
+        try:
+            invalid_subnet = Subnet(
+                name='Invalid Subnet'
+            )  # Create a subnet without setting its 'subnet' attribute
+            rule = SubnetDivisionRule(
+                type='openwisp_controller.subnet_division.rule_types.vpn.'
+                'VpnSubnetDivisionRuleType',
+                label='TEST',
+                size=28,
+                number_of_subnets=2,
+                number_of_ips=2,
+                organization=self.org,
+                master_subnet=invalid_subnet,  # Set an invalid master_subnet
+            )
+            rule.full_clean()
+        except ValidationError as e:
+            # Ensure custom error message is present
+            self.assertIn(
+                'Master subnet must have a valid subnet.',
+                e.message_dict.get('master_subnet', []),
+            )
+        else:
+            self.fail('ValidationError not raised')
+
 
 class TestOpenVPNSubnetDivisionRule(
     SubnetDivisionTestMixin,
