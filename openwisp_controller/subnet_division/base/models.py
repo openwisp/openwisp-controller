@@ -108,7 +108,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             master_subnet = self.master_subnet.subnet
             if not master_subnet:
                 raise ValidationError(
-                    {'master_subnet': _('Master subnet must have a valid subnet.')}
+                    {'master_subnet': _('Master subnet must be a valid subnet.')}
                 )
         except AttributeError:
             raise ValidationError(
