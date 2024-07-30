@@ -10,7 +10,6 @@ def truncate_failure_reason(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('connection', '0004_django3_1_upgrade')]
 
     operations = [

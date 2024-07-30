@@ -2038,7 +2038,6 @@ class TestDeviceGroupAdminTransaction(
     TestAdminMixin,
     TransactionTestCase,
 ):
-
     app_label = 'config'
     _device_group_params = {
         'name': 'test-device-group',

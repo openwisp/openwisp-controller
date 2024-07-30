@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('subnet_division', '0003_related_field_allow_blank'),
     ]

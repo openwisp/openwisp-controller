@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('subnet_division', '0004_index_rule_on_delete'),
     ]

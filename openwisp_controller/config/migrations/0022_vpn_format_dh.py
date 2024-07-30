@@ -11,7 +11,6 @@ def format_dh(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0021_vpn_key')]
 
     operations = [

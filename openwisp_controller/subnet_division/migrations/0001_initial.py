@@ -12,7 +12,6 @@ from .. import settings as app_settings
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

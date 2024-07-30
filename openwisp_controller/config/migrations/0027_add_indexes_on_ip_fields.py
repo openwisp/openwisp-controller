@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0026_hardware_id_not_unique')]
 
     operations = [

@@ -22,7 +22,6 @@ from openwisp_controller.config.base.template import default_auto_cert
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

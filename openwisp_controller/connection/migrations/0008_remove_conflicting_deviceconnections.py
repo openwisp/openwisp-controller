@@ -19,7 +19,6 @@ def remove_conflicting_deviceconnections(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('connection', '0007_command'),
     ]

@@ -7,7 +7,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0027_add_indexes_on_ip_fields')]
 
     operations = [

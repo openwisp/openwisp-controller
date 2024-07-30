@@ -29,7 +29,6 @@ class SshServer(Server):
 
 
 class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
-
     _TEST_RSA_PRIVATE_KEY_PATH = os.path.join(os.path.dirname(__file__), 'test-key.rsa')
     _TEST_RSA_PRIVATE_KEY_VALUE = None
     _TEST_ED_PRIVATE_KEY_PATH = os.path.join(

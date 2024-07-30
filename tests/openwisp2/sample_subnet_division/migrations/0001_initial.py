@@ -14,7 +14,6 @@ from openwisp_controller.subnet_division import settings as app_settings
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

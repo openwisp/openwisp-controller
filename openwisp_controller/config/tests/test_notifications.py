@@ -234,7 +234,6 @@ class TestNotifications(
         with self.subTest(
             'Test notifications are generated for API tasks (unrecoverable errors)'
         ):
-
             with self.subTest(
                 'Test error notification on failure of first call (update network)'
             ):

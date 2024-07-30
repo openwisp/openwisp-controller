@@ -39,7 +39,6 @@ Organization = load_model('openwisp_users', 'Organization')
 
 
 class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
-
     """
     tests for config.controller
     """

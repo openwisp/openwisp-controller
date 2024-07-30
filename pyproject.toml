@@ -1,0 +1,24 @@
+[tool.isort]
+known_third_party = ["django", "django_x509"]
+known_first_party = ["openwisp_users", "openwisp_utils"]
+default_section = "THIRDPARTY"
+line_length = 88
+multi_line_output = 3
+use_parentheses = true
+include_trailing_comma = true
+force_grid_wrap = 0
+
+[tool.coverage.run]
+parallel = true
+omit = [
+    "**/test*",
+    "tests",
+    "**/__init__.py",
+    "setup.py",
+    "**/migrations/*"
+]
+source = ["openwisp_controller"]
+concurrency = ["multiprocessing"]
+
+[tool.docstrfmt]
+extend_exclude = ["**/*.py", "README.rst"]

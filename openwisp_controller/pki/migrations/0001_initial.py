@@ -14,7 +14,6 @@ from swapper import dependency, get_model_name, split
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

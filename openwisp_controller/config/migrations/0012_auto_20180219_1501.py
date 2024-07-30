@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0011_update_device_mac_address')]
 
     operations = [

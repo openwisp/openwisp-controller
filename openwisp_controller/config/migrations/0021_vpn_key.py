@@ -10,7 +10,6 @@ import openwisp_utils.utils
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0020_remove_config_organization')]
 
     operations = [

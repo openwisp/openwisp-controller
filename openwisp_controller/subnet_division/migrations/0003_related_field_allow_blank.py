@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.CONFIG_CONFIG_MODEL),
         migrations.swappable_dependency(settings.OPENWISP_IPAM_IPADDRESS_MODEL),

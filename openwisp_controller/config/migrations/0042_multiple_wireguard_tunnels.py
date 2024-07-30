@@ -58,7 +58,6 @@ def disallow_multiple_wireguard_tunneling(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0041_default_groups_organizationconfigsettings_permission'),
     ]

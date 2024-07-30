@@ -16,7 +16,6 @@ from . import assign_devicegroup_permissions_to_groups
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0035_device_name_unique_optional'),
     ]
