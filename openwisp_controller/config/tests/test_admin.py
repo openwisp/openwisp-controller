@@ -2041,7 +2041,6 @@ class TestAdmin(
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,
     TestAdminMixin,
-    TestOrganizationMixin,
     TransactionTestCase,
 ):
     app_label = 'config'
@@ -2115,7 +2114,7 @@ class TestTransactionAdmin(
         self.assertNotContains(response, self._deactivate_btn_html)
         self.assertContains(response, self._activate_btn_html)
         # Verify adding a new DeviceLocation and DeviceConnection is not allowed
-        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=3)
+        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=2)
         # Verify deleting existing Inline objects is not allowed
         self.assertNotContains(response, '<span class="delete"><input type="checkbox" ')
 
@@ -2153,7 +2152,7 @@ class TestTransactionAdmin(
         self.assertNotContains(response, self._save_btn_html)
         self.assertNotContains(response, self._deactivate_btn_html)
         # Verify adding a new inline objects is not allowed
-        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=4)
+        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=3)
 
     def _test_device_changelist_activate_deactivate_admin_action(
         self, method='activate', is_initially_deactivated=True

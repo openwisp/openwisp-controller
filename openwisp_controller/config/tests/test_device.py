@@ -593,7 +593,6 @@ class TestDevice(
 
 class TestTransactionDevice(
     CreateConfigTemplateMixin,
-    TestOrganizationMixin,
     AssertNumQueriesSubTestMixin,
     CreateDeviceGroupMixin,
     TransactionTestCase,

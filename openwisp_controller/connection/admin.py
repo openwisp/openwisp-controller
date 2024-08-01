@@ -145,7 +145,7 @@ class CommandInline(admin.StackedInline):
         return False
 
 
-class CommandWritableInline(admin.StackedInline):
+class CommandWritableInline(DeactivatedDeviceReadOnlyMixin, admin.StackedInline):
     model = Command
     extra = 1
     form = CommandForm

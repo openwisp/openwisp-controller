@@ -749,11 +749,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         )
         self._message_user_device_status(request, error_devices, method, messages.ERROR)
 
-    @admin.actions(description=_('Deactivate selected devices'), permissions=['change'])
+    @admin.action(description=_('Deactivate selected devices'), permissions=['change'])
     def deactivate_device(self, request, queryset):
         self._change_device_status(request, queryset, 'deactivate')
 
-    @admin.actions(description=_('Activate selected devices'), permissions=['change'])
+    @admin.action(description=_('Activate selected devices'), permissions=['change'])
     def activate_device(self, request, queryset):
         self._change_device_status(request, queryset, 'activate')
 
