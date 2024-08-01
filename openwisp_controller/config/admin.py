@@ -84,7 +84,7 @@ class DeactivatedDeviceReadOnlyMixin(object):
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
-        if not obj:
+        if not obj or getattr(request, '_recover_view', False):
             return perm
         return perm and not obj.is_deactivated()
 
@@ -550,7 +550,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
-        if not obj:
+        if not obj or getattr(request, '_recover_view', False):
             return perm
         return perm and not obj.is_deactivated()
 
@@ -867,6 +867,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = self.get_extra_context()
         return super().add_view(request, form_url, extra_context)
+
+    def recover_view(self, request, version_id, extra_context=None):
+        request._recover_view = True
+        return super().recover_view(request, version_id, extra_context)
 
     def get_inlines(self, request, obj):
         inlines = super().get_inlines(request, obj)

@@ -38,7 +38,8 @@ class TestDeviceConnectionInlineAdmin(
     def test_restoring_deleted_device(self, *args):
         org = self._get_org()
         self._create_credentials(auto_add=True, organization=org)
-        device = self._create_config(organization=org).device
+        config = self._create_config(organization=org)
+        device = config.device
         self._create_object_location(
             location=self._create_location(
                 organization=org,
@@ -50,6 +51,8 @@ class TestDeviceConnectionInlineAdmin(
 
         self.login()
         # Delete the device
+        device.deactivate()
+        config.set_status_deactivated()
         self.open(
             reverse(f'admin:{self.config_app_label}_device_delete', args=[device.id])
         )
@@ -79,7 +82,7 @@ class TestDeviceConnectionInlineAdmin(
         for error in self.web_driver.get_log('browser'):
             self.assertNotEqual(error['level'], 'WARNING')
         self.web_driver.find_element(
-            by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[1]'
+            by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[2]'
         ).click()
         try:
             WebDriverWait(self.web_driver, 5).until(
