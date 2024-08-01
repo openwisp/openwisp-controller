@@ -5,5 +5,5 @@ openwisp-utils[qa,selenium] @ https://github.com/openwisp/openwisp-utils/tarball
 channels_redis~=4.2.0
 django_redis~=5.4.0
 mock-ssh-server~=0.9.1
-responses~=0.23.1
+responses~=0.25.3
 psycopg2-binary~=2.9.9
