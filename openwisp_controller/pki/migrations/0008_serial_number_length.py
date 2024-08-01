@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('pki', '0007_default_groups_permissions')]
 
     operations = [

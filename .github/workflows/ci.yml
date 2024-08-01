@@ -11,10 +11,9 @@ on:
       - master
 
 jobs:
-
   build:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     services:
       redis:
@@ -43,56 +42,51 @@ jobs:
           - django~=4.2.0
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install system packages
+    - name: Install Dependencies
+      id: deps
       run: |
         sudo apt update
-        sudo apt-get -qq -y install sqlite3 gdal-bin libproj-dev \
+        sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
           libgeos-dev libspatialite-dev spatialite-bin \
           libsqlite3-mod-spatialite
-
-    - name: Install npm dependencies
-      run: sudo npm install -g jshint stylelint
-
-    - name: Upgrade python system packages
-      run: pip install -U pip wheel setuptools
-
-    - name: Install test dependencies
-      run: |
+        sudo npm install -g jshint stylelint
+        pip install -U pip wheel setuptools
         pip install -U -r requirements-test.txt
-
-    - name: Install openwisp-controller
-      run: |
         pip install -U -e .
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
-      run: |
-        ./run-qa-checks
+      run: ./run-qa-checks
+
     - name: Tests
+      if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
         coverage run runtests.py --parallel
         # the following command runs tests with Postgres/PostGIS but
         # only for specific test cases which are tagged with "db_tests"
         POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
-        coverage combine
         # tests the extension capability
-        SAMPLE_APP=1 ./runtests.py --keepdb
+        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
+        coverage combine
+        coverage xml
       env:
         SELENIUM_HEADLESS: 1
 
     - name: Upload Coverage
+      if: ${{ success() }}
       uses: coverallsapp/github-action@v2
       with:
         parallel: true
+        format: cobertura
         flag-name: python-${{ matrix.env.env }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
 

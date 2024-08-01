@@ -8,7 +8,6 @@ import openwisp_controller.config.base.template
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         swapper.dependency('pki', 'Ca'),
         swapper.dependency('openwisp_ipam', 'IpAddress'),

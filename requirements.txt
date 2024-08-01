@@ -1,5 +1,5 @@
 django-sortedm2m~=3.1.1
-django-reversion~=5.0.4
+django-reversion~=5.0.12
 django-taggit~=4.0.0
 netjsonconfig @ https://github.com/openwisp/netjsonconfig/tarball/master
 django-x509 @ https://github.com/openwisp/django-x509/tarball/master
@@ -10,9 +10,9 @@ openwisp-utils[celery] @ https://github.com/openwisp/openwisp-utils/tarball/mast
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
 djangorestframework-gis~=0.18.0
-paramiko[ed25519]~=3.2.0
-scp~=0.14.2
-django-cache-memoize~=0.1.0
-shortuuid~=1.0.1
-netaddr~=0.8.0
-django-import-export~=3.2.0
+paramiko[ed25519]~=3.4.0
+scp~=0.15.0
+django-cache-memoize~=0.2.0
+shortuuid~=1.0.13
+netaddr~=1.3.0
+django-import-export~=3.3.0

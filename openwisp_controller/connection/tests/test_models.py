@@ -13,7 +13,6 @@ from openwisp_utils.tests import capture_any_output, catch_signal
 
 from ...tests.utils import TransactionTestMixin
 from .. import settings as app_settings
-from ..apps import _TASK_NAME
 from ..commands import (
     COMMANDS,
     ORGANIZATION_ENABLED_COMMANDS,
@@ -22,7 +21,7 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import update_config
+from ..tasks import _TASK_NAME, update_config
 from .utils import CreateConnectionsMixin
 
 Config = load_model('config', 'Config')
@@ -786,6 +785,47 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         unregister_command('callable_ping')
         unregister_command('path_ping')
 
+    @mock.patch(_connect_path)
+    @mock.patch.dict(COMMANDS, {})
+    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network')})
+    @mock.patch(_exec_command_path)
+    def test_execute_user_registered_command_without_input(
+        self, mocked_exec_command, connect_mocked
+    ):
+        restart_network_schema = {
+            'label': 'Restart Network',
+            'schema': {
+                'title': 'Restart Network',
+                'type': 'null',
+                'additionalProperties': False,
+            },
+            'callable': 'openwisp_controller.connection.tests.utils'
+            '._restart_network_command_callable',
+        }
+        dc = self._create_device_connection()
+        register_command('restart_network', restart_network_schema)
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type='restart_network',
+        )
+        command.full_clean()
+        mocked_exec_command.return_value = self._exec_command_return_value(
+            stdout='Network restarted'
+        )
+        command.save()
+        # must call this explicitly because lack of transactions in this test case
+        command.execute()
+        connect_mocked.assert_called()
+        mocked_exec_command.assert_called_once()
+        mocked_exec_command.assert_called_with(
+            '/etc/init.d/networking restart',
+            timeout=app_settings.SSH_COMMAND_TIMEOUT,
+        )
+        command.refresh_from_db()
+        self.assertEqual(command.status, 'success')
+        self.assertEqual(command.output, 'Network restarted\n')
+
     def test_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(
             app_label=self.app_label, model='command'
@@ -928,7 +968,7 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
                 args, _ = mocked_exec_command.call_args_list[1]
                 self.assertIn('OW_CONFIG_PID', args[0])
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'applied')
+            self.assertEqual(conf.status, 'modified')
 
         with self.subTest('openwisp_config < 0.6.0a: exit_code 0'):
             conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
@@ -942,7 +982,7 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
                 _assert_version_check_command(mocked_exec_command)
                 _assert_applying_conf_test_command(mocked_exec_command)
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'applied')
+            self.assertEqual(conf.status, 'modified')
 
         with self.subTest('openwisp_config < 0.6.0a: exit_code 1'):
             conf.config = '{"radios": []}'
@@ -967,29 +1007,46 @@ class TestModelsTransaction(TransactionTestMixin, BaseTestModels, TransactionTes
             # exit code 1 considers the update not successful
             self.assertEqual(conf.status, 'modified')
 
-    @mock.patch.object(update_config, 'delay')
-    def test_device_update_config_in_progress(self, mocked_update_config):
+    @mock.patch('time.sleep')
+    @mock.patch.object(DeviceConnection, 'update_config')
+    @mock.patch.object(DeviceConnection, 'get_working_connection')
+    def test_device_update_config_in_progress(
+        self, mocked_get_working_connection, update_config, mocked_sleep
+    ):
         conf = self._prepare_conf_object()
 
         with mock.patch('celery.app.control.Inspect.active') as mocked_active:
             mocked_active.return_value = {
                 'task': [{'name': _TASK_NAME, 'args': [str(conf.device.pk)]}]
             }
+            conf.config = {'general': {'timezone': 'UTC'}}
+            conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
-            mocked_update_config.assert_not_called()
+            mocked_get_working_connection.assert_not_called()
+            update_config.assert_not_called()
 
-    @mock.patch.object(update_config, 'delay')
-    def test_device_update_config_not_in_progress(self, mocked_update_config):
+    @mock.patch('time.sleep')
+    @mock.patch.object(DeviceConnection, 'update_config')
+    @mock.patch.object(DeviceConnection, 'get_working_connection')
+    def test_device_update_config_not_in_progress(
+        self, mocked_get_working_connection, mocked_update_config, mocked_sleep
+    ):
         conf = self._prepare_conf_object()
+        mocked_get_working_connection.return_value = (
+            conf.device.deviceconnection_set.first()
+        )
 
         with mock.patch('celery.app.control.Inspect.active') as mocked_active:
             mocked_active.return_value = {
                 'task': [{'name': _TASK_NAME, 'args': ['...']}]
             }
+            conf.config = {'general': {'timezone': 'UTC'}}
+            conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
-            mocked_update_config.assert_called_once_with(conf.device.pk)
+            mocked_get_working_connection.assert_called_once()
+            mocked_update_config.assert_called_once()
 
     @mock.patch(_connect_path)
     def test_schedule_command_called(self, connect_mocked):

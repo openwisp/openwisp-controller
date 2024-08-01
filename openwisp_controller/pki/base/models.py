@@ -21,7 +21,6 @@ class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
 
 
 class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
-
     ca = models.ForeignKey(
         get_model_name('django_x509', 'Ca'),
         verbose_name=_('CA'),

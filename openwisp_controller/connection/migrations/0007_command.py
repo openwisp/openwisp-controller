@@ -16,7 +16,6 @@ from . import assign_command_permissions_to_groups
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('connection', '0006_name_unique_per_organization'),
         swapper.dependency('config', 'Device'),

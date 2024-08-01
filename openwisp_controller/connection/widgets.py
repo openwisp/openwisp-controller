@@ -17,13 +17,9 @@ class CredentialsSchemaWidget(BaseJsonSchemaWidget):
 
     @property
     def media(self):
-        media = super().media
-        js = ['admin/js/jquery.init.js', 'connection/js/credentials.js'] + list(
-            media._js
-        )
-        css = media._css.copy()
-        css['all'] += ['connection/css/credentials.css']
-        return forms.Media(js=js, css=css)
+        js = ['admin/js/jquery.init.js', 'connection/js/credentials.js']
+        css = {'all': ['connection/css/credentials.css']}
+        return super().media + forms.Media(js=js, css=css)
 
 
 class CommandSchemaWidget(BaseJsonSchemaWidget):
@@ -42,12 +38,11 @@ class CommandSchemaWidget(BaseJsonSchemaWidget):
 
     @property
     def media(self):
-        media = super().media
         js = [
             'admin/js/jquery.init.js',
             'connection/js/lib/reconnecting-websocket.min.js',
             'connection/js/commands.js',
-        ] + list(media._js)
-        css = media._css.copy()
-        css['all'] += ['connection/css/command-inline.css']
-        return forms.Media(js=js, css=css)
+        ]
+        css = {'all': ['connection/css/command-inline.css']}
+        media = forms.Media(js=js, css=css)
+        return super().media + media

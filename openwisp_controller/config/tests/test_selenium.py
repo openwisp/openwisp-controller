@@ -11,24 +11,23 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
-from .utils import CreateConfigTemplateMixin
+from .utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
 
 
-@tag('selenium_tests')
-class TestDeviceAdmin(
-    TestOrganizationMixin,
-    CreateConfigTemplateMixin,
-    SeleniumTestMixin,
-    StaticLiveServerTestCase,
-):
+class SeleniumBaseMixin(CreateConfigTemplateMixin, SeleniumTestMixin):
     def setUp(self):
         self.admin = self._create_admin(
             username=self.admin_username, password=self.admin_password
         )
 
+
+@tag('selenium_tests')
+class TestDeviceAdmin(
+    SeleniumBaseMixin,
+    StaticLiveServerTestCase,
+):
     def tearDown(self):
         # Accept unsaved changes alert to allow other tests to run
         try:
@@ -83,16 +82,26 @@ class TestDeviceAdmin(
         self.web_driver.find_element(
             by=By.XPATH, value='//*[@id="config-group"]/fieldset/div[2]/a'
         ).click()
-
         try:
             WebDriverWait(self.web_driver, 2).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, f'//*[@value="{default_template.id}"]')
+                # This WebDriverWait ensures that Selenium waits until the
+                # "config-0-templates" input field on the page gets updated
+                # with the IDs of the default and required templates after
+                # the user clicks on the "Add another config" link. This update
+                # is essential because it signifies that the logic in
+                # relevant_template.js has executed successfully, selecting
+                # the appropriate default and required templates. This logic
+                # also changes the ordering of the templates.
+                # Failing to wait for this update could lead to
+                # StaleElementReferenceException like in
+                # https://github.com/openwisp/openwisp-controller/issues/834
+                EC.text_to_be_present_in_element_value(
+                    (By.CSS_SELECTOR, 'input[name="config-0-templates"]'),
+                    f'{required_template.id},{default_template.id}',
                 )
             )
         except TimeoutException:
-            self.fail('Default template clickable timed out')
-
+            self.fail('Relevant templates logic was not executed')
         required_template_element = self.web_driver.find_element(
             by=By.XPATH, value=f'//*[@value="{required_template.id}"]'
         )
@@ -268,3 +277,27 @@ class TestDeviceAdmin(
             alert = Alert(self.web_driver)
             alert.accept()
             self.fail('Unsaved changes alert displayed without any change')
+
+
+class TestVpnAdmin(SeleniumBaseMixin, TestWireguardVpnMixin, StaticLiveServerTestCase):
+    def test_vpn_edit(self):
+        self.login()
+        device, vpn, template = self._create_wireguard_vpn_template()
+        self.open(reverse('admin:config_vpn_change', args=[vpn.id]))
+        with self.subTest('Ca and Cert should not be visible'):
+            el = self.web_driver.find_element(by=By.CLASS_NAME, value='field-ca')
+            self.assertFalse(el.is_displayed())
+            el = self.web_driver.find_element(by=By.CLASS_NAME, value='field-cert')
+            self.assertFalse(el.is_displayed())
+
+        with self.subTest('Changing VPN backend should hide webhook and authtoken'):
+            backend = Select(self.web_driver.find_element(by=By.ID, value='id_backend'))
+            backend.select_by_visible_text('OpenVPN')
+            el = self.web_driver.find_element(
+                by=By.CLASS_NAME, value='field-webhook_endpoint'
+            )
+            self.assertFalse(el.is_displayed())
+            el = self.web_driver.find_element(
+                by=By.CLASS_NAME, value='field-auth_token'
+            )
+            self.assertFalse(el.is_displayed())

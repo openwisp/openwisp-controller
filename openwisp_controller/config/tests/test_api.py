@@ -3,12 +3,10 @@ from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
-from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
@@ -89,9 +87,7 @@ class ApiTestMixin:
 class TestConfigApi(
     ApiTestMixin,
     TestAdminMixin,
-    CreateIpamModelsMixin,
     TestWireguardVpnMixin,
-    TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,
@@ -213,7 +209,10 @@ class TestConfigApi(
         org2 = self._create_org(name='test org 2')
         dg2 = self._create_device_group(organization=org2)
         d2 = self._create_device(
-            mac_address='00:11:22:33:44:66', group=dg2, organization=org2
+            name='second.device',
+            mac_address='A0:11:B2:33:44:66',
+            group=dg2,
+            organization=org2,
         )
         t2 = self._create_template(name='t2', organization=org2)
         c2 = self._create_config(device=d2, backend='netjsonconfig.OpenWisp')
@@ -240,6 +239,18 @@ class TestConfigApi(
             self.assertIn('created', data['results'][0].keys())
             if device.group:
                 self.assertEqual(data['results'][0]['group'], device.group.pk)
+
+        with self.subTest('Test filtering by name'):
+            r1 = self.client.get(f'{path}?name={d1.name.upper()}')
+            _assert_device_list_filter(response=r1, device=d1)
+            r2 = self.client.get(f'{path}?name={d1.name[0:3]}')
+            _assert_device_list_filter(response=r2, device=d1)
+
+        with self.subTest('Test filtering by mac_address'):
+            r1 = self.client.get(f'{path}?mac_address={d2.mac_address.lower()}')
+            _assert_device_list_filter(response=r1, device=d2)
+            r2 = self.client.get(f'{path}?mac_address={d2.mac_address[0:8]}')
+            _assert_device_list_filter(response=r2, device=d2)
 
         with self.subTest('Test filtering using config backend'):
             r1 = self.client.get(f'{path}?config__backend=netjsonconfig.OpenWrt')
@@ -1169,7 +1180,6 @@ class TestConfigApi(
 class TestConfigApiTransaction(
     ApiTestMixin,
     TestAdminMixin,
-    TestOrganizationMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,

@@ -29,7 +29,6 @@ class SshServer(Server):
 
 
 class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
-
     _TEST_RSA_PRIVATE_KEY_PATH = os.path.join(os.path.dirname(__file__), 'test-key.rsa')
     _TEST_RSA_PRIVATE_KEY_VALUE = None
     _TEST_ED_PRIVATE_KEY_PATH = os.path.join(
@@ -138,3 +137,7 @@ def _ping_command_callable(destination_address, interface_name=None):
     if interface_name:
         command += f' -I {interface_name}'
     return command
+
+
+def _restart_network_command_callable():
+    return '/etc/init.d/networking restart'

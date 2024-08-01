@@ -41,7 +41,6 @@ def migrate_status_backward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0012_auto_20180219_1501')]
 
     operations = [

@@ -3,12 +3,16 @@ test utilities shared among test classes
 these mixins are reused also in openwisp2
 change with care.
 """
+
 from copy import deepcopy
 from unittest import mock
 from uuid import uuid4
 
 from django.db.utils import DEFAULT_DB_ALIAS
+from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from swapper import load_model
+
+from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...pki.tests.utils import TestPkiMixin
 
@@ -21,7 +25,7 @@ Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
 
 
-class CreateDeviceMixin(object):
+class CreateDeviceMixin(TestOrganizationMixin):
     TEST_MAC_ADDRESS = '00:11:22:33:44:55'
 
     def _create_device(self, **kwargs):
@@ -139,7 +143,7 @@ UqzLuoNWCyj8KCicbA7tiBxX+2zgQpch8wIBAg==
         return vpn
 
 
-class TestWireguardVpnMixin:
+class TestWireguardVpnMixin(CreateIpamModelsMixin):
     def _create_wireguard_vpn(self, config=None, **kwargs):
         if config is None:
             config = {'wireguard': [{'name': 'wg0', 'port': 51820}]}
@@ -175,7 +179,7 @@ class TestWireguardVpnMixin:
         return device, vpn, template
 
 
-class TestVxlanWireguardVpnMixin:
+class TestVxlanWireguardVpnMixin(CreateIpamModelsMixin):
     def _create_vxlan_tunnel(self, config=None):
         if config is None:
             config = {'wireguard': [{'name': 'wg0', 'port': 51820}]}
@@ -207,7 +211,7 @@ class TestVxlanWireguardVpnMixin:
         return device, vpn, template
 
 
-class TestZeroTierVpnMixin:
+class TestZeroTierVpnMixin(CreateIpamModelsMixin):
     _TEST_ZT_NETWORK_CONFIG = {
         'authTokens': [None],
         'authorizationEndpoint': '',
@@ -391,7 +395,7 @@ class CreateConfigTemplateMixin(CreateTemplateMixin, CreateConfigMixin):
         return super()._create_config(**kwargs)
 
 
-class CreateDeviceGroupMixin:
+class CreateDeviceGroupMixin(TestOrganizationMixin):
     def _create_device_group(self, **kwargs):
         options = {
             'name': 'Routers',

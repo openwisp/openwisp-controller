@@ -29,27 +29,32 @@ django.jQuery(function ($) {
         });
     }
 
+    var getParentRow = function (el) {
+      return el.parents('.form-row').eq(0);
+    };
+
     var toggleRelatedFields = function () {
         // Show IP and Subnet field only for WireGuard backend
-        var backendValue = $('#id_backend').val() === undefined ? '' : $('#id_backend').val().toLocaleLowerCase().toLocaleLowerCase();
+        var backendValue = $('#id_backend').val() === undefined ? '' : $('#id_backend').val().toLocaleLowerCase().toLocaleLowerCase(),
+            op;
         if (backendValue.includes('wireguard') || backendValue.includes('vxlan')) {
-            $('label[for="id_webhook_endpoint"]').parent().parent().show();
-            $('label[for="id_auth_token"]').parent().parent().show();
+            op = 'show';
         } else {
-            $('label[for="id_webhook_endpoint"]').parent().parent().hide();
-            $('label[for="id_auth_token"]').parent().parent().hide();
+            op = 'hide';
         }
+        getParentRow($('label[for="id_webhook_endpoint"]'))[op]();
+        getParentRow($('label[for="id_auth_token"]'))[op]();
 
         if (backendValue.includes('openvpn')) {
-            $('label[for="id_ca"]').parent().parent().show();
-            $('label[for="id_cert"]').parent().parent().show();
+            op = 'show';
         } else {
-            $('label[for="id_ca"]').parent().parent().hide();
-            $('label[for="id_cert"]').parent().parent().hide();
+            op = 'hide';
         }
+        getParentRow($('label[for="id_ca"]'))[op]();
+        getParentRow($('label[for="id_cert"]'))[op]();
         // For Zerotier VPN backend
         if(backendValue.includes('zerotier')){
-            $('label[for="id_auth_token"]').parent().parent().show();
+            getParentRow($('label[for="id_auth_token"]')).show();
         }
     };
 

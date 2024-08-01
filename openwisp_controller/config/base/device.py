@@ -378,7 +378,12 @@ class AbstractDevice(OrgMixin, BaseModel):
         return
 
     def get_temp_config_instance(self, **options):
-        config = self.get_config_model()(**options)
+        if not self._has_config():
+            config = self.get_config_model()(**options)
+        else:
+            config = self.config
+            for attr in options:
+                setattr(config, attr, options[attr])
         config.device = self
         return config
 

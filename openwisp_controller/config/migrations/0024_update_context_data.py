@@ -15,7 +15,6 @@ def forward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0023_update_context')]
 
     operations = [migrations.RunPython(forward, reverse_code=migrations.RunPython.noop)]

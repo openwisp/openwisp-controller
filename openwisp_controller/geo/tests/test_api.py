@@ -16,7 +16,6 @@ from openwisp_controller.config.tests.utils import (
     CreateDeviceMixin,
 )
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
 
 from .utils import TestGeoMixin
@@ -159,9 +158,7 @@ class TestApi(TestGeoMixin, TestCase):
             self.assertEqual(response.status_code, 200)
 
 
-class TestMultitenantApi(
-    TestOrganizationMixin, TestGeoMixin, TestCase, CreateConfigTemplateMixin
-):
+class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
@@ -271,7 +268,6 @@ class TestMultitenantApi(
 
 class TestGeoApi(
     AssertNumQueriesSubTestMixin,
-    TestOrganizationMixin,
     TestGeoMixin,
     TestAdminMixin,
     CreateDeviceMixin,

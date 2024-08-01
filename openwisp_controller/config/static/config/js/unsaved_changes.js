@@ -43,6 +43,10 @@
             message = 'You haven\'t saved your changes yet!',
             initialValue,
             name;
+        // django initial values returns organization as 'null' when it is empty
+        if (currentValues.organization === '') {
+            currentValues.organization = 'null';
+        }
         if (gettext) { message = gettext(message); }  // i18n if enabled
         // compare initial with current values
         for (name in django._owcInitialValues) {

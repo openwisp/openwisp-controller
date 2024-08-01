@@ -8,7 +8,6 @@ from django.test.testcases import TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
@@ -26,7 +25,6 @@ Ca = load_model('django_x509', 'Ca')
 class TestConfig(
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
-    TestOrganizationMixin,
     TestVpnX509Mixin,
     TestCase,
 ):
@@ -468,7 +466,7 @@ class TestConfig(
         self.assertNotEqual(c.vpnclient_set.count(), 0)
         self.assertNotEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
 
-    def test_automatically_created_cert_deleted_post_remove(self):
+    def test_automatically_created_cert_revoked_post_remove(self):
         self.test_create_cert()
         c = Config.objects.get(device__name='test-create-cert')
         t = Template.objects.get(name='test-create-cert')
@@ -477,7 +475,7 @@ class TestConfig(
         cert_model = cert.__class__
         c.templates.remove(t)
         self.assertEqual(c.vpnclient_set.count(), 0)
-        self.assertEqual(cert_model.objects.filter(pk=cert.pk).count(), 0)
+        self.assertEqual(cert_model.objects.filter(pk=cert.pk, revoked=True).count(), 1)
 
     def test_create_cert_false(self):
         vpn = self._create_vpn()
@@ -860,7 +858,6 @@ class TestConfig(
 
 class TestTransactionConfig(
     CreateConfigTemplateMixin,
-    TestOrganizationMixin,
     TestVpnX509Mixin,
     TransactionTestCase,
 ):

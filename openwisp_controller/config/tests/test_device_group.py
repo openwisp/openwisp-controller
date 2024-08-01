@@ -5,7 +5,6 @@ from django.db.models.signals import post_save
 from django.test import TestCase
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
@@ -15,9 +14,7 @@ from .utils import CreateDeviceGroupMixin, CreateTemplateMixin
 DeviceGroup = load_model('config', 'DeviceGroup')
 
 
-class TestDeviceGroup(
-    TestOrganizationMixin, CreateDeviceGroupMixin, CreateTemplateMixin, TestCase
-):
+class TestDeviceGroup(CreateDeviceGroupMixin, CreateTemplateMixin, TestCase):
     def test_device_group(self):
         self._create_device_group(
             meta_data={'captive_portal_url': 'https//example.com'}

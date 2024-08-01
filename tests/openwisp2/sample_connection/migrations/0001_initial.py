@@ -18,7 +18,6 @@ from openwisp_controller.connection.commands import COMMAND_CHOICES
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

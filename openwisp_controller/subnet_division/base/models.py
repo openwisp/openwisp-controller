@@ -104,7 +104,8 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 
     def _validate_master_subnet_consistency(self):
         master_subnet = self.master_subnet.subnet
-        # Validate size of generated subnet is not greater than size of master subnet
+        # Ensure that the size of the generated subnet
+        # is not greater than size of master subnet
         try:
             next(master_subnet.subnets(new_prefix=self.size))
         except ValueError:
@@ -118,13 +119,19 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                 }
             )
 
-        # Validate master subnet can accommodate required number of generated subnets
-        if self.number_of_subnets > (2 ** (self.size - master_subnet.prefixlen)):
+        # Ensure that master subnet can accommodate
+        # the required number of generated subnets
+        available = 2 ** (self.size - master_subnet.prefixlen)
+        # Account for the reserved subnet
+        available -= 1
+        if self.number_of_subnets >= available:
             raise ValidationError(
                 {
                     'number_of_subnets': _(
-                        f'Master subnet cannot accommodate {self.number_of_subnets} '
-                        f'subnets of size /{self.size}'
+                        'The master subnet is too small to acommodate the '
+                        'requested "number of subnets" plus the reserved '
+                        'subnet, please increase the size of the master '
+                        'subnet or decrease the "size of subnets" field.'
                     )
                 }
             )
@@ -139,11 +146,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
 
     def _validate_ip_address_consistency(self):
-        # Validate individual generated subnet can accommodate required number of IPs
         try:
             next(
                 ip_network(str(self.master_subnet.subnet)).subnets(new_prefix=self.size)
-            )[self.number_of_ips]
+            )[self.number_of_ips - 1]
         except IndexError:
             raise ValidationError(
                 {

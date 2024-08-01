@@ -153,7 +153,7 @@ class CommandWritableInline(admin.StackedInline):
         return self.model.objects.none()
 
     def _get_conditional_queryset(self, request, obj, select_related=False):
-        return bool(obj)
+        return bool(obj) and self.has_change_permission(request, obj)
 
     def get_urls(self):
         options = self.model._meta

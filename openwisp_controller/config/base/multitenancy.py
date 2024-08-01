@@ -13,7 +13,6 @@ from ..tasks import bulk_invalidate_config_get_cached_checksum
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
-
     organization = models.OneToOneField(
         swapper.get_model_name('openwisp_users', 'Organization'),
         verbose_name=_('organization'),

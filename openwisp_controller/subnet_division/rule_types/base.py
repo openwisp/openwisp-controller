@@ -7,6 +7,7 @@ from django.db import connection, transaction
 from django.dispatch import Signal
 from django.utils.translation import gettext_lazy as _
 from netaddr import IPNetwork
+from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from ..signals import subnet_provisioned
@@ -194,8 +195,7 @@ class BaseSubnetDivisionRuleType(object):
             subnet_obj.full_clean()
             subnet_obj.save()
             max_subnet = subnet_obj.subnet
-        finally:
-            return max_subnet
+        return max_subnet
 
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
@@ -205,7 +205,22 @@ class BaseSubnetDivisionRuleType(object):
 
         for subnet_id in range(1, division_rule.number_of_subnets + 1):
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
-                logger.error(f'Cannot create more subnets of {master_subnet}')
+                notify.send(
+                    sender=config,
+                    type='generic_message',
+                    target=config.device,
+                    action_object=master_subnet,
+                    level='error',
+                    message=_(
+                        'Failed to provision subnets for'
+                        ' [{notification.target}]({notification.target_link})'
+                    ),
+                    description=_(
+                        'The [{notification.action_object}]({notification.action_link})'
+                        ' subnet has run out of space.'
+                    ),
+                )
+                logger.info(f'Cannot create more subnets of {master_subnet}')
                 break
             subnet_obj = Subnet(
                 name=f'{division_rule.label}_subnet{subnet_id}',
@@ -234,24 +249,37 @@ class BaseSubnetDivisionRuleType(object):
     def create_ips(config, division_rule, generated_subnets, generated_indexes):
         generated_ips = []
         for subnet_obj in generated_subnets:
-            for ip_id in range(1, division_rule.number_of_ips + 1):
+            # don't assign first ip address of a subnet,
+            # unless the rule is designed to use the whole
+            # address space of the subnet
+            if subnet_obj.subnet.num_addresses != division_rule.number_of_ips:
+                index_start = 1
+                index_end = division_rule.number_of_ips + 1
+            # this allows handling /32, /128 or cases in which
+            # the number of requested ip addresses matches exactly
+            # what is available in the subnet
+            else:
+                index_start = 0
+                index_end = division_rule.number_of_ips
+            # generate IPs and indexes accordingly
+            for ip_index in range(index_start, index_end):
                 ip_obj = IpAddress(
                     subnet_id=subnet_obj.id,
-                    ip_address=str(subnet_obj.subnet[ip_id]),
+                    ip_address=str(subnet_obj.subnet[ip_index]),
                 )
                 ip_obj.full_clean()
                 generated_ips.append(ip_obj)
-
+                # ensure human friendly labels (starting from 1 instead of 0)
+                keyword_index = ip_index if index_start == 1 else ip_index + 1
                 generated_indexes.append(
                     SubnetDivisionIndex(
-                        keyword=f'{subnet_obj.name}_ip{ip_id}',
+                        keyword=f'{subnet_obj.name}_ip{keyword_index}',
                         subnet_id=subnet_obj.id,
                         ip_id=ip_obj.id,
                         rule_id=division_rule.id,
                         config=config,
                     )
                 )
-
         IpAddress.objects.bulk_create(generated_ips)
         return generated_ips
 

@@ -62,7 +62,6 @@ def make_cert_common_name_unique(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('pki', '0009_common_name_maxlength_64'),
     ]

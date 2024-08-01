@@ -78,14 +78,11 @@ see the `OpenWISP Architecture Overview
     :target: http://openwisp.org
     :alt: OpenWISP
 
-**Want to help OpenWISP?** `Find out how to help us grow here
-<http://openwisp.io/docs/general/help-us.html>`_.
-
 Documentation
 -------------
 
-- Developer documentation (TODO: add link)
-- User documentation (TODO: add link)
+- `Developer documentation <https://openwisp.io/docs/dev/controller/>`_
+- `User documentation <https://openwisp.io/docs/dev/controller/developer/>`_
 
 Contributing
 ------------

@@ -6,7 +6,6 @@ from . import assign_organization_config_settings_permissions_to_groups
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0040_vpnclient_ip_setnull'),
     ]

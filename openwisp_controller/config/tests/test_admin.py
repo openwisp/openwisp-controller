@@ -13,8 +13,7 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
-from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import AdminActionPermTestMixin, catch_signal
 
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
@@ -55,18 +54,24 @@ class TestImportExportMixin:
     resource_fields = [
         'name',
         'mac_address',
-        'organization__name',
-        'group__name',
-        'config__status',
-        'config__backend',
+        'organization',
+        'group',
+        'model',
+        'os',
+        'system',
         'last_ip',
         'management_ip',
+        'config_status',
+        'config_backend',
+        'config_data',
+        'config_context',
+        'config_templates',
         'created',
         'modified',
         'key',
         'id',
-        'organization',
-        'group',
+        'organization_id',
+        'group_id',
     ]
 
     def test_device_import_export_buttons(self):
@@ -90,7 +95,8 @@ class TestImportExportMixin:
     def test_device_import(self):
         org = self._get_org()
         contents = (
-            'organization,name,mac_address\n' f'{org.pk},TestImport,00:11:22:09:44:55'
+            'organization_id,name,mac_address\n'
+            f'{org.pk},TestImport,00:11:22:09:44:55'
         )
         csv = ContentFile(contents)
         response = self.client.post(
@@ -101,15 +107,129 @@ class TestImportExportMixin:
         self.assertNotContains(response, 'Errors')
         self.assertContains(response, 'Confirm import')
 
+    def test_device_import_empty_config(self):
+        org = self._get_org(org_name='default')
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context,'
+            'config_templates,created,modified,id,key,organization_id,group_id\n'
+            'test,00:11:22:33:44:66,{org_name},,model,os,system,notes,127.0.0.1,'
+            '10.0.0.2,,,,,,2022-10-17 15:26:51,2022-10-17 15:26:51,'
+            '559871c5-ce3d-4c7e-9176-fb6623d562f3,934d0799b1ce3a454bbb585cda1d7a49,'
+            '{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertFalse(device._has_config())
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(device.mac_address, '00:11:22:33:44:66')
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.model, 'model')
+        self.assertEqual(device.os, 'os')
+        self.assertEqual(device.system, 'system')
+        self.assertEqual(device.notes, 'notes')
+        self.assertEqual(device.last_ip, '127.0.0.1')
+        self.assertEqual(device.management_ip, '10.0.0.2')
+
+    def test_device_import_missing_config(self):
+        org = self._get_org(org_name='default')
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,created,modified,id,key,organization_id,group_id\n'
+            'test,00:11:22:33:44:66,{org_name},,,,,,,,'
+            '2022-10-17 15:26:51,2022-10-17 15:26:51,'
+            '559871c5-ce3d-4c7e-9176-fb6623d562f3,'
+            '934d0799b1ce3a454bbb585cda1d7a49,{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertFalse(device._has_config())
+        self.assertEqual(device.name, 'test')
+        self.assertEqual(device.organization, org)
+        self.assertEqual(device.mac_address, '00:11:22:33:44:66')
+        self.assertIsNone(device.group)
+
+    def test_device_import_config_not_templates(self):
+        org = self._get_org(org_name='default')
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context,'
+            'config_templates,created,modified,id,key,organization_id,group_id\n'
+            'TestImport-WG,11:22:33:44:55:78,{org_name},,test model,test os,test '
+            'system,test notes,127.0.0.1,127.0.0.1,modified,netjsonconfig.OpenWrt,'
+            '"{config}","{context}",,2021-09-22 02:53:16,2023-04-19 23:00:44,'
+            '6c0ad2ab-236f-4bf0-86f9-fcb817c6c917,'
+            'd2c911ae4fa9eebc7c8ff222862df12d,{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+            config='{""general"": {}}',
+            context='{""ssid"": ""test""}',
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertIsNone(device.group)
+        self.assertTrue(device._has_config())
+        self.assertEqual(list(device.config.templates.all()), [])
+
 
 class TestAdmin(
+    AdminActionPermTestMixin,
     TestImportExportMixin,
     TestGeoMixin,
     CreateDeviceGroupMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     TestAdminMixin,
-    TestOrganizationMixin,
     TestCase,
 ):
     """
@@ -481,13 +601,29 @@ class TestAdmin(
             response, 'What group do you want to assign to the selected devices?'
         )
 
+    def test_change_device_group_action_perms(self):
+        org = self._get_org()
+        user = self._create_user(is_staff=True)
+        self._create_org_user(is_admin=True, organization=org, user=user)
+        device = self._create_device(organization=org)
+        group = self._create_device_group(name='default', organization=org)
+        self._test_action_permission(
+            path=reverse(f'admin:{self.app_label}_device_changelist'),
+            action='change_group',
+            user=user,
+            obj=device,
+            message='Successfully changed group of selected devices.',
+            required_perms=['change'],
+            extra_payload={'device_group': group.pk, 'apply': True},
+        )
+
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name='default')
         template = self._create_template(name='template')
         dg = self._create_device_group(name='test-group', organization=org)
         dg.templates.add(template)
         contents = (
-            'organization,name,mac_address,group\n'
+            'organization_id,name,mac_address,group_id\n'
             f'{org.pk},TestImport,00:11:22:09:44:55,{dg.pk}'
         )
         csv = ContentFile(contents)
@@ -508,6 +644,58 @@ class TestAdmin(
         self.assertEqual(device.group, dg)
         self.assertIsNotNone(device.config)
         self.assertIn(template, device.config.templates.all())
+
+    def test_device_import_templates_and_config(self):
+        org = self._get_org(org_name='default')
+        template1 = self._create_template(name='template1')
+        vpn = self._create_vpn()
+        vpn_template = self._create_template(
+            name='vpn-test',
+            type='vpn',
+            vpn=vpn,
+            auto_cert=True,
+        )
+        contents = (
+            'name,mac_address,organization,group,model,os,system,notes,last_ip,'
+            'management_ip,config_status,config_backend,config_data,config_context,'
+            'config_templates,created,modified,id,key,organization_id,group_id\n'
+            'TestImport-WG,11:22:33:44:55:78,{org_name},,test model,test os,test '
+            'system,test notes,127.0.0.1,127.0.0.1,modified,netjsonconfig.OpenWrt,'
+            '"{config}","{context}","{templates}",2021-09-22 02:53:16,'
+            '2023-04-19 23:00:44,6c0ad2ab-236f-4bf0-86f9-fcb817c6c917,'
+            'd2c911ae4fa9eebc7c8ff222862df12d,{org_id},'
+        ).strip()
+        contents = contents.format(
+            org_name=org.name,
+            org_id=org.id,
+            templates=','.join([str(template1.id), str(vpn_template.id)]),
+            config='{""general"": {}}',
+            context='{""ssid"": ""test""}',
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_import'),
+            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+        )
+        self.assertFalse(response.context['result'].has_errors())
+        self.assertIn('confirm_form', response.context)
+        confirm_form = response.context['confirm_form']
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_process_import'), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.first()
+        self.assertIsNotNone(device)
+        self.assertIsNone(device.group)
+        self.assertTrue(device._has_config())
+        config = device.config
+        templates = list(config.templates.all())
+        self.assertEqual(config.backend, 'netjsonconfig.OpenWrt')
+        self.assertEqual(config.config, {'general': {}})
+        self.assertEqual(config.context, {'ssid': 'test'})
+        self.assertIn(template1, templates)
+        self.assertIn(vpn_template, templates)
 
     def test_add_device_with_group_templates(self):
         org = self._get_org(org_name='default')
@@ -819,6 +1007,20 @@ class TestAdmin(
             self.assertNotContains(response, 'Successfully cloned selected templates')
         with self.subTest('template count should not change'):
             self.assertEqual(Template.objects.count(), count)
+
+    def test_clone_selected_templates_action_perms(self):
+        org = self._get_org()
+        user = self._create_user(is_staff=True)
+        self._create_org_user(is_admin=True, organization=org, user=user)
+        template = self._create_template(organization=org)
+        self._test_action_permission(
+            path=reverse(f'admin:{self.app_label}_template_changelist'),
+            action='clone_selected_templates',
+            user=user,
+            obj=template,
+            message='Successfully cloned selected templates.',
+            required_perms=['add'],
+        )
 
     def test_change_device_clean_templates(self):
         o = self._get_org()
@@ -1399,6 +1601,8 @@ class TestAdmin(
             auto_cert=True,
         )
         cert_query = Cert.objects.exclude(pk=vpn.cert_id)
+        valid_cert_query = cert_query.filter(revoked=False)
+        revoked_cert_query = cert_query.filter(revoked=True)
 
         # Add a new device
         path = reverse(f'admin:{self.app_label}_device_add')
@@ -1427,13 +1631,16 @@ class TestAdmin(
             self.assertEqual(config.templates.count(), 1)
             self.assertEqual(config.vpnclient_set.count(), 1)
             self.assertEqual(cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 1)
 
             # Remove VpnClient template from the device
             _update_template(templates=[])
 
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.vpnclient_set.count(), 0)
-            self.assertEqual(cert_query.count(), 0)
+            # Removing VPN template marks the related certificate as revoked
+            self.assertEqual(revoked_cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 0)
 
         with self.subTest('Add VpnClient template along with another template'):
             # Adding templates to the device
@@ -1441,14 +1648,15 @@ class TestAdmin(
 
             self.assertEqual(config.templates.count(), 2)
             self.assertEqual(config.vpnclient_set.count(), 1)
-            self.assertEqual(cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 1)
 
             # Remove VpnClient template from the device
             _update_template(templates=[template])
 
             self.assertEqual(config.templates.count(), 1)
             self.assertEqual(config.vpnclient_set.count(), 0)
-            self.assertEqual(cert_query.count(), 0)
+            self.assertEqual(valid_cert_query.count(), 0)
+            self.assertEqual(revoked_cert_query.count(), 2)
 
     def test_ip_not_in_add_device(self):
         path = reverse(f'admin:{self.app_label}_device_add')
@@ -1746,7 +1954,6 @@ class TestAdmin(
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
-    TestOrganizationMixin,
     TestAdminMixin,
     TestCase,
 ):
@@ -1828,11 +2035,9 @@ class TestDeviceGroupAdminTransaction(
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
-    TestOrganizationMixin,
     TestAdminMixin,
     TransactionTestCase,
 ):
-
     app_label = 'config'
     _device_group_params = {
         'name': 'test-device-group',

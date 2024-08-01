@@ -6,7 +6,7 @@ var interpolate = interpolate || function(){};
 const deviceId = getObjectIdFromUrl();
 
 django.jQuery(function ($) {
-    if((typeof(owControllerApiHost) !== 'undefined')|| isDeviceRecoverForm()) {
+    if((typeof(owControllerApiHost) === 'undefined')|| isDeviceRecoverForm()) {
         return;
     }
     const commandWebSocket = new ReconnectingWebSocket(
@@ -397,8 +397,9 @@ function initCommandOverlay($) {
     });
 
     function closeOverlay() {
-        $('#id_command_set-0-type').val('reboot');
-        $('#id_command_set-0-type').trigger('change');
+        // The user may close the form without submitting it.
+        // The following line ensures that all input fields are cleared.
+        $('#command_set-0 .jsoneditor-wrapper input').val('');
         $('#command_set-group').css('display', 'none');
         $('.ow-command-overlay-errornote').addClass('ow-hide');
         commandConfirmationDialog.hide();

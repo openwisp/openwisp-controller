@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from swapper import load_model
@@ -21,6 +22,7 @@ Device = load_model('config', 'Device')
 Credentials = load_model('connection', 'Credentials')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 Command = load_model('connection', 'Command')
+Group = load_model('openwisp_users', 'Group')
 
 
 class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
@@ -188,6 +190,25 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             self._create_custom_command()
             response = self.client.get(url)
             self.assertContains(response, 'id_command_set')
+
+    def test_command_writable_inline_without_permission(self):
+        """
+        This test verifies that the WritableCommandInline is
+        not added to DeviceAdmin when the user only has view
+        permissions for Command model.
+        """
+        administrator = self._create_administrator(
+            organizations=[self.device.organization]
+        )
+        administrator_group = Group.objects.get(name='Administrator')
+        change_command_perm = Permission.objects.get(codename='change_command')
+        administrator_group.permissions.remove(change_command_perm)
+        self.client.force_login(administrator)
+        path = reverse(
+            f'admin:{self.config_app_label}_device_change', args=(self.device.id,)
+        )
+        response = self.client.get(path)
+        self.assertNotContains(response, 'id_command_set')
 
     def test_commands_schema_view(self):
         url = reverse(

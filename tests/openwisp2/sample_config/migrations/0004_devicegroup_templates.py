@@ -6,7 +6,6 @@ import openwisp_controller.config.sortedm2m.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('sample_config', '0003_name_unique_per_organization'),
     ]

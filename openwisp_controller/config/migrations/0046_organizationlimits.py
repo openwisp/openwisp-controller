@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0045_alter_vpn_webhook_endpoint'),
     ]

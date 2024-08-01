@@ -15,7 +15,6 @@ import openwisp_users.mixins
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

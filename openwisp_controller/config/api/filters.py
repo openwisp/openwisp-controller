@@ -84,6 +84,14 @@ class DeviceListFilterBackend(DjangoFilterBackend):
 
 
 class DeviceListFilter(BaseConfigAPIFilter):
+    mac_address = filters.CharFilter(
+        field_name='mac_address',
+        lookup_expr='icontains',
+    )
+    name = filters.CharFilter(
+        field_name='name',
+        lookup_expr='icontains',
+    )
     created__gte = filters.DateTimeFilter(
         field_name='created',
         lookup_expr='gte',
@@ -106,6 +114,8 @@ class DeviceListFilter(BaseConfigAPIFilter):
     class Meta(BaseConfigAPIFilter.Meta):
         model = Device
         fields = BaseConfigAPIFilter.Meta.fields + [
+            'name',
+            'mac_address',
             'config__status',
             'config__backend',
             'config__templates',

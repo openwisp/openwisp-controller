@@ -56,7 +56,7 @@ def create_vpn_dh(vpn_pk):
         vpn.save()
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=7200)
 def invalidate_devicegroup_cache_change(instance_id, model_name):
     from .api.views import DeviceGroupCommonName
 
@@ -72,7 +72,7 @@ def invalidate_devicegroup_cache_change(instance_id, model_name):
         DeviceGroupCommonName.certificate_change_invalidates_cache(instance_id)
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=7200)
 def invalidate_vpn_server_devices_cache_change(vpn_pk):
     Vpn = load_model('config', 'Vpn')
     VpnClient = load_model('config', 'VpnClient')
@@ -80,7 +80,7 @@ def invalidate_vpn_server_devices_cache_change(vpn_pk):
     VpnClient.invalidate_clients_cache(vpn)
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=7200)
 def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
     from .api.views import DeviceGroupCommonName
 
@@ -114,7 +114,7 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
         )
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=7200)
 def change_devices_templates(instance_id, model_name, **kwargs):
     Device = load_model('config', 'Device')
     DeviceGroup = load_model('config', 'DeviceGroup')

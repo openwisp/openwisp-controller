@@ -7,7 +7,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0050_alter_vpnclient_unique_together'),
     ]

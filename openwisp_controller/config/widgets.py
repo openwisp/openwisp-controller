@@ -20,14 +20,12 @@ class JsonSchemaWidget(AdminTextareaWidget):
     @property
     def media(self):
         js = [
-            f'config/js/{path}'
-            for path in (
-                'lib/advanced-mode.js',
-                'lib/tomorrow_night_bright.js',
-                'lib/jsonschema-ui.js',
-                'widget.js',
-                'utils.js',
-            )
+            'config/js/lib/advanced-mode.js',
+            'config/js/lib/tomorrow_night_bright.js',
+            'config/js/lib/jsonschema-ui.js',
+            'admin/js/jquery.init.js',
+            'config/js/widget.js',
+            'config/js/utils.js',
         ]
         css = {
             'all': [
@@ -67,7 +65,4 @@ class DeviceGroupJsonSchemaWidget(JsonSchemaWidget):
 
     @property
     def media(self):
-        media = super().media
-        css = media._css.copy()
-        css['all'] += ['config/css/devicegroup.css']
-        return forms.Media(js=media._js, css=css)
+        return super().media + forms.Media(css={'all': ['config/css/devicegroup.css']})

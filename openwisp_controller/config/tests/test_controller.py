@@ -8,7 +8,6 @@ from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
@@ -39,10 +38,7 @@ OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 Organization = load_model('openwisp_users', 'Organization')
 
 
-class TestController(
-    CreateConfigTemplateMixin, TestOrganizationMixin, TestVpnX509Mixin, TestCase
-):
-
+class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
     """
     tests for config.controller
     """

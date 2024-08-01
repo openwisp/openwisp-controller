@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 class OpenwispApiTask(OpenwispCeleryTask):
-
     _RECOVERABLE_API_CODES = [
         HTTPStatus.TOO_MANY_REQUESTS,  # 429
         HTTPStatus.INTERNAL_SERVER_ERROR,  # 500

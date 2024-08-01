@@ -17,7 +17,6 @@ from .. import settings as app_settings
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0003_template_tags'),
     ]

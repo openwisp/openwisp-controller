@@ -1,6 +1,7 @@
 """
 Base admin classes and mixins
 """
+
 from django.core.exceptions import PermissionDenied
 
 from openwisp_users.multitenancy import (

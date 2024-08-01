@@ -147,7 +147,6 @@ def reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('config', '0047_add_organizationlimits'),
     ]

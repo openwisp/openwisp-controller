@@ -7,7 +7,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [('config', '0022_vpn_format_dh')]
 
     operations = [

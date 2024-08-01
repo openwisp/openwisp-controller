@@ -368,7 +368,6 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             except Exception as e:
                 logger.exception(e)
             else:
-                self.device.config.set_status_applied()
                 self.disconnect()
 
     def save(self, *args, **kwargs):
@@ -546,7 +545,8 @@ class AbstractCommand(TimeStampedEditableModel):
             command = self.get_type_display()
         # user registered command
         else:
-            command = self._callable(**self.input)
+            input = self.input or {}
+            command = self._callable(**input)
             output, exit_code = self.connection.connector_instance.exec_command(
                 command, raise_unexpected_exit=False
             )
