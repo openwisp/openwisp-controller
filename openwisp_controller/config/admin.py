@@ -78,7 +78,7 @@ class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
 class DeactivatedDeviceReadOnlyMixin(object):
     def has_add_permission(self, request, obj):
         perm = super().has_add_permission(request, obj)
-        if not obj:
+        if not obj or getattr(request, '_recover_view', False):
             return perm
         return perm and not obj.is_deactivated()
 
