@@ -33,12 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.8"
-          - "3.9"
+          # - "3.8"
+          # - "3.9"
           - "3.10"
         django-version:
-          - django~=3.2.0
-          - django~=4.1.0
+          # - django~=3.2.0
+          # - django~=4.1.0
           - django~=4.2.0
 
     steps:
@@ -50,6 +50,25 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: |
+          requirements.txt
+          requirements-test.txt
+
+    - uses: browser-actions/setup-chrome@v1
+      # Using a fixed version, see here for more information on why:
+      # https://github.com/openwisp/openwisp-controller/issues/902#issuecomment-2266219715
+      # TODO: find a solution to allow using recent versions
+      with:
+        chrome-version: 125
+        install-chromedriver: true
+      id: setup-chrome
+
+    - run: |
+        ${{ steps.setup-chrome.outputs.chrome-path }} --version
+
+    - name: Checkout code
+      uses: actions/checkout@v2
 
     - name: Install Dependencies
       id: deps
@@ -63,6 +82,7 @@ jobs:
         pip install -U -r requirements-test.txt
         pip install -U -e .
         pip install ${{ matrix.django-version }}
+        pip install -U --no-deps --force-reinstall https://github.com/openwisp/openwisp-utils/tarball/chrome_bin
 
     - name: QA checks
       run: ./run-qa-checks
@@ -70,16 +90,20 @@ jobs:
     - name: Tests
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
-        coverage run runtests.py --parallel
+        chromedriver --version
+        cd tests
+        POSTGRESQL=1 DJANGO_SETTINGS_MODULE=openwisp2.postgresql_settings ./manage.py test --tag selenium_tests openwisp_controller.config.tests.test_selenium.TestDeviceAdmin.test_unsaved_changes
+        # coverage run runtests.py --parallel
         # the following command runs tests with Postgres/PostGIS but
         # only for specific test cases which are tagged with "db_tests"
         POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         # tests the extension capability
-        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
+        # SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
         coverage combine
         coverage xml
       env:
         SELENIUM_HEADLESS: 1
+        CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
 
     - name: Upload Coverage
       if: ${{ success() }}

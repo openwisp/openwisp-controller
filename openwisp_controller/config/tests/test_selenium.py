@@ -157,6 +157,8 @@ class TestDeviceAdmin(
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
+                for entry in self.web_driver.get_log('browser'):
+                    print(entry)
                 self.fail('Timed out wating for unsaved changes alert')
             else:
                 alert = Alert(self.web_driver)
