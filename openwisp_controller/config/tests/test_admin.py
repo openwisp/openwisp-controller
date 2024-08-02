@@ -2049,11 +2049,9 @@ class TestTransactionAdmin(
     )
     _deactivate_btn_html = (
         '<p class="deletelink-box"><input class="deletelink"'
-        ' type="submit" value="Deactivate" form="act_deact_device"></p>'
+        ' type="submit" value="Deactivate" form="act_deact_device_form"></p>'
     )
-    _activate_btn_html = (
-        '<input class="default" type="submit" value="Activate" form="act_deact_device">'
-    )
+    _activate_btn_html = '<input class="default" type="submit" value="Activate" form="act_deact_device_form">'
     _save_btn_html = '<input type="submit" value="Save" class="default" name="_save">'
 
     def setUp(self):

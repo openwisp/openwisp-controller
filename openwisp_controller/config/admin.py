@@ -474,7 +474,10 @@ class ChangeDeviceGroupForm(forms.Form):
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
-    change_form_template = None
+    change_form_template = 'admin/config/device/change_form.html'
+    delete_selected_confirmation_template = (
+        'admin/config/device/delete_selected_confirmation.html'
+    )
     list_display = [
         'name',
         'backend',
@@ -851,6 +854,26 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                     'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
                 }
             )
+            if device.is_deactivated():
+                ctx['additional_buttons'].append(
+                    {
+                        'html': mark_safe(
+                            '<input class="default" type="submit"'
+                            f' value="{_("Activate")}" form="act_deact_device_form">'
+                        )
+                    }
+                )
+            else:
+                ctx['additional_buttons'].append(
+                    {
+                        'html': mark_safe(
+                            '<p class="deletelink-box">'
+                            '<input class="deletelink" type="submit"'
+                            f' value="{_("Deactivate")}" form="act_deact_device_form">'
+                            '</p>'
+                        )
+                    }
+                )
         ctx.update(
             {
                 'relevant_template_url': reverse(
