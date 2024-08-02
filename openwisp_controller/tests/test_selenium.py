@@ -82,7 +82,7 @@ class TestDeviceConnectionInlineAdmin(
         for error in self.web_driver.get_log('browser'):
             self.assertNotEqual(error['level'], 'WARNING')
         self.web_driver.find_element(
-            by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[2]'
+            by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[1]'
         ).click()
         try:
             WebDriverWait(self.web_driver, 5).until(
