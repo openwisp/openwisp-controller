@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     services:
       redis:
@@ -104,14 +104,6 @@ jobs:
       env:
         SELENIUM_HEADLESS: 1
         CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
-
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-      if: ${{ failure() }}
-      with:
-        # Restrict to the user who triggered the workflow
-        limit-access-to-actor: true
-        wait-timeout-minutes: 1
 
     - name: Upload Coverage
       if: ${{ success() }}
