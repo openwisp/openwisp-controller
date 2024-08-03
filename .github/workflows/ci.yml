@@ -55,6 +55,14 @@ jobs:
           requirements.txt
           requirements-test.txt
 
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: /opt/hostedtoolcache/Python/
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-test.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - uses: browser-actions/setup-chrome@v1
       # Using a fixed version, see here for more information on why:
       # https://github.com/openwisp/openwisp-controller/issues/902#issuecomment-2266219715
