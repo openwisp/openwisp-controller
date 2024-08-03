@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     services:
       redis:
@@ -52,16 +52,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
         cache-dependency-path: |
-          requirements.txt
-          requirements-test.txt
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip/
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-test.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+          **/requirements*.txt
 
     - uses: browser-actions/setup-chrome@v1
       # Using a fixed version, see here for more information on why:
@@ -74,6 +65,7 @@ jobs:
 
     - run: |
         ${{ steps.setup-chrome.outputs.chrome-path }} --version
+        chromedriver --version
 
     - name: Checkout code
       uses: actions/checkout@v2
@@ -98,16 +90,15 @@ jobs:
     - name: Tests
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
-        chromedriver --version
         cd tests
         POSTGRESQL=1 DJANGO_SETTINGS_MODULE=openwisp2.postgresql_settings ./manage.py test --tag selenium_tests openwisp_controller.config.tests.test_selenium.TestDeviceAdmin.test_unsaved_changes
         cd ..
-        # coverage run runtests.py --parallel
+        coverage run runtests.py --parallel
         # the following command runs tests with Postgres/PostGIS but
         # only for specific test cases which are tagged with "db_tests"
-        # POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
+        POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         # tests the extension capability
-        # SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
+        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
         coverage combine
         coverage xml
       env:
@@ -120,7 +111,7 @@ jobs:
       with:
         # Restrict to the user who triggered the workflow
         limit-access-to-actor: true
-        wait-timeout-minutes: 5
+        wait-timeout-minutes: 1
 
     - name: Upload Coverage
       if: ${{ success() }}
