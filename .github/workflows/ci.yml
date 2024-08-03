@@ -58,7 +58,7 @@ jobs:
     - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
-        path: /opt/hostedtoolcache/Python/
+        path: ~/.cache/pip/
         key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-test.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
@@ -101,10 +101,11 @@ jobs:
         chromedriver --version
         cd tests
         POSTGRESQL=1 DJANGO_SETTINGS_MODULE=openwisp2.postgresql_settings ./manage.py test --tag selenium_tests openwisp_controller.config.tests.test_selenium.TestDeviceAdmin.test_unsaved_changes
+        cd ..
         # coverage run runtests.py --parallel
         # the following command runs tests with Postgres/PostGIS but
         # only for specific test cases which are tagged with "db_tests"
-        POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
+        # POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         # tests the extension capability
         # SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
         coverage combine
