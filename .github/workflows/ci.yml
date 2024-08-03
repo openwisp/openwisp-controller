@@ -69,6 +69,7 @@ jobs:
       # TODO: find a solution to allow using recent versions
       with:
         chrome-version: 125
+        install-dependencies: true
         install-chromedriver: true
       id: setup-chrome
 
