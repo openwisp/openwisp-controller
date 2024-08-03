@@ -9,7 +9,7 @@ omit = [
 ]
 
 [tool.docstrfmt]
-extend_exclude = ["**/*.py", "README.rst"]
+extend_exclude = ["**/*.py"]
 
 [tool.isort]
 known_third_party = ["django", "django_x509"]
