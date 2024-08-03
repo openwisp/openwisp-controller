@@ -105,6 +105,14 @@ jobs:
         SELENIUM_HEADLESS: 1
         CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
 
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      if: ${{ failure() }}
+      with:
+        # Restrict to the user who triggered the workflow
+        limit-access-to-actor: true
+        wait-timeout-minutes: 5
+
     - name: Upload Coverage
       if: ${{ success() }}
       uses: coverallsapp/github-action@v2
