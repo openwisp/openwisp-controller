@@ -86,9 +86,6 @@ jobs:
     - name: Tests
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
-        cd tests
-        POSTGRESQL=1 DJANGO_SETTINGS_MODULE=openwisp2.postgresql_settings ./manage.py test --tag selenium_tests openwisp_controller.config.tests.test_selenium.TestDeviceAdmin.test_unsaved_changes
-        cd ..
         coverage run runtests.py --parallel
         # the following command runs tests with Postgres/PostGIS but
         # only for specific test cases which are tagged with "db_tests"
