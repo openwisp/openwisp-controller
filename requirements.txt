@@ -9,7 +9,7 @@ openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
 openwisp-utils[celery] @ https://github.com/openwisp/openwisp-utils/tarball/master
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
-djangorestframework-gis~=0.18.0
+djangorestframework-gis~=1.0
 paramiko[ed25519]~=3.4.0
 scp~=0.15.0
 django-cache-memoize~=0.2.0
