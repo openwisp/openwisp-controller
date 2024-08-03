@@ -33,12 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          # - "3.8"
-          # - "3.9"
+          - "3.8"
+          - "3.9"
           - "3.10"
         django-version:
-          # - django~=3.2.0
-          # - django~=4.1.0
+          - django~=3.2.0
+          - django~=4.1.0
           - django~=4.2.0
 
     steps:
@@ -66,9 +66,6 @@ jobs:
     - run: |
         ${{ steps.setup-chrome.outputs.chrome-path }} --version
         chromedriver --version
-
-    - name: Checkout code
-      uses: actions/checkout@v2
 
     - name: Install Dependencies
       id: deps
