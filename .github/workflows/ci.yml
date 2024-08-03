@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     services:
       redis:
@@ -50,6 +50,22 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: |
+          **/requirements*.txt
+
+    - uses: browser-actions/setup-chrome@v1
+      # Using a fixed version, see here for more information on why:
+      # https://github.com/openwisp/openwisp-controller/issues/902#issuecomment-2266219715
+      # TODO: find a solution to allow using recent versions
+      with:
+        chrome-version: 125
+        install-chromedriver: true
+      id: setup-chrome
+
+    - run: |
+        ${{ steps.setup-chrome.outputs.chrome-path }} --version
+        chromedriver --version
 
     - name: Install Dependencies
       id: deps
@@ -80,6 +96,7 @@ jobs:
         coverage xml
       env:
         SELENIUM_HEADLESS: 1
+        CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
 
     - name: Upload Coverage
       if: ${{ success() }}
