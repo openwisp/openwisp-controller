@@ -82,7 +82,8 @@ Documentation
 -------------
 
 - `Developer documentation <https://openwisp.io/docs/dev/controller/>`_
-- `User documentation <https://openwisp.io/docs/dev/controller/developer/>`_
+- `User documentation
+  <https://openwisp.io/docs/dev/controller/developer/>`_
 
 Contributing
 ------------
