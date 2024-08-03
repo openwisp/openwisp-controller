@@ -144,13 +144,21 @@ class TestDeviceAdmin(
                 self.fail('Unsaved changes alert displayed without any change')
 
         with self.subTest('Alert should be displayed after making changes'):
+            # simulate hand gestures
+            self.web_driver.find_element(by=By.TAG_NAME, value='body').click()
+            self.web_driver.find_element(by=By.NAME, value='name').click()
+            # set name
             self.web_driver.find_element(by=By.NAME, value='name').send_keys(
                 'new.device.name'
             )
+            # simulate hand gestures
+            self.web_driver.find_element(by=By.TAG_NAME, value='body').click()
             self.web_driver.refresh()
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
+                for entry in self.web_driver.get_log('browser'):
+                    print(entry)
                 self.fail('Timed out wating for unsaved changes alert')
             else:
                 alert = Alert(self.web_driver)
