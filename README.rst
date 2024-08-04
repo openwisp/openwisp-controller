@@ -81,9 +81,9 @@ see the `OpenWISP Architecture Overview
 Documentation
 -------------
 
-- `Usage documentation
-  <https://openwisp.io/docs/dev/controller/>`_
-- `Developer documentation <https://openwisp.io/docs/dev/controller/developer/>`_
+- `Usage documentation <https://openwisp.io/docs/dev/controller/>`_
+- `Developer documentation
+  <https://openwisp.io/docs/dev/controller/developer/>`_
 
 Contributing
 ------------
