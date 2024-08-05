@@ -1,6 +1,12 @@
 Automating ZeroTier Tunnels
 ===========================
 
+.. important::
+
+    This guide assumes your OpenWrt firmware has the ``zerotier`` package
+    installed. If this package is not present, you will need to install
+    it.
+
 .. raw:: html
 
     <p style="text-align: center">

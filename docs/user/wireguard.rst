@@ -1,6 +1,12 @@
 Automating WireGuard Tunnels
 ============================
 
+.. important::
+
+    This guide assumes your OpenWrt firmware has the ``wireguard-tools``
+    package and its dependencies installed. If these packages are not
+    present, you will need to install them.
+
 This guide will help you to set up the automatic provisioning of
 `WireGuard <https://www.wireguard.com/>`_ tunnels for your devices.
 

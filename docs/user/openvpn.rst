@@ -1,6 +1,13 @@
 Automating OpenVPN Tunnels
 ==========================
 
+.. important::
+
+    This guide assumes your OpenWrt firmware has the ``openvpn-mbedtls``
+    package (or equivalent versions like ``openvpn-wolfssl`` or
+    ``openvpn-openssl``) installed. If this package is not present, you
+    will need to install it.
+
 In this guide, we will explore how to set up the automatic provisioning
 and management of **OpenVPN tunnels**.
 

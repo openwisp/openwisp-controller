@@ -1,6 +1,12 @@
 Automating VXLAN over WireGuard Tunnels
 =======================================
 
+.. important::
+
+    This guide assumes your OpenWrt firmware has the ``vxlan`` and
+    ``wireguard-tools`` packages installed. If these packages are not
+    present, you will need to install them.
+
 By following these steps, you will be able to setup layer 2 VXLAN tunnels
 encapsulated in `WireGuard <https://www.wireguard.com/>`_ tunnels which
 work on layer 3.
