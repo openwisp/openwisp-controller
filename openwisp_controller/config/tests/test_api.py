@@ -287,7 +287,7 @@ class TestConfigApi(
             r1 = self.client.get(f'{path}?config__templates={t1.pk}invalid_uuid')
             self.assertEqual(r1.status_code, 400)
             self.assertIn('Invalid UUID format', str(r1.content))
-            # test with comma seperated uuid's string
+            # test with comma separated uuid's string
             r2 = self.client.get(f'{path}?config__templates={t1.pk},{t2.pk}')
             self.assertEqual(r2.status_code, 400)
             self.assertIn('Invalid UUID format', str(r2.content))

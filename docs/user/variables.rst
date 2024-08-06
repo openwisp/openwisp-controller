@@ -100,7 +100,7 @@ The default values of variables can be manipulated from the section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Predefined device variables, global variables and other variables that are
-automatically managed by the system (eg: when using templates of type
+automatically managed by the system (e.g.: when using templates of type
 VPN-client) are displayed in the admin UI as *System Defined Variables* in
 read-only mode.
 
@@ -150,7 +150,7 @@ These would be the default values in the template:
     }
 
 The default values can then be overridden at :ref:`device level
-<user_defined_variables>` if needed, eg:
+<user_defined_variables>` if needed, e.g.:
 
 .. code-block:: json
 

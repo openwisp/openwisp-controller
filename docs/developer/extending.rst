@@ -45,9 +45,9 @@ Now, you need to do is to create some new django apps which will contain
 your custom version of *OpenWISP Controller*.
 
 A django project is a collection of django apps. There are 4 django apps
-in the openwisp_controller project, namely config, pki, connection & geo.
-You'll need to create 4 apps in your project for each app in
-openwisp_controller.
+in the openwisp_controller project, namely *config*, *pki*, *connection* &
+*geo*. You'll need to create 4 apps in your project for each app in
+*openwisp-controller*.
 
 A django app is nothing more than a `python package
 <https://docs.python.org/3/tutorial/modules.html#packages>`_ (a directory
@@ -199,7 +199,7 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your
 5. Initial Database Setup
 -------------------------
 
-Ensure you are using one of the available geodjango backends, eg:
+Ensure you are using one of the available geodjango backends, e.g.:
 
 .. code-block:: python
 

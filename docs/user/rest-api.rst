@@ -78,8 +78,8 @@ the ``status`` (e.g modified, applied, or error).
     GET /api/v1/controller/device/?config__status={status}
 
 You can filter a list of devices based on their configuration backend
-using the ``backend`` (e.g netjsonconfig.OpenWrt or
-netjsonconfig.OpenWisp).
+using the ``backend`` (e.g ``netjsonconfig.OpenWrt`` or
+``netjsonconfig.OpenWisp``).
 
 .. code-block:: text
 
@@ -111,7 +111,7 @@ You can filter a list of devices based on their device group using the
     GET /api/v1/controller/device/?group={group_id}
 
 You can filter a list of devices that have a device location object using
-the ``with_geo`` (eg. true or false).
+the ``with_geo`` (e.g. true or false).
 
 .. code-block:: text
 
@@ -361,7 +361,7 @@ the ``organization_id`` or ``organization_slug``.
     GET /api/v1/controller/group/?organization_slug={organization_slug}
 
 You can filter a list of device groups that have a device object using the
-``empty`` (eg. true or false).
+``empty`` (e.g. true or false).
 
 .. code-block:: text
 
@@ -440,7 +440,7 @@ You can create ``DeviceLocation`` object by using primary keys of existing
 
 **Note:** The ``indoor`` field represents the coordinates of the point
 placed on the image from the top left corner. E.g. if you placed the
-pointer on the top left corner of the floorplan image, its indoor
+pointer on the top left corner of the floor plan image, its indoor
 coordinates will be ``0,0``.
 
 .. code-block:: text
@@ -541,10 +541,10 @@ demonstrates creating both ``Location`` and ``FloorPlan`` objects.
         -F 'floorplan.image=@floorplan.png'
 
 **Note:** The request in above example uses ``multipart content-type`` for
-uploading floorplan image.
+uploading floor plan image.
 
-You can also use an existing ``Location`` object and create a new
-floorplan for that location using this endpoint.
+You can also use an existing ``Location`` object and create a new floor
+plan for that location using this endpoint.
 
 .. code-block:: text
 
@@ -667,9 +667,9 @@ Create Location
     POST /api/v1/controller/location/
 
 If you are creating an ``indoor`` location, you can use this endpoint to
-create floorplan for the location.
+create floor plan for the location.
 
-The following example demonstrates creating floorplan along with location
+The following example demonstrates creating floor plan along with location
 in a single request.
 
 .. code-block:: text
@@ -732,9 +732,9 @@ Change Location Details
 
     PUT /api/v1/controller/location/{pk}/
 
-**Note**: Only the first floorplan data present can be edited or changed.
-Setting the ``type`` of location to outdoor will remove all the floorplans
-associated with it.
+**Note**: Only the first floor plan data present can be edited or changed.
+Setting the ``type`` of location to outdoor will remove all the floor
+plans associated with it.
 
 Refer to the :ref:`examples in the "Create device location" section
 <create_device_location>` for information on payload format.
@@ -776,7 +776,7 @@ list location of devices from that organization.
 
     GET /api/v1/controller/location/geojson/?organization_slug={organization_slug}
 
-List Floorplans
+Floor Plan List
 ~~~~~~~~~~~~~~~
 
 .. code-block:: text
@@ -786,7 +786,7 @@ List Floorplans
 **Available filters**
 
 You can filter using ``organization_id`` or ``organization_slug`` to get
-list floorplans that belongs to an organization.
+list floor plans that belongs to an organization.
 
 .. code-block:: text
 
@@ -796,29 +796,29 @@ list floorplans that belongs to an organization.
 
     GET /api/v1/controller/floorplan/?organization_slug={organization_slug}
 
-Create Floorplan
-~~~~~~~~~~~~~~~~
+Create Floor Plan
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/floorplan/
 
-Get Floorplan Details
-~~~~~~~~~~~~~~~~~~~~~
+Get Floor Plan Details
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/floorplan/{pk}/
 
-Change Floorplan Details
-~~~~~~~~~~~~~~~~~~~~~~~~
+Change Floor Plan Details
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     PUT /api/v1/controller/floorplan/{pk}/
 
-Delete floorplan
-~~~~~~~~~~~~~~~~
+Delete Floor Plan
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -845,28 +845,28 @@ You can filter a list of templates based on their organization using the
     GET /api/v1/controller/template/?organization_slug={organization_slug}
 
 You can filter a list of templates based on their backend using the
-``backend`` (e.g netjsonconfig.OpenWrt or netjsonconfig.OpenWisp).
+``backend`` (e.g ``netjsonconfig.OpenWrt`` or ``netjsonconfig.OpenWisp``).
 
 .. code-block:: text
 
     GET /api/v1/controller/template/?backend={backend}
 
 You can filter a list of templates based on their type using the ``type``
-(eg. vpn or generic).
+(e.g. vpn or generic).
 
 .. code-block:: text
 
     GET /api/v1/controller/template/?type={type}
 
 You can filter a list of templates that are enabled by default or not
-using the ``default`` (eg. true or false).
+using the ``default`` (e.g. true or false).
 
 .. code-block:: text
 
     GET /api/v1/controller/template/?default={default}
 
 You can filter a list of templates that are required or not using the
-``required`` (eg. true or false).
+``required`` (e.g. true or false).
 
 .. code-block:: text
 
@@ -944,8 +944,8 @@ List VPNs
 **Available filters**
 
 You can filter a list of vpns based on their backend using the ``backend``
-(e.g openwisp_controller.vpn_backends.OpenVpn or
-openwisp_controller.vpn_backends.Wireguard).
+(e.g ``openwisp_controller.vpn_backends.OpenVpn`` or
+``openwisp_controller.vpn_backends.Wireguard``).
 
 .. code-block:: text
 

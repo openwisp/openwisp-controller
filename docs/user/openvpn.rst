@@ -141,7 +141,7 @@ Change your directory to ``/etc/easyrsa/pki/``.
 
 .. note::
 
-    If you incurr inthe following error: ``-bash: cd: /etc/easyrsa/pki:
+    If you incur in the following error: ``-bash: cd: /etc/easyrsa/pki:
     Permission denied``, you may need to log in as the root user.
 
 Import the CA

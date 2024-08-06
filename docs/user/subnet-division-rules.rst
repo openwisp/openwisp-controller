@@ -63,7 +63,7 @@ VPN Subnet Division Rule
 This rule triggers when a template flagged as *VPN-client* is assigned to
 a device configuration, but only if the VPN server associated with the
 VPN-client template uses the same subnet to which the subnet division rule
-is assignated to.
+is assigned to.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/subnet-division-rule.png
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/subnet-division-rule.png

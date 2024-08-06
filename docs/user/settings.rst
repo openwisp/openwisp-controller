@@ -160,8 +160,8 @@ A VPN backend must follow some basic rules in order to be compatible with
 
 - it MUST allow at minimum and at maximum one VPN instance
 - the main *NetJSON* property MUST match the lowercase version of the
-  class name, eg: when using the ``OpenVpn`` backend, the system will look
-  into ``config['openvpn']``
+  class name, e.g.: when using the ``OpenVpn`` backend, the system will
+  look into ``config['openvpn']``
 - it SHOULD focus on the server capabilities of the VPN software being
   used
 
@@ -288,7 +288,8 @@ The default value of the ``auto_cert`` field for new ``Template`` objects.
 
 The ``auto_cert`` field is valid only for templates which have ``type``
 set to ``VPN`` and indicates whether configuration regarding the VPN
-tunnel is provisioned automatically to each device using the template, eg:
+tunnel is provisioned automatically to each device using the template,
+e.g.:
 
 - when using OpenVPN, new `x509 <https://tools.ietf.org/html/rfc5280>`_
   certificates will be generated automatically using the same CA assigned
@@ -297,7 +298,7 @@ tunnel is provisioned automatically to each device using the template, eg:
   `Curve25519 <http://cr.yp.to/ecdh.html>`_) will be generated, as well as
   an IP address of the subnet assigned to the related VPN object
 - when using `VXLAN <https://tools.ietf.org/html/rfc7348>`_ tunnels over
-  Wireguad, in addition to the configuration generated for WireGuard, a
+  Wireguard, in addition to the configuration generated for Wireguard, a
   new VID will be generated automatically for each device if the
   configuration option "auto VNI" is turned on in the VPN object
 
@@ -305,7 +306,7 @@ All these auto generated configuration options will be available as
 template variables.
 
 The objects that are automatically created will also be removed when they
-are not needed anymore (eg: when the VPN template is removed from a
+are not needed anymore (e.g.: when the VPN template is removed from a
 configuration object).
 
 ``OPENWISP_CONTROLLER_CERT_PATH``
@@ -316,7 +317,7 @@ configuration object).
 **default**: ``/etc/x509``
 ============ =============
 
-The filesystem path where x509 certificate will be installed when
+The file system path where x509 certificate will be installed when
 downloaded on routers when ``auto_cert`` is being used (enabled by
 default).
 
@@ -427,11 +428,11 @@ This feature is disabled by default.
 
 Options for the model field ``hardware_id``.
 
-- ``blank``: wether the field is allowed to be blank
-- ``null``: wether an empty value will be stored as ``NULL`` in the
+- ``blank``: whether the field is allowed to be blank
+- ``null``: whether an empty value will be stored as ``NULL`` in the
   database
 - ``max_length``: maximum length of the field
-- ``unique``: wether the value of the field must be unique
+- ``unique``: whether the value of the field must be unique
 - ``verbose_name``: text for the human readable label of the field
 - ``help_text``: help text to be displayed with the field
 
@@ -697,7 +698,7 @@ Allows to show a pie chart like the one in the screenshot.
     :alt: device groups piechart
 
 Active groups are groups which have at least one device in them, while
-emtpy groups do not have any device assigned.
+empty groups do not have any device assigned.
 
 ``OPENWISP_CONTROLLER_API_TASK_RETRY_OPTIONS``
 ----------------------------------------------

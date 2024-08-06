@@ -29,11 +29,11 @@ following features:
 - :doc:`device-groups`: define different set of default configuration and
   metadata in device groups
 - :ref:`Template Tags <templates_tags>`: define different sets of default
-  templates (eg: mesh, WDS, 4G)
+  templates (e.g.: mesh, WDS, 4G)
 - **HTTP resources**: allow devices to automatically check for and
   download configuration updates
 - **VPN management**: automatically provision VPN tunnel configurations,
-  including cryptographic keys and IP addresses, eg: :doc:`OpenVPN
+  including cryptographic keys and IP addresses, e.g.: :doc:`OpenVPN
   </user/vpn>`, :doc:`WireGuard <wireguard>`
 - :doc:`import-export`
 
@@ -94,7 +94,7 @@ Geo App
 The geographic app is based on `django-loci
 <https://github.com/openwisp/django-loci>`_ and allows to define the
 geographic coordinates of the devices, as well as their indoor coordinates
-on floorplan images.
+on floor plan images.
 
 It exposes various :doc:`REST API endpoints <rest-api>`.
 

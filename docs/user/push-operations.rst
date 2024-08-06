@@ -106,7 +106,7 @@ Once you have performed the 3 steps above, you can test it as follows:
 
 1. Ensure there's at least one device turned on and connected to OpenWISP,
    ensure this device has the "SSH Authorized Keys" assigned to it.
-2. Ensure the celery worker of OpenWISP Controller is running (eg: ``ps
+2. Ensure the celery worker of OpenWISP Controller is running (e.g.: ``ps
    aux | grep celery``)
 3. SSH into the device and wait (maximum 2 minutes) until
    ``/etc/dropbear/authorized_keys`` appears as specified in the template.

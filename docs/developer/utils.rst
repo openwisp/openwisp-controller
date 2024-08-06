@@ -238,8 +238,8 @@ It is not triggered when the device is created for the first time.
 
 - ``instance``: instance of ``Device`` which got registered.
 - ``is_new``: boolean, will be ``True`` when the device is new, ``False``
-  when the device already exists (eg: a device which gets a factory reset
-  will register again)
+  when the device already exists (e.g.: a device which gets a factory
+  reset will register again)
 
 This signal is emitted when a device registers automatically through the
 controller HTTP API.

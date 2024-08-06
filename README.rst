@@ -62,7 +62,7 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
 - `openwisp-network-topology
   <https://openwisp.io/docs/dev/network-topology/>`_: provides way to
   collect and visualize network topology data from dynamic mesh routing
-  daemons or other network software (eg: OpenVPN); it can be used in
+  daemons or other network software (e.g.: OpenVPN); it can be used in
   conjunction with openwisp-monitoring to get a better idea of the state
   of the network
 - `openwisp-ipam <https://openwisp.io/docs/dev/ipam/>`_: allows to manage
