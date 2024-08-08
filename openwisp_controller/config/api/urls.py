@@ -54,6 +54,16 @@ def get_api_urls(api_views):
                 name='device_detail',
             ),
             path(
+                'controller/device/<str:pk>/activate/',
+                api_views.device_activate,
+                name='device_activate',
+            ),
+            path(
+                'controller/device/<str:pk>/deactivate/',
+                api_views.device_deactivate,
+                name='device_deactivate',
+            ),
+            path(
                 'controller/group/',
                 api_views.devicegroup_list,
                 name='devicegroup_list',

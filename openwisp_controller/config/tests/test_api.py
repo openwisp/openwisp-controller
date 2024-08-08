@@ -482,6 +482,24 @@ class TestConfigApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
+    def test_device_deactivate_api(self):
+        device = self._create_device()
+        path = reverse('config_api:device_deactivate', args=[device.pk])
+        response = self.client.post(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['is_deactivated'], True)
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+
+    def test_device_activate_api(self):
+        device = self._create_device(_is_deactivated=True)
+        path = reverse('config_api:device_activate', args=[device.pk])
+        response = self.client.post(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['is_deactivated'], False)
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), False)
+
     def test_device_delete_api(self):
         d1 = self._create_device()
         self._create_config(device=d1)
