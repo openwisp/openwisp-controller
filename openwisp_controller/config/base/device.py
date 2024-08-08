@@ -184,6 +184,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             if self._has_config():
                 self.config.set_status_deactivating()
             self._is_deactivated = True
+            self.management_ip = ''
             self.save()
             device_deactivated.send(sender=self.__class__, instance=self)
 

@@ -620,12 +620,13 @@ class TestTransactionDevice(
         self.assertEqual(config.templates.count(), 1)
 
     def test_deactivating_device_without_config(self):
-        device = self._create_device()
+        device = self._create_device(management_ip='10.8.0.1')
         self.assertEqual(device._has_config(), False)
         device.deactivate()
         device.refresh_from_db()
         self.assertEqual(device._has_config(), False)
         self.assertEqual(device.is_deactivated(), True)
+        self.assertEqual(device.management_ip, None)
 
         device.activate()
         device.refresh_from_db()
