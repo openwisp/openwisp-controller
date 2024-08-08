@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("sample_config", "0006_device__is_deactivated_alter_config_status"),
     ]
