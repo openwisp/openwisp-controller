@@ -1,6 +1,6 @@
 from hashlib import md5
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -284,6 +284,13 @@ class AbstractDevice(OrgMixin, BaseModel):
         # is stored in the "state_adding" variable.
         if not state_adding:
             self._check_changed_fields()
+
+    def delete(self, using=None, keep_parents=False):
+        if not self.is_deactivated() or (
+            self._has_config() and not self.config.is_deactivated()
+        ):
+            raise PermissionDenied('The device should be deactivated before deleting')
+        return super().delete(using, keep_parents)
 
     def _check_changed_fields(self):
         self._get_initial_values_for_checked_fields()
