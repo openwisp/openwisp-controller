@@ -1,7 +1,7 @@
 from hashlib import md5
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db import models
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from swapper import get_model_name, load_model
@@ -10,7 +10,12 @@ from openwisp_users.mixins import OrgMixin
 from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
-from ..signals import device_group_changed, device_name_changed, management_ip_changed
+from ..signals import (
+    device_deactivated,
+    device_group_changed,
+    device_name_changed,
+    management_ip_changed,
+)
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -96,6 +101,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         ),
     )
     hardware_id = models.CharField(**(app_settings.HARDWARE_ID_OPTIONS))
+    # This is an internal field which is used to track if
+    # the device has been deactivated. This field should not be changed
+    # directly, use the deactivate() method instead.
+    _is_deactivated = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (
@@ -162,6 +171,35 @@ class AbstractDevice(OrgMixin, BaseModel):
         return load_model('config', 'OrganizationConfigSettings')(
             organization=self.organization if hasattr(self, 'organization') else None
         )
+
+    def is_deactivated(self):
+        return self._is_deactivated
+
+    def deactivate(self):
+        if self.is_deactivated():
+            # The device has already been deactivated.
+            # No further operation is required.
+            return
+        with transaction.atomic():
+            if self._has_config():
+                self.config.set_status_deactivating()
+            self._is_deactivated = True
+            self.management_ip = ''
+            self.save()
+            device_deactivated.send(sender=self.__class__, instance=self)
+
+    def activate(self):
+        if not self.is_deactivated():
+            # The device is already active.
+            # No further operation is required.
+            return
+        with transaction.atomic():
+            if self._has_config():
+                self.config.set_status_modified()
+                # Trigger enforcing of required templates
+                self.config.templates.clear()
+            self._is_deactivated = False
+            self.save()
 
     def get_context(self):
         config = self._get_config()
@@ -246,6 +284,14 @@ class AbstractDevice(OrgMixin, BaseModel):
         # is stored in the "state_adding" variable.
         if not state_adding:
             self._check_changed_fields()
+
+    def delete(self, using=None, keep_parents=False, check_deactivated=True):
+        if check_deactivated and (
+            not self.is_deactivated()
+            or (self._has_config() and not self.config.is_deactivated())
+        ):
+            raise PermissionDenied('The device should be deactivated before deleting')
+        return super().delete(using, keep_parents)
 
     def _check_changed_fields(self):
         self._get_initial_values_for_checked_fields()

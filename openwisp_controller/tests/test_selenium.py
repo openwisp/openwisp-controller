@@ -38,7 +38,8 @@ class TestDeviceConnectionInlineAdmin(
     def test_restoring_deleted_device(self, *args):
         org = self._get_org()
         self._create_credentials(auto_add=True, organization=org)
-        device = self._create_config(organization=org).device
+        config = self._create_config(organization=org)
+        device = config.device
         self._create_object_location(
             location=self._create_location(
                 organization=org,
@@ -50,6 +51,8 @@ class TestDeviceConnectionInlineAdmin(
 
         self.login()
         # Delete the device
+        device.deactivate()
+        config.set_status_deactivated()
         self.open(
             reverse(f'admin:{self.config_app_label}_device_delete', args=[device.id])
         )

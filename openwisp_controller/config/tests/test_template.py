@@ -78,7 +78,7 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         org = self._get_org()
         c = self._create_config(organization=org)
         self.assertEqual(c.templates.count(), 0)
-        c.device.delete()
+        c.device.delete(check_deactivated=False)
         # create default templates for different backends
         t1 = self._create_template(
             name='default-openwrt', backend='netjsonconfig.OpenWrt', default=True
