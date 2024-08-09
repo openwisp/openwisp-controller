@@ -14,10 +14,7 @@ from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
-from ...mixins import (
-    ProtectedAPIMixin,
-    RelatedDeviceProtectedAPIMixin,
-)
+from ...mixins import ProtectedAPIMixin, RelatedDeviceProtectedAPIMixin
 from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
