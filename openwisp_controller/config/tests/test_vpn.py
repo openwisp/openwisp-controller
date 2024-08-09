@@ -581,7 +581,7 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
     def test_ip_deleted_when_device_deleted(self):
         device, vpn, template = self._create_wireguard_vpn_template()
         self.assertEqual(device.config.vpnclient_set.count(), 1)
-        device.delete()
+        device.delete(check_deactivated=False)
         self.assertEqual(IpAddress.objects.count(), 1)
 
     def test_delete_vpnclient_ip(self):
@@ -745,7 +745,7 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             self.assertEqual(len(vpn_config.get('peers', [])), 2)
 
         with self.subTest('cache updated when a new peer is deleted'):
-            device2.delete()
+            device2.delete(check_deactivated=False)
             # cache is invalidated but not updated
             # hence we expect queries to be generated
             with self.assertNumQueries(1):
@@ -954,7 +954,7 @@ class TestVxlanTransaction(
             self.assertEqual(len(peers), 2)
 
         with self.subTest('cache updated when a new peer is deleted'):
-            device2.delete()
+            device2.delete(check_deactivated=False)
             # cache is invalidated but not updated
             # hence we expect queries to be generated
             with self.assertNumQueries(2):
@@ -1110,7 +1110,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         self.assertEqual(mock_subprocess.run.call_count, 1)
         self.assertEqual(device.config.vpnclient_set.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
-        device.delete()
+        device.delete(check_deactivated=False)
         self.assertEqual(IpAddress.objects.count(), 1)
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)

@@ -1164,6 +1164,15 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('content-type'), 'application/octet-stream')
 
+    def test_download_deactivated_device_config(self):
+        device = self._create_device(name='download')
+        self._create_config(device=device)
+        device.deactivate()
+        path = reverse(f'admin:{self.app_label}_device_download', args=[device.pk.hex])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('content-type'), 'application/octet-stream')
+
     def test_download_device_config_404(self):
         d = self._create_device(name='download')
         path = reverse(f'admin:{self.app_label}_device_download', args=[d.pk])

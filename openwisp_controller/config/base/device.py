@@ -285,9 +285,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         if not state_adding:
             self._check_changed_fields()
 
-    def delete(self, using=None, keep_parents=False):
-        if not self.is_deactivated() or (
-            self._has_config() and not self.config.is_deactivated()
+    def delete(self, using=None, keep_parents=False, check_deactivated=True):
+        if check_deactivated and (
+            not self.is_deactivated()
+            or (self._has_config() and not self.config.is_deactivated())
         ):
             raise PermissionDenied('The device should be deactivated before deleting')
         return super().delete(using, keep_parents)

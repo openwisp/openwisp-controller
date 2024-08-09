@@ -166,7 +166,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             self.assertEqual(obj.os, 'test_cache')
 
         with self.subTest('test cache invalidation on device delete'):
-            d.delete()
+            d.delete(check_deactivated=False)
             with self.assertNumQueries(1):
                 with self.assertRaises(Http404):
                     view.get_device()

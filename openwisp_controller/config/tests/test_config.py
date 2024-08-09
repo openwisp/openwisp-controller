@@ -681,7 +681,7 @@ class TestConfig(
             else:
                 self.assertIn('# path: /etc/vpnserver1', result)
 
-        config.device.delete()
+        config.device.delete(check_deactivated=False)
         config.delete()
         with self.subTest('Test template applied after creating config object'):
             config = self._create_config(organization=org)
