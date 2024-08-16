@@ -79,6 +79,7 @@ class CaListSerializer(BaseListSerializer):
         read_only_fields = ['created', 'modified']
         extra_kwargs = {
             'organization': {'required': True},
+            'common_name': {'default': '', 'required': False},
             'key_length': {'initial': '2048'},
             'digest': {'initial': 'sha256'},
             'passphrase': {'write_only': True},
@@ -151,6 +152,7 @@ class CertListSerializer(BaseListSerializer):
         fields = get_cert_list_fields(CaListSerializer.Meta.fields[:])
         read_only_fields = ['created', 'modified']
         extra_kwargs = {
+            'common_name': {'default': '', 'required': False},
             'revoked': {'read_only': True},
             'revoked_at': {'read_only': True},
             'key_length': {'initial': '2048'},

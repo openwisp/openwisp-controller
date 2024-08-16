@@ -5,6 +5,8 @@ from unittest.mock import patch
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
+from packaging.version import parse as parse_version
+from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
@@ -378,7 +380,10 @@ class TestConnectionApi(
                 'port': 22,
             },
         }
-        with self.assertNumQueries(8):
+        expected_queries = (
+            9 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version('3.15') else 8
+        )
+        with self.assertNumQueries(expected_queries):
             response = self.client.put(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['name'], data['name'])

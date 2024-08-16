@@ -1,5 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
+from packaging.version import parse as parse_version
+from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
@@ -70,7 +72,10 @@ class TestPkiApi(
             'certificate': ca1.certificate,
             'private_key': ca1.private_key,
         }
-        with self.assertNumQueries(6):
+        expected_queries = (
+            7 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version('3.15') else 6
+        )
+        with self.assertNumQueries(expected_queries):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 2)
@@ -179,7 +184,10 @@ class TestPkiApi(
             'certificate': ca1.certificate,
             'private_key': ca1.private_key,
         }
-        with self.assertNumQueries(10):
+        expected_queries = (
+            11 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version('3.15') else 10
+        )
+        with self.assertNumQueries(expected_queries):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -203,6 +211,7 @@ class TestPkiApi(
         path = reverse('pki_api:cert_list')
         data = {
             'name': 'test-cert',
+            'organization': None,
             'ca': self._create_ca().pk,
             'serial_number': "",
             'validity_start': None,
