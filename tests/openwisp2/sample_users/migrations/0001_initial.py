@@ -262,7 +262,6 @@ class Migration(migrations.Migration):
                 ('url', models.URLField(blank=True, verbose_name='URL')),
             ],
             options={'abstract': False},
-            bases=(organizations.base.UnicodeMixin, models.Model),
         ),
         migrations.CreateModel(
             name='Group',
@@ -320,7 +319,6 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={'abstract': False},
-            bases=(organizations.base.UnicodeMixin, models.Model),
         ),
         migrations.CreateModel(
             name='OrganizationOwner',
@@ -363,7 +361,6 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={'abstract': False},
-            bases=(organizations.base.UnicodeMixin, models.Model),
         ),
         migrations.CreateModel(
             name='OrganizationInvitation',
