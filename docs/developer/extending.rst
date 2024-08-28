@@ -196,7 +196,7 @@ Add ``openwisp_utils.loaders.DependencyLoader`` to ``TEMPLATES`` in your
         }
     ]
 
-5. Initial Database Setup
+7. Initial Database Setup
 -------------------------
 
 Ensure you are using one of the available geodjango backends, e.g.:
@@ -213,7 +213,7 @@ Ensure you are using one of the available geodjango backends, e.g.:
 For more information about GeoDjango, please refer to the `geodjango
 documentation <https://docs.djangoproject.com/en/4.2/ref/contrib/gis/>`_.
 
-6. Django Channels Setup
+8. Django Channels Setup
 ------------------------
 
 Create ``asgi.py`` in your project folder and add following lines in it:
@@ -239,7 +239,7 @@ Create ``asgi.py`` in your project folder and add following lines in it:
         }
     )
 
-7. Other Settings
+9. Other Settings
 -----------------
 
 Add the following settings to ``settings.py``:
@@ -263,8 +263,8 @@ For more information about CHANNEL_LAYERS setting, please refer to the
 `CHANNEL_LAYERS documentation
 <https://channels.readthedocs.io/en/latest/deploying.html#setting-up-a-channel-backend>`_.
 
-6. Inherit the AppConfig Class
-------------------------------
+10. Inherit the AppConfig Class
+-------------------------------
 
 Please refer to the following files in the sample app of the test project:
 
@@ -300,8 +300,8 @@ For more information regarding the concept of ``AppConfig`` please refer
 to the `"Applications" section in the django documentation
 <https://docs.djangoproject.com/en/4.2/ref/applications/>`_.
 
-7. Create Your Custom Models
-----------------------------
+11. Create Your Custom Models
+-----------------------------
 
 For the purpose of showing an example, we added a simple "details" field
 to the models of the sample app in the test project.
@@ -325,8 +325,8 @@ You can add fields in a similar way in your ``models.py`` file.
     please refer to the `"Models" section in the django documentation
     <https://docs.djangoproject.com/en/4.2/topics/db/models/>`_.
 
-8. Add Swapper Configurations
------------------------------
+12. Add Swapper Configurations
+------------------------------
 
 Once you have created the models, add the following to your
 ``settings.py``:
@@ -365,8 +365,8 @@ Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
 ``sample_geo`` & ``sample_subnet_division`` with the name you chose in
 step 1.
 
-9. Create Database Migrations
------------------------------
+13. Create Database Migrations
+------------------------------
 
 Create database migrations:
 
@@ -399,7 +399,7 @@ For more information, refer to the `"Migrations" section in the django
 documentation
 <https://docs.djangoproject.com/en/4.2/topics/migrations/>`_.
 
-10. Create the Admin
+14. Create the Admin
 --------------------
 
 Refer to the ``admin.py`` file of the sample app.
@@ -423,8 +423,8 @@ how it can be customized, please refer to `"The django admin site" section
 in the django documentation
 <https://docs.djangoproject.com/en/4.2/ref/contrib/admin/>`_.
 
-1. Monkey Patching
-~~~~~~~~~~~~~~~~~~
+14.1. Monkey Patching
+~~~~~~~~~~~~~~~~~~~~~
 
 If the changes you need to add are relatively small, you can resort to
 monkey patching.
@@ -485,8 +485,8 @@ For example:
         "example"
     ]  # <-- monkey patching example
 
-2. Inheriting admin classes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+14.2. Inheriting admin classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you need to introduce significant changes and/or you don't want to
 resort to monkey patching, you can proceed as follows:
@@ -659,7 +659,7 @@ resort to monkey patching, you can proceed as follows:
         pass
         # add your changes here
 
-11. Create Root URL Configuration
+15. Create Root URL Configuration
 ---------------------------------
 
 .. code-block:: python
@@ -692,7 +692,7 @@ For more information about URL configuration in django, please refer to
 the `"URL dispatcher" section in the django documentation
 <https://docs.djangoproject.com/en/4.2/topics/http/urls/>`_.
 
-12. Import the Automated Tests
+16. Import the Automated Tests
 ------------------------------
 
 When developing a custom application based on this module, it's a good
