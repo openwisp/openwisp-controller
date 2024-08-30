@@ -418,10 +418,12 @@ Refer to the ``admin.py`` file of the sample app.
 To introduce changes to the admin, you can do it in two main ways which
 are described below.
 
-**Note**: for more information regarding how the django admin works, or
-how it can be customized, please refer to `"The django admin site" section
-in the django documentation
-<https://docs.djangoproject.com/en/4.2/ref/contrib/admin/>`_.
+.. note::
+
+    For more information regarding how the django admin works, or how it
+    can be customized, please refer to `"The django admin site" section in
+    the django documentation
+    <https://docs.djangoproject.com/en/4.2/ref/contrib/admin/>`_.
 
 14.1. Monkey Patching
 ~~~~~~~~~~~~~~~~~~~~~

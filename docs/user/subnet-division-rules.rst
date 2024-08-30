@@ -91,9 +91,11 @@ Create a template, setting the **Type** field to **VPN Client** and
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/subnet-division-rule/vpn-client.png
     :alt: Creating a VPN Client template example
 
-**Note**: You can also check the **Enable by default** field if you want
-to automatically apply this template to devices that will register in
-future.
+.. note::
+
+    You can also check the **Enable by default** field if you want to
+    automatically apply this template to devices that will register in
+    future.
 
 4. Apply VPN Client Template to Devices
 ---------------------------------------

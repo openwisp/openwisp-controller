@@ -169,11 +169,13 @@ Patch Details of Device
 
     PATCH /api/v1/controller/device/{id}/
 
-**Note**: To assign, unassign, and change the order of the assigned
-templates add, remove, and change the order of the ``{id}`` of the
-templates under the ``config`` field in the JSON response respectively.
-Moreover, you can also select and unselect templates in the HTML Form of
-the Browsable API.
+.. note::
+
+    To assign, unassign, and change the order of the assigned templates
+    add, remove, and change the order of the ``{id}`` of the templates
+    under the ``config`` field in the JSON response respectively.
+    Moreover, you can also select and unselect templates in the HTML Form
+    of the Browsable API.
 
 The required template(s) from the organization(s) of the device will added
 automatically to the ``config`` and cannot be removed.
@@ -438,10 +440,12 @@ You can create ``DeviceLocation`` object by using primary keys of existing
         "indoor": "-36,264"
     }
 
-**Note:** The ``indoor`` field represents the coordinates of the point
-placed on the image from the top left corner. E.g. if you placed the
-pointer on the top left corner of the floor plan image, its indoor
-coordinates will be ``0,0``.
+.. note::
+
+    The ``indoor`` field represents the coordinates of the point placed on
+    the image from the top left corner. E.g. if you placed the pointer on
+    the top left corner of the floor plan image, its indoor coordinates
+    will be ``0,0``.
 
 .. code-block:: text
 
@@ -493,37 +497,37 @@ single request.
                 }
             }'
 
-**Note:** You can also specify the ``geometry`` in **Well-known text
-(WKT)** format, like following:
+.. note::
 
-.. code-block:: json
+    You can also specify the ``geometry`` in **Well-known text (WKT)**
+    format, like following:
 
-    {
-        "location": {
-            "name": "Via del Corso",
-            "address": "Via del Corso, Roma, Italia",
-            "geometry": "POINT (12.512124 41.898903)",
-            "type": "outdoor",
+    .. code-block:: json
+
+        {
+            "location": {
+                "name": "Via del Corso",
+                "address": "Via del Corso, Roma, Italia",
+                "geometry": "POINT (12.512124 41.898903)",
+                "type": "outdoor",
+            }
         }
-    }
 
 Similarly, you can create ``Floorplan`` object with the same request. But,
 note that a ``FloorPlan`` can be added to ``DeviceLocation`` only if the
 related ``Location`` object defines an indoor location. The example below
 demonstrates creating both ``Location`` and ``FloorPlan`` objects.
 
-.. code-block:: text
+.. code-block:: json
 
-    // This is not a valid JSON object. The JSON format is
-    // only used for showing available fields.
     {
         "location.name": "Via del Corso",
         "location.address": "Via del Corso, Roma, Italia",
         "location.geometry.type": "Point",
-        "location.geometry.coordinates": [12.512124, 41.898903]
+        "location.geometry.coordinates": [12.512124, 41.898903],
         "location.type": "outdoor",
         "floorplan.floor": 1,
-        "floorplan.image": floorplan.png,
+        "floorplan.image": "floorplan.png"
     }
 
 .. code-block:: text
@@ -540,20 +544,20 @@ demonstrates creating both ``Location`` and ``FloorPlan`` objects.
         -F floorplan.floor=1 \
         -F 'floorplan.image=@floorplan.png'
 
-**Note:** The request in above example uses ``multipart content-type`` for
-uploading floor plan image.
+.. note::
+
+    The example above uses ``multipart content-type`` for uploading floor
+    plan image.
 
 You can also use an existing ``Location`` object and create a new floor
 plan for that location using this endpoint.
 
-.. code-block:: text
+.. code-block:: json
 
-    // This is not a valid JSON object. The JSON format is
-    // only used for showing available fields.
     {
         "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
         "floorplan.floor": 1,
-        "floorplan.image": floorplan.png
+        "floorplan.image": "floorplan.png"
     }
 
 .. code-block:: text
@@ -573,10 +577,12 @@ Change Details of Device Location
 
     PUT /api/v1/controller/device/{id}/location/
 
-**Note:** This endpoint can be used to update related ``Location`` and
-``Floorplan`` objects. Refer to the :ref:`examples in the "Create device
-location" section <create_device_location>` for information on payload
-format.
+.. note::
+
+    This endpoint can be used to update related ``Location`` and
+    ``Floorplan`` objects. Refer to the :ref:`examples in the "Create
+    device location" section <create_device_location>` for information on
+    payload format.
 
 Delete Device Location
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -592,7 +598,9 @@ Get Device Coordinates
 
     GET /api/v1/controller/device/{id}/coordinates/
 
-**Note:** This endpoint is intended to be used by devices.
+.. note::
+
+    This endpoint is intended to be used by devices.
 
 This endpoint skips multi-tenancy and permission checks if the device
 ``key`` is passed as ``query_param`` because the system assumes that the
@@ -610,7 +618,9 @@ Update Device Coordinates
 
     PUT /api/v1/controller/device/{id}/coordinates/
 
-**Note:** This endpoint is intended to be used by devices.
+.. note::
+
+    This endpoint is intended to be used by devices.
 
 This endpoint skips multi-tenancy and permission checks if the device
 ``key`` is passed as ``query_param`` because the system assumes that the
@@ -672,7 +682,7 @@ create floor plan for the location.
 The following example demonstrates creating floor plan along with location
 in a single request.
 
-.. code-block:: text
+.. code-block:: json
 
     {
         "name": "Via del Corso",
@@ -682,7 +692,7 @@ in a single request.
         "type": "indoor",
         "is_mobile": "false",
         "floorplan.floor": "1",
-        "floorplan.image": floorplan.png,
+        "floorplan.image": "floorplan.png",
         "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
     }
 
@@ -702,10 +712,12 @@ in a single request.
         -F 'floorplan.image=@floorplan.png' \
         -F organization=1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05
 
-**Note:** You can also specify the ``geometry`` in **Well-known text
-(WKT)** format, like following:
+.. note::
 
-.. code-block:: text
+    You can also specify the ``geometry`` in **Well-known text (WKT)**
+    format, like following:
+
+.. code-block:: json
 
     {
         "name": "Via del Corso",
@@ -714,7 +726,7 @@ in a single request.
         "type": "indoor",
         "is_mobile": "false",
         "floorplan.floor": "1",
-        "floorplan.image": floorplan.png,
+        "floorplan.image": "floorplan.png",
         "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05"
     }
 
@@ -732,9 +744,11 @@ Change Location Details
 
     PUT /api/v1/controller/location/{pk}/
 
-**Note**: Only the first floor plan data present can be edited or changed.
-Setting the ``type`` of location to outdoor will remove all the floor
-plans associated with it.
+.. note::
+
+    Only the first floor plan data present can be edited or changed.
+    Setting the ``type`` of location to outdoor will remove all the floor
+    plans associated with it.
 
 Refer to the :ref:`examples in the "Create device location" section
 <create_device_location>` for information on payload format.
@@ -756,8 +770,10 @@ List Devices in a Location
 List Locations with Devices Deployed (in GeoJSON Format)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Note**: this endpoint will only list locations that have been assigned
-to a device.
+.. note::
+
+    this endpoint will only list locations that have been assigned to a
+    device.
 
 .. code-block:: text
 
@@ -1035,9 +1051,11 @@ Import Existing CA
 
     POST /api/v1/controller/ca/
 
-**Note**: To import an existing CA, only ``name``, ``certificate`` and
-``private_key`` fields have to be filled in the ``HTML`` form or included
-in the ``JSON`` format.
+.. note::
+
+    To import an existing CA, only ``name``, ``certificate`` and
+    ``private_key`` fields have to be filled in the ``HTML`` form or
+    included in the ``JSON`` format.
 
 Get CA Detail
 ~~~~~~~~~~~~~
@@ -1105,9 +1123,11 @@ Import Existing Cert
 
     POST /api/v1/controller/cert/
 
-**Note**: To import an existing Cert, only ``name``, ``ca``,
-``certificate`` and ``private_key`` fields have to be filled in the
-``HTML`` form or included in the ``JSON`` format.
+.. note::
+
+    To import an existing Cert, only ``name``, ``ca``, ``certificate`` and
+    ``private_key`` fields have to be filled in the ``HTML`` form or
+    included in the ``JSON`` format.
 
 Get Cert Detail
 ~~~~~~~~~~~~~~~
