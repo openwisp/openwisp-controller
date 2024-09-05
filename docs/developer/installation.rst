@@ -187,13 +187,13 @@ If you are incurring in the following exception:
 You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as
 explained in `django documentation regarding how to install and configure
 spatialte
-<https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/spatialite/>`_.
+<https://docs.djangoproject.com/en/4.2/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with Other Geospatial Libraries?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Please refer `troubleshooting issues related to geospatial libraries
-<https://docs.djangoproject.com/en/2.1/ref/contrib/gis/install/#library-environment-settings/>`_.
+<https://docs.djangoproject.com/en/4.2/ref/contrib/gis/install/#library-environment-settings/>`_.
 
 .. important::
 

@@ -38,9 +38,11 @@ work on layer 3.
    this will be used to ensure that configuration upgrades are requested
    from trusted sources.
 
-   **Note**: If you are following this tutorial for also setting up
-   WireGuard VPN server, just substitute ``wireguard-server.mydomain.com``
-   with hostname of your VPN server and follow the steps in next section.
+.. note::
+
+    If you are following this tutorial for also setting up WireGuard VPN
+    server, just substitute ``wireguard-server.mydomain.com`` with
+    hostname of your VPN server and follow the steps in next section.
 
 6. Under the configuration section, set the name of WireGuard tunnel 1
    interface. We have used ``wg0`` in this example.

@@ -10,10 +10,9 @@ Introduction
 
 .. important::
 
-    If you have installed OpenWISP with the `ansbile-openwisp2 role
-    <https://galaxy.ansible.com/openwisp/openwisp2>`_ you can skip the
-    following steps, which are handled automatically by the ansible role
-    during the first installation.
+    If you have installed OpenWISP with one of the :doc:`Official
+    installers </installers>` you can skip the following steps, which are
+    handled automatically during the first installation.
 
 The Ansible role automatically creates a default template to update
 ``authorized_keys`` on networking devices using the default access
@@ -34,20 +33,22 @@ command:
 
 .. code-block:: shell
 
-    echo './sshkey' | ssh-keygen -t ed25519 -C "openwisp"
+    ssh-keygen -f ./sshkey -t ed25519 -C "openwisp" -N ""
 
 This will create two files in the current directory, one called ``sshkey``
 (the private key) and one called ``sshkey.pub`` (the public key).
 
 Store the content of these files in a secure location.
 
-**Note:** Support for **ED25519** was added in OpenWrt 21.02 (requires
-Dropbear > 2020.79). If you are managing devices with OpenWrt < 21, then
-you will need to use RSA keys:
+.. note::
 
-.. code-block:: shell
+    Support for **ED25519** was added in OpenWrt 21.02 (requires Dropbear
+    > 2020.79). If you are managing devices with OpenWrt < 21, then you
+    will need to use RSA keys:
 
-    echo './sshkey' | ssh-keygen -t rsa -b 4096 -C "openwisp"
+    .. code-block:: shell
+
+        ssh-keygen -f ./sshkey -t rsa -b 4096 -C "openwisp"
 
 2. Save SSH Private Key in "Access Credentials"
 -----------------------------------------------
