@@ -104,13 +104,8 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 
     def _validate_master_subnet_consistency(self):
         # Try to retrieve and validate master_subnet
-        try:
-            master_subnet = self.master_subnet.subnet
-            if not master_subnet:
-                raise ValidationError(
-                    {'master_subnet': _('Master subnet must be a valid subnet.')}
-                )
-        except AttributeError:
+        master_subnet = self.master_subnet.subnet
+        if not master_subnet:
             raise ValidationError(
                 {'master_subnet': _('Master subnet is required and cannot be empty.')}
             )

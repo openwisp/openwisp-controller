@@ -984,8 +984,13 @@ class TestSubnetDivisionRule(
             organization=self.org,
             master_subnet=invalid_subnet,  # Invalid master_subnet
         )
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(ValidationError) as cm:
             rule.full_clean()
+        e = cm.exception
+        self.assertIn(
+            'Master subnet must be a valid subnet.',
+            e.message_dict.get('master_subnet', []),
+        )
 
 
 class TestOpenVPNSubnetDivisionRule(
