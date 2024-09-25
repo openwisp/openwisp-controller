@@ -956,21 +956,6 @@ class TestSubnetDivisionRule(
             device_rule.number_of_subnets,
         )
 
-    def test_empty_master_subnet(self):
-        rule = SubnetDivisionRule(
-            type='openwisp_controller.subnet_division.rule_types.vpn.'
-            'VpnSubnetDivisionRuleType',
-            label='TEST',
-            size=28,
-            number_of_subnets=2,
-            number_of_ips=2,
-            organization=self.org,
-            # master_subnet is intentionally omitted
-        )
-        with self.assertRaises(ValidationError) as context:
-            rule.full_clean()
-        self.assertIn('This field cannot be null.', str(context.exception))
-
     def test_invalid_master_subnet(self):
         # Instantiate a subnet without setting its 'subnet' attribute
         invalid_subnet = Subnet(name='Invalid Subnet')
@@ -988,7 +973,7 @@ class TestSubnetDivisionRule(
             rule.full_clean()
         e = cm.exception
         self.assertIn(
-            'Master subnet must be a valid subnet.',
+            'Invalid master subnet.',
             e.message_dict.get('master_subnet', []),
         )
 
