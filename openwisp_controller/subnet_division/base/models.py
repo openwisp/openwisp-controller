@@ -71,6 +71,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
     def clean(self):
         super().clean()
         self._validate_label()
+        self._validate_master_subnet_validity()
         self._validate_master_subnet_consistency()
         self._validate_ip_address_consistency()
         if not self._state.adding:
@@ -85,6 +86,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                     )
                 }
             )
+
+    def _validate_master_subnet_validity(self):
+        if not self.master_subnet.subnet:
+            raise ValidationError({'master_subnet': _('Invalid master subnet.')})
 
     def _validate_existing_fields(self):
         db_instance = self._meta.model.objects.get(id=self.id)
@@ -104,10 +109,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 
     def _validate_master_subnet_consistency(self):
         master_subnet = self.master_subnet.subnet
-        # Ensure that the size of the generated subnet
-        # is not greater than size of master subnet
+        # Try to generate subnets and validate size
         try:
             next(master_subnet.subnets(new_prefix=self.size))
+        # if size is not consistent, raise error
         except ValueError:
             raise ValidationError(
                 {
@@ -118,7 +123,6 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                     )
                 }
             )
-
         # Ensure that master subnet can accommodate
         # the required number of generated subnets
         available = 2 ** (self.size - master_subnet.prefixlen)
@@ -135,7 +139,6 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                     )
                 }
             )
-
         # Validate organization of master subnet
         if (
             self.master_subnet.organization is not None
