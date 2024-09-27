@@ -76,7 +76,7 @@ ways in which OpenWISP can connect to devices in order to launch commands.
 ``OPENWISP_UPDATE_STRATEGIES``
 ------------------------------
 
-============ ============================================================================
+============ ==============================================================================
 **type**:    ``tuple``
 **default**: .. code-block:: python
 
@@ -85,8 +85,12 @@ ways in which OpenWISP can connect to devices in order to launch commands.
                          "openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt",
                          "OpenWRT SSH",
                      ),
+                     (
+                         "openwisp_controller.connection.connectors.openwrt.ssh.OpenWisp1",
+                         "OpenWISP 1.x SSH",
+                     ),
                  )
-============ ============================================================================
+============ ==============================================================================
 
 Available update strategies. An update strategy is a subclass of a
 connector class which defines an ``update_config`` method which is in
