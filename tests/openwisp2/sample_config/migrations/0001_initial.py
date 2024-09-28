@@ -64,10 +64,7 @@ class Migration(migrations.Migration):
                 (
                     'backend',
                     models.CharField(
-                        choices=[
-                            ('netjsonconfig.OpenWrt', 'OpenWRT'),
-                            ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
-                        ],
+                        choices=app_settings.BACKENDS,
                         help_text=(
                             'Select <a href="http://netjsonconfig.openwisp.org/en/'
                             'stable/" target="_blank">netjsonconfig</a> backend'
@@ -491,10 +488,7 @@ class Migration(migrations.Migration):
                 (
                     'backend',
                     models.CharField(
-                        choices=[
-                            ('netjsonconfig.OpenWrt', 'OpenWRT'),
-                            ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
-                        ],
+                        choices=app_settings.BACKENDS,
                         help_text=(
                             'Select <a href="http://netjsonconfig.openwisp.org/en/'
                             'stable/" target="_blank">netjsonconfig</a> backend'
