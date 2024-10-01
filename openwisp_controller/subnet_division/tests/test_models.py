@@ -651,7 +651,7 @@ class TestSubnetDivisionRule(
             rule.number_of_subnets,
         )
 
-        self.config.device.delete()
+        self.config.device.delete(check_deactivated=False)
         self.assertEqual(
             subnet_query.count(),
             0,
@@ -731,7 +731,7 @@ class TestSubnetDivisionRule(
                 self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
 
         # Verify working of delete handler
-        device.delete()
+        device.delete(check_deactivated=False)
         self.assertEqual(
             subnet_query.count(),
             0,
@@ -794,7 +794,7 @@ class TestSubnetDivisionRule(
                 self.assertIn(f'{rule.label}_subnet{subnet_id}_ip{ip_id}', context)
 
         # Verify working of delete handler
-        device.delete()
+        device.delete(check_deactivated=False)
         self.assertEqual(
             subnet_query.count(),
             0,

@@ -14,7 +14,7 @@ from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeviceAdmin
+from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
@@ -73,7 +73,9 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
         return JsonResponse(schema)
 
 
-class DeviceConnectionInline(MultitenantAdminMixin, admin.StackedInline):
+class DeviceConnectionInline(
+    MultitenantAdminMixin, DeactivatedDeviceReadOnlyMixin, admin.StackedInline
+):
     model = DeviceConnection
     verbose_name = _('Credentials')
     verbose_name_plural = verbose_name
@@ -143,7 +145,7 @@ class CommandInline(admin.StackedInline):
         return False
 
 
-class CommandWritableInline(admin.StackedInline):
+class CommandWritableInline(DeactivatedDeviceReadOnlyMixin, admin.StackedInline):
     model = Command
     extra = 1
     form = CommandForm

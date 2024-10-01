@@ -10,7 +10,7 @@ from swapper import get_model_name, load_model
 
 from openwisp_utils.admin_theme.menu import register_menu_subitem
 
-from ..config.signals import config_modified
+from ..config.signals import config_deactivating, config_modified
 from .signals import is_working_changed
 
 
@@ -39,6 +39,9 @@ class ConnectionConfig(AppConfig):
         Command = load_model('connection', 'Command')
 
         config_modified.connect(
+            self.config_modified_receiver, dispatch_uid='connection.update_config'
+        )
+        config_deactivating.connect(
             self.config_modified_receiver, dispatch_uid='connection.update_config'
         )
 

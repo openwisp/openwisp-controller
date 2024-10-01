@@ -8,6 +8,12 @@ from openwisp_controller.config.api.download_views import (
     DownloadVpnView as BaseDownloadVpnView,
 )
 from openwisp_controller.config.api.views import (
+    DeviceActivateView as BaseDeviceActivateView,
+)
+from openwisp_controller.config.api.views import (
+    DeviceDeactivateView as BaseDeviceDeactivateView,
+)
+from openwisp_controller.config.api.views import (
     DeviceDetailView as BaseDeviceDetailView,
 )
 from openwisp_controller.config.api.views import (
@@ -66,6 +72,14 @@ class DeviceDetailView(BaseDeviceDetailView):
     pass
 
 
+class DeviceActivateView(BaseDeviceActivateView):
+    pass
+
+
+class DeviceDeactivateView(BaseDeviceDeactivateView):
+    pass
+
+
 class DeviceGroupListCreateView(BaseDeviceGroupListCreateView):
     pass
 
@@ -90,6 +104,8 @@ vpn_detail = VpnDetailView.as_view()
 download_vpn_config = DownloadVpnView.as_view()
 device_list = DeviceListCreateView.as_view()
 device_detail = DeviceDetailView.as_view()
+device_activate = DeviceActivateView.as_view()
+device_deactivate = DeviceDeactivateView.as_view()
 download_device_config = DownloadDeviceView().as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()

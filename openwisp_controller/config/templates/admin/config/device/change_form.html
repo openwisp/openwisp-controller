@@ -1,0 +1,34 @@
+{% extends "admin/config/change_form.html" %}
+{% load admin_urls i18n l10n %}
+
+{% block messages %}
+    {{ block.super }}
+    {% if original and original.is_deactivated %}
+    <ul class="messagelist">
+        <li class="warning">{% trans "This device has been deactivated." %}</li>
+    </ul>
+    {% endif %}
+{% endblock messages %}
+
+{% block content %}
+    {% comment %}
+    Due to HTML's limitation in supporting nested forms, we employ a
+    workaround for activating and deactivating device operations within
+    the change form.
+
+    We utilize a distinct form element (id="act_deact_device_form")
+    specifically for these actions. The form attribute of the submit buttons (Acivate/Deactivate)
+    within the submit-row div references this form. By doing so, we ensure that
+    these actions can be submitted independently without causing any
+    disruption to the device form.
+
+    For further information, refer to: https://www.impressivewebs.com/html5-form-attribute/
+    {% endcomment %}
+    {% url opts|admin_urlname:'changelist' as changelist_url %}
+    <form method="post" action="{{ changelist_url }}" id="act_deact_device_form">
+        {% csrf_token %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ original.pk|unlocalize }}" form="act_deact_device_form">
+        <input type="hidden" name="action" value="{% if show_activate %}activate_device{% else %}deactivate_device{% endif %}" form="act_deact_device_form">
+    </form>
+    {{ block.super }}
+{% endblock content %}

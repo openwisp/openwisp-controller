@@ -249,6 +249,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
 
 class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
+    is_deactivated = serializers.BooleanField(read_only=True)
 
     class Meta(BaseMeta):
         model = Device
@@ -261,6 +262,7 @@ class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
             'key',
             'last_ip',
             'management_ip',
+            'is_deactivated',
             'model',
             'os',
             'system',
