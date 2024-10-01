@@ -10,7 +10,7 @@ openwisp-utils[celery]~=1.1.0
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
 openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
 djangorestframework-gis~=1.1
-paramiko[ed25519]~=3.4.0
+paramiko[ed25519]~=3.5.0
 scp~=0.15.0
 django-cache-memoize~=0.2.0
 shortuuid~=1.0.13
