@@ -287,10 +287,7 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
                 device_model._meta.get_field(attr)
             except FieldDoesNotExist:
                 continue
-            if attr == 'mac_address':
-                options[attr] = kwargs.get(attr).upper()
-            else:
-                options[attr] = kwargs.get(attr)
+            options[attr] = kwargs.get(attr)
         # do not specify key if:
         #   app_settings.CONSISTENT_REGISTRATION is False
         #   if key is ``None`` (it would cause exception)
