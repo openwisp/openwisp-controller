@@ -108,6 +108,11 @@ class BaseConfigAdmin(BaseAdmin):
         if not issubclass(self.model, AbstractVpn):
             ctx['CONFIG_BACKEND_FIELD_SHOWN'] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
         if pk:
+            UUID_PATTERN = re.compile(
+                '^[a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{12}$'
+            )
+            if not UUID_PATTERN.match(str(pk)):
+                raise Http404()
             ctx['download_url'] = reverse('{0}_download'.format(prefix), args=[pk])
             try:
                 has_config = True
@@ -137,9 +142,10 @@ class BaseConfigAdmin(BaseAdmin):
     def get_urls(self):
         options = getattr(self.model, '_meta')
         url_prefix = '{0}_{1}'.format(options.app_label, options.model_name)
+        UUID_PATTERN = r'([a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{12})'
         return [
             re_path(
-                r'^download/(?P<pk>[^/]+)/$',
+                r'^download/{0}/$'.format(UUID_PATTERN),
                 self.admin_site.admin_view(self.download_view),
                 name='{0}_download'.format(url_prefix),
             ),
@@ -149,7 +155,7 @@ class BaseConfigAdmin(BaseAdmin):
                 name='{0}_preview'.format(url_prefix),
             ),
             re_path(
-                r'^(?P<pk>[^/]+)/context\.json$',
+                r'^{0}/context\.json$'.format(UUID_PATTERN),
                 self.admin_site.admin_view(self.context_view),
                 name='{0}_context'.format(url_prefix),
             ),

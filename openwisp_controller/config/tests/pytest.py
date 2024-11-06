@@ -11,21 +11,22 @@ from swapper import load_model
 from ..base.channels_consumer import BaseDeviceConsumer
 from .utils import CreateDeviceMixin
 
-Device = load_model('config', 'Device')
+Device = load_model("config", "Device")
 
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 class TestDeviceConsumer(CreateDeviceMixin):
     model = Device
+    UUID_PATTERN = "[a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{4}-?[a-fA-F0-9]{12}"
     application = ProtocolTypeRouter(
         {
-            'websocket': AllowedHostsOriginValidator(
+            "websocket": AllowedHostsOriginValidator(
                 AuthMiddlewareStack(
                     URLRouter(
                         [
                             re_path(
-                                r'^ws/controller/device/(?P<pk>[^/]+)/$',
+                                f"^ws/controller/device/(?P<pk>{UUID_PATTERN})/$",
                                 BaseDeviceConsumer.as_asgi(),
                             )
                         ]
@@ -36,14 +37,14 @@ class TestDeviceConsumer(CreateDeviceMixin):
     )
 
     async def _get_communicator(self, admin_client, device_id):
-        session_id = admin_client.cookies['sessionid'].value
+        session_id = admin_client.cookies["sessionid"].value
         communicator = WebsocketCommunicator(
             self.application,
-            path=f'ws/controller/device/{device_id}/',
+            path=f"ws/controller/device/{device_id}/",
             headers=[
                 (
-                    b'cookie',
-                    f'sessionid={session_id}'.encode('ascii'),
+                    b"cookie",
+                    f"sessionid={session_id}".encode("ascii"),
                 )
             ],
         )
@@ -55,15 +56,15 @@ class TestDeviceConsumer(CreateDeviceMixin):
     def _add_model_permissions(self, user, add=True, change=True, delete=True):
         permissions = []
         if add:
-            permissions.append(f'add_{self.model._meta.model_name}')
+            permissions.append(f"add_{self.model._meta.model_name}")
         if change:
-            permissions.append(f'change_{self.model._meta.model_name}')
+            permissions.append(f"change_{self.model._meta.model_name}")
         if delete:
-            permissions.append(f'delete_{self.model._meta.model_name}')
+            permissions.append(f"delete_{self.model._meta.model_name}")
         user.user_permissions.set(Permission.objects.filter(codename__in=permissions))
 
     async def test_unauthenticated_user(self, client):
-        client.cookies['sessionid'] = 'random'
+        client.cookies["sessionid"] = "random"
         device = await database_sync_to_async(self._create_device)()
         with pytest.raises(AssertionError):
             await self._get_communicator(client, device.id)
@@ -91,14 +92,14 @@ class TestDeviceConsumer(CreateDeviceMixin):
 
     async def test_silent_disconnection(self, admin_user, admin_client):
         device = await database_sync_to_async(self._create_device)()
-        session_id = admin_client.cookies['sessionid'].value
+        session_id = admin_client.cookies["sessionid"].value
         communicator = WebsocketCommunicator(
             self.application,
-            path=f'ws/controller/device/{device.pk}/',
+            path=f"ws/controller/device/{device.pk}/",
             headers=[
                 (
-                    b'cookie',
-                    f'sessionid={session_id}'.encode('ascii'),
+                    b"cookie",
+                    f"sessionid={session_id}".encode("ascii"),
                 )
             ],
         )
