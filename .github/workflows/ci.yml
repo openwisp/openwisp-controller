@@ -78,7 +78,6 @@ jobs:
         pip install -U pip wheel setuptools
         pip install -U -r requirements-test.txt
         pip install -U -e .
-        pip install -U --force-reinstall --no-deps https://github.com/openwisp/openwisp-utils/tarball/extendable-submit-line
         pip install ${{ matrix.django-version }}
 
     - name: QA checks
