@@ -7,7 +7,7 @@ django.jQuery(function ($) {
     var openPreview = function () {
         var selectors = 'input[type=text], input[type=hidden], select, textarea',
             fields = $(selectors, '#content-main form').not('#id_config_jsoneditor *'),
-            $id = $('#id_id'),
+            $id = $('#id_uuid'),
             data = {},
             loadingOverlay = $('#loading-overlay');
         loadingOverlay.show();

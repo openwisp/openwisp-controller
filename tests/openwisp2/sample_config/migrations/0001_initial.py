@@ -64,10 +64,7 @@ class Migration(migrations.Migration):
                 (
                     'backend',
                     models.CharField(
-                        choices=[
-                            ('netjsonconfig.OpenWrt', 'OpenWRT'),
-                            ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
-                        ],
+                        choices=app_settings.BACKENDS,
                         help_text=(
                             'Select <a href="http://netjsonconfig.openwisp.org/en/'
                             'stable/" target="_blank">netjsonconfig</a> backend'
@@ -491,10 +488,7 @@ class Migration(migrations.Migration):
                 (
                     'backend',
                     models.CharField(
-                        choices=[
-                            ('netjsonconfig.OpenWrt', 'OpenWRT'),
-                            ('netjsonconfig.OpenWisp', 'OpenWISP Firmware 1.x'),
-                        ],
+                        choices=app_settings.BACKENDS,
                         help_text=(
                             'Select <a href="http://netjsonconfig.openwisp.org/en/'
                             'stable/" target="_blank">netjsonconfig</a> backend'
@@ -939,7 +933,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         db_index=True,
                         help_text=(
-                            'IP address used by OpenWISP to reach the device when '
+                            'IP address used by the system to reach the device when '
                             'performing any type of push operation or active check. '
                             'The value of this field is generally sent by the device '
                             'and hence does not need to be changed, but can be '

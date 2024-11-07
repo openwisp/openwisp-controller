@@ -956,6 +956,27 @@ class TestSubnetDivisionRule(
             device_rule.number_of_subnets,
         )
 
+    def test_invalid_master_subnet(self):
+        # Instantiate a subnet without setting its 'subnet' attribute
+        invalid_subnet = Subnet(name='Invalid Subnet')
+        rule = SubnetDivisionRule(
+            type='openwisp_controller.subnet_division.rule_types.vpn.'
+            'VpnSubnetDivisionRuleType',
+            label='TEST',
+            size=28,
+            number_of_subnets=2,
+            number_of_ips=2,
+            organization=self.org,
+            master_subnet=invalid_subnet,  # Invalid master_subnet
+        )
+        with self.assertRaises(ValidationError) as cm:
+            rule.full_clean()
+        e = cm.exception
+        self.assertIn(
+            'Invalid master subnet.',
+            e.message_dict.get('master_subnet', []),
+        )
+
 
 class TestOpenVPNSubnetDivisionRule(
     SubnetDivisionTestMixin,

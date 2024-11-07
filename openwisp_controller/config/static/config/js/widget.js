@@ -984,7 +984,6 @@ JSONEditor.defaults.editors.multiselect.prototype.disable = function () {
     // Modified code begins
     if (this.select2) {
         this.select2.disabled = true;
-        this._super();
         // Modified code ends
     }
 };

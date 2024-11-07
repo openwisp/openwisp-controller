@@ -32,8 +32,8 @@ class SubnetDivisionRuleInlineAdmin(
             '"Number of IPs" will not be possible.'
         ),
         'documentation_url': (
-            'https://github.com/openwisp/openwisp-controller'
-            '#limitations-of-subnet-division'
+            'https://openwisp.io/docs/dev/controller/user/subnet-division-rules.html'
+            '#limitations-of-subnet-division-rules'
         ),
     }
 

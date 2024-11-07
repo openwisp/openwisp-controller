@@ -36,9 +36,11 @@ This guide will help you to set up the automatic provisioning of
    **Webhook AuthToken** to any strong passphrase; this will be used to
    ensure that configuration upgrades are requested from trusted sources.
 
-   **Note**: If you are setting up a WireGuard VPN server, substitute
-   ``wireguard-server.mydomain.com`` with the hostname of your VPN server
-   and follow the steps in the next section.
+   .. note::
+
+       If you are setting up a WireGuard VPN server, substitute
+       ``wireguard-server.mydomain.com`` with the hostname of your VPN
+       server and follow the steps in the next section.
 
 6. Under the configuration section, set the name of the WireGuard tunnel 1
    interface. In this example, we have used ``wg0``.

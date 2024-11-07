@@ -298,6 +298,26 @@ class TestVpnAdmin(SeleniumBaseMixin, TestWireguardVpnMixin, StaticLiveServerTes
             el = self.web_driver.find_element(by=By.CLASS_NAME, value='field-cert')
             self.assertFalse(el.is_displayed())
 
+        with self.subTest('PrivateKey is shown in configuration preview'):
+            self.web_driver.find_element(
+                by=By.CSS_SELECTOR, value='.previewlink'
+            ).click()
+            WebDriverWait(self.web_driver, 2).until(
+                EC.visibility_of_element_located(
+                    (By.CSS_SELECTOR, '.djnjc-preformatted')
+                )
+            )
+            self.assertIn(
+                f'PrivateKey = {vpn.private_key}',
+                self.web_driver.find_element(
+                    by=By.CSS_SELECTOR, value='.djnjc-preformatted'
+                ).text,
+            )
+        # Close the configuration preview
+        self.web_driver.find_element(
+            by=By.CSS_SELECTOR, value='.djnjc-overlay a.close'
+        ).click()
+
         with self.subTest('Changing VPN backend should hide webhook and authtoken'):
             backend = Select(self.web_driver.find_element(by=By.ID, value='id_backend'))
             backend.select_by_visible_text('OpenVPN')

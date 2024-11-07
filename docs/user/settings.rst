@@ -76,7 +76,7 @@ ways in which OpenWISP can connect to devices in order to launch commands.
 ``OPENWISP_UPDATE_STRATEGIES``
 ------------------------------
 
-============ ============================================================================
+============ ==============================================================================
 **type**:    ``tuple``
 **default**: .. code-block:: python
 
@@ -85,8 +85,12 @@ ways in which OpenWISP can connect to devices in order to launch commands.
                          "openwisp_controller.connection.connectors.openwrt.ssh.OpenWrt",
                          "OpenWRT SSH",
                      ),
+                     (
+                         "openwisp_controller.connection.connectors.openwrt.ssh.OpenWisp1",
+                         "OpenWISP 1.x SSH",
+                     ),
                  )
-============ ============================================================================
+============ ==============================================================================
 
 Available update strategies. An update strategy is a subclass of a
 connector class which defines an ``update_config`` method which is in
@@ -337,9 +341,11 @@ the common name to introduce uniqueness. Therefore, resulting common names
 will have ``{OPENWISP_CONTROLLER_COMMON_NAME_FORMAT}-{unique-slug}``
 format.
 
-**Note:** If the ``name`` and ``mac address`` of the device are equal, the
-``name`` of the device will be omitted from the common name to avoid
-redundancy.
+.. note::
+
+    If the ``name`` and ``mac address`` of the device are equal, the
+    ``name`` of the device will be omitted from the common name to avoid
+    redundancy.
 
 ``OPENWISP_CONTROLLER_MANAGEMENT_IP_DEVICE_LIST``
 -------------------------------------------------
@@ -374,8 +380,10 @@ Device list and Template list.
 If this setting is set to ``False`` these items will be removed from the
 UI.
 
-Note: This setting affects only the configuration backend and NOT the VPN
-backend.
+.. note::
+
+    This setting affects only the configuration backend and NOT the VPN
+    backend.
 
 ``OPENWISP_CONTROLLER_DEVICE_NAME_UNIQUE``
 ------------------------------------------
@@ -667,8 +675,10 @@ Example:
         }
     }
 
-**Note**: The OS identifier should be a regular expression as shown in
-above example.
+.. note::
+
+    The OS identifier should be a regular expression as shown in above
+    example.
 
 .. _openwisp_controller_dsa_default_fallback:
 

@@ -22,9 +22,11 @@ example below.
     :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/commands_demo.gif
     :alt: Executing commands on device example
 
-**Note**: in order for this feature to work, a device needs to have at
-least one **Access Credential** (see :doc:`How to configure push updates
-<push-operations>`).
+.. important::
+
+    In order for this feature to work, a device needs to have at least one
+    valid **Access Credential** (see :doc:`How to configure push updates
+    <push-operations>`).
 
 The **Send Command** button will be hidden until the device has at least
 one **Access Credential**.
