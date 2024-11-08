@@ -862,7 +862,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             if device.is_deactivated():
                 ctx['additional_buttons'].append(
                     {
-                        'html': mark_safe(
+                        'raw_html': mark_safe(
                             '<input class="default" type="submit"'
                             f' value="{_("Activate")}" form="act_deact_device_form">'
                         )
@@ -871,7 +871,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             else:
                 ctx['additional_buttons'].append(
                     {
-                        'html': mark_safe(
+                        'raw_html': mark_safe(
                             '<p class="deletelink-box">'
                             '<input class="deletelink" type="submit"'
                             f' value="{_("Deactivate")}" form="act_deact_device_form">'
