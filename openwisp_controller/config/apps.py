@@ -308,6 +308,10 @@ class ConfigConfig(AppConfig):
             dispatch_uid='invalidate_get_device_cache',
         )
         config_deactivated.connect(
+            self.device_model.config_deactivated_clear_management_ip,
+            dispatch_uid='config_deactivated_clear_management_ip',
+        )
+        config_deactivated.connect(
             DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated,
             dispatch_uid='config_deactivated_invalidate_get_device_cache',
         )

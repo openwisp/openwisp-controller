@@ -75,7 +75,7 @@ class AbstractConfig(BaseConfig):
             '"modified" means the configuration is not applied yet; \n'
             '"applied" means the configuration is applied successfully; \n'
             '"error" means the configuration caused issues and it was rolled back; \n'
-            '"deactivating" means the device has been deactivated and all the'
+            '"deactivating" means the device has been deactivated and the'
             ' configuration is being removed; \n'
             '"deactivated" means the configuration has been removed from the device;'
         ),
@@ -256,7 +256,7 @@ class AbstractConfig(BaseConfig):
 
         if action == 'post_clear':
             if instance.is_deactivating_or_deactivated():
-                # If the config is being deactivating or deactivated, then
+                # If the device is deactivated or in the process of deactivatiing, then
                 # delete all vpn clients and return.
                 instance.vpnclient_set.all().delete()
             return

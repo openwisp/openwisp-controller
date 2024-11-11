@@ -183,8 +183,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         with transaction.atomic():
             if self._has_config():
                 self.config.set_status_deactivating()
+            else:
+                self.management_ip = ''
             self._is_deactivated = True
-            self.management_ip = ''
             self.save()
             device_deactivated.send(sender=self.__class__, instance=self)
 
@@ -290,7 +291,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             not self.is_deactivated()
             or (self._has_config() and not self.config.is_deactivated())
         ):
-            raise PermissionDenied('The device should be deactivated before deleting')
+            raise PermissionDenied('The device must be deactivated prior to deletion')
         return super().delete(using, keep_parents)
 
     def _check_changed_fields(self):
@@ -480,3 +481,11 @@ class AbstractDevice(OrgMixin, BaseModel):
                 old_group = DeviceGroup.objects.get(pk=old_group_id)
                 old_group_templates = old_group.templates.all()
             device.config.manage_group_templates(group_templates, old_group_templates)
+
+    @classmethod
+    def config_deactivated_clear_management_ip(cls, instance, *args, **kwargs):
+        """
+        Clear management IP of the device when the device's config status
+        is changed to 'deactivated'.
+        """
+        cls.objects.filter(pk=instance.device_id).update(management_ip='')
