@@ -114,6 +114,7 @@ class DeviceLocationView(
     lookup_field = 'content_object'
     lookup_url_kwarg = 'pk'
     organization_field = 'content_object__organization'
+    _device_field = 'content_object'
 
     def get_queryset(self):
         qs = super().get_queryset()

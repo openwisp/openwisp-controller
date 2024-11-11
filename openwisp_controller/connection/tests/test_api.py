@@ -503,7 +503,7 @@ class TestConnectionApi(
             'enabled': False,
             'failure_reason': '',
         }
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(15):
             response = self.client.put(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -517,7 +517,7 @@ class TestConnectionApi(
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {'update_strategy': app_settings.UPDATE_STRATEGIES[1][0]}
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -528,7 +528,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(10):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 

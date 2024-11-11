@@ -4,10 +4,16 @@ from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizatio
 
 
 class RelatedDeviceModelPermission(DjangoModelPermissions):
-    def _has_permissions(self, request, view, perm):
+    _device_field = 'device'
+
+    def _has_permissions(self, request, view, perm, obj=None):
         if request.method in self.READ_ONLY_METHOD:
             return perm
-        return perm and not view.get_parent_queryset()[0].is_deactivated()
+        if obj:
+            device = getattr(obj, self._device_field)
+        else:
+            device = view.get_parent_queryset()[0]
+        return perm and not device.is_deactivated()
 
     def has_permission(self, request, view):
         perm = super().has_permission(request, view)
@@ -15,7 +21,7 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
 
     def has_object_permission(self, request, view, obj):
         perm = super().has_object_permission(request, view, obj)
-        return self._has_permissions(request, view, perm)
+        return self._has_permissions(request, view, perm, obj)
 
 
 class RelatedDeviceProtectedAPIMixin(

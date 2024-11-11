@@ -863,7 +863,7 @@ class TestGeoApi(
         }
         self.assertEqual(device_location.location.type, 'outdoor')
         self.assertEqual(device_location.floorplan, None)
-        with self.assertNumQueries(22):
+        with self.assertNumQueries(21):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -882,7 +882,7 @@ class TestGeoApi(
             'indoor': '0,0',
         }
         self.assertEqual(device_location.indoor, '-140.38620,40.369227')
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(10):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -899,7 +899,7 @@ class TestGeoApi(
         data = {
             'floorplan': str(floor2.id),
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -913,7 +913,7 @@ class TestGeoApi(
         data = {
             'location': str(location2.id),
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(9):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
