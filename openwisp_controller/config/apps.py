@@ -373,11 +373,15 @@ class ConfigConfig(AppConfig):
                     'applied': '#267126',
                     'modified': '#ffb442',
                     'error': '#a72d1d',
+                    'deactivating': '#353c44',
+                    'deactivated': '#000',
                 },
                 'labels': {
                     'applied': _('applied'),
                     'modified': _('modified'),
                     'error': _('error'),
+                    'deactivating': _('deactivating'),
+                    'deactivated': _('deactivated'),
                 },
             },
         )
