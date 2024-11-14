@@ -8,7 +8,12 @@ from swapper import load_model
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
-from ..signals import device_group_changed, device_name_changed, management_ip_changed
+from ..signals import (
+    device_activated,
+    device_group_changed,
+    device_name_changed,
+    management_ip_changed,
+)
 from ..validators import device_name_validator, mac_address_validator
 from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
 
@@ -611,7 +616,12 @@ class TestTransactionDevice(
         self.assertEqual(config.config, {})
         self.assertEqual(config.templates.count(), 0)
 
-        device.activate()
+        with catch_signal(device_activated) as mocked_device_activated:
+            device.activate()
+            mocked_device_activated.assert_called_once_with(
+                sender=Device, instance=device, signal=device_activated
+            )
+
         device.refresh_from_db()
         config.refresh_from_db()
         self.assertEqual(device.is_deactivated(), False)

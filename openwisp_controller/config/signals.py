@@ -33,6 +33,10 @@ device_deactivated = Signal()
 device_deactivated.__doc__ = """
 Providing arguments: ['instance']
 """
+device_activated = Signal()
+device_activated.__doc__ = """
+Providing arguments: ['instance']
+"""
 management_ip_changed = Signal()
 management_ip_changed.__doc__ = """
 Providing arguments: ['instance', 'management_ip', 'old_management_ip']

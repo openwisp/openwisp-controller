@@ -11,6 +11,7 @@ from openwisp_utils.base import KeyField
 
 from .. import settings as app_settings
 from ..signals import (
+    device_activated,
     device_deactivated,
     device_group_changed,
     device_name_changed,
@@ -201,6 +202,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.config.templates.clear()
             self._is_deactivated = False
             self.save()
+            device_activated.send(sender=self.__class__, instance=self)
 
     def get_context(self):
         config = self._get_config()

@@ -183,6 +183,17 @@ This signal is emitted when a configuration status of device is set to
 
 This signal is emitted when a device is deactivated.
 
+``device_activated``
+~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_activated``
+
+**Arguments**:
+
+- ``instance``: instance of the device being activated
+
+This signal is emitted when a device is activated (after deactivation).
+
 .. _config_backend_changed:
 
 ``config_backend_changed``
