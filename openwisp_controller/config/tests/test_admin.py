@@ -1494,13 +1494,14 @@ class TestAdmin(
             )
 
         device.activate()
+        self._create_template(required=True)
         self._create_config(device=device)
         with self.subTest('Test device has config object'):
             response = self.client.get(path)
             self.assertContains(
                 response, expected_html.format(expected_status='modified')
             )
-            device.config.set_status_deactivating()
+            device.config.deactivate()
             response = self.client.get(path)
             self.assertContains(
                 response, expected_html.format(expected_status='deactivating')
@@ -2084,6 +2085,7 @@ class TestTransactionAdmin(
             - deleting a device is possible once device's config.status is deactivated
             - activate button is shown on deactivated device
         """
+        self._create_template(required=True)
         device = self._create_config(organization=self._get_org()).device
         path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
         delete_btn_html = self._get_delete_btn_html(device)

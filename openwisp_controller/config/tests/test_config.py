@@ -526,7 +526,7 @@ class TestConfig(
         cert = config.vpnclient_set.first().cert
         self.assertEqual(cert.revoked, False)
 
-        config.set_status_deactivating()
+        config.deactivate()
         config.refresh_from_db()
         # Since it is possible to refresh the cert object from the
         # database, it means that the cert object is not deleted.

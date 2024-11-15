@@ -9,6 +9,9 @@ from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
 from ..signals import (
+    config_deactivated,
+    config_deactivating,
+    config_modified,
     device_activated,
     device_group_changed,
     device_name_changed,
@@ -604,9 +607,13 @@ class TestTransactionDevice(
 ):
     def test_deactivating_device_with_config(self):
         self._create_template(required=True)
-        config = self._create_config(organization=self._get_org())
-        device = config.device
-        self.assertEqual(config.templates.count(), 1)
+        self._create_template(name='Default', default=True)
+        group_template = self._create_template(name='Group')
+        group = self._create_device_group()
+        group.templates.add(group_template)
+        device = self._create_device(organization=self._get_org(), group=group)
+        config = device.config
+        self.assertEqual(config.templates.count(), 3)
 
         device.deactivate()
         device.refresh_from_db()
@@ -616,18 +623,45 @@ class TestTransactionDevice(
         self.assertEqual(config.config, {})
         self.assertEqual(config.templates.count(), 0)
 
-        with catch_signal(device_activated) as mocked_device_activated:
+        with catch_signal(config_modified) as mocked_config_modified, catch_signal(
+            device_activated
+        ) as mocked_device_activated:
             device.activate()
             mocked_device_activated.assert_called_once_with(
                 sender=Device, instance=device, signal=device_activated
             )
+            mocked_config_modified.assert_called()
 
         device.refresh_from_db()
         config.refresh_from_db()
         self.assertEqual(device.is_deactivated(), False)
         self.assertEqual(config.status, 'modified')
-        # Required templates are automatically added
-        self.assertEqual(config.templates.count(), 1)
+        # Required, default and group templates should be added back
+        self.assertEqual(config.templates.count(), 3)
+
+    def test_deactivating_device_empty_config(self):
+        device = self._create_device()
+        config = self._create_config(device=device)
+
+        with catch_signal(
+            config_deactivating
+        ) as mocked_config_deactivating, catch_signal(
+            config_deactivated
+        ) as mocked_config_deactivated:
+            device.deactivate()
+        mocked_config_deactivating.assert_called_once()
+        mocked_config_deactivated.assert_called_once()
+        device.refresh_from_db()
+        config.refresh_from_db
+        self.assertEqual(device.is_deactivated(), True)
+        self.assertEqual(config.status, 'deactivated')
+        self.assertEqual(device.management_ip, None)
+
+        device.activate()
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), False)
+        self.assertEqual(config.status, 'applied')
 
     def test_deactivating_device_without_config(self):
         device = self._create_device(management_ip='10.8.0.1')

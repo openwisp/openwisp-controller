@@ -491,9 +491,7 @@ class AbstractConfig(BaseConfig):
         result = super().save(*args, **kwargs)
         # add default templates if config has just been created
         if created:
-            default_templates = self.get_default_templates()
-            if default_templates:
-                self.templates.add(*default_templates)
+            self.add_default_templates()
         if self._old_backend and self._old_backend != self.backend:
             self._send_config_backend_changed_signal()
             self._old_backend = None
@@ -510,6 +508,11 @@ class AbstractConfig(BaseConfig):
             self._send_config_deactivated_signal()
         self._initial_status = self.status
         return result
+
+    def add_default_templates(self):
+        default_templates = self.get_default_templates()
+        if default_templates:
+            self.templates.add(*default_templates)
 
     def is_deactivating_or_deactivated(self):
         return self.status in ['deactivating', 'deactivated']
@@ -627,14 +630,52 @@ class AbstractConfig(BaseConfig):
         Set Config status as deactivating and
         clears configuration and templates.
         """
-        self.config = {}
         self._send_config_deactivating = True
         self._set_status('deactivating', save, extra_update_fields=['config'])
-        self.templates.clear()
 
     def set_status_deactivated(self, save=True):
         self._send_config_deactivated = True
         self._set_status('deactivated', save)
+
+    def deactivate(self):
+        """
+        Clears configuration and templates and set status as deactivating.
+        """
+        # Invalidate cached property before checking checksum.
+        self._invalidate_backend_instance_cache()
+        old_checksum = self.checksum
+        self.config = {}
+        self.set_status_deactivating()
+        self.templates.clear()
+        del self.backend_instance
+        if old_checksum == self.checksum:
+            # Accelerate deactivation if the configuration remains
+            # unchanged (i.e. empty configuration)
+            self.set_status_deactivated()
+
+    def activate(self):
+        """
+        Applies required, default and group templates when device is activated.
+        """
+        # Invalidate cached property before checking checksum.
+        self._invalidate_backend_instance_cache()
+        old_checksum = self.checksum
+        self.add_default_templates()
+        if self.device._get_group():
+            self.device.manage_devices_group_templates(
+                device_ids=self.device.id,
+                old_group_ids=None,
+                group_id=self.device.group_id,
+            )
+        del self.backend_instance
+        if old_checksum == self.checksum:
+            # Accelerate activation if the configuration remains
+            # unchanged (i.e. empty configuration)
+            self.set_status_applied()
+
+    def _invalidate_backend_instance_cache(self):
+        if hasattr(self, 'backend_instance'):
+            del self.backend_instance
 
     def _has_device(self):
         return hasattr(self, 'device')

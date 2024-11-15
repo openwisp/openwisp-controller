@@ -181,7 +181,7 @@ This signal is emitted when a configuration status of device is set to
 
 - ``instance``: instance of the device being deactivated
 
-This signal is emitted when a device is deactivated.
+This signal is emitted when a device is flagged for deactivation.
 
 ``device_activated``
 ~~~~~~~~~~~~~~~~~~~~
@@ -192,7 +192,8 @@ This signal is emitted when a device is deactivated.
 
 - ``instance``: instance of the device being activated
 
-This signal is emitted when a device is activated (after deactivation).
+This signal is emitted when a device is flagged for activation (after
+deactivation).
 
 .. _config_backend_changed:
 

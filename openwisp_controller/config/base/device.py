@@ -183,7 +183,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             return
         with transaction.atomic():
             if self._has_config():
-                self.config.set_status_deactivating()
+                self.config.deactivate()
             else:
                 self.management_ip = ''
             self._is_deactivated = True
@@ -197,9 +197,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             return
         with transaction.atomic():
             if self._has_config():
-                self.config.set_status_modified()
-                # Trigger enforcing of required templates
-                self.config.templates.clear()
+                self.config.activate()
             self._is_deactivated = False
             self.save()
             device_activated.send(sender=self.__class__, instance=self)

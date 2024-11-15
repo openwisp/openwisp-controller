@@ -501,6 +501,7 @@ class TestConfigApi(
         self.assertEqual(device.is_deactivated(), False)
 
     def test_device_delete_api(self):
+        self._create_template(required=True)
         device = self._create_device()
         config = self._create_config(device=device)
         path = reverse('config_api:device_detail', args=[device.pk])

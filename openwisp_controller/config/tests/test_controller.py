@@ -868,6 +868,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         it is in "deactivating" state, the configuration status
         of the device changes to "deactivated".
         """
+        self._create_template(required=True)
         device = self._create_device_config()
         device.deactivate()
         with catch_signal(config_status_changed) as handler:
