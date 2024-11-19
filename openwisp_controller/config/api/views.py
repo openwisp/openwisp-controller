@@ -14,6 +14,8 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from swapper import load_model
 
+from openwisp_users.api.permissions import DjangoModelPermissions
+
 from ...mixins import ProtectedAPIMixin
 from .filters import (
     DeviceGroupListFilter,
@@ -72,6 +74,14 @@ class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Vpn.objects.all()
 
 
+class DevicePermission(DjangoModelPermissions):
+    def has_object_permission(self, request, view, obj):
+        perm = super().has_object_permission(request, view, obj)
+        if request.method not in ['PUT', 'PATCH']:
+            return perm
+        return perm and not obj.is_deactivated()
+
+
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     """
     Templates: Templates flagged as required will be added automatically
@@ -95,6 +105,7 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
     serializer_class = DeviceDetailSerializer
     queryset = Device.objects.select_related('config', 'group', 'organization')
+    permission_classes = ProtectedAPIMixin.permission_classes + (DevicePermission,)
 
 
 class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):

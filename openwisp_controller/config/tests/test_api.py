@@ -482,6 +482,15 @@ class TestConfigApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
+    def test_update_deactivated_device(self):
+        device = self._create_device(_is_deactivated=True)
+        path = reverse('config_api:device_detail', args=[device.pk])
+        data = {'notes': 'test'}
+        response = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        response = self.client.put(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+
     def test_device_deactivate_api(self):
         device = self._create_device()
         path = reverse('config_api:device_deactivate', args=[device.pk])
