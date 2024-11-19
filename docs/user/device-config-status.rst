@@ -3,7 +3,7 @@ Device Configuration Status
 
 The device's configuration status (`Device.config.status`) indicates the
 current state of the configuration as managed by OpenWISP. The possible
-statuses and their meanings are outlined below:
+statuses and their meanings are explained below.
 
 ``modified``
 ------------
@@ -22,7 +22,7 @@ changes.
 ---------
 
 An issue occurred while applying the configuration to the device, causing
-the device to revert to its previous configuration to prevent errors.
+the device to revert to its previous working configuration.
 
 ``deactivating``
 ----------------
@@ -33,5 +33,6 @@ scheduled to be removed from the device.
 ``deactivated``
 ---------------
 
-The device has been deactivated. Its configuration has been completely
-removed, and it is no longer managed by OpenWISP.
+The device has been deactivated. The configuration applied through
+OpenWISP has been removed, and any other operation to manage the device
+will be prevented or rejected.
