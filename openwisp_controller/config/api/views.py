@@ -4,13 +4,17 @@ from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import pagination
+from rest_framework import pagination, serializers, status
 from rest_framework.generics import (
+    GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
+from rest_framework.response import Response
 from swapper import load_model
+
+from openwisp_users.api.permissions import DjangoModelPermissions
 
 from ...mixins import ProtectedAPIMixin
 from .filters import (
@@ -70,6 +74,14 @@ class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Vpn.objects.all()
 
 
+class DevicePermission(DjangoModelPermissions):
+    def has_object_permission(self, request, view, obj):
+        perm = super().has_object_permission(request, view, obj)
+        if request.method not in ['PUT', 'PATCH']:
+            return perm
+        return perm and not obj.is_deactivated()
+
+
 class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     """
     Templates: Templates flagged as required will be added automatically
@@ -93,6 +105,33 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
     serializer_class = DeviceDetailSerializer
     queryset = Device.objects.select_related('config', 'group', 'organization')
+    permission_classes = ProtectedAPIMixin.permission_classes + (DevicePermission,)
+
+
+class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
+    serializer_class = serializers.Serializer
+    queryset = Device.objects.filter(_is_deactivated=True)
+
+    def post(self, request, *args, **kwargs):
+        device = self.get_object()
+        device.activate()
+        serializer = DeviceDetailSerializer(
+            device, context=self.get_serializer_context()
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
+    serializer_class = serializers.Serializer
+    queryset = Device.objects.filter(_is_deactivated=False)
+
+    def post(self, request, *args, **kwargs):
+        device = self.get_object()
+        device.deactivate()
+        serializer = DeviceDetailSerializer(
+            device, context=self.get_serializer_context()
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
@@ -240,6 +279,8 @@ vpn_list = VpnListCreateView.as_view()
 vpn_detail = VpnDetailView.as_view()
 device_list = DeviceListCreateView.as_view()
 device_detail = DeviceDetailView.as_view()
+device_activate = DeviceActivateView.as_view()
+device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()

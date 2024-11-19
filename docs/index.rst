@@ -35,6 +35,7 @@ the OpenWISP architecture.
     :maxdepth: 1
 
     user/intro.rst
+    user/device-config-status.rst
     user/templates.rst
     user/variables.rst
     user/device-groups.rst

@@ -13,7 +13,11 @@ from swapper import load_model
 from openwisp_users.api.mixins import FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 
-from ...mixins import ProtectedAPIMixin
+from ...mixins import (
+    ProtectedAPIMixin,
+    RelatedDeviceModelPermission,
+    RelatedDeviceProtectedAPIMixin,
+)
 from .serializer import (
     CommandSerializer,
     CredentialSerializer,
@@ -32,10 +36,16 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class BaseCommandView(FilterByParentManaged, BaseProtectedAPIMixin):
+class BaseCommandView(
+    BaseProtectedAPIMixin,
+    FilterByParentManaged,
+):
     model = Command
     queryset = Command.objects.prefetch_related('device')
     serializer_class = CommandSerializer
+
+    def get_permissions(self):
+        return super().get_permissions() + [RelatedDeviceModelPermission()]
 
     def get_parent_queryset(self):
         return Device.objects.filter(
@@ -82,7 +92,7 @@ class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CredentialSerializer
 
 
-class BaseDeviceConection(ProtectedAPIMixin, GenericAPIView):
+class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
 
@@ -109,7 +119,7 @@ class BaseDeviceConection(ProtectedAPIMixin, GenericAPIView):
         return Device.objects.filter(pk=self.kwargs['pk'])
 
 
-class DeviceConnenctionListCreateView(BaseDeviceConection, ListCreateAPIView):
+class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
     pagination_class = ListViewPagination
 
     def get_queryset(self):
@@ -121,7 +131,7 @@ class DeviceConnenctionListCreateView(BaseDeviceConection, ListCreateAPIView):
         )
 
 
-class DeviceConnectionDetailView(BaseDeviceConection, RetrieveUpdateDestroyAPIView):
+class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {

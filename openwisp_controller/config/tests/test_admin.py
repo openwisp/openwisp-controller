@@ -8,6 +8,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import IntegrityError
 from django.db.models.signals import post_save
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
@@ -1163,6 +1164,15 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('content-type'), 'application/octet-stream')
 
+    def test_download_deactivated_device_config(self):
+        device = self._create_device(name='download')
+        self._create_config(device=device)
+        device.deactivate()
+        path = reverse(f'admin:{self.app_label}_device_download', args=[device.pk.hex])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('content-type'), 'application/octet-stream')
+
     def test_download_device_config_404(self):
         d = self._create_device(name='download')
         path = reverse(f'admin:{self.app_label}_device_download', args=[d.pk])
@@ -1466,6 +1476,41 @@ class TestAdmin(
             self._create_object_location(content_object=d, location=location)
             response = self.client.get(path, {'q': 'Estonia'})
             self.assertContains(response, 'admin-search-test')
+
+    def test_device_changelist_config_status(self):
+        device = self._create_device()
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+        expected_html = '<td class="field-config_status">{expected_status}</td>'
+        with self.subTest('Test device does not have a config object'):
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='unknown')
+            )
+            # Device without config is deactivated
+            device.deactivate()
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='deactivated')
+            )
+
+        device.activate()
+        self._create_template(required=True)
+        self._create_config(device=device)
+        with self.subTest('Test device has config object'):
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='modified')
+            )
+            device.config.deactivate()
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='deactivating')
+            )
+            device.config.set_status_deactivated()
+            response = self.client.get(path)
+            self.assertContains(
+                response, expected_html.format(expected_status='deactivated')
+            )
 
     def test_default_template_backend(self):
         path = reverse(f'admin:{self.app_label}_template_add')
@@ -1949,6 +1994,351 @@ class TestAdmin(
     def tearDownClass(cls):
         super().tearDownClass()
         devnull.close()
+
+    @patch.object(Device, 'deactivate')
+    def test_device_changelist_activate_deactivate_admin_action_security(
+        self, mocked_deactivate
+    ):
+        org1 = self._get_org()
+        org2 = self._create_org(name='org2')
+        org1_device = self._create_device(organization=org1)
+        org2_device = self._create_device(organization=org2)
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+
+        with self.subTest('Test superuser deactivates different org devices'):
+            self.client.post(
+                path,
+                {
+                    'action': 'deactivate_device',
+                    '_selected_action': [str(org1_device.pk), str(org2_device.pk)],
+                },
+                follow=True,
+            )
+            self.assertEqual(mocked_deactivate.call_count, 2)
+
+        mocked_deactivate.reset_mock()
+        with self.subTest('Test user deactivates device of unmanaged org'):
+            # The device changelist page is filtered with the devices of
+            # the organizations managed by the user. The selected device
+            # pks are also filtered from this queryset before executing the
+            # deactivate action. Therefore, no operation is performed on
+            # the devices of other organization.
+            administrator = self._create_administrator(organizations=[org1])
+            self.client.force_login(administrator)
+            self.client.post(
+                path,
+                {
+                    'action': 'deactivate_device',
+                    '_selected_action': [str(org2_device.pk)],
+                },
+                follow=True,
+            )
+            self.assertEqual(mocked_deactivate.call_count, 0)
+
+        mocked_deactivate.reset_mock()
+        with self.subTest('Test user deactivates device of managed org'):
+            self.client.post(
+                path,
+                {
+                    'action': 'deactivate_device',
+                    '_selected_action': [str(org1_device.pk)],
+                },
+                follow=True,
+            )
+            self.assertEqual(mocked_deactivate.call_count, 1)
+
+
+class TestTransactionAdmin(
+    CreateConfigTemplateMixin,
+    TestAdminMixin,
+    TransactionTestCase,
+):
+    app_label = 'config'
+    _deactivated_device_warning = (
+        '<li class="warning">This device has been deactivated.</li>'
+    )
+    _deactivate_btn_html = (
+        '<p class="deletelink-box"><input class="deletelink"'
+        ' type="submit" value="Deactivate" form="act_deact_device_form"></p>'
+    )
+    _activate_btn_html = (
+        '<input class="default" type="submit" value="Activate"'
+        ' form="act_deact_device_form">'
+    )
+    _save_btn_html = '<input type="submit" value="Save" class="default" name="_save">'
+
+    def setUp(self):
+        self.client.force_login(self._get_admin())
+
+    def _get_delete_btn_html(self, device):
+        return (
+            '<p class="deletelink-box"><a href="/admin/'
+            f'{self.app_label}/device/{device.id}/delete/" class="deletelink">'
+            'Delete</a></p>'
+        )
+
+    def test_device_with_config_change_deactivate_deactivate(self):
+        """
+        This test checks the following things
+            - deactivate button is shown on device's change page
+            - all the fields become readonly on deactivated device
+            - deleting a device is possible once device's config.status is deactivated
+            - activate button is shown on deactivated device
+        """
+        self._create_template(required=True)
+        device = self._create_config(organization=self._get_org()).device
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        delete_btn_html = self._get_delete_btn_html(device)
+        # Deactivate button is shown instead of delete button
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            self._deactivate_btn_html,
+        )
+        # Verify the inline objects can be added and deleted
+        self.assertContains(response, 'TOTAL_FORMS" value="1"', count=3)
+        self.assertContains(response, '<span class="delete"><input type="checkbox" ')
+        self.assertNotContains(
+            response,
+            delete_btn_html,
+        )
+        self.assertNotContains(response, self._deactivated_device_warning)
+
+        # All fields are readonly on deactivated device
+        device.deactivate()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self._deactivated_device_warning)
+        # Checking for individual fields would be a pain, hence we verify the
+        # number of div.readonly. If the device is not deactivate, the number
+        # of div.readonly isn only 15.
+        self.assertContains(
+            response,
+            '<div class="readonly">',
+            22,
+        )
+        # Save buttons are absent on deactivated device
+        self.assertNotContains(response, self._save_btn_html)
+        # Delete button is not present if config status is deactivating
+        self.assertEqual(device.config.status, 'deactivating')
+        self.assertNotContains(response, delete_btn_html)
+        self.assertNotContains(response, self._deactivate_btn_html)
+        self.assertContains(response, self._activate_btn_html)
+        # Verify adding a new DeviceLocation and DeviceConnection is not allowed
+        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=2)
+        # Verify deleting existing Inline objects is not allowed
+        self.assertNotContains(response, '<span class="delete"><input type="checkbox" ')
+
+        # Delete button is present if config status is deactivated
+        device.config.set_status_deactivated()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self._deactivated_device_warning)
+        self.assertContains(response, delete_btn_html)
+        self.assertNotContains(response, self._deactivate_btn_html)
+        self.assertContains(response, self._activate_btn_html)
+
+    def test_device_without_config_change_activate_deactivate(self):
+        """
+        This test verifies the effects of activate and deactivate
+        operation on a device without related config.
+        """
+        device = self._create_device(organization=self._get_org())
+        self.assertEqual(device._has_config(), False)
+        path = reverse(f'admin:{self.app_label}_device_change', args=[device.pk])
+        delete_btn_html = self._get_delete_btn_html(device)
+        # Verify deactivate button is present on device's change page instead
+        # of delete button
+        response = self.client.get(path)
+        self.assertContains(response, self._deactivate_btn_html)
+        self.assertContains(response, 'TOTAL_FORMS" value="1"', count=2)
+        self.assertNotContains(response, delete_btn_html)
+
+        # Since this device does not have config, delete button will
+        # appear on the device's change page directly.
+        device.deactivate()
+        response = self.client.get(path)
+        self.assertContains(response, delete_btn_html)
+        self.assertContains(response, self._activate_btn_html)
+        self.assertNotContains(response, self._save_btn_html)
+        self.assertNotContains(response, self._deactivate_btn_html)
+        # Verify adding a new inline objects is not allowed
+        self.assertContains(response, '-TOTAL_FORMS" value="0"', count=3)
+
+    def _test_device_changelist_activate_deactivate_admin_action(
+        self, method='activate', is_initially_deactivated=True
+    ):
+        """
+        This helper function is used by
+        test_device_changelist_activate_admin_action  and
+        test_device_changelist_deactivate_admin_action test cases.
+        It verifies that activate/deactivate operation works as expected.
+        It also verifies the success/error operation for the operation.
+        """
+        org = self._get_org()
+        device1 = self._create_device(
+            organization=org, _is_deactivated=is_initially_deactivated
+        )
+        device2 = self._create_device(
+            name='device2',
+            mac_address='11:22:33:44:55:77',
+            organization=org,
+            _is_deactivated=is_initially_deactivated,
+        )
+        device3 = self._create_device(
+            name='device3',
+            mac_address='11:22:33:44:55:88',
+            organization=org,
+            _is_deactivated=is_initially_deactivated,
+        )
+        html_method = method[:-1]
+        single_success_message_html = (
+            f'<li class="success">The device <a href="/admin/{self.app_label}/'
+            'device/{device_id}/change/">{device_name}</a>'
+            f' was {html_method}ed successfully.</li>'
+        )
+        multiple_success_message_html = (
+            f'<li class="success">The following devices were {html_method}ed'
+            f' successfully: <a href="/admin/config/device/{device1.id}/change/">'
+            f'{device1.name}</a>, <a href="/admin/config/device/{device2.id}/change/">'
+            f'{device2.name}</a> and <a href="/admin/config/device/{device3.id}/'
+            f'change/">{device3.name}</a>.</li>'
+        )
+        single_error_message_html = (
+            f'<li class="error">An error occurred while {html_method}ing the device'
+            f' <a href="/admin/{self.app_label}/device/'
+            '{device_id}/change/">{device_name}</a>.</li>'
+        )
+        multiple_error_message_html = (
+            f'<li class="error">An error occurred while {html_method}ing the following'
+            f' devices: <a href="/admin/{self.app_label}/device/{device1.id}/change/">'
+            f'{device1.name}</a>, <a href="/admin/{self.app_label}/device/{device2.id}/'
+            f'change/">{device2.name}</a> and <a href="/admin/{self.app_label}/device/'
+            f'{device3.id}/change/">{device3.name}</a>.</li>'
+        )
+        path = reverse(f'admin:{self.app_label}_device_changelist')
+
+        with self.subTest(f'Test {method}ing a single device'):
+            response = self.client.post(
+                path,
+                {
+                    'action': f'{method}_device',
+                    '_selected_action': str(device1.pk),
+                },
+                follow=True,
+            )
+            self.assertEqual(response.status_code, 200)
+            for device in [device1, device2, device3]:
+                device.refresh_from_db(fields=['_is_deactivated'])
+            self.assertEqual(device1.is_deactivated(), not is_initially_deactivated)
+            self.assertEqual(device2.is_deactivated(), is_initially_deactivated)
+            self.assertEqual(device3.is_deactivated(), is_initially_deactivated)
+            self.assertContains(
+                response,
+                single_success_message_html.format(
+                    device_id=device1.id,
+                    device_name=device1.name,
+                ),
+            )
+
+        with self.subTest(f'Test {html_method}ing multiple devices'):
+            response = self.client.post(
+                path,
+                {
+                    'action': f'{method}_device',
+                    '_selected_action': [
+                        str(device1.pk),
+                        str(device2.pk),
+                        str(device3.pk),
+                    ],
+                },
+                follow=True,
+            )
+            self.assertEqual(response.status_code, 200)
+            for device in [device1, device2, device3]:
+                device.refresh_from_db(fields=['_is_deactivated'])
+                self.assertEqual(device.is_deactivated(), not is_initially_deactivated)
+            self.assertContains(response, multiple_success_message_html)
+
+        with self.subTest(f'Test error occurred {html_method}ing a single device'):
+            with patch.object(Device, method, side_effect=IntegrityError):
+                response = self.client.post(
+                    path,
+                    {
+                        'action': f'{method}_device',
+                        '_selected_action': str(device1.pk),
+                    },
+                    follow=True,
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response,
+                single_error_message_html.format(
+                    device_id=device1.id, device_name=device1.name
+                ),
+            )
+
+        with self.subTest(f'Test error occurred {html_method}ing multiple devices'):
+            with patch.object(Device, method, side_effect=IntegrityError):
+                response = self.client.post(
+                    path,
+                    {
+                        'action': f'{method}_device',
+                        '_selected_action': [
+                            str(device1.pk),
+                            str(device2.pk),
+                            str(device3.pk),
+                        ],
+                    },
+                    follow=True,
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, multiple_error_message_html)
+
+        with self.subTest('Test mix of error and success operations'):
+            with patch.object(Device, method, side_effect=[None, IntegrityError]):
+                response = self.client.post(
+                    path,
+                    {
+                        'action': f'{method}_device',
+                        '_selected_action': [str(device1.pk), str(device2.pk)],
+                    },
+                    follow=True,
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(
+                response,
+                single_success_message_html.format(
+                    device_name=device1.name, device_id=device1.id
+                ),
+            )
+            self.assertContains(
+                response,
+                single_error_message_html.format(
+                    device_name=device2.name, device_id=device2.id
+                ),
+            )
+
+    def test_device_changelist_activate_admin_action(self):
+        """
+        This test verifies that activate admin action works as expected.
+        It also asserts for the success and error messages.
+        """
+        self._test_device_changelist_activate_deactivate_admin_action(
+            method='activate',
+            is_initially_deactivated=True,
+        )
+
+    def test_device_changelist_deactivate_admin_action(self):
+        """
+        This test verifies that deactivate admin action works as expected.
+        It also asserts for the success and error messages.
+        """
+        self._test_device_changelist_activate_deactivate_admin_action(
+            method='deactivate',
+            is_initially_deactivated=False,
+        )
 
 
 class TestDeviceGroupAdmin(

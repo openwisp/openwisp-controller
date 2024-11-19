@@ -12,8 +12,20 @@ class TestApps(TestCase):
                 'model': 'device',
                 'group_by': 'config__status',
             },
-            'colors': {'applied': '#267126', 'modified': '#ffb442', 'error': '#a72d1d'},
-            'labels': {'applied': 'applied', 'error': 'error', 'modified': 'modified'},
+            'colors': {
+                'applied': '#267126',
+                'modified': '#ffb442',
+                'error': '#a72d1d',
+                'deactivating': '#353c44',
+                'deactivated': '#000',
+            },
+            'labels': {
+                'applied': 'applied',
+                'error': 'error',
+                'modified': 'modified',
+                'deactivating': 'deactivating',
+                'deactivated': 'deactivated',
+            },
         }
         chart_config = DASHBOARD_CHARTS.get(1, None)
         self.assertIsNotNone(chart_config)

@@ -482,13 +482,62 @@ class TestConfigApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
+    def test_update_deactivated_device(self):
+        device = self._create_device(_is_deactivated=True)
+        path = reverse('config_api:device_detail', args=[device.pk])
+        data = {'notes': 'test'}
+        response = self.client.patch(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        response = self.client.put(path, data, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_device_deactivate_api(self):
+        device = self._create_device()
+        path = reverse('config_api:device_deactivate', args=[device.pk])
+        response = self.client.post(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['is_deactivated'], True)
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+
+    def test_device_activate_api(self):
+        device = self._create_device(_is_deactivated=True)
+        path = reverse('config_api:device_activate', args=[device.pk])
+        response = self.client.post(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['is_deactivated'], False)
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), False)
+
     def test_device_delete_api(self):
-        d1 = self._create_device()
-        self._create_config(device=d1)
-        path = reverse('config_api:device_detail', args=[d1.pk])
-        r = self.client.delete(path)
-        self.assertEqual(r.status_code, 204)
-        self.assertEqual(Device.objects.count(), 0)
+        self._create_template(required=True)
+        device = self._create_device()
+        config = self._create_config(device=device)
+        path = reverse('config_api:device_detail', args=[device.pk])
+
+        with self.subTest('Test deleting device without deactivating'):
+            response = self.client.delete(path)
+            self.assertEqual(response.status_code, 403)
+
+        device.deactivate()
+        device.refresh_from_db()
+        config.refresh_from_db()
+
+        with self.subTest('Test deleting device with config in deactivating state'):
+            self.assertEqual(device.is_deactivated(), True)
+            self.assertEqual(config.is_deactivating(), True)
+            response = self.client.delete(path)
+            self.assertEqual(response.status_code, 403)
+
+        config.set_status_deactivated()
+        config.refresh_from_db()
+
+        with self.subTest('Test deleting device with config in deactivated state'):
+            self.assertEqual(device.is_deactivated(), True)
+            self.assertEqual(config.is_deactivated(), True)
+            response = self.client.delete(path)
+            self.assertEqual(response.status_code, 204)
+            self.assertEqual(Device.objects.count(), 0)
 
     def test_template_create_no_org_api(self):
         self.assertEqual(Template.objects.count(), 0)

@@ -233,9 +233,28 @@ from the config of a device,
 Delete Device
 ~~~~~~~~~~~~~
 
+.. note::
+
+    A device must be deactivated before it can be deleted. Otherwise, an
+    ``HTTP 403 Forbidden`` response will be returned.
+
 .. code-block:: text
 
     DELETE /api/v1/controller/device/{id}/
+
+Deactivate Device
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    POST /api/v1/controller/device/{id}/deactivate/
+
+Activate Device
+~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    POST /api/v1/controller/device/{id}/activate/
 
 List Device Connections
 ~~~~~~~~~~~~~~~~~~~~~~~

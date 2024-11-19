@@ -262,6 +262,35 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.status_code, 404)
             self.assertDictEqual(response.data, device_not_found)
 
+    def test_endpoints_for_deactivated_device(self):
+        self.device_conn.device.deactivate()
+
+        with self.subTest('Test listing commands'):
+            url = self._get_path('device_command_list', self.device_id)
+            response = self.client.get(
+                url,
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test creating commands'):
+            url = self._get_path('device_command_list', self.device_id)
+            payload = {
+                'type': 'custom',
+                'input': {'command': 'echo test'},
+            }
+            response = self.client.post(
+                url, data=payload, content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest('Test retrieving commands'):
+            command = self._create_command(device_conn=self.device_conn)
+            url = self._get_path('device_command_details', self.device_id, command.id)
+            response = self.client.get(
+                url,
+            )
+            self.assertEqual(response.status_code, 200)
+
     def test_non_superuser(self):
         list_url = self._get_path('device_command_list', self.device_id)
         command = self._create_command(device_conn=self.device_conn)
@@ -429,7 +458,7 @@ class TestConnectionApi(
             'enabled': True,
             'failure_reason': '',
         }
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             response = self.client.post(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
@@ -442,7 +471,7 @@ class TestConnectionApi(
             'enabled': True,
             'failure_reason': '',
         }
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             response = self.client.post(path, data, content_type='application/json')
         error_msg = '''
             the update strategy can be determined automatically only if
@@ -474,7 +503,7 @@ class TestConnectionApi(
             'enabled': False,
             'failure_reason': '',
         }
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(15):
             response = self.client.put(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -488,7 +517,7 @@ class TestConnectionApi(
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {'update_strategy': app_settings.UPDATE_STRATEGIES[1][0]}
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -499,7 +528,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse('connection_api:deviceconnection_detail', args=(d1, dc.pk))
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(10):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
@@ -540,3 +569,65 @@ class TestConnectionApi(
                 HTTP_AUTHORIZATION=f'Bearer {token}',
             )
             self.assertEqual(response.status_code, 200)
+
+    def test_deactivated_device(self):
+        credentials = self._create_credentials(auto_add=True)
+        device = self._create_config(organization=credentials.organization).device
+        device_conn = device.deviceconnection_set.first()
+        create_api_path = reverse(
+            'connection_api:deviceconnection_list', args=(device.pk,)
+        )
+        detail_api_path = reverse(
+            'connection_api:deviceconnection_detail',
+            args=[device.id, device_conn.id],
+        )
+        device.deactivate()
+
+        with self.subTest('Test creating DeviceConnection'):
+            response = self.client.post(
+                create_api_path,
+                data={
+                    'credentials': credentials.pk,
+                    'update_strategy': app_settings.UPDATE_STRATEGIES[0][0],
+                    'enabled': True,
+                    'failure_reason': '',
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest('Test listing DeviceConnection'):
+            response = self.client.get(
+                create_api_path,
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test retrieving DeviceConnection detail'):
+            response = self.client.get(
+                detail_api_path,
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test updating DeviceConnection'):
+            response = self.client.put(
+                detail_api_path,
+                {
+                    'credentials': credentials.pk,
+                    'update_strategy': app_settings.UPDATE_STRATEGIES[1][0],
+                    'enabled': False,
+                    'failure_reason': '',
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 403)
+
+            response = self.client.patch(
+                detail_api_path, {'enabled': False}, content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest('Test deleting DeviceConnection'):
+            response = self.client.delete(
+                detail_api_path,
+            )
+            self.assertEqual(response.status_code, 403)

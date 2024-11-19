@@ -239,6 +239,8 @@ class TestDeviceAdmin(
         self.assertContains(response, config2.device.name)
 
     def test_delete_device(self):
+        self.config.device.deactivate()
+        self.config.set_status_deactivated()
         device_response = self.client.post(
             reverse(
                 f'admin:{self.config_label}_device_delete',

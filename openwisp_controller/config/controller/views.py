@@ -54,8 +54,10 @@ class GetDeviceView(SingleObjectMixin, View):
             'organization__created',
             'organization__modified',
         )
-        queryset = self.model.objects.select_related('organization', 'config').defer(
-            *defer
+        queryset = (
+            self.model.objects.select_related('organization', 'config')
+            .defer(*defer)
+            .exclude(config__status='deactivated')
         )
         return get_object_or_404(queryset, *args, **kwargs)
 
@@ -169,6 +171,14 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         logger.debug(f'invalidated view cache for device ID {pk}')
 
     @classmethod
+    def invalidate_get_device_cache_on_config_deactivated(cls, instance, **kwargs):
+        """
+        Called from signal receiver which performs cache invalidation
+        when the configuration status is set to "deactivated".
+        """
+        cls.invalidate_get_device_cache(instance=instance.device, **kwargs)
+
+    @classmethod
     def invalidate_checksum_cache(cls, instance, device, **kwargs):
         """
         Called from signal receiver which performs cache invalidation
@@ -247,6 +257,11 @@ class DeviceReportStatusView(CsrfExtemptMixin, GetDeviceView):
         # mantain backward compatibility with old agents
         # ("running" was changed to "applied")
         status = status if status != 'running' else 'applied'
+        # If the Config.status is "deactivating", then set the
+        # status to "deactivated". This will stop the device
+        # from receiving new configurations.
+        if config.status == 'deactivating':
+            status = 'deactivated'
         # call set_status_{status} method on Config model
         method_name = f'set_status_{status}'
         if status == 'error':

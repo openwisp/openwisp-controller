@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.http import Http404
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination, status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import BasePermission
 from rest_framework.request import clone_request
 from rest_framework.response import Response
@@ -14,7 +14,7 @@ from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
-from ...mixins import ProtectedAPIMixin
+from ...mixins import ProtectedAPIMixin, RelatedDeviceProtectedAPIMixin
 from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
@@ -77,6 +77,8 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
     def get_object(self, *args, **kwargs):
         device = super().get_object()
+        if self.request.method not in ('GET', 'HEAD') and device.is_deactivated():
+            raise PermissionDenied
         location = self.get_location(device)
         if location:
             return location
@@ -102,7 +104,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
 
 class DeviceLocationView(
-    ProtectedAPIMixin,
+    RelatedDeviceProtectedAPIMixin,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = DeviceLocationSerializer
@@ -112,6 +114,7 @@ class DeviceLocationView(
     lookup_field = 'content_object'
     lookup_url_kwarg = 'pk'
     organization_field = 'content_object__organization'
+    _device_field = 'content_object'
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -119,6 +122,11 @@ class DeviceLocationView(
             return qs.filter(content_object=self.kwargs['pk'])
         except ValidationError:
             return qs.none()
+
+    def get_parent_queryset(self):
+        return Device.objects.filter(
+            pk=self.kwargs['pk'],
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

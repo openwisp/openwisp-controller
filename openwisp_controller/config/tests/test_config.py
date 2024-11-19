@@ -519,6 +519,22 @@ class TestConfig(
             self.assertEqual(c.vpnclient_set.count(), 1)
             self.assertEqual(c.vpnclient_set.first(), vpnclient)
 
+    def test_auto_cert_not_deleted_on_device_deactivation(self):
+        self._create_template(type='vpn', vpn=self._create_vpn(), default=True)
+        config = self._create_config(organization=self._get_org())
+        self.assertEqual(config.templates.count(), 1)
+        cert = config.vpnclient_set.first().cert
+        self.assertEqual(cert.revoked, False)
+
+        config.deactivate()
+        config.refresh_from_db()
+        # Since it is possible to refresh the cert object from the
+        # database, it means that the cert object is not deleted.
+        cert.refresh_from_db()
+        self.assertEqual(config.status, 'deactivating')
+        self.assertEqual(config.templates.count(), 0)
+        self.assertEqual(cert.revoked, True)
+
     def _get_vpn_context(self):
         self.test_create_cert()
         c = Config.objects.get(device__name='test-create-cert')
@@ -665,7 +681,7 @@ class TestConfig(
             else:
                 self.assertIn('# path: /etc/vpnserver1', result)
 
-        config.device.delete()
+        config.device.delete(check_deactivated=False)
         config.delete()
         with self.subTest('Test template applied after creating config object'):
             config = self._create_config(organization=org)

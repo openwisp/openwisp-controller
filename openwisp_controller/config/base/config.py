@@ -14,7 +14,13 @@ from packaging import version
 from swapper import get_model_name, load_model
 
 from .. import settings as app_settings
-from ..signals import config_backend_changed, config_modified, config_status_changed
+from ..signals import (
+    config_backend_changed,
+    config_deactivated,
+    config_deactivating,
+    config_modified,
+    config_status_changed,
+)
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig
@@ -62,13 +68,16 @@ class AbstractConfig(BaseConfig):
         blank=True,
     )
 
-    STATUS = Choices('modified', 'applied', 'error')
+    STATUS = Choices('modified', 'applied', 'error', 'deactivating', 'deactivated')
     status = StatusField(
         _('configuration status'),
         help_text=_(
             '"modified" means the configuration is not applied yet; \n'
             '"applied" means the configuration is applied successfully; \n'
-            '"error" means the configuration caused issues and it was rolled back;'
+            '"error" means the configuration caused issues and it was rolled back; \n'
+            '"deactivating" means the device has been deactivated and the'
+            ' configuration is being removed; \n'
+            '"deactivated" means the configuration has been removed from the device;'
         ),
     )
     error_reason = models.CharField(
@@ -105,6 +114,8 @@ class AbstractConfig(BaseConfig):
         self._just_created = False
         self._initial_status = self.status
         self._send_config_modified_after_save = False
+        self._send_config_deactivated = False
+        self._send_config_deactivating = False
         self._send_config_status_changed = False
 
     def __str__(self):
@@ -236,9 +247,20 @@ class AbstractConfig(BaseConfig):
         This method is called from a django signal (m2m_changed)
         see config.apps.ConfigConfig.connect_signals
         """
-        # execute only after a config has been saved or deleted
-        if action not in ['post_add', 'post_remove'] or instance._state.adding:
+        if instance._state.adding or action not in [
+            'post_add',
+            'post_remove',
+            'post_clear',
+        ]:
             return
+
+        if action == 'post_clear':
+            if instance.is_deactivating_or_deactivated():
+                # If the device is deactivated or in the process of deactivatiing, then
+                # delete all vpn clients and return.
+                instance.vpnclient_set.all().delete()
+            return
+
         vpn_client_model = cls.vpn.through
         # coming from signal
         if isinstance(pk_set, set):
@@ -331,6 +353,8 @@ class AbstractConfig(BaseConfig):
         """
         if action not in ['pre_remove', 'post_clear']:
             return False
+        if instance.is_deactivating_or_deactivated():
+            return
         raw_data = raw_data or {}
         template_query = models.Q(required=True, backend=instance.backend)
         # trying to remove a required template will raise PermissionDenied
@@ -467,9 +491,7 @@ class AbstractConfig(BaseConfig):
         result = super().save(*args, **kwargs)
         # add default templates if config has just been created
         if created:
-            default_templates = self.get_default_templates()
-            if default_templates:
-                self.templates.add(*default_templates)
+            self.add_default_templates()
         if self._old_backend and self._old_backend != self.backend:
             self._send_config_backend_changed_signal()
             self._old_backend = None
@@ -480,8 +502,26 @@ class AbstractConfig(BaseConfig):
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
             self._send_config_status_changed = False
+        if self._send_config_deactivating and self.is_deactivating():
+            self._send_config_deactivating_signal()
+        if self._send_config_deactivated and self.is_deactivated():
+            self._send_config_deactivated_signal()
         self._initial_status = self.status
         return result
+
+    def add_default_templates(self):
+        default_templates = self.get_default_templates()
+        if default_templates:
+            self.templates.add(*default_templates)
+
+    def is_deactivating_or_deactivated(self):
+        return self.status in ['deactivating', 'deactivated']
+
+    def is_deactivating(self):
+        return self.status == 'deactivating'
+
+    def is_deactivated(self):
+        return self.status == 'deactivated'
 
     def _check_changes(self):
         current = self._meta.model.objects.only(
@@ -520,6 +560,27 @@ class AbstractConfig(BaseConfig):
             device=self.device,
         )
 
+    def _send_config_deactivating_signal(self):
+        """
+        Emits ``config_deactivating`` signal.
+        """
+        config_deactivating.send(
+            sender=self.__class__,
+            instance=self,
+            device=self.device,
+            previous_status=self._initial_status,
+        )
+
+    def _send_config_deactivated_signal(self):
+        """
+        Emits ``config_deactivated`` signal.
+        """
+        config_deactivated.send(
+            sender=self.__class__,
+            instance=self,
+            previous_status=self._initial_status,
+        )
+
     def _send_config_backend_changed_signal(self):
         """
         Emits ``config_backend_changed`` signal.
@@ -539,9 +600,10 @@ class AbstractConfig(BaseConfig):
         """
         config_status_changed.send(sender=self.__class__, instance=self)
 
-    def _set_status(self, status, save=True, reason=None):
+    def _set_status(self, status, save=True, reason=None, extra_update_fields=None):
         self._send_config_status_changed = True
-        update_fields = ['status']
+        extra_update_fields = extra_update_fields or []
+        update_fields = ['status'] + extra_update_fields
         # The error reason should be updated when
         # 1. the configuration is in "error" status
         # 2. the configuration has changed from error status
@@ -562,6 +624,58 @@ class AbstractConfig(BaseConfig):
 
     def set_status_error(self, save=True, reason=None):
         self._set_status('error', save, reason)
+
+    def set_status_deactivating(self, save=True):
+        """
+        Set Config status as deactivating and
+        clears configuration and templates.
+        """
+        self._send_config_deactivating = True
+        self._set_status('deactivating', save, extra_update_fields=['config'])
+
+    def set_status_deactivated(self, save=True):
+        self._send_config_deactivated = True
+        self._set_status('deactivated', save)
+
+    def deactivate(self):
+        """
+        Clears configuration and templates and set status as deactivating.
+        """
+        # Invalidate cached property before checking checksum.
+        self._invalidate_backend_instance_cache()
+        old_checksum = self.checksum
+        self.config = {}
+        self.set_status_deactivating()
+        self.templates.clear()
+        del self.backend_instance
+        if old_checksum == self.checksum:
+            # Accelerate deactivation if the configuration remains
+            # unchanged (i.e. empty configuration)
+            self.set_status_deactivated()
+
+    def activate(self):
+        """
+        Applies required, default and group templates when device is activated.
+        """
+        # Invalidate cached property before checking checksum.
+        self._invalidate_backend_instance_cache()
+        old_checksum = self.checksum
+        self.add_default_templates()
+        if self.device._get_group():
+            self.device.manage_devices_group_templates(
+                device_ids=self.device.id,
+                old_group_ids=None,
+                group_id=self.device.group_id,
+            )
+        del self.backend_instance
+        if old_checksum == self.checksum:
+            # Accelerate activation if the configuration remains
+            # unchanged (i.e. empty configuration)
+            self.set_status_applied()
+
+    def _invalidate_backend_instance_cache(self):
+        if hasattr(self, 'backend_instance'):
+            del self.backend_instance
 
     def _has_device(self):
         return hasattr(self, 'device')

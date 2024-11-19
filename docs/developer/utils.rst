@@ -146,6 +146,55 @@ object are changed, but only on ``post_add`` or ``post_remove`` actions,
 ``post_clear`` is ignored for the same reason explained in the previous
 section.
 
+``config_deactivating``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.config_deactivating``
+
+**Arguments**:
+
+- ``instance``: instance of the object being deactivated
+- ``previous_status``: previous status of the object before deactivation
+
+This signal is emitted when a configuration status of device is set to
+``deactivating``.
+
+``config_deactivated``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.config_deactivated``
+
+**Arguments**:
+
+- ``instance``: instance of the object being deactivated
+- ``previous_status``: previous status of the object before deactivation
+
+This signal is emitted when a configuration status of device is set to
+``deactivated``.
+
+``device_deactivated``
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_deactivated``
+
+**Arguments**:
+
+- ``instance``: instance of the device being deactivated
+
+This signal is emitted when a device is flagged for deactivation.
+
+``device_activated``
+~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.device_activated``
+
+**Arguments**:
+
+- ``instance``: instance of the device being activated
+
+This signal is emitted when a device is flagged for activation (after
+deactivation).
+
 .. _config_backend_changed:
 
 ``config_backend_changed``
