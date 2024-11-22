@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-import os
-import sys
-
 from setuptools import find_packages, setup
 
 from openwisp_controller import get_version
@@ -24,19 +21,6 @@ def get_install_requires():
         # add line to requirements
         requirements.append(line)
     return requirements
-
-
-if sys.argv[-1] == 'publish':
-    # delete any *.pyc, *.pyo and __pycache__
-    os.system('find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf')
-    os.system('python setup.py sdist bdist_wheel')
-    os.system('twine upload -s dist/*')
-    os.system('rm -rf dist build')
-    args = {'version': get_version()}
-    print('You probably want to also tag the version now:')
-    print('  git tag -a %(version)s -m "version %(version)s"' % args)
-    print('  git push --tags')
-    sys.exit()
 
 
 setup(
