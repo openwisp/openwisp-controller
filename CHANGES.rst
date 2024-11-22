@@ -1,10 +1,163 @@
 Changelog
 =========
 
-Version 1.1.0 [unreleased]
+Version 1.1.0 [2024-11-22]
 --------------------------
 
-WIP
+Features
+~~~~~~~~
+
+- Added `support for ZeroTier
+  <https://openwisp.io/docs/dev/controller/user/zerotier.html>`_.
+- Added support for adding `configuration templates
+  <https://openwisp.io/docs/dev/controller/user/device-groups.html#group-templates>`_
+  and `configuration variables
+  <https://openwisp.io/docs/dev/controller/user/device-groups.html#group-configuration-variables>`_
+  to device groups.
+- Implemented support for `SNMP credentials
+  <https://openwisp.io/docs/dev/controller/user/intro.html#snmp>`_.
+- Added support for device deactivation and reactivation.
+- Introduced an admin action to quickly move devices between groups.
+- Added autocomplete support for filters in the admin interface.
+- Added support to display configuration errors reported by the OpenWISP
+  config agent.
+- Enabled filtering of subnets by Subnet Division Rule type.
+- Allowed `limiting the number of devices per organization
+  <https://openwisp.io/docs/dev/controller/user/organization-limits.html>`_.
+- Added support for defining organization-level variables.
+- Enabled `bulk import and export of devices
+  <https://openwisp.io/docs/dev/controller/user/import-export.html>`_.
+- Added `functionality to configure available commands for each
+  organization
+  <https://openwisp.io/docs/dev/controller/user/settings.html#openwisp-controller-organization-enabled-commands>`_.
+- Added a dashboard chart showing the distribution of devices across
+  different groups.
+- Added filters to the REST API.
+
+Changes
+~~~~~~~
+
+- Removing a VPN template from a device will not deleted the certificates
+  associated with the ``VPNClient``. Instead, the certificates will be
+  marked as revoked.
+- Allowed reusing ``VNI`` across all the tunnels created using an instance
+  VXLAN over WireGuard VPN.
+- Added a data migration for updating ``hwmode`` configuration option of
+  radio to "band". The ``hwmode`` option is deprecated on OpenWrt > 21.
+- The configuration push update will not flag the configuration status as
+  "applied". The status will be update once the OpenWISP Config agent on
+  the device reports the status.
+- Updated ``DeviceConnection.connect`` to attempt all available
+  credentials.
+- Changed the ``on_cascade`` property of ``BaseDeviceLocation.location``
+  and ``BaseDeviceLocation.floorplan`` from ``PROTECTED`` to ``CASCADE``.
+- Controller views will return ``HTTP 404`` response for devices belonging
+  to disabled organizations.
+- Show a loading indicator for commands in progress.
+- Added VPN subnet CIDR to device's system-defined variables.
+- Allowed defining subnet and IP address for VPNs with OpenVPN backend.
+- Changed the target link for configuration error notifications to the
+  "Configuration" tab of the device.
+- JSONSchema Editor widget allows to define extra CSS classes. It will
+  ignore fields with ``manual`` class.
+- Increased the soft time limit for celery task that operates of bulk
+  objects.
+- Added notifications for background subnet division rule errors.
+- Added `name` and `mac_address` to device list filters in the API.
+- Use autocomplete fields for related fields.
+
+**Dependencies**:
+
+- Bumped ``django-sortedm2m~=4.0.0``.
+- Bumped ``django-reversion~=5.1.0``.
+- Bumped ``django-taggit~=4.0.0``.
+- Bumped ``netjsonconfig~=1.1.0``.
+- Bumped ``django-x509~=1.2.0``.
+- Bumped ``django-loci~=1.1.0``.
+- Bumped ``django-flat-json-widget~=0.3.0``.
+- Bumped ``openwisp-users~=1.1.0``.
+- Bumped ``openwisp-utils[celery]~=1.1.1``.
+- Bumped ``openwisp-notifications~=1.1.0``.
+- Bumped ``openwisp-ipam~=1.1.0``.
+- Bumped ``djangorestframework-gis~=1.1``.
+- Bumped ``paramiko[ed25519]~=3.5.0``.
+- Bumped ``scp~=0.15.0``.
+- Bumped ``django-cache-memoize~=0.2.0``.
+- Bumped ``shortuuid~=1.0.13``.
+- Bumped ``netaddr~=1.3.0``.
+- Bumped ``django-import-export~=3.3.0``.
+- Added support for Django ``4.1.x`` and ``4.2.x``.
+- Added support for Python ``3.10``.
+- Dropped support for Python ``3.7``.
+- Dropped support for Django ``3.0.x`` and ``3.1.x``.
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `bug for displaying relevant templates where the backend of the
+  device's configuration template does not match
+  <https://github.com/openwisp/openwisp-controller/pull/771>`_.
+- Fixed `displaying the command widget when the user has write permissions
+  <https://github.com/openwisp/openwisp-controller/pull/854>`_.
+- Fixed `DeviceConnection.get_working_connection to handle scenario where
+  the device has no credentials
+  <https://github.com/openwisp/openwisp-controller/pull/720>`_.
+- `User need to have required model permissions to perform admin actions
+  <https://github.com/openwisp/openwisp-controller/pull/873>`_.
+- Fixed `import device preview table when browser is set to dark mode
+  <https://github.com/openwisp/openwisp-controller/issues/851>`_.
+- Fixed `subnet division rule does not allow assigning only 1 ip in /32
+  <https://github.com/openwisp/openwisp-controller/issues/842>`_.
+- Fixed `Device._has_group() wrongly returning True
+  <https://github.com/openwisp/openwisp-controller/pull/804>`_.
+- Fixed `JS of history pages on config app
+  <https://github.com/openwisp/openwisp-controller/issues/681>`_.
+- Fixed `REST API can creates device configs inadvertently
+  <https://github.com/openwisp/openwisp-controller/issues/699>`_.
+- Fixed `broken shared template preview
+  <https://github.com/openwisp/openwisp-controller/issues/742>`_.
+- Fixed `command APIs permissions
+  <https://github.com/openwisp/openwisp-controller/issues/754>`_.
+- Fixed `deleting VpnClient result in deleting all provisioned subnets of
+  the device <https://github.com/openwisp/openwisp-controller/pull/805>`_.
+- Fixed `group templates re-creating VPN clients
+  <https://github.com/openwisp/openwisp-controller/issues/703>`_.
+- Fixed `DeviceListSerializer returning HTTP 500 instead of HTTP 400
+  reponse on invalid data
+  <https://github.com/openwisp/openwisp-controller/issues/695>`_.
+- Fixed `re-ordering applied templates in device config
+  <https://github.com/openwisp/openwisp-controller/pull/830>`_.
+- Fixed `re-ordering templates on device add page
+  <https://github.com/openwisp/openwisp-controller/issues/434>`_.
+- Fixed `several issues with clone template feature
+  <https://github.com/openwisp/openwisp-controller/pull/838>`_.
+- Fixed `updating template organization puts devices in perennial
+  "modified" state
+  <https://github.com/openwisp/openwisp-controller/issues/213>`_.
+- Fixed `user defined commands that do not require input
+  <https://github.com/openwisp/openwisp-controller/pull/871>`_.
+- Fixed `validation for SubnetDivisionRule
+  <https://github.com/openwisp/openwisp-controller/issues/706>`_.
+- Fixed `subnet division rule validation when master subnet is empty
+  <https://github.com/openwisp/openwisp-controller/issues/866>`_.
+- Fixed `validation in change device group admin action
+  <https://github.com/openwisp/openwisp-controller/issues/762>`_.
+- `Increased "timeoutInterval" for ReconnectingWebSocket
+  <https://github.com/openwisp/openwisp-controller/issues/772>`_.
+- Added `JS workaround for using mac address variable
+  <https://github.com/openwisp/openwisp-controller/pull/876>`_.
+- Fixed `same credential can be added to a device twice
+  <https://github.com/openwisp/openwisp-controller/issues/795>`_.
+- `Show reversion button to operators too
+  <https://github.com/openwisp/openwisp-controller/pull/652>`_.
+- Fixed `unsaved changes alert triggering on previewing configuration
+  <https://github.com/openwisp/openwisp-controller/pull/857>`_.
+- Fixed `dependency on the creation date in get_max_subnet method
+  <https://github.com/openwisp/openwisp-controller/issues/728>`_.
+- Fixed `Vpn.webhook_endpoint accepting invalid URL
+  <https://github.com/openwisp/openwisp-controller/issues/689>`_.
+- Fixed `object and config menu not opening in Device config editor
+  <https://github.com/openwisp/openwisp-controller/pull/913>`.
 
 Version 1.0.3 [2022-08-03]
 --------------------------
