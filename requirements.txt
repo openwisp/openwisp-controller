@@ -1,14 +1,14 @@
 django-sortedm2m~=4.0.0
 django-reversion~=5.1.0
 django-taggit~=4.0.0
-netjsonconfig @ https://github.com/openwisp/netjsonconfig/tarball/master
+netjsonconfig~=1.1.0
 django-x509~=1.2.0
 django-loci~=1.1.0
 django-flat-json-widget~=0.3.0
-openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/master
-openwisp-utils[celery]~=1.1.0
-openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/master
-openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/master
+openwisp-users~=1.1.0
+openwisp-utils[celery]~=1.1.1
+openwisp-notifications~=1.1.0
+openwisp-ipam~=1.1.0
 djangorestframework-gis~=1.1
 paramiko[ed25519]~=3.5.0
 scp~=0.15.0
