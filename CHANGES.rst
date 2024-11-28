@@ -8,14 +8,14 @@ Features
 ~~~~~~~~
 
 - Added `support for ZeroTier
-  <https://openwisp.io/docs/dev/controller/user/zerotier.html>`_.
+  <https://openwisp.io/docs/stable/controller/user/zerotier.html>`_.
 - Added support for adding `configuration templates
-  <https://openwisp.io/docs/dev/controller/user/device-groups.html#group-templates>`_
+  <https://openwisp.io/docs/stable/controller/user/device-groups.html#group-templates>`_
   and `configuration variables
-  <https://openwisp.io/docs/dev/controller/user/device-groups.html#group-configuration-variables>`_
+  <https://openwisp.io/docs/stable/controller/user/device-groups.html#group-configuration-variables>`_
   to device groups.
 - Implemented support for `SNMP credentials
-  <https://openwisp.io/docs/dev/controller/user/intro.html#snmp>`_.
+  <https://openwisp.io/docs/stable/controller/user/intro.html#snmp>`_.
 - Added support for device deactivation and reactivation.
 - Introduced an admin action to quickly move devices between groups.
 - Added autocomplete support for filters in the admin interface.
@@ -23,13 +23,13 @@ Features
   config agent.
 - Enabled filtering of subnets by Subnet Division Rule type.
 - Allowed `limiting the number of devices per organization
-  <https://openwisp.io/docs/dev/controller/user/organization-limits.html>`_.
+  <https://openwisp.io/docs/stable/controller/user/organization-limits.html>`_.
 - Added support for defining organization-level variables.
 - Enabled `bulk import and export of devices
-  <https://openwisp.io/docs/dev/controller/user/import-export.html>`_.
+  <https://openwisp.io/docs/stable/controller/user/import-export.html>`_.
 - Added `functionality to configure available commands for each
   organization
-  <https://openwisp.io/docs/dev/controller/user/settings.html#openwisp-controller-organization-enabled-commands>`_.
+  <https://openwisp.io/docs/stable/controller/user/settings.html#openwisp-controller-organization-enabled-commands>`_.
 - Added a dashboard chart showing the distribution of devices across
   different groups.
 - Added filters to the REST API.
