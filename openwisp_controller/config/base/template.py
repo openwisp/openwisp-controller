@@ -6,6 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
+from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import get_model_name
 from taggit.managers import TaggableManager
 
@@ -115,7 +116,14 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             if hasattr(self, 'backend_instance'):
                 del self.backend_instance
             current = self.__class__.objects.get(pk=self.pk)
-            update_related_config_status = self.checksum != current.checksum
+            try:
+                current_checksum = current.checksum
+            except NetjsonconfigValidationError:
+                # If the Netjsonconfig library upgrade changes the schema,
+                # the old configuration may become invalid, raising an exception.
+                # Setting the checksum to None forces related configurations to update.
+                current_checksum = None
+            update_related_config_status = self.checksum != current_checksum
         # save current changes
         super().save(*args, **kwargs)
         # update relations
