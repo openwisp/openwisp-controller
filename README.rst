@@ -53,8 +53,8 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
   provides device status monitoring, collection of metrics, charts,
   alerts, possibility to define custom checks
 - `openwisp-firmware-upgrader
-  <https://openwisp.io/docs/stable/firmware-upgrader/>`_: automated firmware
-  upgrades (single devices or mass network upgrades)
+  <https://openwisp.io/docs/stable/firmware-upgrader/>`_: automated
+  firmware upgrades (single devices or mass network upgrades)
 - `openwisp-radius <https://openwisp.io/docs/stable/user/radius.html>`_:
   based on FreeRADIUS, allows to implement network access authentication
   systems like 802.1x WPA2 Enterprise, captive portal authentication,
@@ -65,10 +65,11 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
   daemons or other network software (e.g.: OpenVPN); it can be used in
   conjunction with openwisp-monitoring to get a better idea of the state
   of the network
-- `openwisp-ipam <https://openwisp.io/docs/stable/ipam/>`_: allows to manage
-  the assignment of IP addresses used in the network
-- `openwisp-notifications <https://openwisp.io/docs/stable/notifications/>`_:
-  allows users to be aware of important events happening in the network.
+- `openwisp-ipam <https://openwisp.io/docs/stable/ipam/>`_: allows to
+  manage the assignment of IP addresses used in the network
+- `openwisp-notifications
+  <https://openwisp.io/docs/stable/notifications/>`_: allows users to be
+  aware of important events happening in the network.
 
 **For a more complete overview of the OpenWISP modules and architecture**,
 see the `OpenWISP Architecture Overview
