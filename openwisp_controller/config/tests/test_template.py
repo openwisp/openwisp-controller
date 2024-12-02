@@ -748,3 +748,18 @@ class TestTemplateTransaction(
             template.save()
             mocked_error.assert_called_once()
         mocked_update_related_config_status.assert_called_once()
+
+    def test_fixing_wrong_configuration(self):
+        template = self._create_template()
+        # create a wrong configuration
+        Template.objects.update(config={'interfaces': [{'name': 'eth0', 'type': ''}]})
+        # Ensure the configuration raises ValidationError
+        with self.assertRaises(NetjsonconfigValidationError):
+            template.refresh_from_db()
+            del template.backend_instance
+            template.checksum
+
+        del template.backend_instance
+        template.config = {'interfaces': [{'name': 'eth0', 'type': 'ethernet'}]}
+        template.full_clean()
+        template.save()
