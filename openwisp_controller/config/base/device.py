@@ -261,8 +261,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 )
 
     def clean(self, *args, **kwargs):
-        self.mac_address = self.mac_address.upper()
         super().clean(*args, **kwargs)
+        self.mac_address = self.mac_address.upper()
         self._validate_unique_name()
         self._validate_org_relation('group', field_error='group')
         self._validate_org_device_limit()
