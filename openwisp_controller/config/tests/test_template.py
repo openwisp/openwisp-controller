@@ -356,7 +356,8 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             template_qs = Template.objects.filter(type='vpn')
             self.assertEqual(template_qs.count(), 1)
             t = template_qs.first()
-            self.assertDictContainsSubset(_original_context, t.get_context())
+            for key, value in _original_context.items():
+                self.assertEqual(t.get_context().get(key), value)
             self.assertEqual(app_settings.CONTEXT, _original_context)
 
         with self.subTest(
