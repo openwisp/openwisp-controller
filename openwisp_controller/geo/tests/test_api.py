@@ -94,7 +94,7 @@ class TestApi(TestGeoMixin, TestCase):
         device = self._create_object()
         self.assertEqual(self.location_model.objects.count(), 0)
         url = reverse(self.url_name, args=[device.pk])
-        r = self.client.put(f'{url}?key={device.key }')
+        r = self.client.put(f'{url}?key={device.key}')
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(
             r.json(),
