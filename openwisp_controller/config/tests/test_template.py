@@ -7,6 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
+from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import load_model
 
 from openwisp_utils.tests import catch_signal
@@ -499,6 +500,20 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         # ValidationError:
         # {'__all__': ['VPN client with this Config and Vpn already exists.']}
         self.assertIsNotNone(vpn_client)
+
+    def test_regression_preventing_from_fixing_invalid_conf(self):
+        template = self._create_template()
+        # create a template with an invalid configuration
+        Template.objects.update(config={'interfaces': [{'name': 'eth0', 'type': ''}]})
+        # ensure the configuration raises ValidationError
+        with self.assertRaises(NetjsonconfigValidationError):
+            template.refresh_from_db()
+            del template.backend_instance
+            template.checksum
+        del template.backend_instance
+        template.config = {'interfaces': [{'name': 'eth0', 'type': 'ethernet'}]}
+        template.full_clean()
+        template.save()
 
 
 class TestTemplateTransaction(
