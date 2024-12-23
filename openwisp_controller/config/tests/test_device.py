@@ -69,7 +69,7 @@ class TestDevice(
             else:
                 self.fail('ValidationError not raised for "{0}"'.format(mac_address))
 
-    def test_device_mac_address_uppercase_from_clean_method(self):
+    def test_device_mac_address_uppercase(self):
         device = self._create_device(mac_address='00:1a:2b:3c:4d:5e')
         device.full_clean()
         self.assertEqual(device.mac_address, '00:1A:2B:3C:4D:5E')
