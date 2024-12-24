@@ -6,8 +6,10 @@ from selenium.common.exceptions import (
     TimeoutException,
     UnexpectedAlertPresentException,
 )
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
@@ -129,6 +131,49 @@ class TestDeviceAdmin(
             self.web_driver.find_elements(by=By.CLASS_NAME, value='success')[0].text,
             'The Device “11:22:33:44:55:66” was added successfully.',
         )
+
+    def test_device_preview_overlay(self):
+        config = self._create_config(device=self._create_device(name='Test'))
+        config.device.full_clean()
+        config.device.save()
+        config.refresh_from_db()
+        self.login()
+        self.open(reverse('admin:config_device_changelist'))
+        self.web_driver.find_element(
+            by=By.CSS_SELECTOR, value='tbody tr:nth-child(1) th a'
+        ).click()
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '#content-main'))
+            )
+        except TimeoutException:
+            self.fail("Device detail page did not load in time")
+        actions = ActionChains(self.web_driver)
+        actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                lambda driver: driver.find_element(
+                    By.CSS_SELECTOR, '.djnjc-overlay'
+                ).value_of_css_property('display')
+                != 'none'
+            )
+            overlay_visible = True
+        except TimeoutException:
+            overlay_visible = False
+        self.assertTrue(overlay_visible)
+        actions = ActionChains(self.web_driver)
+        actions.send_keys(Keys.ESCAPE).perform()
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                lambda driver: driver.find_element(
+                    By.CSS_SELECTOR, '.djnjc-overlay'
+                ).value_of_css_property('display')
+                == 'none'
+            )
+            overlay_closed = True
+        except TimeoutException:
+            overlay_closed = False
+        self.assertTrue(overlay_closed)
 
     def test_unsaved_changes(self):
         self.login()
