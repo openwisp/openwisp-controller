@@ -566,8 +566,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         perm = super().has_delete_permission(request)
         if not obj:
             return perm
-        if obj._has_config():
-            perm = perm and obj.config.is_deactivated()
         return perm and obj.is_deactivated()
 
     def save_form(self, request, form, change):
@@ -899,6 +897,17 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def recover_view(self, request, version_id, extra_context=None):
         request._recover_view = True
         return super().recover_view(request, version_id, extra_context)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj and obj._has_config() and not obj.config.is_deactivated():
+            extra_context['deactivating_warning'] = True
+        return super().delete_view(request, object_id, extra_context)
+
+    def delete_model(self, request, obj):
+        force_delete = request.POST.get('force_delete') == 'true'
+        obj.delete(check_deactivated=not force_delete)
 
     def get_inlines(self, request, obj):
         inlines = super().get_inlines(request, obj)
