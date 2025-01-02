@@ -84,7 +84,7 @@ class TestImportExportMixin:
 
     def test_device_export(self):
         response = self.client.post(
-            reverse(f'admin:{self.app_label}_device_export'), {'file_format': '0'}
+            reverse(f'admin:{self.app_label}_device_export'), {'format': '0'}
         )
         self.assertNotContains(response, 'error')
         self.assertIsNotNone(response.get('Content-Disposition'))
@@ -102,7 +102,7 @@ class TestImportExportMixin:
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv},
+            {'format': '0', 'import_file': csv},
         )
         self.assertNotContains(response, 'errorlist')
         self.assertNotContains(response, 'Errors')
@@ -126,7 +126,7 @@ class TestImportExportMixin:
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
@@ -167,7 +167,7 @@ class TestImportExportMixin:
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
@@ -206,7 +206,7 @@ class TestImportExportMixin:
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
@@ -630,7 +630,7 @@ class TestAdmin(
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
@@ -676,7 +676,7 @@ class TestAdmin(
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
