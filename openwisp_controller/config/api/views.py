@@ -107,6 +107,10 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = Device.objects.select_related('config', 'group', 'organization')
     permission_classes = ProtectedAPIMixin.permission_classes + (DevicePermission,)
 
+    def perform_destroy(self, instance):
+        force_deletion = self.request.query_params.get('force', None) == 'true'
+        instance.delete(check_deactivated=(not force_deletion))
+
 
 class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
