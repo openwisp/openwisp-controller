@@ -1,36 +1,76 @@
 {% extends "admin/delete_selected_confirmation.html" %}
 {% load i18n l10n admin_urls static %}
 
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'config/css/device-delete-confirmation.css' %}" />
+{% endblock extrastyle %}
+
 {% block content %}
 {% if perms_lacking %}
-    {% if perms_lacking|first == 'active_devices' %}
-        <p>{% blocktranslate %}You have selected the following active device{{ model_count | pluralize  }} to delete:{% endblocktranslate %}</p>
-        <ul>{{ deletable_objects|first|unordered_list }}</ul>
-        <p>{% blocktrans %}It is required to flag the device as deactivated before deleting the device. If the device has configuration, then wait till the configuration status changes to "deactivated" before deleting the device.{% endblocktrans %}</p>
-    {% else %}
-        <p>{% blocktranslate %}Deleting the selected {{ objects_name }} would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktranslate %}</p>
-        <ul>{{ perms_lacking|unordered_list }}</ul>
-    {% endif %}
+    <p>{% blocktranslate %}Deleting the selected {{ objects_name }} would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktranslate %}</p>
+    <ul>{{ perms_lacking|unordered_list }}</ul>
 {% elif protected %}
     <p>{% blocktranslate %}Deleting the selected {{ objects_name }} would require deleting the following protected related objects:{% endblocktranslate %}</p>
     <ul>{{ protected|unordered_list }}</ul>
 {% else %}
-    <p>{% blocktranslate %}Are you sure you want to delete the selected {{ objects_name }}? All of the following objects and their related items will be deleted:{% endblocktranslate %}</p>
-    {% include "admin/includes/object_delete_summary.html" %}
-    <h2>{% translate "Objects" %}</h2>
-    {% for deletable_object in deletable_objects %}
-        <ul>{{ deletable_object|unordered_list }}</ul>
-    {% endfor %}
-    <form method="post">{% csrf_token %}
-    <div>
-    {% for obj in queryset %}
-    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
-    {% endfor %}
-    <input type="hidden" name="action" value="delete_selected">
-    <input type="hidden" name="post" value="yes">
-    <input type="submit" value="{% translate 'Yes, I’m sure' %}">
-    <a href="#" class="button cancel-link">{% translate "No, take me back" %}</a>
+    {% if active_devices %}
+    <div id="deactivating-warning">
+        <ul class="messagelist">
+            <li class="warning">
+                <p>
+                    {% blocktrans count counter=active_devices|length %}
+                    The following device you selected for deletion is not deactivated
+                    (either it is active or its configuration status is still "deactivating"):
+                    {% plural %}
+                    The following devices you selected for deletion are not deactivated
+                    (either they are active or their configuration status is still "deactivating"):
+                    {% endblocktrans %}
+                </p>
+                <ul>{{ active_devices|unordered_list }}</ul>
+                <p>
+                    {% blocktranslate count counter=active_devices|length %}
+                    If you wish to remove the configuration from the device, please wait until its
+                    configuration status changes to "deactivated". Proceeding will delete the device
+                    from OpenWISP without ensuring its configuration has been removed.
+                    {% plural %}
+                    If you wish to remove the configurations from the devices, please wait until their
+                    configuration status change to "deactivated." Proceeding will delete the devices
+                    from OpenWISP without ensuring their configurations have been removed.
+                    {% endblocktranslate %}
+                </p>
+                <form>
+                    <input type="submit" class="button danger-btn" id="warning-ack"
+                        value="{% trans "I understand the risks, delete the device" %}">
+                    <a class="button cancel-link">No, take me back</a>
+                </form>
+            </li>
+        </ul>
     </div>
-    </form>
+    {% endif %}
+    <div id="delete-confirm-container" {% if active_devices %}style="display:none;"{% endif %}>
+        <p>{% blocktranslate %}Are you sure you want to delete the selected {{ objects_name }}? All of the following objects and their related items will be deleted:{% endblocktranslate %}</p>
+        {% include "admin/includes/object_delete_summary.html" %}
+        <h2>{% translate "Objects" %}</h2>
+        {% for deletable_object in deletable_objects %}
+            <ul>{{ deletable_object|unordered_list }}</ul>
+        {% endfor %}
+        <form method="post">{% csrf_token %}
+        <div>
+        {% for obj in queryset %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="delete_selected">
+        <input type="hidden" name="post" value="yes">
+        <input type="submit" value="{% translate 'Yes, I’m sure' %}">
+        <a href="#" class="button cancel-link">{% translate "No, take me back" %}</a>
+        </div>
+        </form>
+    </div>
 {% endif %}
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script type="text/javascript" src="{% static 'config/js/device-delete-confirmation.js' %}"></script>
 {% endblock %}

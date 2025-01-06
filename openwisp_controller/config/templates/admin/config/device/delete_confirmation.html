@@ -1,13 +1,9 @@
 {% extends "admin/delete_confirmation.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block extrastyle %}
 {{ block.super }}
-<style>
-#deactivating-warning .warning p {
-    margin-top: 0px;
-}
-</style>
+<link rel="stylesheet" type="text/css" href="{% static 'config/css/device-delete-confirmation.css' %}" />
 {% endblock extrastyle %}
 
 {% block delete_confirm %}
@@ -15,11 +11,11 @@
 <div id="deactivating-warning">
     <ul class="messagelist">
         <li class="warning">
-            <p>{% trans "The device is still in the deactivating state, meaning its configuration is still present on the device. If you wish to remove the configuration from the device, please wait until the config status changes to deactivated. Proceeding will delete the device from OpenWISP without ensuring its configuration has been removed." %}</p>
+            <p>{% trans 'The device is still in the deactivating state, meaning its configuration is still present on the device. If you wish to remove the configuration from the device, please wait until the config status changes to "deactivated". Proceeding will delete the device from OpenWISP without ensuring its configuration has been removed.' %}</p>
             <form>
                 <input type="submit" class="button danger-btn" id="warning-ack"
-                    value="{% trans "I understand the risks, delete the device" %}">
-                <a class="button cancel-link">No, take me back</a>
+                    value="{% trans 'I understand the risks, delete the device' %}">
+                <a class="button cancel-link">{% trans 'No, take me back' %}</a>
             </form>
         </li>
     </ul>
@@ -46,16 +42,5 @@
 
 {% block footer %}
 {{ block.super }}
-<script>
-    (function ($) {
-        $(document).ready(function () {
-            $('#warning-ack').click(function (event) {
-                event.preventDefault();
-                $('#deactivating-warning').slideUp('fast');
-                $('#delete-confirm-container').slideDown('fast');
-                $('input[name="force_delete"]').val('true');
-            });
-        })
-    })(django.jQuery);
-</script>
+<script type="text/javascript" src="{% static 'config/js/device-delete-confirmation.js' %}"></script>
 {% endblock %}
