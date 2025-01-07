@@ -19,13 +19,13 @@
         <ul class="messagelist">
             <li class="warning">
                 <p>
-                    {% blocktrans count counter=active_devices|length %}
+                    {% blocktranslate count counter=active_devices|length %}
                     The following device you selected for deletion is not deactivated
                     (either it is active or its configuration status is still "deactivating"):
                     {% plural %}
                     The following devices you selected for deletion are not deactivated
                     (either they are active or their configuration status is still "deactivating"):
-                    {% endblocktrans %}
+                    {% endblocktranslate %}
                 </p>
                 <ul>{{ active_devices|unordered_list }}</ul>
                 <p>
