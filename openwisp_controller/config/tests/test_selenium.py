@@ -132,13 +132,12 @@ class TestDeviceAdmin(
             'The Device “11:22:33:44:55:66” was added successfully.',
         )
 
-    def test_device_preview_overlay(self):
-        config = self._create_config(device=self._create_device(name='Test'))
-        config.device.full_clean()
-        config.device.save()
-        config.refresh_from_db()
+    def test_device_preview_keyboard_shortcuts(self):
+        self._create_config(device=self._create_device(name='Test'))
         self.login()
         self.open(reverse('admin:config_device_changelist'))
+
+        # open first device in the list
         self.web_driver.find_element(
             by=By.CSS_SELECTOR, value='tbody tr:nth-child(1) th a'
         ).click()
@@ -147,33 +146,33 @@ class TestDeviceAdmin(
                 EC.presence_of_element_located((By.CSS_SELECTOR, '#content-main'))
             )
         except TimeoutException:
-            self.fail("Device detail page did not load in time")
-        actions = ActionChains(self.web_driver)
-        actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
-        try:
-            WebDriverWait(self.web_driver, 2).until(
-                lambda driver: driver.find_element(
-                    By.CSS_SELECTOR, '.djnjc-overlay'
-                ).value_of_css_property('display')
-                != 'none'
-            )
-            overlay_visible = True
-        except TimeoutException:
-            overlay_visible = False
-        self.assertTrue(overlay_visible)
-        actions = ActionChains(self.web_driver)
-        actions.send_keys(Keys.ESCAPE).perform()
-        try:
-            WebDriverWait(self.web_driver, 2).until(
-                lambda driver: driver.find_element(
-                    By.CSS_SELECTOR, '.djnjc-overlay'
-                ).value_of_css_property('display')
-                == 'none'
-            )
-            overlay_closed = True
-        except TimeoutException:
-            overlay_closed = False
-        self.assertTrue(overlay_closed)
+            self.fail('Device detail page did not load in time')
+
+        with self.subTest('press ALT + P and expect overlay to be shown'):
+            actions = ActionChains(self.web_driver)
+            actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
+            try:
+                WebDriverWait(self.web_driver, 2).until(
+                    lambda driver: driver.find_element(
+                        By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)'
+                    ).value_of_css_property('display')
+                    != 'none'
+                )
+            except TimeoutException:
+                self.fail('The preview overlay is unexpectedly not visible')
+
+        with self.subTest('press ESC to close preview overlay'):
+            actions = ActionChains(self.web_driver)
+            actions.send_keys(Keys.ESCAPE).perform()
+            try:
+                WebDriverWait(self.web_driver, 2).until(
+                    lambda driver: driver.find_element(
+                        By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)'
+                    ).value_of_css_property('display')
+                    == 'none'
+                )
+            except TimeoutException:
+                self.fail('The preview overlay has not been closed as expected')
 
     def test_unsaved_changes(self):
         self.login()
