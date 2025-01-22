@@ -145,8 +145,8 @@ class TestDeviceAdmin(
             actions = ActionChains(self.web_driver)
             actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
             try:
-                WebDriverWait(self.web_driver, 2).until(
-                    EC.invisibility_of_element_located(
+                WebDriverWait(self.web_driver, 1).until(
+                    EC.visibility_of_element_located(
                         (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
                     )
                 )
@@ -157,7 +157,7 @@ class TestDeviceAdmin(
             actions = ActionChains(self.web_driver)
             actions.send_keys(Keys.ESCAPE).perform()
             try:
-                WebDriverWait(self.web_driver, 2).until(
+                WebDriverWait(self.web_driver, 1).until(
                     EC.invisibility_of_element_located(
                         (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
                     )
