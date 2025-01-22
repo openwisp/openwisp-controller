@@ -133,18 +133,11 @@ class TestDeviceAdmin(
         )
 
     def test_device_preview_keyboard_shortcuts(self):
-        self._create_config(device=self._create_device(name='Test'))
+        device = self._create_config(device=self._create_device(name='Test')).device
         self.login()
         self.open(reverse('admin:config_device_changelist'))
-
-        # open first device in the list
-        self.web_driver.find_element(
-            by=By.CSS_SELECTOR, value='tbody tr:nth-child(1) th a'
-        ).click()
         try:
-            WebDriverWait(self.web_driver, 2).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, '#content-main'))
-            )
+            self.open(reverse('admin:config_device_change', args=[device.id]))
         except TimeoutException:
             self.fail('Device detail page did not load in time')
 
@@ -153,10 +146,9 @@ class TestDeviceAdmin(
             actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
             try:
                 WebDriverWait(self.web_driver, 2).until(
-                    lambda driver: driver.find_element(
-                        By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)'
-                    ).value_of_css_property('display')
-                    != 'none'
+                    EC.invisibility_of_element_located(
+                        (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
+                    )
                 )
             except TimeoutException:
                 self.fail('The preview overlay is unexpectedly not visible')
@@ -166,10 +158,9 @@ class TestDeviceAdmin(
             actions.send_keys(Keys.ESCAPE).perform()
             try:
                 WebDriverWait(self.web_driver, 2).until(
-                    lambda driver: driver.find_element(
-                        By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)'
-                    ).value_of_css_property('display')
-                    == 'none'
+                    EC.invisibility_of_element_located(
+                        (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
+                    )
                 )
             except TimeoutException:
                 self.fail('The preview overlay has not been closed as expected')
