@@ -1,122 +1,222 @@
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group{ margin-top: 15px }
-.jsoneditor-wrapper div.jsoneditor .grid-row:first-child > .inline-group{ margin-top: 0 }
-.form-row.field-config{ display: none }
-.form-row.field-config .advanced-mode{ display: none }
-.jsoneditor-wrapper div.jsoneditor-wrapper > fieldset{
+.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group {
+  margin-top: 15px;
+}
+.jsoneditor-wrapper div.jsoneditor .grid-row:first-child > .inline-group {
+  margin-top: 0;
+}
+.form-row.field-config {
+  display: none;
+}
+.form-row.field-config .advanced-mode {
+  display: none;
+}
+.jsoneditor-wrapper div.jsoneditor-wrapper > fieldset {
   margin-bottom: 0;
   border-bottom: 1px solid #eee;
 }
-.jsoneditor-wrapper div.jsoneditor-wrapper h2{ padding: 18px }
-input.deletelink{ background: #ba2121 }
+.jsoneditor-wrapper div.jsoneditor-wrapper h2 {
+  padding: 18px;
+}
+input.deletelink {
+  background: #ba2121;
+}
 input.deletelink:hover,
-input.deletelink:focus{ background: #a41515 }
+input.deletelink:focus {
+  background: #a41515;
+}
 .jsoneditor-wrapper div.jsoneditor input.button,
 .jsoneditor-wrapper div.jsoneditor input.deletelink,
-.form-row .json-editor-btn-edit{
+.form-row .json-editor-btn-edit {
   margin-left: 10px;
   margin-right: 5px;
   padding: 6px 12px;
 }
-a.json-editor-btn-edit{
+a.json-editor-btn-edit {
   margin-left: 10px;
   padding: 6px 12px;
   color: #ffffff;
 }
 
-.form-row .json-editor-btn-edit{ margin-bottom: 10px !important }
-#main .jsoneditor-wrapper div.jsoneditor .form-row{ padding: 15px 15px 15px 0 }
-.jsoneditor-wrapper div.jsoneditor label{ margin-left: 20px }
-.jsoneditor-wrapper div.jsoneditor .form-row:last-child{ border-bottom-width: 0 }
-.jsoneditor-wrapper div.jsoneditor .inline-group{
+.form-row .json-editor-btn-edit {
+  margin-bottom: 10px !important;
+}
+#main .jsoneditor-wrapper div.jsoneditor .form-row {
+  padding: 15px 15px 15px 0;
+}
+.jsoneditor-wrapper div.jsoneditor label {
+  margin-left: 20px;
+}
+.jsoneditor-wrapper div.jsoneditor .form-row:last-child {
+  border-bottom-width: 0;
+}
+.jsoneditor-wrapper div.jsoneditor .inline-group {
   clear: both;
   margin: 0;
   border: 1px solid #eee;
 }
 
 /* avoid redundant borders */
-.jsoneditor-wrapper div.jsoneditor .inline-group > .inline-related > .grid-container > div > .grid-row > .grid-column > div > .inline-group,
-.jsoneditor-wrapper div.jsoneditor .inline-group > .inline-related > .grid-container > div > .inline-group{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .inline-group
+  > .inline-related
+  > .grid-container
+  > div
+  > .grid-row
+  > .grid-column
+  > div
+  > .inline-group,
+.jsoneditor-wrapper
+  div.jsoneditor
+  .inline-group
+  > .inline-related
+  > .grid-container
+  > div
+  > .inline-group {
   border: 0 none;
 }
 
 /* advanced mode and object properties */
-.jsoneditor-wrapper div.jsoneditor > div > h3.controls{
+.jsoneditor-wrapper div.jsoneditor > div > h3.controls {
   padding: 12px 0;
   margin: 0;
 }
-.jsoneditor-wrapper div.jsoneditor > div > h3.controls .button{ margin: 0 13px }
-.jsoneditor-wrapper div.jsoneditor  div[data-schematype="array"] > .inline-related > div > .inline-related,
-.jsoneditor-wrapper div.jsoneditor  div[data-schematype="array"] > .inline-related > div > .inline-group{
+.jsoneditor-wrapper div.jsoneditor > div > h3.controls .button {
+  margin: 0 13px;
+}
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schematype="array"]
+  > .inline-related
+  > div
+  > .inline-related,
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schematype="array"]
+  > .inline-related
+  > div
+  > .inline-group {
   margin: 20px;
 }
-.jsoneditor-wrapper div.jsoneditor  div[data-schematype="array"] > .inline-related > div > .inline-related:last-child,
-.jsoneditor-wrapper div.jsoneditor  div[data-schematype="array"] > .inline-related > div > .inline-group:last-child{
-  margin-bottom: 0
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schematype="array"]
+  > .inline-related
+  > div
+  > .inline-related:last-child,
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schematype="array"]
+  > .inline-related
+  > div
+  > .inline-group:last-child {
+  margin-bottom: 0;
 }
-.jsoneditor-wrapper div.jsoneditor  div[data-schematype="array"] > .inline-related > div > .inline-related[data-schematype="string"]{
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schematype="array"]
+  > .inline-related
+  > div
+  > .inline-related[data-schematype="string"] {
   margin: 0;
 }
-.jsoneditor-wrapper div.jsoneditor div[data-schemapath="root.interfaces"] > div > div > div {
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schemapath="root.interfaces"]
+  > div
+  > div
+  > div {
   border-bottom: 2px dotted #ccc;
 }
 
-.jsoneditor-wrapper div.jsoneditor div.control{ margin: 15px 0 }
-.jsoneditor-wrapper div.jsoneditor h3{
+.jsoneditor-wrapper div.jsoneditor div.control {
+  margin: 15px 0;
+}
+.jsoneditor-wrapper div.jsoneditor h3 {
   height: 56px;
   line-height: 55px;
   padding: 0 12px 0 15px;
   overflow: hidden;
 }
-.jsoneditor-wrapper div.jsoneditor h3 span{
+.jsoneditor-wrapper div.jsoneditor h3 span {
   display: inline-block;
   margin-right: 15px;
   line-height: 0;
 }
-.jsoneditor-wrapper div.jsoneditor h3 span.control{
+.jsoneditor-wrapper div.jsoneditor h3 span.control {
   margin-top: 12px;
   float: right;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-column > h3{
+.jsoneditor-wrapper div.jsoneditor .grid-column > h3 {
   border: 0 none;
   outline: 1px solid #eee;
 }
 
-span.control input{ margin: 0 0 0 15px }
-.jsoneditor-wrapper div.jsoneditor span.control{
+span.control input {
+  margin: 0 0 0 15px;
+}
+.jsoneditor-wrapper div.jsoneditor span.control {
   padding: 0;
   margin-right: 0;
 }
-.jsoneditor-wrapper div.jsoneditor div[data-schemapath="root.interfaces"] > div > div > div {
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schemapath="root.interfaces"]
+  > div
+  > div
+  > div {
   border-bottom: 2px dotted #ccc;
   padding-bottom: 20px;
   margin-bottom: 22px !important;
 }
-.jsoneditor-wrapper div.jsoneditor div[data-schemapath="root.interfaces"] > div > div > div:last-child {
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schemapath="root.interfaces"]
+  > div
+  > div
+  > div:last-child {
   margin-bottom: 0 !important;
 }
-.jsoneditor-wrapper div.jsoneditor div[data-schemapath="root.interfaces"] > div > div > div > .control{
+.jsoneditor-wrapper
+  div.jsoneditor
+  div[data-schemapath="root.interfaces"]
+  > div
+  > div
+  > div
+  > .control {
   margin-bottom: 0;
 }
-div[data-schematype="array"] > div > div >
-div[data-schematype="string"].inline-related .control{
+div[data-schematype="array"]
+  > div
+  > div
+  > div[data-schematype="string"].inline-related
+  .control {
   margin: -49px 10px 0;
   float: right;
   clear: both;
 }
-div[data-schematype="array"] > div > div >
-div[data-schematype="string"].inline-related{ padding: 0 !important }
+div[data-schematype="array"]
+  > div
+  > div
+  > div[data-schematype="string"].inline-related {
+  padding: 0 !important;
+}
 
 /* hide empty divs */
-.jsoneditor-wrapper div.jsoneditor div:empty{ display: none !important }
+.jsoneditor-wrapper div.jsoneditor div:empty {
+  display: none !important;
+}
 
 /* begin custom properties adjustments */
-.jsoneditor-wrapper div.jsoneditor .inline-group{ margin-bottom: 0 }
+.jsoneditor-wrapper div.jsoneditor .inline-group {
+  margin-bottom: 0;
+}
 .jsoneditor-wrapper div.jsoneditor .inline-group > label,
-.jsoneditor-wrapper div.jsoneditor .inline-group > select{
+.jsoneditor-wrapper div.jsoneditor .inline-group > select {
   vertical-align: top;
   margin: 15px 0 10px 15px;
 }
-.jsoneditor-wrapper div.jsoneditor .inline-group > label{
+.jsoneditor-wrapper div.jsoneditor .inline-group > label {
   font-style: italic;
   display: inline-block;
   clear: both;
@@ -124,48 +224,133 @@ div[data-schematype="string"].inline-related{ padding: 0 !important }
   margin-left: 15px;
   margin-bottom: 0;
 }
-.inline-group[data-schematype="object"] > .inline-related > .grid-container >
-div > .grid-row > .inline-group > div > .inline-group{
+.inline-group[data-schematype="object"]
+  > .inline-related
+  > .grid-container
+  > div
+  > .grid-row
+  > .inline-group
+  > div
+  > .inline-group {
   border: 0 none !important;
 }
-div[data-schematype="object"] > .inline-related > .grid-container >
-div > .grid-row > .inline-group {
+div[data-schematype="object"]
+  > .inline-related
+  > .grid-container
+  > div
+  > .grid-row
+  > .inline-group {
   border-bottom: 1px solid #eee;
 }
-.grid-row > .inline-group > div > .inline-group > div.form-row{
+.grid-row > .inline-group > div > .inline-group > div.form-row {
   border: 0 none;
   padding: 0;
   margin: 0 0 15px 15px;
 }
-div[data-schematype="object"] > .inline-related > .grid-container > div >
-.grid-row > .inline-group > div > div{
+div[data-schematype="object"]
+  > .inline-related
+  > .grid-container
+  > div
+  > .grid-row
+  > .inline-group
+  > div
+  > div {
   border: 0 none;
 }
-.jsoneditor-wrapper div.jsoneditor > div > .inline-related > .grid-container > div > .grid-row >
-.inline-group > div {
+.jsoneditor-wrapper
+  div.jsoneditor
+  > div
+  > .inline-related
+  > .grid-container
+  > div
+  > .grid-row
+  > .inline-group
+  > div {
   display: block;
 }
 
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group > div > .inline-group > h3 span{ display: inline-block !important }
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group > div > .inline-group > .inline-related > div > .inline-related > label,
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group > div > .inline-group > .inline-related > div > .inline-related > select{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-row
+  > .inline-group
+  > div
+  > .inline-group
+  > h3
+  span {
+  display: inline-block !important;
+}
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-row
+  > .inline-group
+  > div
+  > .inline-group
+  > .inline-related
+  > div
+  > .inline-related
+  > label,
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-row
+  > .inline-group
+  > div
+  > .inline-group
+  > .inline-related
+  > div
+  > .inline-related
+  > select {
   position: static;
   margin-bottom: 15px;
   margin-left: 0;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group > div > .inline-group > .inline-related > div > .inline-related
-.grid-row > .inline-group{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-row
+  > .inline-group
+  > div
+  > .inline-group
+  > .inline-related
+  > div
+  > .inline-related
+  .grid-row
+  > .inline-group {
   border-top: 0 none;
   border-left: 0 none;
   border-right: 0 none;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group > div > .inline-group > .inline-related > div > .inline-related
-.inline-group[data-schematype="array"] .inline-related > div > .inline-related > div > .inline-group .form-row{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-row
+  > .inline-group
+  > div
+  > .inline-group
+  > .inline-related
+  > div
+  > .inline-related
+  .inline-group[data-schematype="array"]
+  .inline-related
+  > div
+  > .inline-related
+  > div
+  > .inline-group
+  .form-row {
   margin-left: 15px;
   border: 0 none;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-row > .inline-group > div > .inline-group > .inline-related > div > .inline-related
-.inline-group[data-schematype="array"] .inline-related > div > .inline-related .deletelink{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-row
+  > .inline-group
+  > div
+  > .inline-group
+  > .inline-related
+  > div
+  > .inline-related
+  .inline-group[data-schematype="array"]
+  .inline-related
+  > div
+  > .inline-related
+  .deletelink {
   margin-left: 0;
 }
 
@@ -175,7 +360,7 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
 .jsoneditor-wrapper div.jsoneditor .inline-related > label,
 .jsoneditor-wrapper div.jsoneditor .inline-related > select,
 .jsoneditor-wrapper div.jsoneditor .grid-column > label,
-.jsoneditor-wrapper div.jsoneditor .grid-column > select{
+.jsoneditor-wrapper div.jsoneditor .grid-column > select {
   position: absolute;
   left: 0;
   top: 12px;
@@ -183,15 +368,17 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
   font-weight: bold;
 }
 .jsoneditor-wrapper div.jsoneditor .inline-related > select,
-.jsoneditor-wrapper div.jsoneditor .grid-column > select{
+.jsoneditor-wrapper div.jsoneditor .grid-column > select {
   margin-left: 188px;
   background-color: #fff;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-row .grid-column{ position: relative }
-.jsoneditor-wrapper .grid-column[data-schemapath="root.files"]{
+.jsoneditor-wrapper div.jsoneditor .grid-row .grid-column {
+  position: relative;
+}
+.jsoneditor-wrapper .grid-column[data-schemapath="root.files"] {
   margin-top: 15px;
 }
-.jsoneditor-wrapper div.jsoneditor .modal{
+.jsoneditor-wrapper div.jsoneditor .modal {
   position: absolute;
   z-index: 10;
   background-color: white;
@@ -202,79 +389,101 @@ div[data-schematype="object"] > .inline-related > .grid-container > div >
 }
 
 /* header */
-.jsoneditor-wrapper div.jsoneditor .advanced-mode{ margin-top: -4px !important }
-.normal-mode{ float: right }
-.jsoneditor-wrapper div.jsoneditor > div > h3.controls{ text-align: right }
-.jsoneditor-wrapper div.jsoneditor > div > h3.controls > .control{ float: left }
+.jsoneditor-wrapper div.jsoneditor .advanced-mode {
+  margin-top: -4px !important;
+}
+.normal-mode {
+  float: right;
+}
+.jsoneditor-wrapper div.jsoneditor > div > h3.controls {
+  text-align: right;
+}
+.jsoneditor-wrapper div.jsoneditor > div > h3.controls > .control {
+  float: left;
+}
 
 /* configuration menu modal */
-.jsoneditor-wrapper div.jsoneditor > div > h3.controls > .control > .modal{
+.jsoneditor-wrapper div.jsoneditor > div > h3.controls > .control > .modal {
   margin-left: 0;
   width: auto;
 }
-.jsoneditor-wrapper div.jsoneditor .modal .vTextField[type=text],
-.jsoneditor-wrapper div.jsoneditor .modal .button{
+.jsoneditor-wrapper div.jsoneditor .modal .vTextField[type="text"],
+.jsoneditor-wrapper div.jsoneditor .modal .button {
   margin-top: 12px !important;
-  margin-bottom: 3px !important
+  margin-bottom: 3px !important;
 }
 
-.jsoneditor-wrapper div.jsoneditor input[type=checkbox]{ margin-right: 7px }
-.jsoneditor-wrapper div.jsoneditor textarea{
-  min-width: 75%;
-  min-height: 330px
+.jsoneditor-wrapper div.jsoneditor input[type="checkbox"] {
+  margin-right: 7px;
 }
-.jsoneditor-wrapper div.jsoneditor .modal textarea{
+.jsoneditor-wrapper div.jsoneditor textarea {
+  min-width: 75%;
+  min-height: 330px;
+}
+.jsoneditor-wrapper div.jsoneditor .modal textarea {
   margin-bottom: 10px;
   min-width: 450px;
 }
-.jsoneditor-wrapper div.jsoneditor .modal label{ margin-left: 5px }
-.jsoneditor-wrapper div.jsoneditor .property-selector{
+.jsoneditor-wrapper div.jsoneditor .modal label {
+  margin-left: 5px;
+}
+.jsoneditor-wrapper div.jsoneditor .property-selector {
   max-height: 240px !important;
   width: auto !important;
 }
-.jsoneditor-wrapper div.jsoneditor .property-selector{
+.jsoneditor-wrapper div.jsoneditor .property-selector {
   padding: 10px !important;
 }
-.jsoneditor-wrapper div.jsoneditor .property-selector input{
-  margin: 0 8px 0 0
+.jsoneditor-wrapper div.jsoneditor .property-selector input {
+  margin: 0 8px 0 0;
 }
-.jsoneditor-wrapper div.jsoneditor .property-selector .form-row{
-  padding: 2px 10px !important
+.jsoneditor-wrapper div.jsoneditor .property-selector .form-row {
+  padding: 2px 10px !important;
 }
-.jsoneditor-wrapper div.jsoneditor .errorlist{
+.jsoneditor-wrapper div.jsoneditor .errorlist {
   margin-top: 3px;
   margin-left: 181px;
 }
-#content .jsoneditor-wrapper div.jsoneditor div.form-row > .help{
+#content .jsoneditor-wrapper div.jsoneditor div.form-row > .help {
   margin-left: 181px;
   margin-top: 4px;
   color: #888;
 }
 #content .jsoneditor-wrapper div.jsoneditor .inline-group > .help,
-#content .jsoneditor-wrapper div.jsoneditor .grid-column > .help{
+#content .jsoneditor-wrapper div.jsoneditor .grid-column > .help {
   padding: 20px 15px 20px 18px;
   margin: 0;
   border-bottom: 1px solid #eee;
 }
 
-#content .jsoneditor-wrapper div.jsoneditor .modal label{ width: auto }
-#content .jsoneditor-wrapper div.jsoneditor div.grid-column[data-schematype="boolean"] label{
+#content .jsoneditor-wrapper div.jsoneditor .modal label {
+  width: auto;
+}
+#content
+  .jsoneditor-wrapper
+  div.jsoneditor
+  div.grid-column[data-schematype="boolean"]
+  label {
   float: left;
 }
-#content .jsoneditor-wrapper div.jsoneditor div.grid-column[data-schematype="boolean"] .help{
+#content
+  .jsoneditor-wrapper
+  div.jsoneditor
+  div.grid-column[data-schematype="boolean"]
+  .help {
   float: left;
   clear: none;
   margin: 0;
 }
 #id_config_jsoneditor,
-#id_config-0-config_jsoneditor{
+#id_config-0-config_jsoneditor {
   border: 0px !important;
   height: auto !important;
 }
 
 /* support django admin inline */
 
-div.jsoneditor > div > h3.controls{
+div.jsoneditor > div > h3.controls {
   background: transparent !important;
 }
 #main div.jsoneditor .inline-related h3 {
@@ -286,17 +495,31 @@ div.jsoneditor > div > h3.controls{
   padding-bottom: 0;
 }
 
-#config-0.inline-related{ position: static }
+#config-0.inline-related {
+  position: static;
+}
 .jsoneditor-wrapper div[data-schemaid="root"] > label:first-of-type,
 .jsoneditor-wrapper div[data-schemaid="root"] > select:first-of-type {
   position: relative;
   bottom: -52px;
   z-index: 99;
 }
-.jsoneditor-wrapper div.jsoneditor .inline-related > .grid-container > div > .grid-row > .grid-column > select.switcher{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .inline-related
+  > .grid-container
+  > div
+  > .grid-row
+  > .grid-column
+  > select.switcher {
   top: 15px;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-container .grid-row > .grid-column[data-schematype="object"] > select.switcher{
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-container
+  .grid-row
+  > .grid-column[data-schematype="object"]
+  > select.switcher {
   top: 11px !important;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row > .grid-column > label {
@@ -305,17 +528,31 @@ div.jsoneditor > div > h3.controls{
 .jsoneditor-wrapper div.jsoneditor .inline-group > .form-row > label {
   display: block !important;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-column > div > .inline-group > .form-row > .vTextField {
-  padding-left: 100px !important
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-column
+  > div
+  > .inline-group
+  > .form-row
+  > .vTextField {
+  padding-left: 100px !important;
 }
-.jsoneditor-wrapper div.jsoneditor .grid-column > div > .inline-group[data-schemapath="root.vxlan.0.vni"] > .form-row > .vTextField {
+.jsoneditor-wrapper
+  div.jsoneditor
+  .grid-column
+  > div
+  > .inline-group[data-schemapath="root.vxlan.0.vni"]
+  > .form-row
+  > .vTextField {
   padding: 8px 12px !important;
   margin-top: 45px;
   margin-left: -2px;
 }
-.jsoneditor-wrapper div[data-schemapath^="root.radios"][data-schemapath$=".hwmode"] {
+.jsoneditor-wrapper
+  div[data-schemapath^="root.radios"][data-schemapath$=".hwmode"] {
   display: none;
 }
-.jsoneditor-wrapper div[data-schemapath^="root.radios"][data-schemapath$=".band"] {
+.jsoneditor-wrapper
+  div[data-schemapath^="root.radios"][data-schemapath$=".band"] {
   display: none;
 }
