@@ -6,8 +6,10 @@ from selenium.common.exceptions import (
     TimeoutException,
     UnexpectedAlertPresentException,
 )
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
@@ -129,6 +131,39 @@ class TestDeviceAdmin(
             self.web_driver.find_elements(by=By.CLASS_NAME, value='success')[0].text,
             'The Device “11:22:33:44:55:66” was added successfully.',
         )
+
+    def test_device_preview_keyboard_shortcuts(self):
+        device = self._create_config(device=self._create_device(name='Test')).device
+        self.login()
+        self.open(reverse('admin:config_device_changelist'))
+        try:
+            self.open(reverse('admin:config_device_change', args=[device.id]))
+        except TimeoutException:
+            self.fail('Device detail page did not load in time')
+
+        with self.subTest('press ALT + P and expect overlay to be shown'):
+            actions = ActionChains(self.web_driver)
+            actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
+            try:
+                WebDriverWait(self.web_driver, 1).until(
+                    EC.visibility_of_element_located(
+                        (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
+                    )
+                )
+            except TimeoutException:
+                self.fail('The preview overlay is unexpectedly not visible')
+
+        with self.subTest('press ESC to close preview overlay'):
+            actions = ActionChains(self.web_driver)
+            actions.send_keys(Keys.ESCAPE).perform()
+            try:
+                WebDriverWait(self.web_driver, 1).until(
+                    EC.invisibility_of_element_located(
+                        (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
+                    )
+                )
+            except TimeoutException:
+                self.fail('The preview overlay has not been closed as expected')
 
     def test_unsaved_changes(self):
         self.login()
