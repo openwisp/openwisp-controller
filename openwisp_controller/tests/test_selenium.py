@@ -18,16 +18,18 @@ from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 Device = load_model('config', 'Device')
 DeviceConnection = load_model('connection', 'DeviceConnection')
 Location = load_model('geo', 'Location')
+FloorPlan = load_model('geo', 'FloorPlan')
 DeviceLocation = load_model('geo', 'DeviceLocation')
 
 
 @tag('selenium_tests')
-class TestDeviceConnectionInlineAdmin(
+class TestDevice(
     CreateConnectionsMixin, TestGeoMixin, SeleniumTestMixin, StaticLiveServerTestCase
 ):
     config_app_label = 'config'
     location_model = Location
     object_location_model = DeviceLocation
+    floorplan_model = FloorPlan
 
     def setUp(self):
         self.admin = self._create_admin(
@@ -40,10 +42,14 @@ class TestDeviceConnectionInlineAdmin(
         self._create_credentials(auto_add=True, organization=org)
         config = self._create_config(organization=org)
         device = config.device
+
+        location = self._create_location(organization=org, type='indoor')
+        floorplan = self._create_floorplan(
+            location=location,
+        )
         self._create_object_location(
-            location=self._create_location(
-                organization=org,
-            ),
+            location=location,
+            floorplan=floorplan,
             content_object=device,
         )
         self.assertEqual(device.deviceconnection_set.count(), 1)
@@ -59,9 +65,13 @@ class TestDeviceConnectionInlineAdmin(
         self.web_driver.find_element(
             by=By.XPATH, value='//*[@id="content"]/form/div/input[2]'
         ).click()
+        # Delete location object
+        location.delete()
         self.assertEqual(Device.objects.count(), 0)
         self.assertEqual(DeviceConnection.objects.count(), 0)
         self.assertEqual(DeviceLocation.objects.count(), 0)
+        self.assertEqual(self.location_model.objects.count(), 0)
+        self.assertEqual(self.floorplan_model.objects.count(), 0)
 
         version_obj = Version.objects.get_deleted(model=Device).first()
 
@@ -94,3 +104,8 @@ class TestDeviceConnectionInlineAdmin(
         self.assertEqual(Device.objects.count(), 1)
         self.assertEqual(DeviceConnection.objects.count(), 1)
         self.assertEqual(DeviceLocation.objects.count(), 1)
+        self.assertEqual(self.location_model.objects.count(), 1)
+        # The FloorPlan object is not recoverable because deleting it
+        # also removes the associated image from the filesystem,
+        # which cannot be restored.
+        self.assertEqual(self.floorplan_model.objects.count(), 0)
