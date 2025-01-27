@@ -36,3 +36,9 @@ scheduled to be removed from the device.
 The device has been deactivated. The configuration applied through
 OpenWISP has been removed, and any other operation to manage the device
 will be prevented or rejected.
+
+.. note::
+
+    If a device becomes unreachable (e.g., lost, stolen, or decommissioned)
+    before it can be properly deactivated, you can remove it from OpenWISP
+    by deleting the device from the system.
