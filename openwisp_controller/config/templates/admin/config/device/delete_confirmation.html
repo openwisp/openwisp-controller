@@ -26,7 +26,26 @@
     <div id="deactivating-warning">
         <ul class="messagelist">
             <li class="warning">
-                <p>{% translate 'The device is still in the deactivating state, meaning its configuration is still present on the device. If you wish to remove the configuration from the device, please wait until the config status changes to "deactivated". Proceeding will delete the device from OpenWISP without ensuring its configuration has been removed.' %}</p>
+                <p>
+                  <strong>
+                    {% translate 'Warning: Device is not fully deactivated.' %}
+                  </strong>
+                </p>
+                <p>
+                  {% blocktranslate %}
+                  This device is still in the process of being deactivated,
+                  meaning its configuration is still present on the device.
+                  {% endblocktranslate %}
+                </p>
+                <p>
+                  {% blocktranslate %}
+                  To ensure its configuration is removed, please
+                  wait until its status changes to
+                  <strong>"deactivated"</strong>.<br>
+                  If you proceed now, the device will be deleted,
+                  but its configuration will remain active.
+                  {% endblocktranslate %}
+                </p>
                 <form>
                     <input type="submit" class="button danger-btn" id="warning-ack"
                         value="{% translate 'I understand the risks, delete the device' %}">
