@@ -19,30 +19,41 @@
         <ul class="messagelist">
             <li class="warning">
                 <p>
+                  <strong>
                     {% blocktranslate count counter=active_devices|length %}
-                    The following device you selected for deletion is not deactivated
-                    (either it is active or its configuration status is still "deactivating"):
+                    Warning: Device is not fully deactivated.
                     {% plural %}
-                    The following devices you selected for deletion are not deactivated
-                    (either they are active or their configuration status is still "deactivating"):
+                    Warning: Some devices are not fully deactivated.
+                    {% endblocktranslate %}
+                  </strong>
+                </p>
+                <p>
+                    {% blocktranslate count counter=active_devices|length %}
+                    The device below is either still active or
+                    in the process of being deactivated:
+                    {% plural %}
+                    The devices listed below are either still active
+                    or in the process of being deactivated:
                     {% endblocktranslate %}
                 </p>
                 <ul>{{ active_devices|unordered_list }}</ul>
                 <p>
                     {% blocktranslate count counter=active_devices|length %}
-                    If you wish to remove the configuration from the device, please wait until its
-                    configuration status changes to "deactivated". Proceeding will delete the device
-                    from OpenWISP without ensuring its configuration has been removed.
+                    To ensure its configuration is removed, please
+                    wait until its status changes to <strong>"deactivated"</strong>.<br>
+                    If you proceed now, the device will be deleted,
+                    but its configuration will remain active.
                     {% plural %}
-                    If you wish to remove the configurations from the devices, please wait until their
-                    configuration status change to "deactivated." Proceeding will delete the devices
-                    from OpenWISP without ensuring their configurations have been removed.
+                    To ensure their configurations are removed, please
+                    wait until their status changes to <strong>"deactivated"</strong>.<br>
+                    If you proceed now, the devices will be deleted,
+                    but their configurations will remain active.
                     {% endblocktranslate %}
                 </p>
                 <form>
                     <input type="submit" class="button danger-btn" id="warning-ack"
                         value="{% blocktranslate count counter=active_devices|length %}I understand the risks, delete the device{% plural %}I understand the risks, delete the devices{% endblocktranslate %}">
-                    <a class="button cancel-link">No, take me back</a>
+                    <a class="button cancel-link">{% translate "No, take me back" %}</a>
                 </form>
             </li>
         </ul>
