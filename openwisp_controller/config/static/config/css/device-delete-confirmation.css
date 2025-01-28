@@ -6,3 +6,6 @@
   padding: 0px;
   background: inherit;
 }
+ul.messagelist li {
+  font-size: unset;
+}

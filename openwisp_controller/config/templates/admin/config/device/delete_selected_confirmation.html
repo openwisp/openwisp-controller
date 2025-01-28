@@ -41,7 +41,7 @@
                 </p>
                 <form>
                     <input type="submit" class="button danger-btn" id="warning-ack"
-                        value="{% trans "I understand the risks, delete the device" %}">
+                        value="{% blocktranslate count counter=active_devices|length %}I understand the risks, delete the device{% plural %}I understand the risks, delete the devices{% endblocktranslate %}">
                     <a class="button cancel-link">No, take me back</a>
                 </form>
             </li>
