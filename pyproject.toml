@@ -1,7 +1,7 @@
 [tool.coverage.run]
 source = ["openwisp_controller"]
 parallel = true
-concurrency = ["multiprocessing"]
+concurrency = ["multiprocessing", "thread"]
 omit = [
     "openwisp_controller/__init__.py",
     "*/tests/*",

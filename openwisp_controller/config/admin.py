@@ -1,11 +1,13 @@
 import json
 import logging
+from collections.abc import Iterable
 
 import reversion
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
+from django.contrib.admin.actions import delete_selected
 from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import (
@@ -566,8 +568,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         perm = super().has_delete_permission(request)
         if not obj:
             return perm
-        if obj._has_config():
-            perm = perm and obj.config.is_deactivated()
         return perm and obj.is_deactivated()
 
     def save_form(self, request, form, change):
@@ -765,22 +765,42 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def activate_device(self, request, queryset):
         self._change_device_status(request, queryset, 'activate')
 
-    def get_deleted_objects(self, objs, request, *args, **kwargs):
-        # Ensure that all selected devices can be deleted, i.e.
-        # the device should be flagged as deactivated and if it has
-        # a config object, it's status should be "deactivated".
-        active_devices = []
-        for obj in objs:
-            if not self.has_delete_permission(request, obj):
-                active_devices.append(obj)
-        if active_devices:
-            return (
-                active_devices,
-                {self.model._meta.verbose_name_plural: len(active_devices)},
-                ['active_devices'],
-                [],
+    @admin.action(description=delete_selected.short_description, permissions=['delete'])
+    def delete_selected(self, request, queryset):
+        response = delete_selected(self, request, queryset)
+        if not response:
+            return response
+        if 'active_devices' in response.context_data.get('perms_lacking', {}):
+            active_devices = []
+            for device in queryset.iterator():
+                if not device.is_deactivated() or (
+                    device._has_config() and not device.config.is_deactivated()
+                ):
+                    active_devices.append(self._get_device_path(device))
+            response.context_data.update(
+                {
+                    'active_devices': active_devices,
+                    'perms_lacking': set(),
+                    'title': _('Are you sure?'),
+                }
             )
-        return super().get_deleted_objects(objs, request, *args, **kwargs)
+        return response
+
+    def get_deleted_objects(self, objs, request, *args, **kwargs):
+        to_delete, model_count, perms_needed, protected = super().get_deleted_objects(
+            objs, request, *args, **kwargs
+        )
+        if (
+            isinstance(perms_needed, Iterable)
+            and len(perms_needed) == 1
+            and list(perms_needed)[0] == self.model._meta.verbose_name
+            and objs.filter(_is_deactivated=False).exists()
+        ):
+            if request.POST.get("post"):
+                perms_needed = set()
+            else:
+                perms_needed = {'active_devices'}
+        return to_delete, model_count, perms_needed, protected
 
     def get_fields(self, request, obj=None):
         """
@@ -899,6 +919,17 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def recover_view(self, request, version_id, extra_context=None):
         request._recover_view = True
         return super().recover_view(request, version_id, extra_context)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj and obj._has_config() and not obj.config.is_deactivated():
+            extra_context['deactivating_warning'] = True
+        return super().delete_view(request, object_id, extra_context)
+
+    def delete_model(self, request, obj):
+        force_delete = request.POST.get('force_delete') == 'true'
+        obj.delete(check_deactivated=not force_delete)
 
     def get_inlines(self, request, obj):
         inlines = super().get_inlines(request, obj)

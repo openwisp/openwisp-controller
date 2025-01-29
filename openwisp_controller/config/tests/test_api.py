@@ -539,6 +539,22 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 204)
             self.assertEqual(Device.objects.count(), 0)
 
+    def test_deactivating_device_force_deletion(self):
+        self._create_template(required=True)
+        device = self._create_device()
+        config = self._create_config(device=device)
+        device.deactivate()
+        path = reverse('config_api:device_detail', args=[device.pk])
+
+        with self.subTest(
+            'Test force deleting device with config in deactivating state'
+        ):
+            self.assertEqual(device.is_deactivated(), True)
+            self.assertEqual(config.is_deactivating(), True)
+            response = self.client.delete(f'{path}?force=true')
+            self.assertEqual(response.status_code, 204)
+            self.assertEqual(Device.objects.count(), 0)
+
     def test_template_create_no_org_api(self):
         self.assertEqual(Template.objects.count(), 0)
         path = reverse('config_api:template_list')

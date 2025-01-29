@@ -1,0 +1,11 @@
+#deactivating-warning .warning p {
+  margin-top: 0px;
+}
+#main ul.messagelist li.warning ul li {
+  display: list-item;
+  padding: 0px;
+  background: inherit;
+}
+ul.messagelist li {
+  font-size: unset;
+}
