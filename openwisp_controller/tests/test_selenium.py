@@ -63,7 +63,7 @@ class TestDevice(
             reverse(f'admin:{self.config_app_label}_device_delete', args=[device.id])
         )
         self.web_driver.find_element(
-            by=By.XPATH, value='//*[@id="content"]/form/div/input[2]'
+            by=By.CSS_SELECTOR, value='#content form input[type="submit"]'
         ).click()
         # Delete location object
         location.delete()
