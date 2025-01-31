@@ -6,6 +6,23 @@ Version 1.2.0 [Unreleased]
 
 Work in progress.
 
+Version 1.1.1 [2025-01-31]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `recovering deleted device with related location
+  <https://github.com/openwisp/openwisp-controller/issues/936>`__.
+- Fixed `deleting device with “deactivating” config status
+  <https://github.com/openwisp/openwisp-controller/issues/949>`__.
+- Fixed `conversion of MAC address to uppercase format
+  <https://github.com/openwisp/openwisp-controller/issues/922>`__ with the
+  openwisp-config agent.
+- Fixed `updating templates with invalid configurations to prevent
+  ValidationError due to cache invalidation mechanism
+  <https://github.com/openwisp/openwisp-controller/pull/948>`__.
+
 Version 1.1.0 [2024-11-22]
 --------------------------
 
