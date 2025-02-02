@@ -2120,9 +2120,8 @@ class TestTransactionAdmin(
         )
         # Save buttons are absent on deactivated device
         self.assertNotContains(response, self._save_btn_html)
-        # Delete button is not present if config status is deactivating
         self.assertEqual(device.config.status, 'deactivating')
-        self.assertNotContains(response, delete_btn_html)
+        self.assertContains(response, delete_btn_html)
         self.assertNotContains(response, self._deactivate_btn_html)
         self.assertContains(response, self._activate_btn_html)
         # Verify adding a new DeviceLocation and DeviceConnection is not allowed

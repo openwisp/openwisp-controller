@@ -64,7 +64,7 @@ Install development dependencies:
 
     pip install -e .
     pip install -r requirements-test.txt
-    sudo npm install -g jshint stylelint
+    sudo npm install -g prettier
 
 Install WebDriver for Chromium for your browser version from
 https://chromedriver.chromium.org/home and Extract ``chromedriver`` to one

@@ -34,7 +34,8 @@ class TestMultitenantAdmin(BaseTestMultitenantAdmin):
 class TestUsers(BaseTestUsers):
     # This task access the organizations_dict when user is created.
     # This makes the test fail because the cache is already populated.
-    @patch('openwisp_notifications.tasks.update_superuser_notification_settings')
+    @patch('openwisp_notifications.tasks.create_superuser_notification_settings')
+    @patch('openwisp_notifications.tasks.superuser_demoted_notification_setting')
     def test_organizations_dict_cache(self, *args):
         super().test_organizations_dict_cache()
 

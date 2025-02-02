@@ -6,14 +6,19 @@ from selenium.common.exceptions import (
     TimeoutException,
     UnexpectedAlertPresentException,
 )
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
+from swapper import load_model
 
 from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
 from .utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
+
+Device = load_model('config', 'Device')
 
 
 class SeleniumBaseMixin(CreateConfigTemplateMixin, SeleniumTestMixin):
@@ -129,6 +134,39 @@ class TestDeviceAdmin(
             self.web_driver.find_elements(by=By.CLASS_NAME, value='success')[0].text,
             'The Device “11:22:33:44:55:66” was added successfully.',
         )
+
+    def test_device_preview_keyboard_shortcuts(self):
+        device = self._create_config(device=self._create_device(name='Test')).device
+        self.login()
+        self.open(reverse('admin:config_device_changelist'))
+        try:
+            self.open(reverse('admin:config_device_change', args=[device.id]))
+        except TimeoutException:
+            self.fail('Device detail page did not load in time')
+
+        with self.subTest('press ALT + P and expect overlay to be shown'):
+            actions = ActionChains(self.web_driver)
+            actions.key_down(Keys.ALT).send_keys('p').key_up(Keys.ALT).perform()
+            try:
+                WebDriverWait(self.web_driver, 1).until(
+                    EC.visibility_of_element_located(
+                        (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
+                    )
+                )
+            except TimeoutException:
+                self.fail('The preview overlay is unexpectedly not visible')
+
+        with self.subTest('press ESC to close preview overlay'):
+            actions = ActionChains(self.web_driver)
+            actions.send_keys(Keys.ESCAPE).perform()
+            try:
+                WebDriverWait(self.web_driver, 1).until(
+                    EC.invisibility_of_element_located(
+                        (By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
+                    )
+                )
+            except TimeoutException:
+                self.fail('The preview overlay has not been closed as expected')
 
     def test_unsaved_changes(self):
         self.login()
@@ -285,6 +323,77 @@ class TestDeviceAdmin(
             alert = Alert(self.web_driver)
             alert.accept()
             self.fail('Unsaved changes alert displayed without any change')
+
+    def test_force_delete_device_with_deactivating_config(self):
+        self._create_template(default=True)
+        config = self._create_config(organization=self._get_org())
+        device = config.device
+        self.assertEqual(device.is_deactivated(), False)
+        self.assertEqual(config.status, 'modified')
+
+        self.login()
+        self.open(reverse('admin:config_device_change', args=[device.id]))
+        self.web_driver.find_elements(
+            by=By.CSS_SELECTOR, value='input.deletelink[type="submit"]'
+        )[-1].click()
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+        self.assertEqual(config.is_deactivating(), True)
+
+        self.open(reverse('admin:config_device_change', args=[device.id]))
+        self.web_driver.find_elements(by=By.CSS_SELECTOR, value='a.deletelink')[
+            -1
+        ].click()
+        WebDriverWait(self.web_driver, 5).until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, '#deactivating-warning .messagelist .warning p')
+            )
+        )
+        self.web_driver.find_element(by=By.CSS_SELECTOR, value='#warning-ack').click()
+        delete_confirm = WebDriverWait(self.web_driver, 2).until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]')
+            )
+        )
+        delete_confirm.click()
+        self.assertEqual(Device.objects.count(), 0)
+
+    def test_force_delete_multiple_devices_with_deactivating_config(self):
+        self._create_template(default=True)
+        org = self._get_org()
+        device1 = self._create_device(organization=org)
+        config1 = self._create_config(device=device1)
+        device2 = self._create_device(
+            organization=org, name='test2', mac_address='22:22:22:22:22:22'
+        )
+        config2 = self._create_config(device=device2)
+        self.assertEqual(device1.is_deactivated(), False)
+        self.assertEqual(config1.status, 'modified')
+        self.assertEqual(device2.is_deactivated(), False)
+        self.assertEqual(config2.status, 'modified')
+
+        self.login()
+        self.open(reverse('admin:config_device_changelist'))
+        self.web_driver.find_element(by=By.CSS_SELECTOR, value='#action-toggle').click()
+        select = Select(self.web_driver.find_element(by=By.NAME, value='action'))
+        select.select_by_value('delete_selected')
+        self.web_driver.find_element(
+            by=By.CSS_SELECTOR, value='button[type="submit"][name="index"][value="0"]'
+        ).click()
+        WebDriverWait(self.web_driver, 5).until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, '#deactivating-warning .messagelist .warning p')
+            )
+        )
+        self.web_driver.find_element(by=By.CSS_SELECTOR, value='#warning-ack').click()
+        delete_confirm = WebDriverWait(self.web_driver, 2).until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]')
+            )
+        )
+        delete_confirm.click()
+        self.assertEqual(Device.objects.count(), 0)
 
 
 class TestVpnAdmin(SeleniumBaseMixin, TestWireguardVpnMixin, StaticLiveServerTestCase):
