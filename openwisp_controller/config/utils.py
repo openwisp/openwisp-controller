@@ -116,22 +116,22 @@ def get_controller_urls(views_module):
     """
     urls = [
         re_path(
-            'controller/device/checksum/(?P<pk>[^/]+)/$',
+            f'controller/device/checksum/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_checksum,
             name='device_checksum',
         ),
         re_path(
-            'controller/device/download-config/(?P<pk>[^/]+)/$',
+            f'controller/device/download-config/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_download_config,
             name='device_download_config',
         ),
         re_path(
-            'controller/device/update-info/(?P<pk>[^/]+)/$',
+            f'controller/device/update-info/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_update_info,
             name='device_update_info',
         ),
         re_path(
-            'controller/device/report-status/(?P<pk>[^/]+)/$',
+            f'controller/device/report-status/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_report_status,
             name='device_report_status',
         ),
@@ -141,33 +141,33 @@ def get_controller_urls(views_module):
             name='device_register',
         ),
         re_path(
-            'controller/vpn/checksum/(?P<pk>[^/]+)/$',
+            f'controller/vpn/checksum/(?P<pk>{UUID_PATTERN})/$',
             views_module.vpn_checksum,
             name='vpn_checksum',
         ),
         re_path(
-            'controller/vpn/download-config/(?P<pk>[^/]+)/$',
+            f'controller/vpn/download-config/(?P<pk>{UUID_PATTERN})/$',
             views_module.vpn_download_config,
             name='vpn_download_config',
         ),
         # legacy URLs
         re_path(
-            'controller/checksum/(?P<pk>[^/]+)/$',
+            f'controller/checksum/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_checksum,
             name='checksum_legacy',
         ),
         re_path(
-            'controller/download-config/(?P<pk>[^/]+)/$',
+            f'controller/download-config/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_download_config,
             name='download_config_legacy',
         ),
         re_path(
-            'controller/update-info/(?P<pk>[^/]+)/$',
+            f'controller/update-info/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_update_info,
             name='update_info_legacy',
         ),
         re_path(
-            'controller/report-status/(?P<pk>[^/]+)/$',
+            f'controller/report-status/(?P<pk>{UUID_PATTERN})/$',
             views_module.device_report_status,
             name='report_status_legacy',
         ),
