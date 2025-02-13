@@ -256,7 +256,7 @@ class AbstractConfig(BaseConfig):
 
         if action == 'post_clear':
             if instance.is_deactivating_or_deactivated():
-                # If the device is deactivated or in the process of deactivating, then
+                # If the device is deactivated or in the process of deactivatiing, then
                 # delete all vpn clients and return.
                 instance.vpnclient_set.all().delete()
             return
@@ -274,13 +274,14 @@ class AbstractConfig(BaseConfig):
         # coming from admin ModelForm
         else:
             templates = pk_set
-
-        # Get list of VPNs currently in use by any template
-        current_vpns = instance.templates.filter(type='vpn').values_list('vpn', flat=True)
-
+        # delete VPN clients which have been cleared
+        # by sortedm2m and have not been added back
         if action == 'post_add':
-            # Create new VPN clients for added templates
-            for template in templates.filter(type='vpn'):
+            vpn_list = instance.templates.filter(type='vpn').values_list('vpn')
+            instance.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+        # when adding or removing specific templates
+        for template in templates.filter(type='vpn'):
+            if action == 'post_add':
                 if vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn
                 ).exists():
@@ -292,11 +293,9 @@ class AbstractConfig(BaseConfig):
                 )
                 client.full_clean()
                 client.save()
-            # Delete VPN clients only if their VPN is no longer used by any template
-            instance.vpnclient_set.exclude(vpn__in=current_vpns).delete()
-        elif action == 'post_remove':
-            # Clean up any VPN clients that are no longer needed
-            instance.vpnclient_set.exclude(vpn__in=current_vpns).delete()
+            elif action == 'post_remove':
+                for client in instance.vpnclient_set.filter(vpn=template.vpn):
+                    client.delete()
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, raw_data=None, **kwargs):
@@ -812,6 +811,64 @@ class AbstractConfig(BaseConfig):
             templates = device_group.templates.filter(backend=backend)
             old_templates = device_group.templates.filter(backend=old_backend)
         config.manage_group_templates(templates, old_templates, not created)
+
+    def test_vpn_template_switch(self):
+        # Create a VPN server
+        vpn = self._create_vpn()
+
+        # Create two VPN templates using the same VPN server
+        template1 = self._create_template(
+            name='vpn-template-1',
+            type='vpn',
+            vpn=vpn,
+            auto_cert=True,
+            default=True,  # Auto-apply template1 to the device
+        )
+        template2 = self._create_template(
+            name='vpn-template-2',
+            type='vpn',
+            vpn=vpn,
+            auto_cert=True,
+        )
+
+        # Create a device and assign template1
+        device = self._create_device()
+        config = device.config
+        config.templates.add(template1)
+        config.save()
+
+        # Verify that template1 is applied and a VpnClient exists
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
+
+        # Switch to template2 while unassigning template1
+        config.templates.remove(template1)
+        config.templates.add(template2)
+        config.save()
+
+        # Verify that only one VpnClient exists and the config is resolved correctly
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
+
+        # Optional: Switch back to template1 and verify again
+        config.templates.remove(template2)
+        config.templates.add(template1)
+        config.save()
+
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
 
 
 AbstractConfig._meta.get_field('config').blank = True
