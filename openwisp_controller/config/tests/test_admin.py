@@ -2047,6 +2047,116 @@ class TestAdmin(
             )
             self.assertEqual(mocked_deactivate.call_count, 1)
 
+    def test_vpn_template_switch(self):
+        """
+        Test switching between two VPN templates that use the same VPN server
+        Verifies that:
+        1. Only one VpnClient exists at a time
+        2. VPN config variables are correctly resolved
+        3. Switching back and forth works properly
+        """
+        vpn = self._create_vpn()
+        template1 = self._create_template(
+            name='vpn-test-1',
+            type='vpn',
+            vpn=vpn,
+            config={
+                'openvpn': [
+                    {
+                        'cert': '{{cert_path}}',
+                        'key': '{{key_path}}',
+                        'dev': 'tun0',
+                        'client': True,
+                    }
+                ]
+            },
+            auto_cert=True,
+            default=True,  # This will auto-apply template1 to the device
+        )
+        template2 = self._create_template(
+            name='vpn-test-2',
+            type='vpn',
+            vpn=vpn,
+            config={
+                'openvpn': [
+                    {
+                        'cert': '{{cert_path}}',
+                        'key': '{{key_path}}',
+                        'dev': 'tun1',
+                        'client': True,
+                    }
+                ]
+            },
+            auto_cert=True,
+        )
+        
+        # Add device with default template (template1)
+        path = reverse(f'admin:{self.app_label}_device_add')
+        params = self._get_device_params(org=self._get_org())
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        
+        config = Device.objects.get(name=params['name']).config
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        
+        # Verify initial VPN config is correct
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
+        
+        # Switch to template2
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
+        params.update({
+            'config-0-id': str(config.pk),
+            'config-0-device': str(config.device_id),
+            'config-0-templates': str(template2.pk),
+            'config-INITIAL_FORMS': 1,
+            '_continue': True,
+        })
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        
+        # Refresh config from DB
+        config.refresh_from_db()
+        
+        # Verify only one VPN client exists
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        
+        # Verify VPN config variables are still resolved
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['dev'],
+            'tun1'  # Verify we're using template2's config
+        )
+        
+        # Switch back to template1
+        params.update({
+            'config-0-templates': str(template1.pk),
+        })
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        
+        # Refresh config from DB
+        config.refresh_from_db()
+        
+        # Verify still only one VPN client exists
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        
+        # Verify VPN config variables are still resolved
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['dev'],
+            'tun0'  # Verify we're back to template1's config
+        )
+
 
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,
