@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -8,6 +9,9 @@ from django.urls import path, re_path
 from openwisp_notifications.utils import _get_object_link
 
 logger = logging.getLogger(__name__)
+
+# Define UUID_PATTERN for URL regular expressions
+UUID_PATTERN = r'[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}'
 
 
 def get_object_or_404(model, **kwargs):

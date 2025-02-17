@@ -9,7 +9,6 @@ from unittest import mock
 from uuid import uuid4
 
 from django.db.utils import DEFAULT_DB_ALIAS
-from django.http import HttpResponse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from swapper import load_model
 
@@ -24,26 +23,6 @@ Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
 Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
-
-
-class TestUtilsMixin:
-    """
-    Mixin for testing utility functions from utils.py
-    """
-    def _create_http_request(self, ip='127.0.0.1', management_ip=None):
-        class MockRequest:
-            META = {'REMOTE_ADDR': ip}
-            GET = {}
-            
-        request = MockRequest()
-        if management_ip:
-            request.GET['management_ip'] = management_ip
-        return request
-
-    def _create_controller_response(self, content='', content_type='text/plain', status=200):
-        response = HttpResponse(content, content_type=content_type, status=status)
-        response['X-Openwisp-Controller'] = 'true'
-        return response
 
 
 class CreateDeviceMixin(TestOrganizationMixin):
