@@ -10,9 +10,12 @@ logger = logging.getLogger(__name__)
 class OpenWrt(Ssh):
     def update_config(self):
         try:
-            output, exit_code = self.exec_command('openwisp_config --version')
+            output, exit_code = self.exec_command(
+                # "openwisp_config" for backword compatibility
+                '(openwisp-config --version || openwisp_config --version) 2>/dev/null'
+            )
         except Exception as error:
-            logger.error('Unable to get version of openwisp_config')
+            logger.error('Unable to get version of openwisp-config')
             raise error
         else:
             ow_config_version = output.split(' ')[-1]
