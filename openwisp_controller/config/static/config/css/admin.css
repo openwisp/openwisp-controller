@@ -6,8 +6,9 @@ a.jsoneditor-exit:focus {
 .field-config .vLargeTextField,
 .jsoneditor .vLargeTextField {
   font-size: 1em;
-  font-family: "Bitstream Vera Sans Mono", "Monaco", "Droid Sans Mono",
-    "DejaVu Sans Mono", "Ubuntu Mono", "Courier New", Courier, monospace;
+  font-family:
+    "Bitstream Vera Sans Mono", "Monaco", "Droid Sans Mono", "DejaVu Sans Mono",
+    "Ubuntu Mono", "Courier New", Courier, monospace;
   color: #f9f9f9;
   overflow: auto;
   background-color: #222;
