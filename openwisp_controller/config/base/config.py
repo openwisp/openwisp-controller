@@ -256,7 +256,7 @@ class AbstractConfig(BaseConfig):
 
         if action == 'post_clear':
             if instance.is_deactivating_or_deactivated():
-                # If the device is deactivated or in the process of deactivatiing, then
+                # If the device is deactivated or in the process of deactivating, then
                 # delete all vpn clients and return.
                 instance.vpnclient_set.all().delete()
             return
@@ -265,37 +265,35 @@ class AbstractConfig(BaseConfig):
         # coming from signal
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
-            # Ordering the queryset here doesn't affect the functionality
-            # since pk_set is a set. Though ordering the queryset is required
-            # for tests.
             templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
                 'created'
             )
         # coming from admin ModelForm
         else:
             templates = pk_set
-        # delete VPN clients which have been cleared
-        # by sortedm2m and have not been added back
-        if action == 'post_add':
-            vpn_list = instance.templates.filter(type='vpn').values_list('vpn')
-            instance.vpnclient_set.exclude(vpn__in=vpn_list).delete()
-        # when adding or removing specific templates
+
+        # Get current VPNs in use by any template
+        current_vpns = set(
+            instance.templates.filter(type='vpn').values_list('vpn_id', flat=True)
+        )
+
+        # Handle template actions
         for template in templates.filter(type='vpn'):
             if action == 'post_add':
-                if vpn_client_model.objects.filter(
+                # Create VPN client if needed
+                if not vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn
                 ).exists():
-                    continue
-                client = vpn_client_model(
-                    config=instance,
-                    vpn=template.vpn,
-                    auto_cert=template.auto_cert,
-                )
-                client.full_clean()
-                client.save()
-            elif action == 'post_remove':
-                for client in instance.vpnclient_set.filter(vpn=template.vpn):
-                    client.delete()
+                    client = vpn_client_model(
+                        config=instance,
+                        vpn=template.vpn,
+                        auto_cert=template.auto_cert,
+                    )
+                    client.full_clean()
+                    client.save()
+
+        # Clean up any VPN clients that aren't associated with current templates
+        instance.vpnclient_set.exclude(vpn_id__in=current_vpns).delete()
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, raw_data=None, **kwargs):
