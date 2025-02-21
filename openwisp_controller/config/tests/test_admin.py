@@ -2047,6 +2047,113 @@ class TestAdmin(
             )
             self.assertEqual(mocked_deactivate.call_count, 1)
 
+    def test_vpn_template_switch(self):
+        """
+        Test switching between two VPN templates that use the same VPN server
+        Verifies that:
+        1. Only one VpnClient exists at a time
+        2. VPN config variables are correctly resolved
+        3. Switching back and forth works properly
+        """
+        vpn = self._create_vpn()
+        template1 = self._create_template(
+            name='vpn-test-1',
+            type='vpn',
+            vpn=vpn,
+            config={},
+            auto_cert=True,
+        )
+        template1.config['openvpn'][0]['dev'] = 'tun0'
+        template1.full_clean()
+        template1.save()
+        template2 = self._create_template(
+            name='vpn-test-2',
+            type='vpn',
+            vpn=vpn,
+            config={},
+            auto_cert=True,
+        )
+        template2.config['openvpn'][0]['dev'] = 'tun1'
+        template2.full_clean()
+        template2.save()
+
+        # Add device with default template (template1)
+        path = reverse(f'admin:{self.app_label}_device_add')
+        params = self._get_device_params(org=self._get_org())
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        config = Config.objects.get(device__name=params['name'])
+
+        # Add template1 to the device
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
+        params.update(
+            {
+                'config-0-id': str(config.pk),
+                'config-0-device': str(config.device_id),
+                'config-0-templates': str(template1.pk),
+                'config-INITIAL_FORMS': 1,
+                '_continue': True,
+            }
+        )
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+
+        # Ensure all works as expected
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['cert'],
+            f'/etc/x509/client-{vpn.pk.hex}.pem',
+        )
+        self.assertEqual(
+            config.backend_instance.config['openvpn'][0]['dev'],
+            'tun0',
+        )
+
+        with self.subTest('Switch device to template2'):
+            path = reverse(
+                f'admin:{self.app_label}_device_change', args=[config.device_id]
+            )
+            params.update(
+                {
+                    'config-0-templates': str(template2.pk),
+                }
+            )
+            response = self.client.post(path, data=params, follow=True)
+            self.assertEqual(response.status_code, 200)
+            config.refresh_from_db()
+            del config.backend_instance
+            self.assertEqual(
+                config.backend_instance.config['openvpn'][0]['cert'],
+                f'/etc/x509/client-{vpn.pk.hex}.pem',
+            )
+            self.assertEqual(
+                config.backend_instance.config['openvpn'][0]['dev'],
+                'tun1',
+            )
+            self.assertEqual(config.vpnclient_set.count(), 1)
+
+        with self.subTest('Switch device back to template1'):
+            params.update(
+                {
+                    'config-0-templates': str(template1.pk),
+                }
+            )
+            response = self.client.post(path, data=params, follow=True)
+            self.assertEqual(response.status_code, 200)
+            config.refresh_from_db()
+            del config.backend_instance
+            self.assertEqual(
+                config.backend_instance.config['openvpn'][0]['cert'],
+                f'/etc/x509/client-{vpn.pk.hex}.pem',
+            )
+            self.assertEqual(
+                config.backend_instance.config['openvpn'][0]['dev'],
+                'tun0',
+            )
+            self.assertEqual(config.vpnclient_set.count(), 1)
+
 
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,
