@@ -2112,7 +2112,9 @@ class TestAdmin(
         )
 
         with self.subTest('Switch device to template2'):
-            path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
+            path = reverse(
+                f'admin:{self.app_label}_device_change', args=[config.device_id]
+            )
             params.update(
                 {
                     'config-0-templates': str(template2.pk),
