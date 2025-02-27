@@ -8,13 +8,19 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.db import IntegrityError
 from django.db.models.signals import post_save
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
+from reversion.models import Version
 from swapper import load_model
 
-from openwisp_utils.tests import AdminActionPermTestMixin, catch_signal
+from openwisp_utils.tests import (
+    AdminActionPermTestMixin,
+    capture_any_output,
+    catch_signal,
+)
 
 from ...geo.tests.utils import TestGeoMixin
 from ...tests.utils import TestAdminMixin
@@ -2445,6 +2451,31 @@ class TestTransactionAdmin(
             method='deactivate',
             is_initially_deactivated=False,
         )
+
+    @capture_any_output()
+    def test_restoring_template_sends_config_modified(self):
+        template = self._create_template(default=True)
+        call_command('createinitialrevisions')
+        # Make changes to the template and create revision
+        template.config['interfaces'][0]['name'] = 'eth1'
+        template.full_clean()
+        template.save()
+        call_command('createinitialrevisions')
+
+        config = self._create_config(organization=self._get_org())
+        config.set_status_applied()
+        config_checksum = config.checksum
+
+        # Revert the oldest version for the template
+        version = Version.objects.get_for_model(Template).last()
+        version.revert()
+        template.refresh_from_db()
+        config = Config.objects.get(id=config.id)
+        # Verify the template is restored to the previous version
+        self.assertEqual(template.config['interfaces'][0]['name'], 'eth0')
+        # Verify config status is changed to modified.
+        self.assertEqual(config.status, 'modified')
+        self.assertNotEqual(config.checksum, config_checksum)
 
 
 class TestDeviceGroupAdmin(

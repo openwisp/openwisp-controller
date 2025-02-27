@@ -55,6 +55,7 @@ class ConfigConfig(AppConfig):
 
     def __setmodels__(self):
         self.device_model = load_model('config', 'Device')
+        self.template_model = load_model('config', 'Template')
         self.devicegroup_model = load_model('config', 'DeviceGroup')
         self.config_model = load_model('config', 'Config')
         self.vpn_model = load_model('config', 'Vpn')
@@ -134,6 +135,11 @@ class ConfigConfig(AppConfig):
             handlers.config_backend_change_handler,
             sender=self.config_model,
             dispatch_uid='devicegroup_templates_change_handler.backend_changed',
+        )
+        pre_save.connect(
+            self.template_model.pre_save_handler,
+            sender=self.template_model,
+            dispatch_uid='template_pre_save_handler',
         )
         pre_save.connect(
             handlers.organization_disabled_handler,
