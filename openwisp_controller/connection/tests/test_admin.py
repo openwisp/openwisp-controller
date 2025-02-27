@@ -8,8 +8,8 @@ from django.test import TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 from swapper import load_model
 
-from openwisp_controller.connection.commands import ORGANIZATION_ENABLED_COMMANDS
 from openwisp_controller.config.utils import UUID_PATTERN
+from openwisp_controller.connection.commands import ORGANIZATION_ENABLED_COMMANDS
 
 from ... import settings as module_settings
 from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
@@ -33,7 +33,7 @@ class TestUuidPattern(TestCase):
     Test that the UUID_PATTERN correctly validates UUIDs
     and prevents 500 errors in admin URLs
     """
-    
+
     def test_uuid_pattern_validation(self):
         """
         Test that the UUID_PATTERN correctly matches valid UUIDs
@@ -47,14 +47,14 @@ class TestUuidPattern(TestCase):
             '00000000-0000-0000-0000-000000000000',
             'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         ]
-        
+
         # Test valid UUIDs against the pattern
         for valid_uuid in valid_uuids:
             self.assertTrue(
                 re.match(f'^{UUID_PATTERN}$', valid_uuid),
-                f"Valid UUID {valid_uuid} did not match pattern"
+                f"Valid UUID {valid_uuid} did not match pattern",
             )
-        
+
         # Invalid UUID formats
         invalid_uuids = [
             'invalid-uuid',
@@ -67,12 +67,12 @@ class TestUuidPattern(TestCase):
             '',  # Empty string
             '12345678-1234.5678-1234-567812345678',  # Invalid format
         ]
-        
+
         # Test invalid UUIDs against the pattern
         for invalid_uuid in invalid_uuids:
             self.assertFalse(
                 re.match(f'^{UUID_PATTERN}$', invalid_uuid),
-                f"Invalid UUID {invalid_uuid} should not match pattern"
+                f"Invalid UUID {invalid_uuid} should not match pattern",
             )
 
     def test_admin_url_with_uuid(self):
@@ -82,21 +82,23 @@ class TestUuidPattern(TestCase):
         """
         # Generate a valid UUID
         valid_uuid = str(uuid.uuid4())
-        
+
         # Patch reverse to avoid actual URL resolution (just test the pattern)
         with patch('django.urls.reverse') as mock_reverse:
             mock_reverse.return_value = '/admin/fake/url/'
-            
+
             # Valid UUID should not raise exception
             try:
                 reverse('admin:config_device_change', args=[valid_uuid])
             except NoReverseMatch:
                 self.fail("Valid UUID should not raise NoReverseMatch")
-            
+
             # Invalid UUID should raise NoReverseMatch
             invalid_uuid = 'invalid-uuid-format'
-            mock_reverse.side_effect = NoReverseMatch("Simulated error for invalid UUID")
-            
+            mock_reverse.side_effect = NoReverseMatch(
+                "Simulated error for invalid UUID"
+            )
+
             with self.assertRaises(NoReverseMatch):
                 reverse('admin:config_device_change', args=[invalid_uuid])
 
@@ -105,31 +107,45 @@ class TestUuidPattern(TestCase):
         Test that the controller URLs correctly use the UUID_PATTERN
         """
         from openwisp_controller.config.utils import get_controller_urls
-        
+
         # Create a mock views module with the required view functions
         class MockViewsModule:
-            def device_checksum(request, pk): pass
-            def device_download_config(request, pk): pass
-            def device_update_info(request, pk): pass
-            def device_report_status(request, pk): pass
-            def device_register(request): pass
-            def vpn_checksum(request, pk): pass
-            def vpn_download_config(request, pk): pass
-        
+            def device_checksum(request, pk):
+                pass
+
+            def device_download_config(request, pk):
+                pass
+
+            def device_update_info(request, pk):
+                pass
+
+            def device_report_status(request, pk):
+                pass
+
+            def device_register(request):
+                pass
+
+            def vpn_checksum(request, pk):
+                pass
+
+            def vpn_download_config(request, pk):
+                pass
+
         mock_views = MockViewsModule()
-        
+
         # Get the controller URLs
         controller_urls = get_controller_urls(mock_views)
-        
+
         # Verify that UUID_PATTERN is used in all URL patterns that need it
         for url in controller_urls:
             # Skip paths that don't contain pk
             if not hasattr(url, 'pattern') or 'pk' not in str(url.pattern):
                 continue
-            
+
             # Check that the URL pattern contains the UUID_PATTERN
             pattern_string = str(url.pattern)
             self.assertIn(UUID_PATTERN.replace('\\', '\\\\'), pattern_string)
+
 
 class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = 'config'

@@ -37,8 +37,8 @@ class TestDeviceConsumer(CreateDeviceMixin):
     )
 
     async def _get_communicator(self, admin_client, device_id):
-       session_id = admin_client.cookies["sessionid"].value
-       communicator = WebsocketCommunicator(
+        session_id = admin_client.cookies["sessionid"].value
+        communicator = WebsocketCommunicator(
             self.application,
             path=f"ws/controller/device/{device_id}/",
             headers=[
@@ -48,9 +48,9 @@ class TestDeviceConsumer(CreateDeviceMixin):
                 )
             ],
         )
-       connected, subprotocol = await communicator.connect()
-       assert connected is True
-       return communicator
+        connected, subprotocol = await communicator.connect()
+        assert connected is True
+        return communicator
 
     @database_sync_to_async
     def _add_model_permissions(self, user, add=True, change=True, delete=True):
