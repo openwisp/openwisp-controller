@@ -26,6 +26,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
 from flat_json_widget.widgets import FlatJsonWidget
 from import_export.admin import ImportExportMixin
+from import_export.forms import ExportForm
 from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
@@ -971,6 +972,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
 
 
 class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):
+    export_form_class = ExportForm
     resource_class = DeviceResource
     # needed to support both reversion and import-export
     change_list_template = 'admin/config/change_list_device.html'
