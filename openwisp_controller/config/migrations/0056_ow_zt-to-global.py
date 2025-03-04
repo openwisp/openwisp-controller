@@ -1,7 +1,7 @@
 from django.db import migrations
 import json
 
-def change_owzt_to_global(apps):
+def change_owzt_to_global(apps, schema_editor):
     Template = apps.get_model('config', 'Template')
     for template in Template.objects.all():
         config = json.loads(template.config)
@@ -11,7 +11,7 @@ def change_owzt_to_global(apps):
                     item['name'] = 'global'
 
 class Migration(migrations.Migration):
-    dependencies = [('config', '0056_ow_zt-to-global')]
+    dependencies = [('config', '0055_alter_config_status')]
 
     operations = [
         migrations.RunPython(change_owzt_to_global, reverse_code=migrations.RunPython.noop)
