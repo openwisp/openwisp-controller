@@ -147,6 +147,11 @@ class ConfigConfig(AppConfig):
             dispatch_uid='organization_disabled_pre_save_clear_device_checksum_cache',
         )
         post_save.connect(
+            self.template_model.post_save_handler,
+            sender=self.template_model,
+            dispatch_uid='template_post_save_handler',
+        )
+        post_save.connect(
             self.org_limits.post_save_handler,
             sender=self.org_model,
             dispatch_uid='organization_allowed_devices_post_save_handler',

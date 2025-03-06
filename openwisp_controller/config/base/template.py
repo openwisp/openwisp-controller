@@ -124,8 +124,15 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             # the old configuration may become invalid, raising an exception.
             # Setting the checksum to None forces related configurations to update.
             current_checksum = None
-        update_related_config_status = instance.checksum != current_checksum
-        if update_related_config_status:
+        instance._update_related_config_status = instance.checksum != current_checksum
+
+    @classmethod
+    def post_save_handler(cls, instance, created, *args, **kwargs):
+        if (
+            not created
+            and hasattr(instance, '_update_related_config_status')
+            and instance._update_related_config_status
+        ):
             transaction.on_commit(
                 lambda: update_template_related_config_status.delay(instance.pk)
             )
