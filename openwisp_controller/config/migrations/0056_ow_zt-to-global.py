@@ -16,4 +16,3 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunPython(change_owzt_to_global, reverse_code=migrations.RunPython.noop)
     ]
-    
