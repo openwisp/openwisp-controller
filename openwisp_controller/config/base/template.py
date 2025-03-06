@@ -128,11 +128,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 
     @classmethod
     def post_save_handler(cls, instance, created, *args, **kwargs):
-        if (
-            not created
-            and hasattr(instance, '_update_related_config_status')
-            and instance._update_related_config_status
-        ):
+        if not created and getattr(instance, '_update_related_config_status', False):
             transaction.on_commit(
                 lambda: update_template_related_config_status.delay(instance.pk)
             )
