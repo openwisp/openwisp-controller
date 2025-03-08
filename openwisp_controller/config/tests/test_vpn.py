@@ -1210,7 +1210,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         for key in context_keys.keys():
             context_keys[key] = '{{%s}}' % context_keys[key]
         expected = template.backend_class.zerotier_auto_client(
-            name='ow_zt',
+            name='global',
             networks=[{'id': vpn.network_id, 'ifname': f'owzt{vpn.network_id[-6:]}'}],
             identity_secret=context_keys['secret'],
         )
