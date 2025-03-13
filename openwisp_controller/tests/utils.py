@@ -59,7 +59,10 @@ class TransactionTestMixin(object):
 class DeviceAdminSeleniumTextMixin(SeleniumTestMixin):
     def tearDown(self):
         super().tearDown()
-        # Accept unsaved changes alert to allow other tests to run
+        # Dismiss any unsaved changes alert to prevent it from blocking
+        # navigation in subsequent tests. If left unresolved, this could
+        # cause test failures by preventing the browser from loading new pages.
+        # Ensuring a clean browser state before the next test runs.
         try:
             self.web_driver.refresh()
         except UnexpectedAlertPresentException:
