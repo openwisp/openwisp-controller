@@ -4,8 +4,13 @@ from django.db import connections
 from django.db.utils import DEFAULT_DB_ALIAS
 from django.test.testcases import _AssertNumQueriesContext
 from django.urls import reverse
+from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
+from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
 
 user_model = get_user_model()
 
@@ -49,3 +54,32 @@ class TransactionTestMixin(object):
 
         with context:
             func(*args, **kwargs)
+
+
+class DeviceAdminSeleniumTextMixin(SeleniumTestMixin):
+    def tearDown(self):
+        super().tearDown()
+        # Accept unsaved changes alert to allow other tests to run
+        try:
+            self.web_driver.refresh()
+        except UnexpectedAlertPresentException:
+            self.web_driver.switch_to_alert().accept()
+            self.web_driver.switch_to_alert.accept()
+        else:
+            try:
+                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
+            except TimeoutException:
+                pass
+            else:
+                self.web_driver.switch_to_alert().accept()
+                self.web_driver.switch_to_alert.accept()
+        self.web_driver.refresh()
+        self.wait_for_visibility(By.XPATH, '//*[@id="site-name"]')
+
+    def open(self, url, driver=None):
+        super().open(url, driver)
+        driver = driver or self.web_driver
+        self._assert_loading_overlay_hidden()
+
+    def _assert_loading_overlay_hidden(self):
+        self.wait_for_invisibility(By.CSS_SELECTOR, '#loading-overlay')
