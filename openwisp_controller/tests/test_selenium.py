@@ -13,7 +13,7 @@ from swapper import load_model
 
 from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
 from openwisp_controller.geo.tests.utils import TestGeoMixin
-from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
+from openwisp_utils.tests import SeleniumTestMixin
 
 Device = load_model('config', 'Device')
 DeviceConnection = load_model('connection', 'DeviceConnection')
@@ -62,7 +62,7 @@ class TestDevice(
         self.open(
             reverse(f'admin:{self.config_app_label}_device_delete', args=[device.id])
         )
-        self.web_driver.find_element(
+        self.find_element(
             by=By.CSS_SELECTOR, value='#content form input[type="submit"]'
         ).click()
         # Delete location object
@@ -89,9 +89,12 @@ class TestDevice(
         # is logged at WARNING level.
         # By checking that there are no WARNING level errors logged in the
         # browser console, we ensure that this issue is not happening.
-        for error in self.web_driver.get_log('browser'):
-            self.assertNotEqual(error['level'], 'WARNING')
-        self.web_driver.find_element(
+        for error in self.get_browser_logs():
+            if error['level'] == 'WARNING' and error['message'] not in [
+                'wrong event specified: touchleave'
+            ]:
+                self.fail(f'Browser console error: {error["message"]}')
+        self.find_element(
             by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[1]'
         ).click()
         try:

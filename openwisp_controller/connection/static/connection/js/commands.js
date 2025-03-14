@@ -27,7 +27,6 @@ django.jQuery(function ($) {
       timeoutInterval: 7000,
     },
   );
-  commandWebSocket.open();
   let selector = $("#id_command_set-0-type"),
     showFields = function () {
       var fields = $(
@@ -40,18 +39,24 @@ django.jQuery(function ($) {
         $("#command_set-2-group fieldset .dynamic-command_set-2:first");
         fields.show();
       }
+    },
+    init = function () {
+      showFields();
+      initCommandDropdown($);
+      initCommandOverlay($);
+      initCommandWebSockets($, commandWebSocket);
     };
   selector.change(function () {
     showFields();
   });
-
-  $("#id_command_set-0-input").one("jsonschema-schemaloaded", function () {
-    showFields();
-
-    initCommandDropdown($);
-    initCommandOverlay($);
-    initCommandWebSockets($, commandWebSocket);
-  });
+  if (django._schemas[$("#id_command_set-0-input").data("schema-url")]) {
+    // It is possible that the schema is loaded before the event handler
+    // is attached to the element. In that case, we need to manually call
+    // the init function.
+    init();
+  } else {
+    $("#id_command_set-0-input").one("jsonschema-schemaloaded", init);
+  }
 });
 
 function initCommandDropdown($) {
@@ -542,6 +547,7 @@ function initCommandOverlay($) {
 }
 
 function initCommandWebSockets($, commandWebSocket) {
+  commandWebSocket.open();
   commandWebSocket.addEventListener("message", function (e) {
     let data = JSON.parse(e.data);
     // Done for keeping future use of these websocket
