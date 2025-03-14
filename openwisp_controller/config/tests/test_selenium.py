@@ -288,7 +288,7 @@ class TestDeviceAdminUnsavedChanges(
 ):
     browser = 'chrome'
 
-     def test_unsaved_changes(self):
+    def test_unsaved_changes(self):
         """
         Execute this test using Chrome instead of Firefox.
         Firefox automatically accepts the beforeunload alert, which makes it
