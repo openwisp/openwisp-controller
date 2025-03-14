@@ -46,6 +46,19 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: |
+          apt-${{ runner.os }}-
+
+    - name: Disable man page auto-update
+      run: |
+        echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
+        sudo dpkg-reconfigure man-db
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -68,6 +81,10 @@ jobs:
         pip install -UI --no-deps https://github.com/openwisp/openwisp-utils/tarball/browser-logs
         pip install ${{ matrix.django-version }}
 
+    - name: Start postgres and redis
+      if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
+      run: docker compose up -d postgres redis
+
     - name: QA checks
       run: ./run-qa-checks
 
@@ -84,6 +101,11 @@ jobs:
         coverage xml
       env:
         SELENIUM_HEADLESS: 1
+        GECKO_LOG: 1
+
+    - name: Show gecko web driver log on failures
+      if: ${{ failure() }}
+      run: cat geckodriver.log
 
     - name: Upload Coverage
       if: ${{ success() }}

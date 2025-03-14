@@ -13,7 +13,7 @@ from swapper import load_model
 
 from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
 from openwisp_controller.geo.tests.utils import TestGeoMixin
-from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
+from openwisp_utils.tests import SeleniumTestMixin
 
 Device = load_model('config', 'Device')
 DeviceConnection = load_model('connection', 'DeviceConnection')

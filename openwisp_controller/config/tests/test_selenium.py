@@ -10,9 +10,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
 
-from openwisp_utils.test_selenium_mixins import SeleniumTestMixin
+from openwisp_utils.tests import SeleniumTestMixin
 
-from ...tests.utils import DeviceAdminSeleniumTextMixin
 from .utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
 
 Device = load_model('config', 'Device')
@@ -20,7 +19,7 @@ Device = load_model('config', 'Device')
 
 @tag('selenium_tests')
 class TestDeviceAdmin(
-    DeviceAdminSeleniumTextMixin,
+    SeleniumTestMixin,
     CreateConfigTemplateMixin,
     StaticLiveServerTestCase,
 ):
@@ -97,6 +96,7 @@ class TestDeviceAdmin(
         self.open(reverse('admin:config_device_changelist'))
         try:
             self.open(reverse('admin:config_device_change', args=[device.id]))
+            self.hide_loading_overlay()
         except TimeoutException:
             self.fail('Device detail page did not load in time')
 
@@ -140,6 +140,7 @@ class TestDeviceAdmin(
             reverse('admin:config_device_change', args=[org1_device.id])
             + '#config-group'
         )
+        self.hide_loading_overlay()
         # org2 templates should not be visible
         self.wait_for_invisibility(
             By.XPATH, f'//*[@value="{org2_required_template.id}"]'
@@ -163,6 +164,7 @@ class TestDeviceAdmin(
         self.open(
             reverse('admin:config_device_change', args=[device.id]) + '#config-group'
         )
+        self.hide_loading_overlay()
         self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]')
         # Change config backed to
         config_backend_select = Select(
@@ -183,6 +185,7 @@ class TestDeviceAdmin(
         self.open(
             reverse('admin:config_device_change', args=[device.id]) + '#config-group'
         )
+        self.hide_loading_overlay()
         try:
             WebDriverWait(self.web_driver, 2).until(
                 EC.text_to_be_present_in_element_value(
@@ -216,6 +219,7 @@ class TestDeviceAdmin(
 
         self.login()
         self.open(reverse('admin:config_device_change', args=[device.id]))
+        self.hide_loading_overlay()
         # The webpage has two "submit-row" sections, each containing a "Deactivate"
         # button. The first (top) "Deactivate" button is hidden, causing
         # `wait_for_visibility` to fail. To avoid this issue, we use
@@ -232,6 +236,7 @@ class TestDeviceAdmin(
         self.assertEqual(config.is_deactivating(), True)
 
         self.open(reverse('admin:config_device_change', args=[device.id]))
+        self.hide_loading_overlay()
         # Use `presence` instead of `visibility` for `wait_for`,
         # as the same issue described above applies here.
         self.find_elements(
@@ -282,7 +287,7 @@ class TestDeviceAdmin(
 
 @tag('selenium_tests')
 class TestDeviceAdminUnsavedChanges(
-    DeviceAdminSeleniumTextMixin,
+    SeleniumTestMixin,
     CreateConfigTemplateMixin,
     StaticLiveServerTestCase,
 ):
@@ -297,9 +302,10 @@ class TestDeviceAdminUnsavedChanges(
         self.login()
         device = self._create_config(organization=self._get_org()).device
         path = reverse('admin:config_device_change', args=[device.id])
-        self.open(path)
+
         with self.subTest('Alert should not be displayed without any change'):
             self.open(path)
+            self.hide_loading_overlay()
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
