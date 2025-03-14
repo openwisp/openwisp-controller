@@ -155,10 +155,13 @@ class BaseConfig(BaseModel):
             if template_instances is None:
                 template_instances = self.templates.all()
             templates_list = list()
+            templates_list_handling = list()
             for t in template_instances:
                 templates_list.append(t.config)
+                templates_list_handling.append(t.list_handling)
                 context.update(t.get_context())
             kwargs['templates'] = templates_list
+            kwargs['templates_list_handling'] = templates_list_handling
         # pass context to backend if get_context method is defined
         if hasattr(self, 'get_context'):
             context.update(self.get_context())
