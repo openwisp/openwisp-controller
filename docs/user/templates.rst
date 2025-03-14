@@ -94,6 +94,12 @@ once the device connects to OpenWISP it will download and apply the
 default templates without the need of manual intervention from the network
 operators.
 
+**Side note:** To be precise, a default template is automatically assigned not
+to any new device but to any new device config. So if you have any
+device which was registered before a specific template was made a default
+template, you can delete its config and create a new one, then the new config
+will automatically have all current default templates assigned.
+
 An organization specific template flagged as default will be automatically
 assigned to any new device which will be created in the same organization.
 
@@ -115,6 +121,9 @@ unassigned from a device configuration, they can only be overridden.
 
 They will be always assigned earlier than default templates, so they can
 be overridden if needed.
+
+Another difference to :ref:`default_templates` is that required templates are
+assigned to all devices, not just new devices.
 
 In the example above, the "SSID" template is flagged as "(required)" and
 its checkbox is always checked and disabled.
