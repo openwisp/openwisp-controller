@@ -288,10 +288,9 @@ class TestDeviceAdminUnsavedChanges(
 ):
     browser = 'chrome'
 
-    def test_unsaved_changes(self):
+     def test_unsaved_changes(self):
         """
         Execute this test using Chrome instead of Firefox.
-
         Firefox automatically accepts the beforeunload alert, which makes it
         impossible to test the unsaved changes alert.
         """
@@ -309,6 +308,13 @@ class TestDeviceAdminUnsavedChanges(
                 self.fail('Unsaved changes alert displayed without any change')
 
         with self.subTest('Alert should be displayed after making changes'):
+            # The WebDriver automatically accepts the
+            # beforeunload confirmation dialog. To verify the message,
+            # we log it to the console and check its content.
+            self.web_driver.execute_script(
+                'django.jQuery(window).on("beforeunload", function(e) {'
+                ' console.warn(e.returnValue); });'
+            )
             # simulate hand gestures
             self.find_element(by=By.TAG_NAME, value='body').click()
             self.find_element(by=By.NAME, value='name').click()
@@ -317,14 +323,14 @@ class TestDeviceAdminUnsavedChanges(
             # simulate hand gestures
             self.find_element(by=By.TAG_NAME, value='body').click()
             self.web_driver.refresh()
-            try:
-                WebDriverWait(self.web_driver, 5).until(EC.alert_is_present())
-            except TimeoutException:
-                for entry in self.get_browser_logs():
-                    print(entry)
-                self.fail('Timed out wating for unsaved changes alert')
+            for entry in self.get_browser_logs():
+                if (
+                    entry['level'] == 'WARNING'
+                    and "You haven\'t saved your changes yet!" in entry['message']
+                ):
+                    break
             else:
-                self.web_driver.switch_to.alert.accept()
+                self.fail('Unsaved changes code was not executed.')
 
 
 @tag('selenium_tests')
