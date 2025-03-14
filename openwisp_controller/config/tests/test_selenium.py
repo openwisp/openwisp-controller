@@ -110,38 +110,6 @@ class TestDeviceAdmin(
             actions.send_keys(Keys.ESCAPE).perform()
             self.wait_for_invisibility(By.CSS_SELECTOR, '.djnjc-overlay:not(.loading)')
 
-    def test_unsaved_changes(self):
-        self.login()
-        device = self._create_config(organization=self._get_org()).device
-        path = reverse('admin:config_device_change', args=[device.id])
-        self.open(path)
-        with self.subTest('Alert should not be displayed without any change'):
-            self.open(path)
-            try:
-                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
-            except TimeoutException:
-                pass
-            else:
-                self.fail('Unsaved changes alert displayed without any change')
-
-        with self.subTest('Alert should be displayed after making changes'):
-            # simulate hand gestures
-            self.find_element(by=By.TAG_NAME, value='body').click()
-            self.find_element(by=By.NAME, value='name').click()
-            # set name
-            self.find_element(by=By.NAME, value='name').send_keys('new.device.name')
-            # simulate hand gestures
-            self.find_element(by=By.TAG_NAME, value='body').click()
-            self.web_driver.refresh()
-            try:
-                WebDriverWait(self.web_driver, 5).until(EC.alert_is_present())
-            except TimeoutException:
-                for entry in self.get_browser_logs():
-                    print(entry)
-                self.fail('Timed out wating for unsaved changes alert')
-            else:
-                self.web_driver.switch_to.alert.accept()
-
     def test_multiple_organization_templates(self):
         shared_required_template = self._create_template(
             name='shared required', organization=None
@@ -310,6 +278,53 @@ class TestDeviceAdmin(
         )
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
+
+
+@tag('selenium_tests')
+class TestDeviceAdminUnsavedChanges(
+    DeviceAdminSeleniumTextMixin,
+    CreateConfigTemplateMixin,
+    StaticLiveServerTestCase,
+):
+    browser = 'chrome'
+
+    def test_unsaved_changes(self):
+        """
+        Execute this test using Chrome instead of Firefox.
+
+        Firefox automatically accepts the beforeunload alert, which makes it
+        impossible to test the unsaved changes alert.
+        """
+        self.login()
+        device = self._create_config(organization=self._get_org()).device
+        path = reverse('admin:config_device_change', args=[device.id])
+        self.open(path)
+        with self.subTest('Alert should not be displayed without any change'):
+            self.open(path)
+            try:
+                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
+            except TimeoutException:
+                pass
+            else:
+                self.fail('Unsaved changes alert displayed without any change')
+
+        with self.subTest('Alert should be displayed after making changes'):
+            # simulate hand gestures
+            self.find_element(by=By.TAG_NAME, value='body').click()
+            self.find_element(by=By.NAME, value='name').click()
+            # set name
+            self.find_element(by=By.NAME, value='name').send_keys('new.device.name')
+            # simulate hand gestures
+            self.find_element(by=By.TAG_NAME, value='body').click()
+            self.web_driver.refresh()
+            try:
+                WebDriverWait(self.web_driver, 5).until(EC.alert_is_present())
+            except TimeoutException:
+                for entry in self.get_browser_logs():
+                    print(entry)
+                self.fail('Timed out wating for unsaved changes alert')
+            else:
+                self.web_driver.switch_to.alert.accept()
 
 
 @tag('selenium_tests')
