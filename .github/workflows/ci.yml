@@ -15,20 +15,6 @@ jobs:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
     runs-on: ubuntu-22.04
 
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-      postgres:
-        image: postgis/postgis:13-3.3-alpine
-        env:
-          POSTGRES_PASSWORD: openwisp2
-          POSTGRES_USER: openwisp2
-          POSTGRES_DB: openwisp2
-        ports:
-          - 5432:5432
-
     strategy:
       fail-fast: false
       matrix:
