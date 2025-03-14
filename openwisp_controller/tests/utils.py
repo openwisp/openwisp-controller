@@ -75,7 +75,6 @@ class DeviceAdminSeleniumTextMixin(SeleniumTestMixin):
                 pass
             else:
                 self.web_driver.switch_to_alert().accept()
-                self.web_driver.switch_to_alert.accept()
         self.web_driver.refresh()
         self.wait_for_visibility(By.XPATH, '//*[@id="site-name"]')
 

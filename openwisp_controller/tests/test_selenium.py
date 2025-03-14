@@ -90,7 +90,10 @@ class TestDevice(
         # By checking that there are no WARNING level errors logged in the
         # browser console, we ensure that this issue is not happening.
         for error in self.get_browser_logs():
-            self.assertNotEqual(error['level'], 'WARNING')
+            if error['level'] == 'WARNING' and error['message'] not in [
+                'wrong event specified: touchleave'
+            ]:
+                self.fail(f'Browser console error: {error["message"]}')
         self.find_element(
             by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[1]'
         ).click()

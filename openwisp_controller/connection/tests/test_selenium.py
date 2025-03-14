@@ -1,12 +1,10 @@
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls import reverse
-import ipdb
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
 from ...tests.utils import DeviceAdminSeleniumTextMixin
-
 from .utils import CreateConnectionsMixin
 
 Command = load_model('connection', 'Command')
@@ -43,10 +41,8 @@ class TestDeviceAdmin(
         self.wait_for_invisibility(By.CSS_SELECTOR, 'ul.object-tools a#send-command')
         self._create_device_connection(device=device, credentials=creds)
         self.assertEqual(device.deviceconnection_set.count(), 1)
-        import time; time.sleep(10)
         self.open(path)
         # Send reboot command to the device
-        # import ipdb; ipdb.set_trace()
         self.find_element(
             by=By.CSS_SELECTOR, value='ul.object-tools a#send-command', timeout=5
         ).click()

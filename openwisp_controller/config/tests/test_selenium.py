@@ -1,11 +1,7 @@
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
-from selenium.common.exceptions import (
-    StaleElementReferenceException,
-    TimeoutException,
-    UnexpectedAlertPresentException,
-)
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
@@ -117,9 +113,10 @@ class TestDeviceAdmin(
     def test_unsaved_changes(self):
         self.login()
         device = self._create_config(organization=self._get_org()).device
-        self.open(reverse('admin:config_device_change', args=[device.id]))
+        path = reverse('admin:config_device_change', args=[device.id])
+        self.open(path)
         with self.subTest('Alert should not be displayed without any change'):
-            self.web_driver.refresh()
+            self.open(path)
             try:
                 WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
             except TimeoutException:
@@ -143,8 +140,7 @@ class TestDeviceAdmin(
                     print(entry)
                 self.fail('Timed out wating for unsaved changes alert')
             else:
-                alert = Alert(self.web_driver)
-                alert.accept()
+                self.web_driver.switch_to.alert.accept()
 
     def test_multiple_organization_templates(self):
         shared_required_template = self._create_template(
@@ -176,7 +172,6 @@ class TestDeviceAdmin(
             reverse('admin:config_device_change', args=[org1_device.id])
             + '#config-group'
         )
-        wait = WebDriverWait(self.web_driver, 2)
         # org2 templates should not be visible
         self.wait_for_invisibility(
             By.XPATH, f'//*[@value="{org2_required_template.id}"]'
@@ -253,16 +248,27 @@ class TestDeviceAdmin(
 
         self.login()
         self.open(reverse('admin:config_device_change', args=[device.id]))
-        self.find_elements(by=By.CSS_SELECTOR, value='input.deletelink[type="submit"]')[
-            -1
-        ].click()
+        # The webpage has two "submit-row" sections, each containing a "Deactivate"
+        # button. The first (top) "Deactivate" button is hidden, causing
+        # `wait_for_visibility` to fail. To avoid this issue, we use
+        # `wait_for='presence'` instead, ensuring we locat the elements regardless
+        # of visibility. We then select the last (visible) button and click it.
+        self.find_elements(
+            by=By.CSS_SELECTOR,
+            value='input.deletelink[type="submit"]',
+            wait_for='presence',
+        )[-1].click()
         device.refresh_from_db()
         config.refresh_from_db()
         self.assertEqual(device.is_deactivated(), True)
         self.assertEqual(config.is_deactivating(), True)
 
         self.open(reverse('admin:config_device_change', args=[device.id]))
-        self.find_elements(by=By.CSS_SELECTOR, value='a.deletelink')[-1].click()
+        # Use `presence` instead of `visibility` for `wait_for`,
+        # as the same issue described above applies here.
+        self.find_elements(
+            by=By.CSS_SELECTOR, value='a.deletelink', wait_for='presence'
+        )[-1].click()
         self.wait_for_visibility(
             By.CSS_SELECTOR, '#deactivating-warning .messagelist .warning p'
         )
@@ -306,6 +312,7 @@ class TestDeviceAdmin(
         self.assertEqual(Device.objects.count(), 0)
 
 
+@tag('selenium_tests')
 class TestVpnAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
@@ -317,10 +324,8 @@ class TestVpnAdmin(
         device, vpn, template = self._create_wireguard_vpn_template()
         self.open(reverse('admin:config_vpn_change', args=[vpn.id]))
         with self.subTest('Ca and Cert should not be visible'):
-            el = self.find_element(by=By.CLASS_NAME, value='field-ca')
-            self.assertFalse(el.is_displayed())
-            el = self.find_element(by=By.CLASS_NAME, value='field-cert')
-            self.assertFalse(el.is_displayed())
+            self.wait_for_invisibility(by=By.CLASS_NAME, value='field-ca')
+            self.wait_for_invisibility(by=By.CLASS_NAME, value='field-cert')
 
         with self.subTest('PrivateKey is shown in configuration preview'):
             self.find_element(by=By.CSS_SELECTOR, value='.previewlink').click()
@@ -335,7 +340,5 @@ class TestVpnAdmin(
         with self.subTest('Changing VPN backend should hide webhook and authtoken'):
             backend = Select(self.find_element(by=By.ID, value='id_backend'))
             backend.select_by_visible_text('OpenVPN')
-            el = self.find_element(by=By.CLASS_NAME, value='field-webhook_endpoint')
-            self.assertFalse(el.is_displayed())
-            el = self.find_element(by=By.CLASS_NAME, value='field-auth_token')
-            self.assertFalse(el.is_displayed())
+            self.wait_for_invisibility(by=By.CLASS_NAME, value='field-webhook_endpoint')
+            self.wait_for_invisibility(by=By.CLASS_NAME, value='field-auth_token')
