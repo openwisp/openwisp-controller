@@ -196,7 +196,7 @@ class TestDeviceAdmin(
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
@@ -253,7 +253,7 @@ class TestDeviceAdmin(
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f'admin:{self.app_label}_device_import'),
-            {'input_format': '0', 'import_file': csv, 'file_name': 'test.csv'},
+            {'format': '0', 'import_file': csv, 'file_name': 'test.csv'},
         )
         self.assertFalse(response.context['result'].has_errors())
         self.assertIn('confirm_form', response.context)
