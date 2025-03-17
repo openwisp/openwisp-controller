@@ -317,6 +317,9 @@ class TestDeviceAdminUnsavedChanges(
             # The WebDriver automatically accepts the
             # beforeunload confirmation dialog. To verify the message,
             # we log it to the console and check its content.
+            #
+            # our own JS code sets e.returnValue when triggered
+            # so we just need to ensure it's set as expected
             self.web_driver.execute_script(
                 'django.jQuery(window).on("beforeunload", function(e) {'
                 ' console.warn(e.returnValue); });'
