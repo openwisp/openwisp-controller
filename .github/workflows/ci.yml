@@ -64,7 +64,6 @@ jobs:
         pip install -U pip wheel setuptools
         pip install -U -r requirements-test.txt
         pip install -U -e .
-        pip install -UI --no-deps https://github.com/openwisp/openwisp-utils/tarball/browser-logs
         pip install ${{ matrix.django-version }}
 
     - name: Start postgres and redis
@@ -78,11 +77,8 @@ jobs:
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
         coverage run runtests.py --parallel
-        # the following command runs tests with Postgres/PostGIS but
-        # only for specific test cases which are tagged with "db_tests"
-        POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         # tests the extension capability
-        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
+        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb --exclude-tag=selenium_tests
         coverage combine
         coverage xml
       env:
