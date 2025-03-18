@@ -5,8 +5,6 @@ import os
 import subprocess
 import sys
 
-import pytest
-
 
 def run_tests(args, settings_module):
     """
@@ -20,6 +18,9 @@ def run_tests(args, settings_module):
 
 
 if __name__ == '__main__':
+    # Configure Django settings for test execution
+    # (sets Celery to eager mode, configures in-memory channels layer, etc.)
+    os.environ.setdefault('TESTING', '1')
     base_args = sys.argv.copy()[1:]
     if not os.environ.get('SAMPLE_APP', False):
         test_app = 'openwisp_controller'
@@ -43,5 +44,8 @@ if __name__ == '__main__':
     run_tests(psql_args, 'openwisp2.postgresql_settings')
 
     # Run pytest tests
-    sys.path.insert(0, 'tests')
-    sys.exit(pytest.main([app_dir]))
+    result = subprocess.run(
+        ['pytest', app_dir],
+    )
+    if result.returncode != 0:
+        sys.exit(result.returncode)  # Exit immediately if tests fail
