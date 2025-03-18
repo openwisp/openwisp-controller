@@ -1,3 +1,5 @@
+import time
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
@@ -246,8 +248,13 @@ class TestDeviceAdmin(
             By.CSS_SELECTOR, '#deactivating-warning .messagelist .warning p'
         )
         self.find_element(by=By.CSS_SELECTOR, value='#warning-ack').click()
+        # After accepting the warning, wee need to wait for the animation
+        # to complete before trying to interact with the button,
+        # otherwise the test may fail due to the button not being fully
+        # visible or clickable yet.
+        time.sleep(0.5)
         delete_confirm = self.find_element(
-            By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
+            By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]', timeout=10
         )
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)

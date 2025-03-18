@@ -5,16 +5,30 @@ import os
 import subprocess
 import sys
 
+import pytest
 
-def run_tests(args, settings_module):
+
+def run_tests(extra_args, settings_module, test_app):
     """
     Run Django tests with the specified settings module in a separate subprocess.
-    Executes the command inside the 'tests/' directory.
     """
-    os.environ['DJANGO_SETTINGS_MODULE'] = settings_module
-    result = subprocess.run(['python', 'manage.py'] + args, cwd='tests')
+    args = [
+        './tests/manage.py',
+        'test',
+        test_app,
+        '--settings',
+        settings_module,
+        '--pythonpath',
+        'tests',
+    ]
+    args.extend(extra_args)
+    if os.environ.get('COVERAGE_RUN', False):
+        # Since the Django tests are run in a separate process (using subprocess),
+        # we need to run coverage in the subprocess as well.
+        args = ['coverage', 'run'] + args
+    result = subprocess.run(args)
     if result.returncode != 0:
-        sys.exit(result.returncode)  # Exit immediately if tests fail
+        sys.exit(result.returncode)
 
 
 if __name__ == '__main__':
@@ -29,23 +43,17 @@ if __name__ == '__main__':
         test_app = 'openwisp2'
         app_dir = 'tests/openwisp2/'
     # Run all tests except Selenium tests using SQLite
-    sqlite_args = ['test', test_app, '--exclude-tag', 'selenium_tests'] + base_args
-    run_tests(sqlite_args, 'openwisp2.settings')
+    sqlite_args = ['--exclude-tag', 'selenium_tests'] + base_args
+    run_tests(sqlite_args, 'openwisp2.settings', test_app)
 
     # Run Selenium tests using PostgreSQL
     psql_args = [
-        'test',
-        test_app,
         '--tag',
         'db_tests',
         '--tag',
         'selenium_tests',
     ] + base_args
-    run_tests(psql_args, 'openwisp2.postgresql_settings')
+    run_tests(psql_args, 'openwisp2.postgresql_settings', test_app)
 
     # Run pytest tests
-    result = subprocess.run(
-        ['pytest', app_dir],
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)  # Exit immediately if tests fail
+    sys.exit(pytest.main([app_dir]))
