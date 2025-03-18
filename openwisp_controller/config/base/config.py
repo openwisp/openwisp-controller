@@ -272,28 +272,25 @@ class AbstractConfig(BaseConfig):
         else:
             templates = pk_set
 
-        # Get current VPNs in use by any template
-        current_vpns = set(
-            instance.templates.filter(type='vpn').values_list('vpn_id', flat=True)
-        )
+        # Delete VPN clients that are not associated with current templates
+        instance.vpnclient_set.exclude(
+            template_id__in=instance.templates.values_list('id', flat=True)
+        ).delete()
 
-        # Handle template actions
-        for template in templates.filter(type='vpn'):
-            if action == 'post_add':
+        if action == 'post_add':
+            for template in templates.filter(type='vpn'):
                 # Create VPN client if needed
                 if not vpn_client_model.objects.filter(
-                    config=instance, vpn=template.vpn
+                    config=instance, vpn=template.vpn, template=template
                 ).exists():
                     client = vpn_client_model(
                         config=instance,
                         vpn=template.vpn,
+                        template=template,
                         auto_cert=template.auto_cert,
                     )
                     client.full_clean()
                     client.save()
-
-        # Clean up any VPN clients that aren't associated with current templates
-        instance.vpnclient_set.exclude(vpn_id__in=current_vpns).delete()
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, raw_data=None, **kwargs):

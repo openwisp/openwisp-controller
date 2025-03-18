@@ -630,6 +630,14 @@ class Migration(migrations.Migration):
                 to='sample_config.TemplateTag',
             ),
         ),
+        migrations.AddField(
+            model_name="vpnclient",
+            name="template",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                to='sample_config.template',
+            ),
+        ),
         migrations.CreateModel(
             name='OrganizationConfigSettings',
             fields=[
