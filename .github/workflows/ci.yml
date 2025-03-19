@@ -89,6 +89,15 @@ jobs:
       if: ${{ failure() }}
       run: cat geckodriver.log
 
+    - name: Upload device files on failure
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: device-files
+        path: /tmp/delete_devices_error.png
+        retention-days: 1
+        overwrite: true
+
     - name: Upload Coverage
       if: ${{ success() }}
       uses: coverallsapp/github-action@v2

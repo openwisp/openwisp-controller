@@ -252,10 +252,16 @@ class TestDeviceAdmin(
         # to complete before trying to interact with the button,
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
-        time.sleep(0.5)
-        delete_confirm = self.find_element(
-            By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]', timeout=10
-        )
+        time.sleep(1)
+        try:
+            delete_confirm = self.find_element(
+                By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
+            )
+        except Exception as e:
+            # Take a screenshot of the failed state
+            screenshot_path = '/tmp/delete_devices_error.png'
+            self.web_driver.save_screenshot(screenshot_path)
+            raise e
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
 
@@ -285,9 +291,20 @@ class TestDeviceAdmin(
             By.CSS_SELECTOR, '#deactivating-warning .messagelist .warning p'
         )
         self.find_element(by=By.CSS_SELECTOR, value='#warning-ack').click()
-        delete_confirm = self.find_element(
-            By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
-        )
+        # After accepting the warning, wee need to wait for the animation
+        # to complete before trying to interact with the button,
+        # otherwise the test may fail due to the button not being fully
+        # visible or clickable yet.
+        time.sleep(1)
+        try:
+            delete_confirm = self.find_element(
+                By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
+            )
+        except Exception as e:
+            # Take a screenshot of the failed state
+            screenshot_path = '/tmp/delete_devices_error.png'
+            self.web_driver.save_screenshot(screenshot_path)
+            raise e
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
 
