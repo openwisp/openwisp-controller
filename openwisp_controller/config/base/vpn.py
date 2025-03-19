@@ -633,13 +633,21 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # If the backend is 'zerotier' then
             # call auto_client and update the config
             elif self._is_backend_type('zerotier') and template_backend_class:
-                auto = getattr(template_backend_class, 'zerotier_auto_client')(
-                    name='ow_zt',
-                    networks=[
-                        {'id': self.network_id, 'ifname': f'owzt{self.network_id[-6:]}'}
-                    ],
-                    identity_secret=context_keys['secret'],
+                # auto = getattr(template_backend_class, 'zerotier_auto_client')(
+                #     name='ow_zt',
+                #     networks=[
+                #         {'id': self.network_id, 'ifname': f'owzt{self.network_id[-6:]}'}
+                #     ],
+                #     identity_secret=context_keys['secret'],
+                # )
+                auto = getattr(template_backend_class, 'zerotier_auto_client')( 
+                    name='global',  # Changed from 'ow_zt' to 'global'
+                    networks=[ 
+                        {'id': self.network_id, 'ifname': f'owzt{self.network_id[-6:]}'} 
+                    ], 
+                    identity_secret=context_keys['secret'], 
                 )
+
             else:
                 # The OpenVPN backend does not support these kwargs,
                 # hence, they are removed before creating configuration
