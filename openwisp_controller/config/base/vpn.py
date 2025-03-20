@@ -796,6 +796,10 @@ class AbstractVpnClient(models.Model):
     config = models.ForeignKey(
         get_model_name('config', 'Config'), on_delete=models.CASCADE
     )
+    template = models.ForeignKey(
+        get_model_name('config', 'Template'),
+        on_delete=models.CASCADE,
+    )
     vpn = models.ForeignKey(get_model_name('config', 'Vpn'), on_delete=models.CASCADE)
     cert = models.OneToOneField(
         get_model_name('django_x509', 'Cert'),

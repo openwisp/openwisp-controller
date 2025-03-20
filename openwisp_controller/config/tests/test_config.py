@@ -424,6 +424,16 @@ class TestConfig(
         self.assertIsNotNone(vpnclient)
         self.assertNotEqual(c.vpnclient_set.count(), 0)
 
+    def test_deleting_template_deletes_vpnclient(self):
+        template = self._create_template(
+            name='test-network', type='vpn', vpn=self._create_vpn(), default=True
+        )
+        config = self._create_config(device=self._create_device())
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        template.delete()
+        self.assertEqual(config.templates.count(), 0)
+        self.assertEqual(config.vpnclient_set.count(), 0)
+
     def test_multiple_vpn_clients(self):
         vpn1 = self._create_vpn(name='vpn1')
         vpn2 = self._create_vpn(name='vpn2')

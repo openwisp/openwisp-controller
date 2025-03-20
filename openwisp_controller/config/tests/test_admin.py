@@ -2129,6 +2129,7 @@ class TestAdmin(
             response = self.client.post(path, data=params, follow=True)
             self.assertEqual(response.status_code, 200)
             config.refresh_from_db()
+            self.assertEqual(config.vpnclient_set.count(), 1)
             del config.backend_instance
             self.assertEqual(
                 config.backend_instance.config['openvpn'][0]['cert'],
@@ -2138,7 +2139,6 @@ class TestAdmin(
                 config.backend_instance.config['openvpn'][0]['dev'],
                 'tun1',
             )
-            self.assertEqual(config.vpnclient_set.count(), 1)
 
         with self.subTest('Switch device back to template1'):
             params.update(
