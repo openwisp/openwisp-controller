@@ -50,11 +50,10 @@
                     but their configurations will remain active.
                     {% endblocktranslate %}
                 </p>
-                <form>
-                    <input type="submit" class="button danger-btn" id="warning-ack"
-                        value="{% blocktranslate count counter=active_devices|length %}I understand the risks, delete the device{% plural %}I understand the risks, delete the devices{% endblocktranslate %}">
-                    <a class="button cancel-link">{% translate 'No, take me back' %}</a>
-                </form>
+                <span>
+                    <button class="danger-btn" id="warning-ack">"{% blocktranslate count counter=active_devices|length %}I understand the risks, delete the device{% plural %}I understand the risks, delete the devices{% endblocktranslate %}</button>
+                    <button class="button cancel-link">{% translate 'No, take me back' %}</button>
+                </span>
             </li>
         </ul>
     </div>

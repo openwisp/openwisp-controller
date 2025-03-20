@@ -3,7 +3,7 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
-TESTING = sys.argv[1:2] == ['test']
+TESTING = os.environ.get('TESTING', False) or sys.argv[1:2] == ['test']
 SELENIUM_HEADLESS = True if os.environ.get('SELENIUM_HEADLESS', False) else False
 SHELL = 'shell' in sys.argv or 'shell_plus' in sys.argv
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')

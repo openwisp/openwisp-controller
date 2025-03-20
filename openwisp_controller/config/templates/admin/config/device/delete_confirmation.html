@@ -46,11 +46,10 @@
                   but its configuration will remain active.
                   {% endblocktranslate %}
                 </p>
-                <form>
-                    <input type="submit" class="button danger-btn" id="warning-ack"
-                        value="{% translate 'I understand the risks, delete the device' %}">
-                    <a class="button cancel-link">{% translate 'No, take me back' %}</a>
-                </form>
+                <span>
+                    <button class="danger-btn" id="warning-ack">{% translate 'I understand the risks, delete the device' %}</button>
+                    <button class="button cancel-link">{% translate 'No, take me back' %}</button>
+                </span>
             </li>
         </ul>
     </div>

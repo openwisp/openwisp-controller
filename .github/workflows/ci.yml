@@ -15,20 +15,6 @@ jobs:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
     runs-on: ubuntu-22.04
 
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-      postgres:
-        image: postgis/postgis:13-3.3-alpine
-        env:
-          POSTGRES_PASSWORD: openwisp2
-          POSTGRES_USER: openwisp2
-          POSTGRES_DB: openwisp2
-        ports:
-          - 5432:5432
-
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +32,19 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: |
+          apt-${{ runner.os }}-
+
+    - name: Disable man page auto-update
+      run: |
+        echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
+        sudo dpkg-reconfigure man-db
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -53,19 +52,6 @@ jobs:
         cache: 'pip'
         cache-dependency-path: |
           **/requirements*.txt
-
-    - uses: browser-actions/setup-chrome@v1
-      # Using a fixed version, see here for more information on why:
-      # https://github.com/openwisp/openwisp-controller/issues/902#issuecomment-2266219715
-      # TODO: find a solution to allow using recent versions
-      with:
-        chrome-version: 125
-        install-chromedriver: true
-      id: setup-chrome
-
-    - run: |
-        ${{ steps.setup-chrome.outputs.chrome-path }} --version
-        chromedriver --version
 
     - name: Install Dependencies
       id: deps
@@ -80,6 +66,10 @@ jobs:
         pip install -U -e .
         pip install ${{ matrix.django-version }}
 
+    - name: Start postgres and redis
+      if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
+      run: docker compose up -d postgres redis
+
     - name: QA checks
       run: ./run-qa-checks
 
@@ -87,16 +77,17 @@ jobs:
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
         coverage run runtests.py --parallel
-        # the following command runs tests with Postgres/PostGIS but
-        # only for specific test cases which are tagged with "db_tests"
-        POSTGRESQL=1 coverage run runtests.py --parallel --keepdb
         # tests the extension capability
-        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb
+        SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb --exclude-tag=selenium_tests
         coverage combine
         coverage xml
       env:
         SELENIUM_HEADLESS: 1
-        CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+        GECKO_LOG: 1
+
+    - name: Show gecko web driver log on failures
+      if: ${{ failure() }}
+      run: cat geckodriver.log
 
     - name: Upload Coverage
       if: ${{ success() }}
