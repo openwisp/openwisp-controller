@@ -16,9 +16,10 @@ def change_owzt_to_global(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [('config', '0055_alter_config_status')]
+    dependencies = [('config', '0058_alter_vpnclient_template')]
 
     operations = [
         migrations.RunPython(
-            change_owzt_to_global, reverse_code=migrations.RunPython.noop)
+            change_owzt_to_global, reverse_code=migrations.RunPython.noop
+        )
     ]
