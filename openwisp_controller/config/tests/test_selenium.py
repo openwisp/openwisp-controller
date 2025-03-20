@@ -253,15 +253,9 @@ class TestDeviceAdmin(
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
         time.sleep(1)
-        try:
-            delete_confirm = self.find_element(
-                By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
-            )
-        except Exception as e:
-            # Take a screenshot of the failed state
-            screenshot_path = '/tmp/delete_devices_error.png'
-            self.web_driver.save_screenshot(screenshot_path)
-            raise e
+        delete_confirm = self.find_element(
+            By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
+        )
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
 
@@ -296,15 +290,9 @@ class TestDeviceAdmin(
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
         time.sleep(1)
-        try:
-            delete_confirm = self.find_element(
-                By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
-            )
-        except Exception as e:
-            # Take a screenshot of the failed state
-            screenshot_path = '/tmp/delete_devices_error.png'
-            self.web_driver.save_screenshot(screenshot_path)
-            raise e
+        delete_confirm = self.find_element(
+            By.CSS_SELECTOR, 'form[method="post"] input[type="submit"]'
+        )
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
 

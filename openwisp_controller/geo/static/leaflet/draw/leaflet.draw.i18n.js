@@ -1,4 +1,13 @@
 {
+  /**
+   * Internationalization setup for Leaflet.draw
+   * Adapted from django-leaflet:
+   * https://github.com/makinacorpus/django-leaflet/blob/master/leaflet/static/leaflet/draw/leaflet.draw.i18n.js
+   *
+   * Using block scope to prevent 'withForms' variable leaking to global scope,
+   * which would cause errors when this script is included multiple times
+   * (particularly in Django inline formsets).
+   */
   const withForms = document.getElementById("with-forms")
     ? JSON.parse(document.getElementById("with-forms").textContent)
     : false;
