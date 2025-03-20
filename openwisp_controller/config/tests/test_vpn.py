@@ -405,7 +405,9 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn(organization=org)
         d = self._create_device(organization=org, name=device_name)
         c = self._create_config(device=d)
-        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
+        client = VpnClient(
+            vpn=vpn, config=c, auto_cert=True, template=self._create_template()
+        )
         client.full_clean()
         client.save()
         # The last 9 characters gets truncated and replaced with unique id
@@ -818,10 +820,17 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
 class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
     def test_vxlan_config_creation(self):
         tunnel, subnet = self._create_vxlan_tunnel()
+        template = self._create_template(
+            name='vxlan-wireguard',
+            type='vpn',
+            vpn=tunnel,
+            organization=tunnel.organization,
+            auto_cert=True,
+        )
         with self.subTest('vni 1'):
             d1 = self._create_device()
             c1 = self._create_config(device=d1)
-            client = VpnClient(vpn=tunnel, config=c1, auto_cert=True)
+            client = VpnClient(vpn=tunnel, config=c1, auto_cert=True, template=template)
             client.full_clean()
             client.save()
             client.refresh_from_db()
@@ -830,7 +839,7 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
         with self.subTest('vni 2'):
             d2 = self._create_device(name='d2', mac_address='16:DB:7F:E8:50:01')
             c2 = self._create_config(device=d2)
-            client = VpnClient(vpn=tunnel, config=c2, auto_cert=True)
+            client = VpnClient(vpn=tunnel, config=c2, auto_cert=True, template=template)
             client.full_clean()
             client.save()
             client.refresh_from_db()
@@ -853,7 +862,9 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
         with self.subTest('auto_cert=False'):
             d3 = self._create_device(name='d3', mac_address='16:DB:7F:E8:50:03')
             c3 = self._create_config(device=d3)
-            client = VpnClient(vpn=tunnel, config=c3, auto_cert=False)
+            client = VpnClient(
+                vpn=tunnel, config=c3, auto_cert=False, template=template
+            )
             client.full_clean()
             client.save()
             client.refresh_from_db()
@@ -861,15 +872,22 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 
     def test_duplicate_vxlan_tunnels_same_vni(self):
         tunnel, subnet = self._create_vxlan_tunnel()
+        template = self._create_template(
+            name='vxlan-wireguard',
+            type='vpn',
+            vpn=tunnel,
+            organization=tunnel.organization,
+            auto_cert=True,
+        )
         d1 = self._create_device()
         c1 = self._create_config(device=d1)
-        client = VpnClient(vpn=tunnel, config=c1, vni=1)
+        client = VpnClient(vpn=tunnel, config=c1, vni=1, template=template)
         client.full_clean()
         client.save()
         with self.subTest('Test server configuration does not define VNI'):
             d2 = self._create_device(name='d2', mac_address='16:DB:7F:E8:50:01')
             c2 = self._create_config(device=d2)
-            client = VpnClient(vpn=tunnel, config=c2, vni=1)
+            client = VpnClient(vpn=tunnel, config=c2, vni=1, template=template)
             with self.assertRaises(ValidationError) as context_manager:
                 client.full_clean()
             message_dict = context_manager.exception.message_dict
@@ -883,7 +901,7 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
             tunnel.config['vxlan'] = [{'interface': 'vxlan1', 'vni': 1}]
             tunnel.full_clean()
             tunnel.save()
-            client = VpnClient(vpn=tunnel, config=c2, vni=1)
+            client = VpnClient(vpn=tunnel, config=c2, vni=1, template=template)
             client.full_clean()
             client.save()
 
@@ -1573,13 +1591,6 @@ class TestZeroTierTransaction(
             organization=zt_vpn1.organization,
             auto_cert=True,
         )
-        zt_1_copy = self._create_template(
-            name='test-zt-template-1-copy',
-            type='vpn',
-            vpn=zt_vpn1,
-            organization=zt_vpn1.organization,
-            auto_cert=True,
-        )
         zt2 = self._create_template(
             name='test-zt-template-2',
             type='vpn',
@@ -1653,27 +1664,6 @@ class TestZeroTierTransaction(
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             self.assertEqual(mock_requests.post.call_count, 1)
-        _reset_mocks()
-
-        with self.subTest(
-            (
-                'Test zt no identity generation when same zt vpn server '
-                'vpn client template is already applied to the device'
-            )
-        ):
-            device.config.templates.add(zt_1_copy)
-            # No new zt vpn client object
-            self.assertEqual(vpnclient_qs.count(), 1)
-            # Make sure only previously applied 'zt_vpn1' vpn client object is exist
-            self.assertEqual(vpnclient_qs.first().vpn, zt_vpn1)
-            self.assertEqual(IpAddress.objects.count(), 4)
-            # Make sure subprocess is not called for identity generation
-            self.assertEqual(mock_subprocess.run.call_count, 0)
-            # No configuration changed
-            self.assertEqual(mock_info.call_count, 0)
-            self.assertEqual(mock_warn.call_count, 0)
-            self.assertEqual(mock_error.call_count, 0)
-            self.assertEqual(mock_requests.post.call_count, 0)
         _reset_mocks()
 
         with self.subTest(
