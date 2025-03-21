@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
+from reversion.models import Version
 from swapper import load_model
 
 from openwisp_users.api.filters import OrganizationManagedFilter
@@ -142,3 +143,18 @@ class DeviceGroupListFilter(BaseConfigAPIFilter):
 
     class Meta(BaseConfigAPIFilter.Meta):
         model = DeviceGroup
+
+
+class ReversionFilter(BaseConfigAPIFilter):
+    model = filters.CharFilter(field_name="content_type__model", lookup_expr="iexact")
+
+    def _set_valid_filterform_labels(self):
+        self.filters["model"].label = _("Model")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._set_valid_filterform_labels()
+
+    class Meta:
+        model = Version
+        fields = ["model"]
