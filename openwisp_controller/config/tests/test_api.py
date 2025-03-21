@@ -1,3 +1,4 @@
+import reversion
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -1773,3 +1774,42 @@ class TestConfigApiTransaction(
                 template2.refresh_from_db()
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
+
+    def test_reversion_list_and_restore_api(self):
+        org = self._get_org()
+        with reversion.create_revision():
+            device = self._create_device(
+                organization=org, name="test", _is_deactivated=True
+            )
+        path = reverse("config_api:device_detail", args=[device.pk])
+        response = self.client.delete(path)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(Device.objects.count(), 0)
+
+        path = reverse("config_api:reversion_list")
+        response = self.client.get(path)
+        response_json = response.json()
+        version_id = response_json[0]["id"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response_json), 1)
+
+        with self.subTest("Test filter reversion list with model name"):
+            params = {"id": 1, "model": "Device"}
+            response = self.client.get(path, params)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.json()), 1)
+            self.assertEqual(response.json()[0]["object_id"], str(device.pk))
+
+        with self.subTest("Test reversion detail"):
+            path = reverse("config_api:reversion_detail", args=[version_id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["id"], version_id)
+            self.assertEqual(response.json()["object_id"], str(device.pk))
+
+        with self.subTest("Test reversion restore view"):
+            path = reverse("config_api:reversion_restore", args=[version_id])
+            response = self.client.post(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(Device.objects.count(), 1)
+            self.assertEqual(Device.objects.first().id, device.pk)

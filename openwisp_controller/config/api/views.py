@@ -1,3 +1,4 @@
+import reversion
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F, Q
@@ -7,11 +8,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import pagination, serializers, status
 from rest_framework.generics import (
     GenericAPIView,
+    ListAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.response import Response
+from reversion.models import Version
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions
@@ -21,6 +24,7 @@ from .filters import (
     DeviceGroupListFilter,
     DeviceListFilter,
     DeviceListFilterBackend,
+    ReversionFilter,
     TemplateListFilter,
     VPNListFilter,
 )
@@ -28,6 +32,7 @@ from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
     DeviceListSerializer,
+    ReversionSerializer,
     TemplateSerializer,
     VpnSerializer,
 )
@@ -289,6 +294,42 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 
 
+class ReversionListView(ProtectedAPIMixin, ListAPIView):
+    serializer_class = ReversionSerializer
+    queryset = Version.objects.select_related('revision').order_by(
+        '-revision__date_created'
+    )
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ReversionFilter
+
+
+class ReversionDetailView(ProtectedAPIMixin, RetrieveAPIView):
+    serializer_class = ReversionSerializer
+    queryset = Version.objects.select_related('revision').order_by(
+        '-revision__date_created'
+    )
+    lookup_field = 'pk'
+
+
+class ReversionRestoreView(ProtectedAPIMixin, GenericAPIView):
+    serializer_class = serializers.Serializer
+    queryset = Version.objects.select_related('revision').order_by(
+        '-revision__date_created'
+    )
+
+    def post(self, request, *args, **kwargs):
+        version = self.get_object()
+        with reversion.create_revision():
+            version.revert()
+            reversion.set_user(request.user)
+            reversion.set_comment(
+                f"Restored to previous revision: {version.revision_id}"
+            )
+
+        serializer = ReversionSerializer(version, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
 vpn_list = VpnListCreateView.as_view()
@@ -300,3 +341,6 @@ device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
+reversion_list = ReversionListView.as_view()
+reversion_detail = ReversionDetailView.as_view()
+reversion_restore = ReversionRestoreView.as_view()
