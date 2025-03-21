@@ -1585,7 +1585,7 @@ class TestConfigApiTransaction(
         self.assertEqual(len(response_json), 1)
 
         with self.subTest("Test filter reversion list with model name"):
-            params = {"id": 1, "model": "Device"}
+            params = {"model": "Device"}
             response = self.client.get(path, params)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.json()), 1)
