@@ -2116,7 +2116,7 @@ class TestTransactionAdmin(
         self.assertContains(
             response,
             '<div class="readonly">',
-            22,
+            23,
         )
         # Save buttons are absent on deactivated device
         self.assertNotContains(response, self._save_btn_html)
@@ -2199,9 +2199,9 @@ class TestTransactionAdmin(
         )
         multiple_success_message_html = (
             f'<li class="success">The following devices were {html_method}ed'
-            f' successfully: <a href="/admin/config/device/{device1.id}/change/">'
-            f'{device1.name}</a>, <a href="/admin/config/device/{device2.id}/change/">'
-            f'{device2.name}</a> and <a href="/admin/config/device/{device3.id}/'
+            f' successfully: <a href="/admin/{self.app_label}/device/{device1.id}/change/">'
+            f'{device1.name}</a>, <a href="/admin/{self.app_label}/device/{device2.id}/change/">'
+            f'{device2.name}</a> and <a href="/admin/{self.app_label}/device/{device3.id}/'
             f'change/">{device3.name}</a>.</li>'
         )
         single_error_message_html = (
