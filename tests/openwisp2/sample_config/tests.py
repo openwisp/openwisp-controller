@@ -119,7 +119,9 @@ class TestVxlan(BaseTestVxlan):
 
 
 del BaseTestAdmin
+del BaseTestTransactionAdmin
 del BaseTestDeviceGroupAdmin
+del BaseTestDeviceGroupAdminTransaction
 del BaseTestConfig
 del BaseTestTransactionConfig
 del BaseTestController
