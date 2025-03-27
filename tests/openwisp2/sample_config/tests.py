@@ -1,6 +1,10 @@
-from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdmin
+from openwisp_controller.config.tests.test_admin import (
+        TestAdmin as BaseTestAdmin,
+        TestTransactionAdmin as BaseTestTransactionAdmin,
+)
 from openwisp_controller.config.tests.test_admin import (
     TestDeviceGroupAdmin as BaseTestDeviceGroupAdmin,
+    TestDeviceGroupAdminTransaction as BaseTestDeviceGroupAdminTransaction,
 )
 from openwisp_controller.config.tests.test_api import TestConfigApi as BaseTestConfigApi
 from openwisp_controller.config.tests.test_apps import TestApps as BaseTestApps
@@ -38,7 +42,15 @@ class TestAdmin(BaseTestAdmin):
     app_label = 'sample_config'
 
 
+class TestTransactionAdmin(BaseTestTransactionAdmin):
+    app_label = 'sample_config'
+
+
 class TestDeviceGroupAdmin(BaseTestDeviceGroupAdmin):
+    app_label = 'sample_config'
+
+
+class TestDeviceGroupAdminTransaction(BaseTestDeviceGroupAdminTransaction):
     app_label = 'sample_config'
 
 
