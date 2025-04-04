@@ -204,7 +204,12 @@ class Migration(migrations.Migration):
                 'verbose_name': 'user',
                 'verbose_name_plural': 'users',
                 'abstract': False,
-                'index_together': {('id', 'email')},
+                'indexes': [
+                    models.Index(
+                        fields=['id', 'email'],
+                        name='user_id_email_idx',
+                    )
+                ],
             },
             managers=[('objects', openwisp_users.base.models.UserManager())],
         ),

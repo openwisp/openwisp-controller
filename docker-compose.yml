@@ -1,7 +1,5 @@
 # NOTE: This Docker image is for development purposes only.
 
-version: "3"
-
 services:
   controller:
     image: openwisp/controller-development:latest
@@ -21,7 +19,7 @@ services:
     entrypoint: redis-server --appendonly yes
 
   postgres:
-    image: postgis/postgis:13-3.3-alpine
+    image: postgis/postgis:17-3.5-alpine
     environment:
       POSTGRES_PASSWORD: openwisp2
       POSTGRES_USER: openwisp2

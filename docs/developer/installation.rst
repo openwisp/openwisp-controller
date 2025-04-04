@@ -10,7 +10,7 @@ Developer Installation Instructions
 Dependencies
 ------------
 
-- Python >= 3.8
+- Python >= 3.9
 - OpenSSL
 
 Installing for Development

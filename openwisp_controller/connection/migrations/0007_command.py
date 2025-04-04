@@ -3,6 +3,7 @@
 import collections
 import uuid
 
+import django
 import django.db.migrations.operations.special
 import django.db.models.deletion
 import django.utils.timezone
@@ -11,7 +12,7 @@ import model_utils.fields
 import swapper
 from django.db import migrations, models
 
-from ..commands import COMMAND_CHOICES
+from ..commands import COMMAND_CHOICES, get_command_choices
 from . import assign_command_permissions_to_groups
 
 
@@ -65,7 +66,9 @@ class Migration(migrations.Migration):
                 (
                     'type',
                     models.CharField(
-                        choices=COMMAND_CHOICES,
+                        choices=COMMAND_CHOICES
+                        if django.VERSION < (5, 0)
+                        else get_command_choices,
                         max_length=16,
                     ),
                 ),

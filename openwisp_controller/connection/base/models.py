@@ -1,6 +1,7 @@
 import collections
 import logging
 
+import django
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -24,6 +25,7 @@ from ..commands import (
     ORGANIZATION_COMMAND_SCHEMA,
     ORGANIZATION_ENABLED_COMMANDS,
     get_command_callable,
+    get_command_choices,
     get_command_schema,
 )
 from ..exceptions import NoWorkingDeviceConnectionError
@@ -408,7 +410,18 @@ class AbstractCommand(TimeStampedEditableModel):
     status = models.CharField(
         max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
     )
-    type = models.CharField(max_length=16, choices=COMMAND_CHOICES)
+    type = models.CharField(
+        max_length=16,
+        choices=(
+            COMMAND_CHOICES
+            if django.VERSION < (5, 0)
+            # In Django 5.0+, choices are normalized at model definition,
+            # creating a static list of tuples that doesn't update when command
+            # are dynamically registered or unregistered. Using a callable
+            # ensures we always get the current choices from the registry.
+            else get_command_choices
+        ),
+    )
     input = JSONField(
         blank=True,
         null=True,

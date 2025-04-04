@@ -1346,7 +1346,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertIsNone(c1.device.management_ip)
         self.assertEqual(c2.device.management_ip, '192.168.1.99')
         # other organization is not affected
-        self.assertEquals(c3.device.last_ip, '127.0.0.1')
+        self.assertEqual(c3.device.last_ip, '127.0.0.1')
         self.assertEqual(c3.device.management_ip, '192.168.1.99')
 
         with self.subTest('test interaction with DeviceChecksumView caching'):

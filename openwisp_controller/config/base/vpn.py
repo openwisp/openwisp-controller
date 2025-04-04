@@ -6,7 +6,6 @@ import subprocess
 from copy import deepcopy
 from subprocess import CalledProcessError, TimeoutExpired
 
-import django
 import shortuuid
 from cache_memoize import cache_memoize
 from django.core.cache import cache
@@ -856,13 +855,9 @@ class AbstractVpnClient(models.Model):
             cls._auto_ip_stopper_funcs.append(func)
 
     def _get_unique_checks(self, exclude=None, include_meta_constraints=False):
-        if django.VERSION < (4, 1):
-            # TODO: Remove when dropping support for Django 3.2
-            unique_checks, date_checks = super()._get_unique_checks(exclude)
-        else:
-            unique_checks, date_checks = super()._get_unique_checks(
-                exclude, include_meta_constraints
-            )
+        unique_checks, date_checks = super()._get_unique_checks(
+            exclude, include_meta_constraints
+        )
 
         if not self.vpn._vxlan_vni:
             # If VNI is not specified in VXLAN tunnel configuration,
