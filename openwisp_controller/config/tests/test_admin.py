@@ -2229,7 +2229,7 @@ class TestTransactionAdmin(
         self.assertContains(
             response,
             '<div class="readonly">',
-            23,
+            22,
         )
         # Save buttons are absent on deactivated device
         self.assertNotContains(response, self._save_btn_html)
