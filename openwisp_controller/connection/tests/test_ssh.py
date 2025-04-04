@@ -1,5 +1,4 @@
 import os
-import sys
 from unittest import mock
 
 from django.conf import settings
@@ -54,9 +53,8 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         self.assertEqual(mocked_connect.call_count, 2)
         self.assertFalse(dc.is_working)
         self.assertEqual(mocked_ssh_close.call_count, 2)
-        if sys.version_info[0:2] > (3, 7):
-            self.assertNotIn('disabled_algorithms', mocked_connect.mock_calls[0].kwargs)
-            self.assertIn('disabled_algorithms', mocked_connect.mock_calls[1].kwargs)
+        self.assertNotIn('disabled_algorithms', mocked_connect.mock_calls[0].kwargs)
+        self.assertIn('disabled_algorithms', mocked_connect.mock_calls[1].kwargs)
 
     @mock.patch.object(ssh_logger, 'info')
     @mock.patch.object(ssh_logger, 'debug')
