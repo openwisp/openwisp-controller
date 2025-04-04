@@ -7,7 +7,7 @@ django-loci @ https://github.com/openwisp/django-loci/tarball/1.2
 django-flat-json-widget~=0.3.1
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/1.2
 openwisp-utils[celery,channels] @ https://github.com/openwisp/openwisp-utils/tarball/1.2
-openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/deps-channels
+openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/tarball/1.2
 openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/tarball/1.2
 djangorestframework-gis @ https://github.com/openwisp/django-rest-framework-gis/tarball/1.2
 paramiko[ed25519]~=3.5.1
