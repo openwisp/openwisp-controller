@@ -85,6 +85,8 @@ class VpnSerializer(BaseSerializer):
             'name',
             'host',
             'organization',
+            'subnet',
+            'ip',
             'key',
             'ca',
             'cert',
