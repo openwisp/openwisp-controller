@@ -77,6 +77,7 @@ class TemplateSerializer(BaseSerializer):
 class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
     include_shared = True
+    ip = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta(BaseMeta):
         model = Vpn
@@ -85,6 +86,8 @@ class VpnSerializer(BaseSerializer):
             'name',
             'host',
             'organization',
+            'subnet',
+            'ip',
             'key',
             'ca',
             'cert',
