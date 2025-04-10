@@ -2,6 +2,12 @@ from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdm
 from openwisp_controller.config.tests.test_admin import (
     TestDeviceGroupAdmin as BaseTestDeviceGroupAdmin,
 )
+from openwisp_controller.config.tests.test_admin import (
+    TestDeviceGroupAdminTransaction as BaseTestDeviceGroupAdminTransaction,
+)
+from openwisp_controller.config.tests.test_admin import (
+    TestTransactionAdmin as BaseTestTransactionAdmin,
+)
 from openwisp_controller.config.tests.test_api import TestConfigApi as BaseTestConfigApi
 from openwisp_controller.config.tests.test_apps import TestApps as BaseTestApps
 from openwisp_controller.config.tests.test_config import TestConfig as BaseTestConfig
@@ -38,7 +44,16 @@ class TestAdmin(BaseTestAdmin):
     app_label = 'sample_config'
 
 
+class TestTransactionAdmin(BaseTestTransactionAdmin):
+    app_label = 'sample_config'
+    _deactivated_device_expected_readonly_fields = 23
+
+
 class TestDeviceGroupAdmin(BaseTestDeviceGroupAdmin):
+    app_label = 'sample_config'
+
+
+class TestDeviceGroupAdminTransaction(BaseTestDeviceGroupAdminTransaction):
     app_label = 'sample_config'
 
 
@@ -107,7 +122,9 @@ class TestVxlan(BaseTestVxlan):
 
 
 del BaseTestAdmin
+del BaseTestTransactionAdmin
 del BaseTestDeviceGroupAdmin
+del BaseTestDeviceGroupAdminTransaction
 del BaseTestConfig
 del BaseTestTransactionConfig
 del BaseTestController
