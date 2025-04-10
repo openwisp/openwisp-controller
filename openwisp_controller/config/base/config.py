@@ -423,7 +423,7 @@ class AbstractConfig(BaseConfig):
 
         # Check if the device is using stock OpenWrt.
         openwrt_match = re.search(
-            '[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)', self.device.os
+            r'[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)', self.device.os
         )
         if openwrt_match:
             if version.parse(openwrt_match.group(1)) >= version.parse('21'):
