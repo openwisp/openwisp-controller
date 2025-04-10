@@ -89,7 +89,7 @@ class BaseConfig(BaseModel):
             return config
         c = deepcopy(config)
         is_config = not any([self.__template__, self.__vpn__])
-        if 'hostname' not in c.get('general', {}) and is_config:
+        if all(('hostname' not in c.get('general', {}), is_config, self.name)):
             c.setdefault('general', {})
             c['general']['hostname'] = self.name.replace(':', '-')
         return c
