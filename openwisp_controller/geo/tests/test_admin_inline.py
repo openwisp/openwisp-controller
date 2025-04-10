@@ -78,3 +78,4 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
 
 
 del TestConfigAdmin
+del BaseTestAdminInline

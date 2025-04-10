@@ -65,7 +65,7 @@ DEFAULT_COMMANDS = OrderedDict(
                             'type': 'string',
                             'minLength': 6,
                             'maxLength': 30,
-                            'pattern': '[\S]',
+                            'pattern': r'[\S]',
                         }
                     },
                 },
@@ -155,3 +155,10 @@ for org_id, commands in ORGANIZATION_ENABLED_COMMANDS.items():
     ORGANIZATION_COMMAND_SCHEMA[org_id] = OrderedDict()
     for command in commands:
         ORGANIZATION_COMMAND_SCHEMA[org_id][command] = COMMANDS[command]['schema']
+
+
+def get_command_choices():
+    """
+    Returns the command choices.
+    """
+    return COMMAND_CHOICES

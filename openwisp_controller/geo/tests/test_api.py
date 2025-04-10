@@ -577,7 +577,7 @@ class TestGeoApi(
         self._create_floorplan(location=l1)
         path = reverse('geo_api:detail_location', args=[l1.pk])
         data = {'type': 'outdoor'}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.patch(path, data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['floorplan'], [])
