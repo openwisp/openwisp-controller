@@ -333,6 +333,11 @@ class TestConfig(
         c.refresh_from_db()
         self.assertDictEqual(c.config, {'general': {}})
 
+        with self.subTest('missing name shall not raise exception'):
+            c.device.name = None
+            del c.backend_instance
+            self.assertDictEqual(c.backend_instance.config, {'general': {}})
+
     def test_config_context(self):
         config = {
             'general': {
