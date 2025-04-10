@@ -65,7 +65,7 @@ DEFAULT_COMMANDS = OrderedDict(
                             'type': 'string',
                             'minLength': 6,
                             'maxLength': 30,
-                            'pattern': '[\S]',
+                            'pattern': r'[\S]',
                         }
                     },
                 },
