@@ -200,6 +200,7 @@ div.change-form
   div.inline-group.tab-content
   > fieldset.module
   > h2,
+#devicelocation-0-1-heading,
 div.change-form
   #device_form
   div.inline-group.tab-content
@@ -229,6 +230,11 @@ div.change-form #device_form > div > div.inline-group {
 }
 .change-form #device_form div.inline-group.tab-content > .tabular {
   margin-top: -1em;
+}
+.inline-related fieldset.module h4 {
+  font-size: 16px;
+  text-transform: uppercase;
+  padding: 15px;
 }
 #main .tab-content .inline-related > h3 {
   background: transparent;
