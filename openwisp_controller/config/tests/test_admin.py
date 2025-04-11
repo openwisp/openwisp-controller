@@ -2190,6 +2190,8 @@ class TestTransactionAdmin(
             'Delete</a></p>'
         )
 
+    _deactivated_device_expected_readonly_fields = 22
+
     def test_device_with_config_change_deactivate_deactivate(self):
         """
         This test checks the following things
@@ -2229,7 +2231,7 @@ class TestTransactionAdmin(
         self.assertContains(
             response,
             '<div class="readonly">',
-            22,
+            self._deactivated_device_expected_readonly_fields,
         )
         # Save buttons are absent on deactivated device
         self.assertNotContains(response, self._save_btn_html)
@@ -2311,10 +2313,13 @@ class TestTransactionAdmin(
             f' was {html_method}ed successfully.</li>'
         )
         multiple_success_message_html = (
-            f'<li class="success">The following devices were {html_method}ed'
-            f' successfully: <a href="/admin/config/device/{device1.id}/change/">'
-            f'{device1.name}</a>, <a href="/admin/config/device/{device2.id}/change/">'
-            f'{device2.name}</a> and <a href="/admin/config/device/{device3.id}/'
+            f'<li class="success">The following devices were {html_method}ed '
+            'successfully: '
+            f'<a href="/admin/{self.app_label}/device/{device1.id}/change/">'
+            f'{device1.name}</a>, '
+            f'<a href="/admin/{self.app_label}/device/{device2.id}/change/">'
+            f'{device2.name}</a> and '
+            f'<a href="/admin/{self.app_label}/device/{device3.id}/'
             f'change/">{device3.name}</a>.</li>'
         )
         single_error_message_html = (
