@@ -104,7 +104,10 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     """
 
     serializer_class = DeviceDetailSerializer
-    queryset = Device.objects.select_related('config', 'group', 'organization')
+    queryset = Device.objects.select_related('config', 'group', 'organization').prefetch_related(
+        'config__vpnclient_set'
+    )
+
     permission_classes = ProtectedAPIMixin.permission_classes + (DevicePermission,)
 
     def perform_destroy(self, instance):

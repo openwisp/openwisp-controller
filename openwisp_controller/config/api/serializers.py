@@ -14,6 +14,7 @@ from .. import settings as app_settings
 
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
+VpnClient = load_model('config', 'VpnClient')
 Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 Config = load_model('config', 'Config')
@@ -98,6 +99,16 @@ class VpnSerializer(BaseSerializer):
             'created',
             'modified',
         ]
+
+class VpnClientSerializer(serializers.ModelSerializer):
+    vpn = serializers.PrimaryKeyRelatedField(read_only=True)
+    ip_address = serializers.SerializerMethodField()
+    class Meta:
+        model = VpnClient
+        fields = ['id', 'vpn', 'ip_address']
+
+    def get_ip_address(self, obj):
+        return obj.ip.ip_address if obj.ip else None
 
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
@@ -248,6 +259,10 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
         initial={}, help_text=_('Configuration variables in JSON format')
     )
     templates = FilterTemplatesByOrganization(many=True)
+    vpnclient_config = VpnClientSerializer(many=True, read_only=True, source='vpnclient_set')
+
+    class Meta(BaseConfigSerializer.Meta):
+        fields = BaseConfigSerializer.Meta.fields + ['vpnclient_config']
 
 
 class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
