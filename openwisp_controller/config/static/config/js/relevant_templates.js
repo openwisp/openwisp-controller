@@ -33,7 +33,8 @@ django.jQuery(function ($) {
       if (templateConfig.required) {
         inputField.prop("disabled", true);
       }
-      if (isSelected || templateConfig.required) {
+      // mark the template as selected if it is required or if it is enabled for the current device or group
+      if (isSelected || templateConfig.required || templateConfig.selected) {
         inputField.prop("checked", true);
       }
       return element;
@@ -115,6 +116,14 @@ django.jQuery(function ($) {
       var url = window._relevantTemplateUrl.replace("org_id", orgID);
       // Get relevant templates of selected org and backend
       url = url + "?backend=" + backend;
+      if (!isDeviceGroup()) {
+        var deviceID = $('input[name="config-0-device"]').val();
+        url = url + "&device=" + deviceID;
+      } else {
+        // Get the group id from the URL
+        var pathParts = window.location.pathname.split("/");
+        url = url + "&group=" + pathParts[pathParts.length - 3];
+      }
       $.get(url).done(function (data) {
         resetTemplateOptions();
         var enabledTemplates = [],
@@ -156,7 +165,8 @@ django.jQuery(function ($) {
         // Adds "li" elements for templates that are not selected
         // in the database.
         var counter =
-          selectedTemplates !== undefined ? selectedTemplates.length : 0;
+            selectedTemplates !== undefined ? selectedTemplates.length : 0,
+          deviceTemplates = [];
         Object.keys(data).forEach(function (templateId, index) {
           // corner case in which backend of template does not match
           if (!data[templateId]) {
@@ -186,6 +196,9 @@ django.jQuery(function ($) {
           if (isSelected === true) {
             enabledTemplates.push(templateId);
           }
+          if (element.children().children("input").prop("checked") === true) {
+            deviceTemplates.push(templateId);
+          }
           sortedm2mUl.append(element);
           if (!isDeviceGroup()) {
             sortedm2mPrefixUl.append(prefixElement);
@@ -193,6 +206,23 @@ django.jQuery(function ($) {
         });
         if (firstRun === true && selectedTemplates !== undefined) {
           updateTemplateSelection(selectedTemplates);
+        }
+        // this runs on first load and sets the name of hidden input field which tracks
+        // the selected templates.
+        if (selectedTemplates === undefined) {
+          if (!isDeviceGroup()) {
+            $(
+              `.has_original .field-templates .sortedm2m-container input[type="hidden"]`,
+            ).attr("name", templatesFieldName());
+            // set the initial value of the hidden input field
+            // to the selected templates
+            django._owcInitialValues[templatesFieldName()] =
+              deviceTemplates.join(",");
+          } else {
+            $(
+              `.field-templates .sortedm2m-container input[type="hidden"]`,
+            ).attr("name", templatesFieldName());
+          }
         }
         updateTemplateHelpText();
         updateConfigTemplateField(enabledTemplates);

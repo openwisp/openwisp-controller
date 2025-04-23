@@ -15,6 +15,7 @@ from .utils import get_object_or_404
 
 Organization = load_model("openwisp_users", "Organization")
 Template = load_model("config", "Template")
+Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
@@ -24,6 +25,8 @@ def get_relevant_templates(request, organization_id):
     returns default templates of specified organization
     """
     backend = request.GET.get("backend", None)
+    device_id = request.GET.get("device", None)
+    group_id = request.GET.get("group", None)
     user = request.user
     if not user.is_superuser and not user.is_manager(organization_id):
         return HttpResponse(status=403)
@@ -38,6 +41,16 @@ def get_relevant_templates(request, organization_id):
         .filter(Q(organization_id=org.pk) | Q(organization_id=None))
         .only("id", "name", "backend", "default", "required")
     )
+    # for checking which templates are enabled for given device or group
+    selected_templates = []
+    if device_id:
+        selected_templates = Config.objects.filter(device_id=device_id).values_list(
+            'templates__id', flat=True
+        )
+    if group_id:
+        selected_templates = DeviceGroup.objects.filter(
+            pk=group_id, organization_id=organization_id
+        ).values_list('templates__id', flat=True)
     relevant_templates = {}
     for template in queryset:
         relevant_templates[str(template.pk)] = dict(
@@ -45,6 +58,7 @@ def get_relevant_templates(request, organization_id):
             backend=template.get_backend_display(),
             default=template.default,
             required=template.required,
+            selected=template.pk in selected_templates,
         )
     return JsonResponse(relevant_templates)
 
