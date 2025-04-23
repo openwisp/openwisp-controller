@@ -98,6 +98,7 @@ class CommandInline(admin.StackedInline):
     verbose_name_plural = verbose_name
     fields = ['status', 'type', 'input_data', 'output_data', 'created', 'modified']
     readonly_fields = ['input_data', 'output_data']
+    max_num = 30
     # hack for openwisp-monitoring integration
     # TODO: remove when this issue solved:
     # https://github.com/theatlantic/django-nested-admin/issues/128#issuecomment-665833142
@@ -105,7 +106,7 @@ class CommandInline(admin.StackedInline):
 
     def get_queryset(self, request, select_related=True):
         """
-        Return recent commands for this device
+        Return the most recent commands for this device
         (created within the last 7 days)
         """
         qs = super().get_queryset(request)
