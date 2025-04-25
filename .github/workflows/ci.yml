@@ -87,7 +87,7 @@ jobs:
     - name: Tests
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
       run: |
-        coverage run runtests.py --parallel
+        coverage run runtests.py
         # tests the extension capability
         SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb --exclude-tag=selenium_tests
         coverage combine
