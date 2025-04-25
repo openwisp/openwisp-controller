@@ -47,7 +47,7 @@ class TestPkiApi(
         self.assertEqual(Ca.objects.count(), 0)
         path = reverse('pki_api:ca_list')
         data = self._get_ca_data.copy()
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
@@ -57,7 +57,7 @@ class TestPkiApi(
         path = reverse('pki_api:ca_list')
         data = self._get_ca_data.copy()
         data['extensions'] = []
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data['extensions'], [])
@@ -93,7 +93,7 @@ class TestPkiApi(
             'validity_start': None,
             'validity_end': None,
         }
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
@@ -168,7 +168,7 @@ class TestPkiApi(
         path = reverse('pki_api:cert_list')
         data = self._get_cert_data.copy()
         data['ca'] = self._create_ca().pk
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(8):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -201,7 +201,7 @@ class TestPkiApi(
         data = self._get_cert_data.copy()
         data['ca'] = self._create_ca().pk
         data['extensions'] = []
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(8):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -217,7 +217,7 @@ class TestPkiApi(
             'validity_start': None,
             'validity_end': None,
         }
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(8):
             r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
