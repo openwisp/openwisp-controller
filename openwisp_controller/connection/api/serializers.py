@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
+
+from ...serializers import BaseSerializer
 
 Command = load_model('connection', 'Command')
 DeviceConnection = load_model('connection', 'DeviceConnection')
@@ -49,7 +50,7 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
         ]
 
 
-class CredentialSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
+class CredentialSerializer(BaseSerializer):
     params = serializers.JSONField()
 
     class Meta:
@@ -67,9 +68,7 @@ class CredentialSerializer(FilterSerializerByOrgManaged, ValidatedModelSerialize
         read_only_fields = ('created', 'modified')
 
 
-class DeviceConnectionSerializer(
-    FilterSerializerByOrgManaged, ValidatedDeviceFieldSerializer
-):
+class DeviceConnectionSerializer(ValidatedDeviceFieldSerializer, BaseSerializer):
     class Meta:
         model = DeviceConnection
         fields = (

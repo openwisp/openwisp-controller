@@ -7,9 +7,9 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
+from ...serializers import BaseSerializer
 from .. import settings as app_settings
 
 Template = load_model('config', 'Template')
@@ -22,10 +22,6 @@ Organization = load_model('openwisp_users', 'Organization')
 
 class BaseMeta:
     read_only_fields = ['created', 'modified']
-
-
-class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
-    pass
 
 
 class TemplateSerializer(BaseSerializer):
@@ -110,7 +106,7 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
         return queryset
 
 
-class BaseConfigSerializer(serializers.ModelSerializer):
+class BaseConfigSerializer(ValidatedModelSerializer):
     class Meta:
         model = Config
         fields = ['status', 'error_reason', 'backend', 'templates', 'context', 'config']
@@ -120,7 +116,7 @@ class BaseConfigSerializer(serializers.ModelSerializer):
         }
 
 
-class DeviceConfigMixin(object):
+class DeviceConfigSerializer(BaseSerializer):
     def _get_config_templates(self, config_data):
         return [template.pk for template in config_data.pop('templates', [])]
 
@@ -190,9 +186,7 @@ class DeviceListConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
 
 
-class DeviceListSerializer(
-    DeviceConfigMixin, FilterSerializerByOrgManaged, serializers.ModelSerializer
-):
+class DeviceListSerializer(DeviceConfigSerializer):
     config = DeviceListConfigSerializer(required=False)
 
     class Meta(BaseMeta):
@@ -247,7 +241,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True)
 
 
-class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
+class DeviceDetailSerializer(DeviceConfigSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
     is_deactivated = serializers.BooleanField(read_only=True)
 

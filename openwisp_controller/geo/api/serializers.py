@@ -8,8 +8,9 @@ from rest_framework.serializers import IntegerField, SerializerMethodField
 from rest_framework_gis import serializers as gis_serializers
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
+
+from ...serializers import BaseSerializer
 
 Device = load_model('config', 'Device')
 Location = load_model('geo', 'Location')
@@ -37,10 +38,6 @@ class GeoJsonLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
         model = Location
         geo_field = 'geometry'
         fields = '__all__'
-
-
-class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
-    pass
 
 
 class BaseFloorPlanSerializer(BaseSerializer):
@@ -129,7 +126,7 @@ class DeviceCoordinatesSerializer(gis_serializers.GeoFeatureModelSerializer):
         read_only_fields = ('name',)
 
 
-class LocationSerializer(FilterSerializerByOrgManaged, serializers.ModelSerializer):
+class LocationSerializer(BaseSerializer):
     floorplan = FloorPlanLocationSerializer(required=False, allow_null=True)
 
     class Meta:
