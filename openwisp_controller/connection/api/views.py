@@ -18,7 +18,7 @@ from ...mixins import (
     RelatedDeviceModelPermission,
     RelatedDeviceProtectedAPIMixin,
 )
-from .serializer import (
+from .serializers import (
     CommandSerializer,
     CredentialSerializer,
     DeviceConnectionSerializer,
