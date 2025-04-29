@@ -5,6 +5,7 @@ from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config.api.serializers import BaseConfigSerializer
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -108,6 +109,23 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
 
+    def test_config_serializer_validation(self):
+        data = {
+            'backend': 'netjsonconfig.OpenWrt',
+            'templates': [],
+            'context': '["test_validation"]',
+            'config': '{}',
+        }
+        device = self._create_device()
+        ctx = {'device_id': str(device.pk)}
+        config = BaseConfigSerializer(data=data, context=ctx)
+        self.assertFalse(config.is_valid())
+        self.assertIn('context', config.errors)
+        self.assertEqual(
+            str(config.errors['context'][0]), 'the supplied value is not a JSON object'
+        )
+        self.assertEqual(len(config.errors.keys()), 1)
+
     def test_device_create_no_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
         path = reverse('config_api:device_list')
@@ -118,6 +136,19 @@ class TestConfigApi(
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
+        self.assertEqual(Config.objects.count(), 0)
+
+    def test_device_create_config_default_values(self):
+        self.assertEqual(Device.objects.count(), 0)
+        path = reverse('config_api:device_list')
+        data = self._get_device_data.copy()
+        org = self._get_org()
+        data['organization'] = org.pk
+        data['config'].update({'context': {}, 'config': {}})
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        self.assertEqual(Config.objects.count(), 0)
 
     def test_device_create_with_group(self):
         self.assertEqual(Device.objects.count(), 0)
@@ -357,7 +388,6 @@ class TestConfigApi(
                 'config': '{}',
             },
         }
-
         r = self.client.put(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'change-test-device')

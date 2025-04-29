@@ -469,13 +469,13 @@ class AbstractConfig(BaseConfig):
         * modifies status if key attributes of the configuration
           have changed (queries the database)
         """
-        super().clean()
         if not self.context:
             self.context = {}
         if not isinstance(self.context, dict):
             raise ValidationError(
                 {'context': _('the supplied value is not a JSON object')}
             )
+        super().clean()
 
     def save(self, *args, **kwargs):
         created = self._state.adding

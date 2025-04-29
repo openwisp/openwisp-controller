@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from swapper import load_model
 
-from openwisp_utils.api.serializers import ValidatedModelSerializer
-
-from ...serializers import BaseSerializer
+from ...serializers import (
+    BaseDeviceIdSerializer,
+    BaseSerializer,
+    ValidatedDeviceIdSerializer,
+)
 
 Command = load_model('connection', 'Command')
 DeviceConnection = load_model('connection', 'DeviceConnection')
@@ -11,16 +13,7 @@ Credentials = load_model('connection', 'Credentials')
 Device = load_model('config', 'Device')
 
 
-class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
-    def validate(self, data):
-        # Add "device_id" to the data for validation
-        data['device_id'] = self.context['device_id']
-        instance = self.instance or self.Meta.model(**data)
-        instance.full_clean()
-        return data
-
-
-class CommandSerializer(ValidatedDeviceFieldSerializer):
+class CommandSerializer(ValidatedDeviceIdSerializer):
     input = serializers.JSONField(allow_null=True)
     device = serializers.PrimaryKeyRelatedField(
         read_only=True, pk_field=serializers.UUIDField(format='hex_verbose')
@@ -68,7 +61,7 @@ class CredentialSerializer(BaseSerializer):
         read_only_fields = ('created', 'modified')
 
 
-class DeviceConnectionSerializer(ValidatedDeviceFieldSerializer, BaseSerializer):
+class DeviceConnectionSerializer(BaseDeviceIdSerializer):
     class Meta:
         model = DeviceConnection
         fields = (
@@ -89,8 +82,8 @@ class DeviceConnectionSerializer(ValidatedDeviceFieldSerializer, BaseSerializer)
         }
         read_only_fields = ('created', 'modified')
 
-    def validate(self, data):
-        data['device'] = Device.objects.get(pk=self.context['device_id'])
-        instance = self.instance or self.Meta.model(**data)
-        instance.full_clean()
-        return data
+    # def validate(self, data):
+    #     data['device'] = Device.objects.get(pk=self.context['device_id'])
+    #     instance = self.instance or self.Meta.model(**data)
+    #     instance.full_clean()
+    #     return data

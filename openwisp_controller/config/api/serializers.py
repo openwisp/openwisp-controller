@@ -9,7 +9,7 @@ from swapper import load_model
 
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
-from ...serializers import BaseSerializer
+from ...serializers import BaseSerializer, ValidatedDeviceIdSerializer
 from .. import settings as app_settings
 
 Template = load_model('config', 'Template')
@@ -106,7 +106,7 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
         return queryset
 
 
-class BaseConfigSerializer(ValidatedModelSerializer):
+class BaseConfigSerializer(ValidatedDeviceIdSerializer):
     class Meta:
         model = Config
         fields = ['status', 'error_reason', 'backend', 'templates', 'context', 'config']
@@ -114,6 +114,32 @@ class BaseConfigSerializer(ValidatedModelSerializer):
             'status': {'read_only': True},
             'error_reason': {'read_only': True},
         }
+
+    def validate(self, data):
+        """
+        The validation here is a bit tricky:
+
+        For existing devices, we have to perform the
+        model validation of the existing config object,
+        because if we simulate the validation on a new
+        config object pointing to an existing device,
+        the validation will fail because a config object
+        for this device already exists (due to one-to-one relationship).
+
+        For new devices, the device hasn't been created yet,
+        so we have to exclude the `device` field from validation.
+        """
+        # Existing device
+        device = self.context.get('device')
+        if not self.instance and device:
+            # Existing device with existing config
+            # Or it's an exsiting device with a new config
+            if device._has_config():
+                self.instance = device.config
+            return super().validate(data)
+        # New device
+        self.exclude_validation = ['device']
+        return super().validate(data)
 
 
 class DeviceConfigSerializer(BaseSerializer):
@@ -213,14 +239,13 @@ class DeviceListSerializer(DeviceConfigSerializer):
             'management_ip': {'allow_blank': True},
         }
 
-    def validate(self, attrs):
-        device_data = deepcopy(attrs)
+    def validate(self, data):
         # Validation of "config" is performed after
         # device object is created in the "create" method.
-        device_data.pop('config', None)
-        device = self.instance or self.Meta.model(**device_data)
-        device.full_clean()
-        return attrs
+        config_data = data.pop('config', None)
+        data = super().validate(data)
+        data['config'] = config_data
+        return data
 
     def create(self, validated_data):
         config_data = validated_data.pop('config', None)
