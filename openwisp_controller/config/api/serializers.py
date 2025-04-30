@@ -171,14 +171,14 @@ class DeviceConfigSerializer(BaseSerializer):
 
     @transaction.atomic
     def _create_config(self, device, config_data):
-        # templates = config_data.get('templates')
-        # if len(templates) == 1 and templates[0].name == 't1-org2':
-        #     import ipdb; ipdb.set_trace()
         config_templates = self._get_config_templates(config_data)
         try:
             if not device._has_config():
                 # if the user hasn't set any useful config data, skip
-                if not self._is_config_data_relevant(config_data):
+                if (
+                    not self._is_config_data_relevant(config_data)
+                    and not config_templates
+                ):
                     return
                 config = Config(device=device, **config_data)
                 config.full_clean()

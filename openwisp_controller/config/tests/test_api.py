@@ -202,19 +202,27 @@ class TestConfigApi(
     # POST request should fail with validation error
     def test_device_post_with_templates_of_different_org(self):
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = deepcopy(self._get_device_data)
         org_1 = self._get_org()
         data['organization'] = org_1.pk
         org_2 = self._create_org(name='test org2', slug='test-org2')
         t1 = self._create_template(name='t1-org2', organization=org_2)
         data['config']['templates'] = [str(t1.pk)]
-        response = self.client.post(path, data, content_type='application/json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            str(response.data['config'][0]),
-            'The following templates are owned by organizations '
-            f'which do not match the organization of this configuration: {t1.name}',
-        )
+
+        def execute_assertions(data):
+            response = self.client.post(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                str(response.data['config'][0]),
+                'The following templates are owned by organizations '
+                f'which do not match the organization of this configuration: {t1.name}',
+            )
+
+        execute_assertions(data)
+
+        with self.subTest('test with almost default config values'):
+            data['config'].update({'context': {}, 'config': {}})
+            execute_assertions(data)
 
     def test_device_create_with_devicegroup(self):
         self.assertEqual(Device.objects.count(), 0)
