@@ -17,7 +17,6 @@ from swapper import load_model
 from openwisp_users.api.permissions import DjangoModelPermissions
 
 from ...mixins import ProtectedAPIMixin
-from ...serializers import DeviceContextMixin
 from .filters import (
     DeviceGroupListFilter,
     DeviceListFilter,
@@ -98,9 +97,7 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     filterset_class = DeviceListFilter
 
 
-class DeviceDetailView(
-    DeviceContextMixin, ProtectedAPIMixin, RetrieveUpdateDestroyAPIView
-):
+class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     """
     Templates: Templates flagged as _required_ will be added automatically
                to the `config` of a device and cannot be unassigned.
