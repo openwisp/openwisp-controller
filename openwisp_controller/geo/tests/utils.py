@@ -59,7 +59,10 @@ class TestGeoMixin(TestLociMixin):
         return ol
 
     def _create_readonly_admin(self, **kwargs):
+        # remove organization before proceeding to user creation
+        org1 = kwargs.pop('organization', None)
         user = super()._create_readonly_admin(**kwargs)
-        org1 = self._create_organization()
+        if not org1:
+            org1 = self._create_organization()
         OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
         return user
