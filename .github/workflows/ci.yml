@@ -76,7 +76,6 @@ jobs:
         pip install -U -r requirements-test.txt
         pip install -U -e .
         pip install ${{ matrix.django-version }}
-        pip install -U --force-reinstall --no-deps https://github.com/openwisp/openwisp-utils/tarball/exclude_validation
 
     - name: Start postgres and redis
       if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}

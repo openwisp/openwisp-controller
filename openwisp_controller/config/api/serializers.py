@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -9,7 +7,7 @@ from swapper import load_model
 
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
-from ...serializers import BaseSerializer, ValidatedDeviceIdSerializer
+from ...serializers import BaseSerializer
 from .. import settings as app_settings
 
 Template = load_model('config', 'Template')
@@ -106,7 +104,10 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
         return queryset
 
 
-class BaseConfigSerializer(ValidatedDeviceIdSerializer):
+class BaseConfigSerializer(ValidatedModelSerializer):
+    # The device object is excluded from validation
+    # because this serializer focuses on validating
+    # config objects.
     exclude_validation = ['device']
 
     class Meta:
@@ -127,22 +128,12 @@ class BaseConfigSerializer(ValidatedDeviceIdSerializer):
         config object pointing to an existing device,
         the validation will fail because a config object
         for this device already exists (due to one-to-one relationship).
-
-        For new devices, the device hasn't been created yet,
-        so we have to exclude the `device` field from validation.
         """
-        # Existing device
         device = self.context.get('device')
-        # data.pop('device', None)
-        # import ipdb; ipdb.set_trace()
         if not self.instance and device:
             # Existing device with existing config
-            # Or it's an exsiting device with a new config
             if device._has_config():
                 self.instance = device.config
-            # return super().validate(data)
-        # New device
-        # self.exclude_validation = ['device']
         return super().validate(data)
 
 
@@ -216,10 +207,6 @@ class DeviceConfigSerializer(BaseSerializer):
         except ValidationError as error:
             raise serializers.ValidationError({'config': error.messages})
 
-    # def run_validation(self, *args, **kwargs):
-    #     import ipdb; ipdb.set_trace()
-    #     return super().run_validation(*args, **kwargs)
-
 
 class DeviceListConfigSerializer(BaseConfigSerializer):
     config = serializers.JSONField(
@@ -286,10 +273,6 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     )
     templates = FilterTemplatesByOrganization(many=True)
 
-    # def validate(self, *args, **kwargs):
-    #     import ipdb; ipdb.set_trace()
-    #     return super().validate(*args, **kwargs)
-
 
 class DeviceDetailSerializer(DeviceConfigSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
@@ -315,10 +298,6 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
             'created',
             'modified',
         ]
-
-    # def to_internal_value(self, *args, **kwargs):
-    #     import ipdb; ipdb.set_trace()
-    #     return super().to_internal_value(*args, **kwargs)
 
     def update(self, instance, validated_data):
         config_data = validated_data.pop('config', {})
