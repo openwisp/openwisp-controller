@@ -3,16 +3,19 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 
 class ValidatedDeviceIdSerializer(ValidatedModelSerializer):
-    def validate(self, data):
-        """
-        Adds "device_id" to the data dictionary which
-        is going to be used to create the temporary
-        instance used for validation
-        """
-        for key in ['device', 'device_id']:
-            if key in self.context:
-                data[key] = self.context[key]
-        return super().validate(data)
+    pass
+    # def validate(self, data):
+    #     """Adds "device" to the data dictionary.
+    #
+    #     Used to satisfy validation needs."""
+    #     # for key in ['device', 'device_id']:
+    #     #     if key in self.context:
+    #     #         data[key] = self.context[key]
+    #     if 'device' in self.context:
+    #         data['device'] = self.context['device']
+    #     data = super().validate(data)
+    #     data.pop('device', None)
+    #     return data
 
 
 class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
@@ -32,9 +35,7 @@ class BaseDeviceIdSerializer(FilterSerializerByOrgManaged, ValidatedDeviceIdSeri
 
 
 class DeviceContextMixin:
-    """
-    TODO
-    """
+    """Adds the device object to the serializer context."""
 
     def get_object(self):
         obj = super().get_object()

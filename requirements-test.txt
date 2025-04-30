@@ -1,5 +1,5 @@
 pytest-cov~=6.1.0
-openwisp-utils[qa,selenium,channels-test] @ https://github.com/openwisp/openwisp-utils/tarball/exclude_validation
+openwisp-utils[qa,selenium,channels-test] @ https://github.com/openwisp/openwisp-utils/tarball/1.2
 django_redis~=5.4.0
 mock-ssh-server~=0.9.1
 responses~=0.25.6

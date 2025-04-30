@@ -107,6 +107,8 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
 
 
 class BaseConfigSerializer(ValidatedDeviceIdSerializer):
+    exclude_validation = ['device']
+
     class Meta:
         model = Config
         fields = ['status', 'error_reason', 'backend', 'templates', 'context', 'config']
@@ -131,14 +133,16 @@ class BaseConfigSerializer(ValidatedDeviceIdSerializer):
         """
         # Existing device
         device = self.context.get('device')
+        # data.pop('device', None)
+        # import ipdb; ipdb.set_trace()
         if not self.instance and device:
             # Existing device with existing config
             # Or it's an exsiting device with a new config
             if device._has_config():
                 self.instance = device.config
-            return super().validate(data)
+            # return super().validate(data)
         # New device
-        self.exclude_validation = ['device']
+        # self.exclude_validation = ['device']
         return super().validate(data)
 
 
@@ -153,11 +157,29 @@ class DeviceConfigSerializer(BaseSerializer):
         config.full_clean()
         return config
 
+    def _is_config_data_relevant(self, config_data):
+        """
+        Returns True if ``config_data`` does not equal
+        the default values and hence the config is useful.
+        """
+        return not (
+            config_data.get('backend') == app_settings.DEFAULT_BACKEND
+            and not config_data.get('templates')
+            and not config_data.get('context')
+            and not config_data.get('config')
+        )
+
     @transaction.atomic
     def _create_config(self, device, config_data):
+        # templates = config_data.get('templates')
+        # if len(templates) == 1 and templates[0].name == 't1-org2':
+        #     import ipdb; ipdb.set_trace()
         config_templates = self._get_config_templates(config_data)
         try:
             if not device._has_config():
+                # if the user hasn't set any useful config data, skip
+                if not self._is_config_data_relevant(config_data):
+                    return
                 config = Config(device=device, **config_data)
                 config.full_clean()
                 config.save()
@@ -173,15 +195,10 @@ class DeviceConfigSerializer(BaseSerializer):
             raise serializers.ValidationError({'config': error.messages})
 
     def _update_config(self, device, config_data):
-        if (
-            config_data.get('backend') == app_settings.DEFAULT_BACKEND
-            and not config_data.get('templates')
-            and not config_data.get('context')
-            and not config_data.get('config')
-        ):
-            # Do not create Config object if config_data only
-            # contains the default value.
-            # See https://github.com/openwisp/openwisp-controller/issues/699
+        # Do not create Config object if config_data only
+        # contains the default values.
+        # See https://github.com/openwisp/openwisp-controller/issues/699
+        if not self._is_config_data_relevant(config_data):
             return
         if not device._has_config():
             return self._create_config(device, config_data)
@@ -198,6 +215,10 @@ class DeviceConfigSerializer(BaseSerializer):
             config.save()
         except ValidationError as error:
             raise serializers.ValidationError({'config': error.messages})
+
+    # def run_validation(self, *args, **kwargs):
+    #     import ipdb; ipdb.set_trace()
+    #     return super().run_validation(*args, **kwargs)
 
 
 class DeviceListConfigSerializer(BaseConfigSerializer):
@@ -265,6 +286,10 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     )
     templates = FilterTemplatesByOrganization(many=True)
 
+    # def validate(self, *args, **kwargs):
+    #     import ipdb; ipdb.set_trace()
+    #     return super().validate(*args, **kwargs)
+
 
 class DeviceDetailSerializer(DeviceConfigSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
@@ -291,6 +316,10 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
             'modified',
         ]
 
+    # def to_internal_value(self, *args, **kwargs):
+    #     import ipdb; ipdb.set_trace()
+    #     return super().to_internal_value(*args, **kwargs)
+
     def update(self, instance, validated_data):
         config_data = validated_data.pop('config', {})
         raw_data_for_signal_handlers = {
@@ -299,7 +328,7 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
         if config_data:
             self._update_config(instance, config_data)
 
-        elif hasattr(instance, 'config') and validated_data.get('organization'):
+        elif instance._has_config() and validated_data.get('organization'):
             if instance.organization != validated_data.get('organization'):
                 # config.device.organization is used for validating
                 # the organization of templates. It is also used for adding
