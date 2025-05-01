@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 
 from swapper import load_model
 
@@ -9,5 +10,6 @@ Device = load_model('config', 'Device')
 
 class CommandConsumer(BaseDeviceConsumer):
     def send_update(self, event):
-        event.pop('type')
-        self.send(json.dumps(event))
+        data = deepcopy(event)
+        data.pop('type')
+        self.send(json.dumps(data))
