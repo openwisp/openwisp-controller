@@ -249,7 +249,7 @@ class TestVpn(BaseTestVpn, TestCase):
         def _assert_vpn_client_cert(cert, vpn_client, cert_ct, vpn_client_ct):
             self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), 1)
             self.assertEqual(VpnClient.objects.filter(pk=vpn_client.pk).count(), 1)
-            vpnclient.delete()
+            c.templates.remove(t)
             self.assertEqual(
                 Cert.objects.filter(pk=cert.pk, revoked=False).count(), cert_ct
             )
