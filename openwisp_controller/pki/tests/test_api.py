@@ -27,6 +27,7 @@ class TestPkiApi(
         super().setUp()
         self._login()
 
+    @property
     def _ca_data(self):
         return {
             'name': 'Test CA',
@@ -35,6 +36,7 @@ class TestPkiApi(
             'digest': 'sha256',
         }
 
+    @property
     def _cert_data(self):
         return {
             'name': 'Test Cert',
