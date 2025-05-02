@@ -458,6 +458,18 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
+        self._verify_command_type_allowed()
+        try:
+            jsonschema.Draft4Validator(self._schema).validate(self.input)
+        except SchemaError as e:
+            raise ValidationError({'input': e.message})
+
+    def _verify_command_type_allowed(self):
+        """Raises validation error if command type is not allowed."""
+        # if device is not set, skip to avoid uncaught exception
+        # (standard model validation will kick in)
+        if not hasattr(self, 'device'):
+            return
         if self.type not in self.get_org_choices(
             organization_id=self.device.organization_id
         ):
@@ -471,10 +483,6 @@ class AbstractCommand(TimeStampedEditableModel):
                     )
                 }
             )
-        try:
-            jsonschema.Draft4Validator(self._schema).validate(self.input)
-        except SchemaError as e:
-            raise ValidationError({'input': e.message})
 
     @property
     def is_custom(self):
