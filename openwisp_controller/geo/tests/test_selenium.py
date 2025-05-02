@@ -62,7 +62,7 @@ class TestDeviceAdminGeoSelenium(
 
 
 @tag('selenium_tests')
-class TestDeviceAdminUnsavedChangesGeoSelenium(
+class TestDeviceAdminReadonly(
     TestGeoMixin,
     TestAdminMixin,
     SeleniumTestMixin,
