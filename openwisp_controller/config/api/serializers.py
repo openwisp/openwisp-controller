@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -7,9 +5,9 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
+from ...serializers import BaseSerializer
 from .. import settings as app_settings
 
 Template = load_model('config', 'Template')
@@ -22,10 +20,6 @@ Organization = load_model('openwisp_users', 'Organization')
 
 class BaseMeta:
     read_only_fields = ['created', 'modified']
-
-
-class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
-    pass
 
 
 class TemplateSerializer(BaseSerializer):
@@ -110,7 +104,12 @@ class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
         return queryset
 
 
-class BaseConfigSerializer(serializers.ModelSerializer):
+class BaseConfigSerializer(ValidatedModelSerializer):
+    # The device object is excluded from validation
+    # because this serializer focuses on validating
+    # config objects.
+    exclude_validation = ['device']
+
     class Meta:
         model = Config
         fields = ['status', 'error_reason', 'backend', 'templates', 'context', 'config']
@@ -119,8 +118,26 @@ class BaseConfigSerializer(serializers.ModelSerializer):
             'error_reason': {'read_only': True},
         }
 
+    def validate(self, data):
+        """
+        The validation here is a bit tricky:
 
-class DeviceConfigMixin(object):
+        For existing devices, we have to perform the
+        model validation of the existing config object,
+        because if we simulate the validation on a new
+        config object pointing to an existing device,
+        the validation will fail because a config object
+        for this device already exists (due to one-to-one relationship).
+        """
+        device = self.context.get('device')
+        if not self.instance and device:
+            # Existing device with existing config
+            if device._has_config():
+                self.instance = device.config
+        return super().validate(data)
+
+
+class DeviceConfigSerializer(BaseSerializer):
     def _get_config_templates(self, config_data):
         return [template.pk for template in config_data.pop('templates', [])]
 
@@ -131,11 +148,29 @@ class DeviceConfigMixin(object):
         config.full_clean()
         return config
 
+    def _is_config_data_relevant(self, config_data):
+        """
+        Returns True if ``config_data`` does not equal
+        the default values and hence the config is useful.
+        """
+        return not (
+            config_data.get('backend') == app_settings.DEFAULT_BACKEND
+            and not config_data.get('templates')
+            and not config_data.get('context')
+            and not config_data.get('config')
+        )
+
     @transaction.atomic
     def _create_config(self, device, config_data):
         config_templates = self._get_config_templates(config_data)
         try:
             if not device._has_config():
+                # if the user hasn't set any useful config data, skip
+                if (
+                    not self._is_config_data_relevant(config_data)
+                    and not config_templates
+                ):
+                    return
                 config = Config(device=device, **config_data)
                 config.full_clean()
                 config.save()
@@ -151,15 +186,10 @@ class DeviceConfigMixin(object):
             raise serializers.ValidationError({'config': error.messages})
 
     def _update_config(self, device, config_data):
-        if (
-            config_data.get('backend') == app_settings.DEFAULT_BACKEND
-            and not config_data.get('templates')
-            and not config_data.get('context')
-            and not config_data.get('config')
-        ):
-            # Do not create Config object if config_data only
-            # contains the default value.
-            # See https://github.com/openwisp/openwisp-controller/issues/699
+        # Do not create Config object if config_data only
+        # contains the default values.
+        # See https://github.com/openwisp/openwisp-controller/issues/699
+        if not self._is_config_data_relevant(config_data):
             return
         if not device._has_config():
             return self._create_config(device, config_data)
@@ -190,9 +220,7 @@ class DeviceListConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
 
 
-class DeviceListSerializer(
-    DeviceConfigMixin, FilterSerializerByOrgManaged, serializers.ModelSerializer
-):
+class DeviceListSerializer(DeviceConfigSerializer):
     config = DeviceListConfigSerializer(required=False)
 
     class Meta(BaseMeta):
@@ -219,14 +247,13 @@ class DeviceListSerializer(
             'management_ip': {'allow_blank': True},
         }
 
-    def validate(self, attrs):
-        device_data = deepcopy(attrs)
+    def validate(self, data):
         # Validation of "config" is performed after
         # device object is created in the "create" method.
-        device_data.pop('config', None)
-        device = self.instance or self.Meta.model(**device_data)
-        device.full_clean()
-        return attrs
+        config_data = data.pop('config', None)
+        data = super().validate(data)
+        data['config'] = config_data
+        return data
 
     def create(self, validated_data):
         config_data = validated_data.pop('config', None)
@@ -247,7 +274,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True)
 
 
-class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
+class DeviceDetailSerializer(DeviceConfigSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
     is_deactivated = serializers.BooleanField(read_only=True)
 
@@ -280,7 +307,7 @@ class DeviceDetailSerializer(DeviceConfigMixin, BaseSerializer):
         if config_data:
             self._update_config(instance, config_data)
 
-        elif hasattr(instance, 'config') and validated_data.get('organization'):
+        elif instance._has_config() and validated_data.get('organization'):
             if instance.organization != validated_data.get('organization'):
                 # config.device.organization is used for validating
                 # the organization of templates. It is also used for adding

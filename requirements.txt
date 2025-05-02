@@ -3,7 +3,8 @@ django-reversion~=5.1.0
 django-taggit~=6.0.0
 netjsonconfig @ https://github.com/openwisp/netjsonconfig/tarball/1.2
 django-x509 @ https://github.com/openwisp/django-x509/tarball/1.3
-django-loci @ https://github.com/openwisp/django-loci/tarball/1.2
+# temp for passing tests
+django-loci @ https://github.com/DragnEmperor/django-loci/tarball/1.2
 django-flat-json-widget~=0.3.1
 openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/1.2
 openwisp-utils[celery,channels] @ https://github.com/openwisp/openwisp-utils/tarball/1.2

@@ -5,6 +5,7 @@ from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config.api.serializers import BaseConfigSerializer
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -30,58 +31,66 @@ OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class ApiTestMixin:
-    _get_template_data = {
-        'name': 'test-template',
-        'organization': None,
-        'backend': 'netjsonconfig.OpenWrt',
-        'config': {'interfaces': [{'name': 'eth0', 'type': 'ethernet'}]},
-    }
-
-    _get_vpn_data = {
-        'name': 'vpn-test',
-        'host': 'vpn.testing.com',
-        'organization': None,
-        'ca': None,
-        'backend': 'openwisp_controller.vpn_backends.OpenVpn',
-        'config': {
-            'openvpn': [
-                {
-                    'ca': 'ca.pem',
-                    'cert': 'cert.pem',
-                    'dev': 'tap0',
-                    'dev_type': 'tap',
-                    'dh': 'dh.pem',
-                    'key': 'key.pem',
-                    'mode': 'server',
-                    'name': 'example-vpn',
-                    'proto': 'udp',
-                    'tls_server': True,
-                }
-            ]
-        },
-    }
-
-    _get_device_data = {
-        'name': 'change-test-device',
-        'organization': None,
-        'mac_address': '00:11:22:33:44:55',
-        'config': {
+    @property
+    def _template_data(self):
+        return {
+            'name': 'test-template',
+            'organization': None,
             'backend': 'netjsonconfig.OpenWrt',
-            'status': 'modified',
-            'templates': [],
-            'context': {'lan_ip': '192.168.1.1'},
-            'config': {'interfaces': [{'name': 'wlan0', 'type': 'wireless'}]},
-        },
-    }
+            'config': {'interfaces': [{'name': 'eth0', 'type': 'ethernet'}]},
+        }
 
-    _get_devicegroup_data = {
-        'name': 'Access Points',
-        'description': 'Group for APs of default organization',
-        'organization': 'None',
-        'meta_data': {'captive_portal_url': 'https://example.com'},
-        'context': {'SSID': 'OpenWISP'},
-        'templates': [],
-    }
+    @property
+    def _vpn_data(self):
+        return {
+            'name': 'vpn-test',
+            'host': 'vpn.testing.com',
+            'organization': None,
+            'ca': None,
+            'backend': 'openwisp_controller.vpn_backends.OpenVpn',
+            'config': {
+                'openvpn': [
+                    {
+                        'ca': 'ca.pem',
+                        'cert': 'cert.pem',
+                        'dev': 'tap0',
+                        'dev_type': 'tap',
+                        'dh': 'dh.pem',
+                        'key': 'key.pem',
+                        'mode': 'server',
+                        'name': 'example-vpn',
+                        'proto': 'udp',
+                        'tls_server': True,
+                    }
+                ]
+            },
+        }
+
+    @property
+    def _device_data(self):
+        return {
+            'name': 'change-test-device',
+            'organization': None,
+            'mac_address': '00:11:22:33:44:55',
+            'config': {
+                'backend': 'netjsonconfig.OpenWrt',
+                'status': 'modified',
+                'templates': [],
+                'context': {'lan_ip': '192.168.1.1'},
+                'config': {'interfaces': [{'name': 'wlan0', 'type': 'wireless'}]},
+            },
+        }
+
+    @property
+    def _devicegroup_data(self):
+        return {
+            'name': 'Access Points',
+            'description': 'Group for APs of default organization',
+            'organization': 'None',
+            'meta_data': {'captive_portal_url': 'https://example.com'},
+            'context': {'SSID': 'OpenWISP'},
+            'templates': [],
+        }
 
 
 class TestConfigApi(
@@ -101,23 +110,53 @@ class TestConfigApi(
     def test_device_create_with_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         org = self._get_org()
         data['organization'] = org.pk
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
 
+    def test_config_serializer_validation(self):
+        data = {
+            'backend': 'netjsonconfig.OpenWrt',
+            'templates': [],
+            'context': '["test_validation"]',
+            'config': '{}',
+        }
+        device = self._create_device()
+        ctx = {'device_id': str(device.pk)}
+        config = BaseConfigSerializer(data=data, context=ctx)
+        self.assertFalse(config.is_valid())
+        self.assertIn('context', config.errors)
+        self.assertEqual(
+            str(config.errors['context'][0]), 'the supplied value is not a JSON object'
+        )
+        self.assertEqual(len(config.errors.keys()), 1)
+
     def test_device_create_no_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         org = self._get_org()
         data['organization'] = org.pk
         data.pop('config')
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
+        self.assertEqual(Config.objects.count(), 0)
+
+    def test_device_create_default_config_values(self):
+        self.assertEqual(Device.objects.count(), 0)
+        path = reverse('config_api:device_list')
+        data = self._device_data
+        org = self._get_org()
+        data['organization'] = org.pk
+        data['config'].update({'context': {}, 'config': {}})
+        r = self.client.post(path, data, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        self.assertEqual(Config.objects.count(), 0)
 
     def test_device_create_with_group(self):
         self.assertEqual(Device.objects.count(), 0)
@@ -125,7 +164,7 @@ class TestConfigApi(
         template = self._create_template()
         dg.templates.add(template)
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         org = self._get_org()
         data['organization'] = org.pk
         data['group'] = dg.pk
@@ -144,7 +183,7 @@ class TestConfigApi(
         self.assertEqual(Device.objects.count(), 1)
 
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         data['organization'] = org.pk
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 400)
@@ -157,7 +196,7 @@ class TestConfigApi(
 
     def test_device_create_with_invalid_name_api(self):
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         org = self._get_org()
         data.pop('config')
         data['name'] = 'T E S T'
@@ -169,24 +208,32 @@ class TestConfigApi(
     # POST request should fail with validation error
     def test_device_post_with_templates_of_different_org(self):
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         org_1 = self._get_org()
         data['organization'] = org_1.pk
         org_2 = self._create_org(name='test org2', slug='test-org2')
-        t1 = self._create_template(name='t1', organization=org_2)
-        data['config']['templates'] += [str(t1.pk)]
-        response = self.client.post(path, data, content_type='application/json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            str(response.data['config'][0]),
-            'The following templates are owned by organizations '
-            f'which do not match the organization of this configuration: {t1.name}',
-        )
+        t1 = self._create_template(name='t1-org2', organization=org_2)
+        data['config']['templates'] = [str(t1.pk)]
+
+        def execute_assertions(data):
+            response = self.client.post(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                str(response.data['config'][0]),
+                'The following templates are owned by organizations '
+                f'which do not match the organization of this configuration: {t1.name}',
+            )
+
+        execute_assertions(data)
+
+        with self.subTest('test with almost default config values'):
+            data['config'].update({'context': {}, 'config': {}})
+            execute_assertions(data)
 
     def test_device_create_with_devicegroup(self):
         self.assertEqual(Device.objects.count(), 0)
         path = reverse('config_api:device_list')
-        data = self._get_device_data.copy()
+        data = self._device_data
         org = self._get_org()
         device_group = self._create_device_group()
         data['organization'] = org.pk
@@ -357,7 +404,6 @@ class TestConfigApi(
                 'config': '{}',
             },
         }
-
         r = self.client.put(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['name'], 'change-test-device')
@@ -558,7 +604,7 @@ class TestConfigApi(
     def test_template_create_no_org_api(self):
         self.assertEqual(Template.objects.count(), 0)
         path = reverse('config_api:template_list')
-        data = self._get_template_data.copy()
+        data = self._template_data
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(Template.objects.count(), 1)
         self.assertEqual(r.status_code, 201)
@@ -569,7 +615,7 @@ class TestConfigApi(
         test_user = self._create_operator(organizations=[self._get_org()])
         self.client.force_login(test_user)
         vpn1 = self._create_vpn(name='vpn1', organization=self._get_org())
-        data = self._get_template_data.copy()
+        data = self._template_data
         data['organization'] = self._get_org().pk
         data['type'] = 'generic'
         data['vpn'] = vpn1.id
@@ -582,7 +628,7 @@ class TestConfigApi(
         self.assertEqual(Template.objects.count(), 0)
         org = self._get_org()
         path = reverse('config_api:template_list')
-        data = self._get_template_data.copy()
+        data = self._template_data
         data['organization'] = org.pk
         data['required'] = True
         r = self.client.post(path, data, content_type='application/json')
@@ -594,7 +640,7 @@ class TestConfigApi(
         org = self._get_org()
         vpn1 = self._create_vpn(name='vpn1', organization=org)
         path = reverse('config_api:template_list')
-        data = self._get_template_data.copy()
+        data = self._template_data
         data['type'] = 'vpn'
         data['vpn'] = vpn1.id
         data['organization'] = org.pk
@@ -608,7 +654,7 @@ class TestConfigApi(
         self.client.force_login(test_user)
         vpn1 = self._create_vpn(name='vpn1', organization=None)
         path = reverse('config_api:template_list')
-        data = self._get_template_data.copy()
+        data = self._template_data
         data['type'] = 'vpn'
         data['vpn'] = vpn1.id
         data['organization'] = org1.pk
@@ -619,7 +665,7 @@ class TestConfigApi(
 
     def test_template_creation_with_no_org_by_operator(self):
         path = reverse('config_api:template_list')
-        data = self._get_template_data.copy()
+        data = self._template_data
         test_user = self._create_operator(organizations=[self._get_org()])
         self.client.force_login(test_user)
         r = self.client.post(path, data, content_type='application/json')
@@ -628,7 +674,7 @@ class TestConfigApi(
 
     def test_template_create_with_empty_config(self):
         path = reverse('config_api:template_list')
-        data = self._get_template_data.copy()
+        data = self._template_data
         data['config'] = {}
         data['organization'] = self._get_org().pk
         r = self.client.post(path, data, content_type='application/json')
@@ -780,7 +826,7 @@ class TestConfigApi(
         self.assertEqual(Vpn.objects.count(), 0)
         path = reverse('config_api:vpn_list')
         ca1 = self._create_ca()
-        data = self._get_vpn_data.copy()
+        data = self._vpn_data
         data['ca'] = ca1.pk
         r = self.client.post(path, data, content_type='application/json')
         self.assertEqual(r.status_code, 201)
@@ -791,7 +837,7 @@ class TestConfigApi(
         shared_ca = self._create_ca(name='shared_ca', organization=None)
         test_user = self._create_administrator(organizations=[org1])
         self.client.force_login(test_user)
-        data = self._get_vpn_data.copy()
+        data = self._vpn_data
         data['organization'] = org1.pk
         data['ca'] = shared_ca.pk
         path = reverse('config_api:vpn_list')
@@ -968,7 +1014,7 @@ class TestConfigApi(
         org = self._get_org()
         template = self._create_template(name='t1', organization=org)
         path = reverse('config_api:devicegroup_list')
-        data = self._get_devicegroup_data.copy()
+        data = self._devicegroup_data
         data['organization'] = org.pk
         data['templates'] = [str(template.pk)]
         response = self.client.post(path, data, content_type='application/json')
@@ -1058,13 +1104,13 @@ class TestConfigApi(
         with self.subTest('Test PATCH'):
             response = self.client.patch(
                 path,
-                data={'meta_data': self._get_devicegroup_data['meta_data']},
+                data={'meta_data': self._devicegroup_data['meta_data']},
                 content_type='application/json',
             )
             self.assertEqual(response.status_code, 200)
             device_group.refresh_from_db()
             self.assertDictEqual(
-                device_group.meta_data, self._get_devicegroup_data['meta_data']
+                device_group.meta_data, self._devicegroup_data['meta_data']
             )
 
         with self.subTest('Test DELETE'):
