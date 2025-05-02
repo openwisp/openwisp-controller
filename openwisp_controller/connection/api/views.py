@@ -49,15 +49,15 @@ class BaseCommandView(
 
     def get_parent_queryset(self):
         return Device.objects.filter(
-            pk=self.kwargs['id'],
+            pk=self.kwargs['device_pk'],
         )
 
     def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs['id'])
+        return super().get_queryset().filter(device_id=self.kwargs['device_pk'])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['id']
+        context['device_id'] = self.kwargs['device_pk']
         return context
 
 
@@ -73,7 +73,7 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['command_id'],
+            'id': self.kwargs['pk'],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         # May raise a permission denied
@@ -101,7 +101,7 @@ class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['pk']
+        context['device_id'] = self.kwargs['device_pk']
         return context
 
     def initial(self, *args, **kwargs):
@@ -112,11 +112,11 @@ class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
         try:
             assert self.get_parent_queryset().exists()
         except (AssertionError, ValidationError):
-            device_id = self.kwargs['pk']
+            device_id = self.kwargs['device_pk']
             raise NotFound(detail=f'Device with ID "{device_id}" not found.')
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['pk'])
+        return Device.objects.filter(pk=self.kwargs['device_pk'])
 
 
 class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
@@ -126,7 +126,7 @@ class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
         return (
             super()
             .get_queryset()
-            .filter(device_id=self.kwargs['pk'])
+            .filter(device_id=self.kwargs['device_pk'])
             .order_by('-created')
         )
 
@@ -135,7 +135,7 @@ class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIV
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['connection_id'],
+            'id': self.kwargs['pk'],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         self.check_object_permissions(self.request, obj)
