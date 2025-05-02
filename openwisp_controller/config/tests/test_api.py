@@ -1551,6 +1551,76 @@ class TestConfigApiTransaction(
             self.assertEqual(response.status_code, 200)
             self.assertEqual(device.config.templates.count(), 0)
 
+    def test_multiple_vpn_templates_same_vpn(self):
+        """
+        Ensure that assigning multiple templates of type 'vpn' referencing the same VPN
+        to a device's config does not create duplicate VpnClient objects.
+        """
+        org = self._get_org()
+        vpn = self._create_vpn(organization=org)
+        # Create two templates of type 'vpn' referencing the same VPN
+        vpn_template1 = self._create_template(
+            type='vpn', vpn=vpn, organization=org, name='VPN Client 1'
+        )
+        vpn_template2 = self._create_template(
+            type='vpn', vpn=vpn, organization=org, name='VPN Client 2'
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse('config_api:device_detail', args=[device.pk])
+        data = {
+            'name': device.name,
+            'organization': str(org.id),
+            'mac_address': device.mac_address,
+            'config': {
+                'backend': 'netjsonconfig.OpenWrt',
+                'context': {'lan_ip': '192.168.1.1'},
+                'config': {'interfaces': [{'name': 'wlan0', 'type': 'wireless'}]},
+            },
+        }
+        expected_error_message = (
+            'You cannot select multiple VPN client templates related'
+            ' to the same VPN server.\n'
+            'The templates "VPN Client 1" and "VPN Client 2" are all '
+            'linked to the same VPN server: "test".'
+        )
+
+        with self.subTest('Add both templates at once'):
+            data['config']['templates'] = [str(vpn_template1.pk), str(vpn_template2.pk)]
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                str(response.data['config'][0]),
+                expected_error_message,
+            )
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.vpnclient_set.count(), 0)
+
+        with self.subTest('Add one template at a time'):
+            data['config']['templates'] = [str(vpn_template1.pk)]
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+
+            # Now add the second template
+            data['config']['templates'] = [str(vpn_template1.pk), str(vpn_template2.pk)]
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                str(response.data['config'][0]),
+                expected_error_message,
+            )
+            self.assertEqual(config.templates.filter(id=vpn_template1.id).count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+
+        with self.subTest('Change existing template with another'):
+            data['config']['templates'] = [str(vpn_template2.pk)]
+            response = self.client.put(path, data, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(config.templates.filter(id=vpn_template2.id).count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+
     def test_device_patch_with_templates_of_same_org(self):
         org1 = self._create_org(name="testorg")
         d1 = self._create_device(name="org1-config", organization=org1)
