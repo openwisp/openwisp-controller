@@ -13,24 +13,24 @@ def get_pki_api_urls(api_views):
     if getattr(settings, 'OPENWISP_CONTROLLER_PKI_API', True):
         return [
             path('controller/ca/', api_views.ca_list, name='ca_list'),
-            path('controller/ca/<str:pk>/', api_views.ca_detail, name='ca_detail'),
-            path('controller/ca/<str:pk>/renew/', api_views.ca_renew, name='ca_renew'),
+            path('controller/ca/<int:pk>/', api_views.ca_detail, name='ca_detail'),
+            path('controller/ca/<int:pk>/renew/', api_views.ca_renew, name='ca_renew'),
             path(
-                'controller/ca/<str:pk>/crl',
+                'controller/ca/<int:pk>/crl',
                 api_views.crl_download,
                 name='crl_download',
             ),
             path('controller/cert/', api_views.cert_list, name='cert_list'),
             path(
-                'controller/cert/<str:pk>/', api_views.cert_detail, name='cert_detail'
+                'controller/cert/<int:pk>/', api_views.cert_detail, name='cert_detail'
             ),
             path(
-                'controller/cert/<str:pk>/revoke/',
+                'controller/cert/<int:pk>/revoke/',
                 api_views.cert_revoke,
                 name='cert_revoke',
             ),
             path(
-                'controller/cert/<str:pk>/renew/',
+                'controller/cert/<int:pk>/renew/',
                 api_views.cert_renew,
                 name='cert_renew',
             ),

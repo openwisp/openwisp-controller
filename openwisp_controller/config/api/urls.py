@@ -19,12 +19,12 @@ def get_api_urls(api_views):
                 name='template_list',
             ),
             path(
-                'controller/template/<str:pk>/',
+                'controller/template/<uuid:pk>/',
                 api_views.template_detail,
                 name='template_detail',
             ),
             path(
-                'controller/template/<str:pk>/configuration/',
+                'controller/template/<uuid:pk>/configuration/',
                 api_download_views.download_template_config,
                 name='download_template_config',
             ),
@@ -34,12 +34,12 @@ def get_api_urls(api_views):
                 name='vpn_list',
             ),
             path(
-                'controller/vpn/<str:pk>/',
+                'controller/vpn/<uuid:pk>/',
                 api_views.vpn_detail,
                 name='vpn_detail',
             ),
             path(
-                'controller/vpn/<str:pk>/configuration/',
+                'controller/vpn/<uuid:pk>/configuration/',
                 api_download_views.download_vpn_config,
                 name='download_vpn_config',
             ),
@@ -49,17 +49,17 @@ def get_api_urls(api_views):
                 name='device_list',
             ),
             path(
-                'controller/device/<str:pk>/',
+                'controller/device/<uuid:pk>/',
                 api_views.device_detail,
                 name='device_detail',
             ),
             path(
-                'controller/device/<str:pk>/activate/',
+                'controller/device/<uuid:pk>/activate/',
                 api_views.device_activate,
                 name='device_activate',
             ),
             path(
-                'controller/device/<str:pk>/deactivate/',
+                'controller/device/<uuid:pk>/deactivate/',
                 api_views.device_deactivate,
                 name='device_deactivate',
             ),
@@ -69,7 +69,7 @@ def get_api_urls(api_views):
                 name='devicegroup_list',
             ),
             path(
-                'controller/group/<str:pk>/',
+                'controller/group/<uuid:pk>/',
                 api_views.devicegroup_detail,
                 name='devicegroup_detail',
             ),
@@ -79,7 +79,7 @@ def get_api_urls(api_views):
                 name='devicegroup_x509_commonname',
             ),
             path(
-                'controller/device/<str:pk>/configuration/',
+                'controller/device/<uuid:pk>/configuration/',
                 api_download_views.download_device_config,
                 name='download_device_config',
             ),
