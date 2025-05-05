@@ -31,6 +31,21 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
         pk_field=serializers.UUIDField(format='hex_verbose'),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # show only connections and command types available for the device
+        if (
+            device := Device.objects.filter(pk=self.context.get('device_id'))
+            .only('organization_id', 'id')
+            .first()
+        ):
+            self.fields['connection'].queryset = DeviceConnection.objects.filter(
+                device=device
+            )
+            self.fields['type'].choices = Command.get_org_choices(
+                device.organization_id
+            )
+
     def to_representation(self, instance):
         repr = super().to_representation(instance)
         repr['type'] = instance.get_type_display()
