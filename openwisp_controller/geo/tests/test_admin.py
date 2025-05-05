@@ -164,6 +164,43 @@ class TestDeviceAdmin(
     def setUp(self):
         self.client.force_login(self._get_admin())
 
+    def test_device_export_geo(self):
+        org = self._get_org(org_name='default')
+        location = self._create_location(
+            name='location', type='indoor', organization=org
+        )
+        floorplan = self._create_floorplan(location=location, organization=org)
+        device = self._create_object(
+            name='test',
+            organization=org,
+            mac_address='00:11:22:33:44:66',
+        )
+        self._create_object_location(
+            location=location, floorplan=floorplan, content_object=device
+        )
+        response = self.client.post(
+            reverse(f'admin:{self.app_label}_device_export'), {'format': '0'}
+        )
+        self.assertEqual(response.status_code, 200)
+        contents = response.content.decode('utf-8')
+        self.assertIn(
+            'name,mac_address,organization,group,model,os,system,notes,venue,address,'
+            'coords,is_mobile,venue_type,floor,floor_position,last_ip,management_ip,'
+            'config_status,config_backend,config_data,config_context,config_templates,'
+            'created,modified,id,key,organization_id,group_id,location_id,floorplan_id',
+            contents,
+        )
+        self.assertIn(
+            'test,00:11:22:33:44:66,default,,,,,,location,'
+            '"Via del Corso, Roma, Italia",POINT (12.512124 41.898903),False,indoor,'
+            '1,"-140.38620,40.369227",,,,,,,,',
+            contents,
+        )
+        self.assertIn(
+            f'{device.id},{device.key},{org.id},,{location.id},{floorplan.id}',
+            contents,
+        )
+
     def test_device_import_geo(self):
         org = self._get_org(org_name='default')
         location = self._create_location(
