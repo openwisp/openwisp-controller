@@ -52,8 +52,8 @@ class GeoDeviceResource(DeviceResource):
         except (ObjectDoesNotExist, AttributeError):
             pass
 
-    def after_import_instance(self, instance, new, row_number=None, **kwargs):
-        super().after_import_instance(instance, new, row_number, **kwargs)
+    def after_init_instance(self, instance, new, row, **kwargs):
+        super().after_init_instance(instance, new, row, **kwargs)
         if not hasattr(instance, 'devicelocation'):
             instance.devicelocation = DeviceLocation()
 
@@ -68,9 +68,9 @@ class GeoDeviceResource(DeviceResource):
         if device_location.location_id or device_location.floorplan_id:
             device_location.content_object_id = instance.id
 
-    def after_save_instance(self, instance, using_transactions, dry_run):
-        super().after_save_instance(instance, using_transactions, dry_run)
-        if not dry_run:
+    def after_save_instance(self, instance, row, **kwargs):
+        super().after_save_instance(instance, row, **kwargs)
+        if not self._is_dry_run(kwargs):
             device_location = instance.devicelocation
             if device_location.location_id or device_location.floorplan_id:
                 device_location.save()

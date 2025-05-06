@@ -127,10 +127,10 @@ class DeviceResource(resources.ModelResource):
         if config.device_id != instance.id:
             config.device_id = instance.id
 
-    def after_save_instance(self, instance, using_transactions, dry_run):
-        super().after_save_instance(instance, using_transactions, dry_run)
-        if not dry_run:
-            # save config afte device has been imported
+    def after_save_instance(self, instance, row, **kwargs):
+        super().after_save_instance(instance, row, **kwargs)
+        if not self._is_dry_run(kwargs):
+            # save config after device has been imported
             if instance._has_config():
                 instance.config.save()
 
