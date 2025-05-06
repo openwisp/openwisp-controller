@@ -338,9 +338,33 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 400)
             self.assertIn(
-                '"custom" command is not available for this organization',
-                response.data['input'][0],
+                '"custom" is not a valid choice.',
+                json.loads(response.content)['type'][0],
             )
+
+    def test_create_command_without_connection(self):
+        device = self._create_device(
+            name='default.test.device2', mac_address='11:22:33:44:55:66'
+        )
+        url = self._get_path('device_command_list', device.pk)
+        payload = {
+            'type': 'custom',
+            'input': {'command': 'echo test'},
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertDictEqual(
+            response.data,
+            {
+                'detail': ErrorDetail(
+                    'Device has no credentials assigned.', code='not_found'
+                )
+            },
+        )
 
 
 class TestConnectionApi(
