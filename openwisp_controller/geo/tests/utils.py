@@ -3,6 +3,7 @@ from django_loci.tests import TestLociMixin
 from swapper import load_model
 
 Organization = load_model('openwisp_users', 'Organization')
+OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
 
 
 class TestGeoMixin(TestLociMixin):
@@ -56,3 +57,12 @@ class TestGeoMixin(TestLociMixin):
         ol.full_clean()
         ol.save()
         return ol
+
+    def _create_readonly_admin(self, **kwargs):
+        # remove organization before proceeding to user creation
+        org1 = kwargs.pop('organization', None)
+        user = super()._create_readonly_admin(**kwargs)
+        if not org1:
+            org1 = self._create_organization()
+        OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
+        return user

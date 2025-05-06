@@ -7,15 +7,10 @@ from django_x509.base.models import (
 from rest_framework import serializers
 from swapper import load_model
 
-from openwisp_users.api.mixins import FilterSerializerByOrgManaged
-from openwisp_utils.api.serializers import ValidatedModelSerializer
+from ...serializers import BaseSerializer
 
 Ca = load_model('django_x509', 'Ca')
 Cert = load_model('django_x509', 'Cert')
-
-
-class BaseSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
-    pass
 
 
 class BaseListSerializer(BaseSerializer):

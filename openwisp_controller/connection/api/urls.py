@@ -11,12 +11,12 @@ def get_api_urls(api_views):
     """
     return [
         path(
-            'api/v1/controller/device/<str:id>/command/',
+            'api/v1/controller/device/<uuid:device_pk>/command/',
             api_views.command_list_create_view,
             name='device_command_list',
         ),
         path(
-            'api/v1/controller/device/<str:id>/command/<uuid:command_id>/',
+            'api/v1/controller/device/<uuid:device_pk>/command/<uuid:pk>/',
             api_views.command_details_view,
             name='device_command_details',
         ),
@@ -26,17 +26,17 @@ def get_api_urls(api_views):
             name='credential_list',
         ),
         path(
-            'api/v1/controller/credential/<str:pk>/',
+            'api/v1/controller/credential/<uuid:pk>/',
             api_views.credential_detail_view,
             name='credential_detail',
         ),
         path(
-            'api/v1/controller/device/<str:pk>/connection/',
+            'api/v1/controller/device/<uuid:device_pk>/connection/',
             api_views.deviceconnection_list_create_view,
             name='deviceconnection_list',
         ),
         path(
-            'api/v1/controller/device/<str:pk>/connection/<str:connection_id>/',
+            'api/v1/controller/device/<uuid:device_pk>/connection/<uuid:pk>/',
             api_views.deviceconnection_details_view,
             name='deviceconnection_detail',
         ),

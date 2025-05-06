@@ -11,6 +11,7 @@
             "config-0-config",
             "config-0-context",
             "devicelocation-0-geometry",
+            "geometry",
           ];
         // ignore fields that have no name attribute, begin with "_" or "initial-"
         if (

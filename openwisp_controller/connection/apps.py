@@ -68,7 +68,7 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def command_save_receiver(cls, sender, created, instance, **kwargs):
-        from .api.serializer import CommandSerializer
+        from .api.serializers import CommandSerializer
 
         channel_layer = layers.get_channel_layer()
         if created:

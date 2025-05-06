@@ -120,6 +120,18 @@ class DeviceDetailView(
         force_deletion = self.request.query_params.get('force', None) == 'true'
         instance.delete(check_deactivated=(not force_deletion))
 
+    def get_object(self):
+        """Set device property for serializer context."""
+        obj = super().get_object()
+        self.device = obj
+        return obj
+
+    def get_serializer_context(self):
+        """Add device to serializer context for validation purposes."""
+        context = super().get_serializer_context()
+        context['device'] = self.device
+        return context
+
 
 class DeviceActivateView(ProtectedAPIMixin, AutoRevisionMixin, GenericAPIView):
     serializer_class = serializers.Serializer
