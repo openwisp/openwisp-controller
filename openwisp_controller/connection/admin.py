@@ -92,13 +92,20 @@ class DeviceConnectionInline(
         return super(admin.StackedInline, self).get_queryset(request)
 
 
+class LimitedCommandResults(forms.models.BaseInlineFormSet):
+    """Limits results to 30"""
+
+    def get_queryset(self):
+        return super().get_queryset()[0:30]
+
+
 class CommandInline(admin.StackedInline):
     model = Command
     verbose_name = _('Recent Commands')
     verbose_name_plural = verbose_name
     fields = ['status', 'type', 'input_data', 'output_data', 'created', 'modified']
     readonly_fields = ['input_data', 'output_data']
-    max_num = 30
+    formset = LimitedCommandResults
     # hack for openwisp-monitoring integration
     # TODO: remove when this issue solved:
     # https://github.com/theatlantic/django-nested-admin/issues/128#issuecomment-665833142
