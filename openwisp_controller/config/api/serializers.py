@@ -326,6 +326,18 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
                 )
         return super().update(instance, validated_data)
 
+    def get_inherited_variables(self, device):
+        return {
+            'global': getattr(app_settings, 'CONTEXT', {}),
+            'group': DeviceGroupSerializer(device.group, context=self.context).data,
+            'config': DeviceDetailConfigSerializer(
+                device.config, context=self.context
+            ).data,
+            'templates': TemplateSerializer(
+                device.config.templates, many=True, context=self.context
+            ).data,
+        }
+
 
 class FilterGroupTemplates(FilterTemplatesByOrganization):
     def get_queryset(self):

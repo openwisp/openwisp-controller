@@ -111,6 +111,14 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
         force_deletion = self.request.query_params.get('force', None) == 'true'
         instance.delete(check_deactivated=(not force_deletion))
 
+    def retrieve(self, request, *args, **kwargs):
+        device = self.get_object()
+        serializer = self.get_serializer(device)
+        data = serializer.data
+        if request.query_params.get('inherited_variables') == 'True':
+            data['inherited_variables'] = serializer.get_inherited_variables(device)
+        return Response(data)
+
     def get_object(self):
         """Set device property for serializer context."""
         obj = super().get_object()
