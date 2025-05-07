@@ -66,11 +66,6 @@ class CommandListCreateView(BaseCommandView, ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         self.assert_parent_exists()
-        if not DeviceConnection.objects.filter(
-            device_id=self.kwargs['device_pk'],
-            credentials__isnull=False,
-        ).exists():
-            raise NotFound(detail='Device has no credentials assigned.')
         return super().create(request, *args, **kwargs)
 
 
