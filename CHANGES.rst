@@ -1,6 +1,28 @@
 Changelog
 =========
 
+Version 1.1.2 [unreleased]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `compatibility of OpenWrt.update_config with openwisp-config >=
+  1.1.0 <https://github.com/openwisp/openwisp-controller/issues/964>`__.
+- Fixed `VPN-client template switch issue when switching between VPN
+  servers with the same address
+  <https://github.com/openwisp/openwisp-controller/issues/973>`__.
+- Fixed `missing config_changed signal when reverting a template
+  <https://github.com/openwisp/openwisp-controller/issues/836>`__.
+- Fixed `Zerotier network name being set to "ow_zt" instead of "global"
+  <https://github.com/openwisp/openwisp-controller/issues/982>`__.
+- Fixed `error in preview when device has no name set`.
+- Fixed live updates for "Send commands" when multiple websocket
+  connections are open for the same device.
+- Limited command results in the device admin to 30 entries to avoid
+  loading issues.
+- Fixed uncaught exception in ``leaflet.draw.i18n.js``.
+
 Version 1.1.1 [2025-01-31]
 --------------------------
 
@@ -9,7 +31,7 @@ Bugfixes
 
 - Fixed `recovering deleted device with related location
   <https://github.com/openwisp/openwisp-controller/issues/936>`__.
-- Fixed `deleting device with “deactivating” config status
+- Fixed `deleting device with "deactivating" config status
   <https://github.com/openwisp/openwisp-controller/issues/949>`__.
 - Fixed `conversion of MAC address to uppercase format
   <https://github.com/openwisp/openwisp-controller/issues/922>`__ with the
