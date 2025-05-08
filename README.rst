@@ -55,10 +55,10 @@ Other popular building blocks that are part of the OpenWISP ecosystem are:
 - `openwisp-firmware-upgrader
   <https://openwisp.io/docs/stable/firmware-upgrader/>`_: automated
   firmware upgrades (single devices or mass network upgrades)
-- `openwisp-radius <https://openwisp.io/docs/stable/user/radius.html>`_:
-  based on FreeRADIUS, allows to implement network access authentication
-  systems like 802.1x WPA2 Enterprise, captive portal authentication,
-  Hotspot 2.0 (802.11u)
+- `openwisp-radius <https://openwisp.io/docs/stable/radius/>`_: based on
+  FreeRADIUS, allows to implement network access authentication systems
+  like 802.1x WPA2 Enterprise, captive portal authentication, Hotspot 2.0
+  (802.11u)
 - `openwisp-network-topology
   <https://openwisp.io/docs/stable/network-topology/>`_: provides way to
   collect and visualize network topology data from dynamic mesh routing
