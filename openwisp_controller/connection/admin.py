@@ -106,10 +106,6 @@ class CommandInline(admin.StackedInline):
     fields = ['status', 'type', 'input_data', 'output_data', 'created', 'modified']
     readonly_fields = ['input_data', 'output_data']
     formset = LimitedCommandResults
-    # hack for openwisp-monitoring integration
-    # TODO: remove when this issue solved:
-    # https://github.com/theatlantic/django-nested-admin/issues/128#issuecomment-665833142
-    sortable_options = {'disabled': True}
 
     def get_queryset(self, request, select_related=True):
         """
