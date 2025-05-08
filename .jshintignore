@@ -1,2 +1,3 @@
 openwisp_controller/config/static/config/js/lib/*.js
 openwisp_controller/connection/static/connection/js/lib/*.js
+openwisp_controller/geo/static/leaflet/draw/leaflet.draw.i18n.js
