@@ -1,12 +1,10 @@
-from django.test import TestCase
 from django.urls import reverse
 from packaging.version import parse as parse_version
 from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
-from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_users.tests.test_api import APITestCase
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
 
 from .utils import TestPkiMixin
@@ -16,12 +14,7 @@ Cert = load_model("django_x509", "Cert")
 
 
 class TestPkiApi(
-    AssertNumQueriesSubTestMixin,
-    TestAdminMixin,
-    TestPkiMixin,
-    TestOrganizationMixin,
-    AuthenticationMixin,
-    TestCase,
+    AssertNumQueriesSubTestMixin, TestAdminMixin, TestPkiMixin, APITestCase
 ):
     def setUp(self):
         super().setUp()
@@ -168,6 +161,31 @@ class TestPkiApi(
         self.assertNotEqual(ca1.serial_number, old_serial_num)
         self.assertNotEqual(r.data["serial_number"], old_serial_num)
 
+    def test_org_admin_access_shared_ca(self):
+        # API wouldn't allow creating the object,
+        # therefore, we create one here to test list view.
+        self._create_ca()
+
+        create_payload = self._ca_data
+        update_payload = create_payload.copy()
+        update_payload['name'] = 'updated-name'
+        self._test_org_user_access_shared_object(
+            listview_name='pki_api:ca_list',
+            detailview_name='pki_api:ca_detail',
+            create_payload=create_payload,
+            update_payload=update_payload,
+            expected_count=1,
+            expected_status_codes={
+                'create': 400,
+                'list': 200,
+                'retrieve': 403,
+                'update': 403,
+                'delete': 403,
+                'head': 403,
+                'option': 200,
+            },
+        )
+
     def test_cert_post_api(self):
         path = reverse("pki_api:cert_list")
         data = self._cert_data
@@ -306,6 +324,65 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 200)
         self.assertTrue(cert1.revoked)
         self.assertTrue(r.data["revoked"])
+
+    def test_org_admin_access_shared_cert(self):
+        # API wouldn't allow creating the object,
+        # therefore, we create one here to test list view.
+        shared_ca = self._create_ca(organization=None)
+        self._create_cert(ca=shared_ca)
+
+        create_payload = self._cert_data
+        create_payload['ca'] = shared_ca.pk
+        update_payload = create_payload.copy()
+        update_payload['name'] = 'update-name'
+        self._test_org_user_access_shared_object(
+            listview_name='pki_api:cert_list',
+            detailview_name='pki_api:cert_detail',
+            create_payload=create_payload,
+            update_payload=update_payload,
+            expected_count=1,
+            expected_status_codes={
+                'create': 400,
+                'list': 200,
+                'retrieve': 403,
+                'update': 403,
+                'delete': 403,
+                'head': 403,
+                'option': 200,
+            },
+        )
+
+    def test_org_admin_access_cert_with_shared_ca(self):
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        create_payload = self._cert_data
+        create_payload.update(
+            {
+                'organization': org.pk,
+                'ca': shared_ca.pk,
+            }
+        )
+        update_payload = {
+            'name': 'updated-name',
+            'organization': org.pk,
+            'notes': 'new-notes',
+        }
+        self._test_org_user_access_shared_object(
+            listview_name='pki_api:cert_list',
+            detailview_name='pki_api:cert_detail',
+            create_payload=create_payload,
+            update_payload=update_payload,
+            expected_count=1,
+            expected_status_codes={
+                'create': 201,
+                'list': 200,
+                'retrieve': 200,
+                'update': 200,
+                'delete': 204,
+                'head': 403,
+                'option': 200,
+            },
+        )
 
     @capture_any_output()
     def test_bearer_authentication(self):

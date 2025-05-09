@@ -12,7 +12,7 @@ from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
+from openwisp_users.tests.test_api import APITestCase, AuthenticationMixin
 
 from .. import settings as app_settings
 from ..api.views import ListViewPagination
@@ -387,9 +387,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         )
 
 
-class TestConnectionApi(
-    TestAdminMixin, AuthenticationMixin, TestCase, CreateConnectionsMixin
-):
+class TestConnectionApi(TestAdminMixin, CreateConnectionsMixin, APITestCase):
     def setUp(self):
         super().setUp()
         self._login()
