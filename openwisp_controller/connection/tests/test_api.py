@@ -10,6 +10,7 @@ from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
+from openwisp_controller.connection.api.serializers import CommandSerializer
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 
@@ -174,6 +175,28 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
+
+    # for ensuring that only related connections are shown
+    def test_available_connections(self):
+        url = self._get_path('device_command_list', self.device_id)
+        response = self.client.get(url)
+        serializer = CommandSerializer(
+            instance=self.device_conn.device,
+            context={'device_id': self.device_id, 'request': response.wsgi_request},
+        )
+        device = self._create_device(
+            name='default.test.device2', mac_address='12:23:34:45:56:67'
+        )
+        self._create_config(device=device)
+        credentials_2 = self._create_credentials(name='Test Credentials 2')
+        device_conn2 = self._create_device_connection(
+            device=device, credentials=credentials_2
+        )
+        connections = serializer.fields['connection']
+        queryset = list(connections.get_queryset().values_list('id', flat=True))
+        queryset = [str(i) for i in queryset]
+        self.assertIn(str(self.device_conn.id), queryset)
+        self.assertNotIn(device_conn2.id, queryset)
 
     def test_command_details_api(self):
         command_obj = self._create_command(device_conn=self.device_conn)
