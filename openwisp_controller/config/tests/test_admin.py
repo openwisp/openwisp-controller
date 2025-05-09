@@ -506,17 +506,64 @@ class TestAdmin(
             hidden=[data["vpn2"].name, data["vpn_inactive"].name],
         )
 
+    def test_org_admin_create_template_with_shared_vpn(self):
+        vpn = self._create_vpn(organization=None)
+        org = self._create_org()
+        administrator = self._create_administrator(organizations=[org])
+        path = reverse(f'admin:{self.app_label}_template_add')
+        payload = {
+            'organization': '',
+            'name': 'Test',
+            'type': 'vpn',
+            'vpn': str(vpn.id),
+            'backend': 'netjsonconfig.OpenWrt',
+            'config': '',
+            'default_values': '',
+            'tags': '',
+        }
+        self.assertEqual(Template.objects.count(), 2)
+
+        with self.subTest('Should not allow creating shared template'):
+            self._test_org_admin_create_shareable_object(
+                path=path,
+                payload=payload,
+                model=Template,
+                expected_count=2,
+                user=administrator,
+            )
+
+        with self.subTest('Should allow creating non-shared template'):
+            payload['organization'] = str(org.pk)
+            self._test_org_admin_create_shareable_object(
+                path=path,
+                payload=payload,
+                model=Template,
+                expected_count=3,
+                user=administrator,
+                raises_error=False,
+            )
+
+    def test_org_admin_view_shared_template(self):
+        vpn = self._create_vpn(organization=None)
+        template = self._create_template(type='vpn', vpn=vpn)
+        self._test_org_admin_view_shareable_object(
+            path=reverse(f'admin:{self.app_label}_template_change', args=[template.pk]),
+        )
+
     def test_vpn_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=reverse(f"admin:{self.app_label}_vpn_changelist"),
-            visible=[data["org1"].name, data["vpn1"].name],
+            url=reverse(f'admin:{self.app_label}_vpn_changelist'),
+            visible=[
+                data['org1'].name,
+                data['vpn1'].name,
+                data['vpn_shared'].name,
+            ],
             hidden=[
-                data["org2"].name,
-                data["inactive"],
-                data["vpn2"].name,
-                data["vpn_shared"].name,
-                data["vpn_inactive"].name,
+                data['org2'].name,
+                data['inactive'],
+                data['vpn2'].name,
+                data['vpn_inactive'].name,
             ],
         )
 
@@ -560,6 +607,39 @@ class TestAdmin(
         self._test_recoverlist_operator_403(self.app_label, "device")
         self._test_recoverlist_operator_403(self.app_label, "template")
         self._test_recoverlist_operator_403(self.app_label, "vpn")
+
+    def test_org_admin_create_shared_vpn(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        self._test_org_admin_create_shareable_object(
+            path=reverse(f'admin:{self.app_label}_vpn_add'),
+            model=Vpn,
+            payload={
+                'organization': '',
+                'name': 'Test',
+                'host': 'vpn1.test.com',
+                'key': 'vZFUV5FqYt4WW9nerc23BofQH51gHNNy',
+                'backend': 'openwisp_controller.vpn_backends.OpenVPN',
+                'ca': ca.pk,
+                'config': {
+                    'openvpn': [
+                        {
+                            'server_bridge': '10.8.0.0 255.255.255.0',
+                            'name': 'tun0',
+                            'mode': 'server',
+                            'proto': 'udp',
+                            'dev': 'tun0',
+                        }
+                    ]
+                },
+            },
+        )
+
+    def test_org_admin_view_shared_vpn(self):
+        vpn = self._create_vpn(organization=None)
+        self._test_org_admin_view_shareable_object(
+            path=reverse(f'admin:{self.app_label}_vpn_change', args=[vpn.pk]),
+        )
 
     def test_device_template_filter(self):
         org = self._get_org(org_name="test-org")
