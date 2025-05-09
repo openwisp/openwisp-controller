@@ -51,6 +51,7 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
 
 class CredentialSerializer(BaseSerializer):
     params = serializers.JSONField()
+    include_shared = True
 
     class Meta:
         model = Credentials
