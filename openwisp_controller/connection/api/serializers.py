@@ -1,4 +1,3 @@
-from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from swapper import load_model
 
@@ -63,17 +62,6 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
             'created',
             'modified',
         ]
-
-    def validate(self, value):
-        super().validate(value)
-        if not DeviceConnection.objects.filter(
-            device=self.context['device_id'],
-            credentials__isnull=False,
-        ).exists():
-            raise serializers.ValidationError(
-                detail={'device': _('Device has no credentials assigned.')}
-            )
-        return value
 
 
 class CredentialSerializer(BaseSerializer):

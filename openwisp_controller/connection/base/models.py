@@ -459,10 +459,21 @@ class AbstractCommand(TimeStampedEditableModel):
 
     def clean(self):
         self._verify_command_type_allowed()
+        self._verify_connection()
         try:
             jsonschema.Draft4Validator(self._schema).validate(self.input)
         except SchemaError as e:
             raise ValidationError({'input': e.message})
+
+    def _verify_connection(self):
+        """Raises validation error if device has no connection and credentials."""
+        DeviceConnection = load_model('connection', 'DeviceConnection')
+
+        if not DeviceConnection.objects.filter(
+            device=self.device,
+            credentials__isnull=False,
+        ).exists():
+            raise ValidationError({'device': _('Device has no credentials assigned.')})
 
     def _verify_command_type_allowed(self):
         """Raises validation error if command type is not allowed."""
