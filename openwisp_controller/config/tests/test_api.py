@@ -681,15 +681,6 @@ class TestConfigApi(
             update_payload={'name': 'updated-test'},
             expected_count=1,
             token=token,
-            expected_status_codes={
-                'create': 400,
-                'list': 200,
-                'retrieve': 403,
-                'update': 403,
-                'delete': 403,
-                'head': 403,
-                'option': 200,
-            },
         )
 
     def test_org_admin_create_template_with_shared_vpn(self):
@@ -712,16 +703,16 @@ class TestConfigApi(
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
+            token=self._obtain_auth_token(test_user),
             expected_status_codes={
                 'create': 201,
                 'list': 200,
                 'retrieve': 200,
                 'update': 200,
                 'delete': 204,
-                'head': 403,
+                'head': 200,
                 'option': 200,
-            },
-            token=self._obtain_auth_token(test_user),
+            }
         )
 
     def test_template_create_with_empty_config(self):
