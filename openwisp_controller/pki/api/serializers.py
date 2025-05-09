@@ -73,13 +73,18 @@ class CaListSerializer(BaseListSerializer):
         ]
         read_only_fields = ["created", "modified"]
         extra_kwargs = {
-            "organization": {"required": True},
-            "common_name": {"default": "", "required": False},
-            "key_length": {"initial": "2048"},
-            "digest": {"initial": "sha256"},
-            "passphrase": {"write_only": True},
-            "validity_start": {"default": default_validity_start()},
-            "validity_end": {"default": default_ca_validity_end()},
+            # In DRF 3.16+, nullable fields that are part of a unique constraint
+            # automatically get `default: None`, which can cause validation issues.
+            # Setting the default to `serializers.empty` ensures DRF does not treat
+            # these fields as both required and having a default value, avoiding
+            # conflicts.
+            'organization': {'required': True, 'default': serializers.empty},
+            'common_name': {'default': '', 'required': False},
+            'key_length': {'initial': '2048'},
+            'digest': {'initial': 'sha256'},
+            'passphrase': {'write_only': True},
+            'validity_start': {'default': default_validity_start()},
+            'validity_end': {'default': default_ca_validity_end()},
         }
 
 
