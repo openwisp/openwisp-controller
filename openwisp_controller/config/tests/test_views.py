@@ -107,6 +107,7 @@ class TestViews(
                     "required": t4.required,
                     "default": t4.default,
                     "name": t4.name,
+                    "selected": False,
                 }
             },
         )
@@ -144,6 +145,7 @@ class TestViews(
                     "required": t1.required,
                     "default": t1.default,
                     "name": t1.name,
+                    "selected": False,
                 }
             },
         )
@@ -163,6 +165,7 @@ class TestViews(
                     "required": t2.required,
                     "default": t2.default,
                     "name": t2.name,
+                    "selected": False,
                 }
             },
         )

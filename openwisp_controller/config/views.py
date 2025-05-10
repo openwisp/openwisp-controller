@@ -30,16 +30,35 @@ def get_relevant_templates(request, organization_id):
     device_id = request.GET.get("device", None)
     group_id = request.GET.get("group", None)
     user = request.user
-    if not user.is_superuser and not user.is_manager(organization_id):
+    # organization_id is passed as 'null' for add device
+    organization_id = None if organization_id == 'null' else organization_id
+    if (
+        not user.is_superuser
+        and organization_id
+        and not user.is_manager(organization_id)
+    ):
         return HttpResponse(status=403)
-    org = get_object_or_404(Organization, pk=organization_id, is_active=True)
-    org_filters = Q(organization_id=org.pk) | Q(organization_id=None)
+
+    # TODO: do we skip all these checks if user is superuser?
+    if organization_id:
+        org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+        org_filters = Q(organization_id=org.pk)
+    # if the user is superuser then we need to fetch all the templates
+    elif user.is_superuser:
+        org_filters = Q(organization_id__isnull=False)
+    # else fetch templates of organizations managed by the user
+    else:
+        org_filters = Q(organization_id__in=user.organizations_managed)
+
+    # this filter is for shared templates
+    org_filters |= Q(organization_id=None)
+
     filter_options = {}
     if backend:
         filter_options.update(backend=backend)
     else:
         filter_options.update(required=False, default=False)
-    sort_value_subquery = None
+    sort_value_subquery = through_model = None
     # fetch the selected templates for the device or group by creating a subquery.
     # through_model and lookup_field are set based on the presence of device_id or
     # group_id. we need through_model as `sort_value` is a field of the through model.
@@ -53,7 +72,8 @@ def get_relevant_templates(request, organization_id):
     ):
         through_model = DeviceGroup.templates.through
         lookup_field = "devicegroup_id"
-    if device_id or group_id:
+    # fetch selected templates only if device or group exists
+    if device_id or group_id and through_model:
         sort_value_subquery = django_models.Subquery(
             through_model.objects.filter(
                 **{lookup_field: lookup.id}, template_id=django_models.OuterRef('pk')
