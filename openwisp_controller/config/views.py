@@ -2,7 +2,9 @@ import json
 from copy import deepcopy
 from uuid import UUID
 
+from django.db import models as django_models
 from django.db.models import Q
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -15,6 +17,7 @@ from .utils import get_object_or_404
 
 Organization = load_model('openwisp_users', 'Organization')
 Template = load_model('config', 'Template')
+Config = load_model('config', 'Config')
 DeviceGroup = load_model('config', 'DeviceGroup')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
@@ -24,20 +27,76 @@ def get_relevant_templates(request, organization_id):
     returns default templates of specified organization
     """
     backend = request.GET.get("backend", None)
+    device_id = request.GET.get("device", None)
+    group_id = request.GET.get("group", None)
     user = request.user
-    if not user.is_superuser and not user.is_manager(organization_id):
+    # organization_id is passed as 'null' for add device
+    organization_id = None if organization_id == 'null' else organization_id
+    if (
+        not user.is_superuser
+        and organization_id
+        and not user.is_manager(organization_id)
+    ):
         return HttpResponse(status=403)
-    org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+
+    # TODO: do we skip all these checks if user is superuser?
+    if organization_id:
+        org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+        org_filters = Q(organization_id=org.pk)
+    # if the user is superuser then we need to fetch all the templates
+    elif user.is_superuser:
+        org_filters = Q(organization_id__isnull=False)
+    # else fetch templates of organizations managed by the user
+    else:
+        org_filters = Q(organization_id__in=user.organizations_managed)
+
+    # this filter is for shared templates
+    org_filters |= Q(organization_id=None)
+
     filter_options = {}
     if backend:
         filter_options.update(backend=backend)
     else:
         filter_options.update(required=False, default=False)
+    sort_value_subquery = through_model = None
+    # fetch the selected templates for the device or group by creating a subquery.
+    # through_model and lookup_field are set based on the presence of device_id or
+    # group_id. we need through_model as `sort_value` is a field of the through model.
+    # the subquery will be used to annotate the queryset with the sort_value
+    # of the selected templates.
+    if device_id and (lookup := Config.objects.filter(device_id=device_id).first()):
+        through_model = Config.templates.through
+        lookup_field = "config_id"
+    if group_id and (
+        lookup := DeviceGroup.objects.filter(Q(pk=group_id) & (org_filters)).first()
+    ):
+        through_model = DeviceGroup.templates.through
+        lookup_field = "devicegroup_id"
+    # fetch selected templates only if device or group exists
+    if device_id or group_id and through_model:
+        sort_value_subquery = django_models.Subquery(
+            through_model.objects.filter(
+                **{lookup_field: lookup.id}, template_id=django_models.OuterRef('pk')
+            ).values('sort_value')[:1],
+            output_field=django_models.IntegerField(),
+        )
+    # annotated a selected field which is True based on sort_value
+    # if sort_value is 9999 then selected is False else True
     queryset = (
         Template.objects.filter(**filter_options)
-        .filter(Q(organization_id=org.pk) | Q(organization_id=None))
+        .filter(org_filters)
+        .annotate(
+            sort_value=Coalesce(sort_value_subquery, django_models.Value(9999)),
+            selected=django_models.Case(
+                django_models.When(sort_value=9999, then=django_models.Value(False)),
+                default=django_models.Value(True),
+                output_field=django_models.BooleanField(),
+            ),
+        )
+        .order_by('sort_value')
         .only('id', 'name', 'backend', 'default', 'required')
     )
+
     relevant_templates = {}
     for template in queryset:
         relevant_templates[str(template.pk)] = dict(
@@ -45,6 +104,7 @@ def get_relevant_templates(request, organization_id):
             backend=template.get_backend_display(),
             default=template.default,
             required=template.required,
+            selected=template.selected,
         )
     return JsonResponse(relevant_templates)
 
