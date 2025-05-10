@@ -14,17 +14,46 @@ from swapper import load_model
 
 from openwisp_utils.tests import SeleniumTestMixin
 
-from .utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
+from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpnMixin
 
 Device = load_model("config", "Device")
+Cert = load_model("django_x509", "Cert")
 
 
 @tag("selenium_tests")
 class TestDeviceAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
     StaticLiveServerTestCase,
 ):
+    # helper function for adding/removing templates
+    def _update_template(self, device_id, templates, is_enabled=False):
+        self.open(
+            reverse('admin:config_device_change', args=[device_id]) + '#config-group'
+        )
+        self.wait_for_presence(By.CSS_SELECTOR, 'input[name="config-0-templates"]')
+
+        # if not is_enabled:
+        self.hide_loading_overlay()
+        for template in templates:
+            template_element = self.find_element(
+                By.XPATH, f'//*[@value="{template.id}"][@type="checkbox"]'
+            )
+            # if enabled by default, assert that the checkbox is selected and enabled
+            if is_enabled:
+                self.assertEqual(template_element.is_enabled(), True)
+                self.assertEqual(template_element.is_selected(), True)
+            # enable/disable the checkbox
+            template_element.click()
+
+        # Hide user tools because it covers the save button
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(by=By.NAME, value='_save').click()
+        self.wait_for_presence(By.CSS_SELECTOR, '.messagelist .success', timeout=5)
+
     def test_create_new_device(self):
         required_template = self._create_template(name="Required", required=True)
         default_template = self._create_template(name="Default", default=True)
@@ -86,7 +115,7 @@ class TestDeviceAdmin(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
         self.find_element(by=By.NAME, value="_save").click()
-        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success")
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
         self.assertEqual(
             self.find_elements(by=By.CLASS_NAME, value="success")[0].text,
             "The Device “11:22:33:44:55:66” was added successfully.",
@@ -295,6 +324,85 @@ class TestDeviceAdmin(
         )
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
+
+    def test_add_remove_templates(self):
+        template = self._create_template(organization=self._get_org())
+        config = self._create_config(organization=self._get_org())
+        device = config.device
+        self.login()
+        # some times the url fetching in js gives unauthorized error
+        # so we add a wait to allow login to complete
+        time.sleep(2)
+
+        with self.subTest('Template should be added'):
+            self._update_template(device.id, templates=[template])
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.status, 'modified')
+            config.set_status_applied()
+            self.assertEqual(config.status, 'applied')
+
+        with self.subTest('Template should be removed'):
+            self._update_template(device.id, templates=[template], is_enabled=True)
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.status, 'modified')
+
+    def test_vpn_clients_deleted(self):
+        vpn = self._create_vpn()
+        template = self._create_template()
+        vpn_template = self._create_template(
+            name='vpn-test',
+            type='vpn',
+            vpn=vpn,
+            auto_cert=True,
+        )
+        cert_query = Cert.objects.exclude(pk=vpn.cert_id)
+        valid_cert_query = cert_query.filter(revoked=False)
+        revoked_cert_query = cert_query.filter(revoked=True)
+
+        config = self._create_config(organization=self._get_org())
+        device = config.device
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        self.assertEqual(config.templates.count(), 0)
+        self.login()
+        # some times the url fetching in js gives unauthorized error
+        # so we add a wait to allow login to complete
+        time.sleep(2)
+
+        with self.subTest('Adding only VpnClient template'):
+            # Adding VpnClient template to the device
+            self._update_template(device.id, [vpn_template])
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+            self.assertEqual(cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 1)
+
+            # Remove VpnClient template from the device
+            self._update_template(device.id, [vpn_template], is_enabled=True)
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.vpnclient_set.count(), 0)
+            # Removing VPN template marks the related certificate as revoked
+            self.assertEqual(revoked_cert_query.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 0)
+
+        with self.subTest('Add VpnClient template along with another template'):
+            # Adding templates to the device
+            self._update_template(device.id, [template, vpn_template])
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 2)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+            self.assertEqual(valid_cert_query.count(), 1)
+
+            # Remove VpnClient template from the device
+            self._update_template(device.id, [vpn_template], is_enabled=True)
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 0)
+            self.assertEqual(valid_cert_query.count(), 0)
+            self.assertEqual(revoked_cert_query.count(), 2)
 
 
 @tag("selenium_tests")

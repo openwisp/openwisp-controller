@@ -95,7 +95,10 @@ django.jQuery(function ($) {
         selectedTemplates;
 
       // Hide templates if no organization or backend is selected
-      if (orgID.length === 0 || (!isDeviceGroup() && backend.length === 0)) {
+      if (
+        (orgID && orgID.length === 0) ||
+        (!isDeviceGroup() && backend.length === 0)
+      ) {
         resetTemplateOptions();
         updateTemplateHelpText();
         return;
@@ -212,8 +215,10 @@ django.jQuery(function ($) {
         if (selectedTemplates === undefined) {
           if (!isDeviceGroup()) {
             $(
-              `.has_original .field-templates .sortedm2m-container input[type="hidden"]`,
-            ).attr("name", templatesFieldName());
+              `#config-0 .field-templates .sortedm2m-container input[type="hidden"]`,
+            )
+              .first()
+              .attr("name", templatesFieldName());
             // set the initial value of the hidden input field
             // to the selected templates
             django._owcInitialValues[templatesFieldName()] =
