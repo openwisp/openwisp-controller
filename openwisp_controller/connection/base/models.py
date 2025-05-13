@@ -467,12 +467,7 @@ class AbstractCommand(TimeStampedEditableModel):
 
     def _verify_connection(self):
         """Raises validation error if device has no connection and credentials."""
-        DeviceConnection = load_model('connection', 'DeviceConnection')
-
-        if not DeviceConnection.objects.filter(
-            device=self.device,
-            credentials__isnull=False,
-        ).exists():
+        if self.device and not self.device.deviceconnection_set.exists():
             raise ValidationError({'device': _('Device has no credentials assigned.')})
 
     def _verify_command_type_allowed(self):
