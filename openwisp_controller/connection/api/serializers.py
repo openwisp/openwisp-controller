@@ -5,6 +5,7 @@ from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
+from ..commands import COMMAND_CHOICES
 
 Command = load_model('connection', 'Command')
 DeviceConnection = load_model('connection', 'DeviceConnection')
@@ -34,17 +35,18 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # show only connections and command types available for the device
-        if (
-            device := Device.objects.filter(pk=self.context.get('device_id'))
-            .only('organization_id', 'id')
-            .first()
-        ):
-            self.fields['connection'].queryset = DeviceConnection.objects.filter(
-                device=device
-            )
-            self.fields['type'].choices = Command.get_org_choices(
-                device.organization_id
-            )
+        if device_id := self.context.get('device_id'):
+            self.fields['connection'].queryset = self.fields[
+                'connection'
+            ].queryset.filter(device_id=device_id)
+            device = Device.objects.only('organization_id', 'id').get(pk=device_id)
+            # filter command types based on the device's organization
+            allowed_commands = Command.get_org_choices(device.organization_id)
+            # this translates the commands to their labels
+            commands_map = dict(COMMAND_CHOICES)
+            self.fields['type'].choices = [
+                (i, commands_map[i]) for i in commands_map if i in allowed_commands
+            ]
 
     def to_representation(self, instance):
         repr = super().to_representation(instance)
