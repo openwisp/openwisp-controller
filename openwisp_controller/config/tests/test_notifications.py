@@ -4,6 +4,7 @@ from celery.exceptions import Retry
 from django.apps.registry import apps
 from django.conf import settings
 from django.test import TransactionTestCase
+from django.urls import reverse
 from requests.exceptions import RequestException
 from swapper import load_model
 
@@ -40,6 +41,7 @@ class TestNotifications(
 
     def test_config_problem_notification(self):
         config = self._create_config()
+        device = config.device
         config.set_status_error()
 
         self.assertEqual(config.status, 'error')
@@ -53,8 +55,15 @@ class TestNotifications(
             f'[example.com] ERROR: "{config.device}"'
             ' configuration encountered an error',
         )
-        self.assertIn('encountered an error', notification.message)
-        self.assertEqual(notification.target_url.endswith('#config-group'), True)
+        expected_target_url = ('https://example.com{}#config-group').format(
+            reverse(f'admin:{self.app_label}_device_change', args=[device.id])
+        )
+        self.assertEqual(
+            notification.message,
+            f'<p>The configuration of <a href="{expected_target_url}">{device.name}</a>'
+            ' has encountered an error. The last working configuration has been'
+            ' restored from a backup present on the filesystem of the device.</p>',
+        )
 
     def test_device_registered(self):
         # To avoid adding repetitive code for registering a device,
