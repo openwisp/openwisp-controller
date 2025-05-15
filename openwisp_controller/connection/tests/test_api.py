@@ -125,6 +125,13 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertIn("device", command_obj)
             self.assertIn("connection", command_obj)
 
+        with self.subTest("Test results ordering, recent first"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            created_list = [cmd["created"] for cmd in response.data["results"]]
+            sorted_created_list = sorted(created_list, reverse=True)
+            self.assertEqual(created_list, sorted_created_list)
+
     def test_command_create_api(self):
         def test_command_attributes(self, payload):
             self.assertEqual(command_qs.count(), 1)
