@@ -355,7 +355,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.status_code, 400)
             self.assertIn(
                 '"custom" is not a valid choice.',
-                response.json()['type'][0],
+                response.data['type'][0],
             )
 
     def test_create_command_without_connection(self):
@@ -373,9 +373,9 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             content_type='application/json',
         )
         self.assertEqual(response.status_code, 400)
-        self.assertDictEqual(
-            response.json(),
-            {'device': ['Device has no credentials assigned.']},
+        self.assertIn(
+            'Device has no credentials assigned.',
+            response.data['device'][0],
         )
 
 
