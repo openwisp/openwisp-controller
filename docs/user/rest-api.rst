@@ -275,28 +275,28 @@ Get Device Connection Detail
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{id}/connection/{id}/
+    GET /api/v1/controller/device/{device_id}/connection/{connection_id}/
 
 Change Device Connection Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
-    PUT /api/v1/controller/device/{id}/connection/{id}/
+    PUT /api/v1/controller/device/{device_id}/connection/{connection_id}/
 
 Patch Device Connection Detail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
-    PATCH /api/v1/controller/device/{id}/connection/{id}/
+    PATCH /api/v1/controller/device/{device_id}/connection/{connection_id}/
 
 Delete Device Connection
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
-    DELETE /api/v1/controller/device/{id}/connection/{id}/
+    DELETE /api/v1/controller/device/{device_id}/connection/{connection_id}/
 
 List Credentials
 ~~~~~~~~~~~~~~~~
@@ -345,14 +345,14 @@ List Commands of a Device
 
 .. code-block:: text
 
-    GET /api/v1/controller/device/{id}/command/
+    GET /api/v1/controller/device/{device_id}/command/
 
-Execute a Command a Device
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Execute a Command on a Device
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
-    POST /api/v1/controller/device/{id}/command/
+    POST /api/v1/controller/device/{device_id}/command/
 
 Get Command Details
 ~~~~~~~~~~~~~~~~~~~
