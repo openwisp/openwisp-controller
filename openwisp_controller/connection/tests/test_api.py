@@ -381,6 +381,18 @@ class TestConnectionApi(
         self.assertContains(response, cred_2.id)
         self.assertNotContains(response, cred_1.id)
 
+    @patch.object(ListViewPagination, "page_size", 3)
+    def test_credential_list_ordering(self):
+        number_of_credentials = 6
+        url = reverse("connection_api:credential_list")
+        for i in range(number_of_credentials):
+            self._create_credentials(name=f"Test Credential {i}")
+        response = self.client.get(url)
+        self.assertEqual(response.data["count"], number_of_credentials)
+        created_list = [cred["created"] for cred in response.data["results"]]
+        sorted_created_list = sorted(created_list, reverse=True)
+        self.assertEqual(created_list, sorted_created_list)
+    
     def test_post_credential_list(self):
         path = reverse('connection_api:credential_list')
         data = {
@@ -454,6 +466,25 @@ class TestConnectionApi(
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['count'], 0)
+
+    @patch.object(ListViewPagination, "page_size", 3)
+    def test_deviceconnection_list_ordering(self):
+        device = self._create_device()
+        self._create_config(device=device)
+        credentials_list = [
+            self._create_credentials(name=f"Credential {i}") for i in range(3)
+        ]
+        for cred in credentials_list:
+            DeviceConnection.objects.create(
+                device=device,
+                credentials=cred,
+            )
+        path = reverse("connection_api:deviceconnection_list", args=(device.pk,))
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        created_list = [item["created"] for item in response.data["results"]]
+        sorted_created_list = sorted(created_list, reverse=True)
+        self.assertEqual(created_list, sorted_created_list)
 
     def test_post_deviceconnection_list(self):
         d1 = self._create_device()
