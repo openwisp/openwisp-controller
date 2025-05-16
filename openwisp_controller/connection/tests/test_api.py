@@ -428,7 +428,7 @@ class TestConnectionApi(
         created_list = [cred["created"] for cred in response.data["results"]]
         sorted_created_list = sorted(created_list, reverse=True)
         self.assertEqual(created_list, sorted_created_list)
-    
+
     def test_post_credential_list(self):
         path = reverse("connection_api:credential_list")
         data = {
