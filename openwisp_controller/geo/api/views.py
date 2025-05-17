@@ -123,10 +123,19 @@ class DeviceLocationView(
         except ValidationError:
             return qs.none()
 
+    def initial(self, *args, **kwargs):
+        super().initial(*args, **kwargs)
+        self.assert_parent_exists()
+
+    def assert_parent_exists(self):
+        try:
+            assert self.get_parent_queryset().exists()
+        except (AssertionError, ValidationError):
+            device_id = self.kwargs[self.lookup_url_kwarg]
+            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
+
     def get_parent_queryset(self):
-        return Device.objects.filter(
-            pk=self.kwargs['pk'],
-        )
+        return Device.objects.filter(pk=self.kwargs['pk'])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

@@ -12,7 +12,12 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
         if obj:
             device = getattr(obj, self._device_field)
         else:
-            device = view.get_parent_queryset()[0]
+            device = view.get_parent_queryset().first()
+            if not device:
+                # If the parent queryset is empty, it means that the
+                # device does not exist. In this case, we return the
+                # original permissions, so the view will return a 404.
+                return perm
         return perm and not device.is_deactivated()
 
     def has_permission(self, request, view):
