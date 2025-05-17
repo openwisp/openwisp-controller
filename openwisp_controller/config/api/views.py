@@ -306,7 +306,7 @@ class RevisionListView(ProtectedAPIMixin, AutoRevisionMixin, ListAPIView):
     serializer_class = ReversionSerializer
 
     def get_queryset(self):
-        model_slug = self.kwargs.get('model_slug').lower()
+        model_slug = self.kwargs.get('model').lower()
         return (
             Version.objects.select_related('revision')
             .filter(content_type__model=model_slug)
@@ -318,7 +318,7 @@ class RevisionDetailView(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = ReversionSerializer
 
     def get_queryset(self):
-        model_slug = self.kwargs.get('model_slug').lower()
+        model_slug = self.kwargs.get('model').lower()
         return (
             Version.objects.select_related('revision')
             .filter(content_type__model=model_slug)
@@ -330,7 +330,7 @@ class RevisionRestoreView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
 
     def get_queryset(self):
-        model_slug = self.kwargs.get('model_slug').lower()
+        model_slug = self.kwargs.get('model').lower()
         return (
             Version.objects.select_related('revision')
             .filter(content_type__model=model_slug)

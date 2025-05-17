@@ -41,11 +41,15 @@ class ProtectedAPIMixin(BaseProtectedAPIMixin, FilterByOrganizationManaged):
 
 
 class AutoRevisionMixin(RevisionMixin):
+    revision_atomic = False
+
     def dispatch(self, request, *args, **kwargs):
-        if request.method in ('GET', 'HEAD', 'OPTIONS'):
-            return super().dispatch(request, *args, **kwargs)
-        with reversion.create_revision():
-            response = super().dispatch(request, *args, **kwargs)
-            reversion.set_user(request.user)
-            reversion.set_comment(f'API request: {request.method} {request.path}')
+        if request.method in ('POST', 'PUT', 'PATCH') and request.user.is_authenticated:
+            with reversion.create_revision(atomic=self.revision_atomic):
+                response = super().dispatch(request, *args, **kwargs)
+                reversion.set_user(request.user)
+                reversion.set_comment(
+                    f'API request: {request.method} {request.get_full_path()}'
+                )
             return response
+        return super().dispatch(request, *args, **kwargs)
