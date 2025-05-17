@@ -437,10 +437,15 @@ class AbstractCommand(TimeStampedEditableModel):
         ordering = ('created',)
 
     @classmethod
-    def get_org_choices(self, organization_id=None):
-        return ORGANIZATION_ENABLED_COMMANDS.get(
+    def get_org_allowed_commands(self, organization_id=None):
+        """
+        Returns a list of allowed commands for the given organization
+        """
+        allowed_commands = ORGANIZATION_ENABLED_COMMANDS.get(
             str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get('__all__')
         )
+        commands_map = dict(COMMAND_CHOICES)
+        return [(i, commands_map[i]) for i in commands_map if i in allowed_commands]
 
     @classmethod
     def get_org_schema(self, organization_id=None):
@@ -459,10 +464,16 @@ class AbstractCommand(TimeStampedEditableModel):
 
     def clean(self):
         self._verify_command_type_allowed()
+        self._verify_connection()
         try:
             jsonschema.Draft4Validator(self._schema).validate(self.input)
         except SchemaError as e:
             raise ValidationError({'input': e.message})
+
+    def _verify_connection(self):
+        """Raises validation error if device has no connection and credentials."""
+        if self.device and not self.device.deviceconnection_set.exists():
+            raise ValidationError({'device': _('Device has no credentials assigned.')})
 
     def _verify_command_type_allowed(self):
         """Raises validation error if command type is not allowed."""
@@ -470,8 +481,9 @@ class AbstractCommand(TimeStampedEditableModel):
         # (standard model validation will kick in)
         if not hasattr(self, 'device'):
             return
-        if self.type not in self.get_org_choices(
-            organization_id=self.device.organization_id
+
+        if self.type not in dict(
+            self.get_org_allowed_commands(organization_id=self.device.organization_id)
         ):
             raise ValidationError(
                 {
