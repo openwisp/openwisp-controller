@@ -1580,25 +1580,25 @@ class TestConfigApiTransaction(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['name'], 'change-test-device')
 
-        path = reverse("config_api:revision_list", args=[model_slug])
+        path = reverse('config_api:revision_list', args=[model_slug])
         response = self.client.get(path)
         response_json = response.json()
         version_id = response_json[1]["id"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response_json), 2)
 
-        with self.subTest("Test revision detail"):
-            path = reverse("config_api:revision_detail", args=[model_slug, version_id])
+        with self.subTest('Test revision detail'):
+            path = reverse('config_api:revision_detail', args=[model_slug, version_id])
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["id"], version_id)
-            self.assertEqual(response.json()["object_id"], str(device.pk))
+            self.assertEqual(response.json()['id'], version_id)
+            self.assertEqual(response.json()['object_id'], str(device.pk))
 
-        with self.subTest("Test revision restore view"):
-            revision_id = response_json[1]["revision_id"]
+        with self.subTest('Test revision restore view'):
+            revision_id = response_json[1]['revision_id']
             path = reverse(
-                "config_api:revision_restore", args=[model_slug, revision_id]
+                'config_api:revision_restore', args=[model_slug, revision_id]
             )
             response = self.client.post(path)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(Device.objects.get(name="test").pk, device.pk)
+            self.assertEqual(Device.objects.get(name='test').pk, device.pk)

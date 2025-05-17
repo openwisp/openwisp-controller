@@ -14,17 +14,17 @@ def get_api_urls(api_views):
     if getattr(settings, 'OPENWISP_CONTROLLER_API', True):
         return [
             path(
-                'controller/<str:model_slug>/revision/',
+                'controller/<str:model>/revision/',
                 api_views.revision_list,
                 name='revision_list',
             ),
             path(
-                'controller/<str:model_slug>/revision/<str:pk>/',
+                'controller/<str:model>/revision/<str:pk>/',
                 api_views.revision_detail,
                 name='revision_detail',
             ),
             path(
-                'controller/<str:model_slug>/revision/<str:pk>/restore/',
+                'controller/<str:model>/revision/<str:pk>/restore/',
                 api_views.revision_restore,
                 name='revision_restore',
             ),
