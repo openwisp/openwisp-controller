@@ -16,6 +16,11 @@ from ..tasks import update_template_related_config_status
 from .base import BaseConfig
 
 TYPE_CHOICES = (('generic', _('Generic')), ('vpn', _('VPN-client')))
+LIST_HANDLING_CHOICES = (
+    ('insert_at_beginning', _('Insert items at the beginning')),
+    ('append_at_end', _('Append items at the end')),
+    ('override', _('Override all items')),
+)
 
 
 def default_auto_cert():
@@ -55,6 +60,18 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         default='generic',
         db_index=True,
         help_text=_('template type, determines which features are available'),
+    )
+    list_handling = models.CharField(
+        _('list handling'),
+        max_length=20,
+        choices=LIST_HANDLING_CHOICES,
+        default='append_at_end',
+        db_index=True,
+        help_text=_(
+            'list handling, determines how list items in this template'
+            ' are handled if the same list exists in a previously '
+            'applied template'
+        ),
     )
     default = models.BooleanField(
         _('enabled by default'),
