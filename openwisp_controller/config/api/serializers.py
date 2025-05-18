@@ -6,12 +6,14 @@ from rest_framework import serializers
 from swapper import load_model
 
 from openwisp_utils.api.serializers import ValidatedModelSerializer
+from openwisp_ipam.models import IpAddress
 
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
 
 Template = load_model('config', 'Template')
 Vpn = load_model('config', 'Vpn')
+VpnClient = load_model('config', 'VpnClient')
 Device = load_model('config', 'Device')
 DeviceGroup = load_model('config', 'DeviceGroup')
 Config = load_model('config', 'Config')
@@ -71,6 +73,7 @@ class TemplateSerializer(BaseSerializer):
 class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
     include_shared = True
+    ip = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta(BaseMeta):
         model = Vpn
@@ -79,6 +82,8 @@ class VpnSerializer(BaseSerializer):
             'name',
             'host',
             'organization',
+            'subnet',
+            'ip',
             'key',
             'ca',
             'cert',
@@ -90,6 +95,18 @@ class VpnSerializer(BaseSerializer):
             'modified',
         ]
 
+class VpnClientSerializer(serializers.ModelSerializer):
+    vpn = serializers.PrimaryKeyRelatedField(read_only=True)
+    ip_address = serializers.SerializerMethodField()
+    class Meta:
+        model = VpnClient
+        fields = ['id', 'vpn', 'ip_address']
+
+    def get_ip_address(self, obj):
+        try:
+            return obj.ip.ip_address if obj.ip else None
+        except IpAddress.DoesNotExist:
+            return None
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
@@ -272,6 +289,10 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
         initial={}, help_text=_('Configuration variables in JSON format')
     )
     templates = FilterTemplatesByOrganization(many=True)
+    vpnclient_config = VpnClientSerializer(many=True, read_only=True, source='vpnclient_set')
+
+    class Meta(BaseConfigSerializer.Meta):
+        fields = BaseConfigSerializer.Meta.fields + ['vpnclient_config']
 
 
 class DeviceDetailSerializer(DeviceConfigSerializer):
