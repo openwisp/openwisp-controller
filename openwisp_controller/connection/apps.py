@@ -81,14 +81,14 @@ class ConnectionConfig(AppConfig):
         )
 
     @classmethod
-    def _launch_update_config(cls, device_pk):
+    def _launch_update_config(cls, device_id):
         """
         Calls the background task update_config only if
         no other tasks are running for the same device
         """
         from .tasks import update_config
 
-        update_config.delay(device_pk)
+        update_config.delay(device_id)
 
     @classmethod
     def is_working_changed_receiver(
