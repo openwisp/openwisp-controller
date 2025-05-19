@@ -49,15 +49,15 @@ class BaseCommandView(
 
     def get_parent_queryset(self):
         return Device.objects.filter(
-            pk=self.kwargs['device_pk'],
+            pk=self.kwargs['device_id'],
         )
 
     def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs['device_pk'])
+        return super().get_queryset().filter(device_id=self.kwargs['device_id'])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['device_pk']
+        context['device_id'] = self.kwargs['device_id']
         return context
 
 
@@ -101,7 +101,7 @@ class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['device_pk']
+        context['device_id'] = self.kwargs['device_id']
         return context
 
     def initial(self, *args, **kwargs):
@@ -112,11 +112,11 @@ class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
         try:
             assert self.get_parent_queryset().exists()
         except (AssertionError, ValidationError):
-            device_id = self.kwargs['device_pk']
+            device_id = self.kwargs['device_id']
             raise NotFound(detail=f'Device with ID "{device_id}" not found.')
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['device_pk'])
+        return Device.objects.filter(pk=self.kwargs['device_id'])
 
 
 class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
@@ -126,7 +126,7 @@ class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
         return (
             super()
             .get_queryset()
-            .filter(device_id=self.kwargs['device_pk'])
+            .filter(device_id=self.kwargs['device_id'])
             .order_by('-created')
         )
 
