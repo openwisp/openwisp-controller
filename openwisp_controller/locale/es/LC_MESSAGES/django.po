@@ -1,0 +1,1705 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-20 18:12+0000\n"
+"PO-Revision-Date: 2025-05-20 15:12-0300\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.6\n"
+
+#: base.py:30
+msgid ""
+"Shared objects are visible to all organizations and must have unique names "
+"to avoid confusion."
+msgstr ""
+"Los objetos compartidos son visibles para todas las organizaciones y deben "
+"tener nombres únicos para evitar confusiones."
+
+#: base.py:35
+#, python-brace-format
+msgid "There is already another shared {model_name} with this name."
+msgstr "Ya existe otro {model_name} compartido con este nombre."
+
+#: base.py:40
+#, python-brace-format
+msgid "There is already a {model_name} of another organization with this name."
+msgstr "Ya existe un {model_name} de otra organización con este nombre."
+
+#: config/admin.py:74
+msgid "System Defined Variables"
+msgstr "Variables definidas por el sistema"
+
+#: config/admin.py:123
+msgid "Preview configuration"
+msgstr "Vista previa de la configuración"
+
+#: config/admin.py:238
+#, python-brace-format
+msgid "Preview for {0} with name {1} failed"
+msgstr "Vista previa de {0} con nombre {1} fallida"
+
+#: config/admin.py:242
+#, python-brace-format
+msgid "Preview: request method {0} is not allowed"
+msgstr "Vista previa: el método de solicitud {0} no está permitido"
+
+#: config/admin.py:411 config/base/device_group.py:68
+#: config/base/multitenancy.py:42
+msgid "Configuration Variables"
+msgstr "Variables de configuración"
+
+#: config/admin.py:414
+msgid ""
+"In this section it's possible to override the default values of variables "
+"defined in templates. If you're not using configuration variables you can "
+"safely ignore this section."
+msgstr ""
+"En esta sección es posible sobreescribir los valores por defecto de las "
+"variables definidas en las plantillas. Si no utilizas variables de "
+"configuración, puedes ignorar esta sección."
+
+#: config/admin.py:430
+msgid "Device configuration details"
+msgstr "Detalles de configuración del dispositivo"
+
+#: config/admin.py:444
+msgid "Configuration"
+msgstr "Configuración"
+
+#: config/admin.py:473
+msgid "Group"
+msgstr "Grupo"
+
+#: config/admin.py:619
+msgid "Change group of selected Devices"
+msgstr "Cambiar el grupo de los dispositivos seleccionados"
+
+#: config/admin.py:633
+msgid "Select devices from one organization"
+msgstr "Seleccionar dispositivos de una organización"
+
+#: config/admin.py:656
+msgid "Successfully changed group of selected devices."
+msgstr "Se cambió exitosamente el grupo de los dispositivos seleccionados."
+
+#: config/admin.py:663
+#: config/templates/admin/config/change_device_group.html:23
+#: config/templates/admin/config/change_device_group.html:42
+msgid "Change group"
+msgstr "Cambiar de grupo"
+
+#: config/admin.py:711
+#, python-format
+msgid "The device %(devices_html)s was activated successfully."
+msgid_plural ""
+"The following devices were activated successfully: %(devices_html)s."
+msgstr[0] "El dispositivo %(devices_html)s se ha activado correctamente."
+msgstr[1] ""
+"Los siguientes dispositivos se activaron con éxito: %(devices_html)s."
+
+#: config/admin.py:761
+msgid "Deactivate selected devices"
+msgstr "Desactivar los dispositivos seleccionados"
+
+#: config/admin.py:765
+msgid "Activate selected devices"
+msgstr "Activar los dispositivos seleccionados"
+
+#: config/admin.py:785
+msgid "Are you sure?"
+msgstr "¿Estás seguro?"
+
+#: config/admin.py:821
+msgid "IP address"
+msgstr "Dirección IP"
+
+#: config/admin.py:828 config/apps.py:395 config/base/config.py:78
+msgid "deactivated"
+msgstr "desactivado"
+
+#: config/admin.py:829
+msgid "unknown"
+msgstr "desconocido"
+
+#: config/admin.py:831
+msgid "config status"
+msgstr "estado de la configuración"
+
+#: config/admin.py:985
+msgid "Shared systemwide (no organization)"
+msgstr "Compartido en todo el sistema (sin organización)"
+
+#: config/admin.py:1002
+msgid "Configuration variables"
+msgstr "Variables de configuración"
+
+#: config/admin.py:1005
+msgid ""
+"If you want to use configuration variables in this template, define them "
+"here along with their default values. The content of each variable can be "
+"overridden in each device."
+msgstr ""
+"Si deseas usar variables de configuración en esta plantilla, defínelas aquí "
+"junto con sus valores predeterminados. El contenido de cada variable puede "
+"ser sobrescrito en cada dispositivo."
+
+#: config/admin.py:1119
+#, python-format
+msgid "Errors detected while cloning %s"
+msgstr "Errores detectados durante la clonación %s"
+
+#: config/admin.py:1126
+msgid "Successfully cloned selected templates."
+msgstr "Se han clonado correctamente las plantillas seleccionadas."
+
+#: config/admin.py:1144
+#: config/templates/admin/config/clone_template_form.html:23
+msgid "Clone templates"
+msgstr "Clonar plantillas"
+
+#: config/api/filters.py:36
+msgid "Template backend"
+msgstr "Plantilla backend"
+
+#: config/api/filters.py:37
+msgid "Template type"
+msgstr "Tipo de plantilla"
+
+#: config/api/filters.py:56
+msgid "VPN Backend"
+msgstr "Backend VPN"
+
+#: config/api/filters.py:57
+msgid "VPN Subnet"
+msgstr "Subred VPN"
+
+#: config/api/filters.py:80
+msgid "Invalid UUID format"
+msgstr "Formato UUID no válido"
+
+#: config/api/filters.py:105
+msgid "Device group"
+msgstr "Grupo de dispositivos"
+
+#: config/api/filters.py:106
+msgid "Config template"
+msgstr "Plantilla de configuración"
+
+#: config/api/filters.py:107
+msgid "Config status"
+msgstr "Estado de la configuración"
+
+#: config/api/filters.py:108
+msgid "Config backend"
+msgstr "Configurar backend"
+
+#: config/api/filters.py:137
+msgid "Has devices?"
+msgstr "¿Tiene dispositivos?"
+
+#: config/api/serializers.py:56
+msgid "To select a VPN, set the template type to 'VPN-client'"
+msgstr ""
+"Para seleccionar una VPN, establezca el tipo de plantilla en \"VPN-cliente\""
+
+#: config/api/serializers.py:66 config/base/template.py:187
+msgid "The configuration field cannot be empty."
+msgstr "El campo de configuración no puede estar vacío."
+
+#: config/api/serializers.py:213 config/api/serializers.py:269
+msgid "Configuration in NetJSON format"
+msgstr "Configuración en formato NetJSON"
+
+#: config/api/serializers.py:217 config/api/serializers.py:272
+msgid "Configuration variables in JSON format"
+msgstr "Variables de configuración en formato JSON"
+
+#: config/api/zerotier_service.py:80
+#, python-brace-format
+msgid "Failed to connect to the ZeroTier controller, Error: {0}"
+msgstr "Error al conectar con el controlador ZeroTier, Error: {0}"
+
+#: config/api/zerotier_service.py:131
+#, python-brace-format
+msgid "Failed to create ZeroTier network, Error: {0}"
+msgstr "Error al crear la red ZeroTier, Error: {0}"
+
+#: config/apps.py:43
+msgid "Network Configuration"
+msgstr "Configuración de red"
+
+#: config/apps.py:173
+msgid "Configurations"
+msgstr "Configuración"
+
+#: config/apps.py:176
+msgid "Templates"
+msgstr "Plantillas"
+
+#: config/apps.py:182
+msgid "VPN Servers"
+msgstr "Servidores VPN"
+
+#: config/apps.py:188 config/base/device_group.py:77
+msgid "Device Groups"
+msgstr "Grupos de dispositivos"
+
+#: config/apps.py:202
+msgid "Configuration ERROR"
+msgstr "Error de configuración"
+
+#: config/apps.py:203
+msgid "encountered an error"
+msgstr "ha encontrado un error"
+
+#: config/apps.py:206
+#, python-brace-format
+msgid ""
+"[{site.name}] ERROR: \"{notification.target}\" configuration {notification."
+"verb}"
+msgstr ""
+"[{site.name}] ERROR: \"{notification.target}\" configuración {notification."
+"verb}"
+
+#: config/apps.py:210
+#, python-brace-format
+msgid ""
+"The configuration of [{notification.target}]({notification.target_link}) has "
+"{notification.verb}. The last working configuration has been restored from a "
+"backup present on the filesystem of the device."
+msgstr ""
+"La configuración de [{notification.target}]({notification.target_link}) "
+"{notification.verb}. Se ha restaurado la última configuración funcional "
+"desde una copia de seguridad presente en el sistema de archivos del "
+"dispositivo."
+
+#: config/apps.py:226
+msgid "Device Registration"
+msgstr "Registro de dispositivo"
+
+#: config/apps.py:227
+msgid "registered successfully"
+msgstr "se ha registrado con éxito"
+
+#: config/apps.py:230
+#, python-brace-format
+msgid "[{site.name}] SUCCESS: \"{notification.target}\" {notification.verb}"
+msgstr "[{site.name}] ÉXITO: \"{notification.target}\" {notification.verb}"
+
+#: config/apps.py:234
+#, python-brace-format
+msgid ""
+"{condition} device [{notification.target}]({notification.target_link}) has "
+"{notification.verb}."
+msgstr ""
+"{condition} dispositivo [{notification.target}]({notification.target_link}) "
+"ha {notification.verb}."
+
+#: config/apps.py:244
+msgid "Background API Task ERROR"
+msgstr "Error en tarea de API en segundo plano"
+
+#: config/apps.py:245
+msgid "encountered an unrecoverable error"
+msgstr "ha encontrado un error irrecuperable"
+
+#: config/apps.py:248
+#, python-brace-format
+msgid ""
+"[{site.name}] ERROR: \"{notification.target}\" - VPN Server {action} API "
+"Task {notification.verb}"
+msgstr ""
+"[{site.name}] ERROR: \"{notification.target}\" - Servidor VPN {action} Tarea "
+"API {notification.verb}"
+
+#: config/apps.py:252
+#, python-brace-format
+msgid ""
+"Unable to perform {action} operation on the [{notification.target}]"
+"({notification.target_link}) VPN server due to an unrecoverable error "
+"(status code: {status_code})"
+msgstr ""
+"No se ha podido realizar la operación {action} en el servidor VPN "
+"[{notification.target}]({notification.target_link}) debido a un error "
+"irrecuperable (código de estado: {status_code})"
+
+#: config/apps.py:264
+msgid "Background API Task RECOVERY"
+msgstr "Tarea API en segundo plano RECUPERACIÓN"
+
+#: config/apps.py:265
+msgid "has been completed successfully"
+msgstr "se ha completado con éxito"
+
+#: config/apps.py:268
+#, python-brace-format
+msgid ""
+"[{site.name}] RECOVERY: \"{notification.target}\" - VPN Server {action} API "
+"Task {notification.verb}"
+msgstr ""
+"[{site.name}] RECUPERACIÓN: \"{notification.target}\" - Servidor VPN "
+"{action} Tarea API {notification.verb}"
+
+#: config/apps.py:272
+#, python-brace-format
+msgid ""
+"The {action} operation on [{notification.target}]({notification."
+"target_link}) {notification.verb}"
+msgstr ""
+"La operación {action} en [{notification.target}]({notification.target_link}) "
+"{notification.verb}"
+
+#: config/apps.py:377
+msgid "Configuration Status"
+msgstr "Estado de la configuración"
+
+#: config/apps.py:391 config/base/config.py:75
+msgid "applied"
+msgstr "aplicado"
+
+#: config/apps.py:392 config/base/config.py:74
+msgid "modified"
+msgstr "modificado"
+
+#: config/apps.py:393 config/base/config.py:76
+msgid "error"
+msgstr "error"
+
+#: config/apps.py:394 config/base/config.py:77
+msgid "deactivating"
+msgstr "desactivar"
+
+#: config/apps.py:402
+msgid "Device Models"
+msgstr "Modelos de dispositivos"
+
+#: config/apps.py:411 config/apps.py:426 config/apps.py:441
+msgid "undefined"
+msgstr "indefinido"
+
+#: config/apps.py:417
+msgid "Firmware version"
+msgstr "Versión de firmware"
+
+#: config/apps.py:432
+msgid "System type"
+msgstr "Tipo de sistema"
+
+#: config/apps.py:448
+msgid "Groups"
+msgstr "Grupos"
+
+#: config/apps.py:480
+msgid "Active groups"
+msgstr "Grupos activos"
+
+#: config/apps.py:481
+msgid "Empty groups"
+msgstr "Grupos vacíos"
+
+#: config/base/base.py:25 config/base/device.py:34
+msgid "name"
+msgstr "nombre"
+
+#: config/base/base.py:43
+msgid "backend"
+msgstr "backend"
+
+#: config/base/base.py:47
+msgid ""
+"Select <a href=\"http://netjsonconfig.openwisp.org/en/stable/\" "
+"target=\"_blank\">netjsonconfig</a> backend"
+msgstr ""
+"Seleccione <a href=\"http://netjsonconfig.openwisp.org/en/stable/\" "
+"target=\"_blank\">netjsonconfig</a> backend"
+
+#: config/base/base.py:52 config/base/config.py:118
+msgid "configuration"
+msgstr "configuración"
+
+#: config/base/base.py:54
+msgid "configuration in NetJSON DeviceConfiguration format"
+msgstr "configuración en formato NetJSON DeviceConfiguration"
+
+#: config/base/base.py:73
+msgid "Unexpected configuration format."
+msgstr "Formato de configuración inesperado."
+
+#: config/base/config.py:37
+#, python-brace-format
+msgid "Relationship with {0}"
+msgstr "Relación con {0}"
+
+#: config/base/config.py:56
+msgid "device"
+msgstr "dispositivo"
+
+#: config/base/config.py:61 config/base/device_group.py:37
+#: config/base/template.py:106
+msgid "templates"
+msgstr "plantillas"
+
+#: config/base/config.py:64
+msgid "configuration templates, applied from first to last"
+msgstr "plantillas de configuración, aplicadas de la primera a la última"
+
+#: config/base/config.py:82
+msgid "configuration status"
+msgstr "estado de configuración"
+
+#: config/base/config.py:84
+msgid ""
+"\"modified\" means the configuration is not applied yet; \n"
+"\"applied\" means the configuration is applied successfully; \n"
+"\"error\" means the configuration caused issues and it was rolled back; \n"
+"\"deactivating\" means the device has been deactivated and the configuration "
+"is being removed; \n"
+"\"deactivated\" means the configuration has been removed from the device;"
+msgstr ""
+"\"modificado\" significa que la configuración aún no se ha aplicado;\n"
+"\"aplicada\" significa que la configuración se ha aplicado correctamente;\n"
+"\"error\" significa que la configuración ha causado problemas y se ha "
+"revertido;\n"
+"\"desactivando\" significa que se ha desactivado el dispositivo y se está "
+"eliminando la configuración;\n"
+"\"desactivado\" significa que la configuración se ha eliminado del "
+"dispositivo;"
+
+#: config/base/config.py:93
+msgid "error reason"
+msgstr "motivo del error"
+
+#: config/base/config.py:95
+msgid "Error reason reported by the device"
+msgstr "Motivo del error notificado por el dispositivo"
+
+#: config/base/config.py:102
+msgid ""
+"Additional <a href=\"http://netjsonconfig.openwisp.org/en/stable/general/"
+"basics.html#context\" target=\"_blank\">context (configuration variables)</"
+"a> in JSON format"
+msgstr ""
+"<a href=\"http://netjsonconfig.openwisp.org/en/stable/general/basics."
+"html#context\" target=\"_blank\">Contexto</a> adicional <a href=\"http://"
+"netjsonconfig.openwisp.org/en/stable/general/basics.html#context\" "
+"target=\"_blank\">(variables de configuración)</a> en formato JSON"
+
+#: config/base/config.py:109
+msgid "context"
+msgstr "contexto"
+
+#: config/base/config.py:119
+msgid "configurations"
+msgstr "configuraciones"
+
+#: config/base/config.py:335
+#, python-brace-format
+msgid ""
+"The following templates are owned by organizations which do not match the "
+"organization of this configuration: {0}"
+msgstr ""
+"Las siguientes plantillas pertenecen a organizaciones que no coinciden con "
+"la organización de esta configuración: {0}"
+
+#: config/base/config.py:370
+msgid "Required templates cannot be removed from the configuration"
+msgstr "Las plantillas necesarias no pueden eliminarse de la configuración"
+
+#: config/base/config.py:486 config/base/template.py:170
+msgid "the supplied value is not a JSON object"
+msgstr "el valor suministrado no es un objeto JSON"
+
+#: config/base/device.py:39
+msgid "must be either a valid hostname or mac address"
+msgstr "debe ser un hostname o una dirección mac válidos"
+
+#: config/base/device.py:42
+msgid "mac address"
+msgstr "dirección mac"
+
+#: config/base/device.py:47
+msgid "primary mac address"
+msgstr "dirección mac principal"
+
+#: config/base/device.py:54
+msgid "unique device key"
+msgstr "clave única del dispositivo"
+
+#: config/base/device.py:55
+msgid "key"
+msgstr "clave"
+
+#: config/base/device.py:58
+msgid "model"
+msgstr "modelo"
+
+#: config/base/device.py:62
+msgid "device model and manufacturer"
+msgstr "modelo y fabricante del dispositivo"
+
+#: config/base/device.py:65
+msgid "operating system"
+msgstr "sistema operativo"
+
+#: config/base/device.py:69
+msgid "operating system identifier"
+msgstr "identificador del sistema operativo"
+
+#: config/base/device.py:72
+msgid "SOC / CPU"
+msgstr "SOC / CPU"
+
+#: config/base/device.py:76
+msgid "system on chip or CPU info"
+msgstr "información del sistema en chip (SoC) o de la CPU"
+
+#: config/base/device.py:78
+msgid "notes"
+msgstr "notas"
+
+#: config/base/device.py:78 config/base/device_group.py:31
+msgid "internal notes"
+msgstr "notas internas"
+
+#: config/base/device.py:81 config/filters.py:18
+msgid "group"
+msgstr "grupo"
+
+#: config/base/device.py:89
+msgid "last IP address"
+msgstr "última dirección IP"
+
+#: config/base/device.py:94
+msgid ""
+"indicates the IP address logged from the last request coming from the device"
+msgstr ""
+"indica la dirección IP registrada desde la última solicitud procedente del "
+"dispositivo"
+
+#: config/base/device.py:99
+msgid "management IP address"
+msgstr "dirección IP de gestión"
+
+#: config/base/device.py:104
+msgid ""
+"IP address used by the system to reach the device when performing any type "
+"of push operation or active check. The value of this field is generally sent "
+"by the device and hence does not need to be changed, but can be changed or "
+"cleared manually if needed."
+msgstr ""
+"Dirección IP utilizada por el sistema para comunicarse con el dispositivo al "
+"realizar cualquier tipo de operación push o verificación activa. El valor de "
+"este campo generalmente es enviado por el dispositivo, por lo que no suele "
+"ser necesario modificarlo, aunque puede editarse o borrarse manualmente si "
+"es necesario."
+
+#: config/base/device.py:114
+msgid "is deactivated"
+msgstr "desactivado"
+
+#: config/base/device.py:266
+msgid "Device with this Name and Organization already exists."
+msgstr "Ya existe un dispositivo con este nombre y organización."
+
+#: config/base/device_group.py:27
+msgid "Name"
+msgstr "Nombre"
+
+#: config/base/device_group.py:32
+msgid "Description"
+msgstr "Descripción"
+
+#: config/base/device_group.py:41
+msgid ""
+"These templates are automatically assigned to the devices that are part of "
+"the group. Default and required templates are excluded from this list. If "
+"the group of the device is changed, these templates will be automatically "
+"removed and the templates of the new group will be assigned."
+msgstr ""
+"Estas plantillas se asignan automáticamente a los dispositivos que forman "
+"parte del grupo. Las plantillas predeterminadas y obligatorias están "
+"excluidas de esta lista. Si se cambia el grupo del dispositivo, estas "
+"plantillas se eliminarán automáticamente y se asignarán las plantillas del "
+"nuevo grupo."
+
+#: config/base/device_group.py:54
+msgid ""
+"Group meta data, use this field to store data which is related to this group "
+"and can be retrieved via the REST API."
+msgstr ""
+"Metadatos del grupo, utilice este campo para almacenar los datos "
+"relacionados con este grupo y que se pueden recuperar a través de la API "
+"REST."
+
+#: config/base/device_group.py:57
+msgid "Metadata"
+msgstr "Metadatos"
+
+#: config/base/device_group.py:65
+msgid ""
+"This field can be used to add meta data for the group or to add "
+"\"Configuration Variables\" to the devices."
+msgstr ""
+"Este campo puede utilizarse para añadir metadatos para el grupo o para "
+"añadir \"Variables de configuración\" a los dispositivos."
+
+#: config/base/device_group.py:76
+msgid "Device Group"
+msgstr "Grupo de dispositivos"
+
+#: config/base/multitenancy.py:18 config/base/multitenancy.py:73
+msgid "organization"
+msgstr "organización"
+
+#: config/base/multitenancy.py:23
+msgid "auto-registration enabled"
+msgstr "registro automático activado"
+
+#: config/base/multitenancy.py:25
+msgid "Whether automatic registration of devices is enabled or not"
+msgstr "Si el registro automático de dispositivos está activado o no"
+
+#: config/base/multitenancy.py:31
+msgid "shared secret"
+msgstr "secreto compartido"
+
+#: config/base/multitenancy.py:32
+msgid "used for automatic registration of devices"
+msgstr "utilizado para el registro automático de dispositivos"
+
+#: config/base/multitenancy.py:40
+msgid ""
+"This field can be used to add \"Configuration Variables\" to the devices."
+msgstr ""
+"Este campo puede utilizarse para añadir \"Variables de configuración\" a los "
+"dispositivos."
+
+#: config/base/multitenancy.py:46
+msgid "Configuration management settings"
+msgstr "Ajustes de gestión de la configuración"
+
+#: config/base/multitenancy.py:79
+msgid "device limit"
+msgstr "límite del dispositivo"
+
+#: config/base/multitenancy.py:84
+msgid ""
+"Maximum number of devices allowed for this organization. \"0\" means "
+"unlimited."
+msgstr ""
+"Número máximo de dispositivos permitidos para esta organización. \"0\" "
+"significa ilimitado."
+
+#: config/base/multitenancy.py:90
+msgid "controller limits"
+msgstr "límites del controlador"
+
+#: config/base/tag.py:12 config/base/tag.py:21
+msgid "Tag"
+msgstr "Etiqueta"
+
+#: config/base/tag.py:13 config/base/tag.py:27
+msgid "Tags"
+msgstr "Etiquetas"
+
+#: config/base/tag.py:26
+msgid "Tagged item"
+msgstr "Artículo con etiqueta"
+
+#: config/base/template.py:18
+msgid "Generic"
+msgstr "Genérico"
+
+#: config/base/template.py:18
+msgid "VPN-client"
+msgstr "Cliente VPN"
+
+#: config/base/template.py:39
+msgid ""
+"A comma-separated list of template tags, may be used to ease auto "
+"configuration with specific settings (eg: 4G, mesh, WDS, VPN, ecc.)"
+msgstr ""
+"Una lista separada por comas de las etiquetas de plantilla, se puede "
+"utilizar para facilitar la configuración automática con ajustes específicos "
+"(por ejemplo: 4G, mesh, WDS, VPN, etc.)"
+
+#: config/base/template.py:46
+msgid "VPN"
+msgstr "VPN"
+
+#: config/base/template.py:52
+msgid "type"
+msgstr "tipo"
+
+#: config/base/template.py:57
+msgid "template type, determines which features are available"
+msgstr "tipo de plantilla, determina qué características están disponibles"
+
+#: config/base/template.py:60
+msgid "enabled by default"
+msgstr "activado por defecto"
+
+#: config/base/template.py:64
+msgid "whether new configurations will have this template enabled by default"
+msgstr ""
+"si las nuevas configuraciones tendrán esta plantilla activada por defecto"
+
+#: config/base/template.py:68
+msgid "required"
+msgstr "requerido"
+
+#: config/base/template.py:72
+msgid ""
+"if checked, will force the assignment of this template to all the devices of "
+"the organization (if no organization is selected, it will be required for "
+"every device in the system)"
+msgstr ""
+"si está marcada, forzará la asignación de esta plantilla a todos los "
+"dispositivos de la organización (si no se selecciona ninguna organización, "
+"será necesaria para todos los dispositivos del sistema)"
+
+#: config/base/template.py:79
+msgid "automatic tunnel provisioning"
+msgstr "aprovisionamiento automático de túneles"
+
+#: config/base/template.py:83
+msgid ""
+"whether tunnel specific configuration (cryptographic keys, ip addresses, "
+"etc) should be automatically generated and managed behind the scenes for "
+"each configuration using this template, valid only for the VPN type"
+msgstr ""
+"si la configuración específica del túnel (claves criptográficas, direcciones "
+"IP, etc.) debe generarse automáticamente y gestionarse entre bastidores para "
+"cada configuración que utilice esta plantilla, válida sólo para el tipo de "
+"VPN"
+
+#: config/base/template.py:89
+msgid "Default Values"
+msgstr "Valores Predeterminados"
+
+#: config/base/template.py:93
+msgid ""
+"A dictionary containing the default values for the variables used by this "
+"template; these default variables will be used during schema validation."
+msgstr ""
+"Un diccionario que contiene los valores por defecto para las variables "
+"utilizadas por esta plantilla; estas variables por defecto se utilizarán "
+"durante la validación del esquema."
+
+#: config/base/template.py:105 config/filters.py:11
+msgid "template"
+msgstr "plantilla"
+
+#: config/base/template.py:174
+msgid "A VPN must be selected when template type is \"VPN\""
+msgstr "Debe seleccionarse una VPN cuando el tipo de plantilla es \"VPN\""
+
+#: config/base/vpn.py:52
+msgid "VPN server hostname or ip address"
+msgstr "Hostname o dirección IP del servidor VPN"
+
+#: config/base/vpn.py:56
+msgid "Certification Authority"
+msgstr "Autoridad de certificación"
+
+#: config/base/vpn.py:63
+msgid "x509 Certificate"
+msgstr "certificado x509"
+
+#: config/base/vpn.py:64
+msgid "leave blank to create automatically"
+msgstr "dejar en blanco para crear automáticamente"
+
+#: config/base/vpn.py:69
+msgid "Private Key"
+msgstr "Clave Privada"
+
+#: config/base/vpn.py:71
+msgid "VPN backend"
+msgstr "Backend VPN"
+
+#: config/base/vpn.py:74
+msgid "Select VPN configuration backend"
+msgstr "Seleccione el backend de configuración VPN"
+
+#: config/base/vpn.py:76
+msgid "Notes"
+msgstr "Notas"
+
+#: config/base/vpn.py:80
+msgid "Subnet"
+msgstr "Subred"
+
+#: config/base/vpn.py:81
+msgid "Subnet IP addresses used by VPN clients, if applicable"
+msgstr "Direcciones IP de subred utilizadas por los clientes VPN, si procede"
+
+#: config/base/vpn.py:88
+msgid "Internal IP"
+msgstr "IP interna"
+
+#: config/base/vpn.py:89
+msgid "Internal IP address of the VPN server interface, if applicable"
+msgstr "Dirección IP interna de la interfaz del servidor VPN, si procede"
+
+#: config/base/vpn.py:96
+msgid "Webhook Endpoint"
+msgstr "Webhook Endpoint"
+
+#: config/base/vpn.py:98
+msgid ""
+"Webhook to trigger for updating server configuration (e.g. https://openwisp2."
+"mydomain.com:8081/trigger-update)"
+msgstr ""
+"Webhook que se activará para actualizar la configuración del servidor (por "
+"ejemplo: https://openwisp2.mydomain.com:8081/trigger-update)"
+
+#: config/base/vpn.py:105
+msgid "Webhook AuthToken"
+msgstr "Token de Autenticación Webhook"
+
+#: config/base/vpn.py:107
+msgid ""
+"Authentication token used for triggering \"Webhook Endpoint\" or for calling "
+"\"ZerotierService\" API"
+msgstr ""
+"Token de autenticación utilizado para activar el \"Webhook Endpoint\" o para "
+"llamar a la API \"ZerotierService\""
+
+#: config/base/vpn.py:131
+msgid "Public key"
+msgstr "Clave Pública"
+
+#: config/base/vpn.py:132
+msgid "Private key"
+msgstr "Clave privada"
+
+#: config/base/vpn.py:134
+msgid "Node ID"
+msgstr "ID de nodo"
+
+#: config/base/vpn.py:135
+msgid "Network ID"
+msgstr "ID de red"
+
+#: config/base/vpn.py:144
+msgid "VPN server"
+msgstr "Servidor VPN"
+
+#: config/base/vpn.py:145
+msgid "VPN servers"
+msgstr "Servidores VPN"
+
+#: config/base/vpn.py:178
+msgid "Backend cannot be changed because the VPN is currently in use."
+msgstr "El backend no se puede cambiar porque la VPN está actualmente en uso."
+
+#: config/base/vpn.py:190
+msgid "CA is required with this VPN backend"
+msgstr "La autoridad certificadora (CA) es requerida con este backend VPN"
+
+#: config/base/vpn.py:193
+msgid "The selected certificate must match the selected CA."
+msgstr ""
+"El certificado seleccionado debe coincidir con la autoridad certificadora "
+"(CA) seleccionada."
+
+#: config/base/vpn.py:205
+msgid "Subnet is required for this VPN backend."
+msgstr "Se requiere una subred para este backend VPN."
+
+#: config/base/vpn.py:209
+msgid "VPN IP address must be within the VPN subnet"
+msgstr "La dirección IP VPN debe estar dentro de la subred VPN"
+
+#: config/base/vpn.py:215
+msgid "Auth token is required for this VPN backend"
+msgstr "El token de autorización es necesario para este backend VPN"
+
+#: config/base/vpn.py:226
+msgid ""
+"Authorization failed for ZeroTier controller, ensure you are using the "
+"correct authorization token"
+msgstr ""
+"Autorización fallida para el controlador ZeroTier, asegúrese de que está "
+"utilizando el token de autorización correcto"
+
+#: config/base/vpn.py:236
+#, python-brace-format
+msgid ""
+"Failed to connect to the ZeroTier controller, ensure you are using the "
+"correct hostname (error: {0}, status code: {1})"
+msgstr ""
+"Error al conectar con el controlador ZeroTier, asegúrese de que está "
+"utilizando el hostname correcto (error: {0}, código de estado: {1})"
+
+#: config/base/vpn.py:837
+msgid "VPN client"
+msgstr "Cliente VPN"
+
+#: config/base/vpn.py:838
+msgid "VPN clients"
+msgstr "Clientes VPN"
+
+#: config/controller/views.py:269
+msgid "Reason not reported by the device."
+msgstr "Motivo no comunicado por el dispositivo."
+
+#: config/exceptions.py:12
+msgid ""
+"The specified limit is lower than the amount of devices currently held by "
+"this organization. Please remove some devices or consider increasing the "
+"device limit."
+msgstr ""
+"El límite especificado es inferior a la cantidad de dispositivos que tiene "
+"actualmente esta organización. Por favor, elimine algunos dispositivos o "
+"considere aumentar el límite de dispositivos."
+
+#: config/filters.py:24
+msgid "has devices?"
+msgstr "tiene dispositivos?"
+
+#: config/filters.py:29 geo/admin.py:128
+msgid "No"
+msgstr "No"
+
+#: config/filters.py:30 geo/admin.py:127
+msgid "Yes"
+msgstr "Sí"
+
+#: config/handlers.py:40
+msgid "A new"
+msgstr "Un nuevo"
+
+#: config/handlers.py:40
+msgid "The existing"
+msgstr "El ya existente"
+
+#: config/settings.py:50
+msgid "Serial number"
+msgstr "Número de serie"
+
+#: config/settings.py:51
+msgid "Serial number of this device"
+msgstr "Número de serie de este dispositivo"
+
+#: config/settings.py:55
+msgid "Device"
+msgstr "Dispositivo"
+
+#: config/settings.py:55
+msgid "Devices"
+msgstr "Dispositivos"
+
+#: config/templates/admin/config/change_device_group.html:20
+#: config/templates/admin/config/clone_template_form.html:20
+#: config/templates/admin/config/device_recover_form.html:9
+#: config/templates/reversion/config/revision_form.html:12
+msgid "Home"
+msgstr "Inicio"
+
+#: config/templates/admin/config/change_device_group.html:30
+msgid "What group do you want to assign to the selected devices?"
+msgstr "¿Qué grupo desea asignar a los dispositivos seleccionados?"
+
+#: config/templates/admin/config/change_device_group.html:43
+#: config/templates/admin/config/clone_template_form.html:43
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: config/templates/admin/config/change_form.html:29
+msgid "Download configuration"
+msgstr "Descargar configuración"
+
+#: config/templates/admin/config/change_form.html:47
+msgid "Overview"
+msgstr "Resumen"
+
+#: config/templates/admin/config/change_list_device.html:6
+#: config/templates/admin/config/device_recover_form.html:12
+#, python-format
+msgid "Recover deleted %(name)s"
+msgstr "Recuperar %(name)s eliminado"
+
+#: config/templates/admin/config/clone_template_form.html:30
+msgid "What organization do you want clone selected templates to?"
+msgstr "¿A qué organización desea clonar las plantillas seleccionadas?"
+
+#: config/templates/admin/config/clone_template_form.html:42
+msgid "Clone"
+msgstr "Clonar"
+
+#: config/templates/admin/config/device/change_form.html:8
+msgid "This device has been deactivated."
+msgstr "Este dispositivo ha sido desactivado."
+
+#: config/templates/admin/config/device/delete_confirmation.html:11
+#, python-format
+msgid ""
+"Deleting the %(object_name)s '%(escaped_object)s' would result in deleting "
+"related objects, but your account doesn't have permission to delete the "
+"following types of objects:"
+msgstr ""
+"Al eliminar el %(object_name)s '%(escaped_object)s' se eliminarían los "
+"objetos relacionados, pero tu cuenta no tiene permiso para eliminar los "
+"siguientes tipos de objetos:"
+
+#: config/templates/admin/config/device/delete_confirmation.html:18
+#, python-format
+msgid ""
+"Deleting the %(object_name)s '%(escaped_object)s' would require deleting the "
+"following protected related objects:"
+msgstr ""
+"Borrar el %(object_name)s '%(escaped_object)s' requeriría borrar los "
+"siguientes objetos relacionados protegidos:"
+
+#: config/templates/admin/config/device/delete_confirmation.html:31
+msgid "Warning: Device is not fully deactivated."
+msgstr "Advertencia: El dispositivo no está totalmente desactivado."
+
+#: config/templates/admin/config/device/delete_confirmation.html:35
+msgid ""
+"\n"
+"                  This device is still in the process of being deactivated,\n"
+"                  meaning its configuration is still present on the device.\n"
+"                  "
+msgstr ""
+"\n"
+"                  Este dispositivo aún está en proceso de desactivación,\n"
+"                  lo que significa que su configuración aún está presente en "
+"el dispositivo.\n"
+"                  "
+
+#: config/templates/admin/config/device/delete_confirmation.html:41
+msgid ""
+"\n"
+"                  To ensure its configuration is removed, please\n"
+"                  wait until its status changes to\n"
+"                  <strong>\"deactivated\"</strong>.<br>\n"
+"                  If you proceed now, the device will be deleted,\n"
+"                  but its configuration will remain active.\n"
+"                  "
+msgstr ""
+"\n"
+"                  Para asegurarse de que se elimina su configuración, por "
+"favor\n"
+"                  espere hasta que su estado cambie a\n"
+"                 <strong>\"desactivado\"</strong>.<br>\n"
+"                  Si procede ahora, el dispositivo se eliminará,\n"
+"                  pero su configuración permanecerá activa.\n"
+"                  "
+
+#: config/templates/admin/config/device/delete_confirmation.html:50
+msgctxt "singular"
+msgid "I understand the risks, delete the device"
+msgstr "Entiendo los riesgos, borrar el dispositivo"
+
+#: config/templates/admin/config/device/delete_confirmation.html:51
+#: config/templates/admin/config/device/delete_confirmation.html:70
+#: config/templates/admin/config/device/delete_selected_confirmation.html:55
+#: config/templates/admin/config/device/delete_selected_confirmation.html:76
+msgid "No, take me back"
+msgstr "No, volver atrás"
+
+#: config/templates/admin/config/device/delete_confirmation.html:58
+#, python-format
+msgid ""
+"Are you sure you want to delete the %(object_name)s\n"
+"            \"%(escaped_object)s\"? All of the following related items will "
+"be deleted:"
+msgstr ""
+"¿Estás seguro de que quieres borrar el %(object_name)s\n"
+"            \"%(escaped_object)s\"? Se eliminarán todos los siguientes "
+"elementos relacionados:"
+
+#: config/templates/admin/config/device/delete_confirmation.html:61
+#: config/templates/admin/config/device/delete_selected_confirmation.html:64
+msgid "Objects"
+msgstr "Objetos"
+
+#: config/templates/admin/config/device/delete_confirmation.html:68
+#: config/templates/admin/config/device/delete_selected_confirmation.html:75
+msgid "Yes, I’m sure"
+msgstr "Sí, estoy de acuerdo"
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:11
+#, python-format
+msgid ""
+"Deleting the selected %(objects_name)s would result in deleting related "
+"objects, but your account doesn't have permission to delete the following "
+"types of objects:"
+msgstr ""
+"Al eliminar el %(objects_name)s seleccionado se eliminarían los objetos "
+"relacionados, pero su cuenta no tiene permiso para eliminar los siguientes "
+"tipos de objetos:"
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:14
+#, python-format
+msgid ""
+"Deleting the selected %(objects_name)s would require deleting the following "
+"protected related objects:"
+msgstr ""
+"Borrar el %(objects_name)s seleccionado requeriría borrar los siguientes "
+"objetos relacionados protegidos:"
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:23
+msgid ""
+"\n"
+"                    Warning: Device is not fully deactivated.\n"
+"                    "
+msgid_plural ""
+"\n"
+"                    Warning: Some devices are not fully deactivated.\n"
+"                    "
+msgstr[0] ""
+"\n"
+"                    Advertencia: El dispositivo no está totalmente "
+"desactivado.\n"
+"                    "
+msgstr[1] ""
+"\n"
+"                    Advertencia: Algunos dispositivos no están totalmente "
+"desactivados.\n"
+"                    "
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:31
+msgid ""
+"\n"
+"                    The device below is either still active or\n"
+"                    in the process of being deactivated:\n"
+"                    "
+msgid_plural ""
+"\n"
+"                    The devices listed below are either still active\n"
+"                    or in the process of being deactivated:\n"
+"                    "
+msgstr[0] ""
+"\n"
+"                    El dispositivo que aparece a continuación sigue activo "
+"o\n"
+"                    en proceso de desactivación:\n"
+"                    "
+msgstr[1] ""
+"\n"
+"                    Los dispositivos enumerados a continuación siguen "
+"activos\n"
+"                    o en proceso de desactivación:\n"
+"                    "
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:41
+msgid ""
+"\n"
+"                    To ensure its configuration is removed, please\n"
+"                    wait until its status changes to "
+"<strong>\"deactivated\"</strong>.<br>\n"
+"                    If you proceed now, the device will be deleted,\n"
+"                    but its configuration will remain active.\n"
+"                    "
+msgid_plural ""
+"\n"
+"                    To ensure their configurations are removed, please\n"
+"                    wait until their status changes to "
+"<strong>\"deactivated\"</strong>.<br>\n"
+"                    If you proceed now, the devices will be deleted,\n"
+"                    but their configurations will remain active.\n"
+"                    "
+msgstr[0] ""
+"\n"
+"                    Para asegurarse de que se elimina su configuración, por "
+"favor\n"
+"                    espere hasta que su estado cambie a "
+"<strong>\"desactivado\"</strong>.<br>\n"
+"                    Si procede ahora, el dispositivo se eliminará,\n"
+"                    pero su configuración permanecerá activa.\n"
+"                    "
+msgstr[1] ""
+"\n"
+"                    Para asegurarse de que se eliminan sus configuraciones, "
+"por favor\n"
+"                    espere hasta que su estado cambie a "
+"<strong>\"desactivado\"</strong>.<br>\n"
+"                    Si procede ahora, los dispositivos se eliminarán,\n"
+"                    pero sus configuraciones permanecerán activas.\n"
+"                    "
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:54
+msgid "I understand the risks, delete the device"
+msgid_plural "I understand the risks, delete the devices"
+msgstr[0] "Entiendo los riesgos, borrar el dispositivo"
+msgstr[1] "Entiendo los riesgos, borrar los dispositivos"
+
+#: config/templates/admin/config/device/delete_selected_confirmation.html:62
+#, python-format
+msgid ""
+"Are you sure you want to delete the selected %(objects_name)s? All of the "
+"following objects and their related items will be deleted:"
+msgstr ""
+"¿Está seguro de que desea borrar el %(objects_name)s seleccionado? Se "
+"eliminarán todos los siguientes objetos y sus elementos relacionados:"
+
+#: config/templates/admin/config/device_recover_form.html:20
+msgid "Press the save button below to recover this version of the object."
+msgstr ""
+"Presiona el botón de guardar a continuación para recuperar esta versión del "
+"objeto."
+
+#: config/templates/admin/config/jsonschema-widget.html:3
+msgid "Advanced mode (raw JSON)"
+msgstr "Modo avanzado (JSON sin procesar)"
+
+#: config/templates/admin/config/preview.html:7
+msgid "Close"
+msgstr "Cerrar"
+
+#: config/templates/admin/config/system_context.html:13
+msgid "There are no system defined variables available right now."
+msgstr "No hay variables definidas por el sistema disponibles en este momento."
+
+#: config/templates/admin/config/system_context.html:16
+msgid "Show"
+msgstr "Mostrar"
+
+#: config/templates/reversion/config/revision_form.html:16
+msgid "History"
+msgstr "Historial"
+
+#: config/templates/reversion/config/revision_form.html:17
+#, python-format
+msgid "Revert %(verbose_name)s"
+msgstr "Revertir %(verbose_name)s"
+
+#: config/templates/reversion/config/revision_form.html:26
+msgid "Press the save button below to revert to this version of the object."
+msgstr "Pulsa el botón de guardar para volver a esta versión del objeto."
+
+#: config/validators.py:6
+msgid "Key must not contain spaces, dots or slashes."
+msgstr "La clave no debe contener espacios, puntos ni barras."
+
+#: config/validators.py:13
+msgid "Must be a valid mac address."
+msgstr "Debe ser una dirección mac válida."
+
+#: config/validators.py:25
+msgid "Must be either a valid hostname or mac address."
+msgstr "Debe ser un hostname o una dirección mac válidos."
+
+#: config/views.py:74
+msgid "login required"
+msgstr "inicio de sesión requerido"
+
+#: connection/admin.py:80
+msgid "Credentials"
+msgstr "Credenciales"
+
+#: connection/admin.py:104
+msgid "Recent Commands"
+msgstr "Comandos recientes"
+
+#: connection/admin.py:136
+msgid "input"
+msgstr "entrada"
+
+#: connection/admin.py:137
+msgid "output"
+msgstr "salida"
+
+#: connection/apps.py:20
+msgid "Network Device Credentials"
+msgstr "Credenciales de dispositivos de red"
+
+#: connection/apps.py:182
+msgid "Access Credentials"
+msgstr "Credenciales de acceso"
+
+#: connection/base/models.py:95
+msgid "connection type"
+msgstr "tipo de conexión"
+
+#: connection/base/models.py:101 connection/base/models.py:241
+msgid "parameters"
+msgstr "parámetros"
+
+#: connection/base/models.py:103
+msgid "global connection parameters"
+msgstr "parámetros de conexión globales"
+
+#: connection/base/models.py:108
+msgid "auto add"
+msgstr "auto add"
+
+#: connection/base/models.py:111
+msgid ""
+"automatically add these credentials to the devices of this organization; if "
+"no organization is specified will be added to all the new devices"
+msgstr ""
+"añadir automáticamente estas credenciales a los dispositivos de esta "
+"organización; si no se especifica ninguna organización, se añadirán a todos "
+"los dispositivos nuevos"
+
+#: connection/base/models.py:119
+msgid "Access credentials"
+msgstr "Credenciales de acceso"
+
+#: connection/base/models.py:232
+msgid "update strategy"
+msgstr "estrategia de actualización"
+
+#: connection/base/models.py:233
+msgid "leave blank to determine automatically"
+msgstr "dejar en blanco para determinar automáticamente"
+
+#: connection/base/models.py:245
+msgid ""
+"local connection parameters (will override the global parameters if "
+"specified)"
+msgstr ""
+"parámetros locales de conexión (anularán los parámetros globales si se "
+"especifican)"
+
+#: connection/base/models.py:253
+msgid "reason of failure"
+msgstr "motivo del fracaso"
+
+#: connection/base/models.py:257
+msgid "Device connection"
+msgstr "Conexión del dispositivo"
+
+#: connection/base/models.py:258
+msgid "Device connections"
+msgstr "Conexiones del dispositivo"
+
+#: connection/base/models.py:292
+msgid ""
+"The organization of these credentials doesn't match the organization of the "
+"device"
+msgstr ""
+"La organización de estas credenciales no coincide con la organización del "
+"dispositivo"
+
+#: connection/base/models.py:306
+#, python-brace-format
+msgid "could not determine update strategy  automatically, exception: {0}"
+msgstr ""
+"no se ha podido determinar automáticamente la estrategia de actualización, "
+"excepción: {0}"
+
+#: connection/base/models.py:315
+msgid ""
+"the update strategy can be determined automatically only if the device has a "
+"configuration specified, because it is inferred from the configuration "
+"backend. Please select the update strategy manually."
+msgstr ""
+"la estrategia de actualización sólo puede determinarse automáticamente si el "
+"dispositivo tiene una configuración especificada, ya que se infiere del "
+"backend de configuración. Seleccione la estrategia de actualización "
+"manualmente."
+
+#: connection/base/models.py:395
+msgid "in progress"
+msgstr "en progreso"
+
+#: connection/base/models.py:396
+msgid "success"
+msgstr "éxito"
+
+#: connection/base/models.py:397
+msgid "failed"
+msgstr "fallido"
+
+#: connection/base/models.py:434 connection/commands.py:22
+msgid "Command"
+msgstr "Comando"
+
+#: connection/base/models.py:435
+msgid "Commands"
+msgstr "Comandos"
+
+#: connection/base/models.py:456
+msgid "sent on"
+msgstr "enviado el"
+
+#: connection/base/models.py:578
+#, python-brace-format
+msgid "Command \"{command}\" returned non-zero exit code: {exit_code}"
+msgstr ""
+"El comando \"{command}\" devuelve un código de salida distinto de cero: "
+"{exit_code}"
+
+#: connection/commands.py:14
+msgid "Custom commands"
+msgstr "Comandos personalizados"
+
+#: connection/commands.py:16
+msgid "Custom"
+msgstr "Personalizado"
+
+#: connection/commands.py:26
+msgid "Command cannot be empty."
+msgstr "El comando no puede estar vacío."
+
+#: connection/commands.py:35 connection/commands.py:37
+msgid "Reboot"
+msgstr "Reiniciar"
+
+#: connection/commands.py:46
+msgid "Change password"
+msgstr "Cambiar contraseña"
+
+#: connection/commands.py:48
+msgid "Change Password"
+msgstr "Cambiar Contraseña"
+
+#: connection/commands.py:54
+msgid "Password"
+msgstr "Contraseña"
+
+#: connection/commands.py:58
+msgid "Confirm Password"
+msgstr "Confirmar contraseña"
+
+#: connection/commands.py:61
+msgid "Your password must be atleast 6 characters long"
+msgstr "Su contraseña debe tener al menos 6 caracteres"
+
+#: connection/connectors/ssh.py:109
+msgid ""
+"Unrecognized or unsupported SSH key algorithm, only RSA and ED25519 are "
+"currently supported."
+msgstr ""
+"Algoritmo de clave SSH no reconocido o no soportado, actualmente sólo se "
+"soportan RSA y ED25519."
+
+#: connection/tasks.py:77
+msgid "Background task time limit exceeded."
+msgstr "Se ha superado el límite de tiempo de la tarea en segundo plano."
+
+#: connection/tasks.py:84
+#, python-brace-format
+msgid "Internal system error: {e}"
+msgstr "Error interno del sistema: {e}"
+
+#: geo/admin.py:112
+msgid "Map"
+msgstr "Mapa"
+
+#: geo/admin.py:122
+msgid "has geographic position set?"
+msgstr "¿ha fijado posición geográfica?"
+
+#: geo/api/filters.py:18
+msgid "Has geographic location set?"
+msgstr "¿Se ha fijado la ubicación geográfica?"
+
+#: geo/api/serializers.py:101
+msgid "FloorPlan object with entered ID does not exists."
+msgstr "El \"Plano\" con el ID introducido no existe."
+
+#: geo/api/serializers.py:153
+msgid "Floorplan can only be added with location of the type indoor"
+msgstr "El plano sólo puede añadirse con la ubicación del tipo interior"
+
+#: geo/api/serializers.py:255
+msgid "Location object with entered ID does not exists."
+msgstr "El objeto de ubicación con el ID introducido no existe."
+
+#: geo/apps.py:15
+msgid "Geographic Information"
+msgstr "Información Geográfica"
+
+#: geo/apps.py:55
+msgid "Geographic positioning"
+msgstr "Posicionamiento geográfico"
+
+#: geo/apps.py:84
+msgid "With geographic position"
+msgstr "Con posición geográfica"
+
+#: geo/apps.py:85
+msgid "Without geographic position"
+msgstr "Sin posición geográfica"
+
+#: geo/apps.py:99
+msgid "Geographic Info"
+msgstr "Información Geográfica"
+
+#: geo/apps.py:102
+msgid "Locations"
+msgstr "Ubicaciones"
+
+#: geo/apps.py:108
+msgid "Floorplans"
+msgstr "Planos"
+
+#: pki/api/serializers.py:19
+msgid "additional x509 certificate extensions"
+msgstr "extensiones adicionales del certificado x509"
+
+#: pki/apps.py:16
+msgid "Public Key Infrastructure"
+msgstr "Infraestructura de Clave Pública"
+
+#: pki/apps.py:26
+msgid "Cas & Certificates"
+msgstr "CAs & Certificados"
+
+#: pki/apps.py:29
+msgid "Certification Authorities"
+msgstr "Autoridades de certificación"
+
+#: pki/apps.py:35
+msgid "Certificates"
+msgstr "Certificados"
+
+#: pki/base/models.py:26
+msgid "CA"
+msgstr "Autoridad Certificadora (CA)"
+
+#: subnet_division/admin.py:30
+msgid ""
+"Please keep in mind that once the subnet division rule is created changing "
+"changing \"Size\", \"Number of Subnets\" or decreasing \"Number of IPs\" "
+"will not be possible."
+msgstr ""
+"Por favor, tenga en cuenta que una vez creada la regla de división de "
+"subredes no será posible cambiar el \"Tamaño\", el \"Número de subredes\" o "
+"disminuir el \"Número de IPs\"."
+
+#: subnet_division/admin.py:98
+msgid "See all devices"
+msgstr "Ver todos los dispositivos"
+
+#: subnet_division/apps.py:13
+msgid "Subnet Division"
+msgstr "División de subred"
+
+#: subnet_division/base/models.py:34
+msgid "Label used to calculate the configuration variables"
+msgstr "Etiqueta utilizada para calcular las variables de configuración"
+
+#: subnet_division/base/models.py:37
+msgid "Number of Subnets"
+msgstr "Número de subredes"
+
+#: subnet_division/base/models.py:38
+msgid "Indicates how many subnets will be created"
+msgstr "Indica cuántas subredes se crearán"
+
+#: subnet_division/base/models.py:42
+msgid "Size of subnets"
+msgstr "Tamaño de las subredes"
+
+#: subnet_division/base/models.py:43
+msgid "Indicates the size of each created subnet"
+msgstr "Indica el tamaño de cada subred creada"
+
+#: subnet_division/base/models.py:46
+msgid "Number of IPs"
+msgstr "Número de IPs"
+
+#: subnet_division/base/models.py:47
+msgid "Indicates how many IP addresses will be created for each subnet"
+msgstr "Indica cuántas direcciones IP se crearán para cada subred"
+
+#: subnet_division/base/models.py:85
+msgid "Only alphanumeric characters and underscores are allowed."
+msgstr "Sólo se permiten caracteres alfanuméricos y guiones bajos."
+
+#: subnet_division/base/models.py:92
+msgid "Invalid master subnet."
+msgstr "Subred maestra no válida."
+
+#: subnet_division/base/models.py:98
+msgid "Subnet size cannot be changed"
+msgstr "No se puede cambiar el tamaño de la subred"
+
+#: subnet_division/base/models.py:102
+msgid "Number of IPs cannot be decreased"
+msgstr "No se puede reducir el número de IPs"
+
+#: subnet_division/base/models.py:107
+msgid "Number of Subnets cannot be changed"
+msgstr "No se puede cambiar el número de subredes"
+
+#: subnet_division/base/models.py:120
+#, python-brace-format
+msgid "Master subnet cannot accommodate subnets of size /{0}"
+msgstr "La subred maestra no puede alojar subredes de tamaño /{0}"
+
+#: subnet_division/base/models.py:135
+msgid ""
+"The master subnet is too small to acommodate the requested \"number of "
+"subnets\" plus the reserved subnet, please increase the size of the master "
+"subnet or decrease the \"size of subnets\" field."
+msgstr ""
+"La subred maestra es demasiado pequeña para alojar el \"número de subredes\" "
+"solicitado más la subred reservada; aumente el tamaño de la subred maestra o "
+"reduzca el campo \"tamaño de las subredes\"."
+
+#: subnet_division/base/models.py:148
+msgid "Organization should be same as the subnet"
+msgstr "La organización debe ser la misma que la subred"
+
+#: subnet_division/base/models.py:160
+#, python-brace-format
+msgid ""
+"Generated subnets of size /{self.size} cannot accommodate {self."
+"number_of_ips} IP Addresses."
+msgstr ""
+"Las subredes generadas de tamaño /{self.size} no pueden alojar {self."
+"number_of_ips} direcciones IP."
+
+#: subnet_division/filters.py:17
+msgid "Subnet division rule type"
+msgstr "Tipo de regla de división de subred"
+
+#: subnet_division/filters.py:34
+msgid "subnet"
+msgstr "subred"
+
+#: subnet_division/filters.py:54
+msgid "device name"
+msgstr "nombre del dispositivo"
+
+#: subnet_division/filters.py:71
+msgid "VPN Server"
+msgstr "Servidor VPN"
+
+#: subnet_division/rule_types/base.py:191
+msgid "Automatically generated reserved subnet."
+msgstr "Subred reservada generada automáticamente."
+
+#: subnet_division/rule_types/base.py:215
+#, python-brace-format
+msgid ""
+"Failed to provision subnets for [{notification.target}]({notification."
+"target_link})"
+msgstr ""
+"Fallo al aprovisionar subredes para [{notification.target}]({notification."
+"target_link})"
+
+#: subnet_division/rule_types/base.py:219
+#, python-brace-format
+msgid ""
+"The [{notification.action_object}]({notification.action_link}) subnet has "
+"run out of space."
+msgstr ""
+"La subred [{notification.action_object}]({notification.action_link}) se ha "
+"quedado sin espacio."
+
+#: subnet_division/rule_types/base.py:229 subnet_division/tasks.py:64
+#, python-brace-format
+msgid "Automatically generated using {division_rule.label} rule."
+msgstr "Generado automáticamente mediante la regla {division_rule.label}."
