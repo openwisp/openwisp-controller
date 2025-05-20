@@ -96,16 +96,16 @@ class GeoConfig(LociConfig):
         register_menu_group(
             position=50,
             config={
-                'label': 'Geographic Info',
+                'label': _('Geographic Info'),
                 'items': {
                     1: {
-                        'label': 'Locations',
+                        'label': _('Locations'),
                         'model': get_model_name('geo', 'Location'),
                         'name': 'changelist',
                         'icon': 'ow-location',
                     },
                     2: {
-                        'label': 'Floorplans',
+                        'label': _('Floorplans'),
                         'model': get_model_name('geo', 'FloorPlan'),
                         'name': 'changelist',
                         'icon': 'ow-floor',
