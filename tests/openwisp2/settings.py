@@ -1,5 +1,6 @@
 import os
 import sys
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
@@ -109,8 +110,9 @@ else:
 TIME_ZONE = 'Europe/Rome'
 LANGUAGE_CODE = 'en-gb'
 USE_TZ = True
-USE_I18N = False
-USE_L10N = False
+USE_I18N = True
+USE_L10N = True
+LOCALE_PATHS = (os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), 'openwisp_controller', 'locale'),)
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = f'{os.path.dirname(BASE_DIR)}/media/'
