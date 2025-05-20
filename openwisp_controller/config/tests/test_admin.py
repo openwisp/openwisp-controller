@@ -4,6 +4,7 @@ import os
 from unittest.mock import patch
 from uuid import uuid4
 
+import django
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -2017,6 +2018,41 @@ class TestAdmin(
                 "tun0",
             )
             self.assertEqual(config.vpnclient_set.count(), 1)
+
+    # helper for asserting queries executed during template fetch for a device
+    def _verify_template_queries(self, config, count):
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
+        for i in range(count):
+            self._create_template(name=f'template-{i}')
+        expected_count = 24
+        if django.VERSION < (5, 2):
+            # In django version < 5.2, there is an extra SAVEPOINT query
+            # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
+            expected_count += 2
+        with self.assertNumQueries(expected_count):
+            # contains 22 queries for fetching normal device data
+            response = self.client.get(path)
+            # contains 2 queries, 1 for fetching organization
+            # and 1 for fetching templates
+            response = self.client.get(
+                reverse(
+                    'admin:get_relevant_templates', args=[config.device.organization.pk]
+                )
+            )
+            self.assertEqual(response.status_code, 200)
+
+    # ensuring queries are consistent for different number of templates
+    def test_templates_fetch_queries_1(self):
+        config = self._create_config(organization=self._get_org())
+        self._verify_template_queries(config, 1)
+
+    def test_templates_fetch_queries_5(self):
+        config = self._create_config(organization=self._get_org())
+        self._verify_template_queries(config, 1)
+
+    def test_templates_fetch_queries_10(self):
+        config = self._create_config(organization=self._get_org())
+        self._verify_template_queries(config, 1)
 
 
 class TestTransactionAdmin(
