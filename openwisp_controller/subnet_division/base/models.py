@@ -158,7 +158,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                 {
                     'number_of_ips': _(
                         f'Generated subnets of size /{self.size} cannot accommodate '
-                        f'{self.number_of_ips} IP Addresses.'
+                         '{self.number_of_ips} IP Addresses.'
                     )
                 }
             )

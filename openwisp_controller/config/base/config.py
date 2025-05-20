@@ -51,7 +51,9 @@ class AbstractConfig(BaseConfig):
     """
 
     device = models.OneToOneField(
-        get_model_name('config', 'Device'), on_delete=models.CASCADE
+        get_model_name('config', 'Device'), 
+        on_delete=models.CASCADE,
+        verbose_name=_('device'),
     )
     templates = SortedManyToManyField(
         get_model_name('config', 'Template'),
@@ -68,7 +70,14 @@ class AbstractConfig(BaseConfig):
         blank=True,
     )
 
-    STATUS = Choices('modified', 'applied', 'error', 'deactivating', 'deactivated')
+    STATUS = Choices(
+        ('modified', _('modified')), 
+        ('applied', _('applied')), 
+        ('error', _('error')), 
+        ('deactivating', _('deactivating')), 
+        ('deactivated'), _('deactivated')
+    )
+
     status = StatusField(
         _('configuration status'),
         help_text=_(
@@ -97,6 +106,7 @@ class AbstractConfig(BaseConfig):
         ),
         load_kwargs={'object_pairs_hook': collections.OrderedDict},
         dump_kwargs={'indent': 4},
+        verbose_name=_('context'),
     )
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
