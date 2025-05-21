@@ -146,10 +146,10 @@ class DeviceGroupListFilter(BaseConfigAPIFilter):
 
 
 class ReversionFilter(BaseConfigAPIFilter):
-    model = filters.CharFilter(field_name="content_type__model", lookup_expr="iexact")
+    model = filters.CharFilter(field_name='content_type__model', lookup_expr='iexact')
 
     def _set_valid_filterform_labels(self):
-        self.filters["model"].label = _("Model")
+        self.filters['model'].label = _('Model')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

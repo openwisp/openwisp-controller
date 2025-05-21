@@ -1580,15 +1580,24 @@ class TestConfigApiTransaction(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['name'], 'change-test-device')
 
-        path = reverse('config_api:revision_list', args=[model_slug])
-        response = self.client.get(path)
-        response_json = response.json()
-        version_id = response_json[1]["id"]
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response_json), 2)
+        with self.subTest('Test revision list'):
+            path = reverse('config_api:revision_list', args=[model_slug])
+            response = self.client.get(path)
+            response_json = response.json()
+            version_id = response_json[1]["id"]
+            revision_id = response_json[1]['revision_id']
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response_json), 2)
 
-        with self.subTest('Test revision detail'):
-            path = reverse('config_api:revision_detail', args=[model_slug, version_id])
+        with self.subTest('Test revision list filter by revision id'):
+            path = reverse('config_api:revision_list', args=[model_slug])
+            response = self.client.get(f'{path}?revision_id={revision_id}')
+            response_json = response.json()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response_json), 2)
+
+        with self.subTest('Test version detail'):
+            path = reverse('config_api:version_detail', args=[model_slug, version_id])
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['id'], version_id)

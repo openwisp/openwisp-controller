@@ -20,8 +20,8 @@ def get_api_urls(api_views):
             ),
             path(
                 'controller/<str:model>/revision/<str:pk>/',
-                api_views.revision_detail,
-                name='revision_detail',
+                api_views.version_detail,
+                name='version_detail',
             ),
             path(
                 'controller/<str:model>/revision/<str:pk>/restore/',

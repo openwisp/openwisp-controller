@@ -29,9 +29,6 @@ from openwisp_controller.config.api.views import (
     DeviceListCreateView as BaseDeviceListCreateView,
 )
 from openwisp_controller.config.api.views import (
-    RevisionDetailView as BaseRevisionDetailView,
-)
-from openwisp_controller.config.api.views import (
     RevisionListView as BaseRevisionListView,
 )
 from openwisp_controller.config.api.views import (
@@ -42,6 +39,9 @@ from openwisp_controller.config.api.views import (
 )
 from openwisp_controller.config.api.views import (
     TemplateListCreateView as BaseTemplateListCreateView,
+)
+from openwisp_controller.config.api.views import (
+    VersionDetailView as BaseVersionDetailView,
 )
 from openwisp_controller.config.api.views import VpnDetailView as BaseVpnDetailView
 from openwisp_controller.config.api.views import (
@@ -109,7 +109,7 @@ class RevisionListView(BaseRevisionListView):
     pass
 
 
-class RevisionDetailView(BaseRevisionDetailView):
+class VersionDetailView(BaseVersionDetailView):
     pass
 
 
@@ -132,5 +132,5 @@ devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
 revision_list = RevisionListView.as_view()
-revision_detail = RevisionDetailView.as_view()
+version_detail = VersionDetailView.as_view()
 revision_restore = RevisionRestoreView.as_view()

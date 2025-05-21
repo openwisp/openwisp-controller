@@ -379,13 +379,13 @@ class DeviceGroupSerializer(BaseSerializer):
         return instance
 
 
-class ReversionSerializer(BaseSerializer):
-    user_id = serializers.SerializerMethodField()
+class VersionSerializer(BaseSerializer):
+    user_id = serializers.CharField(source='revision.user_id', read_only=True)
     date_created = serializers.DateTimeField(
         source='revision.date_created', read_only=True
     )
     comment = serializers.CharField(source='revision.comment', read_only=True)
-    content_type = serializers.SerializerMethodField()
+    content_type = serializers.CharField(source='revision.content_type', read_only=True)
 
     class Meta:
         model = Version
@@ -402,9 +402,3 @@ class ReversionSerializer(BaseSerializer):
             'date_created',
             'comment',
         ]
-
-    def get_user_id(self, obj):
-        return getattr(obj.revision, 'user_id', None)
-
-    def get_content_type(self, obj):
-        return getattr(obj.content_type, 'model', None)

@@ -1,6 +1,7 @@
 import reversion
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import F, Q
 from django.http import Http404
 from django.shortcuts import get_list_or_404
@@ -32,8 +33,8 @@ from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
     DeviceListSerializer,
-    ReversionSerializer,
     TemplateSerializer,
+    VersionSerializer,
     VpnSerializer,
 )
 
@@ -302,53 +303,55 @@ class DeviceGroupCommonName(ProtectedAPIMixin, AutoRevisionMixin, RetrieveAPIVie
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 
 
-class RevisionListView(ProtectedAPIMixin, AutoRevisionMixin, ListAPIView):
-    serializer_class = ReversionSerializer
+class RevisionListView(ProtectedAPIMixin, ListAPIView):
+    serializer_class = VersionSerializer
+    queryset = Version.objects.select_related('revision').order_by(
+        '-revision__date_created'
+    )
 
     def get_queryset(self):
-        model_slug = self.kwargs.get('model').lower()
-        return (
-            Version.objects.select_related('revision')
-            .filter(content_type__model=model_slug)
-            .order_by('-revision__date_created')
-        )
+        model = self.kwargs.get('model').lower()
+        queryset = self.queryset.filter(content_type__model=model)
+        revision_id = self.request.query_params.get('revision_id')
+        if revision_id:
+            queryset = queryset.filter(revision_id=revision_id)
+        return self.queryset.filter(content_type__model=model)
 
 
-class RevisionDetailView(ProtectedAPIMixin, RetrieveAPIView):
-    serializer_class = ReversionSerializer
+class VersionDetailView(ProtectedAPIMixin, RetrieveAPIView):
+    serializer_class = VersionSerializer
+    queryset = Version.objects.select_related('revision').order_by(
+        '-revision__date_created'
+    )
 
     def get_queryset(self):
-        model_slug = self.kwargs.get('model').lower()
-        return (
-            Version.objects.select_related('revision')
-            .filter(content_type__model=model_slug)
-            .order_by('-revision__date_created')
-        )
+        model = self.kwargs.get('model').lower()
+        return self.queryset.filter(content_type__model=model)
 
 
 class RevisionRestoreView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
+    queryset = Version.objects.select_related('revision').order_by(
+        '-revision__date_created'
+    )
 
     def get_queryset(self):
-        model_slug = self.kwargs.get('model').lower()
-        return (
-            Version.objects.select_related('revision')
-            .filter(content_type__model=model_slug)
-            .order_by('-revision__date_created')
-        )
+        model = self.kwargs.get('model').lower()
+        return self.queryset.filter(content_type__model=model)
 
     def post(self, request, *args, **kwargs):
         qs = self.get_queryset()
         versions = get_list_or_404(qs, revision_id=kwargs['pk'])
-        with reversion.create_revision():
-            for version in versions:
-                version.revert()
-            reversion.set_user(request.user)
-            reversion.set_comment(
-                f"Restored to previous revision: {self.kwargs.get('pk')}"
-            )
+        with transaction.atomic():
+            with reversion.create_revision():
+                for version in versions:
+                    version.revert()
+                reversion.set_user(request.user)
+                reversion.set_comment(
+                    f"Restored to previous revision: {self.kwargs.get('pk')}"
+                )
 
-        serializer = ReversionSerializer(
+        serializer = VersionSerializer(
             versions, many=True, context=self.get_serializer_context()
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -366,5 +369,5 @@ devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
 revision_list = RevisionListView.as_view()
-revision_detail = RevisionDetailView.as_view()
+version_detail = VersionDetailView.as_view()
 revision_restore = RevisionRestoreView.as_view()
