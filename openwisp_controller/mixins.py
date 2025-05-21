@@ -44,7 +44,14 @@ class AutoRevisionMixin(RevisionMixin):
     revision_atomic = False
 
     def dispatch(self, request, *args, **kwargs):
-        if request.method in ('POST', 'PUT', 'PATCH') and request.user.is_authenticated:
+        qs = getattr(self, 'queryset', None)
+        model = getattr(qs, 'model', None)
+        if (
+            request.method in ('POST', 'PUT', 'PATCH')
+            and request.user.is_authenticated
+            and model
+            and reversion.is_registered(model)
+        ):
             with reversion.create_revision(atomic=self.revision_atomic):
                 response = super().dispatch(request, *args, **kwargs)
                 reversion.set_user(request.user)
