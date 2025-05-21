@@ -157,9 +157,9 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             raise ValidationError(
                 {
                     'number_of_ips': _(
-                        f'Generated subnets of size /{self.size} cannot accommodate '
-                         '{self.number_of_ips} IP Addresses.'
-                    )
+                        'Generated subnets of size {size} cannot accommodate '
+                        '{number_of_ips} IP Addresses.'
+                    ).format(size=self.size, number_of_ips=self.number_of_ips)
                 }
             )
 
