@@ -1,6 +1,5 @@
 import os
 import sys
-from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
