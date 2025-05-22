@@ -2,9 +2,7 @@ import json
 from copy import deepcopy
 from uuid import UUID
 
-from django.db import models as django_models
 from django.db.models import Q
-from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -39,7 +37,6 @@ def get_relevant_templates(request, organization_id):
     ):
         return HttpResponse(status=403)
 
-    # TODO: do we skip all these checks if user is superuser?
     if organization_id:
         org = get_object_or_404(Organization, pk=organization_id, is_active=True)
         org_filters = Q(organization_id=org.pk)
@@ -58,45 +55,25 @@ def get_relevant_templates(request, organization_id):
         filter_options.update(backend=backend)
     else:
         filter_options.update(required=False, default=False)
-    sort_value_subquery = through_model = None
-    # fetch the selected templates for the device or group by creating a subquery.
-    # through_model and lookup_field are set based on the presence of device_id or
-    # group_id. we need through_model as `sort_value` is a field of the through model.
-    # the subquery will be used to annotate the queryset with the sort_value
-    # of the selected templates.
-    if device_id and (lookup := Config.objects.filter(device_id=device_id).first()):
-        through_model = Config.templates.through
-        lookup_field = "config_id"
-    if group_id and (
-        lookup := DeviceGroup.objects.filter(Q(pk=group_id) & (org_filters)).first()
-    ):
-        through_model = DeviceGroup.templates.through
-        lookup_field = "devicegroup_id"
-    # fetch selected templates only if device or group exists
-    if device_id or group_id and through_model:
-        sort_value_subquery = django_models.Subquery(
-            through_model.objects.filter(
-                **{lookup_field: lookup.id}, template_id=django_models.OuterRef('pk')
-            ).values('sort_value')[:1],
-            output_field=django_models.IntegerField(),
-        )
-    # annotated a selected field which is True based on sort_value
-    # if sort_value is 9999 then selected is False else True
+
     queryset = (
         Template.objects.filter(**filter_options)
         .filter(org_filters)
-        .annotate(
-            sort_value=Coalesce(sort_value_subquery, django_models.Value(9999)),
-            selected=django_models.Case(
-                django_models.When(sort_value=9999, then=django_models.Value(False)),
-                default=django_models.Value(True),
-                output_field=django_models.BooleanField(),
-            ),
-        )
-        .order_by("sort_value")
         .only("id", "name", "backend", "default", "required")
     )
+    selected_templates = []
+    if device_id:
+        selected_templates = (
+            Config.templates.through.objects.filter(config__device_id=device_id)
+            .order_by("sort_value")
+            .values_list("template_id", flat=True)
+        )
+    if group_id:
+        selected_templates = DeviceGroup.templates.through.objects.filter(
+            devicegroup_id=group_id, devicegroup__organization_id=organization_id
+        ).values_list('template_id', flat=True)
 
+    selected_templates = [str(template) for template in selected_templates]
     relevant_templates = {}
     for template in queryset:
         relevant_templates[str(template.pk)] = dict(
@@ -104,8 +81,17 @@ def get_relevant_templates(request, organization_id):
             backend=template.get_backend_display(),
             default=template.default,
             required=template.required,
-            selected=template.selected,
+            selected=str(template.pk) in selected_templates,
         )
+    # sort based on order of selected_templates
+    relevant_templates = dict(
+        sorted(
+            relevant_templates.items(),
+            key=lambda item: selected_templates.index(item[0])
+            if item[0] in selected_templates
+            else len(selected_templates),
+        )
+    )
     return JsonResponse(relevant_templates)
 
 
