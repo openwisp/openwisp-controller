@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 _TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
 
 
-def _is_update_in_progress(device_pk):
+def _is_update_in_progress(device_id):
     active = current_app.control.inspect().active()
     if not active:
         return False
     # check if there's any other running task before adding it
     for task_list in active.values():
         for task in task_list:
-            if task['name'] == _TASK_NAME and str(device_pk) in task['args']:
+            if task['name'] == _TASK_NAME and str(device_id) in task['args']:
                 return True
     return False
 
