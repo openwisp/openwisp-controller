@@ -667,7 +667,7 @@ class TestGeoApi(
             )
             self.assertEqual(response.status_code, 404)
 
-        with self.subTest('Create operation'):
+        with self.subTest('Update operation'):
             response = self.client.put(
                 url,
                 data={
