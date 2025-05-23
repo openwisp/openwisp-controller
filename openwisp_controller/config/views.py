@@ -15,6 +15,7 @@ from .utils import get_object_or_404
 
 Organization = load_model('openwisp_users', 'Organization')
 Template = load_model('config', 'Template')
+Config = load_model('config', 'Config')
 DeviceGroup = load_model('config', 'DeviceGroup')
 OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
@@ -24,20 +25,55 @@ def get_relevant_templates(request, organization_id):
     returns default templates of specified organization
     """
     backend = request.GET.get("backend", None)
+    device_id = request.GET.get("device", None)
+    group_id = request.GET.get("group", None)
     user = request.user
-    if not user.is_superuser and not user.is_manager(organization_id):
+    # organization_id is passed as 'null' for add device
+    organization_id = None if organization_id == 'null' else organization_id
+    if (
+        not user.is_superuser
+        and organization_id
+        and not user.is_manager(organization_id)
+    ):
         return HttpResponse(status=403)
-    org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+
+    if organization_id:
+        org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+        org_filters = Q(organization_id=org.pk)
+    # if the user is superuser then we need to fetch all the templates
+    elif user.is_superuser:
+        org_filters = Q(organization_id__isnull=False)
+    # else fetch templates of organizations managed by the user
+    else:
+        org_filters = Q(organization_id__in=user.organizations_managed)
+
+    # this filter is for shared templates
+    org_filters |= Q(organization_id=None)
+
     filter_options = {}
     if backend:
         filter_options.update(backend=backend)
     else:
         filter_options.update(required=False, default=False)
+
     queryset = (
         Template.objects.filter(**filter_options)
-        .filter(Q(organization_id=org.pk) | Q(organization_id=None))
+        .filter(org_filters)
         .only('id', 'name', 'backend', 'default', 'required')
     )
+    selected_templates = []
+    if device_id:
+        selected_templates = (
+            Config.templates.through.objects.filter(config__device_id=device_id)
+            .order_by("sort_value")
+            .values_list("template_id", flat=True)
+        )
+    if group_id:
+        selected_templates = DeviceGroup.templates.through.objects.filter(
+            devicegroup_id=group_id, devicegroup__organization_id=organization_id
+        ).values_list('template_id', flat=True)
+
+    selected_templates = [str(template) for template in selected_templates]
     relevant_templates = {}
     for template in queryset:
         relevant_templates[str(template.pk)] = dict(
@@ -45,7 +81,17 @@ def get_relevant_templates(request, organization_id):
             backend=template.get_backend_display(),
             default=template.default,
             required=template.required,
+            selected=str(template.pk) in selected_templates,
         )
+    # sort based on order of selected_templates
+    relevant_templates = dict(
+        sorted(
+            relevant_templates.items(),
+            key=lambda item: selected_templates.index(item[0])
+            if item[0] in selected_templates
+            else len(selected_templates),
+        )
+    )
     return JsonResponse(relevant_templates)
 
 

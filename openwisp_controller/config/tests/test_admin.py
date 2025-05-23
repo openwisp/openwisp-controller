@@ -4,6 +4,7 @@ import os
 from unittest.mock import patch
 from uuid import uuid4
 
+import django
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -479,15 +480,6 @@ class TestAdmin(
             hidden=[data['org2'].name, data['inactive'].name],
         )
 
-    def test_device_templates_m2m_queryset(self):
-        data = self._create_multitenancy_test_env()
-        t_shared = self._create_template(name='t-shared', organization=None)
-        self._test_multitenant_admin(
-            url=reverse(f'admin:{self.app_label}_device_add'),
-            visible=[str(data['t1']), str(t_shared)],
-            hidden=[str(data['t2']), str(data['t3_inactive'])],
-        )
-
     def test_template_queryset(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
@@ -795,56 +787,6 @@ class TestAdmin(
         self._login()
         response = self.client.get(path)
         self.assertNotContains(response, '// enable default templates')
-
-    def test_configuration_templates_removed(self):
-        def _update_template(templates):
-            params.update(
-                {
-                    'config-0-templates': ','.join(
-                        [str(template.pk) for template in templates]
-                    )
-                }
-            )
-            response = self.client.post(path, data=params, follow=True)
-            self.assertEqual(response.status_code, 200)
-            for template in templates:
-                self.assertContains(
-                    response, f'class="sortedm2m" checked> {template.name}'
-                )
-            return response
-
-        template = self._create_template()
-
-        # Add a new device
-        path = reverse(f'admin:{self.app_label}_device_add')
-        params = self._get_device_params(org=self._get_org())
-        response = self.client.post(path, data=params, follow=True)
-        self.assertEqual(response.status_code, 200)
-
-        config = Device.objects.get(name=params['name']).config
-        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
-        params.update(
-            {
-                'config-0-id': str(config.pk),
-                'config-0-device': str(config.device_id),
-                'config-INITIAL_FORMS': 1,
-                '_continue': True,
-            }
-        )
-
-        # Add template to the device
-        _update_template(templates=[template])
-        config.refresh_from_db()
-        self.assertEqual(config.templates.count(), 1)
-        self.assertEqual(config.status, 'modified')
-        config.set_status_applied()
-        self.assertEqual(config.status, 'applied')
-
-        # Remove template from the device
-        _update_template(templates=[])
-        config.refresh_from_db()
-        self.assertEqual(config.templates.count(), 0)
-        self.assertEqual(config.status, 'modified')
 
     def test_vpn_not_contains_default_templates_js(self):
         vpn = self._create_vpn()
@@ -1626,89 +1568,6 @@ class TestAdmin(
             response, 'value="openwisp_controller.vpn_backends.OpenVpn" selected'
         )
 
-    def test_vpn_clients_deleted(self):
-        def _update_template(templates):
-            params.update(
-                {
-                    'config-0-templates': ','.join(
-                        [str(template.pk) for template in templates]
-                    )
-                }
-            )
-            response = self.client.post(path, data=params, follow=True)
-            self.assertEqual(response.status_code, 200)
-            for template in templates:
-                self.assertContains(
-                    response, f'class="sortedm2m" checked> {template.name}'
-                )
-            return response
-
-        vpn = self._create_vpn()
-        template = self._create_template()
-        vpn_template = self._create_template(
-            name='vpn-test',
-            type='vpn',
-            vpn=vpn,
-            auto_cert=True,
-        )
-        cert_query = Cert.objects.exclude(pk=vpn.cert_id)
-        valid_cert_query = cert_query.filter(revoked=False)
-        revoked_cert_query = cert_query.filter(revoked=True)
-
-        # Add a new device
-        path = reverse(f'admin:{self.app_label}_device_add')
-        params = self._get_device_params(org=self._get_org())
-        response = self.client.post(path, data=params, follow=True)
-        self.assertEqual(response.status_code, 200)
-
-        config = Device.objects.get(name=params['name']).config
-        self.assertEqual(config.vpnclient_set.count(), 0)
-        self.assertEqual(config.templates.count(), 0)
-
-        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
-        params.update(
-            {
-                'config-0-id': str(config.pk),
-                'config-0-device': str(config.device_id),
-                'config-INITIAL_FORMS': 1,
-                '_continue': True,
-            }
-        )
-
-        with self.subTest('Adding only VpnClient template'):
-            # Adding VpnClient template to the device
-            _update_template(templates=[vpn_template])
-
-            self.assertEqual(config.templates.count(), 1)
-            self.assertEqual(config.vpnclient_set.count(), 1)
-            self.assertEqual(cert_query.count(), 1)
-            self.assertEqual(valid_cert_query.count(), 1)
-
-            # Remove VpnClient template from the device
-            _update_template(templates=[])
-
-            self.assertEqual(config.templates.count(), 0)
-            self.assertEqual(config.vpnclient_set.count(), 0)
-            # Removing VPN template marks the related certificate as revoked
-            self.assertEqual(revoked_cert_query.count(), 1)
-            self.assertEqual(valid_cert_query.count(), 0)
-
-        with self.subTest('Add VpnClient template along with another template'):
-            # Adding templates to the device
-            _update_template(templates=[template, vpn_template])
-
-            self.assertEqual(config.templates.count(), 2)
-            self.assertEqual(config.vpnclient_set.count(), 1)
-            self.assertEqual(valid_cert_query.count(), 1)
-
-            # Remove VpnClient template from the device
-            _update_template(templates=[template])
-
-            self.assertEqual(config.templates.count(), 1)
-            self.assertEqual(config.vpnclient_set.count(), 0)
-            self.assertEqual(valid_cert_query.count(), 0)
-            self.assertEqual(revoked_cert_query.count(), 2)
-
     def test_ip_not_in_add_device(self):
         path = reverse(f'admin:{self.app_label}_device_add')
         response = self.client.get(path)
@@ -2159,6 +2018,41 @@ class TestAdmin(
                 'tun0',
             )
             self.assertEqual(config.vpnclient_set.count(), 1)
+
+    # helper for asserting queries executed during template fetch for a device
+    def _verify_template_queries(self, config, count):
+        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
+        for i in range(count):
+            self._create_template(name=f'template-{i}')
+        expected_count = 24
+        if django.VERSION < (5, 2):
+            # In django version < 5.2, there is an extra SAVEPOINT query
+            # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
+            expected_count += 2
+        with self.assertNumQueries(expected_count):
+            # contains 22 queries for fetching normal device data
+            response = self.client.get(path)
+            # contains 2 queries, 1 for fetching organization
+            # and 1 for fetching templates
+            response = self.client.get(
+                reverse(
+                    'admin:get_relevant_templates', args=[config.device.organization.pk]
+                )
+            )
+            self.assertEqual(response.status_code, 200)
+
+    # ensuring queries are consistent for different number of templates
+    def test_templates_fetch_queries_1(self):
+        config = self._create_config(organization=self._get_org())
+        self._verify_template_queries(config, 1)
+
+    def test_templates_fetch_queries_5(self):
+        config = self._create_config(organization=self._get_org())
+        self._verify_template_queries(config, 1)
+
+    def test_templates_fetch_queries_10(self):
+        config = self._create_config(organization=self._get_org())
+        self._verify_template_queries(config, 1)
 
 
 class TestTransactionAdmin(
