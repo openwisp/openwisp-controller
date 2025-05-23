@@ -445,7 +445,9 @@ class AbstractCommand(TimeStampedEditableModel):
             str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get('__all__')
         )
         commands_map = dict(COMMAND_CHOICES)
-        return [(i, commands_map[i]) for i in commands_map if i in allowed_commands]
+        return [
+            (cmd, commands_map[cmd]) for cmd in allowed_commands if cmd in commands_map
+        ]
 
     @classmethod
     def get_org_schema(self, organization_id=None):

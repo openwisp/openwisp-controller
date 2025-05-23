@@ -798,7 +798,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
     @mock.patch(_connect_path)
     @mock.patch.dict(COMMANDS, {})
-    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network')})
+    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network',)})
     @mock.patch(_exec_command_path)
     def test_execute_user_registered_command_without_input(
         self, mocked_exec_command, connect_mocked
