@@ -105,6 +105,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
 class DeviceLocationView(
     RelatedDeviceProtectedAPIMixin,
+    FilterByParentManaged,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = DeviceLocationSerializer
@@ -124,9 +125,7 @@ class DeviceLocationView(
             return qs.none()
 
     def get_parent_queryset(self):
-        return Device.objects.filter(
-            pk=self.kwargs['pk'],
-        )
+        return Device.objects.filter(pk=self.kwargs['pk'])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
