@@ -175,6 +175,22 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
 
+    # for ensuring that only related connections are shown
+    def test_available_connections(self):
+        device = self._create_device(
+            name='default.test.device2', mac_address='12:23:34:45:56:67'
+        )
+        self._create_config(device=device)
+        credentials_2 = self._create_credentials(name='Test Credentials 2')
+        device_conn2 = self._create_device_connection(
+            device=device, credentials=credentials_2
+        )
+        url = self._get_path('device_command_list', self.device_id)
+        response = self.client.get(url, {'format': 'api'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(self.device_conn.id))
+        self.assertNotContains(response, device_conn2.id)
+
     def test_command_details_api(self):
         command_obj = self._create_command(device_conn=self.device_conn)
         url = self._get_path('device_command_details', self.device_id, command_obj.id)
@@ -338,9 +354,29 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 400)
             self.assertIn(
-                '"custom" command is not available for this organization',
-                response.data['input'][0],
+                '"custom" is not a valid choice.',
+                response.data['type'][0],
             )
+
+    def test_create_command_without_connection(self):
+        device = self._create_device(
+            name='default.test.device2', mac_address='11:22:33:44:55:66'
+        )
+        url = self._get_path('device_command_list', device.pk)
+        payload = {
+            'type': 'custom',
+            'input': {'command': 'echo test'},
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            'Device has no credentials assigned.',
+            response.data['device'][0],
+        )
 
 
 class TestConnectionApi(
