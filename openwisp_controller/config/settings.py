@@ -67,3 +67,5 @@ API_TASK_RETRY_OPTIONS = get_setting(
     "API_TASK_RETRY_OPTIONS",
     dict(max_retries=5, retry_backoff=True, retry_backoff_max=600, retry_jitter=True),
 )
+GEOIP_ACCOUNT_ID = get_setting("GEOIP_ACCOUNT_ID", None)
+GEOIP_LICENSE_KEY = get_setting("GEOIP_LICENSE_KEY", None)

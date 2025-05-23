@@ -196,6 +196,10 @@ DJANGO_LOCI_GEOCODE_STRICT_TEST = False
 OPENWISP_CONTROLLER_CONTEXT = {"vpnserver1": "vpn.testdomain.com"}
 OPENWISP_USERS_AUTH_API = True
 
+# GEOIP Related Settings
+GEOIP_ACCOUNT_ID = os.getenv("GEOIP_ACCOUNT_ID", "")
+GEOIP_LICENSE_KEY = os.getenv("GEOIP_LICENSE_KEY", "")
+
 TEST_RUNNER = "openwisp_utils.tests.TimeLoggingTestRunner"
 
 if os.environ.get("SAMPLE_APP", False):

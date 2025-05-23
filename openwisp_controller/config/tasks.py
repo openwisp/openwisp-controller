@@ -1,5 +1,6 @@
 import logging
 
+import geoip2.webservice
 import requests
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
@@ -157,3 +158,46 @@ def invalidate_device_checksum_view_cache(organization_id):
         Device.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         DeviceChecksumView.invalidate_get_device_cache(device)
+
+
+@shared_task(soft_time_limit=7200)
+def fetch_whois_details(device_pk, ip):
+    """
+    Fetches the WHOIS details of the given IP address
+    and creates/updates the WHOIS record.
+    """
+    WHOISInfo = load_model("config", "WHOISInfo")
+    try:
+        # 'geolite.info' host is used for GeoLite2
+        ip_client = geoip2.webservice.Client(
+            settings.GEOIP_ACCOUNT_ID, settings.GEOIP_LICENSE_KEY, "geolite.info"
+        )
+
+        data = ip_client.city(ip)
+        # Format address using the data from the geoip2 response
+        address = ", ".join(
+            [
+                data.city.name,
+                data.country.name,
+                data.continent.name,
+                str(data.postal.code),
+            ]
+        )
+        # Create/update the WHOIS information for the device
+        WHOISInfo.objects.update_or_create(
+            device_id=device_pk,
+            defaults={
+                "organization_name": data.traits.autonomous_system_organization,
+                "asn": data.traits.autonomous_system_number,
+                "country": data.country.name,
+                "timezone": data.location.time_zone,
+                "address": address,
+                "cidr": data.traits.network,
+                "last_public_ip": ip,
+            },
+        )
+        logger.info(f"Successfully fetched WHOIS details for {ip}.")
+    except requests.RequestException as e:
+        logger.error(f"Error fetching WHOIS details for {ip}: {e}")
+    except ObjectDoesNotExist:
+        logger.error(f"Device with pk {device_pk} does not exist.")
