@@ -56,7 +56,7 @@ class BaseCommandView(
         return (
             super()
             .get_queryset()
-            .filter(device_id=self.kwargs["device_pk"])
+            .filter(device_id=self.kwargs["device_id"])
             .order_by("-created")
         )
 
