@@ -31,6 +31,7 @@ class AbstractDevice(OrgMixin, BaseModel):
     _changed_checked_fields = ['name', 'group_id', 'management_ip', 'organization_id']
 
     name = models.CharField(
+        verbose_name=_('name'),
         max_length=64,
         unique=False,
         validators=[device_name_validator],
@@ -38,6 +39,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         help_text=_('must be either a valid hostname or mac address'),
     )
     mac_address = models.CharField(
+        verbose_name=_('mac address'),
         max_length=17,
         db_index=True,
         unique=False,
@@ -50,8 +52,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         default=None,
         db_index=True,
         help_text=_('unique device key'),
+        verbose_name=_('key'),
     )
     model = models.CharField(
+        verbose_name=_('model'),
         max_length=64,
         blank=True,
         db_index=True,
@@ -71,7 +75,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         max_length=128,
         help_text=_('system on chip or CPU info'),
     )
-    notes = models.TextField(blank=True, help_text=_('internal notes'))
+    notes = models.TextField(verbose_name=_('notes'), blank=True, help_text=_('internal notes'))
     group = models.ForeignKey(
         get_model_name('config', 'DeviceGroup'),
         verbose_name=_('group'),
@@ -82,6 +86,7 @@ class AbstractDevice(OrgMixin, BaseModel):
     # these fields are filled automatically
     # with data received from devices
     last_ip = models.GenericIPAddressField(
+        verbose_name=_('last IP address'),
         blank=True,
         null=True,
         db_index=True,
@@ -91,6 +96,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         ),
     )
     management_ip = models.GenericIPAddressField(
+        verbose_name=_('management IP address'),
         blank=True,
         null=True,
         db_index=True,
@@ -105,7 +111,7 @@ class AbstractDevice(OrgMixin, BaseModel):
     # This is an internal field which is used to track if
     # the device has been deactivated. This field should not be changed
     # directly, use the deactivate() method instead.
-    _is_deactivated = models.BooleanField(default=False)
+    _is_deactivated = models.BooleanField(verbose_name=_('is deactivated'), default=False)
 
     class Meta:
         unique_together = (

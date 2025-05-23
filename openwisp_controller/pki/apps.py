@@ -23,16 +23,16 @@ class PkiConfig(DjangoX509Config):
         register_menu_group(
             position=60,
             config={
-                'label': 'Cas & Certificates',
+                'label': _('Cas & Certificates'),
                 'items': {
                     1: {
-                        'label': 'Certification Authorities',
+                        'label': _('Certification Authorities'),
                         'model': get_model_name('django_x509', 'Ca'),
                         'name': 'changelist',
                         'icon': 'ow-ca',
                     },
                     2: {
-                        'label': 'Certificates',
+                        'label': _('Certificates'),
                         'model': get_model_name('django_x509', 'Cert'),
                         'name': 'changelist',
                         'icon': 'ow-certificate',

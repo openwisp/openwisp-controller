@@ -66,14 +66,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         null=True,
         on_delete=models.CASCADE,
     )
-    key = KeyField(db_index=True)
+    key = KeyField(db_index=True, verbose_name=_('Private Key'))
     backend = models.CharField(
         _('VPN backend'),
         choices=app_settings.VPN_BACKENDS,
         max_length=128,
         help_text=_('Select VPN configuration backend'),
     )
-    notes = models.TextField(blank=True)
+    notes = models.TextField(verbose_name=_('Notes'), blank=True)
     # optional, needed for VPNs which do not support automatic IP allocation
     subnet = models.ForeignKey(
         get_model_name('openwisp_ipam', 'Subnet'),
@@ -128,11 +128,12 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         '-----END DH PARAMETERS-----\n'
     )
     # needed for wireguard
-    public_key = models.CharField(blank=True, max_length=44)
-    private_key = models.CharField(blank=True, max_length=44)
+    public_key = models.CharField(verbose_name=_('Public key'),blank=True, max_length=44)
+    private_key = models.CharField(verbose_name=_('Private key'), blank=True, max_length=44)
     # needed for zerotier
-    node_id = models.CharField(blank=True, max_length=10)
-    network_id = models.CharField(blank=True, max_length=16)
+    node_id = models.CharField(verbose_name=_('Node ID'), blank=True, max_length=10)
+    network_id = models.CharField( verbose_name=_('Network ID'), blank=True, max_length=16)
+
 
     __vpn__ = True
 

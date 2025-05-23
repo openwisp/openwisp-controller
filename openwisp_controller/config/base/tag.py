@@ -18,6 +18,7 @@ class AbstractTaggedTemplate(GenericUUIDTaggedItemBase, TaggedItemBase):
         get_model_name('config', 'TemplateTag'),
         related_name='%(app_label)s_%(class)s_items',
         on_delete=models.CASCADE,
+        verbose_name=_('Tag'),
     )
 
     class Meta:
