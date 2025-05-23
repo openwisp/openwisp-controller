@@ -1,6 +1,7 @@
 import collections
 import logging
 import re
+from collections import defaultdict
 
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -186,6 +187,55 @@ class AbstractConfig(BaseConfig):
         return templates
 
     @classmethod
+    def validate_duplicate_vpn_templates(
+        cls, action, instance, templates, raw_data=None
+    ):
+        """
+        Validates if there are duplicate templates for the same VPN server.
+        Raises a ValidationError if duplicates are found.
+        """
+        if action != 'pre_add':
+            return
+
+        def format_template_list(names):
+            quoted = [f'"{name}"' for name in names]
+            if len(quoted) == 2:
+                return ' and '.join(quoted)
+            return ', '.join(quoted[:-1]) + ' and ' + quoted[-1]
+
+        def add_vpn_templates(templates_queryset):
+            for template in templates_queryset.filter(type='vpn'):
+                if template.name not in vpn_templates[template.vpn.name]:
+                    vpn_templates[template.vpn.name].append(template.name)
+
+        raw_data = raw_data or {}
+        vpn_templates = defaultdict(list)
+        if not raw_data:
+            # When raw_data is present, validation is triggered by a
+            # ConfigForm submission.
+            # In this case, the "templates" queryset already contains only the templates
+            # that are intended to be assigned. Templates that would be removed
+            # (e.g., in a pre_clear action) have already been excluded from the
+            # queryset.
+            add_vpn_templates(instance.templates)
+        add_vpn_templates(templates)
+
+        error_lines = [
+            'You cannot select multiple VPN client templates related to'
+            ' the same VPN server.'
+        ]
+        for vpn_name, template_names in vpn_templates.items():
+            if len(template_names) < 2:
+                continue
+            template_list = format_template_list(sorted(template_names))
+            error_lines.append(
+                f'The templates {template_list} are all linked'
+                f' to the same VPN server: "{vpn_name}".'
+            )
+        if len(error_lines) > 1:
+            raise ValidationError('\n'.join(error_lines))
+
+    @classmethod
     def clean_templates(cls, action, instance, pk_set, raw_data=None, **kwargs):
         """
         validates resulting configuration of config + templates
@@ -203,6 +253,9 @@ class AbstractConfig(BaseConfig):
         )
         if not templates:
             return
+        cls.validate_duplicate_vpn_templates(
+            action, instance, templates, raw_data=raw_data
+        )
         backend = instance.get_backend_instance(template_instances=templates)
         try:
             cls.clean_netjsonconfig_backend(backend)
