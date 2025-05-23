@@ -564,6 +564,18 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     ],
                 )
 
+        with self.subTest('Test command creation without device connection'):
+            device = dc.device
+            device.deviceconnection_set.all().delete()
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            exception = context_manager.exception
+            self.assertIn('device', exception.message_dict)
+            self.assertEqual(
+                exception.message_dict['device'],
+                ['Device has no credentials assigned.'],
+            )
+
     @tag('skip_prod')
     def test_enabled_command(self):
         self.assertEqual(
@@ -787,7 +799,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
     @mock.patch(_connect_path)
     @mock.patch.dict(COMMANDS, {})
-    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network')})
+    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network',)})
     @mock.patch(_exec_command_path)
     def test_execute_user_registered_command_without_input(
         self, mocked_exec_command, connect_mocked

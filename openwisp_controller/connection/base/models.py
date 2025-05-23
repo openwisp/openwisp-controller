@@ -424,10 +424,17 @@ class AbstractCommand(TimeStampedEditableModel):
         ordering = ('created',)
 
     @classmethod
-    def get_org_choices(self, organization_id=None):
-        return ORGANIZATION_ENABLED_COMMANDS.get(
+    def get_org_allowed_commands(self, organization_id=None):
+        """
+        Returns a list of allowed commands for the given organization
+        """
+        allowed_commands = ORGANIZATION_ENABLED_COMMANDS.get(
             str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get('__all__')
         )
+        commands_map = dict(COMMAND_CHOICES)
+        return [
+            (cmd, commands_map[cmd]) for cmd in allowed_commands if cmd in commands_map
+        ]
 
     @classmethod
     def get_org_schema(self, organization_id=None):
@@ -445,8 +452,27 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
-        if self.type not in self.get_org_choices(
-            organization_id=self.device.organization_id
+        self._verify_command_type_allowed()
+        self._verify_connection()
+        try:
+            jsonschema.Draft4Validator(self._schema).validate(self.input)
+        except SchemaError as e:
+            raise ValidationError({'input': e.message})
+
+    def _verify_connection(self):
+        """Raises validation error if device has no connection and credentials."""
+        if self.device and not self.device.deviceconnection_set.exists():
+            raise ValidationError({'device': _('Device has no credentials assigned.')})
+
+    def _verify_command_type_allowed(self):
+        """Raises validation error if command type is not allowed."""
+        # if device is not set, skip to avoid uncaught exception
+        # (standard model validation will kick in)
+        if not hasattr(self, 'device'):
+            return
+
+        if self.type not in dict(
+            self.get_org_allowed_commands(organization_id=self.device.organization_id)
         ):
             raise ValidationError(
                 {
@@ -458,10 +484,6 @@ class AbstractCommand(TimeStampedEditableModel):
                     )
                 }
             )
-        try:
-            jsonschema.Draft4Validator(self._schema).validate(self.input)
-        except SchemaError as e:
-            raise ValidationError({'input': e.message})
 
     @property
     def is_custom(self):
