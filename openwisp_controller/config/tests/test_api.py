@@ -387,6 +387,26 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 200)
         self.assertNotEqual(r.data['config'], None)
 
+    def test_device_detail_api_with_inherited_variables(self):
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org)
+        device = self._create_device(organization=org, group=device_group)
+        config = self._create_config(device=device)
+        template = self._create_template(organization=org)
+        config.templates.add(template)
+        path = reverse('config_api:device_detail', args=[device.pk])
+        r = self.client.get(f'{path}?inherited_variables=True')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('inherited_variables', r.data)
+        self.assertEqual(r.data['inherited_variables']['global'], app_settings.CONTEXT)
+        self.assertEqual(
+            r.data['inherited_variables']['group']['id'], str(device_group.pk)
+        )
+        self.assertEqual(r.data['inherited_variables']['config']['status'], 'modified')
+        self.assertEqual(
+            r.data['inherited_variables']['templates'][0]['id'], str(template.pk)
+        )
+
     def test_device_put_api(self):
         d1 = self._create_device(name='test-device')
         self._create_config(device=d1)
