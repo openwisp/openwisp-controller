@@ -170,22 +170,22 @@ class ConfigConfig(AppConfig):
         register_menu_group(
             position=30,
             config={
-                'label': 'Configurations',
+                'label': _('Configurations'),
                 'items': {
                     1: {
-                        'label': 'Templates',
+                        'label': _('Templates'),
                         'model': get_model_name('config', 'Template'),
                         'name': 'changelist',
                         'icon': 'ow-template',
                     },
                     2: {
-                        'label': 'VPN Servers',
+                        'label': _('VPN Servers'),
                         'model': get_model_name('config', 'Vpn'),
                         'name': 'changelist',
                         'icon': 'ow-vpn',
                     },
                     4: {
-                        'label': 'Device Groups',
+                        'label': _('Device Groups'),
                         'model': get_model_name('config', 'DeviceGroup'),
                         'name': 'changelist',
                         'icon': 'ow-device-group',

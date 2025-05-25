@@ -21,7 +21,11 @@ class BaseModel(TimeStampedEditableModel):
     Shared logic
     """
 
-    name = models.CharField(max_length=64, db_index=True)
+    name = models.CharField(
+        verbose_name=_('name'),
+        max_length=64, 
+        db_index=True
+    )
 
     class Meta:
         abstract = True

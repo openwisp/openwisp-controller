@@ -20,8 +20,17 @@ from .config import TemplatesThrough
 
 
 class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
-    name = models.CharField(max_length=60, null=False, blank=False)
-    description = models.TextField(blank=True, help_text=_('internal notes'))
+    name = models.CharField(
+        max_length=60, 
+        null=False, 
+        blank=False,
+        verbose_name=_('Name')
+    )
+    description = models.TextField(
+        blank=True, 
+        help_text=_('internal notes'),
+        verbose_name=_('Description')
+    )
     templates = SortedManyToManyField(
         get_model_name('config', 'Template'),
         related_name='device_group_relations',
