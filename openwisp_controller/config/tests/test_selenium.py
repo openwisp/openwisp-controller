@@ -12,15 +12,43 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
 
-from openwisp_utils.tests import SeleniumTestMixin
+from openwisp_controller.config.base import device
+from openwisp_users.tests.utils import TestOrganizationMixin
+from openwisp_utils.tests import SeleniumTestMixin as BaseSeleniumTestMixin
 
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpnMixin
 
 Device = load_model("config", "Device")
+DeviceGroup = load_model("config", "DeviceGroup")
 Cert = load_model("django_x509", "Cert")
 
 
-@tag("selenium_tests")
+class SeleniumTestMixin(BaseSeleniumTestMixin):
+    def _select_organization(self, org):
+        self.find_element(
+            by=By.CSS_SELECTOR, value='#select2-id_organization-container'
+        ).click()
+        self.wait_for_invisibility(
+            By.CSS_SELECTOR, '.select2-results__option.loading-results'
+        )
+        self.find_element(by=By.CLASS_NAME, value='select2-search__field').send_keys(
+            org.name
+        )
+        self.wait_for_invisibility(
+            By.CSS_SELECTOR, '.select2-results__option.loading-results'
+        )
+        self.find_element(by=By.CLASS_NAME, value='select2-results__option').click()
+
+    def _verify_templates_visibility(self, hidden=None, visible=None):
+        hidden = hidden or []
+        visible = visible or []
+        for template in hidden:
+            self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
+        for template in visible:
+            self.wait_for_visibility(By.XPATH, f'//*[@value="{template.id}"]')
+
+
+@tag('selenium_tests')
 class TestDeviceAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
@@ -162,30 +190,55 @@ class TestDeviceAdmin(
             name="org2 default", organization=org2, default=True
         )
 
-        org1_device = self._create_config(
+        device = self._create_config(
             device=self._create_device(organization=org1)
         ).device
 
         self.login()
         self.open(
-            reverse("admin:config_device_change", args=[org1_device.id])
-            + "#config-group"
+            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
         )
         self.hide_loading_overlay()
-        # org2 templates should not be visible
-        self.wait_for_invisibility(
-            By.XPATH, f'//*[@value="{org2_required_template.id}"]'
-        )
-        self.wait_for_invisibility(
-            By.XPATH, f'//*[@value="{org2_default_template.id}"]'
-        )
 
-        # org1 and shared templates should be visible
-        self.wait_for_visibility(By.XPATH, f'//*[@value="{org1_required_template.id}"]')
-        self.wait_for_visibility(By.XPATH, f'//*[@value="{org1_default_template.id}"]')
-        self.wait_for_visibility(
-            By.XPATH, f'//*[@value="{shared_required_template.id}"]'
-        )
+        with self.subTest('only org1 and shared templates should be visible'):
+            self._verify_templates_visibility(
+                hidden=[org2_required_template, org2_default_template],
+                visible=[
+                    org1_required_template,
+                    org1_default_template,
+                    shared_required_template,
+                ],
+            )
+
+        with self.subTest('changing org should update templates'):
+            self.find_element(
+                By.CSS_SELECTOR, value='a[href="#overview-group"]'
+            ).click()
+            self._select_organization(org2)
+            self.find_element(
+                by=By.CSS_SELECTOR, value='a[href="#config-group"]'
+            ).click()
+            self._verify_templates_visibility(
+                hidden=[
+                    org1_required_template,
+                    org1_default_template,
+                ],
+                visible=[
+                    org2_required_template,
+                    org2_default_template,
+                    shared_required_template,
+                ],
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value='input[name="_continue"]'
+            ).click()
+            self._wait_until_page_ready()
+            device.refresh_from_db()
+            device.config.refresh_from_db()
+            self.assertEqual(device.organization, org2)
+            self.assertEqual(device.config.templates.count(), 2)
+            self.assertIn(org2_required_template, device.config.templates.all())
+            self.assertIn(org2_default_template, device.config.templates.all())
 
     def test_change_config_backend(self):
         device = self._create_config(organization=self._get_org()).device
@@ -348,61 +401,108 @@ class TestDeviceAdmin(
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.status, 'modified')
 
-    def test_vpn_clients_deleted(self):
-        vpn = self._create_vpn()
-        template = self._create_template()
-        vpn_template = self._create_template(
-            name='vpn-test',
-            type='vpn',
-            vpn=vpn,
-            auto_cert=True,
+
+@tag('selenium_tests')
+class TestDeviceGroupAdmin(
+    SeleniumTestMixin,
+    CreateConfigTemplateMixin,
+    StaticLiveServerTestCase,
+):
+    def test_show_relevant_templates(self):
+        org1 = self._create_org(name='org1', slug='org1')
+        org2 = self._create_org(name='org2', slug='org2')
+        shared_template = self._create_template(name='shared template')
+        org1_template = self._create_template(name='org1 template', organization=org1)
+        org1_required_template = self._create_template(
+            name='org1 required', organization=org1, required=True
         )
-        cert_query = Cert.objects.exclude(pk=vpn.cert_id)
-        valid_cert_query = cert_query.filter(revoked=False)
-        revoked_cert_query = cert_query.filter(revoked=True)
+        org1_default_template = self._create_template(
+            name='org1 default', organization=org1, default=True
+        )
+        org2_template = self._create_template(name='org2 template', organization=org2)
+        org2_required_template = self._create_template(
+            name='org2 required', organization=org2, required=True
+        )
+        org2_default_template = self._create_template(
+            name='org2 default', organization=org2, default=True
+        )
 
-        config = self._create_config(organization=self._get_org())
-        device = config.device
-        self.assertEqual(config.vpnclient_set.count(), 0)
-        self.assertEqual(config.templates.count(), 0)
         self.login()
-        # some times the url fetching in js gives unauthorized error
-        # so we add a wait to allow login to complete
-        time.sleep(2)
+        self.open(reverse('admin:config_devicegroup_add'))
+        self.assertEqual(
+            self.wait_for_visibility(
+                By.CSS_SELECTOR, '.sortedm2m-container .help'
+            ).text,
+            'No Template available',
+        )
+        self.find_element(by=By.CSS_SELECTOR, value='input[name="name"]').send_keys(
+            'Test Device Group'
+        )
+        self._select_organization(org1)
+        self._verify_templates_visibility(
+            hidden=[
+                org1_default_template,
+                org1_required_template,
+                org2_template,
+                org2_default_template,
+                org2_required_template,
+            ],
+            visible=[shared_template, org1_template],
+        )
+        # Select org1 template
+        self.find_element(
+            by=By.XPATH, value=f'//*[@value="{org1_template.id}"]'
+        ).click()
+        self.web_driver.execute_script(
+            "window.scrollTo(0, document.body.scrollHeight);"
+        )
+        self.find_element(by=By.CSS_SELECTOR, value='input[name="_continue"]').click()
+        self._wait_until_page_ready()
+        device_group = DeviceGroup.objects.first()
+        self.assertEqual(device_group.name, 'Test Device Group')
+        self.assertIn(org1_template, device_group.templates.all())
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR,
+                value=f'input[type="checkbox"][value="{org1_template.id}"]',
+            ).is_selected(),
+            True,
+        )
 
-        with self.subTest('Adding only VpnClient template'):
-            # Adding VpnClient template to the device
-            self._update_template(device.id, [vpn_template])
-            config.refresh_from_db()
-            self.assertEqual(config.templates.count(), 1)
-            self.assertEqual(config.vpnclient_set.count(), 1)
-            self.assertEqual(cert_query.count(), 1)
-            self.assertEqual(valid_cert_query.count(), 1)
-
-            # Remove VpnClient template from the device
-            self._update_template(device.id, [vpn_template], is_enabled=True)
-            config.refresh_from_db()
-            self.assertEqual(config.templates.count(), 0)
-            self.assertEqual(config.vpnclient_set.count(), 0)
-            # Removing VPN template marks the related certificate as revoked
-            self.assertEqual(revoked_cert_query.count(), 1)
-            self.assertEqual(valid_cert_query.count(), 0)
-
-        with self.subTest('Add VpnClient template along with another template'):
-            # Adding templates to the device
-            self._update_template(device.id, [template, vpn_template])
-            config.refresh_from_db()
-            self.assertEqual(config.templates.count(), 2)
-            self.assertEqual(config.vpnclient_set.count(), 1)
-            self.assertEqual(valid_cert_query.count(), 1)
-
-            # Remove VpnClient template from the device
-            self._update_template(device.id, [vpn_template], is_enabled=True)
-            config.refresh_from_db()
-            self.assertEqual(config.templates.count(), 1)
-            self.assertEqual(config.vpnclient_set.count(), 0)
-            self.assertEqual(valid_cert_query.count(), 0)
-            self.assertEqual(revoked_cert_query.count(), 2)
+        with self.subTest('Change organization to org2'):
+            self._select_organization(org2)
+            self._verify_templates_visibility(
+                hidden=[
+                    org1_template,
+                    org1_default_template,
+                    org1_required_template,
+                    org2_required_template,
+                    org2_default_template,
+                ],
+                visible=[
+                    shared_template,
+                    org2_template,
+                ],
+            )
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f'input[type="checkbox"][value="{org2_template.id}"]',
+                ).is_selected(),
+                False,
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value='input[name="_continue"]'
+            ).click()
+            self._wait_until_page_ready()
+            self.assertEqual(device_group.templates.count(), 0)
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f'input[type="checkbox"][value="{org2_template.id}"]',
+                ).is_selected(),
+                False,
+            )
 
 
 @tag("selenium_tests")

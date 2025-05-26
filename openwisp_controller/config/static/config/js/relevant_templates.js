@@ -89,16 +89,35 @@ django.jQuery(function ($) {
         }
       }
     },
+    getRelevantTemplateUrl = function (orgID, backend) {
+      // Returns the URL to fetch relevant templates
+      var baseUrl = window._relevantTemplateUrl.replace("org_id", orgID);
+      var url = new URL(baseUrl, window.location.origin);
+
+      // Get relevant templates of selected org and backend
+      if (backend) {
+        url.searchParams.set("backend", backend);
+      }
+      if (isDeviceGroup() && !$(".add-form").length) {
+        // Get the group id from the URL
+        // TODO: This is fragile, consider using a more robust way to get the group id.
+        var pathParts = window.location.pathname.split("/");
+        url.searchParams.set("group_id", pathParts[pathParts.length - 3]);
+      } else if ($('input[name="config-0-device"]').length) {
+        url.searchParams.set(
+          "device_id",
+          $('input[name="config-0-device"]').val(),
+        );
+      }
+      return url.toString();
+    },
     showRelevantTemplates = function () {
       var orgID = $(orgFieldSelector).val(),
         backend = isDeviceGroup() ? "" : $(backendFieldSelector).val(),
         selectedTemplates;
 
       // Hide templates if no organization or backend is selected
-      if (
-        (orgID && orgID.length === 0) ||
-        (!isDeviceGroup() && backend.length === 0)
-      ) {
+      if (!orgID || (!isDeviceGroup() && backend.length === 0)) {
         resetTemplateOptions();
         updateTemplateHelpText();
         return;
@@ -109,77 +128,24 @@ django.jQuery(function ($) {
         // when the user has changed any of organization or backend field.
         // selectedTemplates will be an empty string if no template is selected
         // ''.split(',') returns [''] hence, this case requires special handling
-        selectedTemplates = isDeviceGroup()
-          ? parseSelectedTemplates($("#id_templates").val())
-          : parseSelectedTemplates(
-              django._owcInitialValues[templatesFieldName()],
-            );
+        selectedTemplates = parseSelectedTemplates(
+          $('input[name="' + templatesFieldName() + '"]').val(),
+        );
       }
-
-      var url = window._relevantTemplateUrl.replace("org_id", orgID);
-      // Get relevant templates of selected org and backend
-      url = url + "?backend=" + backend;
-      if (!isDeviceGroup()) {
-        var deviceID = $('input[name="config-0-device"]').val();
-        url = url + "&device=" + deviceID;
-      } else {
-        // Get the group id from the URL
-        var pathParts = window.location.pathname.split("/");
-        url = url + "&group=" + pathParts[pathParts.length - 3];
-      }
+      var url = getRelevantTemplateUrl(orgID, backend);
       $.get(url).done(function (data) {
         resetTemplateOptions();
         var enabledTemplates = [],
           sortedm2mUl = $("ul.sortedm2m-items:first"),
           sortedm2mPrefixUl = $("ul.sortedm2m-items:last");
 
-        // Adds "li" elements for templates that are already selected
-        // in the database. Select these templates and remove their key from "data"
-        // This maintains the order of the templates and keep
-        // enabled templates on the top
-        if (selectedTemplates !== undefined) {
-          selectedTemplates.forEach(function (templateId, index) {
-            // corner case in which backend of template does not match
-            if (!data[templateId]) {
-              return;
-            }
-            var element = getTemplateOptionElement(
-                index,
-                templateId,
-                data[templateId],
-                true,
-                false,
-              ),
-              prefixElement = getTemplateOptionElement(
-                index,
-                templateId,
-                data[templateId],
-                true,
-                true,
-              );
-            sortedm2mUl.append(element);
-            if (!isDeviceGroup()) {
-              sortedm2mPrefixUl.append(prefixElement);
-            }
-            delete data[templateId];
-          });
-        }
-
-        // Adds "li" elements for templates that are not selected
-        // in the database.
-        var counter =
-            selectedTemplates !== undefined ? selectedTemplates.length : 0,
-          deviceTemplates = [];
+        // Adds "li" elements for templates
         Object.keys(data).forEach(function (templateId, index) {
-          // corner case in which backend of template does not match
-          if (!data[templateId]) {
-            return;
-          }
-          index = index + counter;
           var isSelected =
-              data[templateId].default &&
-              selectedTemplates === undefined &&
-              !data[templateId].required,
+              data[templateId].selected ||
+              (data[templateId].default &&
+                selectedTemplates === undefined &&
+                !data[templateId].required),
             element = getTemplateOptionElement(
               index,
               templateId,
@@ -199,9 +165,6 @@ django.jQuery(function ($) {
           if (isSelected === true) {
             enabledTemplates.push(templateId);
           }
-          if (element.children().children("input").prop("checked") === true) {
-            deviceTemplates.push(templateId);
-          }
           sortedm2mUl.append(element);
           if (!isDeviceGroup()) {
             sortedm2mPrefixUl.append(prefixElement);
@@ -210,30 +173,20 @@ django.jQuery(function ($) {
         if (firstRun === true && selectedTemplates !== undefined) {
           updateTemplateSelection(selectedTemplates);
         }
-        // this runs on first load and sets the name of hidden input field which tracks
-        // the selected templates.
-        if (selectedTemplates === undefined) {
-          if (!isDeviceGroup()) {
-            $(
-              `#config-0 .field-templates .sortedm2m-container input[type="hidden"]`,
-            )
-              .first()
-              .attr("name", templatesFieldName());
-            // set the initial value of the hidden input field
-            // to the selected templates
-            django._owcInitialValues[templatesFieldName()] =
-              deviceTemplates.join(",");
-          } else {
-            $(
-              `.field-templates .sortedm2m-container input[type="hidden"]`,
-            ).attr("name", templatesFieldName());
-          }
-        }
         updateTemplateHelpText();
         updateConfigTemplateField(enabledTemplates);
       });
     },
+    initTemplateField = function () {
+      // sortedm2m generates a hidden input dynamically using rendered input checkbox elements,
+      // but because the queryset is set to None in the Django admin, the input is created
+      // without a name attribute. This workaround assigns the correct name to the hidden input.
+      $('.sortedm2m-container input[type="hidden"][id="undefined"]')
+        .first()
+        .attr("name", templatesFieldName());
+    },
     bindDefaultTemplateLoading = function () {
+      initTemplateField();
       var backendField = $(backendFieldSelector);
       $(orgFieldSelector).change(function () {
         // Only fetch templates when backend field is present
@@ -246,11 +199,13 @@ django.jQuery(function ($) {
         addChangeEventHandlerToBackendField();
       } else if (isDeviceGroup()) {
         // Initially request data to get templates
+        initTemplateField();
         showRelevantTemplates();
       } else {
         // Add view: backendField is added when user adds configuration
         $("#config-group > fieldset.module").ready(function () {
           $("div.add-row > a").one("click", function () {
+            initTemplateField();
             addChangeEventHandlerToBackendField();
           });
         });
