@@ -308,7 +308,8 @@ class AbstractDevice(OrgMixin, BaseModel):
         self._get_initial_values_for_checked_fields()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
-            getattr(self, f"_check_{field}_changed")()
+            if hasattr(self, f"_check_{field}_changed"):
+                getattr(self, f"_check_{field}_changed")()
 
     def _is_deferred(self, field):
         """
@@ -377,16 +378,20 @@ class AbstractDevice(OrgMixin, BaseModel):
         """Trigger WHOIS lookup if the last IP has changed and is public IP."""
         from ipaddress import ip_address
 
-        from .. import tasks
+        from ..tasks import fetch_whois_details
 
         if self._initial_last_ip == models.DEFERRED:
             return
         # Trigger fetch WHOIS lookup if it does not exist
         # or if the last IP has changed and is a public IP
         if (
-            not hasattr(self, "whoisinfo") or self.last_ip != self._initial_last_ip
-        ) and ip_address(self.last_ip).is_global:
-            tasks.fetch_whois_details.delay(self.pk, self.last_ip)
+            (not hasattr(self, "whois_info") or self.last_ip != self._initial_last_ip)
+            and self.last_ip
+            and ip_address(self.last_ip).is_global
+        ):
+            transaction.on_commit(
+                lambda: fetch_whois_details.delay(device_pk=self.pk, ip=self.last_ip)
+            )
 
         self._initial_last_ip = self.last_ip
 
