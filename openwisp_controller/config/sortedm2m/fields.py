@@ -31,7 +31,7 @@ def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
             ):
                 signals.m2m_changed.send(
                     sender=self.through,
-                    action='pre_add',
+                    action="pre_add",
                     instance=self.instance,
                     reverse=self.reverse,
                     model=self.model,
@@ -40,7 +40,7 @@ def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
                 )
                 signals.m2m_changed.send(
                     sender=self.through,
-                    action='post_add',
+                    action="post_add",
                     instance=self.instance,
                     reverse=self.reverse,
                     model=self.model,
@@ -72,6 +72,6 @@ class SortedManyToManyField(BaseSortedManyToManyField):
         # https://github.com/jazzband/django-sortedm2m/pull/213
         defaults = {}
         if self.sorted:
-            defaults['form_class'] = SortedMultipleChoiceField
+            defaults["form_class"] = SortedMultipleChoiceField
         defaults.update(kwargs)
         return super().formfield(**defaults)

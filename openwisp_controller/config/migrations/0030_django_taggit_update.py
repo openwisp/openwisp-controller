@@ -6,36 +6,36 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('contenttypes', '0002_remove_content_type_name'),
-        ('config', '0029_merge_django_netjsonconfig'),
+        ("contenttypes", "0002_remove_content_type_name"),
+        ("config", "0029_merge_django_netjsonconfig"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='taggedtemplate',
-            name='content_type',
+            model_name="taggedtemplate",
+            name="content_type",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='config_taggedtemplate_tagged_items',
-                to='contenttypes.ContentType',
-                verbose_name='content type',
+                related_name="config_taggedtemplate_tagged_items",
+                to="contenttypes.ContentType",
+                verbose_name="content type",
             ),
         ),
         migrations.AlterField(
-            model_name='taggedtemplate',
-            name='object_id',
-            field=models.UUIDField(db_index=True, verbose_name='object ID'),
+            model_name="taggedtemplate",
+            name="object_id",
+            field=models.UUIDField(db_index=True, verbose_name="object ID"),
         ),
         migrations.AlterField(
-            model_name='templatetag',
-            name='name',
-            field=models.CharField(max_length=100, unique=True, verbose_name='name'),
+            model_name="templatetag",
+            name="name",
+            field=models.CharField(max_length=100, unique=True, verbose_name="name"),
         ),
         migrations.AlterField(
-            model_name='templatetag',
-            name='slug',
+            model_name="templatetag",
+            name="slug",
             field=models.SlugField(
-                allow_unicode=True, max_length=100, unique=True, verbose_name='slug'
+                allow_unicode=True, max_length=100, unique=True, verbose_name="slug"
             ),
         ),
     ]

@@ -342,9 +342,7 @@ Once you have created the models, add the following to your
     CONFIG_TEMPLATE_MODEL = "sample_config.Template"
     CONFIG_VPN_MODEL = "sample_config.Vpn"
     CONFIG_VPNCLIENT_MODEL = "sample_config.VpnClient"
-    CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = (
-        "sample_config.OrganizationConfigSettings"
-    )
+    CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = "sample_config.OrganizationConfigSettings"
     CONFIG_ORGANIZATIONLIMITS_MODEL = "sample_config.OrganizationLimits"
     DJANGO_X509_CA_MODEL = "sample_pki.Ca"
     DJANGO_X509_CERT_MODEL = "sample_pki.Cert"
@@ -354,12 +352,8 @@ Once you have created the models, add the following to your
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"
-    SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = (
-        "sample_subnet_division.SubnetDivisionRule"
-    )
-    SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = (
-        "sample_subnet_division.SubnetDivisionIndex"
-    )
+    SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = "sample_subnet_division.SubnetDivisionRule"
+    SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = "sample_subnet_division.SubnetDivisionIndex"
 
 Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
 ``sample_geo`` & ``sample_subnet_division`` with the name you chose in
@@ -483,9 +477,7 @@ For example:
         SubnetDivisionRuleInlineAdmin,
     )
 
-    SubnetDivisionRuleInlineAdmin.fields += [
-        "example"
-    ]  # <-- monkey patching example
+    SubnetDivisionRuleInlineAdmin.fields += ["example"]  # <-- monkey patching example
 
 14.2. Inheriting admin classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -843,9 +835,7 @@ them upon deletion for that device.
         # performs no operation for existing objects.
         @classmethod
         def provision_for_existing_objects(cls, rule_obj):
-            for device in Device.objects.filter(
-                organization=rule_obj.organization
-            ):
+            for device in Device.objects.filter(organization=rule_obj.organization):
                 cls.provision_receiver(device, created=True)
 
 After creating a class for your custom rule type, you will need to set

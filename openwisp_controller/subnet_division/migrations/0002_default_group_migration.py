@@ -4,7 +4,7 @@ from . import assign_permissions_to_groups
 
 
 class Migration(migrations.Migration):
-    dependencies = [('subnet_division', '0001_initial')]
+    dependencies = [("subnet_division", "0001_initial")]
 
     operations = [
         migrations.RunPython(

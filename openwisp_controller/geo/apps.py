@@ -10,18 +10,18 @@ from openwisp_utils.admin_theme.menu import register_menu_group
 
 
 class GeoConfig(LociConfig):
-    name = 'openwisp_controller.geo'
-    label = 'geo'
-    verbose_name = _('Geographic Information')
+    name = "openwisp_controller.geo"
+    label = "geo"
+    verbose_name = _("Geographic Information")
 
     def __setmodels__(self):
-        self.location_model = swapper.load_model('geo', 'Location')
+        self.location_model = swapper.load_model("geo", "Location")
 
     def ready(self):
         super().ready()
         self.register_dashboard_charts()
         self.register_menu_groups()
-        if getattr(settings, 'TESTING', False):
+        if getattr(settings, "TESTING", False):
             self._add_params_to_test_config()
 
     def _add_params_to_test_config(self):
@@ -42,7 +42,7 @@ class GeoConfig(LociConfig):
         # delete unnecessary fields
         # leave only management fields
         for key in params.keys():
-            if '_FORMS' not in key:
+            if "_FORMS" not in key:
                 delete_keys.append(key)
         for key in delete_keys:
             del params[key]
@@ -52,12 +52,12 @@ class GeoConfig(LociConfig):
         register_dashboard_chart(
             position=2,
             config={
-                'name': _('Geographic positioning'),
-                'query_params': {
-                    'app_label': 'config',
-                    'model': 'device',
-                    'annotate': {
-                        'with_geo': Count(
+                "name": _("Geographic positioning"),
+                "query_params": {
+                    "app_label": "config",
+                    "model": "device",
+                    "annotate": {
+                        "with_geo": Count(
                             Case(
                                 When(
                                     devicelocation__isnull=False,
@@ -65,7 +65,7 @@ class GeoConfig(LociConfig):
                                 )
                             )
                         ),
-                        'without_geo': Count(
+                        "without_geo": Count(
                             Case(
                                 When(
                                     devicelocation__isnull=True,
@@ -74,20 +74,20 @@ class GeoConfig(LociConfig):
                             )
                         ),
                     },
-                    'aggregate': {
-                        'with_geo__sum': Sum('with_geo'),
-                        'without_geo__sum': Sum('without_geo'),
+                    "aggregate": {
+                        "with_geo__sum": Sum("with_geo"),
+                        "without_geo__sum": Sum("without_geo"),
                     },
                 },
-                'colors': {'with_geo__sum': '#267126', 'without_geo__sum': '#353c44'},
-                'labels': {
-                    'with_geo__sum': _('With geographic position'),
-                    'without_geo__sum': _('Without geographic position'),
+                "colors": {"with_geo__sum": "#267126", "without_geo__sum": "#353c44"},
+                "labels": {
+                    "with_geo__sum": _("With geographic position"),
+                    "without_geo__sum": _("Without geographic position"),
                 },
-                'filters': {
-                    'key': 'with_geo',
-                    'with_geo__sum': 'true',
-                    'without_geo__sum': 'false',
+                "filters": {
+                    "key": "with_geo",
+                    "with_geo__sum": "true",
+                    "without_geo__sum": "false",
                 },
             },
         )
@@ -96,22 +96,22 @@ class GeoConfig(LociConfig):
         register_menu_group(
             position=50,
             config={
-                'label': 'Geographic Info',
-                'items': {
+                "label": "Geographic Info",
+                "items": {
                     1: {
-                        'label': 'Locations',
-                        'model': get_model_name('geo', 'Location'),
-                        'name': 'changelist',
-                        'icon': 'ow-location',
+                        "label": "Locations",
+                        "model": get_model_name("geo", "Location"),
+                        "name": "changelist",
+                        "icon": "ow-location",
                     },
                     2: {
-                        'label': 'Floorplans',
-                        'model': get_model_name('geo', 'FloorPlan'),
-                        'name': 'changelist',
-                        'icon': 'ow-floor',
+                        "label": "Floorplans",
+                        "model": get_model_name("geo", "FloorPlan"),
+                        "name": "changelist",
+                        "icon": "ow-floor",
                     },
                 },
-                'icon': 'ow-geo',
+                "icon": "ow-geo",
             },
         )
 

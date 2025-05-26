@@ -11,35 +11,35 @@ from .. import settings as app_settings
 from ..signals import group_templates_changed
 from .utils import CreateDeviceGroupMixin, CreateTemplateMixin
 
-DeviceGroup = load_model('config', 'DeviceGroup')
+DeviceGroup = load_model("config", "DeviceGroup")
 
 
 class TestDeviceGroup(CreateDeviceGroupMixin, CreateTemplateMixin, TestCase):
     def test_device_group(self):
         self._create_device_group(
-            meta_data={'captive_portal_url': 'https//example.com'}
+            meta_data={"captive_portal_url": "https//example.com"}
         )
         self.assertEqual(DeviceGroup.objects.count(), 1)
 
     def test_device_group_schema_validation(self):
         device_group_schema = {
-            'required': ['captive_portal_url'],
-            'properties': {
-                'captive_portal_url': {
-                    'type': 'string',
-                    'title': 'Captive Portal URL',
+            "required": ["captive_portal_url"],
+            "properties": {
+                "captive_portal_url": {
+                    "type": "string",
+                    "title": "Captive Portal URL",
                 },
             },
-            'additionalProperties': True,
+            "additionalProperties": True,
         }
 
-        with patch.object(app_settings, 'DEVICE_GROUP_SCHEMA', device_group_schema):
-            with self.subTest('Test for failing validation'):
+        with patch.object(app_settings, "DEVICE_GROUP_SCHEMA", device_group_schema):
+            with self.subTest("Test for failing validation"):
                 self.assertRaises(ValidationError, self._create_device_group)
 
-            with self.subTest('Test for passing validation'):
+            with self.subTest("Test for passing validation"):
                 self._create_device_group(
-                    meta_data={'captive_portal_url': 'https://example.com'}
+                    meta_data={"captive_portal_url": "https://example.com"}
                 )
 
     def test_device_group_signals(self):
@@ -54,10 +54,10 @@ class TestDeviceGroup(CreateDeviceGroupMixin, CreateTemplateMixin, TestCase):
             group_templates_changed_handler.assert_not_called()
             post_save_handler.assert_called_with(
                 signal=post_save,
-                sender=load_model('config', 'DeviceGroup'),
+                sender=load_model("config", "DeviceGroup"),
                 instance=dg,
                 created=True,
                 update_fields=None,
                 raw=False,
-                using='default',
+                using="default",
             )

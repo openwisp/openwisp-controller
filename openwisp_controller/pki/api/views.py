@@ -20,19 +20,19 @@ from .serializers import (
     CertRevokeRenewSerializer,
 )
 
-Ca = load_model('django_x509', 'Ca')
-Cert = load_model('django_x509', 'Cert')
+Ca = load_model("django_x509", "Ca")
+Cert = load_model("django_x509", "Cert")
 
 
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
 class CaListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = CaListSerializer
-    queryset = Ca.objects.order_by('-created')
+    queryset = Ca.objects.order_by("-created")
     pagination_class = ListViewPagination
 
 
@@ -60,26 +60,26 @@ class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
     queryset = Ca.objects.none()
 
     def retrieve(self, request, *args, **kwargs):
-        instance = get_object_or_404(Ca, pk=kwargs['pk'])
+        instance = get_object_or_404(Ca, pk=kwargs["pk"])
         return HttpResponse(
-            instance.crl, status=200, content_type='application/x-pem-file'
+            instance.crl, status=200, content_type="application/x-pem-file"
         )
 
 
 class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = CertListSerializer
-    queryset = Cert.objects.order_by('-created')
+    queryset = Cert.objects.order_by("-created")
     pagination_class = ListViewPagination
 
 
 class CertDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CertDetailSerializer
-    queryset = Cert.objects.select_related('ca')
+    queryset = Cert.objects.select_related("ca")
 
 
 class CertRevokeRenewBaseView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
-    queryset = Cert.objects.select_related('ca')
+    queryset = Cert.objects.select_related("ca")
 
 
 class CertRevokeView(CertRevokeRenewBaseView):

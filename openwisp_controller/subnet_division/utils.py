@@ -7,20 +7,20 @@ def get_subnet_division_config_context(config):
     """
     context = {}
     qs = config.subnetdivisionindex_set.values(
-        'keyword', 'subnet__subnet', 'ip__ip_address'
+        "keyword", "subnet__subnet", "ip__ip_address"
     )
     for entry in qs:
-        if entry['ip__ip_address'] is None:
-            context[entry['keyword']] = str(entry['subnet__subnet'])
+        if entry["ip__ip_address"] is None:
+            context[entry["keyword"]] = str(entry["subnet__subnet"])
         else:
-            context[entry['keyword']] = str(entry['ip__ip_address'])
+            context[entry["keyword"]] = str(entry["ip__ip_address"])
     prefixlen = (
-        config.subnetdivisionindex_set.select_related('rule')
-        .values('rule__label', 'rule__size')
+        config.subnetdivisionindex_set.select_related("rule")
+        .values("rule__label", "rule__size")
         .first()
     )
     if prefixlen:
-        context[f'{prefixlen["rule__label"]}_prefixlen'] = str(prefixlen['rule__size'])
+        context[f'{prefixlen["rule__label"]}_prefixlen'] = str(prefixlen["rule__size"])
     return context
 
 
@@ -38,8 +38,8 @@ def subnet_division_vpnclient_auto_ip(vpn_client):
         and vpn_client.vpn.subnet.subnetdivisionrule_set.filter(
             organization_id=vpn_client.config.device.organization,
             type=(
-                'openwisp_controller.subnet_division.rule_types.'
-                'vpn.VpnSubnetDivisionRuleType'
+                "openwisp_controller.subnet_division.rule_types."
+                "vpn.VpnSubnetDivisionRuleType"
             ),
         ).exists()
     )

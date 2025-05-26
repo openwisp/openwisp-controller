@@ -10,9 +10,9 @@ from ...mixins import ProtectedAPIMixin
 from ..admin import BaseConfigAdmin
 from .serializers import DeviceListSerializer, TemplateSerializer, VpnSerializer
 
-Vpn = load_model('config', 'Vpn')
-Device = load_model('config', 'Device')
-Template = load_model('config', 'Template')
+Vpn = load_model("config", "Vpn")
+Device = load_model("config", "Device")
+Template = load_model("config", "Template")
 
 
 class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
@@ -21,7 +21,7 @@ class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
     model = Vpn
 
     def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
+        return BaseConfigAdmin.download_view(self, request, pk=kwargs["pk"])
 
 
 class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
@@ -30,7 +30,7 @@ class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
     model = Device
 
     def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
+        return BaseConfigAdmin.download_view(self, request, pk=kwargs["pk"])
 
 
 class DownloadTemplateconfiguration(ProtectedAPIMixin, RetrieveAPIView):
@@ -39,7 +39,7 @@ class DownloadTemplateconfiguration(ProtectedAPIMixin, RetrieveAPIView):
     model = Template
 
     def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs['pk'])
+        return BaseConfigAdmin.download_view(self, request, pk=kwargs["pk"])
 
 
 download_vpn_config = DownloadVpnView.as_view()

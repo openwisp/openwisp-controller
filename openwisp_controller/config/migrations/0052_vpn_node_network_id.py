@@ -5,18 +5,18 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0051_organizationconfigsettings_context'),
+        ("config", "0051_organizationconfigsettings_context"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vpn',
-            name='node_id',
+            model_name="vpn",
+            name="node_id",
             field=models.CharField(blank=True, max_length=10),
         ),
         migrations.AddField(
-            model_name='vpn',
-            name='network_id',
+            model_name="vpn",
+            name="network_id",
             field=models.CharField(blank=True, max_length=16),
         ),
     ]

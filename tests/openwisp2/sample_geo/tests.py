@@ -9,11 +9,11 @@ from openwisp_controller.geo.tests.test_models import TestModels as BaseTestMode
 
 
 class TestAdmin(BaseTestAdmin):
-    app_label = 'sample_geo'
+    app_label = "sample_geo"
 
 
 class TestAdminInline(BaseTestAdminInline):
-    app_label = 'sample_geo'
+    app_label = "sample_geo"
 
 
 class TestApi(BaseTestApi):

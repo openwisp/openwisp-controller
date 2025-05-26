@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                     '"modified" means the configuration is not applied yet;'
                     ' \n"applied" means the configuration is applied successfully;'
                     ' \n"error" means the configuration caused issues and it was'
-                    ' rolled back;'
+                    " rolled back;"
                 ),
                 max_length=100,
                 no_check_for_status=True,

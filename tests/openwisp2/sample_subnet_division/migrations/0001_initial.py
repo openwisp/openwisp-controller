@@ -20,16 +20,16 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         migrations.swappable_dependency(settings.OPENWISP_IPAM_SUBNET_MODEL),
         migrations.swappable_dependency(settings.OPENWISP_IPAM_IPADDRESS_MODEL),
-        ('sample_config', '0003_name_unique_per_organization'),
+        ("sample_config", "0003_name_unique_per_organization"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SubnetDivisionRule',
+            name="SubnetDivisionRule",
             fields=[
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -38,104 +38,104 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'type',
+                    "type",
                     models.CharField(
                         choices=app_settings.SUBNET_DIVISION_TYPES, max_length=200
                     ),
                 ),
                 (
-                    'master_subnet',
+                    "master_subnet",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         to=settings.OPENWISP_IPAM_SUBNET_MODEL,
                     ),
                 ),
                 (
-                    'label',
+                    "label",
                     models.CharField(
-                        help_text='Label used to calculate the configuration variables',
+                        help_text="Label used to calculate the configuration variables",
                         max_length=30,
                     ),
                 ),
                 (
-                    'number_of_subnets',
+                    "number_of_subnets",
                     models.PositiveSmallIntegerField(
-                        help_text='Indicates how many subnets will be created',
-                        verbose_name='Number of Subnets',
+                        help_text="Indicates how many subnets will be created",
+                        verbose_name="Number of Subnets",
                         validators=[django.core.validators.MinValueValidator(1)],
                     ),
                 ),
                 (
-                    'size',
+                    "size",
                     models.PositiveSmallIntegerField(
-                        help_text='Indicates the size of each created subnet',
-                        verbose_name='Size of subnets',
+                        help_text="Indicates the size of each created subnet",
+                        verbose_name="Size of subnets",
                     ),
                 ),
                 (
-                    'number_of_ips',
+                    "number_of_ips",
                     models.PositiveSmallIntegerField(
                         help_text=(
-                            'Indicates how many IP addresses will '
-                            'be created for each subnet'
+                            "Indicates how many IP addresses will "
+                            "be created for each subnet"
                         ),
-                        verbose_name='Number of IPs',
+                        verbose_name="Number of IPs",
                         validators=[django.core.validators.MinValueValidator(1)],
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         to=settings.OPENWISP_USERS_ORGANIZATION_MODEL,
-                        verbose_name='organization',
+                        verbose_name="organization",
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.CreateModel(
-            name='SubnetDivisionIndex',
+            name="SubnetDivisionIndex",
             fields=[
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'id',
+                    "id",
                     models.AutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
-                ('keyword', models.CharField(max_length=30)),
+                ("keyword", models.CharField(max_length=30)),
                 (
-                    'config',
+                    "config",
                     models.ForeignKey(
                         null=True,
                         blank=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_config.config',
+                        to="sample_config.config",
                     ),
                 ),
                 (
-                    'ip',
+                    "ip",
                     models.ForeignKey(
                         null=True,
                         blank=True,
@@ -144,15 +144,15 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'rule',
+                    "rule",
                     models.ForeignKey(
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        to='sample_subnet_division.subnetdivisionrule',
+                        to="sample_subnet_division.subnetdivisionrule",
                     ),
                 ),
                 (
-                    'subnet',
+                    "subnet",
                     models.ForeignKey(
                         null=True,
                         blank=True,
@@ -161,33 +161,33 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
         ),
         migrations.AddConstraint(
-            model_name='subnetdivisionrule',
+            model_name="subnetdivisionrule",
             constraint=models.UniqueConstraint(
-                fields=('organization', 'label', 'type', 'master_subnet'),
-                name='unique_subnet_division_rule',
+                fields=("organization", "label", "type", "master_subnet"),
+                name="unique_subnet_division_rule",
             ),
         ),
         migrations.AddIndex(
-            model_name='subnetdivisionindex',
+            model_name="subnetdivisionindex",
             index=models.Index(
-                fields=['keyword'], name='sample_subn_keyword_3e0783_idx'
+                fields=["keyword"], name="sample_subn_keyword_3e0783_idx"
             ),
         ),
         migrations.AddConstraint(
-            model_name='subnetdivisionrule',
+            model_name="subnetdivisionrule",
             constraint=models.UniqueConstraint(
-                fields=('organization', 'label'),
-                name='unique_subnet_division_rule_label',
+                fields=("organization", "label"),
+                name="unique_subnet_division_rule_label",
             ),
         ),
         migrations.AddConstraint(
-            model_name='subnetdivisionindex',
+            model_name="subnetdivisionindex",
             constraint=models.UniqueConstraint(
-                fields=('keyword', 'subnet', 'ip', 'config'),
-                name='unique_subnet_division_index',
+                fields=("keyword", "subnet", "ip", "config"),
+                name="unique_subnet_division_index",
             ),
         ),
     ]

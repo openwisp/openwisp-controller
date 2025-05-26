@@ -8,20 +8,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.OPENWISP_IPAM_SUBNET_MODEL),
-        ('config', '0037_alter_taggedtemplate'),
+        ("config", "0037_alter_taggedtemplate"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vpn',
-            name='subnet',
+            model_name="vpn",
+            name="subnet",
             field=models.ForeignKey(
                 blank=True,
-                help_text='Subnet IP addresses used by VPN clients, if applicable',
+                help_text="Subnet IP addresses used by VPN clients, if applicable",
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 to=settings.OPENWISP_IPAM_SUBNET_MODEL,
-                verbose_name='Subnet',
+                verbose_name="Subnet",
             ),
         ),
     ]

@@ -6,28 +6,28 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('contenttypes', '0002_remove_content_type_name'),
-        ('config', '0036_device_group'),
+        ("contenttypes", "0002_remove_content_type_name"),
+        ("config", "0036_device_group"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='taggedtemplate',
-            name='content_type',
+            model_name="taggedtemplate",
+            name="content_type",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='%(app_label)s_%(class)s_tagged_items',
-                to='contenttypes.contenttype',
-                verbose_name='content type',
+                related_name="%(app_label)s_%(class)s_tagged_items",
+                to="contenttypes.contenttype",
+                verbose_name="content type",
             ),
         ),
         migrations.AlterField(
-            model_name='taggedtemplate',
-            name='tag',
+            model_name="taggedtemplate",
+            name="tag",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='%(app_label)s_%(class)s_items',
-                to='config.templatetag',
+                related_name="%(app_label)s_%(class)s_items",
+                to="config.templatetag",
             ),
         ),
     ]

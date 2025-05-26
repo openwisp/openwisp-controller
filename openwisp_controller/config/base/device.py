@@ -28,53 +28,53 @@ class AbstractDevice(OrgMixin, BaseModel):
     physical properties of a network device
     """
 
-    _changed_checked_fields = ['name', 'group_id', 'management_ip', 'organization_id']
+    _changed_checked_fields = ["name", "group_id", "management_ip", "organization_id"]
 
     name = models.CharField(
         max_length=64,
         unique=False,
         validators=[device_name_validator],
         db_index=True,
-        help_text=_('must be either a valid hostname or mac address'),
+        help_text=_("must be either a valid hostname or mac address"),
     )
     mac_address = models.CharField(
         max_length=17,
         db_index=True,
         unique=False,
         validators=[mac_address_validator],
-        help_text=_('primary mac address'),
+        help_text=_("primary mac address"),
     )
     key = KeyField(
         unique=True,
         blank=True,
         default=None,
         db_index=True,
-        help_text=_('unique device key'),
+        help_text=_("unique device key"),
     )
     model = models.CharField(
         max_length=64,
         blank=True,
         db_index=True,
-        help_text=_('device model and manufacturer'),
+        help_text=_("device model and manufacturer"),
     )
     os = models.CharField(
-        _('operating system'),
+        _("operating system"),
         blank=True,
         db_index=True,
         max_length=128,
-        help_text=_('operating system identifier'),
+        help_text=_("operating system identifier"),
     )
     system = models.CharField(
-        _('SOC / CPU'),
+        _("SOC / CPU"),
         blank=True,
         db_index=True,
         max_length=128,
-        help_text=_('system on chip or CPU info'),
+        help_text=_("system on chip or CPU info"),
     )
-    notes = models.TextField(blank=True, help_text=_('internal notes'))
+    notes = models.TextField(blank=True, help_text=_("internal notes"))
     group = models.ForeignKey(
-        get_model_name('config', 'DeviceGroup'),
-        verbose_name=_('group'),
+        get_model_name("config", "DeviceGroup"),
+        verbose_name=_("group"),
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
@@ -86,8 +86,8 @@ class AbstractDevice(OrgMixin, BaseModel):
         null=True,
         db_index=True,
         help_text=_(
-            'indicates the IP address logged from '
-            'the last request coming from the device'
+            "indicates the IP address logged from "
+            "the last request coming from the device"
         ),
     )
     management_ip = models.GenericIPAddressField(
@@ -95,10 +95,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         null=True,
         db_index=True,
         help_text=_(
-            'IP address used by the system to reach the device when performing '
-            'any type of push operation or active check. The value of this field is '
-            'generally sent by the device and hence does not need to be changed, '
-            'but can be changed or cleared manually if needed.'
+            "IP address used by the system to reach the device when performing "
+            "any type of push operation or active check. The value of this field is "
+            "generally sent by the device and hence does not need to be changed, "
+            "but can be changed or cleared manually if needed."
         ),
     )
     hardware_id = models.CharField(**(app_settings.HARDWARE_ID_OPTIONS))
@@ -109,8 +109,8 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     class Meta:
         unique_together = (
-            ('mac_address', 'organization'),
-            ('hardware_id', 'organization'),
+            ("mac_address", "organization"),
+            ("hardware_id", "organization"),
         )
         abstract = True
         verbose_name = app_settings.DEVICE_VERBOSE_NAME[0]
@@ -123,9 +123,9 @@ class AbstractDevice(OrgMixin, BaseModel):
     def _set_initial_values_for_changed_checked_fields(self):
         for field in self._changed_checked_fields:
             if self._is_deferred(field):
-                setattr(self, f'_initial_{field}', models.DEFERRED)
+                setattr(self, f"_initial_{field}", models.DEFERRED)
             else:
-                setattr(self, f'_initial_{field}', getattr(self, field))
+                setattr(self, f"_initial_{field}", getattr(self, field))
 
     def __str__(self):
         return (
@@ -135,14 +135,14 @@ class AbstractDevice(OrgMixin, BaseModel):
         )
 
     def _has_config(self):
-        return hasattr(self, 'config')
+        return hasattr(self, "config")
 
     def _has_group(self):
-        return hasattr(self, 'group') and self.group is not None
+        return hasattr(self, "group") and self.group is not None
 
     def _has_organization__config_settings(self):
-        return hasattr(self, 'organization') and hasattr(
-            self.organization, 'config_settings'
+        return hasattr(self, "organization") and hasattr(
+            self.organization, "config_settings"
         )
 
     def _get_config_attr(self, attr):
@@ -169,8 +169,8 @@ class AbstractDevice(OrgMixin, BaseModel):
     def _get_organization__config_settings(self):
         if self._has_organization__config_settings():
             return self.organization.config_settings
-        return load_model('config', 'OrganizationConfigSettings')(
-            organization=self.organization if hasattr(self, 'organization') else None
+        return load_model("config", "OrganizationConfigSettings")(
+            organization=self.organization if hasattr(self, "organization") else None
         )
 
     def is_deactivated(self):
@@ -185,7 +185,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             if self._has_config():
                 self.config.deactivate()
             else:
-                self.management_ip = ''
+                self.management_ip = ""
             self._is_deactivated = True
             self.save()
             device_deactivated.send(sender=self.__class__, instance=self)
@@ -217,7 +217,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 if app_settings.HARDWARE_ID_ENABLED
                 else self.mac_address
             )
-            hash_key = md5('{}+{}'.format(keybase, shared_secret).encode('utf-8'))
+            hash_key = md5("{}+{}".format(keybase, shared_secret).encode("utf-8"))
             return hash_key.hexdigest()
         else:
             return KeyField.default_callable()
@@ -228,7 +228,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             # is created.
             return
         if (
-            not hasattr(self, 'organization')
+            not hasattr(self, "organization")
             or self.organization.config_limits.device_limit == 0
         ):
             return
@@ -240,8 +240,8 @@ class AbstractDevice(OrgMixin, BaseModel):
             raise ValidationError(
                 _(
                     (
-                        'The maximum amount of allowed devices has been reached'
-                        ' for organization {org}.'
+                        "The maximum amount of allowed devices has been reached"
+                        " for organization {org}."
                     ).format(org=self.organization.name)
                 )
             )
@@ -249,7 +249,7 @@ class AbstractDevice(OrgMixin, BaseModel):
     def _validate_unique_name(self):
         if app_settings.DEVICE_NAME_UNIQUE:
             if (
-                hasattr(self, 'organization')
+                hasattr(self, "organization")
                 and self._meta.model.objects.filter(
                     ~Q(id=self.id),
                     organization=self.organization,
@@ -257,14 +257,14 @@ class AbstractDevice(OrgMixin, BaseModel):
                 ).exists()
             ):
                 raise ValidationError(
-                    _('Device with this Name and Organization already exists.')
+                    _("Device with this Name and Organization already exists.")
                 )
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
         self.mac_address = self.mac_address.upper()
         self._validate_unique_name()
-        self._validate_org_relation('group', field_error='group')
+        self._validate_org_relation("group", field_error="group")
         self._validate_org_device_limit()
 
     def save(self, *args, **kwargs):
@@ -292,14 +292,14 @@ class AbstractDevice(OrgMixin, BaseModel):
             not self.is_deactivated()
             or (self._has_config() and not self.config.is_deactivated())
         ):
-            raise PermissionDenied('The device must be deactivated prior to deletion')
+            raise PermissionDenied("The device must be deactivated prior to deletion")
         return super().delete(using, keep_parents)
 
     def _check_changed_fields(self):
         self._get_initial_values_for_checked_fields()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
-            getattr(self, f'_check_{field}_changed')()
+            getattr(self, f"_check_{field}_changed")()
 
     def _is_deferred(self, field):
         """
@@ -317,7 +317,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         present_values = dict()
         for field in self._changed_checked_fields:
             if getattr(
-                self, f'_initial_{field}'
+                self, f"_initial_{field}"
             ) == models.DEFERRED and not self._is_deferred(field):
                 present_values[field] = getattr(self, field)
         # Skip fetching values from database if all of the checked fields are
@@ -326,7 +326,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             return
         self.refresh_from_db(fields=present_values.keys())
         for field in self._changed_checked_fields:
-            setattr(self, f'_initial_{field}', field)
+            setattr(self, f"_initial_{field}", field)
             setattr(self, field, present_values[field])
 
     def _check_name_changed(self):
@@ -392,7 +392,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         Used as a shortcut for display purposes
         (eg: admin site)
         """
-        return self._get_config_attr('get_backend_display')
+        return self._get_config_attr("get_backend_display")
 
     @property
     def status(self):
@@ -400,7 +400,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         Used as a shortcut for display purposes
         (eg: admin site)
         """
-        return self._get_config_attr('get_status_display')
+        return self._get_config_attr("get_status_display")
 
     def get_default_templates(self):
         """
@@ -415,11 +415,11 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     @classmethod
     def get_config_model(cls):
-        return cls._meta.get_field('config').related_model
+        return cls._meta.get_field("config").related_model
 
     @classmethod
     def get_group_model(cls):
-        return cls._meta.get_field('group').related_model
+        return cls._meta.get_field("group").related_model
 
     @classmethod
     def get_config_settings_model(cls):
@@ -440,7 +440,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         returns True if the device can and should be updated
         can be overridden with custom logic if needed
         """
-        return self.config.status != 'applied'
+        return self.config.status != "applied"
 
     def create_default_config(self, **options):
         """
@@ -459,17 +459,17 @@ class AbstractDevice(OrgMixin, BaseModel):
         """
         This method is used to manage group templates for devices.
         """
-        Device = load_model('config', 'Device')
-        DeviceGroup = load_model('config', 'DeviceGroup')
-        Template = load_model('config', 'Template')
+        Device = load_model("config", "Device")
+        DeviceGroup = load_model("config", "DeviceGroup")
+        Template = load_model("config", "Template")
         if type(device_ids) is not list:
             device_ids = [device_ids]
             old_group_ids = [old_group_ids]
         for device_id, old_group_id in zip(device_ids, old_group_ids):
             device = Device.objects.get(pk=device_id)
-            if not hasattr(device, 'config'):
+            if not hasattr(device, "config"):
                 device.create_default_config()
-            config_created = hasattr(device, 'config')
+            config_created = hasattr(device, "config")
             if not config_created:
                 # device has no config (device group has no templates)
                 return
@@ -489,4 +489,4 @@ class AbstractDevice(OrgMixin, BaseModel):
         Clear management IP of the device when the device's config status
         is changed to 'deactivated'.
         """
-        cls.objects.filter(pk=instance.device_id).update(management_ip='')
+        cls.objects.filter(pk=instance.device_id).update(management_ip="")

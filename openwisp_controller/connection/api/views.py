@@ -24,15 +24,15 @@ from .serializers import (
     DeviceConnectionSerializer,
 )
 
-Command = load_model('connection', 'Command')
-Device = load_model('config', 'Device')
-Credentials = load_model('connection', 'Credentials')
-DeviceConnection = load_model('connection', 'DeviceConnection')
+Command = load_model("connection", "Command")
+Device = load_model("config", "Device")
+Credentials = load_model("connection", "Credentials")
+DeviceConnection = load_model("connection", "DeviceConnection")
 
 
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
@@ -41,7 +41,7 @@ class BaseCommandView(
     FilterByParentManaged,
 ):
     model = Command
-    queryset = Command.objects.prefetch_related('device')
+    queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
 
     def get_permissions(self):
@@ -49,15 +49,15 @@ class BaseCommandView(
 
     def get_parent_queryset(self):
         return Device.objects.filter(
-            pk=self.kwargs['device_id'],
+            pk=self.kwargs["device_id"],
         )
 
     def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs['device_id'])
+        return super().get_queryset().filter(device_id=self.kwargs["device_id"])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['device_id']
+        context["device_id"] = self.kwargs["device_id"]
         return context
 
 
@@ -73,7 +73,7 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['pk'],
+            "id": self.kwargs["pk"],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         # May raise a permission denied
@@ -82,7 +82,7 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
 
 
 class CredentialListCreateView(ProtectedAPIMixin, ListCreateAPIView):
-    queryset = Credentials.objects.order_by('-created')
+    queryset = Credentials.objects.order_by("-created")
     serializer_class = CredentialSerializer
     pagination_class = ListViewPagination
 
@@ -97,11 +97,11 @@ class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
     serializer_class = DeviceConnectionSerializer
 
     def get_queryset(self):
-        return DeviceConnection.objects.prefetch_related('device')
+        return DeviceConnection.objects.prefetch_related("device")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['device_id']
+        context["device_id"] = self.kwargs["device_id"]
         return context
 
     def initial(self, *args, **kwargs):
@@ -112,11 +112,11 @@ class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
         try:
             assert self.get_parent_queryset().exists()
         except (AssertionError, ValidationError):
-            device_id = self.kwargs['device_id']
+            device_id = self.kwargs["device_id"]
             raise NotFound(detail=f'Device with ID "{device_id}" not found.')
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['device_id'])
+        return Device.objects.filter(pk=self.kwargs["device_id"])
 
 
 class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
@@ -126,8 +126,8 @@ class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
         return (
             super()
             .get_queryset()
-            .filter(device_id=self.kwargs['device_id'])
-            .order_by('-created')
+            .filter(device_id=self.kwargs["device_id"])
+            .order_by("-created")
         )
 
 
@@ -135,7 +135,7 @@ class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIV
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['pk'],
+            "id": self.kwargs["pk"],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         self.check_object_permissions(self.request, obj)

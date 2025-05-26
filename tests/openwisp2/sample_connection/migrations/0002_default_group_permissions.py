@@ -7,7 +7,7 @@ from openwisp_controller.connection.migrations import (
 
 
 class Migration(migrations.Migration):
-    dependencies = [('sample_connection', '0001_initial')]
+    dependencies = [("sample_connection", "0001_initial")]
 
     operations = [
         migrations.RunPython(

@@ -4,45 +4,45 @@ from swapper import load_model
 
 from ..config.exportable import DeviceResource
 
-DeviceLocation = load_model('geo', 'DeviceLocation')
+DeviceLocation = load_model("geo", "DeviceLocation")
 
 
 class GeoDeviceResource(DeviceResource):
     venue = Field(
-        attribute='devicelocation__location__name', column_name='venue', readonly=True
+        attribute="devicelocation__location__name", column_name="venue", readonly=True
     )
     address = Field(
-        attribute='devicelocation__location__address',
-        column_name='address',
+        attribute="devicelocation__location__address",
+        column_name="address",
         readonly=True,
     )
     coords = Field(
-        attribute='devicelocation__location__geometry',
-        column_name='coords',
+        attribute="devicelocation__location__geometry",
+        column_name="coords",
         readonly=True,
     )
     is_mobile = Field(
-        attribute='devicelocation__location__is_mobile',
-        column_name='is_mobile',
+        attribute="devicelocation__location__is_mobile",
+        column_name="is_mobile",
         readonly=True,
     )
     venue_type = Field(
-        attribute='devicelocation__location__type',
-        column_name='venue_type',
+        attribute="devicelocation__location__type",
+        column_name="venue_type",
         readonly=True,
     )
     floor = Field(
-        attribute='devicelocation__floorplan__floor', column_name='floor', readonly=True
+        attribute="devicelocation__floorplan__floor", column_name="floor", readonly=True
     )
     floor_position = Field(
-        attribute='devicelocation__indoor', column_name='floor_position', default=None
+        attribute="devicelocation__indoor", column_name="floor_position", default=None
     )
     location_id = Field(
-        attribute='devicelocation__location_id', column_name='location_id', default=None
+        attribute="devicelocation__location_id", column_name="location_id", default=None
     )
     floorplan_id = Field(
-        attribute='devicelocation__floorplan_id',
-        column_name='floorplan_id',
+        attribute="devicelocation__floorplan_id",
+        column_name="floorplan_id",
         default=None,
     )
 
@@ -54,7 +54,7 @@ class GeoDeviceResource(DeviceResource):
 
     def after_init_instance(self, instance, new, row, **kwargs):
         super().after_init_instance(instance, new, row, **kwargs)
-        if not hasattr(instance, 'devicelocation'):
+        if not hasattr(instance, "devicelocation"):
             instance.devicelocation = DeviceLocation()
 
     def validate_instance(
@@ -90,5 +90,5 @@ class GeoDeviceResource(DeviceResource):
         ]
         # fmt: on
         # add id fields at the end
-        fields += ['location_id', 'floorplan_id']
+        fields += ["location_id", "floorplan_id"]
         export_order = fields

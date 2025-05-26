@@ -9,78 +9,78 @@ import openwisp_controller.config.base.template
 
 class Migration(migrations.Migration):
     dependencies = [
-        swapper.dependency('pki', 'Ca'),
-        swapper.dependency('openwisp_ipam', 'IpAddress'),
-        swapper.dependency('openwisp_ipam', 'Subnet'),
-        ('config', '0038_vpn_subnet'),
+        swapper.dependency("pki", "Ca"),
+        swapper.dependency("openwisp_ipam", "IpAddress"),
+        swapper.dependency("openwisp_ipam", "Subnet"),
+        ("config", "0038_vpn_subnet"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vpn',
-            name='ip',
+            model_name="vpn",
+            name="ip",
             field=models.ForeignKey(
                 blank=True,
                 help_text=(
-                    'Internal IP address of the VPN server interface, if applicable'
+                    "Internal IP address of the VPN server interface, if applicable"
                 ),
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to=swapper.get_model_name('openwisp_ipam', 'IpAddress'),
-                verbose_name='Internal IP',
+                to=swapper.get_model_name("openwisp_ipam", "IpAddress"),
+                verbose_name="Internal IP",
             ),
         ),
         migrations.AddField(
-            model_name='vpn',
-            name='private_key',
+            model_name="vpn",
+            name="private_key",
             field=models.CharField(blank=True, max_length=44),
         ),
         migrations.AddField(
-            model_name='vpn',
-            name='public_key',
+            model_name="vpn",
+            name="public_key",
             field=models.CharField(blank=True, max_length=44),
         ),
         migrations.AddField(
-            model_name='vpn',
-            name='auth_token',
+            model_name="vpn",
+            name="auth_token",
             field=models.CharField(
                 blank=True,
                 help_text=(
-                    'Authentication token used for triggering '
+                    "Authentication token used for triggering "
                     '"Webhook Endpoint" or for calling "ZerotierService" API'
                 ),
                 max_length=128,
                 null=True,
-                verbose_name='Webhook AuthToken',
+                verbose_name="Webhook AuthToken",
             ),
         ),
         migrations.AddField(
-            model_name='vpn',
-            name='webhook_endpoint',
+            model_name="vpn",
+            name="webhook_endpoint",
             field=models.CharField(
                 blank=True,
                 help_text=(
-                    'Webhook to trigger for updating server configuration '
-                    '(e.g. https://openwisp2.mydomain.com:8081/trigger-update)'
+                    "Webhook to trigger for updating server configuration "
+                    "(e.g. https://openwisp2.mydomain.com:8081/trigger-update)"
                 ),
                 max_length=128,
                 null=True,
-                verbose_name='Webhook Endpoint',
+                verbose_name="Webhook Endpoint",
             ),
         ),
         migrations.AddField(
-            model_name='vpnclient',
-            name='private_key',
+            model_name="vpnclient",
+            name="private_key",
             field=models.CharField(blank=True, max_length=44),
         ),
         migrations.AddField(
-            model_name='vpnclient',
-            name='public_key',
+            model_name="vpnclient",
+            name="public_key",
             field=models.CharField(blank=True, max_length=44),
         ),
         migrations.AddField(
-            model_name='vpnclient',
-            name='vni',
+            model_name="vpnclient",
+            name="vni",
             field=models.PositiveIntegerField(
                 blank=True,
                 db_index=True,
@@ -92,43 +92,43 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name='template',
-            name='auto_cert',
+            model_name="template",
+            name="auto_cert",
             field=models.BooleanField(
                 db_index=True,
                 default=openwisp_controller.config.base.template.default_auto_cert,
                 help_text=(
-                    'whether tunnel specific configuration (cryptographic keys, '
-                    'ip addresses, etc) should be automatically generated and '
-                    'managed behind the scenes for each configuration using this '
-                    'template, valid only for the VPN type'
+                    "whether tunnel specific configuration (cryptographic keys, "
+                    "ip addresses, etc) should be automatically generated and "
+                    "managed behind the scenes for each configuration using this "
+                    "template, valid only for the VPN type"
                 ),
-                verbose_name='automatic tunnel provisioning',
+                verbose_name="automatic tunnel provisioning",
             ),
         ),
         migrations.AlterField(
-            model_name='vpn',
-            name='ca',
+            model_name="vpn",
+            name="ca",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to=swapper.get_model_name('pki', 'Ca'),
-                verbose_name='Certification Authority',
+                to=swapper.get_model_name("pki", "Ca"),
+                verbose_name="Certification Authority",
             ),
         ),
         migrations.AlterUniqueTogether(
-            name='vpnclient',
-            unique_together={('config', 'vpn'), ('vpn', 'vni')},
+            name="vpnclient",
+            unique_together={("config", "vpn"), ("vpn", "vni")},
         ),
         migrations.AddField(
-            model_name='vpnclient',
-            name='ip',
+            model_name="vpnclient",
+            name="ip",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to=swapper.get_model_name('openwisp_ipam', 'IpAddress'),
+                to=swapper.get_model_name("openwisp_ipam", "IpAddress"),
             ),
         ),
     ]

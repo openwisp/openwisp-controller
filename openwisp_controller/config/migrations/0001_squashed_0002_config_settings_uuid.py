@@ -25,16 +25,16 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('pki', '0001_initial'),
-        dependency(*split(settings.AUTH_USER_MODEL), version='0004_default_groups'),
+        ("pki", "0001_initial"),
+        dependency(*split(settings.AUTH_USER_MODEL), version="0004_default_groups"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Config',
+            name="Config",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -42,133 +42,133 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ('name', models.CharField(max_length=64, unique=True)),
+                ("name", models.CharField(max_length=64, unique=True)),
                 (
-                    'backend',
+                    "backend",
                     models.CharField(
                         choices=app_settings.BACKENDS,
                         help_text=(
                             'Select <a href="http://netjsonconfig.openwisp.org'
                             '/en/stable/" target="_blank">netjsonconfig</a> '
-                            'backend'
+                            "backend"
                         ),
                         max_length=128,
-                        verbose_name='backend',
+                        verbose_name="backend",
                     ),
                 ),
                 (
-                    'config',
+                    "config",
                     jsonfield.fields.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={'ensure_ascii': False, 'indent': 4},
-                        help_text='configuration in NetJSON DeviceConfiguration format',
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                        verbose_name='configuration',
+                        dump_kwargs={"ensure_ascii": False, "indent": 4},
+                        help_text="configuration in NetJSON DeviceConfiguration format",
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+                        verbose_name="configuration",
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'status',
+                    "status",
                     model_utils.fields.StatusField(
                         choices=[
-                            ('modified', 'modified'),
-                            ('running', 'running'),
-                            ('error', 'error'),
+                            ("modified", "modified"),
+                            ("running", "running"),
+                            ("error", "error"),
                         ],
-                        default='modified',
+                        default="modified",
                         help_text=(
-                            'modified means the configuration is not applied '
-                            'yet; running means applied and running; error means the '
-                            'configuration caused issues and it was rolledback'
+                            "modified means the configuration is not applied "
+                            "yet; running means applied and running; error means the "
+                            "configuration caused issues and it was rolledback"
                         ),
                         max_length=100,
                         no_check_for_status=True,
                     ),
                 ),
                 (
-                    'key',
+                    "key",
                     models.CharField(
                         db_index=True,
                         default=openwisp_utils.utils.get_random_key,
                         help_text=(
-                            'unique key that can be used to download the configuration'
+                            "unique key that can be used to download the configuration"
                         ),
                         max_length=64,
                         unique=True,
                         validators=[
                             django.core.validators.RegexValidator(
-                                re.compile('^[^\\s/\\.]+$', 32),
-                                code='invalid',
-                                message='Key must not contain spaces, dots or slashes.',
+                                re.compile("^[^\\s/\\.]+$", 32),
+                                code="invalid",
+                                message="Key must not contain spaces, dots or slashes.",
                             )
                         ],
                     ),
                 ),
                 (
-                    'mac_address',
+                    "mac_address",
                     models.CharField(
-                        help_text='primary mac address',
+                        help_text="primary mac address",
                         max_length=17,
                         unique=True,
                         validators=[
                             django.core.validators.RegexValidator(
                                 re.compile(
-                                    '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', 32
+                                    "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})", 32
                                 ),
-                                code='invalid',
-                                message='Must be a valid mac address.',
+                                code="invalid",
+                                message="Must be a valid mac address.",
                             )
                         ],
                     ),
                 ),
                 (
-                    'last_ip',
+                    "last_ip",
                     models.GenericIPAddressField(
                         blank=True,
                         help_text=(
-                            'indicates the last ip from which the '
-                            'configuration was downloaded from (except '
-                            'downloads from this page)'
+                            "indicates the last ip from which the "
+                            "configuration was downloaded from (except "
+                            "downloads from this page)"
                         ),
                         null=True,
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to=get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'configuration',
-                'verbose_name_plural': 'configurations',
-                'abstract': False,
+                "verbose_name": "configuration",
+                "verbose_name_plural": "configurations",
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='OrganizationConfigSettings',
+            name="OrganizationConfigSettings",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -177,57 +177,57 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'registration_enabled',
+                    "registration_enabled",
                     models.BooleanField(
                         default=True,
                         help_text=(
-                            'Whether automatic registration of devices is '
-                            'enabled or not'
+                            "Whether automatic registration of devices is "
+                            "enabled or not"
                         ),
-                        verbose_name='auto-registration enabled',
+                        verbose_name="auto-registration enabled",
                     ),
                 ),
                 (
-                    'shared_secret',
+                    "shared_secret",
                     openwisp_utils.base.KeyField(
                         db_index=True,
                         default=openwisp_utils.utils.get_random_key,
-                        help_text='used for automatic registration of devices',
+                        help_text="used for automatic registration of devices",
                         max_length=32,
                         unique=True,
                         validators=[
                             django.core.validators.RegexValidator(
-                                re.compile('^[^\\s/\\.]+$'),
-                                code='invalid',
+                                re.compile("^[^\\s/\\.]+$"),
+                                code="invalid",
                                 message=(
-                                    'This value must not contain spaces, dots '
-                                    'or slashes.'
+                                    "This value must not contain spaces, dots "
+                                    "or slashes."
                                 ),
                             )
                         ],
-                        verbose_name='shared secret',
+                        verbose_name="shared secret",
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='config_settings',
-                        to=get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        related_name="config_settings",
+                        to=get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Configuration management settings',
-                'verbose_name_plural': 'Configuration management settings',
+                "verbose_name": "Configuration management settings",
+                "verbose_name_plural": "Configuration management settings",
             },
         ),
         migrations.CreateModel(
-            name='Template',
+            name="Template",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -235,9 +235,9 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ('name', models.CharField(max_length=64, unique=True)),
+                ("name", models.CharField(max_length=64, unique=True)),
                 (
-                    'backend',
+                    "backend",
                     models.CharField(
                         choices=app_settings.BACKENDS,
                         help_text=(
@@ -245,98 +245,98 @@ class Migration(migrations.Migration):
                             '/en/stable/" target="_blank">netjsonconfig</a> backend'
                         ),
                         max_length=128,
-                        verbose_name='backend',
+                        verbose_name="backend",
                     ),
                 ),
                 (
-                    'config',
+                    "config",
                     jsonfield.fields.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={'ensure_ascii': False, 'indent': 4},
-                        help_text='configuration in NetJSON DeviceConfiguration format',
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                        verbose_name='configuration',
+                        dump_kwargs={"ensure_ascii": False, "indent": 4},
+                        help_text="configuration in NetJSON DeviceConfiguration format",
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+                        verbose_name="configuration",
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'type',
+                    "type",
                     models.CharField(
-                        choices=[('generic', 'Generic'), ('vpn', 'VPN-client')],
+                        choices=[("generic", "Generic"), ("vpn", "VPN-client")],
                         db_index=True,
-                        default='generic',
+                        default="generic",
                         help_text=(
-                            'template type, determines which features are available'
+                            "template type, determines which features are available"
                         ),
                         max_length=16,
-                        verbose_name='type',
+                        verbose_name="type",
                     ),
                 ),
                 (
-                    'default',
+                    "default",
                     models.BooleanField(
                         db_index=True,
                         default=False,
                         help_text=(
-                            'whether new configurations will have this '
-                            'template enabled by default'
+                            "whether new configurations will have this "
+                            "template enabled by default"
                         ),
-                        verbose_name='enabled by default',
+                        verbose_name="enabled by default",
                     ),
                 ),
                 (
-                    'auto_cert',
+                    "auto_cert",
                     models.BooleanField(
                         db_index=True,
                         default=(
                             openwisp_controller.config.base.template.default_auto_cert
                         ),
                         help_text=(
-                            'whether x509 client certificates should be automatically '
-                            'managed behind the scenes for each configuration '
-                            'using this template, valid only for the VPN type'
+                            "whether x509 client certificates should be automatically "
+                            "managed behind the scenes for each configuration "
+                            "using this template, valid only for the VPN type"
                         ),
-                        verbose_name='auto certificate',
+                        verbose_name="auto certificate",
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to=get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'template',
-                'verbose_name_plural': 'templates',
-                'abstract': False,
+                "verbose_name": "template",
+                "verbose_name_plural": "templates",
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='Vpn',
+            name="Vpn",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -344,160 +344,160 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ('name', models.CharField(max_length=64, unique=True)),
+                ("name", models.CharField(max_length=64, unique=True)),
                 (
-                    'config',
+                    "config",
                     jsonfield.fields.JSONField(
                         default=dict,
-                        dump_kwargs={'ensure_ascii': False, 'indent': 4},
-                        help_text='configuration in NetJSON DeviceConfiguration format',
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                        verbose_name='configuration',
+                        dump_kwargs={"ensure_ascii": False, "indent": 4},
+                        help_text="configuration in NetJSON DeviceConfiguration format",
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+                        verbose_name="configuration",
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'host',
+                    "host",
                     models.CharField(
-                        help_text='VPN server hostname or ip address', max_length=64
+                        help_text="VPN server hostname or ip address", max_length=64
                     ),
                 ),
                 (
-                    'backend',
+                    "backend",
                     models.CharField(
                         choices=app_settings.VPN_BACKENDS,
-                        help_text='Select VPN configuration backend',
+                        help_text="Select VPN configuration backend",
                         max_length=128,
-                        verbose_name='VPN backend',
+                        verbose_name="VPN backend",
                     ),
                 ),
-                ('notes', models.TextField(blank=True)),
-                ('dh', models.TextField(blank=True)),
+                ("notes", models.TextField(blank=True)),
+                ("dh", models.TextField(blank=True)),
                 (
-                    'ca',
+                    "ca",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='pki.Ca',
-                        verbose_name='Certification Authority',
+                        to="pki.Ca",
+                        verbose_name="Certification Authority",
                     ),
                 ),
                 (
-                    'cert',
-                    models.ForeignKey(
-                        blank=True,
-                        help_text='leave blank to create automatically',
-                        null=True,
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to='pki.Cert',
-                        verbose_name='x509 Certificate',
-                    ),
-                ),
-                (
-                    'organization',
+                    "cert",
                     models.ForeignKey(
                         blank=True,
+                        help_text="leave blank to create automatically",
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to="pki.Cert",
+                        verbose_name="x509 Certificate",
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'VPN server',
-                'verbose_name_plural': 'VPN servers',
-                'abstract': False,
+                "verbose_name": "VPN server",
+                "verbose_name_plural": "VPN servers",
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='VpnClient',
+            name="VpnClient",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.AutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
-                ('auto_cert', models.BooleanField(default=False)),
+                ("auto_cert", models.BooleanField(default=False)),
                 (
-                    'cert',
+                    "cert",
                     models.OneToOneField(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='pki.Cert',
+                        to="pki.Cert",
                     ),
                 ),
                 (
-                    'config',
+                    "config",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to='config.Config'
+                        on_delete=django.db.models.deletion.CASCADE, to="config.Config"
                     ),
                 ),
                 (
-                    'vpn',
+                    "vpn",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to='config.Vpn'
+                        on_delete=django.db.models.deletion.CASCADE, to="config.Vpn"
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'VPN client',
-                'verbose_name_plural': 'VPN clients',
-                'abstract': False,
+                "verbose_name": "VPN client",
+                "verbose_name_plural": "VPN clients",
+                "abstract": False,
             },
         ),
         migrations.AddField(
-            model_name='template',
-            name='vpn',
+            model_name="template",
+            name="vpn",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to='config.Vpn',
-                verbose_name='VPN',
+                to="config.Vpn",
+                verbose_name="VPN",
             ),
         ),
         migrations.AddField(
-            model_name='config',
-            name='templates',
+            model_name="config",
+            name="templates",
             field=SortedManyToManyField(
                 blank=True,
-                help_text='configuration templates, applied from first to last',
-                related_name='config_relations',
-                to='config.Template',
-                verbose_name='templates',
+                help_text="configuration templates, applied from first to last",
+                related_name="config_relations",
+                to="config.Template",
+                verbose_name="templates",
             ),
         ),
         migrations.AddField(
-            model_name='config',
-            name='vpn',
+            model_name="config",
+            name="vpn",
             field=models.ManyToManyField(
                 blank=True,
-                related_name='vpn_relations',
-                through='config.VpnClient',
-                to='config.Vpn',
+                related_name="vpn_relations",
+                through="config.VpnClient",
+                to="config.Vpn",
             ),
         ),
         migrations.AlterUniqueTogether(
-            name='vpnclient', unique_together=set([('config', 'vpn')])
+            name="vpnclient", unique_together=set([("config", "vpn")])
         ),
     ]

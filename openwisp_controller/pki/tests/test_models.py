@@ -9,8 +9,8 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .utils import TestPkiMixin
 
-Ca = load_model('django_x509', 'Ca')
-Cert = load_model('django_x509', 'Cert')
+Ca = load_model("django_x509", "Ca")
+Cert = load_model("django_x509", "Cert")
 
 
 class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
@@ -26,14 +26,14 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
     def test_cert_and_ca_different_organization(self):
         org1 = self._get_org()
         ca = self._create_ca(organization=org1)
-        org2 = self._create_org(name='test org2', slug='test-org2')
+        org2 = self._create_org(name="test org2", slug="test-org2")
         try:
             self._create_cert(ca=ca, organization=org2)
         except ValidationError as e:
-            self.assertIn('organization', e.message_dict)
-            self.assertIn('related CA match', e.message_dict['organization'][0])
+            self.assertIn("organization", e.message_dict)
+            self.assertIn("related CA match", e.message_dict["organization"][0])
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_cert_creation(self):
         org = self._get_org()
@@ -49,16 +49,16 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
     def test_crl_view(self):
         self._login()
         ca = self._create_ca()
-        response = self.client.get(reverse('admin:crl', args=[ca.pk]))
+        response = self.client.get(reverse("admin:crl", args=[ca.pk]))
         self.assertEqual(response.status_code, 200)
         crl = crypto.load_crl(crypto.FILETYPE_PEM, response.content)
         revoked_list = crl.get_revoked()
         self.assertIsNone(revoked_list)
 
     def test_unique_together_org_none(self):
-        ca = self._create_ca(organization=None, common_name='common_name')
+        ca = self._create_ca(organization=None, common_name="common_name")
         with self.assertRaises(ValidationError):
-            self._create_ca(organization=None, common_name='common_name')
+            self._create_ca(organization=None, common_name="common_name")
         self._create_cert(ca=ca)
         with self.assertRaises(ValidationError):
             self._create_cert(ca=ca)

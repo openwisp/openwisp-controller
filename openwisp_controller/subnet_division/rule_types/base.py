@@ -14,11 +14,11 @@ from ..signals import subnet_provisioned
 
 logger = logging.getLogger(__name__)
 
-Subnet = load_model('openwisp_ipam', 'Subnet')
-IpAddress = load_model('openwisp_ipam', 'IpAddress')
-SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
-SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
-VpnClient = load_model('config', 'VpnClient')
+Subnet = load_model("openwisp_ipam", "Subnet")
+IpAddress = load_model("openwisp_ipam", "IpAddress")
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
+SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
+VpnClient = load_model("config", "VpnClient")
 
 
 class BaseSubnetDivisionRuleType(object):
@@ -32,7 +32,7 @@ class BaseSubnetDivisionRuleType(object):
 
     organization_id_path = None
     subnet_path = None
-    config_path = 'config'
+    config_path = "config"
 
     @classmethod
     def validate_rule_type(cls):
@@ -58,8 +58,8 @@ class BaseSubnetDivisionRuleType(object):
             # This method is also called by "provision_for_existing_objects"
             # which passes the "rule" keyword argument. In such case,
             # provisioning should be only triggered for received rule.
-            if 'rule' in kwargs:
-                rules = [kwargs['rule']]
+            if "rule" in kwargs:
+                rules = [kwargs["rule"]]
             else:
                 try:
                     rules = cls.get_subnet_division_rules(instance)
@@ -128,7 +128,7 @@ class BaseSubnetDivisionRuleType(object):
             config, division_rule, generated_subnets, generated_indexes
         )
         SubnetDivisionIndex.objects.bulk_create(generated_indexes)
-        return {'subnets': generated_subnets, 'ip_addresses': generated_ips}
+        return {"subnets": generated_subnets, "ip_addresses": generated_ips}
 
     @classmethod
     def get_organization(cls, instance):
@@ -140,7 +140,7 @@ class BaseSubnetDivisionRuleType(object):
 
     @classmethod
     def get_subnet_division_rules(cls, instance):
-        rule_type = f'{cls.__module__}.{cls.__name__}'
+        rule_type = f"{cls.__module__}.{cls.__name__}"
         organization_id = cls.get_organization(instance)
         subnet = cls.get_subnet(instance)
         return subnet.subnetdivisionrule_set.filter(
@@ -150,7 +150,7 @@ class BaseSubnetDivisionRuleType(object):
 
     @classmethod
     def get_config(cls, instance):
-        if cls.config_path == 'self':
+        if cls.config_path == "self":
             config = instance
         else:
             config = attrgetter(cls.config_path)(instance)
@@ -168,7 +168,7 @@ class BaseSubnetDivisionRuleType(object):
         # Only PostgreSQL supports ordering queryset using the "subnet"
         # field. If the project is using any other database backend, then
         # "created" field is used for ordering the queryset.
-        order_field = '-subnet' if connection.vendor == 'postgresql' else '-created'
+        order_field = "-subnet" if connection.vendor == "postgresql" else "-created"
         try:
             max_subnet = (
                 # Get the highest subnet created for this master_subnet
@@ -186,9 +186,9 @@ class BaseSubnetDivisionRuleType(object):
                 )
             )
             subnet_obj = Subnet(
-                name=f'Reserved Subnet {required_subnet}',
+                name=f"Reserved Subnet {required_subnet}",
                 subnet=str(required_subnet),
-                description=_('Automatically generated reserved subnet.'),
+                description=_("Automatically generated reserved subnet."),
                 master_subnet_id=master_subnet.id,
                 organization_id=master_subnet.organization_id,
             )
@@ -207,26 +207,26 @@ class BaseSubnetDivisionRuleType(object):
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
                 notify.send(
                     sender=config,
-                    type='generic_message',
+                    type="generic_message",
                     target=config.device,
                     action_object=master_subnet,
-                    level='error',
+                    level="error",
                     message=_(
-                        'Failed to provision subnets for'
-                        ' [{notification.target}]({notification.target_link})'
+                        "Failed to provision subnets for"
+                        " [{notification.target}]({notification.target_link})"
                     ),
                     description=_(
-                        'The [{notification.action_object}]({notification.action_link})'
-                        ' subnet has run out of space.'
+                        "The [{notification.action_object}]({notification.action_link})"
+                        " subnet has run out of space."
                     ),
                 )
-                logger.info(f'Cannot create more subnets of {master_subnet}')
+                logger.info(f"Cannot create more subnets of {master_subnet}")
                 break
             subnet_obj = Subnet(
-                name=f'{division_rule.label}_subnet{subnet_id}',
+                name=f"{division_rule.label}_subnet{subnet_id}",
                 subnet=str(required_subnet),
                 description=_(
-                    f'Automatically generated using {division_rule.label} rule.'
+                    f"Automatically generated using {division_rule.label} rule."
                 ),
                 master_subnet_id=master_subnet.id,
                 organization_id=division_rule.organization_id,
@@ -235,7 +235,7 @@ class BaseSubnetDivisionRuleType(object):
             generated_subnets.append(subnet_obj)
             generated_indexes.append(
                 SubnetDivisionIndex(
-                    keyword=f'{division_rule.label}_subnet{subnet_id}',
+                    keyword=f"{division_rule.label}_subnet{subnet_id}",
                     subnet_id=subnet_obj.id,
                     rule_id=division_rule.id,
                     config=config,
@@ -273,7 +273,7 @@ class BaseSubnetDivisionRuleType(object):
                 keyword_index = ip_index if index_start == 1 else ip_index + 1
                 generated_indexes.append(
                     SubnetDivisionIndex(
-                        keyword=f'{subnet_obj.name}_ip{keyword_index}',
+                        keyword=f"{subnet_obj.name}_ip{keyword_index}",
                         subnet_id=subnet_obj.id,
                         ip_id=ip_obj.id,
                         rule_id=division_rule.id,
@@ -288,8 +288,8 @@ class BaseSubnetDivisionRuleType(object):
         # Deleting related subnets automatically deletes related IpAddress
         # and SubnetDivisionIndex objects
         config = cls.get_config(instance)
-        rule_type = f'{cls.__module__}.{cls.__name__}'
+        rule_type = f"{cls.__module__}.{cls.__name__}"
         subnet_ids = config.subnetdivisionindex_set.filter(
             rule__type=rule_type
-        ).values_list('subnet_id')
+        ).values_list("subnet_id")
         Subnet.objects.filter(id__in=subnet_ids).delete()

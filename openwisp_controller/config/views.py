@@ -13,10 +13,10 @@ from swapper import load_model
 from .settings import BACKENDS, VPN_BACKENDS
 from .utils import get_object_or_404
 
-Organization = load_model('openwisp_users', 'Organization')
-Template = load_model('config', 'Template')
-DeviceGroup = load_model('config', 'DeviceGroup')
-OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
+Organization = load_model("openwisp_users", "Organization")
+Template = load_model("config", "Template")
+DeviceGroup = load_model("config", "DeviceGroup")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 def get_relevant_templates(request, organization_id):
@@ -36,7 +36,7 @@ def get_relevant_templates(request, organization_id):
     queryset = (
         Template.objects.filter(**filter_options)
         .filter(Q(organization_id=org.pk) | Q(organization_id=None))
-        .only('id', 'name', 'backend', 'default', 'required')
+        .only("id", "name", "backend", "default", "required")
     )
     relevant_templates = {}
     for template in queryset:
@@ -58,20 +58,20 @@ for backend_path, label in ALL_BACKENDS:  # noqa
     backend = import_string(backend_path)
     schema = deepcopy(backend.schema)
     # must use conditional because some custom backends might not specify an hostname
-    if 'general' in schema['properties']:
+    if "general" in schema["properties"]:
         # hide hostname because it's handled via models
-        if 'hostname' in schema['properties']['general']['properties']:
-            del schema['properties']['general']['properties']['hostname']
+        if "hostname" in schema["properties"]["general"]["properties"]:
+            del schema["properties"]["general"]["properties"]["hostname"]
         # remove hosname from required properties
-        if 'hostname' in schema['properties']['general'].get('required', []):
-            del schema['properties']['general']['required']
+        if "hostname" in schema["properties"]["general"].get("required", []):
+            del schema["properties"]["general"]["required"]
     # start editor empty by default, except for VPN schemas
     if (backend_path, label) not in VPN_BACKENDS:
-        schema['defaultProperties'] = []
+        schema["defaultProperties"] = []
     available_schemas[backend_path] = schema
 available_schemas_json = json.dumps(available_schemas)
 
-login_required_error = json.dumps({'error': _('login required')})
+login_required_error = json.dumps({"error": _("login required")})
 
 # ``start_time`` will contain the datetime of the moment in which the
 # application server is started and it is used in the last-modified
@@ -91,7 +91,7 @@ def schema(request):
     else:
         c = login_required_error
         status = 403
-    return HttpResponse(c, status=status, content_type='application/json')
+    return HttpResponse(c, status=status, content_type="application/json")
 
 
 def get_default_values(request):
@@ -125,7 +125,7 @@ def get_default_values(request):
 
     def _update_default_values(model, model_where, default_values):
         try:
-            instance = model.objects.only('context').get(model_where)
+            instance = model.objects.only("context").get(model_where)
         except model.DoesNotExist:
             pass
         else:
@@ -135,16 +135,16 @@ def get_default_values(request):
 
     user = request.user
     try:
-        templates_pk_list = _clean_pk(request.GET.get('pks', '').split(','))
+        templates_pk_list = _clean_pk(request.GET.get("pks", "").split(","))
     except ValueError:
-        return JsonResponse({'error': 'invalid template pks were received'}, status=400)
-    group_pk = request.GET.get('group', None)
-    organization_pk = request.GET.get('organization', None)
+        return JsonResponse({"error": "invalid template pks were received"}, status=400)
+    group_pk = request.GET.get("group", None)
+    organization_pk = request.GET.get("organization", None)
     if group_pk:
         try:
             group_pk = _clean_pk([group_pk])[0]
         except ValueError:
-            return JsonResponse({'error': 'invalid group pk was received'}, status=400)
+            return JsonResponse({"error": "invalid group pk was received"}, status=400)
         else:
             group_where = Q(pk=group_pk)
             if not request.user.is_superuser:
@@ -154,7 +154,7 @@ def get_default_values(request):
             organization_pk = _clean_pk([organization_pk])[0]
         except ValueError:
             return JsonResponse(
-                {'error': 'invalid organization pk was received'}, status=400
+                {"error": "invalid organization pk was received"}, status=400
             )
         else:
             config_settings_where = Q(organization_id=organization_pk)
@@ -167,7 +167,7 @@ def get_default_values(request):
             Q(organization=None) | Q(organization__in=user.organizations_managed)
         )
     templates_qs = Template.objects.filter(templates_where).values(
-        'id', 'default_values'
+        "id", "default_values"
     )
     templates_qs_dict = {}
     # Create a mapping of UUID to default values of the templates in templates_
@@ -176,7 +176,7 @@ def get_default_values(request):
     # This ensures that default_values of templates that come later in the order
     # will override default_values of any previous template if same keys are present.
     for template in templates_qs:
-        templates_qs_dict[str(template['id'])] = template['default_values']
+        templates_qs_dict[str(template["id"])] = template["default_values"]
     default_values = {}
     for pk in templates_pk_list:
         default_values.update(templates_qs_dict.get(pk, {}))
@@ -189,4 +189,4 @@ def get_default_values(request):
     # Check for conflicting key's in DeviceGroup.context
     if group_pk:
         _update_default_values(DeviceGroup, group_where, default_values)
-    return JsonResponse({'default_values': default_values})
+    return JsonResponse({"default_values": default_values})

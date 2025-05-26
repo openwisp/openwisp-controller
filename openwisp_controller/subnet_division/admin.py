@@ -13,11 +13,11 @@ from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 from . import settings as app_settings
 from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
 
-SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
-SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
-Subnet = load_model('openwisp_ipam', 'Subnet')
-IpAddress = load_model('openwisp_ipam', 'IpAddress')
-Device = load_model('config', 'Device')
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
+SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
+Subnet = load_model("openwisp_ipam", "Subnet")
+IpAddress = load_model("openwisp_ipam", "IpAddress")
+Device = load_model("config", "Device")
 
 
 class SubnetDivisionRuleInlineAdmin(
@@ -26,19 +26,19 @@ class SubnetDivisionRuleInlineAdmin(
     model = SubnetDivisionRule
     extra = 0
     help_text = {
-        'text': _(
-            'Please keep in mind that once the subnet division rule is created '
+        "text": _(
+            "Please keep in mind that once the subnet division rule is created "
             'changing changing "Size", "Number of Subnets" or decreasing '
             '"Number of IPs" will not be possible.'
         ),
-        'documentation_url': (
-            'https://openwisp.io/docs/stable/controller/user/subnet-division-rules.html'
-            '#limitations-of-subnet-division-rules'
+        "documentation_url": (
+            "https://openwisp.io/docs/stable/controller/user/subnet-division-rules.html"
+            "#limitations-of-subnet-division-rules"
         ),
     }
 
     class Media:
-        js = ['admin/js/jquery.init.js', 'subnet-division/js/subnet-division.js']
+        js = ["admin/js/jquery.init.js", "subnet-division/js/subnet-division.js"]
 
 
 # Monkey patching DeviceAdmin to allow filtering using subnet
@@ -60,17 +60,17 @@ class SubnetAdmin(BaseSubnetAdmin):
     ]
     inlines = [SubnetDivisionRuleInlineAdmin] + list(BaseSubnetAdmin.inlines)
     list_display = BaseSubnetAdmin.list_display
-    list_display.insert(list_display.index('created'), 'related_device')
+    list_display.insert(list_display.index("created"), "related_device")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         subnet_division_index_qs = (
             SubnetDivisionIndex.objects.filter(
-                subnet_id__in=qs.filter(master_subnet__isnull=False).values('id'),
+                subnet_id__in=qs.filter(master_subnet__isnull=False).values("id"),
                 ip__isnull=True,
             )
-            .select_related('config__device')
-            .values_list('subnet_id', 'config__device__name')
+            .select_related("config__device")
+            .values_list("subnet_id", "config__device__name")
         )
         self._lookup = {}
         for subnet_id, device_name in subnet_division_index_qs:
@@ -80,22 +80,22 @@ class SubnetAdmin(BaseSubnetAdmin):
             qs = qs.exclude(
                 id__in=SubnetDivisionIndex.objects.filter(
                     ip__isnull=True, subnet__isnull=False
-                ).values_list('subnet_id')
+                ).values_list("subnet_id")
             )
 
         return qs
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
-        if obj is not None and 'related_device' not in fields:
-            fields = ('related_device',) + fields
+        if obj is not None and "related_device" not in fields:
+            fields = ("related_device",) + fields
         return fields
 
     def related_device(self, obj):
         app_label = Device._meta.app_label
-        url = reverse(f'admin:{app_label}_device_changelist')
+        url = reverse(f"admin:{app_label}_device_changelist")
         if obj.master_subnet is None:
-            msg_string = _('See all devices')
+            msg_string = _("See all devices")
             return mark_safe(
                 f'<a href="{url}?subnet={str(obj.subnet)}">{msg_string}</a>'
             )
@@ -122,7 +122,7 @@ class IpAddressAdmin(BaseIpAddressAdmin):
         if app_settings.HIDE_GENERATED_SUBNETS:
             qs = qs.exclude(
                 id__in=SubnetDivisionIndex.objects.filter(ip__isnull=False).values_list(
-                    'ip_id'
+                    "ip_id"
                 )
             )
         return qs

@@ -8,27 +8,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.OPENWISP_IPAM_IPADDRESS_MODEL),
-        ('config', '0039_wireguard_vxlan_ipam'),
+        ("config", "0039_wireguard_vxlan_ipam"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vpn',
-            name='ip',
+            model_name="vpn",
+            name="ip",
             field=models.ForeignKey(
                 blank=True,
                 help_text=(
-                    'Internal IP address of the VPN server interface, if applicable'
+                    "Internal IP address of the VPN server interface, if applicable"
                 ),
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 to=settings.OPENWISP_IPAM_IPADDRESS_MODEL,
-                verbose_name='Internal IP',
+                verbose_name="Internal IP",
             ),
         ),
         migrations.AlterField(
-            model_name='vpnclient',
-            name='ip',
+            model_name="vpnclient",
+            name="ip",
             field=models.ForeignKey(
                 blank=True,
                 null=True,

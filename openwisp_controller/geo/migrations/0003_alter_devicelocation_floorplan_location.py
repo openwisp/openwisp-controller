@@ -7,13 +7,13 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('geo', '0002_default_groups_permissions'),
+        ("geo", "0002_default_groups_permissions"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='devicelocation',
-            name='floorplan',
+            model_name="devicelocation",
+            name="floorplan",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
@@ -22,8 +22,8 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name='devicelocation',
-            name='location',
+            model_name="devicelocation",
+            name="location",
             field=models.ForeignKey(
                 blank=True,
                 null=True,

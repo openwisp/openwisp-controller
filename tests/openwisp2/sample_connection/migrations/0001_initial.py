@@ -22,19 +22,19 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('sample_config', '0001_initial'),
+        ("sample_config", "0001_initial"),
         swapper.dependency(
-            *swapper.split(settings.AUTH_USER_MODEL), version='0004_default_groups'
+            *swapper.split(settings.AUTH_USER_MODEL), version="0004_default_groups"
         ),
-        swapper.dependency('config', 'Device'),
+        swapper.dependency("config", "Device"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Credentials',
+            name="Credentials",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -43,69 +43,69 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
-                ('name', models.CharField(db_index=True, max_length=64, unique=True)),
+                ("name", models.CharField(db_index=True, max_length=64, unique=True)),
                 (
-                    'connector',
+                    "connector",
                     models.CharField(
                         choices=connection_settings.CONNECTORS,
                         db_index=True,
                         max_length=128,
-                        verbose_name='connection type',
+                        verbose_name="connection type",
                     ),
                 ),
                 (
-                    'params',
+                    "params",
                     jsonfield.fields.JSONField(
                         default=dict,
-                        dump_kwargs={'indent': 4},
-                        help_text='global connection parameters',
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                        verbose_name='parameters',
+                        dump_kwargs={"indent": 4},
+                        help_text="global connection parameters",
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+                        verbose_name="parameters",
                     ),
                 ),
                 (
-                    'auto_add',
+                    "auto_add",
                     models.BooleanField(
                         default=False,
                         help_text=(
-                            'automatically add these credentials to the '
-                            'devices of this organization; if no organization is '
-                            'specified will be added to all the new devices'
+                            "automatically add these credentials to the "
+                            "devices of this organization; if no organization is "
+                            "specified will be added to all the new devices"
                         ),
-                        verbose_name='auto add',
+                        verbose_name="auto add",
                     ),
                 ),
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=swapper.get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to=swapper.get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Access credentials',
-                'verbose_name_plural': 'Access credentials',
-                'abstract': False,
+                "verbose_name": "Access credentials",
+                "verbose_name_plural": "Access credentials",
+                "abstract": False,
             },
             bases=(
                 openwisp_controller.connection.base.models.ConnectorMixin,
@@ -114,10 +114,10 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.CreateModel(
-            name='DeviceConnection',
+            name="DeviceConnection",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -126,77 +126,77 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'update_strategy',
+                    "update_strategy",
                     models.CharField(
                         blank=True,
                         choices=connection_settings.UPDATE_STRATEGIES,
                         db_index=True,
-                        help_text='leave blank to determine automatically',
+                        help_text="leave blank to determine automatically",
                         max_length=128,
-                        verbose_name='update strategy',
+                        verbose_name="update strategy",
                     ),
                 ),
-                ('enabled', models.BooleanField(db_index=True, default=True)),
+                ("enabled", models.BooleanField(db_index=True, default=True)),
                 (
-                    'params',
+                    "params",
                     jsonfield.fields.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={'indent': 4},
+                        dump_kwargs={"indent": 4},
                         help_text=(
-                            'local connection parameters (will override the '
-                            'global parameters if specified)'
+                            "local connection parameters (will override the "
+                            "global parameters if specified)"
                         ),
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-                        verbose_name='parameters',
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+                        verbose_name="parameters",
                     ),
                 ),
                 (
-                    'is_working',
+                    "is_working",
                     models.BooleanField(blank=True, default=None, null=True),
                 ),
                 (
-                    'failure_reason',
-                    models.TextField(blank=True, verbose_name='reason of failure'),
+                    "failure_reason",
+                    models.TextField(blank=True, verbose_name="reason of failure"),
                 ),
-                ('last_attempt', models.DateTimeField(blank=True, null=True)),
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("last_attempt", models.DateTimeField(blank=True, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'credentials',
+                    "credentials",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_connection.Credentials',
+                        to="sample_connection.Credentials",
                     ),
                 ),
                 (
-                    'device',
+                    "device",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_config.Device',
+                        to="sample_config.Device",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Device connection',
-                'verbose_name_plural': 'Device connections',
-                'unique_together': {('device', 'credentials')},
-                'abstract': False,
+                "verbose_name": "Device connection",
+                "verbose_name_plural": "Device connections",
+                "unique_together": {("device", "credentials")},
+                "abstract": False,
             },
             bases=(
                 openwisp_controller.connection.base.models.ConnectorMixin,
@@ -204,10 +204,10 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.CreateModel(
-            name='Command',
+            name="Command",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -216,75 +216,77 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'status',
+                    "status",
                     models.CharField(
                         choices=[
-                            ('in-progress', 'in progress'),
-                            ('success', 'success'),
-                            ('failed', 'failed'),
+                            ("in-progress", "in progress"),
+                            ("success", "success"),
+                            ("failed", "failed"),
                         ],
-                        default='in-progress',
+                        default="in-progress",
                         max_length=12,
                     ),
                 ),
                 (
-                    'type',
+                    "type",
                     models.CharField(
-                        choices=COMMAND_CHOICES
-                        if django.VERSION < (5, 0)
-                        else get_command_choices,
+                        choices=(
+                            COMMAND_CHOICES
+                            if django.VERSION < (5, 0)
+                            else get_command_choices
+                        ),
                         max_length=16,
                     ),
                 ),
                 (
-                    'input',
+                    "input",
                     jsonfield.fields.JSONField(
                         blank=True,
-                        dump_kwargs={'indent': 4},
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                        dump_kwargs={"indent": 4},
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         null=True,
                     ),
                 ),
-                ('output', models.TextField(blank=True)),
+                ("output", models.TextField(blank=True)),
                 (
-                    'connection',
+                    "connection",
                     models.ForeignKey(
                         null=True,
                         blank=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        to=swapper.get_model_name('connection', 'DeviceConnection'),
+                        to=swapper.get_model_name("connection", "DeviceConnection"),
                     ),
                 ),
                 (
-                    'device',
+                    "device",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=swapper.get_model_name('config', 'Device'),
+                        to=swapper.get_model_name("config", "Device"),
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Command',
-                'verbose_name_plural': 'Commands',
-                'ordering': ('created',),
-                'abstract': False,
-                'swappable': swapper.swappable_setting('connection', 'Command'),
+                "verbose_name": "Command",
+                "verbose_name_plural": "Commands",
+                "ordering": ("created",),
+                "abstract": False,
+                "swappable": swapper.swappable_setting("connection", "Command"),
             },
         ),
     ]

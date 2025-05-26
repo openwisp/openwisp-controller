@@ -12,14 +12,14 @@ class OpenWrt(Ssh):
         try:
             output, exit_code = self.exec_command(
                 # "openwisp_config" for backword compatibility
-                '(openwisp-config --version || openwisp_config --version) 2>/dev/null'
+                "(openwisp-config --version || openwisp_config --version) 2>/dev/null"
             )
         except Exception as error:
-            logger.error('Unable to get version of openwisp-config')
+            logger.error("Unable to get version of openwisp-config")
             raise error
         else:
-            ow_config_version = output.split(' ')[-1]
-            if version.parse(ow_config_version) >= version.parse('0.6.0a'):
+            ow_config_version = output.split(" ")[-1]
+            if version.parse(ow_config_version) >= version.parse("0.6.0a"):
                 self.exec_signal_reload()
             else:
                 self.exec_legacy_restart()
@@ -27,25 +27,25 @@ class OpenWrt(Ssh):
     def exec_signal_reload(self):
         self.exec_command(
             (
-                'OW_CONFIG_PID=$(ps | grep openwisp | grep config | '
-                'grep -v "grep" | awk \'{print $1}\'); '
-                'kill -SIGUSR1 $OW_CONFIG_PID'
+                "OW_CONFIG_PID=$(ps | grep openwisp | grep config | "
+                "grep -v \"grep\" | awk '{print $1}'); "
+                "kill -SIGUSR1 $OW_CONFIG_PID"
             )
         )
 
     def exec_legacy_restart(self):
         _, exit_code = self.exec_command(
-            'test -f /tmp/openwisp/applying_conf', exit_codes=[0, 1]
+            "test -f /tmp/openwisp/applying_conf", exit_codes=[0, 1]
         )
         if exit_code == 1:
-            self.exec_command('/etc/init.d/openwisp_config restart')
+            self.exec_command("/etc/init.d/openwisp_config restart")
         else:
-            logger.info('Configuration already being applied')
+            logger.info("Configuration already being applied")
 
     def reboot(self):
-        return self.exec_command('reboot')
+        return self.exec_command("reboot")
 
-    def change_password(self, password, confirm_password, user='root'):
+    def change_password(self, password, confirm_password, user="root"):
         return self.exec_command(
             f'echo -e "{password}\n{confirm_password}" | passwd {user}'
         )

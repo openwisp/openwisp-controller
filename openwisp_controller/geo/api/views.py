@@ -25,10 +25,10 @@ from .serializers import (
     LocationSerializer,
 )
 
-Device = load_model('config', 'Device')
-Location = load_model('geo', 'Location')
-DeviceLocation = load_model('geo', 'DeviceLocation')
-FloorPlan = load_model('geo', 'FloorPlan')
+Device = load_model("config", "Device")
+Location = load_model("geo", "Location")
+DeviceLocation = load_model("geo", "DeviceLocation")
+FloorPlan = load_model("geo", "FloorPlan")
 
 
 class DevicePermission(BasePermission):
@@ -37,13 +37,13 @@ class DevicePermission(BasePermission):
         # because in the browsable UI this method is
         # getting passed also Location instances,
         # which do not have the key attribute
-        return hasattr(obj, 'key') and request.query_params.get('key') == obj.key
+        return hasattr(obj, "key") and request.query_params.get("key") == obj.key
 
 
 class LocationOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = Location
-        fields = OrganizationManagedFilter.Meta.fields + ['is_mobile', 'type']
+        fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
 
 
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
@@ -53,7 +53,7 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
 
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
@@ -61,7 +61,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
     serializer_class = DeviceCoordinatesSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
-        'devicelocation', 'devicelocation__location'
+        "devicelocation", "devicelocation__location"
     )
 
     def get_queryset(self):
@@ -77,19 +77,19 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
     def get_object(self, *args, **kwargs):
         device = super().get_object()
-        if self.request.method not in ('GET', 'HEAD') and device.is_deactivated():
+        if self.request.method not in ("GET", "HEAD") and device.is_deactivated():
             raise PermissionDenied
         location = self.get_location(device)
         if location:
             return location
-        if self.request.method == 'PUT':
+        if self.request.method == "PUT":
             return self.create_location(device)
         raise NotFound
 
     def create_location(self, device):
         location = Location(
             name=device.name,
-            type='outdoor',
+            type="outdoor",
             organization=device.organization,
             is_mobile=True,
         )
@@ -110,30 +110,30 @@ class DeviceLocationView(
 ):
     serializer_class = DeviceLocationSerializer
     queryset = DeviceLocation.objects.select_related(
-        'content_object', 'location', 'floorplan', 'content_object__organization'
+        "content_object", "location", "floorplan", "content_object__organization"
     )
-    lookup_field = 'content_object'
-    lookup_url_kwarg = 'pk'
-    organization_field = 'content_object__organization'
-    _device_field = 'content_object'
+    lookup_field = "content_object"
+    lookup_url_kwarg = "pk"
+    organization_field = "content_object__organization"
+    _device_field = "content_object"
 
     def get_queryset(self):
         qs = super().get_queryset()
         try:
-            return qs.filter(content_object=self.kwargs['pk'])
+            return qs.filter(content_object=self.kwargs["pk"])
         except ValidationError:
             return qs.none()
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['pk'])
+        return Device.objects.filter(pk=self.kwargs["pk"])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context.update({'device_id': self.kwargs['pk']})
+        context.update({"device_id": self.kwargs["pk"]})
         return context
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         instance = self.get_object_or_none()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -154,12 +154,12 @@ class DeviceLocationView(
         try:
             return self.get_object()
         except Http404:
-            if self.request.method == 'PUT':
+            if self.request.method == "PUT":
                 # For PUT-as-create operation, we need to ensure that we have
                 # relevant permissions, as if this was a POST request. This
                 # will either raise a PermissionDenied exception, or simply
                 # return None.
-                self.check_permissions(clone_request(self.request, 'POST'))
+                self.check_permissions(clone_request(self.request, "POST"))
             else:
                 # PATCH requests where the object does not exist should still
                 # return a 404 response.
@@ -178,7 +178,7 @@ class GeoJsonLocationList(
     """
 
     queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
-        device_count=Count('devicelocation')
+        device_count=Count("devicelocation")
     )
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
@@ -194,18 +194,18 @@ class LocationDeviceList(
     queryset = Device.objects.none()
 
     def get_parent_queryset(self):
-        qs = Location.objects.filter(pk=self.kwargs['pk'])
+        qs = Location.objects.filter(pk=self.kwargs["pk"])
         return qs
 
     def get_queryset(self):
         super().get_queryset()
-        qs = Device.objects.filter(devicelocation__location_id=self.kwargs['pk'])
+        qs = Device.objects.filter(devicelocation__location_id=self.kwargs["pk"])
         return qs
 
 
 class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = FloorPlanSerializer
-    queryset = FloorPlan.objects.select_related().order_by('-created')
+    queryset = FloorPlan.objects.select_related().order_by("-created")
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = FloorPlanOrganizationFilter
@@ -221,7 +221,7 @@ class FloorPlanDetailView(
 
 class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = LocationSerializer
-    queryset = Location.objects.order_by('-created')
+    queryset = Location.objects.order_by("-created")
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = LocationOrganizationFilter

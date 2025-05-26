@@ -5,7 +5,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .utils import CreateTemplateMixin
 
-Template = load_model('config', 'Template')
+Template = load_model("config", "Template")
 
 
 class TestTag(TestOrganizationMixin, CreateTemplateMixin, TestCase):
@@ -15,5 +15,5 @@ class TestTag(TestOrganizationMixin, CreateTemplateMixin, TestCase):
 
     def test_tag(self):
         t = self._create_template(organization=self._get_org())
-        t.tags.add('mesh')
-        self.assertEqual(t.tags.filter(name='mesh').count(), 1)
+        t.tags.add("mesh")
+        self.assertEqual(t.tags.filter(name="mesh").count(), 1)

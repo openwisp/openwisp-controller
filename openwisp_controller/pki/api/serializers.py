@@ -9,14 +9,14 @@ from swapper import load_model
 
 from ...serializers import BaseSerializer
 
-Ca = load_model('django_x509', 'Ca')
-Cert = load_model('django_x509', 'Cert')
+Ca = load_model("django_x509", "Ca")
+Cert = load_model("django_x509", "Cert")
 
 
 class BaseListSerializer(BaseSerializer):
     extensions = serializers.JSONField(
         initial=[],
-        help_text=_('additional x509 certificate extensions'),
+        help_text=_("additional x509 certificate extensions"),
         required=False,
     )
 
@@ -26,7 +26,7 @@ class BaseListSerializer(BaseSerializer):
     def validate(self, data):
         instance = self.instance or self.Meta.model(**data)
         instance.full_clean()
-        if data.get('certificate') and data.get('private_key'):
+        if data.get("certificate") and data.get("private_key"):
             data = self.get_import_data_hook(instance)
         return data
 
@@ -48,38 +48,38 @@ class CaListSerializer(BaseListSerializer):
     class Meta:
         model = Ca
         fields = [
-            'id',
-            'name',
-            'organization',
-            'notes',
-            'key_length',
-            'digest',
-            'validity_start',
-            'validity_end',
-            'country_code',
-            'state',
-            'city',
-            'organization_name',
-            'organizational_unit_name',
-            'email',
-            'common_name',
-            'extensions',
-            'serial_number',
-            'certificate',
-            'private_key',
-            'passphrase',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "organization",
+            "notes",
+            "key_length",
+            "digest",
+            "validity_start",
+            "validity_end",
+            "country_code",
+            "state",
+            "city",
+            "organization_name",
+            "organizational_unit_name",
+            "email",
+            "common_name",
+            "extensions",
+            "serial_number",
+            "certificate",
+            "private_key",
+            "passphrase",
+            "created",
+            "modified",
         ]
-        read_only_fields = ['created', 'modified']
+        read_only_fields = ["created", "modified"]
         extra_kwargs = {
-            'organization': {'required': True},
-            'common_name': {'default': '', 'required': False},
-            'key_length': {'initial': '2048'},
-            'digest': {'initial': 'sha256'},
-            'passphrase': {'write_only': True},
-            'validity_start': {'default': default_validity_start()},
-            'validity_end': {'default': default_ca_validity_end()},
+            "organization": {"required": True},
+            "common_name": {"default": "", "required": False},
+            "key_length": {"initial": "2048"},
+            "digest": {"initial": "sha256"},
+            "passphrase": {"write_only": True},
+            "validity_start": {"default": default_validity_start()},
+            "validity_end": {"default": default_ca_validity_end()},
         }
 
 
@@ -87,7 +87,7 @@ def get_ca_detail_fields(fields):
     """
     Returns the fields for the `CADetailSerializer`.
     """
-    fields.remove('passphrase')
+    fields.remove("passphrase")
     return fields
 
 
@@ -107,24 +107,24 @@ class CaRenewSerializer(CaDetailSerializer):
 
 def get_import_data(instance):
     data = {
-        'name': instance.name,
-        'organization': instance.organization,
-        'key_length': instance.key_length,
-        'digest': instance.digest,
-        'validity_start': instance.validity_start,
-        'validity_end': instance.validity_end,
-        'country_code': instance.country_code,
-        'state': instance.state,
-        'city': instance.city,
-        'organization_name': instance.organization_name,
-        'organizational_unit_name': instance.organizational_unit_name,
-        'email': instance.email,
-        'common_name': instance.common_name,
-        'extensions': instance.extensions,
-        'serial_number': instance.serial_number,
-        'certificate': instance.certificate,
-        'private_key': instance.private_key,
-        'passphrase': instance.passphrase,
+        "name": instance.name,
+        "organization": instance.organization,
+        "key_length": instance.key_length,
+        "digest": instance.digest,
+        "validity_start": instance.validity_start,
+        "validity_end": instance.validity_end,
+        "country_code": instance.country_code,
+        "state": instance.state,
+        "city": instance.city,
+        "organization_name": instance.organization_name,
+        "organizational_unit_name": instance.organizational_unit_name,
+        "email": instance.email,
+        "common_name": instance.common_name,
+        "extensions": instance.extensions,
+        "serial_number": instance.serial_number,
+        "certificate": instance.certificate,
+        "private_key": instance.private_key,
+        "passphrase": instance.passphrase,
     }
     return data
 
@@ -133,9 +133,9 @@ def get_cert_list_fields(fields):
     """
     Returns the fields for the `CertListSerializer`.
     """
-    fields.insert(3, 'ca')
-    fields.insert(5, 'revoked')
-    fields.insert(6, 'revoked_at')
+    fields.insert(3, "ca")
+    fields.insert(5, "revoked")
+    fields.insert(6, "revoked_at")
     return fields
 
 
@@ -145,21 +145,21 @@ class CertListSerializer(BaseListSerializer):
     class Meta:
         model = Cert
         fields = get_cert_list_fields(CaListSerializer.Meta.fields[:])
-        read_only_fields = ['created', 'modified']
+        read_only_fields = ["created", "modified"]
         extra_kwargs = {
-            'common_name': {'default': '', 'required': False},
-            'revoked': {'read_only': True},
-            'revoked_at': {'read_only': True},
-            'key_length': {'initial': '2048'},
-            'digest': {'initial': 'sha256'},
-            'passphrase': {'write_only': True},
-            'validity_start': {'default': default_validity_start()},
-            'validity_end': {'default': default_cert_validity_end()},
+            "common_name": {"default": "", "required": False},
+            "revoked": {"read_only": True},
+            "revoked_at": {"read_only": True},
+            "key_length": {"initial": "2048"},
+            "digest": {"initial": "sha256"},
+            "passphrase": {"write_only": True},
+            "validity_start": {"default": default_validity_start()},
+            "validity_end": {"default": default_cert_validity_end()},
         }
 
     def get_import_data_hook(self, instance):
         data = super().get_import_data_hook(instance)
-        data.update({'ca': instance.ca})
+        data.update({"ca": instance.ca})
         return data
 
     def default_validity_end_hook(self):
@@ -170,7 +170,7 @@ def get_cert_detail_fields(fields):
     """
     Returns the fields for the `CertDetailSerializer`.
     """
-    fields.remove('passphrase')
+    fields.remove("passphrase")
     return fields
 
 
@@ -180,7 +180,7 @@ class CertDetailSerializer(BaseSerializer):
     class Meta:
         model = Cert
         fields = get_cert_detail_fields(CertListSerializer.Meta.fields[:])
-        read_only_fields = ['ca'] + fields[5:]
+        read_only_fields = ["ca"] + fields[5:]
 
 
 class CertRevokeRenewSerializer(CertDetailSerializer):

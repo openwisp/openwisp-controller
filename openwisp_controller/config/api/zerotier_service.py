@@ -9,41 +9,41 @@ REQUEST_TIMEOUT = 5
 class ZerotierService:
     def _get_endpoint(self, property, operation, id):
         _API_ENDPOINTS = {
-            'network': {
-                'create': f'/controller/network/{id}______',
-                'get': f'/controller/network/{id}',
-                'update': f'/controller/network/{id}',
-                'delete': f'/controller/network/{id}',
+            "network": {
+                "create": f"/controller/network/{id}______",
+                "get": f"/controller/network/{id}",
+                "update": f"/controller/network/{id}",
+                "delete": f"/controller/network/{id}",
             }
         }
         return _API_ENDPOINTS.get(property).get(operation)
 
-    def __init__(self, host, token, subnet=''):
+    def __init__(self, host, token, subnet=""):
         self.host = host
         self.token = token
         self.subnet = subnet
-        self.url = f'http://{host}'
+        self.url = f"http://{host}"
         self.headers = {
-            'X-ZT1-Auth': self.token,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
+            "X-ZT1-Auth": self.token,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
         }
 
     def _get_repsonse(self, repsonse):
         # remove redundant fields from the response
         _redundant_fields = [
-            'authTokens',
-            'authorizationEndpoint',
-            'clientId',
-            'rulesSource',
-            'ssoEnabled',
-            'creationTime',
-            'name',
-            'nwid',
-            'objtype',
-            'revision',
-            'routes',
-            'ipAssignmentPools',
+            "authTokens",
+            "authorizationEndpoint",
+            "clientId",
+            "rulesSource",
+            "ssoEnabled",
+            "creationTime",
+            "name",
+            "nwid",
+            "objtype",
+            "revision",
+            "routes",
+            "ipAssignmentPools",
         ]
         for field in _redundant_fields:
             if field in repsonse.keys():
@@ -58,10 +58,10 @@ class ZerotierService:
         Params:
             config (dict): ZeroTier network config dict
         """
-        config['routes'] = [{'target': str(self.subnet), 'via': ''}]
+        config["routes"] = [{"target": str(self.subnet), "via": ""}]
         ip_end = str(self.subnet.broadcast_address)
         ip_start = str(next(self.subnet.hosts()))
-        config['ipAssignmentPools'] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
+        config["ipAssignmentPools"] = [{"ipRangeEnd": ip_end, "ipRangeStart": ip_start}]
         return config
 
     def get_node_status(self):
@@ -69,15 +69,15 @@ class ZerotierService:
         Fetches the status of the running ZeroTier controller
         This method is used for host validation during VPN creation
         """
-        url = f'{self.url}/status'
+        url = f"{self.url}/status"
         try:
             response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             return response
         except (Timeout, ConnectionError) as e:
             raise ValidationError(
                 {
-                    'host': _(
-                        'Failed to connect to the ZeroTier controller, Error: {0}'
+                    "host": _(
+                        "Failed to connect to the ZeroTier controller, Error: {0}"
                     ).format(e)
                 }
             )
@@ -89,7 +89,7 @@ class ZerotierService:
         Params:
             network_id (str): ID of the network to join
         """
-        url = f'{self.url}/network/{network_id}'
+        url = f"{self.url}/network/{network_id}"
         response = requests.post(
             url, json={}, headers=self.headers, timeout=REQUEST_TIMEOUT
         )
@@ -102,7 +102,7 @@ class ZerotierService:
         Params:
             network_id (str): ID of the network to leave
         """
-        url = f'{self.url}/network/{network_id}'
+        url = f"{self.url}/network/{network_id}"
         response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
         return response
 
@@ -128,7 +128,7 @@ class ZerotierService:
             return network_config
         except RequestException as e:
             raise ValidationError(
-                _('Failed to create ZeroTier network, Error: {0}').format(e)
+                _("Failed to create ZeroTier network, Error: {0}").format(e)
             )
 
     def update_network(self, config, network_id):
@@ -169,13 +169,13 @@ class ZerotierService:
             network_id (str): Network ID to which the member belongs
             member_ip (str): IP address to be assigned to the network member
         """
-        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        url = f"{self.url}/controller/network/{network_id}/member/{node_id}"
         response = requests.post(
             url,
             json={
-                'authorized': True,
-                'activeBridge': True,
-                'ipAssignments': [str(member_ip)],
+                "authorized": True,
+                "activeBridge": True,
+                "ipAssignments": [str(member_ip)],
             },
             headers=self.headers,
             timeout=5,
@@ -190,6 +190,6 @@ class ZerotierService:
             node_id (str): ID of the network member
             network_id (str): ID of the ZeroTier network
         """
-        url = f'{self.url}/controller/network/{network_id}/member/{node_id}'
+        url = f"{self.url}/controller/network/{network_id}/member/{node_id}"
         response = requests.delete(url, headers=self.headers, timeout=5)
         return response

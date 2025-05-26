@@ -18,18 +18,18 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('sample_config', '0002_default_groups_permissions'),
+        ("sample_config", "0002_default_groups_permissions"),
         swapper.dependency(
-            *swapper.split(settings.AUTH_USER_MODEL), version='0004_default_groups'
+            *swapper.split(settings.AUTH_USER_MODEL), version="0004_default_groups"
         ),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Location',
+            name="Location",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -38,100 +38,100 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'name',
+                    "name",
                     models.CharField(
                         help_text=(
-                            'A descriptive name of the location '
-                            '(building name, company name, etc.)'
+                            "A descriptive name of the location "
+                            "(building name, company name, etc.)"
                         ),
                         max_length=75,
-                        verbose_name='name',
+                        verbose_name="name",
                     ),
                 ),
                 (
-                    'type',
+                    "type",
                     models.CharField(
                         choices=[
                             (
-                                'outdoor',
+                                "outdoor",
                                 (
-                                    'Outdoor environment (eg: street, square, '
-                                    'garden, land)'
+                                    "Outdoor environment (eg: street, square, "
+                                    "garden, land)"
                                 ),
                             ),
                             (
-                                'indoor',
+                                "indoor",
                                 (
-                                    'Indoor environment (eg: building, roofs, subway, '
-                                    'large vehicles)'
+                                    "Indoor environment (eg: building, roofs, subway, "
+                                    "large vehicles)"
                                 ),
                             ),
                         ],
                         db_index=True,
                         help_text=(
-                            'indoor locations can have floorplans associated to them'
+                            "indoor locations can have floorplans associated to them"
                         ),
                         max_length=8,
                     ),
                 ),
                 (
-                    'is_mobile',
+                    "is_mobile",
                     models.BooleanField(
                         db_index=True,
                         default=False,
-                        help_text='is this location a moving object?',
-                        verbose_name='is mobile?',
+                        help_text="is this location a moving object?",
+                        verbose_name="is mobile?",
                     ),
                 ),
                 (
-                    'address',
+                    "address",
                     models.CharField(
                         blank=True,
                         db_index=True,
                         max_length=256,
-                        verbose_name='address',
+                        verbose_name="address",
                     ),
                 ),
                 (
-                    'geometry',
+                    "geometry",
                     django.contrib.gis.db.models.fields.GeometryField(
-                        blank=True, null=True, srid=4326, verbose_name='geometry'
+                        blank=True, null=True, srid=4326, verbose_name="geometry"
                     ),
                 ),
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=swapper.get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to=swapper.get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.CreateModel(
-            name='FloorPlan',
+            name="FloorPlan",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -140,56 +140,56 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
-                ('floor', models.SmallIntegerField(verbose_name='floor')),
+                ("floor", models.SmallIntegerField(verbose_name="floor")),
                 (
-                    'image',
+                    "image",
                     models.ImageField(
-                        help_text='floor plan image',
+                        help_text="floor plan image",
                         storage=django_loci.storage.OverwriteStorage(),
                         upload_to=django_loci.storage.OverwriteStorage.upload_to,
-                        verbose_name='image',
+                        verbose_name="image",
                     ),
                 ),
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'location',
+                    "location",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_geo.Location',
+                        to="sample_geo.Location",
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=swapper.get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to=swapper.get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
-            options={'abstract': False, 'unique_together': {('location', 'floor')}},
+            options={"abstract": False, "unique_together": {("location", "floor")}},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
         migrations.CreateModel(
-            name='DeviceLocation',
+            name="DeviceLocation",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -198,58 +198,58 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'indoor',
+                    "indoor",
                     models.CharField(
                         blank=True,
                         max_length=64,
                         null=True,
-                        verbose_name='indoor position',
+                        verbose_name="indoor position",
                     ),
                 ),
-                ('details', models.CharField(blank=True, max_length=64, null=True)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
-                    'content_object',
+                    "content_object",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_config.Device',
+                        to="sample_config.Device",
                     ),
                 ),
                 (
-                    'floorplan',
+                    "floorplan",
                     models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.PROTECT,
-                        to='sample_geo.FloorPlan',
+                        to="sample_geo.FloorPlan",
                     ),
                 ),
                 (
-                    'location',
+                    "location",
                     models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.PROTECT,
-                        to='sample_geo.Location',
+                        to="sample_geo.Location",
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
             bases=(openwisp_users.mixins.ValidateOrgMixin, models.Model),
         ),
     ]

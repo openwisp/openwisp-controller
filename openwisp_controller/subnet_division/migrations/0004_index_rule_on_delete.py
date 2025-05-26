@@ -7,13 +7,13 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('subnet_division', '0003_related_field_allow_blank'),
+        ("subnet_division", "0003_related_field_allow_blank"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='subnetdivisionindex',
-            name='rule',
+            model_name="subnetdivisionindex",
+            name="rule",
             field=models.ForeignKey(
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,

@@ -7,12 +7,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.CONFIG_DEVICE_MODEL),
-        ('connection', '0008_remove_conflicting_deviceconnections'),
+        ("connection", "0008_remove_conflicting_deviceconnections"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='deviceconnection',
-            unique_together={('device', 'credentials')},
+            name="deviceconnection",
+            unique_together={("device", "credentials")},
         ),
     ]

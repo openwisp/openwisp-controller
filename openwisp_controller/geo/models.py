@@ -6,19 +6,19 @@ from .base.models import BaseDeviceLocation, BaseFloorPlan, BaseLocation
 class Location(BaseLocation):
     class Meta(BaseLocation.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('geo', 'Location')
+        swappable = swapper.swappable_setting("geo", "Location")
 
 
 class FloorPlan(BaseFloorPlan):
     class Meta(BaseFloorPlan.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('geo', 'FloorPlan')
+        swappable = swapper.swappable_setting("geo", "FloorPlan")
 
 
 class DeviceLocation(BaseDeviceLocation):
     class Meta(BaseDeviceLocation.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('geo', 'DeviceLocation')
+        swappable = swapper.swappable_setting("geo", "DeviceLocation")
 
 
 # maintain compatibility with django_loci

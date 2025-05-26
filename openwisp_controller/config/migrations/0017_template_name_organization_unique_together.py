@@ -5,11 +5,11 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0016_default_organization_config_settings'),
+        ("config", "0016_default_organization_config_settings"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='template', unique_together={('organization', 'name')}
+            name="template", unique_together={("organization", "name")}
         )
     ]

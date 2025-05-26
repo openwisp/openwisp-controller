@@ -14,16 +14,16 @@ class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
         abstract = True
         constraints = [
             models.UniqueConstraint(
-                fields=['common_name', 'organization'],
-                name='%(app_label)s_%(class)s_comman_name_and_organization_is_unique',
+                fields=["common_name", "organization"],
+                name="%(app_label)s_%(class)s_comman_name_and_organization_is_unique",
             ),
         ]
 
 
 class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
     ca = models.ForeignKey(
-        get_model_name('django_x509', 'Ca'),
-        verbose_name=_('CA'),
+        get_model_name("django_x509", "Ca"),
+        verbose_name=_("CA"),
         on_delete=models.CASCADE,
     )
 
@@ -31,10 +31,10 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
         abstract = True
         constraints = [
             models.UniqueConstraint(
-                fields=['common_name', 'organization'],
-                name='%(app_label)s_%(class)s_comman_name_and_organization_is_unique',
+                fields=["common_name", "organization"],
+                name="%(app_label)s_%(class)s_comman_name_and_organization_is_unique",
             ),
         ]
 
     def clean(self):
-        self._validate_org_relation('ca')
+        self._validate_org_relation("ca")

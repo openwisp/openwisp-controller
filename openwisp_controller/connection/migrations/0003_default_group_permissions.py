@@ -4,7 +4,7 @@ from . import assign_permissions_to_groups
 
 
 class Migration(migrations.Migration):
-    dependencies = [('connection', '0002_credentials_auto_add')]
+    dependencies = [("connection", "0002_credentials_auto_add")]
 
     operations = [
         migrations.RunPython(

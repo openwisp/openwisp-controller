@@ -4,7 +4,7 @@ from openwisp_controller.pki.migrations import assign_permissions_to_groups
 
 
 class Migration(migrations.Migration):
-    dependencies = [('sample_pki', '0001_initial')]
+    dependencies = [("sample_pki", "0001_initial")]
 
     operations = [
         migrations.RunPython(

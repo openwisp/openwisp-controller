@@ -14,9 +14,9 @@ class UnqiueCommonNameMixin(object):
         ):
             raise ValidationError(
                 {
-                    '__all__': [
-                        f'{self._meta.model._meta.verbose_name} with this Common name '
-                        'and Organization already exists.'
+                    "__all__": [
+                        f"{self._meta.model._meta.verbose_name} with this Common name "
+                        "and Organization already exists."
                     ]
                 }
             )

@@ -7,43 +7,43 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0045_alter_vpn_webhook_endpoint'),
+        ("config", "0045_alter_vpn_webhook_endpoint"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='OrganizationLimits',
+            name="OrganizationLimits",
             fields=[
                 (
-                    'device_limit',
+                    "device_limit",
                     models.BigIntegerField(
                         default=0,
                         null=True,
                         blank=True,
-                        verbose_name='device limit',
+                        verbose_name="device limit",
                         help_text=(
-                            'Maximum number of devices allowed for this organization.'
+                            "Maximum number of devices allowed for this organization."
                             ' "0" means unlimited.'
                         ),
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
                         primary_key=True,
                         serialize=False,
-                        related_name='config_limits',
-                        to=swapper.get_model_name('openwisp_users', 'organization'),
-                        verbose_name='organization',
+                        related_name="config_limits",
+                        to=swapper.get_model_name("openwisp_users", "organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'controller limits',
-                'verbose_name_plural': 'controller limits',
-                'abstract': False,
-                'swappable': 'CONFIG_ORGANIZATIONLIMITS_MODEL',
+                "verbose_name": "controller limits",
+                "verbose_name_plural": "controller limits",
+                "abstract": False,
+                "swappable": "CONFIG_ORGANIZATIONLIMITS_MODEL",
             },
         ),
     ]

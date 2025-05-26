@@ -36,7 +36,7 @@ class BaseConfig(BaseModel):
     """
 
     backend = models.CharField(
-        _('backend'),
+        _("backend"),
         choices=app_settings.BACKENDS,
         max_length=128,
         help_text=_(
@@ -45,11 +45,11 @@ class BaseConfig(BaseModel):
         ),
     )
     config = JSONField(
-        _('configuration'),
+        _("configuration"),
         default=dict,
-        help_text=_('configuration in NetJSON DeviceConfiguration format'),
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        help_text=_("configuration in NetJSON DeviceConfiguration format"),
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
     )
 
     __template__ = False
@@ -66,7 +66,7 @@ class BaseConfig(BaseModel):
         if self.config is None:
             self.config = {}
         if not isinstance(self.config, dict):
-            raise ValidationError({'config': _('Unexpected configuration format.')})
+            raise ValidationError({"config": _("Unexpected configuration format.")})
         # perform validation only if backend is defined, otherwise
         # django will take care of notifying blank field error
         if not self.backend:
@@ -75,7 +75,7 @@ class BaseConfig(BaseModel):
             backend = self.backend_instance
         except ImportError as e:
             message = 'Error while importing "{0}": {1}'.format(self.backend, e)
-            raise ValidationError({'backend': message})
+            raise ValidationError({"backend": message})
         else:
             self.clean_netjsonconfig_backend(backend)
 
@@ -89,9 +89,9 @@ class BaseConfig(BaseModel):
             return config
         c = deepcopy(config)
         is_config = not any([self.__template__, self.__vpn__])
-        if all(('hostname' not in c.get('general', {}), is_config, self.name)):
-            c.setdefault('general', {})
-            c['general']['hostname'] = self.name.replace(':', '-')
+        if all(("hostname" not in c.get("general", {}), is_config, self.name)):
+            c.setdefault("general", {})
+            c["general"]["hostname"] = self.name.replace(":", "-")
         return c
 
     def get_context(self):
@@ -119,11 +119,11 @@ class BaseConfig(BaseModel):
             cls.validate_netjsonconfig_backend(backend)
         except SchemaError as e:
             path = [str(el) for el in e.details.path]
-            trigger = '/'.join(path)
+            trigger = "/".join(path)
             error = e.details.message
             message = (
                 'Invalid configuration triggered by "#/{0}", '
-                'validator says:\n\n{1}'.format(trigger, error)
+                "validator says:\n\n{1}".format(trigger, error)
             )
             raise ValidationError(message)
 
@@ -147,22 +147,22 @@ class BaseConfig(BaseModel):
         needed for pre validation of m2m
         """
         backend = self.backend_class
-        kwargs.update({'config': self.get_config()})
+        kwargs.update({"config": self.get_config()})
         context = context or {}
         # determine if we can pass templates
         # expecting a many2many relationship
-        if hasattr(self, 'templates'):
+        if hasattr(self, "templates"):
             if template_instances is None:
                 template_instances = self.templates.all()
             templates_list = list()
             for t in template_instances:
                 templates_list.append(t.config)
                 context.update(t.get_context())
-            kwargs['templates'] = templates_list
+            kwargs["templates"] = templates_list
         # pass context to backend if get_context method is defined
-        if hasattr(self, 'get_context'):
+        if hasattr(self, "get_context"):
             context.update(self.get_context())
-            kwargs['context'] = context
+            kwargs["context"] = context
         backend_instance = backend(**kwargs)
         # remove accidentally duplicated files when combining config and templates
         # this may happen if a device uses multiple VPN client templates
@@ -174,13 +174,13 @@ class BaseConfig(BaseModel):
 
     @classmethod
     def _remove_duplicated_files(cls, backend_instance):
-        if 'files' not in backend_instance.config:
+        if "files" not in backend_instance.config:
             return
         unique_files = []
-        for file in backend_instance.config['files']:
+        for file in backend_instance.config["files"]:
             if file not in unique_files:
                 unique_files.append(file)
-        backend_instance.config['files'] = unique_files
+        backend_instance.config["files"] = unique_files
 
     def generate(self):
         """

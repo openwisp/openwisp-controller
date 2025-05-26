@@ -15,9 +15,9 @@ from .signals import is_working_changed
 
 
 class ConnectionConfig(AppConfig):
-    name = 'openwisp_controller.connection'
-    label = 'connection'
-    verbose_name = _('Network Device Credentials')
+    name = "openwisp_controller.connection"
+    label = "connection"
+    verbose_name = _("Network Device Credentials")
     # List of reasons for which notifications should
     # not be generated if a device connection errors out.
     # Intended to be used internally by OpenWISP to
@@ -34,26 +34,26 @@ class ConnectionConfig(AppConfig):
         self.notification_cache_update()
         self.register_menu_groups()
 
-        Config = load_model('config', 'Config')
-        Credentials = load_model('connection', 'Credentials')
-        Command = load_model('connection', 'Command')
+        Config = load_model("config", "Config")
+        Credentials = load_model("connection", "Credentials")
+        Command = load_model("connection", "Command")
 
         config_modified.connect(
-            self.config_modified_receiver, dispatch_uid='connection.update_config'
+            self.config_modified_receiver, dispatch_uid="connection.update_config"
         )
         config_deactivating.connect(
-            self.config_modified_receiver, dispatch_uid='connection.update_config'
+            self.config_modified_receiver, dispatch_uid="connection.update_config"
         )
 
         post_save.connect(
             Credentials.auto_add_credentials_to_device,
             sender=Config,
-            dispatch_uid='connection.auto_add_credentials',
+            dispatch_uid="connection.auto_add_credentials",
         )
         is_working_changed.connect(
             self.is_working_changed_receiver,
-            sender=load_model('connection', 'DeviceConnection'),
-            dispatch_uid='is_working_changed_receiver',
+            sender=load_model("connection", "DeviceConnection"),
+            dispatch_uid="is_working_changed_receiver",
         )
 
         post_save.connect(
@@ -64,7 +64,7 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def config_modified_receiver(cls, **kwargs):
-        transaction.on_commit(lambda: cls._launch_update_config(kwargs['device'].pk))
+        transaction.on_commit(lambda: cls._launch_update_config(kwargs["device"].pk))
 
     @classmethod
     def command_save_receiver(cls, sender, created, instance, **kwargs):
@@ -76,8 +76,8 @@ class ConnectionConfig(AppConfig):
             return
         serialized_data = CommandSerializer(instance).data
         async_to_sync(channel_layer.group_send)(
-            f'config.device-{instance.device_id}',
-            {'type': 'send.update', 'model': 'Command', 'data': serialized_data},
+            f"config.device-{instance.device_id}",
+            {"type": "send.update", "model": "Command", "data": serialized_data},
         )
 
     @classmethod
@@ -112,54 +112,54 @@ class ConnectionConfig(AppConfig):
         device = instance.device
         notification_opts = dict(sender=instance, target=device)
         if not is_working:
-            notification_opts['type'] = 'connection_is_not_working'
+            notification_opts["type"] = "connection_is_not_working"
         else:
-            notification_opts['type'] = 'connection_is_working'
+            notification_opts["type"] = "connection_is_working"
         notify.send(**notification_opts)
 
     def register_notification_types(self):
-        device_conn_model = load_model('connection', 'DeviceConnection')
-        device_model = load_model('config', 'Device')
+        device_conn_model = load_model("connection", "DeviceConnection")
+        device_model = load_model("config", "Device")
         register_notification_type(
-            'connection_is_not_working',
+            "connection_is_not_working",
             {
-                'verbose_name': 'Device Connection PROBLEM',
-                'verb': 'not working',
-                'level': 'error',
-                'email_subject': (
-                    '[{site.name}] PROBLEM: Connection to '
-                    'device {notification.target}'
+                "verbose_name": "Device Connection PROBLEM",
+                "verb": "not working",
+                "level": "error",
+                "email_subject": (
+                    "[{site.name}] PROBLEM: Connection to "
+                    "device {notification.target}"
                 ),
-                'message': (
-                    '{notification.actor.credentials} connection to '
-                    'device [{notification.target}]({notification.target_link}) '
-                    'is {notification.verb}. {notification.actor.failure_reason}'
+                "message": (
+                    "{notification.actor.credentials} connection to "
+                    "device [{notification.target}]({notification.target_link}) "
+                    "is {notification.verb}. {notification.actor.failure_reason}"
                 ),
-                'target_link': (
-                    'openwisp_controller.connection.utils'
-                    '.get_connection_working_notification_target_url'
+                "target_link": (
+                    "openwisp_controller.connection.utils"
+                    ".get_connection_working_notification_target_url"
                 ),
             },
             models=[device_model, device_conn_model],
         )
         register_notification_type(
-            'connection_is_working',
+            "connection_is_working",
             {
-                'verbose_name': 'Device Connection RECOVERY',
-                'verb': 'working',
-                'level': 'info',
-                'email_subject': (
-                    '[{site.name}] RECOVERY: Connection to '
-                    'device {notification.target}'
+                "verbose_name": "Device Connection RECOVERY",
+                "verb": "working",
+                "level": "info",
+                "email_subject": (
+                    "[{site.name}] RECOVERY: Connection to "
+                    "device {notification.target}"
                 ),
-                'message': (
-                    '{notification.actor.credentials} connection to '
-                    'device [{notification.target}]({notification.target_link}) '
-                    'is {notification.verb}. {notification.actor.failure_reason}'
+                "message": (
+                    "{notification.actor.credentials} connection to "
+                    "device [{notification.target}]({notification.target_link}) "
+                    "is {notification.verb}. {notification.actor.failure_reason}"
                 ),
-                'target_link': (
-                    'openwisp_controller.connection.utils'
-                    '.get_connection_working_notification_target_url'
+                "target_link": (
+                    "openwisp_controller.connection.utils"
+                    ".get_connection_working_notification_target_url"
                 ),
             },
             models=[device_model, device_conn_model],
@@ -169,9 +169,9 @@ class ConnectionConfig(AppConfig):
         from openwisp_notifications.handlers import register_notification_cache_update
 
         register_notification_cache_update(
-            model=load_model('connection', 'DeviceConnection'),
+            model=load_model("connection", "DeviceConnection"),
             signal=is_working_changed,
-            dispatch_uid='notification_device_cache_invalidation',
+            dispatch_uid="notification_device_cache_invalidation",
         )
 
     def register_menu_groups(self):
@@ -179,9 +179,9 @@ class ConnectionConfig(AppConfig):
             group_position=30,
             item_position=3,
             config={
-                'label': _('Access Credentials'),
-                'model': get_model_name('connection', 'Credentials'),
-                'name': 'changelist',
-                'icon': 'ow-access-credential',
+                "label": _("Access Credentials"),
+                "model": get_model_name("connection", "Credentials"),
+                "name": "changelist",
+                "icon": "ow-access-credential",
             },
         )

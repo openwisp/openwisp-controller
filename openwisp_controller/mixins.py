@@ -4,7 +4,7 @@ from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizatio
 
 
 class RelatedDeviceModelPermission(DjangoModelPermissions):
-    _device_field = 'device'
+    _device_field = "device"
 
     def _has_permissions(self, request, view, perm, obj=None):
         if request.method in self.READ_ONLY_METHOD:

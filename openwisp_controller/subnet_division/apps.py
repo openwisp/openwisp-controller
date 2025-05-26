@@ -9,9 +9,9 @@ from .utils import get_subnet_division_config_context, subnet_division_vpnclient
 
 
 class SubnetDivisionConfig(AppConfig):
-    name = 'openwisp_controller.subnet_division'
-    verbose_name = _('Subnet Division')
-    default_auto_field = 'django.db.models.AutoField'
+    name = "openwisp_controller.subnet_division"
+    verbose_name = _("Subnet Division")
+    default_auto_field = "django.db.models.AutoField"
 
     def ready(self):
         super().ready()
@@ -35,22 +35,22 @@ class SubnetDivisionConfig(AppConfig):
         pre_save.connect(
             receiver=self.subnetdivisionrule_model_.pre_save,
             sender=self.subnetdivisionrule_model_,
-            dispatch_uid='subnetdivisionrule_pre_save',
+            dispatch_uid="subnetdivisionrule_pre_save",
         )
         post_save.connect(
             receiver=self.subnetdivisionrule_model_.post_save,
             sender=self.subnetdivisionrule_model_,
-            dispatch_uid='subnetdivisionrule_post_save',
+            dispatch_uid="subnetdivisionrule_post_save",
         )
         post_delete.connect(
             receiver=self.subnetdivisionrule_model_.post_delete,
             sender=self.subnetdivisionrule_model_,
-            dispatch_uid='subnetdivisionrule_post_delete',
+            dispatch_uid="subnetdivisionrule_post_delete",
         )
 
     def _load_models(self):
         self.subnetdivisionrule_model_ = load_model(
-            'subnet_division', 'SubnetDivisionRule'
+            "subnet_division", "SubnetDivisionRule"
         )
 
     def _add_config_context_method(self):
@@ -58,8 +58,8 @@ class SubnetDivisionConfig(AppConfig):
 
         from .tests.helpers import subnetdivision_patched_assertNumQueries
 
-        Config = load_model('config', 'Config')
-        VpnClient = load_model('config', 'VpnClient')
+        Config = load_model("config", "Config")
+        VpnClient = load_model("config", "VpnClient")
 
         Config.register_context_function(get_subnet_division_config_context)
         VpnClient.register_auto_ip_stopper(subnet_division_vpnclient_auto_ip)

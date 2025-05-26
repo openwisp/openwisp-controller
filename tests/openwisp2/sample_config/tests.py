@@ -41,20 +41,20 @@ from openwisp_controller.config.tests.test_vpn import TestWireguard as BaseTestW
 
 
 class TestAdmin(BaseTestAdmin):
-    app_label = 'sample_config'
+    app_label = "sample_config"
 
 
 class TestTransactionAdmin(BaseTestTransactionAdmin):
-    app_label = 'sample_config'
+    app_label = "sample_config"
     _deactivated_device_expected_readonly_fields = 23
 
 
 class TestDeviceGroupAdmin(BaseTestDeviceGroupAdmin):
-    app_label = 'sample_config'
+    app_label = "sample_config"
 
 
 class TestDeviceGroupAdminTransaction(BaseTestDeviceGroupAdminTransaction):
-    app_label = 'sample_config'
+    app_label = "sample_config"
 
 
 class TestConfig(BaseTestConfig):
@@ -90,7 +90,7 @@ class TestTemplateTransaction(BaseTestTemplateTransaction):
 
 
 class TestNotifications(BaseTestNotifications):
-    app_label = 'sample_config'
+    app_label = "sample_config"
 
 
 class TestViews(BaseTestViews):

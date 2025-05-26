@@ -13,10 +13,10 @@ class SortedCheckboxSelectMultiple(BaseSortedCheckboxSelectMultiple):
         # TODO: Remove this workaround when a new version of django-sortedm2m
         # is released.
         js = (
-            'admin/js/jquery.init.js',
-            'sortedm2m/widget.js',
-            'sortedm2m/jquery-ui.js',
-            'sortedm2m/patch_sortedm2m.js',
+            "admin/js/jquery.init.js",
+            "sortedm2m/widget.js",
+            "sortedm2m/jquery-ui.js",
+            "sortedm2m/patch_sortedm2m.js",
         )
 
 

@@ -8,7 +8,7 @@ from . import populate_organization_allowed_device
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0046_organizationlimits'),
+        ("config", "0046_organizationlimits"),
     ]
 
     operations = [

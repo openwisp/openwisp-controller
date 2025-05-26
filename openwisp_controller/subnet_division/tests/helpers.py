@@ -12,15 +12,15 @@ from openwisp_controller.subnet_division.rule_types.device import (
 from ...config.tests.utils import CreateConfigTemplateMixin
 from ..rule_types.vpn import VpnSubnetDivisionRuleType
 
-SubnetDivisionRule = load_model('subnet_division', 'SubnetDivisionRule')
-SubnetDivisionIndex = load_model('subnet_division', 'SubnetDivisionIndex')
-Subnet = load_model('openwisp_ipam', 'Subnet')
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
+SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
+Subnet = load_model("openwisp_ipam", "Subnet")
 
 
 class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
     @property
     def subnet_query(self):
-        return Subnet.objects.exclude(name__contains='Reserved')
+        return Subnet.objects.exclude(name__contains="Reserved")
 
     def _create_subnet_division_rule(self, **kwargs):
         options = dict()
@@ -33,32 +33,32 @@ class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
 
     def _get_subnet_division_rule(self, type, **kwargs):
         options = {
-            'label': 'OW',
-            'size': 28,
-            'number_of_ips': 2,
-            'number_of_subnets': 2,
-            'type': type,
+            "label": "OW",
+            "size": 28,
+            "number_of_ips": 2,
+            "number_of_subnets": 2,
+            "type": type,
         }
         options.update(**kwargs)
-        if 'master_subnet' not in kwargs:
-            options['master_subnet'] = self._get_master_subnet()
+        if "master_subnet" not in kwargs:
+            options["master_subnet"] = self._get_master_subnet()
         return self._create_subnet_division_rule(**options)
 
     def _get_vpn_subdivision_rule(self, **kwargs):
         path = (
-            f'{VpnSubnetDivisionRuleType.__module__}.'
-            f'{VpnSubnetDivisionRuleType.__name__}'
+            f"{VpnSubnetDivisionRuleType.__module__}."
+            f"{VpnSubnetDivisionRuleType.__name__}"
         )
         return self._get_subnet_division_rule(type=path, **kwargs)
 
     def _get_device_subdivision_rule(self, **kwargs):
         path = (
-            f'{DeviceSubnetDivisionRuleType.__module__}.'
-            f'{DeviceSubnetDivisionRuleType.__name__}'
+            f"{DeviceSubnetDivisionRuleType.__module__}."
+            f"{DeviceSubnetDivisionRuleType.__name__}"
         )
         return self._get_subnet_division_rule(type=path, **kwargs)
 
-    def _get_master_subnet(self, subnet='10.0.0.0/16', **kwargs):
+    def _get_master_subnet(self, subnet="10.0.0.0/16", **kwargs):
         try:
             return Subnet.objects.get(subnet=subnet, **kwargs)
         except Subnet.DoesNotExist:
@@ -74,7 +74,7 @@ class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
             max_subnet = (
                 # Get the highest subnet created for this master_subnet
                 Subnet.objects.filter(master_subnet_id=master_subnet.id)
-                .order_by('-created')
+                .order_by("-created")
                 .first()
                 .subnet
             )
@@ -91,18 +91,18 @@ class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
             organization=config.device.organization,
             subnet=required_subnet,
             master_subnet=master_subnet,
-            name='TEST_subnet1',
+            name="TEST_subnet1",
         )
         ip = subnet.request_ip()
         SubnetDivisionIndex.objects.create(
-            rule=rule, config=config, subnet=subnet, keyword='TEST_subnet1'
+            rule=rule, config=config, subnet=subnet, keyword="TEST_subnet1"
         )
         SubnetDivisionIndex.objects.create(
             rule=rule,
             config=config,
             # subnet=subnet,
             ip=ip,
-            keyword='TEST_subnet1_ip1',
+            keyword="TEST_subnet1_ip1",
         )
 
 
@@ -129,7 +129,7 @@ class _CustomAssertnumQueriesContext(_AssertNumQueriesContext):
         if exc_type is not None:
             return
         for query in self.captured_queries:
-            if 'subnetdivision' in query['sql']:
+            if "subnetdivision" in query["sql"]:
                 self.num += 1
         super().__exit__(exc_type, exc_value, traceback)
 

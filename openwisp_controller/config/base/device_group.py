@@ -21,42 +21,42 @@ from .config import TemplatesThrough
 
 class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
     name = models.CharField(max_length=60, null=False, blank=False)
-    description = models.TextField(blank=True, help_text=_('internal notes'))
+    description = models.TextField(blank=True, help_text=_("internal notes"))
     templates = SortedManyToManyField(
-        get_model_name('config', 'Template'),
-        related_name='device_group_relations',
-        verbose_name=_('templates'),
+        get_model_name("config", "Template"),
+        related_name="device_group_relations",
+        verbose_name=_("templates"),
         base_class=TemplatesThrough,
         blank=True,
         help_text=_(
-            'These templates are automatically assigned to the devices '
-            'that are part of the group. Default and required templates '
-            'are excluded from this list. If the group of the device is '
-            'changed, these templates will be automatically removed and '
-            'the templates of the new group will be assigned.'
+            "These templates are automatically assigned to the devices "
+            "that are part of the group. Default and required templates "
+            "are excluded from this list. If the group of the device is "
+            "changed, these templates will be automatically removed and "
+            "the templates of the new group will be assigned."
         ),
     )
     meta_data = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
         help_text=_(
-            'Group meta data, use this field to store data which is related'
-            ' to this group and can be retrieved via the REST API.'
+            "Group meta data, use this field to store data which is related"
+            " to this group and can be retrieved via the REST API."
         ),
-        verbose_name=_('Metadata'),
+        verbose_name=_("Metadata"),
     )
     context = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
         help_text=_(
-            'This field can be used to add meta data for the group'
+            "This field can be used to add meta data for the group"
             ' or to add "Configuration Variables" to the devices.'
         ),
-        verbose_name=_('Configuration Variables'),
+        verbose_name=_("Configuration Variables"),
     )
 
     def __str__(self):
@@ -64,9 +64,9 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
 
     class Meta:
         abstract = True
-        verbose_name = _('Device Group')
-        verbose_name_plural = _('Device Groups')
-        unique_together = (('organization', 'name'),)
+        verbose_name = _("Device Group")
+        verbose_name_plural = _("Device Groups")
+        unique_together = (("organization", "name"),)
 
     def clean(self):
         try:
@@ -74,19 +74,19 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
                 self.meta_data
             )
         except SchemaError as e:
-            raise ValidationError({'input': e.message})
+            raise ValidationError({"input": e.message})
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
         context_changed = False
         if not self._state.adding:
-            db_instance = self.__class__.objects.only('context').get(id=self.id)
+            db_instance = self.__class__.objects.only("context").get(id=self.id)
             context_changed = db_instance.context != self.context
         super().save(force_insert, force_update, using, update_fields)
         if context_changed:
             bulk_invalidate_config_get_cached_checksum.delay(
-                {'device__group_id': str(self.id)}
+                {"device__group_id": str(self.id)}
             )
 
     def get_context(self):
@@ -107,12 +107,12 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         This method is used to change the templates of associated devices
         if group templates are changed.
         """
-        DeviceGroup = load_model('config', 'DeviceGroup')
-        Template = load_model('config', 'Template')
+        DeviceGroup = load_model("config", "DeviceGroup")
+        Template = load_model("config", "Template")
         device_group = DeviceGroup.objects.get(id=group_id)
         templates = Template.objects.filter(pk__in=template_ids)
         old_templates = Template.objects.filter(pk__in=old_template_ids)
         for device in device_group.device_set.iterator():
-            if not hasattr(device, 'config'):
+            if not hasattr(device, "config"):
                 device.create_default_config()
             device.config.manage_group_templates(templates, old_templates)

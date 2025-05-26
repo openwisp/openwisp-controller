@@ -9,14 +9,14 @@ class OrganizationDeviceLimitExceeded(ValidationError):
     """
 
     error_message = _(
-        'The specified limit is lower than the amount of'
-        ' devices currently held by this organization.'
-        ' Please remove some devices or consider increasing'
-        ' the device limit.'
+        "The specified limit is lower than the amount of"
+        " devices currently held by this organization."
+        " Please remove some devices or consider increasing"
+        " the device limit."
     )
 
     def __init__(self):
-        error = {'device_limit': [self.error_message]}
+        error = {"device_limit": [self.error_message]}
         super().__init__(error, code=None, params=None)
 
 

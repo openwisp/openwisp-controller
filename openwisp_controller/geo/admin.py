@@ -18,15 +18,15 @@ from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdminExportable
 from .exportable import GeoDeviceResource
 
-DeviceLocation = load_model('geo', 'DeviceLocation')
-FloorPlan = load_model('geo', 'FloorPlan')
-Location = load_model('geo', 'Location')
+DeviceLocation = load_model("geo", "DeviceLocation")
+FloorPlan = load_model("geo", "FloorPlan")
+Location = load_model("geo", "Location")
 
 
 class FloorPlanForm(AbstractFloorPlanForm):
     class Meta(AbstractFloorPlanForm.Meta):
         model = FloorPlan
-        exclude = ('organization',)  # automatically managed
+        exclude = ("organization",)  # automatically managed
 
 
 class FloorPlanInline(AbstractFloorPlanInline):
@@ -36,10 +36,10 @@ class FloorPlanInline(AbstractFloorPlanInline):
 
 class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     form = FloorPlanForm
-    list_filter = [MultitenantOrgFilter, 'created']
+    list_filter = [MultitenantOrgFilter, "created"]
 
 
-FloorPlanAdmin.list_display.insert(1, 'organization')
+FloorPlanAdmin.list_display.insert(1, "organization")
 
 
 class ObjectLocationForm(AbstractObjectLocationForm):
@@ -48,12 +48,12 @@ class ObjectLocationForm(AbstractObjectLocationForm):
 
     def _get_location_instance(self):
         location = super()._get_location_instance()
-        location.organization_id = self.data.get('organization')
+        location.organization_id = self.data.get("organization")
         return location
 
     def _get_floorplan_instance(self):
         floorplan = super()._get_floorplan_instance()
-        floorplan.organization_id = self.data.get('organization')
+        floorplan.organization_id = self.data.get("organization")
         return floorplan
 
     def _get_initial_location(self):
@@ -97,10 +97,10 @@ class LocationForm(AbstractLocationForm):
 class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     form = LocationForm
     inlines = [FloorPlanInline]
-    list_select_related = ('organization',)
+    list_select_related = ("organization",)
 
 
-LocationAdmin.list_display.insert(1, 'organization')
+LocationAdmin.list_display.insert(1, "organization")
 LocationAdmin.list_filter.insert(0, MultitenantOrgFilter)
 
 
@@ -109,7 +109,7 @@ class DeviceLocationInline(
 ):
     model = DeviceLocation
     form = ObjectLocationForm
-    verbose_name = _('Map')
+    verbose_name = _("Map")
     verbose_name_plural = verbose_name
 
 
@@ -119,18 +119,18 @@ reversion.register(model=Location)
 
 
 class DeviceLocationFilter(admin.SimpleListFilter):
-    title = _('has geographic position set?')
-    parameter_name = 'with_geo'
+    title = _("has geographic position set?")
+    parameter_name = "with_geo"
 
     def lookups(self, request, model_admin):
         return (
-            ('true', _('Yes')),
-            ('false', _('No')),
+            ("true", _("Yes")),
+            ("false", _("No")),
         )
 
     def queryset(self, request, queryset):
         if self.value():
-            return queryset.filter(devicelocation__isnull=self.value() == 'false')
+            return queryset.filter(devicelocation__isnull=self.value() == "false")
         return queryset
 
 
@@ -138,5 +138,5 @@ class DeviceLocationFilter(admin.SimpleListFilter):
 DeviceAdminExportable.inlines.insert(1, DeviceLocationInline)
 DeviceAdminExportable.list_filter.append(DeviceLocationFilter)
 DeviceAdminExportable.resource_class = GeoDeviceResource
-reversion.register(model=DeviceLocation, follow=['device', 'location'])
-DeviceAdminExportable.add_reversion_following(follow=['devicelocation'])
+reversion.register(model=DeviceLocation, follow=["device", "location"])
+DeviceAdminExportable.add_reversion_following(follow=["devicelocation"])

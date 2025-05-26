@@ -4,21 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [('pki', '0001_initial')]
+    dependencies = [("pki", "0001_initial")]
 
     operations = [
         migrations.AddField(
-            model_name='ca',
-            name='organization_name',
+            model_name="ca",
+            name="organization_name",
             field=models.CharField(
-                blank=True, max_length=64, verbose_name='organization'
+                blank=True, max_length=64, verbose_name="organization"
             ),
         ),
         migrations.AddField(
-            model_name='cert',
-            name='organization_name',
+            model_name="cert",
+            name="organization_name",
             field=models.CharField(
-                blank=True, max_length=64, verbose_name='organization'
+                blank=True, max_length=64, verbose_name="organization"
             ),
         ),
     ]

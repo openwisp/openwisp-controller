@@ -10,7 +10,7 @@ from ...migrations import get_swapped_model
 
 
 def make_ca_common_name_unique(apps, schema_editor):
-    Ca = get_swapped_model(apps, 'django_x509', 'Ca')
+    Ca = get_swapped_model(apps, "django_x509", "Ca")
     updated_cas = []
     for ca in Ca.objects.iterator():
         qs = Ca.objects.filter(
@@ -19,20 +19,20 @@ def make_ca_common_name_unique(apps, schema_editor):
         for dupe_cn_ca in qs.iterator():
             common_name = dupe_cn_ca.common_name
             unique_slug = shortuuid.ShortUUID().random(length=8)
-            common_name = f'{common_name}-{unique_slug}'
+            common_name = f"{common_name}-{unique_slug}"
             dupe_cn_ca.common_name = common_name
             updated_cas.append(dupe_cn_ca)
             if len(updated_cas) > 1000:
-                Ca.objects.bulk_update(updated_cas, ['common_name'])
+                Ca.objects.bulk_update(updated_cas, ["common_name"])
                 updated_cas = []
     if updated_cas:
-        Ca.objects.bulk_update(updated_cas, ['common_name'])
+        Ca.objects.bulk_update(updated_cas, ["common_name"])
 
 
 def make_cert_common_name_unique(apps, schema_editor):
     # Loading concrete model is required here otherwise "renew" won't work
-    Cert = load_model('django_x509', 'Cert')
-    VpnClient = get_swapped_model(apps, 'config', 'VpnClient')
+    Cert = load_model("django_x509", "Cert")
+    VpnClient = get_swapped_model(apps, "config", "VpnClient")
     for cert in Cert.objects.iterator():
         qs = Cert.objects.filter(
             common_name=cert.common_name, organization_id=cert.organization_id
@@ -40,19 +40,19 @@ def make_cert_common_name_unique(apps, schema_editor):
         for dupe_cn_cert in qs.iterator():
             try:
                 vpn_client = (
-                    VpnClient.objects.select_related('config', 'config__device')
-                    .only('config__device__name', 'config__device__mac_address')
+                    VpnClient.objects.select_related("config", "config__device")
+                    .only("config__device__name", "config__device__mac_address")
                     .get(cert_id=dupe_cn_cert.id)
                 )
                 common_name = (
-                    f'{vpn_client.config.device.mac_address}'
-                    '-{vpn_client.config.device_name}'
+                    f"{vpn_client.config.device.mac_address}"
+                    "-{vpn_client.config.device_name}"
                 )
             except VpnClient.DoesNotExist:
                 pass
             common_name = dupe_cn_cert.common_name[:58]
             unique_slug = shortuuid.ShortUUID().random(length=8)
-            common_name = f'{common_name}-{unique_slug}'
+            common_name = f"{common_name}-{unique_slug}"
             dupe_cn_cert.common_name = common_name
             # in some older versions `serial_number` can be None
             # in this case we'll assign a serial number while renewing
@@ -63,24 +63,24 @@ def make_cert_common_name_unique(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('pki', '0009_common_name_maxlength_64'),
+        ("pki", "0009_common_name_maxlength_64"),
     ]
 
     operations = [
         migrations.RunPython(make_ca_common_name_unique, migrations.RunPython.noop),
         migrations.RunPython(make_cert_common_name_unique, migrations.RunPython.noop),
         migrations.AddConstraint(
-            model_name='ca',
+            model_name="ca",
             constraint=models.UniqueConstraint(
-                fields=('common_name', 'organization'),
-                name='pki_ca_comman_name_and_organization_is_unique',
+                fields=("common_name", "organization"),
+                name="pki_ca_comman_name_and_organization_is_unique",
             ),
         ),
         migrations.AddConstraint(
-            model_name='cert',
+            model_name="cert",
             constraint=models.UniqueConstraint(
-                fields=('common_name', 'organization'),
-                name='pki_cert_comman_name_and_organization_is_unique',
+                fields=("common_name", "organization"),
+                name="pki_cert_comman_name_and_organization_is_unique",
             ),
         ),
     ]

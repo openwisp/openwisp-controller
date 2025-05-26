@@ -27,17 +27,17 @@ class ShareableOrgMixinUniqueName(ShareableOrgMixin):
         if not self._state.adding:
             qs = qs.exclude(id=self.id)
         shared_message = _(
-            'Shared objects are visible to all organizations and '
-            'must have unique names to avoid confusion.'
+            "Shared objects are visible to all organizations and "
+            "must have unique names to avoid confusion."
         )
 
         if qs.filter(organization=None).exists():
-            msg = _(f'There is already another shared {model_name} with this name.')
-            raise ValidationError({'name': f'{msg} {shared_message}'})
+            msg = _(f"There is already another shared {model_name} with this name.")
+            raise ValidationError({"name": f"{msg} {shared_message}"})
 
         if not self.organization and qs.filter(organization__isnull=False).exists():
             msg = _(
-                f'There is already a {model_name} of '
-                'another organization with this name.'
+                f"There is already a {model_name} of "
+                "another organization with this name."
             )
-            raise ValidationError({'name': f'{msg} {shared_message}'})
+            raise ValidationError({"name": f"{msg} {shared_message}"})

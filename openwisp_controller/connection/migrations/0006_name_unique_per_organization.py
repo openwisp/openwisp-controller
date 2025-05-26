@@ -5,16 +5,16 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('connection', '0005_device_connection_failure_reason'),
+        ("connection", "0005_device_connection_failure_reason"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='credentials',
-            name='name',
+            model_name="credentials",
+            name="name",
             field=models.CharField(db_index=True, max_length=64),
         ),
         migrations.AlterUniqueTogether(
-            name='credentials', unique_together={('name', 'organization')}
+            name="credentials", unique_together={("name", "organization")}
         ),
     ]

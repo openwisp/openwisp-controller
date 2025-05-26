@@ -4,7 +4,7 @@ from openwisp_controller.subnet_division.migrations import assign_permissions_to
 
 
 class Migration(migrations.Migration):
-    dependencies = [('sample_subnet_division', '0001_initial')]
+    dependencies = [("sample_subnet_division", "0001_initial")]
 
     operations = [
         migrations.RunPython(

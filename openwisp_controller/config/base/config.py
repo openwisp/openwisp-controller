@@ -34,7 +34,7 @@ class TemplatesThrough(object):
     """
 
     def __str__(self):
-        return _('Relationship with {0}').format(self.template.name)
+        return _("Relationship with {0}").format(self.template.name)
 
 
 def get_cached_checksum_args_rewrite(config):
@@ -51,52 +51,52 @@ class AbstractConfig(BaseConfig):
     """
 
     device = models.OneToOneField(
-        get_model_name('config', 'Device'), on_delete=models.CASCADE
+        get_model_name("config", "Device"), on_delete=models.CASCADE
     )
     templates = SortedManyToManyField(
-        get_model_name('config', 'Template'),
-        related_name='config_relations',
-        verbose_name=_('templates'),
+        get_model_name("config", "Template"),
+        related_name="config_relations",
+        verbose_name=_("templates"),
         base_class=TemplatesThrough,
         blank=True,
-        help_text=_('configuration templates, applied from first to last'),
+        help_text=_("configuration templates, applied from first to last"),
     )
     vpn = models.ManyToManyField(
-        get_model_name('config', 'Vpn'),
-        through=get_model_name('config', 'VpnClient'),
-        related_name='vpn_relations',
+        get_model_name("config", "Vpn"),
+        through=get_model_name("config", "VpnClient"),
+        related_name="vpn_relations",
         blank=True,
     )
 
-    STATUS = Choices('modified', 'applied', 'error', 'deactivating', 'deactivated')
+    STATUS = Choices("modified", "applied", "error", "deactivating", "deactivated")
     status = StatusField(
-        _('configuration status'),
+        _("configuration status"),
         help_text=_(
             '"modified" means the configuration is not applied yet; \n'
             '"applied" means the configuration is applied successfully; \n'
             '"error" means the configuration caused issues and it was rolled back; \n'
             '"deactivating" means the device has been deactivated and the'
-            ' configuration is being removed; \n'
+            " configuration is being removed; \n"
             '"deactivated" means the configuration has been removed from the device;'
         ),
     )
     error_reason = models.CharField(
-        _('error reason'),
+        _("error reason"),
         max_length=1024,
-        help_text=_('Error reason reported by the device'),
+        help_text=_("Error reason reported by the device"),
         blank=True,
     )
     context = JSONField(
         blank=True,
         default=dict,
         help_text=_(
-            'Additional '
+            "Additional "
             '<a href="http://netjsonconfig.openwisp.org/'
             'en/stable/general/basics.html#context" target="_blank">'
-            'context (configuration variables)</a> in JSON format'
+            "context (configuration variables)</a> in JSON format"
         ),
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
     )
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
@@ -105,8 +105,8 @@ class AbstractConfig(BaseConfig):
 
     class Meta:
         abstract = True
-        verbose_name = _('configuration')
-        verbose_name_plural = _('configurations')
+        verbose_name = _("configuration")
+        verbose_name_plural = _("configurations")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,12 +158,12 @@ class AbstractConfig(BaseConfig):
         timeout=None means value is cached indefinitely
         (invalidation handled on post_save/post_delete signal)
         """
-        logger.debug(f'calculating checksum for config ID {self.pk}')
+        logger.debug(f"calculating checksum for config ID {self.pk}")
         return self.checksum
 
     @classmethod
     def bulk_invalidate_get_cached_checksum(cls, query_params):
-        for config in cls.objects.only('id').filter(**query_params).iterator():
+        for config in cls.objects.only("id").filter(**query_params).iterator():
             config.get_cached_checksum.invalidate(config)
 
     @classmethod
@@ -207,7 +207,7 @@ class AbstractConfig(BaseConfig):
         try:
             cls.clean_netjsonconfig_backend(backend)
         except ValidationError as e:
-            message = 'There is a conflict with the specified templates. {0}'
+            message = "There is a conflict with the specified templates. {0}"
             message = message.format(e.message)
             raise ValidationError(message)
 
@@ -223,7 +223,7 @@ class AbstractConfig(BaseConfig):
         there fore we need to ignore it to avoid emitting signals twice
         """
         # execute only after a config has been saved or deleted
-        if action not in ['post_add', 'post_remove'] or instance._state.adding:
+        if action not in ["post_add", "post_remove"] or instance._state.adding:
             return
         # use atomic to ensure any code bound to
         # be executed via transaction.on_commit
@@ -233,8 +233,8 @@ class AbstractConfig(BaseConfig):
             # config instance has just been created
             if not instance._just_created:
                 # sends only config modified signal
-                instance._send_config_modified_signal(action='m2m_templates_changed')
-            if instance.status != 'modified':
+                instance._send_config_modified_signal(action="m2m_templates_changed")
+            if instance.status != "modified":
                 # sends both status modified and config modified signals
                 instance.set_status_modified(send_config_modified_signal=False)
 
@@ -248,13 +248,13 @@ class AbstractConfig(BaseConfig):
         see config.apps.ConfigConfig.connect_signals
         """
         if instance._state.adding or action not in [
-            'post_add',
-            'post_remove',
-            'post_clear',
+            "post_add",
+            "post_remove",
+            "post_clear",
         ]:
             return
 
-        if action == 'post_clear':
+        if action == "post_clear":
             if instance.is_deactivating_or_deactivated():
                 # If the device is deactivated or in the process of deactivating, then
                 # delete all vpn clients and return.
@@ -266,7 +266,7 @@ class AbstractConfig(BaseConfig):
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
             templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
-                'created'
+                "created"
             )
         # coming from admin ModelForm
         else:
@@ -274,11 +274,11 @@ class AbstractConfig(BaseConfig):
 
         # Delete VPN clients that are not associated with current templates
         instance.vpnclient_set.exclude(
-            template_id__in=instance.templates.values_list('id', flat=True)
+            template_id__in=instance.templates.values_list("id", flat=True)
         ).delete()
 
-        if action == 'post_add':
-            for template in templates.filter(type='vpn'):
+        if action == "post_add":
+            for template in templates.filter(type="vpn"):
                 # Create VPN client if needed
                 if not vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn, template=template
@@ -298,7 +298,7 @@ class AbstractConfig(BaseConfig):
         raw_data contains the non-validated data that is submitted to
         a form or API.
         """
-        if action != 'pre_add':
+        if action != "pre_add":
             return False
         raw_data = raw_data or {}
         templates = cls._get_templates_from_pk_set(pk_set)
@@ -309,22 +309,22 @@ class AbstractConfig(BaseConfig):
             pk_list = [template.pk for template in templates]
             templates = template_model.objects.filter(pk__in=pk_list)
         # looking for invalid templates
-        organization = raw_data.get('organization', instance.device.organization)
+        organization = raw_data.get("organization", instance.device.organization)
         invalids = (
             templates.exclude(organization=organization)
             .exclude(organization=None)
-            .values('name')
+            .values("name")
         )
 
         if templates and invalids:
-            names = ''
+            names = ""
             for invalid in invalids:
-                names = '{0}, {1}'.format(names, invalid['name'])
+                names = "{0}, {1}".format(names, invalid["name"])
             names = names[2:]
             message = _(
-                'The following templates are owned by organizations '
-                'which do not match the organization of this '
-                'configuration: {0}'
+                "The following templates are owned by organizations "
+                "which do not match the organization of this "
+                "configuration: {0}"
             ).format(names)
             raise ValidationError(message)
         # return valid templates in order to save computation
@@ -346,23 +346,23 @@ class AbstractConfig(BaseConfig):
         raw_data contains the non-validated data that is submitted to
         a form or API.
         """
-        if action not in ['pre_remove', 'post_clear']:
+        if action not in ["pre_remove", "post_clear"]:
             return False
         if instance.is_deactivating_or_deactivated():
             return
         raw_data = raw_data or {}
         template_query = models.Q(required=True, backend=instance.backend)
         # trying to remove a required template will raise PermissionDenied
-        if action == 'pre_remove':
+        if action == "pre_remove":
             templates = cls._get_templates_from_pk_set(pk_set)
             if templates.filter(template_query).exists():
                 raise PermissionDenied(
-                    _('Required templates cannot be removed from the configuration')
+                    _("Required templates cannot be removed from the configuration")
                 )
-        if action == 'post_clear':
+        if action == "post_clear":
             # retrieve required templates related to this
             # device and ensure they're always present
-            organization = raw_data.get('organization', instance.device.organization)
+            organization = raw_data.get("organization", instance.device.organization)
             required_templates = (
                 cls.get_template_model()
                 .objects.filter(template_query)
@@ -372,7 +372,7 @@ class AbstractConfig(BaseConfig):
             )
             if required_templates.exists():
                 instance.templates.add(
-                    *required_templates.order_by('name').values_list('pk', flat=True)
+                    *required_templates.order_by("name").values_list("pk", flat=True)
                 )
 
     @classmethod
@@ -413,7 +413,7 @@ class AbstractConfig(BaseConfig):
         )
 
     def _should_use_dsa(self):
-        if not hasattr(self, 'device') or not issubclass(self.backend_class, OpenWrt):
+        if not hasattr(self, "device") or not issubclass(self.backend_class, OpenWrt):
             return
 
         if not self.device.os:
@@ -423,10 +423,10 @@ class AbstractConfig(BaseConfig):
 
         # Check if the device is using stock OpenWrt.
         openwrt_match = re.search(
-            r'[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)', self.device.os
+            r"[oO][pP][eE][nN][wW][rR][tT]\s*([\d.]+)", self.device.os
         )
         if openwrt_match:
-            if version.parse(openwrt_match.group(1)) >= version.parse('21'):
+            if version.parse(openwrt_match.group(1)) >= version.parse("21"):
                 return True
             else:
                 return False
@@ -434,10 +434,10 @@ class AbstractConfig(BaseConfig):
         # Device is using custom firmware
         if app_settings.DSA_OS_MAPPING:
             openwrt_based_firmware = app_settings.DSA_OS_MAPPING.get(
-                'netjsonconfig.OpenWrt', {}
+                "netjsonconfig.OpenWrt", {}
             )
-            dsa_enabled_os = openwrt_based_firmware.get('>=21.02', [])
-            dsa_disabled_os = openwrt_based_firmware.get('<21.02', [])
+            dsa_enabled_os = openwrt_based_firmware.get(">=21.02", [])
+            dsa_disabled_os = openwrt_based_firmware.get("<21.02", [])
             for os in dsa_enabled_os:
                 if re.search(os, self.device.os):
                     return True
@@ -450,12 +450,12 @@ class AbstractConfig(BaseConfig):
     def get_backend_instance(self, template_instances=None, context=None, **kwargs):
         dsa_enabled = self._should_use_dsa()
         if dsa_enabled is not None:
-            kwargs['dsa'] = dsa_enabled
+            kwargs["dsa"] = dsa_enabled
         return super().get_backend_instance(template_instances, context, **kwargs)
 
     def clean_error_reason(self):
         if len(self.error_reason) > 1024:
-            self.error_reason = f'{self.error_reason[:1012]}\n[truncated]'
+            self.error_reason = f"{self.error_reason[:1012]}\n[truncated]"
 
     def full_clean(self, exclude=None, validate_unique=True):
         # Modify the "error_reason" before the field validation
@@ -473,7 +473,7 @@ class AbstractConfig(BaseConfig):
             self.context = {}
         if not isinstance(self.context, dict):
             raise ValidationError(
-                {'context': _('the supplied value is not a JSON object')}
+                {"context": _("the supplied value is not a JSON object")}
             )
         super().clean()
 
@@ -492,7 +492,7 @@ class AbstractConfig(BaseConfig):
             self._old_backend = None
         # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
-            self._send_config_modified_signal(action='config_changed')
+            self._send_config_modified_signal(action="config_changed")
             self._send_config_modified_after_save = False
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
@@ -510,25 +510,25 @@ class AbstractConfig(BaseConfig):
             self.templates.add(*default_templates)
 
     def is_deactivating_or_deactivated(self):
-        return self.status in ['deactivating', 'deactivated']
+        return self.status in ["deactivating", "deactivated"]
 
     def is_deactivating(self):
-        return self.status == 'deactivating'
+        return self.status == "deactivating"
 
     def is_deactivated(self):
-        return self.status == 'deactivated'
+        return self.status == "deactivated"
 
     def _check_changes(self):
         current = self._meta.model.objects.only(
-            'backend', 'config', 'context', 'status'
+            "backend", "config", "context", "status"
         ).get(pk=self.pk)
         if self.backend != current.backend:
             # storing old backend to send backend change signal after save
             self._old_backend = current.backend
-        if hasattr(self, 'backend_instance'):
+        if hasattr(self, "backend_instance"):
             del self.backend_instance
         if self.checksum != current.checksum:
-            if self.status != 'modified':
+            if self.status != "modified":
                 self.set_status_modified(save=False)
             else:
                 # config modified signal is always sent
@@ -541,9 +541,9 @@ class AbstractConfig(BaseConfig):
         Called also by Template when templates of a device are modified
         """
         assert action in [
-            'config_changed',
-            'related_template_changed',
-            'm2m_templates_changed',
+            "config_changed",
+            "related_template_changed",
+            "m2m_templates_changed",
         ]
         config_modified.send(
             sender=self.__class__,
@@ -598,13 +598,13 @@ class AbstractConfig(BaseConfig):
     def _set_status(self, status, save=True, reason=None, extra_update_fields=None):
         self._send_config_status_changed = True
         extra_update_fields = extra_update_fields or []
-        update_fields = ['status'] + extra_update_fields
+        update_fields = ["status"] + extra_update_fields
         # The error reason should be updated when
         # 1. the configuration is in "error" status
         # 2. the configuration has changed from error status
-        if reason or (self.status == 'error' and self.status != status):
-            self.error_reason = reason or ''
-            update_fields.append('error_reason')
+        if reason or (self.status == "error" and self.status != status):
+            self.error_reason = reason or ""
+            update_fields.append("error_reason")
         self.status = status
         if save:
             self.save(update_fields=update_fields)
@@ -612,13 +612,13 @@ class AbstractConfig(BaseConfig):
     def set_status_modified(self, save=True, send_config_modified_signal=True):
         if send_config_modified_signal:
             self._send_config_modified_after_save = True
-        self._set_status('modified', save)
+        self._set_status("modified", save)
 
     def set_status_applied(self, save=True):
-        self._set_status('applied', save)
+        self._set_status("applied", save)
 
     def set_status_error(self, save=True, reason=None):
-        self._set_status('error', save, reason)
+        self._set_status("error", save, reason)
 
     def set_status_deactivating(self, save=True):
         """
@@ -626,11 +626,11 @@ class AbstractConfig(BaseConfig):
         clears configuration and templates.
         """
         self._send_config_deactivating = True
-        self._set_status('deactivating', save, extra_update_fields=['config'])
+        self._set_status("deactivating", save, extra_update_fields=["config"])
 
     def set_status_deactivated(self, save=True):
         self._send_config_deactivated = True
-        self._set_status('deactivated', save)
+        self._set_status("deactivated", save)
 
     def deactivate(self):
         """
@@ -669,15 +669,15 @@ class AbstractConfig(BaseConfig):
             self.set_status_applied()
 
     def _invalidate_backend_instance_cache(self):
-        if hasattr(self, 'backend_instance'):
+        if hasattr(self, "backend_instance"):
             del self.backend_instance
 
     def _has_device(self):
-        return hasattr(self, 'device')
+        return hasattr(self, "device")
 
     def get_vpn_context(self):
         context = {}
-        for vpnclient in self.vpnclient_set.all().select_related('vpn', 'cert'):
+        for vpnclient in self.vpnclient_set.all().select_related("vpn", "cert"):
             vpn = vpnclient.vpn
             vpn_id = vpn.pk.hex
             context.update(vpn.get_vpn_server_context())
@@ -687,38 +687,38 @@ class AbstractConfig(BaseConfig):
             # eg: simple password authentication
             if cert:
                 # cert
-                cert_filename = 'client-{0}.pem'.format(vpn_id)
-                cert_path = '{0}/{1}'.format(app_settings.CERT_PATH, cert_filename)
+                cert_filename = "client-{0}.pem".format(vpn_id)
+                cert_path = "{0}/{1}".format(app_settings.CERT_PATH, cert_filename)
                 # key
-                key_filename = 'key-{0}.pem'.format(vpn_id)
-                key_path = '{0}/{1}'.format(app_settings.CERT_PATH, key_filename)
+                key_filename = "key-{0}.pem".format(vpn_id)
+                key_path = "{0}/{1}".format(app_settings.CERT_PATH, key_filename)
                 # update context
                 context.update(
                     {
-                        vpn_context_keys['cert_path']: cert_path,
-                        vpn_context_keys['cert_contents']: cert.certificate,
-                        vpn_context_keys['key_path']: key_path,
-                        vpn_context_keys['key_contents']: cert.private_key,
+                        vpn_context_keys["cert_path"]: cert_path,
+                        vpn_context_keys["cert_contents"]: cert.certificate,
+                        vpn_context_keys["key_path"]: key_path,
+                        vpn_context_keys["key_contents"]: cert.private_key,
                     }
                 )
             if vpnclient.public_key:
-                context[f'pub_key_{vpn_id}'] = vpnclient.public_key
+                context[f"pub_key_{vpn_id}"] = vpnclient.public_key
             if vpnclient.private_key:
-                context[f'pvt_key_{vpn_id}'] = vpnclient.private_key
+                context[f"pvt_key_{vpn_id}"] = vpnclient.private_key
             if vpn.subnet:
                 if vpnclient.ip:
-                    context[vpn_context_keys['ip_address']] = vpnclient.ip.ip_address
-            if 'vni' in vpn_context_keys and (
+                    context[vpn_context_keys["ip_address"]] = vpnclient.ip.ip_address
+            if "vni" in vpn_context_keys and (
                 vpnclient.vni or vpnclient.vpn._vxlan_vni
             ):
-                context[
-                    vpn_context_keys['vni']
-                ] = f'{vpnclient.vni or vpnclient.vpn._vxlan_vni}'
+                context[vpn_context_keys["vni"]] = (
+                    f"{vpnclient.vni or vpnclient.vpn._vxlan_vni}"
+                )
             if vpnclient.secret:
-                context[
-                    vpn_context_keys['zerotier_member_id']
-                ] = vpnclient.zerotier_member_id
-                context[vpn_context_keys['secret']] = vpnclient.secret
+                context[vpn_context_keys["zerotier_member_id"]] = (
+                    vpnclient.zerotier_member_id
+                )
+                context[vpn_context_keys["secret"]] = vpnclient.secret
         return context
 
     def get_context(self, system=False):
@@ -733,10 +733,10 @@ class AbstractConfig(BaseConfig):
             # Hence, they are added separately.
             c.update(
                 [
-                    ('name', self.name),
-                    ('mac_address', self.mac_address),
-                    ('id', str(self.device.id)),
-                    ('key', self.key),
+                    ("name", self.name),
+                    ("mac_address", self.mac_address),
+                    ("id", str(self.device.id)),
+                    ("key", self.key),
                 ]
             )
             config_settings = self.device._get_organization__config_settings()
@@ -751,7 +751,7 @@ class AbstractConfig(BaseConfig):
             for func in self._config_context_functions:
                 context.update(func(config=self))
             if app_settings.HARDWARE_ID_ENABLED:
-                context.update({'hardware_id': str(self.device.hardware_id)})
+                context.update({"hardware_id": str(self.device.hardware_id)})
 
         if self.context and not system:
             context.update(self.context)
@@ -792,13 +792,13 @@ class AbstractConfig(BaseConfig):
         """
         This is used to change group templates if config backend is changed.
         """
-        Config = load_model('config', 'Config')
-        Template = load_model('config', 'Template')
+        Config = load_model("config", "Config")
+        Template = load_model("config", "Template")
         config = Config.objects.get(pk=instance_id)
         device_group = config.device.group
         if not device_group:
             return
-        created = kwargs.get('created')
+        created = kwargs.get("created")
         if created:
             templates = device_group.templates.all()
             old_templates = Template.objects.none()
@@ -808,4 +808,4 @@ class AbstractConfig(BaseConfig):
         config.manage_group_templates(templates, old_templates, not created)
 
 
-AbstractConfig._meta.get_field('config').blank = True
+AbstractConfig._meta.get_field("config").blank = True
