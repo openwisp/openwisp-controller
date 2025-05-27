@@ -1572,7 +1572,7 @@ class TestAdmin(
         def _update_template(templates):
             params.update(
                 {
-                    'config-0-templates': ','.join(
+                    "config-0-templates": ",".join(
                         [str(template.pk) for template in templates]
                     )
                 }
@@ -1584,8 +1584,8 @@ class TestAdmin(
         vpn = self._create_vpn()
         template = self._create_template()
         vpn_template = self._create_template(
-            name='vpn-test',
-            type='vpn',
+            name="vpn-test",
+            type="vpn",
             vpn=vpn,
             auto_cert=True,
         )
@@ -1594,26 +1594,26 @@ class TestAdmin(
         revoked_cert_query = cert_query.filter(revoked=True)
 
         # Add a new device
-        path = reverse(f'admin:{self.app_label}_device_add')
+        path = reverse(f"admin:{self.app_label}_device_add")
         params = self._get_device_params(org=self._get_org())
         response = self.client.post(path, data=params, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        config = Device.objects.get(name=params['name']).config
+        config = Device.objects.get(name=params["name"]).config
         self.assertEqual(config.vpnclient_set.count(), 0)
         self.assertEqual(config.templates.count(), 0)
 
-        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device_id])
+        path = reverse(f"admin:{self.app_label}_device_change", args=[config.device_id])
         params.update(
             {
-                'config-0-id': str(config.pk),
-                'config-0-device': str(config.device_id),
-                'config-INITIAL_FORMS': 1,
-                '_continue': True,
+                "config-0-id": str(config.pk),
+                "config-0-device": str(config.device_id),
+                "config-INITIAL_FORMS": 1,
+                "_continue": True,
             }
         )
 
-        with self.subTest('Adding only VpnClient template'):
+        with self.subTest("Adding only VpnClient template"):
             # Adding VpnClient template to the device
             _update_template(templates=[vpn_template])
 
@@ -1631,7 +1631,7 @@ class TestAdmin(
             self.assertEqual(revoked_cert_query.count(), 1)
             self.assertEqual(valid_cert_query.count(), 0)
 
-        with self.subTest('Add VpnClient template along with another template'):
+        with self.subTest("Add VpnClient template along with another template"):
             # Adding templates to the device
             _update_template(templates=[template, vpn_template])
 
@@ -2100,9 +2100,9 @@ class TestAdmin(
 
     # helper for asserting queries executed during template fetch for a device
     def _verify_template_queries(self, config, count):
-        path = reverse(f'admin:{self.app_label}_device_change', args=[config.device.pk])
+        path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
-            self._create_template(name=f'template-{i}')
+            self._create_template(name=f"template-{i}")
         expected_count = 24
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
@@ -2115,7 +2115,7 @@ class TestAdmin(
             # and 1 for fetching templates
             response = self.client.get(
                 reverse(
-                    'admin:get_relevant_templates', args=[config.device.organization.pk]
+                    "admin:get_relevant_templates", args=[config.device.organization.pk]
                 )
             )
             self.assertEqual(response.status_code, 200)
@@ -2127,11 +2127,11 @@ class TestAdmin(
 
     def test_templates_fetch_queries_5(self):
         config = self._create_config(organization=self._get_org())
-        self._verify_template_queries(config, 1)
+        self._verify_template_queries(config, 5)
 
     def test_templates_fetch_queries_10(self):
         config = self._create_config(organization=self._get_org())
-        self._verify_template_queries(config, 1)
+        self._verify_template_queries(config, 10)
 
 
 class TestTransactionAdmin(

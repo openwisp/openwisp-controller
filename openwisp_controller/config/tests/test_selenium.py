@@ -12,8 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
 
-from openwisp_controller.config.base import device
-from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import SeleniumTestMixin as BaseSeleniumTestMixin
 
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpnMixin
@@ -26,18 +24,18 @@ Cert = load_model("django_x509", "Cert")
 class SeleniumTestMixin(BaseSeleniumTestMixin):
     def _select_organization(self, org):
         self.find_element(
-            by=By.CSS_SELECTOR, value='#select2-id_organization-container'
+            by=By.CSS_SELECTOR, value="#select2-id_organization-container"
         ).click()
         self.wait_for_invisibility(
-            By.CSS_SELECTOR, '.select2-results__option.loading-results'
+            By.CSS_SELECTOR, ".select2-results__option.loading-results"
         )
-        self.find_element(by=By.CLASS_NAME, value='select2-search__field').send_keys(
+        self.find_element(by=By.CLASS_NAME, value="select2-search__field").send_keys(
             org.name
         )
         self.wait_for_invisibility(
-            By.CSS_SELECTOR, '.select2-results__option.loading-results'
+            By.CSS_SELECTOR, ".select2-results__option.loading-results"
         )
-        self.find_element(by=By.CLASS_NAME, value='select2-results__option').click()
+        self.find_element(by=By.CLASS_NAME, value="select2-results__option").click()
 
     def _verify_templates_visibility(self, hidden=None, visible=None):
         hidden = hidden or []
@@ -48,7 +46,7 @@ class SeleniumTestMixin(BaseSeleniumTestMixin):
             self.wait_for_visibility(By.XPATH, f'//*[@value="{template.id}"]')
 
 
-@tag('selenium_tests')
+@tag("selenium_tests")
 class TestDeviceAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
@@ -58,7 +56,7 @@ class TestDeviceAdmin(
     # helper function for adding/removing templates
     def _update_template(self, device_id, templates, is_enabled=False):
         self.open(
-            reverse('admin:config_device_change', args=[device_id]) + '#config-group'
+            reverse("admin:config_device_change", args=[device_id]) + "#config-group"
         )
         self.wait_for_presence(By.CSS_SELECTOR, 'input[name="config-0-templates"]')
 
@@ -79,8 +77,8 @@ class TestDeviceAdmin(
         self.web_driver.execute_script(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
-        self.find_element(by=By.NAME, value='_save').click()
-        self.wait_for_presence(By.CSS_SELECTOR, '.messagelist .success', timeout=5)
+        self.find_element(by=By.NAME, value="_save").click()
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
 
     def test_create_new_device(self):
         required_template = self._create_template(name="Required", required=True)
@@ -200,7 +198,7 @@ class TestDeviceAdmin(
         )
         self.hide_loading_overlay()
 
-        with self.subTest('only org1 and shared templates should be visible'):
+        with self.subTest("only org1 and shared templates should be visible"):
             self._verify_templates_visibility(
                 hidden=[org2_required_template, org2_default_template],
                 visible=[
@@ -210,7 +208,7 @@ class TestDeviceAdmin(
                 ],
             )
 
-        with self.subTest('changing org should update templates'):
+        with self.subTest("changing org should update templates"):
             self.find_element(
                 By.CSS_SELECTOR, value='a[href="#overview-group"]'
             ).click()
@@ -387,56 +385,56 @@ class TestDeviceAdmin(
         # so we add a wait to allow login to complete
         time.sleep(2)
 
-        with self.subTest('Template should be added'):
+        with self.subTest("Template should be added"):
             self._update_template(device.id, templates=[template])
             config.refresh_from_db()
             self.assertEqual(config.templates.count(), 1)
-            self.assertEqual(config.status, 'modified')
+            self.assertEqual(config.status, "modified")
             config.set_status_applied()
-            self.assertEqual(config.status, 'applied')
+            self.assertEqual(config.status, "applied")
 
-        with self.subTest('Template should be removed'):
+        with self.subTest("Template should be removed"):
             self._update_template(device.id, templates=[template], is_enabled=True)
             config.refresh_from_db()
             self.assertEqual(config.templates.count(), 0)
-            self.assertEqual(config.status, 'modified')
+            self.assertEqual(config.status, "modified")
 
 
-@tag('selenium_tests')
+@tag("selenium_tests")
 class TestDeviceGroupAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
     StaticLiveServerTestCase,
 ):
     def test_show_relevant_templates(self):
-        org1 = self._create_org(name='org1', slug='org1')
-        org2 = self._create_org(name='org2', slug='org2')
-        shared_template = self._create_template(name='shared template')
-        org1_template = self._create_template(name='org1 template', organization=org1)
+        org1 = self._create_org(name="org1", slug="org1")
+        org2 = self._create_org(name="org2", slug="org2")
+        shared_template = self._create_template(name="shared template")
+        org1_template = self._create_template(name="org1 template", organization=org1)
         org1_required_template = self._create_template(
-            name='org1 required', organization=org1, required=True
+            name="org1 required", organization=org1, required=True
         )
         org1_default_template = self._create_template(
-            name='org1 default', organization=org1, default=True
+            name="org1 default", organization=org1, default=True
         )
-        org2_template = self._create_template(name='org2 template', organization=org2)
+        org2_template = self._create_template(name="org2 template", organization=org2)
         org2_required_template = self._create_template(
-            name='org2 required', organization=org2, required=True
+            name="org2 required", organization=org2, required=True
         )
         org2_default_template = self._create_template(
-            name='org2 default', organization=org2, default=True
+            name="org2 default", organization=org2, default=True
         )
 
         self.login()
-        self.open(reverse('admin:config_devicegroup_add'))
+        self.open(reverse("admin:config_devicegroup_add"))
         self.assertEqual(
             self.wait_for_visibility(
-                By.CSS_SELECTOR, '.sortedm2m-container .help'
+                By.CSS_SELECTOR, ".sortedm2m-container .help"
             ).text,
-            'No Template available',
+            "No Template available",
         )
         self.find_element(by=By.CSS_SELECTOR, value='input[name="name"]').send_keys(
-            'Test Device Group'
+            "Test Device Group"
         )
         self._select_organization(org1)
         self._verify_templates_visibility(
@@ -459,7 +457,7 @@ class TestDeviceGroupAdmin(
         self.find_element(by=By.CSS_SELECTOR, value='input[name="_continue"]').click()
         self._wait_until_page_ready()
         device_group = DeviceGroup.objects.first()
-        self.assertEqual(device_group.name, 'Test Device Group')
+        self.assertEqual(device_group.name, "Test Device Group")
         self.assertIn(org1_template, device_group.templates.all())
         self.assertEqual(
             self.find_element(
@@ -469,7 +467,7 @@ class TestDeviceGroupAdmin(
             True,
         )
 
-        with self.subTest('Change organization to org2'):
+        with self.subTest("Change organization to org2"):
             self._select_organization(org2)
             self._verify_templates_visibility(
                 hidden=[
