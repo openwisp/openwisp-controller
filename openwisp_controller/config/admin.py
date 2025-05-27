@@ -466,8 +466,8 @@ class ConfigInline(
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         # setting queryset none for all requests except POST as queryset
         # is required for the form to be valid
-        if db_field.name == 'templates' and request.method != 'POST':
-            kwargs['queryset'] = Template.objects.none()
+        if db_field.name == "templates" and request.method != "POST":
+            kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
@@ -1329,8 +1329,8 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         # setting queryset none for all requests except POST as queryset
         # is required for the form to be valid
-        if db_field.name == 'templates' and request.method != 'POST':
-            kwargs['queryset'] = Template.objects.none()
+        if db_field.name == "templates" and request.method != "POST":
+            kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 

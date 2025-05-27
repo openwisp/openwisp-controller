@@ -243,7 +243,7 @@ class TestViews(
         response = self.client.get(
             reverse("admin:get_relevant_templates", args=["wrong"])
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 400)
 
     def test_get_default_values_authorization(self):
         org1 = self._get_org()

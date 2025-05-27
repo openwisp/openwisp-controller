@@ -1,11 +1,10 @@
 import json
-import re
 from collections import OrderedDict
 from copy import deepcopy
 from uuid import UUID
 
 from django.db.models import Q
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
@@ -30,7 +29,7 @@ def get_relevant_templates(request, organization_id):
     group_id = request.GET.get("group_id", None)
     user = request.user
     # organization_id is passed as 'null' for add device
-    organization_id = None if organization_id == 'null' else organization_id
+    organization_id = None if organization_id == "null" else organization_id
     if (
         not user.is_superuser
         and organization_id
@@ -39,7 +38,12 @@ def get_relevant_templates(request, organization_id):
         return HttpResponse(status=403)
 
     if organization_id:
-        if not Organization.objects.filter(pk=organization_id).exists():
+        # return 400 if organization_id is not a valid UUID
+        try:
+            organization_id = UUID(organization_id, version=4)
+        except ValueError:
+            return HttpResponseBadRequest(_(f"{organization_id} is not a valid UUID."))
+        if not Organization.objects.filter(pk=organization_id, is_active=True).exists():
             raise Http404(_("Organization does not exist."))
         org_filters = Q(organization_id=organization_id)
     # if the user is superuser then we need to fetch all the templates
@@ -66,15 +70,15 @@ def get_relevant_templates(request, organization_id):
     selected_templates = []
     if device_id:
         selected_templates = (
-            Config.objects.prefetch_related('templates')
-            .only('templates')
+            Config.objects.prefetch_related("templates")
+            .only("templates")
             .get(device_id=device_id)
             .templates.all()
         )
     if group_id:
         selected_templates = (
-            DeviceGroup.objects.prefetch_related('templates')
-            .only('templates')
+            DeviceGroup.objects.prefetch_related("templates")
+            .only("templates")
             .get(pk=group_id)
             .templates.filter(organization_id=organization_id)
         )
