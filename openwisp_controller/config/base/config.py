@@ -187,24 +187,25 @@ class AbstractConfig(BaseConfig):
         return templates
 
     @classmethod
-    def validate_duplicate_vpn_templates(
+    def clean_duplicate_vpn_client_templates(
         cls, action, instance, templates, raw_data=None
     ):
         """
-        Validates if there are duplicate templates for the same VPN server.
+        Multiple VPN client templates related to the same VPN server are not allowed:
+        it hardly makes sense, preventing it keeps things simple and avoids headaches.
         Raises a ValidationError if duplicates are found.
         """
-        if action != 'pre_add':
+        if action != "pre_add":
             return
 
         def format_template_list(names):
             quoted = [f'"{name}"' for name in names]
             if len(quoted) == 2:
-                return ' and '.join(quoted)
-            return ', '.join(quoted[:-1]) + ' and ' + quoted[-1]
+                return " and ".join(quoted)
+            return ", ".join(quoted[:-1]) + " and " + quoted[-1]
 
         def add_vpn_templates(templates_queryset):
-            for template in templates_queryset.filter(type='vpn'):
+            for template in templates_queryset.filter(type="vpn"):
                 if template.name not in vpn_templates[template.vpn.name]:
                     vpn_templates[template.vpn.name].append(template.name)
 
@@ -221,19 +222,23 @@ class AbstractConfig(BaseConfig):
         add_vpn_templates(templates)
 
         error_lines = [
-            'You cannot select multiple VPN client templates related to'
-            ' the same VPN server.'
+            _(
+                "You cannot select multiple VPN client templates related to"
+                " the same VPN server."
+            )
         ]
         for vpn_name, template_names in vpn_templates.items():
             if len(template_names) < 2:
                 continue
             template_list = format_template_list(sorted(template_names))
             error_lines.append(
-                f'The templates {template_list} are all linked'
-                f' to the same VPN server: "{vpn_name}".'
+                _(
+                    "The templates {template_list} are all linked"
+                    ' to the same VPN server: "{vpn_name}".'
+                ).format(template_list=template_list, vpn_name=vpn_name)
             )
         if len(error_lines) > 1:
-            raise ValidationError('\n'.join(error_lines))
+            raise ValidationError("\n".join(str(line) for line in error_lines))
 
     @classmethod
     def clean_templates(cls, action, instance, pk_set, raw_data=None, **kwargs):
@@ -253,7 +258,7 @@ class AbstractConfig(BaseConfig):
         )
         if not templates:
             return
-        cls.validate_duplicate_vpn_templates(
+        cls.clean_duplicate_vpn_client_templates(
             action, instance, templates, raw_data=raw_data
         )
         backend = instance.get_backend_instance(template_instances=templates)
