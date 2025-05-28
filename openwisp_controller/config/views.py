@@ -3,6 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from uuid import UUID
 
+import ipdb
 from django.db.models import Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils import timezone
@@ -20,12 +21,25 @@ DeviceGroup = load_model("config", "DeviceGroup")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
+def _get_relevant_templates_dict(queryset, selected=False):
+    relevant_templates = OrderedDict()
+    for template in queryset:
+        relevant_templates[str(template.pk)] = dict(
+            name=template.name,
+            backend=template.get_backend_display(),
+            default=template.default,
+            required=template.required,
+            selected=True,
+        )
+    return relevant_templates
+
+
 def get_relevant_templates(request, organization_id):
     """
     returns default templates of specified organization
     """
     backend = request.GET.get("backend", None)
-    device_id = request.GET.get("device_id", None)
+    config_id = request.GET.get("config_id", None)
     group_id = request.GET.get("group_id", None)
     user = request.user
     # organization_id is passed as 'null' for add device
@@ -65,43 +79,40 @@ def get_relevant_templates(request, organization_id):
     queryset = (
         Template.objects.filter(**filter_options)
         .filter(org_filters)
+        .order_by("-required", "-default")
         .only("id", "name", "backend", "default", "required")
     )
     selected_templates = []
-    if device_id:
-        selected_templates = (
-            Config.objects.prefetch_related("templates")
-            .only("templates")
-            .get(device_id=device_id)
-            .templates.all()
-        )
+    if config_id:
+        try:
+            selected_templates = (
+                Config.objects.prefetch_related("templates")
+                .only("templates")
+                .get(pk=config_id)
+                .templates.filter(org_filters)
+                .filter(**filter_options)
+            )
+        except (Config.DoesNotExist, ValueError):
+            pass
+
     if group_id:
-        selected_templates = (
-            DeviceGroup.objects.prefetch_related("templates")
-            .only("templates")
-            .get(pk=group_id)
-            .templates.filter(organization_id=organization_id)
-        )
+        try:
+            selected_templates = (
+                DeviceGroup.objects.prefetch_related("templates")
+                .only("templates")
+                .get(pk=group_id)
+                .templates.filter(org_filters)
+                .filter(**filter_options)
+            )
+        except (DeviceGroup.DoesNotExist, ValueError):
+            pass
 
-    relevant_templates = OrderedDict()
-    for template in selected_templates:
-        relevant_templates[str(template.pk)] = dict(
-            name=template.name,
-            backend=template.get_backend_display(),
-            default=template.default,
-            required=template.required,
-            selected=True,
+    relevant_templates = _get_relevant_templates_dict(selected_templates, selected=True)
+    relevant_templates.update(
+        _get_relevant_templates_dict(
+            queryset.exclude(pk__in=relevant_templates.keys()), selected=False
         )
-
-    for template in queryset.exclude(pk__in=relevant_templates.keys()):
-        relevant_templates[str(template.pk)] = dict(
-            name=template.name,
-            backend=template.get_backend_display(),
-            default=template.default,
-            required=template.required,
-            selected=False,
-        )
-
+    )
     return JsonResponse(relevant_templates)
 
 

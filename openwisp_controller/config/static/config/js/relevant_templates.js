@@ -1,6 +1,6 @@
 "use strict";
 django.jQuery(function ($) {
-  var firstRun = true,
+  var pageLoading = true,
     backendFieldSelector = "#id_config-0-backend",
     orgFieldSelector = "#id_organization",
     isDeviceGroup = function () {
@@ -8,6 +8,11 @@ django.jQuery(function ($) {
     },
     templatesFieldName = function () {
       return isDeviceGroup() ? "templates" : "config-0-templates";
+    },
+    isAddingNewObject = function () {
+      return isDeviceGroup()
+        ? !$(".add-form").length
+        : $('input[name="config-0-id"]').val().length === 0;
     },
     getTemplateOptionElement = function (
       index,
@@ -42,15 +47,6 @@ django.jQuery(function ($) {
     resetTemplateOptions = function () {
       $("ul.sortedm2m-items").empty();
     },
-    updateTemplateSelection = function (selectedTemplates) {
-      // Marks currently applied templates from database as selected
-      // Only executed at page load.
-      selectedTemplates.forEach(function (templateId) {
-        $(
-          `li.sortedm2m-item input[type="checkbox"][value="${templateId}"]:first`,
-        ).prop("checked", true);
-      });
-    },
     updateTemplateHelpText = function () {
       var helpText = "Choose items and order by drag & drop.";
       if ($("li.sortedm2m-item:first").length === 0) {
@@ -74,11 +70,21 @@ django.jQuery(function ($) {
       showRelevantTemplates();
     },
     updateConfigTemplateField = function (templates) {
-      $(`input[name="${templatesFieldName()}"]`).attr(
-        "value",
-        templates.join(","),
-      );
+      var value = templates.join(","),
+        templateField = templatesFieldName();
+      $(`input[name="${templateField}"]`).attr("value", value);
+      if (pageLoading) {
+        django._owcInitialValues[templateField] = value;
+      }
       $("input.sortedm2m:first").trigger("change");
+    },
+    getSelectedTemplates = function () {
+      // Returns the selected templates from the sortedm2m input
+      var selectedTemplates = {};
+      $("input.sortedm2m:checked").each(function (index, element) {
+        selectedTemplates[$(element).val()] = $(element).prop("checked");
+      });
+      return selectedTemplates;
     },
     parseSelectedTemplates = function (selectedTemplates) {
       if (selectedTemplates !== undefined) {
@@ -103,18 +109,15 @@ django.jQuery(function ($) {
         // TODO: This is fragile, consider using a more robust way to get the group id.
         var pathParts = window.location.pathname.split("/");
         url.searchParams.set("group_id", pathParts[pathParts.length - 3]);
-      } else if ($('input[name="config-0-device"]').length) {
-        url.searchParams.set(
-          "device_id",
-          $('input[name="config-0-device"]').val(),
-        );
+      } else if ($('input[name="config-0-id"]').length) {
+        url.searchParams.set("config_id", $('input[name="config-0-id"]').val());
       }
       return url.toString();
     },
     showRelevantTemplates = function () {
       var orgID = $(orgFieldSelector).val(),
         backend = isDeviceGroup() ? "" : $(backendFieldSelector).val(),
-        selectedTemplates;
+        currentSelection = getSelectedTemplates();
 
       // Hide templates if no organization or backend is selected
       if (!orgID || (!isDeviceGroup() && backend.length === 0)) {
@@ -123,15 +126,6 @@ django.jQuery(function ($) {
         return;
       }
 
-      if (firstRun) {
-        // selectedTemplates will be undefined on device add page or
-        // when the user has changed any of organization or backend field.
-        // selectedTemplates will be an empty string if no template is selected
-        // ''.split(',') returns [''] hence, this case requires special handling
-        selectedTemplates = parseSelectedTemplates(
-          $('input[name="' + templatesFieldName() + '"]').val(),
-        );
-      }
       var url = getRelevantTemplateUrl(orgID, backend);
       $.get(url).done(function (data) {
         resetTemplateOptions();
@@ -142,10 +136,19 @@ django.jQuery(function ($) {
         // Adds "li" elements for templates
         Object.keys(data).forEach(function (templateId, index) {
           var isSelected =
+              // Template is selected in the database
               data[templateId].selected ||
+              // Shared template which was already selected
+              (currentSelection[templateId] !== undefined &&
+                currentSelection[templateId]) ||
+              // Default template should be selected when:
+              // 1. A new object is created.
+              // 2. Organization or backend field has changed.
+              //    (when the fields are changed, the currentSelection will be non-empty)
               (data[templateId].default &&
-                selectedTemplates === undefined &&
-                !data[templateId].required),
+                (pageLoading ||
+                  isAddingNewObject() ||
+                  Object.keys(currentSelection).length > 0)),
             element = getTemplateOptionElement(
               index,
               templateId,
@@ -159,9 +162,6 @@ django.jQuery(function ($) {
               isSelected,
               true,
             );
-          // Default templates should only be enabled for new
-          // device or when user has changed any of organization
-          // or backend field
           if (isSelected === true) {
             enabledTemplates.push(templateId);
           }
@@ -170,9 +170,6 @@ django.jQuery(function ($) {
             sortedm2mPrefixUl.append(prefixElement);
           }
         });
-        if (firstRun === true && selectedTemplates !== undefined) {
-          updateTemplateSelection(selectedTemplates);
-        }
         updateTemplateHelpText();
         updateConfigTemplateField(enabledTemplates);
       });
@@ -210,7 +207,7 @@ django.jQuery(function ($) {
           });
         });
       }
-      firstRun = false;
+      pageLoading = false;
       $("#content-main form").submit(function () {
         $(
           'ul.sortedm2m-items:first input[type="checkbox"][data-required="true"]',
