@@ -882,6 +882,61 @@ class TestTransactionConfig(
     TestVpnX509Mixin,
     TransactionTestCase,
 ):
+    def test_multiple_vpn_client_templates_same_vpn(self):
+        vpn1 = self._create_vpn(name="vpn1")
+        vpn2 = self._create_vpn(name="vpn2")
+        vpn1_template1 = self._create_template(
+            name="vpn1-template1", type="vpn", vpn=vpn1
+        )
+        vpn1_template2 = self._create_template(
+            name="vpn1-template2", type="vpn", vpn=vpn1
+        )
+        vpn2_template1 = self._create_template(
+            name="vpn2-template1", type="vpn", vpn=vpn2
+        )
+        vpn2_template2 = self._create_template(
+            name="vpn2-template2", type="vpn", vpn=vpn2
+        )
+        vpn2_template3 = self._create_template(
+            name="vpn2-template3", type="vpn", vpn=vpn2
+        )
+        config = self._create_config(device=self._create_device())
+        config.templates.add(vpn1_template1)
+        with self.subTest("Adding duplicate vpn-client template one at time"):
+            with self.assertRaises(ValidationError) as context_manager:
+                config.templates.add(vpn1_template2)
+            try:
+                self.assertEqual(
+                    context_manager.exception.message,
+                    "You cannot select multiple VPN client templates related to the"
+                    " same VPN server.\n"
+                    'The templates "vpn1-template1" and "vpn1-template2" are all'
+                    ' linked to the same VPN server: "vpn1".',
+                )
+            except AssertionError:
+                self.fail("ValidationError not raised")
+
+        with self.subTest("Add multiple vpn client templates for multiple VPN"):
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.vpnclient_set.count(), 1)
+            with self.assertRaises(ValidationError) as context_manager:
+                config.templates.add(
+                    vpn1_template2, vpn2_template1, vpn2_template2, vpn2_template3
+                )
+            try:
+                self.assertEqual(
+                    context_manager.exception.message,
+                    "You cannot select multiple VPN client templates related to the"
+                    " same VPN server.\n"
+                    'The templates "vpn1-template1" and "vpn1-template2" are all'
+                    ' linked to the same VPN server: "vpn1".\n'
+                    'The templates "vpn2-template1", "vpn2-template2" and'
+                    ' "vpn2-template3" are all linked to the same VPN server: "vpn2".',
+                )
+            except AssertionError:
+                self.fail("ValidationError not raised")
+
     def test_certificate_renew_invalidates_checksum_cache(self):
         config = self._create_config(organization=self._get_org())
         vpn_template = self._create_template(
