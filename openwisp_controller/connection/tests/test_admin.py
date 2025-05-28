@@ -132,6 +132,30 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
                 url = reverse(f"admin:{self.app_label}_{model}_changelist")
                 self.assertContains(response, f' class="mg-link" href="{url}"')
 
+    def test_org_admin_create_shared_credentials(self):
+        self._test_org_admin_create_shareable_object(
+            path=reverse(f"admin:{self.app_label}_credentials_add"),
+            model=Credentials,
+            payload={
+                "name": "Shared Credentials",
+                "organization": "",
+                "connector": "openwisp_controller.connection.connectors.ssh.Ssh",
+                "params": {
+                    "username": "root",
+                    "password": "password",
+                    "port": 22,
+                },
+            },
+        )
+
+    def test_org_admin_view_shared_credentials(self):
+        credentials = self._create_credentials(organization=None)
+        self._test_org_admin_view_shareable_object(
+            path=reverse(
+                f"admin:{self.app_label}_credentials_change", args=[credentials.pk]
+            ),
+        )
+
 
 class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = "config"
