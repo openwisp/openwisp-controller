@@ -76,6 +76,7 @@ jobs:
         pip install -U pip wheel setuptools
         pip install -U -r requirements-test.txt
         pip install -U -e .
+        pip install -UI "openwisp-users @ https://github.com/openwisp/openwisp-users/tarball/issues/238-view-shared-objects"
         pip install ${{ matrix.django-version }}
 
     - name: Start postgres and redis
