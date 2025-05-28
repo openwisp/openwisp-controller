@@ -78,13 +78,13 @@ class CaListSerializer(BaseListSerializer):
             # Setting the default to `serializers.empty` ensures DRF does not treat
             # these fields as both required and having a default value, avoiding
             # conflicts.
-            'organization': {'required': True, 'default': serializers.empty},
-            'common_name': {'default': '', 'required': False},
-            'key_length': {'initial': '2048'},
-            'digest': {'initial': 'sha256'},
-            'passphrase': {'write_only': True},
-            'validity_start': {'default': default_validity_start()},
-            'validity_end': {'default': default_ca_validity_end()},
+            "organization": {"required": True, "default": serializers.empty},
+            "common_name": {"default": "", "required": False},
+            "key_length": {"initial": "2048"},
+            "digest": {"initial": "sha256"},
+            "passphrase": {"write_only": True},
+            "validity_start": {"default": default_validity_start()},
+            "validity_end": {"default": default_ca_validity_end()},
         }
 
 

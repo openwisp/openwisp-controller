@@ -168,21 +168,21 @@ class TestPkiApi(
 
         create_payload = self._ca_data
         update_payload = create_payload.copy()
-        update_payload['name'] = 'updated-name'
+        update_payload["name"] = "updated-name"
         self._test_org_user_access_shared_object(
-            listview_name='pki_api:ca_list',
-            detailview_name='pki_api:ca_detail',
+            listview_name="pki_api:ca_list",
+            detailview_name="pki_api:ca_detail",
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
             expected_status_codes={
-                'create': 400,
-                'list': 200,
-                'retrieve': 403,
-                'update': 403,
-                'delete': 403,
-                'head': 403,
-                'option': 200,
+                "create": 400,
+                "list": 200,
+                "retrieve": 403,
+                "update": 403,
+                "delete": 403,
+                "head": 403,
+                "option": 200,
             },
         )
 
@@ -332,23 +332,23 @@ class TestPkiApi(
         self._create_cert(ca=shared_ca)
 
         create_payload = self._cert_data
-        create_payload['ca'] = shared_ca.pk
+        create_payload["ca"] = shared_ca.pk
         update_payload = create_payload.copy()
-        update_payload['name'] = 'update-name'
+        update_payload["name"] = "update-name"
         self._test_org_user_access_shared_object(
-            listview_name='pki_api:cert_list',
-            detailview_name='pki_api:cert_detail',
+            listview_name="pki_api:cert_list",
+            detailview_name="pki_api:cert_detail",
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
             expected_status_codes={
-                'create': 400,
-                'list': 200,
-                'retrieve': 403,
-                'update': 403,
-                'delete': 403,
-                'head': 403,
-                'option': 200,
+                "create": 400,
+                "list": 200,
+                "retrieve": 403,
+                "update": 403,
+                "delete": 403,
+                "head": 403,
+                "option": 200,
             },
         )
 
@@ -358,29 +358,29 @@ class TestPkiApi(
         create_payload = self._cert_data
         create_payload.update(
             {
-                'organization': org.pk,
-                'ca': shared_ca.pk,
+                "organization": org.pk,
+                "ca": shared_ca.pk,
             }
         )
         update_payload = {
-            'name': 'updated-name',
-            'organization': org.pk,
-            'notes': 'new-notes',
+            "name": "updated-name",
+            "organization": org.pk,
+            "notes": "new-notes",
         }
         self._test_org_user_access_shared_object(
-            listview_name='pki_api:cert_list',
-            detailview_name='pki_api:cert_detail',
+            listview_name="pki_api:cert_list",
+            detailview_name="pki_api:cert_detail",
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
             expected_status_codes={
-                'create': 201,
-                'list': 200,
-                'retrieve': 200,
-                'update': 200,
-                'delete': 204,
-                'head': 403,
-                'option': 200,
+                "create": 201,
+                "list": 200,
+                "retrieve": 200,
+                "update": 200,
+                "delete": 204,
+                "head": 403,
+                "option": 200,
             },
         )
 

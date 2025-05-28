@@ -675,10 +675,10 @@ class TestConfigApi(
         token = self._obtain_auth_token(test_user)
         self._create_template(organization=None)
         self._test_org_user_access_shared_object(
-            listview_name='config_api:template_list',
-            detailview_name='config_api:template_detail',
-            create_payload={'name': 'test', 'organization': ''},
-            update_payload={'name': 'updated-test'},
+            listview_name="config_api:template_list",
+            detailview_name="config_api:template_detail",
+            create_payload={"name": "test", "organization": ""},
+            update_payload={"name": "updated-test"},
             expected_count=1,
             token=token,
         )
@@ -689,30 +689,30 @@ class TestConfigApi(
         create_payload = self._template_data
         create_payload.update(
             {
-                'organization': org.pk,
-                'type': 'vpn',
-                'vpn': vpn.pk,
+                "organization": org.pk,
+                "type": "vpn",
+                "vpn": vpn.pk,
             }
         )
         update_payload = create_payload.copy()
-        update_payload['name'] = 'updated-test'
+        update_payload["name"] = "updated-test"
         test_user = self._create_operator(organizations=[org])
         self._test_org_user_access_shared_object(
-            listview_name='config_api:template_list',
-            detailview_name='config_api:template_detail',
+            listview_name="config_api:template_list",
+            detailview_name="config_api:template_detail",
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
             token=self._obtain_auth_token(test_user),
             expected_status_codes={
-                'create': 201,
-                'list': 200,
-                'retrieve': 200,
-                'update': 200,
-                'delete': 204,
-                'head': 200,
-                'option': 200,
-            }
+                "create": 201,
+                "list": 200,
+                "retrieve": 200,
+                "update": 200,
+                "delete": 204,
+                "head": 200,
+                "option": 200,
+            },
         )
 
     def test_template_create_with_empty_config(self):
@@ -877,45 +877,45 @@ class TestConfigApi(
 
     def test_org_admin_access_vpn_with_shared_objects(self):
         org = self._get_org()
-        shared_ca = self._create_ca(name='shared_ca', organization=None)
+        shared_ca = self._create_ca(name="shared_ca", organization=None)
         create_payload = self._vpn_data
         create_payload.update(
             {
-                'organization': org.pk,
-                'ca': shared_ca.pk,
+                "organization": org.pk,
+                "ca": shared_ca.pk,
             }
         )
         update_payload = create_payload.copy()
-        update_payload['name'] = 'updated-test-vpn'
+        update_payload["name"] = "updated-test-vpn"
         administrator = self._create_administrator(organizations=[org])
         self._test_access_shared_object(
-            listview_name='config_api:vpn_list',
-            detailview_name='config_api:vpn_detail',
+            listview_name="config_api:vpn_list",
+            detailview_name="config_api:vpn_detail",
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
             expected_status_codes={
-                'create': 201,
-                'list': 200,
-                'retrieve': 200,
-                'update': 200,
-                'delete': 204,
-                'head': 200,
-                'option': 200,
+                "create": 201,
+                "list": 200,
+                "retrieve": 200,
+                "update": 200,
+                "delete": 204,
+                "head": 200,
+                "option": 200,
             },
             token=self._obtain_auth_token(administrator),
         )
 
     def test_org_admin_create_shared_vpn(self):
-        shared_ca = self._create_ca(name='shared_ca', organization=None)
+        shared_ca = self._create_ca(name="shared_ca", organization=None)
         data = self._vpn_data
-        data['ca'] = shared_ca.pk
+        data["ca"] = shared_ca.pk
         # API does not allow creating shared VPN by org admin,
         # therefore we create an object to test the detail view.
         self._create_vpn(organization=None, ca=shared_ca)
         self._test_org_user_access_shared_object(
-            listview_name='config_api:vpn_list',
-            detailview_name='config_api:vpn_detail',
+            listview_name="config_api:vpn_list",
+            detailview_name="config_api:vpn_detail",
             create_payload=data,
             expected_count=1,
         )
