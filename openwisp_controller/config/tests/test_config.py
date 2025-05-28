@@ -892,7 +892,7 @@ class TestTransactionConfig(
     TestVpnX509Mixin,
     TransactionTestCase,
 ):
-    def test_multiple_vpn_templates_same_vpn(self):
+    def test_multiple_vpn_client_templates_same_vpn(self):
         vpn1 = self._create_vpn(name="vpn1")
         vpn2 = self._create_vpn(name="vpn2")
         vpn1_template1 = self._create_template(
@@ -926,7 +926,7 @@ class TestTransactionConfig(
             except AssertionError:
                 self.fail("ValidationError not raised")
 
-        with self.subTest("Add duplicate templates for multiple VPN"):
+        with self.subTest("Add multiple vpn client templates for multiple VPN"):
             config.refresh_from_db()
             self.assertEqual(config.templates.count(), 1)
             self.assertEqual(config.vpnclient_set.count(), 1)

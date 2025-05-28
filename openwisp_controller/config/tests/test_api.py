@@ -1551,7 +1551,7 @@ class TestConfigApiTransaction(
             self.assertEqual(response.status_code, 200)
             self.assertEqual(device.config.templates.count(), 0)
 
-    def test_multiple_vpn_templates_same_vpn(self):
+    def test_multiple_vpn_client_templates_same_vpn(self):
         """
         Assigning multiple templates of type 'vpn' referencing the same VPN
         to a device's config raises error.
