@@ -8,6 +8,10 @@ import model_utils.fields
 from django.conf import settings
 from django.db import migrations, models
 
+import openwisp_utils.fields
+
+from .. import settings as app_settings
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -16,7 +20,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="WHOISInfo",
+            name="WhoIsInfo",
             fields=[
                 (
                     "id",
@@ -44,14 +48,8 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "last_public_ip",
-                    models.GenericIPAddressField(
-                        db_index=True,
-                        help_text=(
-                            "indicates the IP address logged from "
-                            "the last request coming from the device"
-                        ),
-                    ),
+                    "ip_address",
+                    models.GenericIPAddressField(db_index=True),
                 ),
                 (
                     "organization_name",
@@ -83,7 +81,7 @@ class Migration(migrations.Migration):
                 (
                     "device",
                     models.OneToOneField(
-                        help_text="Device to which this WHOIS info belongs",
+                        help_text="Device to which this WhoIs info belongs",
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="whois_info",
                         to=settings.CONFIG_DEVICE_MODEL,
@@ -92,7 +90,19 @@ class Migration(migrations.Migration):
             ],
             options={
                 "abstract": False,
-                "swappable": "CONFIG_WHOISINFO_MODEL",
+                "swappable": "CONFIG_WhoIsINFO_MODEL",
             },
+        ),
+        migrations.AddField(
+            model_name="organizationconfigsettings",
+            name="whois_enabled",
+            field=openwisp_utils.fields.FallbackBooleanChoiceField(
+                blank=True,
+                default=None,
+                fallback=app_settings.WHOIS_ENABLED,
+                help_text="Whether WhoIs details lookup is enabled",
+                null=True,
+                verbose_name="WhoIs Enabled",
+            ),
         ),
     ]
