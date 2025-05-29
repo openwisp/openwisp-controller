@@ -7,7 +7,9 @@ from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
+from openwisp_utils.fields import FallbackBooleanChoiceField
 
+from .. import settings as app_settings
 from ..exceptions import OrganizationDeviceLimitExceeded
 from ..tasks import bulk_invalidate_config_get_cached_checksum
 
@@ -40,6 +42,11 @@ class AbstractOrganizationConfigSettings(UUIDModel):
             'This field can be used to add "Configuration Variables"' " to the devices."
         ),
         verbose_name=_("Configuration Variables"),
+    )
+    whois_enabled = FallbackBooleanChoiceField(
+        help_text=_("Whether WhoIs details lookup is enabled"),
+        fallback=app_settings.WHOIS_ENABLED,
+        verbose_name=_("WhoIs Enabled"),
     )
 
     class Meta:

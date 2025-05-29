@@ -1,16 +1,61 @@
 import logging
 
-import geoip2.webservice
 import requests
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import gettext as _
+from geoip2 import errors
+from geoip2 import webservice as geoip2_webservice
+from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
 
+from .settings import WHOIS_ENABLED
+
 logger = logging.getLogger(__name__)
+
+
+class WhoIsCeleryRetryTask(OpenwispCeleryTask):
+    """
+    Base class for OpenWISP Celery tasks with retry support on failure.
+    """
+
+    # this is the exception related to networking errors
+    # that should trigger a retry of the task.
+    autoretry_for = (errors.HTTPError,)
+    # the following value is used as the maximum value for the retry delay.
+    # the actual delay is calculated as a random value between 0 and this value.
+    # https://docs.celeryq.dev/en/latest/userguide/tasks.html#Task.autoretry_for
+    retry_backoff = 10
+    max_retries = 3
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        Device = load_model("config", "Device")
+
+        device_pk = kwargs.get("device_pk")
+        ip_address = kwargs.get("ip_address")
+        device = Device.objects.get(pk=device_pk)
+        # Notify the user about the failure via web notification
+        notify.send(
+            sender=device,
+            type="generic_message",
+            target=device,
+            action_object=device,
+            level="error",
+            message=_(
+                "Failed to fetch WhoIs details for device"
+                " [{notification.target}]({notification.target_link})"
+            ),
+            description=_(
+                f"WhoIs details could not be fetched for ip: {ip_address}."
+                " Details: {exc}"
+            ),
+        )
+        logger.error(f"WhoIs lookup failed for : {device_pk} for IP: {ip_address}.")
+        return super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
 @shared_task(soft_time_limit=7200)
@@ -160,20 +205,35 @@ def invalidate_device_checksum_view_cache(organization_id):
         DeviceChecksumView.invalidate_get_device_cache(device)
 
 
-@shared_task(soft_time_limit=7200)
-def fetch_whois_details(device_pk, ip):
+@shared_task(bind=True, base=WhoIsCeleryRetryTask)
+def fetch_whois_details(self, device_pk, ip_address):
     """
-    Fetches the WHOIS details of the given IP address
-    and creates/updates the WHOIS record.
+    Fetches the WhoIs details of the given IP address
+    and creates/updates the WhoIs record.
     """
-    WHOISInfo = load_model("config", "WHOISInfo")
+    WhoIsInfo = load_model("config", "WhoIsInfo")
+    Device = load_model("config", "Device")
+    try:
+        device = Device.objects.get(pk=device_pk)
+    except ObjectDoesNotExist:
+        logger.error(f"Device with pk {device_pk} does not exist.")
+        return
+
+    # Check if WhoIs lookup is enabled for the organization
+    org_settings = device._get_organization__config_settings()
+    if not getattr(org_settings, "whois_enabled", WHOIS_ENABLED):
+        logger.info(
+            f"WhoIs lookup is disabled for organization {device.organization_id}."
+        )
+        return
+
     try:
         # 'geolite.info' host is used for GeoLite2
-        ip_client = geoip2.webservice.Client(
+        ip_client = geoip2_webservice.Client(
             settings.GEOIP_ACCOUNT_ID, settings.GEOIP_LICENSE_KEY, "geolite.info"
         )
 
-        data = ip_client.city(ip)
+        data = ip_client.city(ip_address)
         # Format address using the data from the geoip2 response
         address = ", ".join(
             [
@@ -183,8 +243,8 @@ def fetch_whois_details(device_pk, ip):
                 str(data.postal.code),
             ]
         )
-        # Create/update the WHOIS information for the device
-        WHOISInfo.objects.update_or_create(
+        # Create/update the WhoIs information for the device
+        WhoIsInfo.objects.update_or_create(
             device_id=device_pk,
             defaults={
                 "organization_name": data.traits.autonomous_system_organization,
@@ -193,11 +253,32 @@ def fetch_whois_details(device_pk, ip):
                 "timezone": data.location.time_zone,
                 "address": address,
                 "cidr": data.traits.network,
-                "last_public_ip": ip,
+                "ip_address": ip_address,
             },
         )
-        logger.info(f"Successfully fetched WHOIS details for {ip}.")
+        logger.info(f"Successfully fetched WHOIS details for {ip_address}.")
+
+    # Catching all possible exceptions raised by the geoip2 client
+    # logging the exceptions and raising them with appropriate messages
+    except errors.AddressNotFoundError:
+        message = _(f"No WHOIS information found for IP address {ip_address}.")
+        logger.error(message)
+        raise errors.AddressNotFoundError(message)
+    except errors.AuthenticationError:
+        message = _(
+            "Authentication failed for GeoIP2 service. "
+            "Check your GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY settings."
+        )
+        logger.error(message)
+        raise errors.AuthenticationError(message)
+    except errors.OutOfQueriesError:
+        message = _("Your account has run out of queries for the GeoIP2 service.")
+        logger.error(message)
+        raise errors.OutOfQueriesError(message)
+    except errors.PermissionRequiredError:
+        message = _("Your account does not have permission to access this service.")
+        logger.error(message)
+        raise errors.PermissionRequiredError(message)
     except requests.RequestException as e:
-        logger.error(f"Error fetching WHOIS details for {ip}: {e}")
-    except ObjectDoesNotExist:
-        logger.error(f"Device with pk {device_pk} does not exist.")
+        logger.error(f"Error fetching WHOIS details for {ip_address}: {e}")
+        raise e
