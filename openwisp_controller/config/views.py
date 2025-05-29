@@ -3,7 +3,6 @@ from collections import OrderedDict
 from copy import deepcopy
 from uuid import UUID
 
-import ipdb
 from django.db.models import Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils import timezone
@@ -29,7 +28,7 @@ def _get_relevant_templates_dict(queryset, selected=False):
             backend=template.get_backend_display(),
             default=template.default,
             required=template.required,
-            selected=True,
+            selected=selected,
         )
     return relevant_templates
 

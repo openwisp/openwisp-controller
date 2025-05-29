@@ -168,8 +168,8 @@ class TestDeviceAdmin(
             self.wait_for_invisibility(By.CSS_SELECTOR, ".djnjc-overlay:not(.loading)")
 
     def test_multiple_organization_templates(self):
-        shared_required_template = self._create_template(
-            name="shared required", organization=None
+        shared_template = self._create_template(
+            name="shared", organization=None
         )
 
         org1 = self._create_org(name="org1", slug="org1")
@@ -204,9 +204,14 @@ class TestDeviceAdmin(
                 visible=[
                     org1_required_template,
                     org1_default_template,
-                    shared_required_template,
+                    shared_template,
                 ],
             )
+
+        # Select shared template
+        self.find_element(
+            by=By.XPATH, value=f'//*[@value="{shared_template.id}"]'
+        ).click()
 
         with self.subTest("changing org should update templates"):
             self.find_element(
@@ -224,8 +229,16 @@ class TestDeviceAdmin(
                 visible=[
                     org2_required_template,
                     org2_default_template,
-                    shared_required_template,
+                    shared_template,
                 ],
+            )
+            # Verify that shared template is selected
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f'input[type="checkbox"][value="{shared_template.id}"]',
+                ).is_selected(),
+                True,
             )
             self.find_element(
                 by=By.CSS_SELECTOR, value='input[name="_continue"]'
@@ -234,9 +247,10 @@ class TestDeviceAdmin(
             device.refresh_from_db()
             device.config.refresh_from_db()
             self.assertEqual(device.organization, org2)
-            self.assertEqual(device.config.templates.count(), 2)
+            self.assertEqual(device.config.templates.count(), 3)
             self.assertIn(org2_required_template, device.config.templates.all())
             self.assertIn(org2_default_template, device.config.templates.all())
+            self.assertIn(shared_template, device.config.templates.all())
 
     def test_change_config_backend(self):
         device = self._create_config(organization=self._get_org()).device
