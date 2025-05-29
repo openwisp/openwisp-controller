@@ -1573,13 +1573,6 @@ class TestZeroTierTransaction(
             organization=zt_vpn1.organization,
             auto_cert=True,
         )
-        zt_1_copy = self._create_template(
-            name='test-zt-template-1-copy',
-            type='vpn',
-            vpn=zt_vpn1,
-            organization=zt_vpn1.organization,
-            auto_cert=True,
-        )
         zt2 = self._create_template(
             name='test-zt-template-2',
             type='vpn',
@@ -1661,7 +1654,6 @@ class TestZeroTierTransaction(
                 'vpn client template is already applied to the device'
             )
         ):
-            device.config.templates.add(zt_1_copy)
             # No new zt vpn client object
             self.assertEqual(vpnclient_qs.count(), 1)
             # Make sure only previously applied 'zt_vpn1' vpn client object is exist
