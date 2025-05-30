@@ -463,6 +463,13 @@ class ConfigInline(
         fields = super().get_fields(request, obj)
         return self._error_reason_field_conditional(obj, fields)
 
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # setting queryset none for all requests except POST as queryset
+        # is required for the form to be valid
+        if db_field.name == "templates" and request.method != "POST":
+            kwargs["queryset"] = Template.objects.none()
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
 
 class ChangeDeviceGroupForm(forms.Form):
     device_group = forms.ModelChoiceField(
@@ -1318,6 +1325,13 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
             ),
         }
         return ctx
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # setting queryset none for all requests except POST as queryset
+        # is required for the form to be valid
+        if db_field.name == "templates" and request.method != "POST":
+            kwargs["queryset"] = Template.objects.none()
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 admin.site.register(Device, DeviceAdminExportable)
