@@ -168,9 +168,7 @@ class TestDeviceAdmin(
             self.wait_for_invisibility(By.CSS_SELECTOR, ".djnjc-overlay:not(.loading)")
 
     def test_multiple_organization_templates(self):
-        shared_template = self._create_template(
-            name="shared", organization=None
-        )
+        shared_template = self._create_template(name="shared", organization=None)
 
         org1 = self._create_org(name="org1", slug="org1")
         org1_required_template = self._create_template(
