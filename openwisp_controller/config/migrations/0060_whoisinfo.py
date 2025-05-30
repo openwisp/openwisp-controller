@@ -4,6 +4,7 @@ import uuid
 
 import django.db.models.deletion
 import django.utils.timezone
+import jsonfield.fields
 import model_utils.fields
 from django.conf import settings
 from django.db import migrations, models
@@ -75,7 +76,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "address",
-                    models.CharField(blank=True, help_text="Address", max_length=255),
+                    jsonfield.fields.JSONField(
+                        blank=True, default=dict, help_text="Address"
+                    ),
                 ),
                 ("cidr", models.CharField(blank=True, help_text="CIDR", max_length=20)),
                 (

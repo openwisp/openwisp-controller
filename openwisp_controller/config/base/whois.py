@@ -3,6 +3,7 @@ from ipaddress import ip_address
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from jsonfield import JSONField
 from swapper import get_model_name
 
 from openwisp_utils.base import TimeStampedEditableModel
@@ -43,10 +44,10 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
         blank=True,
         help_text=_("Time zone"),
     )
-    address = models.CharField(
-        max_length=255,
-        blank=True,
+    address = JSONField(
+        default=dict,
         help_text=_("Address"),
+        blank=True,
     )
     cidr = models.CharField(
         max_length=20,
