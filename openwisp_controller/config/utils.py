@@ -73,6 +73,9 @@ def update_last_ip(device, request):
     if device.last_ip != ip:
         device.last_ip = ip
         update_fields.append("last_ip")
+    # for cases of devices who do not have whois record
+    elif not hasattr(device, "whois_info"):
+        device.trigger_whois_lookup()
     if device.management_ip != management_ip:
         device.management_ip = management_ip
         update_fields.append("management_ip")

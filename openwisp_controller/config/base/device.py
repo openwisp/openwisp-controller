@@ -1,4 +1,5 @@
 from hashlib import md5
+from ipaddress import ip_address
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
@@ -17,6 +18,7 @@ from ..signals import (
     device_name_changed,
     management_ip_changed,
 )
+from ..tasks import fetch_whois_details
 from ..validators import device_name_validator, mac_address_validator
 from .base import BaseModel
 
@@ -28,7 +30,13 @@ class AbstractDevice(OrgMixin, BaseModel):
     physical properties of a network device
     """
 
-    _changed_checked_fields = ["name", "group_id", "management_ip", "organization_id"]
+    _changed_checked_fields = [
+        "name",
+        "group_id",
+        "management_ip",
+        "organization_id",
+        "last_ip",
+    ]
 
     name = models.CharField(
         max_length=64,
@@ -279,6 +287,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
+        # Triggering the whois lookup for new devices and old devices
+        self.trigger_whois_lookup()
         if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
@@ -299,7 +309,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         self._get_initial_values_for_checked_fields()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
-            getattr(self, f"_check_{field}_changed")()
+            method = getattr(self, f"_check_{field}_changed", None)
+            if callable(method):
+                method()
 
     def _is_deferred(self, field):
         """
@@ -325,7 +337,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         if not present_values:
             return
         self.refresh_from_db(fields=present_values.keys())
-        for field in self._changed_checked_fields:
+        for field in present_values:
             setattr(self, f"_initial_{field}", field)
             setattr(self, field, present_values[field])
 
@@ -363,6 +375,35 @@ class AbstractDevice(OrgMixin, BaseModel):
             )
 
         self._initial_management_ip = self.management_ip
+
+    def _need_whois_lookup(self, old_ip, new_ip):
+        """
+        Returns True if the WhoIs lookup is needed.
+        This is used to determine if the WhoIs lookup should be triggered
+        when the device is saved.
+        """
+        org_settings = self._get_organization__config_settings()
+        return (
+            getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
+            and new_ip
+            and ip_address(new_ip).is_global
+            and (not hasattr(self, "whois_info") or old_ip != new_ip)
+        )
+
+    def trigger_whois_lookup(self):
+        """Trigger WhoIs lookup if the last IP has changed and is public IP."""
+        if self._initial_last_ip == models.DEFERRED:
+            return
+        # Trigger fetch WhoIs lookup if it does not exist
+        # or if the last IP has changed and is a public IP
+        if self._need_whois_lookup(self._initial_last_ip, self.last_ip):
+            transaction.on_commit(
+                lambda: fetch_whois_details.delay(
+                    device_pk=self.pk, ip_address=self.last_ip
+                )
+            )
+
+        self._initial_last_ip = self.last_ip
 
     def _check_organization_id_changed(self):
         """
