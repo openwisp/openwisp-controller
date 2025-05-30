@@ -13,7 +13,7 @@ from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
 
-from .settings import WHOIS_ENABLED
+from . import settings as app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,7 @@ def fetch_whois_details(self, device_pk, ip_address):
 
     # Check if WhoIs lookup is enabled for the organization
     org_settings = device._get_organization__config_settings()
-    if not getattr(org_settings, "whois_enabled", WHOIS_ENABLED):
+    if not getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED):
         logger.info(
             f"WhoIs lookup is disabled for organization {device.organization_id}."
         )
@@ -230,19 +230,19 @@ def fetch_whois_details(self, device_pk, ip_address):
     try:
         # 'geolite.info' host is used for GeoLite2
         ip_client = geoip2_webservice.Client(
-            settings.GEOIP_ACCOUNT_ID, settings.GEOIP_LICENSE_KEY, "geolite.info"
+            app_settings.GEOIP_ACCOUNT_ID,
+            app_settings.GEOIP_LICENSE_KEY,
+            "geolite.info",
         )
 
         data = ip_client.city(ip_address)
         # Format address using the data from the geoip2 response
-        address = ", ".join(
-            [
-                data.city.name,
-                data.country.name,
-                data.continent.name,
-                str(data.postal.code),
-            ]
-        )
+        address = {
+            "city": getattr(data.city, "name", ""),
+            "country": getattr(data.country, "name", ""),
+            "continent": getattr(data.continent, "name", ""),
+            "postal": str(getattr(data.postal, "code", "")),
+        }
         # Create/update the WhoIs information for the device
         WhoIsInfo.objects.update_or_create(
             device_id=device_pk,
