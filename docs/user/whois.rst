@@ -21,18 +21,23 @@ Timezone.
 Setup
 -----
 
-Ensure the your project ``settings.py`` contains the variables as follows:
+Ensure that your project ``settings.py`` contains the variables as
+follows:
 
 .. code-block:: python
 
-    GEOIP_ACCOUNT_ID = os.getenv("GEOIP_ACCOUNT_ID", "")
-    GEOIP_LICENSE_KEY = os.getenv("GEOIP_LICENSE_KEY", "")
+    OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID = os.getenv(
+        "OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID", ""
+    )
+    OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY = os.getenv(
+        "OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY", ""
+    )
 
 Steps to obtain values of above settings
 ----------------------------------------
 
 - Create Maxmind account using the following link: `Create Account
-  <https://www.maxmind.com/en/geolite2/signup?utm_source=kb&utm_medium=kb-link&utm_campaign=kb-create-account>`_.
+  <https://www.maxmind.com/en/geolite2/signup>`_.
 
   If you already have an account then click **Sign In**
 
@@ -41,4 +46,5 @@ Steps to obtain values of above settings
 - Generate a New license Key. Name it whatever you like .. image::
   https://github.com/user-attachments/assets/57df27bc-4f9d-4701-88bf-91e6b715e4a6
 - Copy the *Account Id* and *License Key* and Paste it in the environment
-  variables: **GEOIP_ACCOUNT_ID** and **GEOIP_LICENSE_KEY**.
+  variables: **OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID** and
+  **OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY**.

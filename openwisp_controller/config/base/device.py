@@ -386,8 +386,8 @@ class AbstractDevice(OrgMixin, BaseModel):
         return (
             getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
             and new_ip
+            and (not getattr(self, "whois_info", None) or old_ip != new_ip)
             and ip_address(new_ip).is_global
-            and (not hasattr(self, "whois_info") or old_ip != new_ip)
         )
 
     def trigger_whois_lookup(self):
@@ -399,7 +399,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         if self._need_whois_lookup(self._initial_last_ip, self.last_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
-                    device_pk=self.pk, ip_address=self.last_ip
+                    device_pk=self.pk,
+                    old_ip_address=self._initial_last_ip,
+                    new_ip_address=self.last_ip,
                 )
             )
 
@@ -442,6 +444,19 @@ class AbstractDevice(OrgMixin, BaseModel):
         (eg: admin site)
         """
         return self._get_config_attr("get_status_display")
+
+    @property
+    def whois_info(self):
+        """
+        Returns the WhoIs information for the device based on whether
+        WhoIs enabled or not for the organization.
+        If the WhoIs information does not exist, it returns None.
+        """
+        org_settings = self._get_organization__config_settings()
+        if not getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED):
+            return None
+        WhoIsInfo = load_model("config", "WhoIsInfo")
+        return WhoIsInfo.objects.filter(ip_address=self.last_ip).first()
 
     def get_default_templates(self):
         """

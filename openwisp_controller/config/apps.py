@@ -308,6 +308,7 @@ class ConfigConfig(AppConfig):
         from .controller.views import DeviceChecksumView
         from .handlers import (
             device_cache_invalidation_handler,
+            device_whois_info_delete_handler,
             devicegroup_change_handler,
             devicegroup_delete_handler,
             vpn_server_change_handler,
@@ -368,6 +369,11 @@ class ConfigConfig(AppConfig):
             vpn_server_change_handler,
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
+        )
+        post_delete.connect(
+            device_whois_info_delete_handler,
+            sender=self.device_model,
+            dispatch_uid="device.delete_whois_info",
         )
 
     def register_dashboard_charts(self):
