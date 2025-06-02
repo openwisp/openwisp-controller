@@ -14,6 +14,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Organization = load_model("openwisp_users", "Organization")
 Cert = load_model("django_x509", "Cert")
+WhoIsInfo = load_model("config", "WhoIsInfo")
 
 
 @receiver(
@@ -152,3 +153,11 @@ def organization_disabled_handler(instance, **kwargs):
         # No change in is_active
         return
     tasks.invalidate_device_checksum_view_cache.delay(str(instance.id))
+
+
+# Remove the related WhoIs record for that ip. If other active devices
+# are linked to it, then new lookup will be triggered for them.
+def device_whois_info_delete_handler(instance, **kwargs):
+    transaction.on_commit(
+        lambda: WhoIsInfo.objects.filter(ip_address=instance.last_ip).delete()
+    )
