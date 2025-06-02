@@ -47,6 +47,12 @@ class TestWhoIsInfo(CreateDeviceMixin, TransactionTestCase):
             mocked_task.assert_called()
         mocked_task.reset_mock()
 
+        with self.subTest("task called when last_ip is changed and is public"):
+            device.last_ip = "172.217.22.10"
+            device.save()
+            mocked_task.assert_called()
+        mocked_task.reset_mock()
+
         with self.subTest("task not called when last_ip is private"):
             device.last_ip = "10.0.0.1"
             device.save()
@@ -72,6 +78,26 @@ class TestWhoIsInfo(CreateDeviceMixin, TransactionTestCase):
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_whois_info_creation_task(self, mock_client, mock_info):
+
+        # helper function for asserting the model details with
+        # mocked api response
+        def _verify_whois_details(instance, ip_address):
+            self.assertEqual(instance.organization_name, "Google LLC")
+            self.assertEqual(instance.asn, "15169")
+            self.assertEqual(instance.country, "United States")
+            self.assertEqual(instance.timezone, "America/Los_Angeles")
+            self.assertEqual(
+                instance.address,
+                {
+                    "city": "Mountain View",
+                    "country": "United States",
+                    "continent": "North America",
+                    "postal": "94043",
+                },
+            )
+            self.assertEqual(instance.cidr, "172.217.22.0/24")
+            self.assertEqual(instance.ip_address, ip_address)
+
         org = self._get_org()
         OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
 
@@ -88,18 +114,27 @@ class TestWhoIsInfo(CreateDeviceMixin, TransactionTestCase):
         mock_client.return_value.city.return_value = mock_response
 
         # creating a device with a last public IP
-        device = self._create_device(last_ip="172.217.22.14")
-        self.assertEqual(mock_info.call_count, 1)
-        device.refresh_from_db()
+        with self.subTest("Test WhoIs create when device is created"):
+            device = self._create_device(last_ip="172.217.22.14")
+            self.assertEqual(mock_info.call_count, 1)
+            mock_info.reset_mock()
+            device.refresh_from_db()
 
-        # fetching the WhoIs info for the device
-        whois_info = device.whois_info
-        self.assertEqual(whois_info.organization_name, "Google LLC")
-        self.assertEqual(whois_info.asn, "15169")
-        self.assertEqual(whois_info.country, "United States")
-        self.assertEqual(whois_info.timezone, "America/Los_Angeles")
-        self.assertEqual(
-            whois_info.address, "Mountain View, United States, North America, 94043"
-        )
-        self.assertEqual(whois_info.cidr, "172.217.22.0/24")
-        self.assertEqual(whois_info.ip_address, "172.217.22.14")
+            _verify_whois_details(device.whois_info, device.last_ip)
+
+        with self.subTest(
+            "Test WhoIs create & deletion of old record when last ip is updated"
+        ):
+            old_ip_address = device.last_ip
+            device.last_ip = "172.217.22.10"
+            device.save()
+            self.assertEqual(mock_info.call_count, 1)
+            mock_info.reset_mock()
+            device.refresh_from_db()
+
+            _verify_whois_details(device.whois_info, device.last_ip)
+
+            # details related to old ip address should be deleted
+            self.assertEqual(
+                WhoIsInfo.objects.filter(ip_address=old_ip_address).count(), 0
+            )

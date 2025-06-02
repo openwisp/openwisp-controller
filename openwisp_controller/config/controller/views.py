@@ -56,7 +56,7 @@ class GetDeviceView(SingleObjectMixin, View):
         )
         queryset = (
             self.model.objects.select_related(
-                "organization", "config", "whois_info", "organization__config_settings"
+                "organization", "config", "organization__config_settings"
             )
             .defer(*defer)
             .exclude(config__status="deactivated")
