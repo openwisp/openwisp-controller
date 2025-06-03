@@ -1,5 +1,4 @@
 from hashlib import md5
-from ipaddress import ip_address
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
@@ -18,8 +17,8 @@ from ..signals import (
     device_name_changed,
     management_ip_changed,
 )
-from ..tasks import fetch_whois_details
 from ..validators import device_name_validator, mac_address_validator
+from ..whois.services import WhoIsService
 from .base import BaseModel
 
 
@@ -287,8 +286,9 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
-        # Triggering the whois lookup for new devices and old devices
-        self.trigger_whois_lookup()
+        # We need to check for last_ip when device is created/updated to perform
+        # WhoIs lookup.
+        self._check_last_ip()
         if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
@@ -376,34 +376,13 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         self._initial_management_ip = self.management_ip
 
-    def _need_whois_lookup(self, old_ip, new_ip):
-        """
-        Returns True if the WhoIs lookup is needed.
-        This is used to determine if the WhoIs lookup should be triggered
-        when the device is saved.
-        """
-        org_settings = self._get_organization__config_settings()
-        return (
-            getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
-            and new_ip
-            and (not getattr(self, "whois_info", None) or old_ip != new_ip)
-            and ip_address(new_ip).is_global
-        )
-
-    def trigger_whois_lookup(self):
-        """Trigger WhoIs lookup if the last IP has changed and is public IP."""
+    def _check_last_ip(self):
+        """Trigger WhoIs lookup if last_ip is not deferred."""
         if self._initial_last_ip == models.DEFERRED:
             return
-        # Trigger fetch WhoIs lookup if it does not exist
-        # or if the last IP has changed and is a public IP
-        if self._need_whois_lookup(self._initial_last_ip, self.last_ip):
-            transaction.on_commit(
-                lambda: fetch_whois_details.delay(
-                    device_pk=self.pk,
-                    old_ip_address=self._initial_last_ip,
-                    new_ip_address=self.last_ip,
-                )
-            )
+
+        service = WhoIsService(self)
+        service.trigger_whois_lookup()
 
         self._initial_last_ip = self.last_ip
 
@@ -448,15 +427,10 @@ class AbstractDevice(OrgMixin, BaseModel):
     @property
     def whois_info(self):
         """
-        Returns the WhoIs information for the device based on whether
-        WhoIs enabled or not for the organization.
-        If the WhoIs information does not exist, it returns None.
+        Used as a shortcut to get WhoIsInfo
         """
-        org_settings = self._get_organization__config_settings()
-        if not getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED):
-            return None
-        WhoIsInfo = load_model("config", "WhoIsInfo")
-        return WhoIsInfo.objects.filter(ip_address=self.last_ip).first()
+        service = WhoIsService(self)
+        return service.get_whois_info()
 
     def get_default_templates(self):
         """

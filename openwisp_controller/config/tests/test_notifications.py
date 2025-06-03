@@ -3,9 +3,8 @@ from unittest.mock import patch
 from celery.exceptions import Retry
 from django.apps.registry import apps
 from django.conf import settings
-from django.test import TransactionTestCase, override_settings
+from django.test import TransactionTestCase
 from django.urls import reverse
-from geoip2 import errors
 from requests.exceptions import RequestException
 from swapper import load_model
 
@@ -37,11 +36,6 @@ class TestNotifications(
     _ZT_API_TASKS_ERR_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.error"
     # As the locmem cache does not support the redis backend cache.keys() method
     _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
-
-    _WHOIS_GEOIP_CLIENT = "openwisp_controller.config.tasks.geoip2_webservice.Client"
-    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.tasks.logger.info"
-    _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.tasks.logger.warning"
-    _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.tasks.logger.error"
 
     def setUp(self):
         self.admin = self._get_admin()
@@ -354,49 +348,3 @@ class TestNotifications(
             self.assertEqual(mock_warn.call_count, 0)
             self.assertEqual(mock_error.call_count, 0)
             self.assertEqual(notification_qs.count(), 0)
-
-    # we need to allow the task to propagate exceptions to ensure
-    # `on_failure` method is called and notifications are executed
-    @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
-    @patch(_WHOIS_TASKS_ERR_LOGGER)
-    @patch(_WHOIS_TASKS_WARN_LOGGER)
-    @patch(_WHOIS_TASKS_INFO_LOGGER)
-    def test_whois_task_notification(self, mock_info, mock_warn, mock_error):
-        org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
-
-        # we have 2 calls for error logging: 1 which is run by task for general errors
-        # and one for generalized error logging for unexpected exceptions which
-        # are not caught
-        def assert_logging_on_exception(
-            exception, info_calls=0, warn_calls=0, error_calls=2
-        ):
-            with self.subTest(
-                f"Test notifications and logging when {exception.__name__} is raised"
-            ), patch(self._WHOIS_GEOIP_CLIENT, side_effect=exception("test")):
-                Device.objects.all().delete()  # Clear existing devices
-                device = self._create_device(last_ip="172.217.22.14")
-                self.assertEqual(mock_info.call_count, info_calls)
-                self.assertEqual(mock_warn.call_count, warn_calls)
-                self.assertEqual(mock_error.call_count, error_calls)
-                self.assertEqual(notification_qs.count(), 1)
-                notification = notification_qs.first()
-                self.assertEqual(notification.actor, device)
-                self.assertEqual(notification.target, device)
-                self.assertEqual(notification.type, "generic_message")
-                self.assertIn(
-                    "Failed to fetch WhoIs details for device",
-                    notification.message,
-                )
-                self.assertIn(device.last_ip, notification.description)
-
-            mock_info.reset_mock()
-            mock_warn.reset_mock()
-            mock_error.reset_mock()
-            notification_qs.delete()
-
-        # Test for all possible exceptions that can be raised by the geoip2 client
-        assert_logging_on_exception(errors.OutOfQueriesError)
-        assert_logging_on_exception(errors.AddressNotFoundError)
-        assert_logging_on_exception(errors.AuthenticationError)
-        assert_logging_on_exception(errors.PermissionRequiredError)

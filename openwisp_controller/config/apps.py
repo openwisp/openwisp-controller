@@ -308,11 +308,11 @@ class ConfigConfig(AppConfig):
         from .controller.views import DeviceChecksumView
         from .handlers import (
             device_cache_invalidation_handler,
-            device_whois_info_delete_handler,
             devicegroup_change_handler,
             devicegroup_delete_handler,
             vpn_server_change_handler,
         )
+        from .whois.handlers import device_whois_info_delete_handler
 
         post_save.connect(
             DeviceChecksumView.invalidate_get_device_cache,
