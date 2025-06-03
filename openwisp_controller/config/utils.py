@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404 as base_get_object_or_404
 from django.urls import path, re_path
 from openwisp_notifications.utils import _get_object_link
 
+from .whois.services import WhoIsService
+
 logger = logging.getLogger(__name__)
 
 
@@ -75,7 +77,8 @@ def update_last_ip(device, request):
         update_fields.append("last_ip")
     # for cases of devices who do not have whois record
     elif not getattr(device, "whois_info", None):
-        device.trigger_whois_lookup()
+        service = WhoIsService(device)
+        service.trigger_whois_lookup()
     if device.management_ip != management_ip:
         device.management_ip = management_ip
         update_fields.append("management_ip")
