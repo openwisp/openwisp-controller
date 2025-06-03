@@ -1,20 +1,31 @@
 from unittest import mock
 
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
+from geoip2 import errors
 from swapper import load_model
 
 from .. import settings as app_settings
-from ..tasks import fetch_whois_details
-from .utils import CreateDeviceMixin
+from ..tests.utils import CreateDeviceMixin
+from .tasks import fetch_whois_details
 
 Device = load_model("config", "Device")
 WhoIsInfo = load_model("config", "WhoIsInfo")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+Notification = load_model("openwisp_notifications", "Notification")
+
+notification_qs = Notification.objects.all()
 
 
-class TestWhoIsInfo(CreateDeviceMixin, TransactionTestCase):
-    _WHOIS_GEOIP_CLIENT = "openwisp_controller.config.tasks.geoip2_webservice.Client"
-    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.tasks.logger.info"
+class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
+    _WHOIS_GEOIP_CLIENT = (
+        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+    )
+    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
+    _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"
+    _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.tasks.logger.error"
+
+    def setUp(self):
+        self.admin = self._get_admin()
 
     def test_whois_enabled(self):
         org = self._get_org()
@@ -138,3 +149,49 @@ class TestWhoIsInfo(CreateDeviceMixin, TransactionTestCase):
             self.assertEqual(
                 WhoIsInfo.objects.filter(ip_address=old_ip_address).count(), 0
             )
+
+    # we need to allow the task to propagate exceptions to ensure
+    # `on_failure` method is called and notifications are executed
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
+    @mock.patch(_WHOIS_TASKS_ERR_LOGGER)
+    @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
+    @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
+    def test_whois_task_failure_notification(self, mock_info, mock_warn, mock_error):
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+
+        # we have 2 calls for error logging: 1 which is run by task for general errors
+        # and one for generalized error logging for unexpected exceptions which
+        # are not caught
+        def assert_logging_on_exception(
+            exception, info_calls=0, warn_calls=0, error_calls=2
+        ):
+            with self.subTest(
+                f"Test notifications and logging when {exception.__name__} is raised"
+            ), mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exception("test")):
+                Device.objects.all().delete()  # Clear existing devices
+                device = self._create_device(last_ip="172.217.22.14")
+                self.assertEqual(mock_info.call_count, info_calls)
+                self.assertEqual(mock_warn.call_count, warn_calls)
+                self.assertEqual(mock_error.call_count, error_calls)
+                self.assertEqual(notification_qs.count(), 1)
+                notification = notification_qs.first()
+                self.assertEqual(notification.actor, device)
+                self.assertEqual(notification.target, device)
+                self.assertEqual(notification.type, "generic_message")
+                self.assertIn(
+                    "Failed to fetch WhoIs details for device",
+                    notification.message,
+                )
+                self.assertIn(device.last_ip, notification.description)
+
+            mock_info.reset_mock()
+            mock_warn.reset_mock()
+            mock_error.reset_mock()
+            notification_qs.delete()
+
+        # Test for all possible exceptions that can be raised by the geoip2 client
+        assert_logging_on_exception(errors.OutOfQueriesError)
+        assert_logging_on_exception(errors.AddressNotFoundError)
+        assert_logging_on_exception(errors.AuthenticationError)
+        assert_logging_on_exception(errors.PermissionRequiredError)
