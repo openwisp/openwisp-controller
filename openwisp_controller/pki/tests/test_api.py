@@ -51,7 +51,7 @@ class TestPkiApi(
         self.assertEqual(Ca.objects.count(), 0)
         path = reverse("pki_api:ca_list")
         data = self._ca_data
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
@@ -61,7 +61,7 @@ class TestPkiApi(
         path = reverse("pki_api:ca_list")
         data = self._ca_data
         data["extensions"] = []
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["extensions"], [])
@@ -77,7 +77,7 @@ class TestPkiApi(
             "private_key": ca1.private_key,
         }
         expected_queries = (
-            7 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 6
+            10 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 9
         )
         with self.assertNumQueries(expected_queries):
             r = self.client.post(path, data, content_type="application/json")
@@ -97,7 +97,7 @@ class TestPkiApi(
             "validity_start": None,
             "validity_end": None,
         }
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Ca.objects.count(), 1)
@@ -124,7 +124,7 @@ class TestPkiApi(
         path = reverse("pki_api:ca_detail", args=[ca1.pk])
         org2 = self._create_org()
         data = {"name": "change-ca1", "organization": org2.pk, "notes": "change-notes"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(11):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "change-ca1")
@@ -137,7 +137,7 @@ class TestPkiApi(
         data = {
             "name": "change-ca1",
         }
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(10):
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "change-ca1")
@@ -161,7 +161,7 @@ class TestPkiApi(
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         old_serial_num = ca1.serial_number
         path = reverse("pki_api:ca_renew", args=[ca1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(8):
             r = self.client.post(path)
         ca1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
@@ -172,7 +172,7 @@ class TestPkiApi(
         path = reverse("pki_api:cert_list")
         data = self._cert_data
         data["ca"] = self._create_ca().pk
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(11):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -189,7 +189,7 @@ class TestPkiApi(
             "private_key": ca1.private_key,
         }
         expected_queries = (
-            11 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 10
+            14 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 13
         )
         with self.assertNumQueries(expected_queries):
             r = self.client.post(path, data, content_type="application/json")
@@ -205,7 +205,7 @@ class TestPkiApi(
         data = self._cert_data
         data["ca"] = self._create_ca().pk
         data["extensions"] = []
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(11):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -221,7 +221,7 @@ class TestPkiApi(
             "validity_start": None,
             "validity_end": None,
         }
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(11):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -253,7 +253,7 @@ class TestPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(13):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -264,7 +264,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
         data = {"name": "cert1-change"}
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(12):
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -289,7 +289,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name="cert1")
         old_serial_num = cert1.serial_number
         path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(9):
             r = self.client.post(path)
         self.assertEqual(r.status_code, 200)
         cert1.refresh_from_db()
@@ -300,7 +300,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name="cert1")
         self.assertFalse(cert1.revoked)
         path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(8):
             r = self.client.post(path)
         cert1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
