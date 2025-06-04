@@ -73,7 +73,7 @@ class CaListSerializer(BaseListSerializer):
         ]
         read_only_fields = ["created", "modified"]
         extra_kwargs = {
-            "organization": {"required": True},
+            "organization": {"required": True, "default": serializers.empty},
             "common_name": {"default": "", "required": False},
             "key_length": {"initial": "2048"},
             "digest": {"initial": "sha256"},
