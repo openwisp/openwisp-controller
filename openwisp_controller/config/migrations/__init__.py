@@ -27,7 +27,7 @@ def assign_permissions_to_groups(apps, schema_editor):
     create_default_permissions(apps, schema_editor)
     operators_and_admins_can_change = ["device", "config", "template"]
     operators_read_only_admins_manage = ["vpn"]
-    manage_operations = ["add", "change", "delete"]
+    manage_operations = ["add", "change", "view", "delete"]
     Group = get_swapped_model(apps, "openwisp_users", "Group")
 
     try:
