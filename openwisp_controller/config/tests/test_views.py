@@ -107,6 +107,7 @@ class TestViews(
                     "required": t4.required,
                     "default": t4.default,
                     "name": t4.name,
+                    "selected": False,
                 }
             },
         )
@@ -144,6 +145,7 @@ class TestViews(
                     "required": t1.required,
                     "default": t1.default,
                     "name": t1.name,
+                    "selected": False,
                 }
             },
         )
@@ -163,6 +165,7 @@ class TestViews(
                     "required": t2.required,
                     "default": t2.default,
                     "name": t2.name,
+                    "selected": False,
                 }
             },
         )
@@ -240,7 +243,7 @@ class TestViews(
         response = self.client.get(
             reverse("admin:get_relevant_templates", args=["wrong"])
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 400)
 
     def test_get_default_values_authorization(self):
         org1 = self._get_org()
