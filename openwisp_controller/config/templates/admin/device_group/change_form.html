@@ -13,6 +13,7 @@
             $(document).ready( function () {
                 window._relevantTemplateUrl = "{{ relevant_template_url | safe }}";
                 window._deviceGroup = true;
+                window._deviceGroupId = "{{ original.pk }}";
                 window.bindDefaultTemplateLoading();
             })
         }) (django.jQuery);

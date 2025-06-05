@@ -105,10 +105,7 @@ django.jQuery(function ($) {
         url.searchParams.set("backend", backend);
       }
       if (isDeviceGroup() && !$(".add-form").length) {
-        // Get the group id from the URL
-        // TODO: This is fragile, consider using a more robust way to get the group id.
-        var pathParts = window.location.pathname.split("/");
-        url.searchParams.set("group_id", pathParts[pathParts.length - 3]);
+        url.searchParams.set("group_id", window._deviceGroupId);
       } else if ($('input[name="config-0-id"]').length) {
         url.searchParams.set("config_id", $('input[name="config-0-id"]').val());
       }
