@@ -4,7 +4,7 @@ django.jQuery(function ($) {
     backendFieldSelector = "#id_config-0-backend",
     orgFieldSelector = "#id_organization",
     isDeviceGroup = function () {
-      return window._deviceGroup;
+      return window._deviceGroupId !== undefined;
     },
     templatesFieldName = function () {
       return isDeviceGroup() ? "templates" : "config-0-templates";
