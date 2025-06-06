@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.timezone import now, timedelta
 from packaging.version import parse as parse_version
 from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from rest_framework.exceptions import ErrorDetail
@@ -124,6 +125,13 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertIn("output", command_obj)
             self.assertIn("device", command_obj)
             self.assertIn("connection", command_obj)
+
+        with self.subTest("Test results ordering, recent first"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            created_list = [cmd["created"] for cmd in response.data["results"]]
+            sorted_created_list = sorted(created_list, reverse=True)
+            self.assertEqual(created_list, sorted_created_list)
 
     def test_command_create_api(self):
         def test_command_attributes(self, payload):
@@ -392,6 +400,16 @@ class TestConnectionApi(
         with self.assertNumQueries(4):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
+        with self.subTest("Check ordering of credentials"):
+            cred_old = self._create_credentials(name="Old Credential")
+            cred_old.created = now() - timedelta(days=1)
+            cred_old.save()
+            self._create_credentials(name="Newest Credential")
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            created_list = [cred["created"] for cred in response.data["results"]]
+            sorted_created = sorted(created_list, reverse=True)
+            self.assertEqual(created_list, sorted_created)
 
     def test_filter_credentials_list(self):
         cred_1 = self._create_credentials(name="Credential One")
@@ -483,6 +501,19 @@ class TestConnectionApi(
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 0)
+        with self.subTest("Check ordering of device connections"):
+            self._create_config(device=d1)
+            creds = [self._create_credentials(name=f"Cred {i}") for i in range(3)]
+            creds[0].created = now() - timedelta(days=1)
+            creds[0].save()
+            for cred in creds:
+                DeviceConnection.objects.create(device=d1, credentials=cred)
+            response = self.client.get(path)
+            print(response.data)
+            self.assertEqual(response.status_code, 200)
+            created_list = [conn["created"] for conn in response.data["results"]]
+            sorted_created = sorted(created_list, reverse=True)
+            self.assertEqual(created_list, sorted_created)
 
     def test_post_deviceconnection_list(self):
         d1 = self._create_device()

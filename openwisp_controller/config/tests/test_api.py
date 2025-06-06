@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
+from django.utils import timezone
 from swapper import load_model
 
 from openwisp_controller.config.api.serializers import BaseConfigSerializer
@@ -249,6 +252,32 @@ class TestConfigApi(
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
+        with self.subTest("should return devices ordered by most recent first"):
+            Device.objects.all().delete()
+            org = self._get_org()
+            recent1 = self._create_device(
+                name="recent-device-1",
+                mac_address="00:00:00:00:00:01",
+                organization=org,
+            )
+            recent2 = self._create_device(
+                name="recent-device-2",
+                mac_address="00:00:00:00:00:02",
+                organization=org,
+            )
+            oldest = self._create_device(
+                name="oldest-device",
+                mac_address="00:00:00:00:00:03",
+                organization=org,
+            )
+            oldest.created = timezone.now() - timedelta(days=2)
+            oldest.save(update_fields=["created"])
+            path = reverse("config_api:device_list")
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            names = [d["name"] for d in response.data["results"]]
+            expected = [recent2.name, recent1.name, oldest.name]
+            self.assertEqual(names, expected)
 
     def test_device_list_api_filter(self):
         org1 = self._create_org()
@@ -1044,6 +1073,18 @@ class TestConfigApi(
             self.assertNotContains(
                 r, f'<option value="{t2.id}">{t2.name}</option>', html=True
             )
+        with self.subTest("should return device groups ordered by most recent first"):
+            DeviceGroup.objects.all().delete()
+            dg_recent1 = self._create_device_group(name="Recent 1")
+            dg_old = self._create_device_group(name="Oldest")
+            dg_recent2 = self._create_device_group(name="Recent 2")
+            old_date = timezone.now() - timedelta(days=2)
+            DeviceGroup.objects.filter(pk=dg_old.pk).update(created=old_date)
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            returned_ids = [group["id"] for group in response.data["results"]]
+            expected_order = [str(dg_recent2.pk), str(dg_recent1.pk), str(dg_old.pk)]
+            self.assertEqual(returned_ids, expected_order)
 
     def test_devicegroup_list_api_filter(self):
         org1 = self._create_org()
