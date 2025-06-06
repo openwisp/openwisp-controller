@@ -79,6 +79,8 @@ class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
     include_shared = True
     ip = serializers.PrimaryKeyRelatedField(read_only=True)
+    webhook_endpoint = serializers.URLField(required=False, allow_blank=True)
+    auth_token = serializers.CharField(required=False, allow_blank=True)
 
     class Meta(BaseMeta):
         model = Vpn
@@ -96,9 +98,29 @@ class VpnSerializer(BaseSerializer):
             'notes',
             'dh',
             'config',
+            'webhook_endpoint',  # added here
+            'auth_token',        # added here
             'created',
             'modified',
         ]
+
+    def validate(self, value):
+        if self.initial_data.get('backend') == 'openwisp_controller.vpn_backends.Wireguard': #and value == {}:
+            if not value.get('webhook_endpoint'):
+                raise serializers.ValidationError({
+                    'webhook_endpoint': 'This field is required for WireGuard backend.'
+                })
+            if not value.get('auth_token'):
+                raise serializers.ValidationError({
+                    'auth_token': 'This field is required for WireGuard backend.'
+                })
+        else:
+            # Remove if not needed for other backends
+            value.pop('webhook_endpoint', None)
+            value.pop('auth_token', None)
+
+        return value
+
 
 class VpnClientSerializer(serializers.ModelSerializer):
     vpn = serializers.PrimaryKeyRelatedField(read_only=True)
