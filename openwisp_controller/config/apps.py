@@ -312,6 +312,7 @@ class ConfigConfig(AppConfig):
             devicegroup_delete_handler,
             vpn_server_change_handler,
         )
+        from .whois.handlers import device_whois_info_delete_handler
 
         post_save.connect(
             DeviceChecksumView.invalidate_get_device_cache,
@@ -368,6 +369,11 @@ class ConfigConfig(AppConfig):
             vpn_server_change_handler,
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
+        )
+        post_delete.connect(
+            device_whois_info_delete_handler,
+            sender=self.device_model,
+            dispatch_uid="device.delete_whois_info",
         )
 
     def register_dashboard_charts(self):

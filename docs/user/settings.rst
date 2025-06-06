@@ -742,3 +742,54 @@ recoverable failures, improving the reliability of the system.
 For more information on these settings, you can refer to the `the celery
 documentation regarding automatic retries for known errors.
 <https://docs.celeryq.dev/en/stable/userguide/tasks.html#automatic-retry-for-known-exceptions>`_
+
+``OPENWISP_CONTROLLER_WHOIS_ENABLED``
+-------------------------------------
+
+============ =========
+**type**:    ``bool``
+**default**: ``False``
+============ =========
+
+Allows to enable WhoIs lookup feature.
+
+.. image:: https://github.com/user-attachments/assets/0737d39c-1fad-4fca-aca9-9b42bc321763
+    :alt: whois admin setting
+
+This feature is used to fetch details of a device based on its last
+reported public IP address. The fetched details include ASN, CIDR,
+address, timezone and organization name.
+
+This feature is disabled by default and requires setting the
+:ref:`OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID
+<OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID>` and
+:ref:`OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY
+<OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY>` settings to enable it.
+
+``OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID``
+----------------------------------------
+
+============ =======
+**type**:    ``str``
+**default**: None
+============ =======
+
+This setting represents the Account ID of your Maxmind Account which can
+be obtained by following the steps mentioned in the :doc:`WhoIs Lookup
+<whois>`.
+
+This setting is required for WhoIs lookup feature to work.
+
+``OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY``
+-----------------------------------------
+
+============ =======
+**type**:    ``str``
+**default**: None
+============ =======
+
+This setting represents the License Key of your Maxmind Account which can
+be obtained by following the steps mentioned in the :doc:`WhoIs Lookup
+<whois>`.
+
+This setting is required for WhoIs lookup feature to work.
