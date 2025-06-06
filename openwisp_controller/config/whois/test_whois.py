@@ -6,7 +6,6 @@ from swapper import load_model
 
 from .. import settings as app_settings
 from ..tests.utils import CreateDeviceMixin
-from .tasks import fetch_whois_details
 
 Device = load_model("config", "Device")
 WhoIsInfo = load_model("config", "WhoIsInfo")
@@ -18,11 +17,11 @@ notification_qs = Notification.objects.all()
 
 class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+        "openwisp_controller.config.whois.service.geoip2_webservice.Client"
     )
-    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
-    _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"
-    _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.tasks.logger.error"
+    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.service.logger.info"
+    _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.service.logger.warning"
+    _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.service.logger.error"
 
     def setUp(self):
         self.admin = self._get_admin()
@@ -48,7 +47,9 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
                 app_settings.WHOIS_ENABLED,
             )
 
-    @mock.patch.object(fetch_whois_details, "delay")
+    @mock.patch(
+        "openwisp_controller.config.whois.service.WhoIsService.fetch_whois_details.delay"  # noqa: E501
+    )
     def test_task_called(self, mocked_task):
         org = self._get_org()
         OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
@@ -77,18 +78,17 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
         mocked_task.reset_mock()
 
         with self.subTest("task not called when whois is disabled"):
+            Device.objects.all().delete()  # Clear existing devices
             org.config_settings.whois_enabled = False
             org.config_settings.save()
-            device.refresh_from_db()
-            device.last_ip = "172.217.22.14"
-            device.save()
+            device = self._create_device(last_ip="172.217.22.14")
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
     # mocking the geoip2 client to return a mock response
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_whois_info_creation_task(self, mock_client, mock_info):
+    def test_whois_info_tasks(self, mock_client, mock_info):
 
         # helper function for asserting the model details with
         # mocked api response
@@ -131,7 +131,7 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             mock_info.reset_mock()
             device.refresh_from_db()
 
-            _verify_whois_details(device.whois_info, device.last_ip)
+            _verify_whois_details(device.whois_service.get_whois_info(), device.last_ip)
 
         with self.subTest(
             "Test WhoIs create & deletion of old record when last ip is updated"
@@ -143,12 +143,21 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             mock_info.reset_mock()
             device.refresh_from_db()
 
-            _verify_whois_details(device.whois_info, device.last_ip)
+            _verify_whois_details(device.whois_service.get_whois_info(), device.last_ip)
 
             # details related to old ip address should be deleted
             self.assertEqual(
                 WhoIsInfo.objects.filter(ip_address=old_ip_address).count(), 0
             )
+
+        with self.subTest("Test WhoIs delete when device is deleted"):
+            ip_address = device.last_ip
+            device.delete(check_deactivated=False)
+            self.assertEqual(mock_info.call_count, 0)
+            mock_info.reset_mock()
+
+            # whois related to the device's last_ip should be deleted
+            self.assertEqual(WhoIsInfo.objects.filter(ip_address=ip_address).count(), 0)
 
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed
