@@ -181,7 +181,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         url = reverse("controller:device_checksum", args=[d.pk])
 
         with self.subTest("first request does not return value from cache"):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(4):
                 with patch.object(
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
@@ -1314,12 +1314,12 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         c2 = self._create_config(device=d2)
         org2 = self._create_org(name="org2", shared_secret="123456")
         c3 = self._create_config(organization=org2)
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             self.client.get(
                 reverse("controller:device_checksum", args=[c3.device.pk]),
                 {"key": c3.device.key, "management_ip": "192.168.1.99"},
             )
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             self.client.get(
                 reverse("controller:device_checksum", args=[c1.device.pk]),
                 {"key": c1.device.key, "management_ip": "192.168.1.99"},
@@ -1332,7 +1332,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             )
         # triggers more queries because devices with conflicting addresses
         # need to be updated, luckily it does not happen often
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(9):
             self.client.get(
                 reverse("controller:device_checksum", args=[c2.device.pk]),
                 {"key": c2.device.key, "management_ip": "192.168.1.99"},
@@ -1361,14 +1361,14 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         org1_config = self._create_config(organization=org1)
         org2 = self._create_org(name="org2", shared_secret="org2")
         org2_config = self._create_config(organization=org2)
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             self.client.get(
                 reverse("controller:device_checksum", args=[org1_config.device_id]),
                 {"key": org1_config.device.key, "management_ip": "192.168.1.99"},
             )
         # Device from another organization sends conflicting management IP
         # Extra queries due to conflict resolution
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(9):
             self.client.get(
                 reverse("controller:device_checksum", args=[org2_config.device_id]),
                 {"key": org2_config.device.key, "management_ip": "192.168.1.99"},
