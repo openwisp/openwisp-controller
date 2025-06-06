@@ -9,6 +9,7 @@ from swapper import load_model
 
 from openwisp_users.api.mixins import FilterSerializerByOrgManaged
 from openwisp_utils.api.serializers import ValidatedModelSerializer
+from openwisp_ipam.models import IpAddress
 
 from .. import settings as app_settings
 
@@ -130,8 +131,10 @@ class VpnClientSerializer(serializers.ModelSerializer):
         fields = ['id', 'vpn', 'ip_address']
 
     def get_ip_address(self, obj):
-        return obj.ip.ip_address if obj.ip else None
-
+        try:
+            return obj.ip.ip_address if obj.ip else None
+        except IpAddress.DoesNotExist:
+            return None
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
