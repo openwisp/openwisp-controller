@@ -1,3 +1,4 @@
+from functools import cached_property
 from hashlib import md5
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -18,7 +19,6 @@ from ..signals import (
     management_ip_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
-from ..whois.services import WhoIsService
 from .base import BaseModel
 
 
@@ -381,8 +381,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         if self._initial_last_ip == models.DEFERRED:
             return
 
-        service = WhoIsService(self)
-        service.trigger_whois_lookup()
+        self.whois_service.trigger_whois_lookup()
 
         self._initial_last_ip = self.last_ip
 
@@ -424,13 +423,15 @@ class AbstractDevice(OrgMixin, BaseModel):
         """
         return self._get_config_attr("get_status_display")
 
-    @property
-    def whois_info(self):
+    @cached_property
+    def whois_service(self):
         """
-        Used as a shortcut to get WhoIsInfo
+        Used as a shortcut to get WhoIsService instance
+        for the device.
         """
-        service = WhoIsService(self)
-        return service.get_whois_info()
+        from ..whois.service import WhoIsService
+
+        return WhoIsService(self)
 
     def get_default_templates(self):
         """
