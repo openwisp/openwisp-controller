@@ -69,4 +69,4 @@ API_TASK_RETRY_OPTIONS = get_setting(
 )
 GEOIP_ACCOUNT_ID = get_setting("GEOIP_ACCOUNT_ID", None)
 GEOIP_LICENSE_KEY = get_setting("GEOIP_LICENSE_KEY", None)
-WHOIS_ENABLED = get_setting("WHOIS_ENABLED", False)
+WHO_IS_ENABLED = get_setting("WHO_IS_ENABLED", False)

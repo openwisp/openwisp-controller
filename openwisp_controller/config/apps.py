@@ -63,6 +63,7 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.org_config_model = load_model("config", "OrganizationConfigSettings")
 
     def connect_signals(self):
         """
@@ -74,6 +75,10 @@ class ConfigConfig(AppConfig):
         * cache invalidation
         """
         from . import handlers  # noqa
+        from .who_is.handlers import (
+            device_who_is_info_delete_handler,
+            invalidate_org_settings_cache,
+        )
 
         m2m_changed.connect(
             self.config_model.clean_templates,
@@ -155,6 +160,21 @@ class ConfigConfig(AppConfig):
             self.org_limits.post_save_handler,
             sender=self.org_model,
             dispatch_uid="organization_allowed_devices_post_save_handler",
+        )
+        post_delete.connect(
+            device_who_is_info_delete_handler,
+            sender=self.device_model,
+            dispatch_uid="device.delete_who_is_info",
+        )
+        post_save.connect(
+            invalidate_org_settings_cache,
+            self.org_config_model,
+            dispatch_uid="invalidate_org_config_cache_on_org_config_save",
+        )
+        post_delete.connect(
+            invalidate_org_settings_cache,
+            self.org_config_model,
+            dispatch_uid="invalidate_org_config_cache_on_org_config_delete",
         )
 
     def register_menu_groups(self):
@@ -312,7 +332,6 @@ class ConfigConfig(AppConfig):
             devicegroup_delete_handler,
             vpn_server_change_handler,
         )
-        from .whois.handlers import device_whois_info_delete_handler
 
         post_save.connect(
             DeviceChecksumView.invalidate_get_device_cache,
@@ -369,11 +388,6 @@ class ConfigConfig(AppConfig):
             vpn_server_change_handler,
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
-        )
-        post_delete.connect(
-            device_whois_info_delete_handler,
-            sender=self.device_model,
-            dispatch_uid="device.delete_whois_info",
         )
 
     def register_dashboard_charts(self):
