@@ -1,11 +1,12 @@
 from unittest import mock
 
 from django.test import TransactionTestCase, override_settings
+from django.urls import reverse
 from geoip2 import errors
 from swapper import load_model
 
 from .. import settings as app_settings
-from ..tests.utils import CreateDeviceMixin
+from ..tests.utils import CreateConfigMixin
 
 Device = load_model("config", "Device")
 WhoIsInfo = load_model("config", "WhoIsInfo")
@@ -15,44 +16,46 @@ Notification = load_model("openwisp_notifications", "Notification")
 notification_qs = Notification.objects.all()
 
 
-class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
-    _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.service.geoip2_webservice.Client"
+class TestWhoIsTransaction(CreateConfigMixin, TransactionTestCase):
+    _WHO_IS_GEOIP_CLIENT = (
+        "openwisp_controller.config.who_is.service.geoip2_webservice.Client"
     )
-    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.service.logger.info"
-    _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.service.logger.warning"
-    _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.service.logger.error"
+    _WHO_IS_TASKS_INFO_LOGGER = "openwisp_controller.config.who_is.service.logger.info"
+    _WHO_IS_TASKS_WARN_LOGGER = (
+        "openwisp_controller.config.who_is.service.logger.warning"
+    )
+    _WHO_IS_TASKS_ERR_LOGGER = "openwisp_controller.config.who_is.service.logger.error"
 
     def setUp(self):
         self.admin = self._get_admin()
 
-    def test_whois_enabled(self):
+    def test_who_is_enabled(self):
         org = self._get_org()
         OrganizationConfigSettings.objects.create(organization=org)
 
-        with self.subTest("Test whois enabled set to True"):
-            org.config_settings.whois_enabled = True
-            self.assertEqual(getattr(org.config_settings, "whois_enabled"), True)
+        with self.subTest("Test who_is enabled set to True"):
+            org.config_settings.who_is_enabled = True
+            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), True)
 
-        with self.subTest("Test whois enabled set to False"):
-            org.config_settings.whois_enabled = False
-            self.assertEqual(getattr(org.config_settings, "whois_enabled"), False)
+        with self.subTest("Test who_is enabled set to False"):
+            org.config_settings.who_is_enabled = False
+            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), False)
 
-        with self.subTest("Test whois enabled set to None"):
-            org.config_settings.whois_enabled = None
-            org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
+        with self.subTest("Test who_is enabled set to None"):
+            org.config_settings.who_is_enabled = None
+            org.config_settings.save(update_fields=["who_is_enabled"])
+            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
             self.assertEqual(
-                getattr(org.config_settings, "whois_enabled"),
-                app_settings.WHOIS_ENABLED,
+                getattr(org.config_settings, "who_is_enabled"),
+                app_settings.WHO_IS_ENABLED,
             )
 
     @mock.patch(
-        "openwisp_controller.config.whois.service.WhoIsService.fetch_whois_details.delay"  # noqa: E501
+        "openwisp_controller.config.who_is.service.WhoIsService.fetch_who_is_details.delay"  # noqa: E501
     )
     def test_task_called(self, mocked_task):
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
 
         with self.subTest("task called when last_ip is public"):
             device = self._create_device(last_ip="172.217.22.14")
@@ -77,22 +80,39 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
-        with self.subTest("task not called when whois is disabled"):
+        with self.subTest("task not called when who_is is disabled"):
             Device.objects.all().delete()  # Clear existing devices
-            org.config_settings.whois_enabled = False
+            org.config_settings.who_is_enabled = False
+            # Invalidates old org config settings cache
             org.config_settings.save()
             device = self._create_device(last_ip="172.217.22.14")
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
+        with self.subTest("task called via DeviceChecksumView when who_is is enabled"):
+            org.config_settings.who_is_enabled = True
+            # Invalidates old org config settings cache
+            org.config_settings.save()
+            # config is required for checksum view to work
+            self._create_config(device=device)
+            # setting remote address field to a public IP
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR="172.217.22.10",
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_called()
+        mocked_task.reset_mock()
+
     # mocking the geoip2 client to return a mock response
-    @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
-    @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_whois_info_tasks(self, mock_client, mock_info):
+    @mock.patch(_WHO_IS_TASKS_INFO_LOGGER)
+    @mock.patch(_WHO_IS_GEOIP_CLIENT)
+    def test_who_is_info_tasks(self, mock_client, mock_info):
 
         # helper function for asserting the model details with
         # mocked api response
-        def _verify_whois_details(instance, ip_address):
+        def _verify_who_is_details(instance, ip_address):
             self.assertEqual(instance.organization_name, "Google LLC")
             self.assertEqual(instance.asn, "15169")
             self.assertEqual(instance.country, "United States")
@@ -110,7 +130,7 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             self.assertEqual(instance.ip_address, ip_address)
 
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
 
         # mocking the response from the geoip2 client
         mock_response = mock.MagicMock()
@@ -131,7 +151,9 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             mock_info.reset_mock()
             device.refresh_from_db()
 
-            _verify_whois_details(device.whois_service.get_whois_info(), device.last_ip)
+            _verify_who_is_details(
+                device.who_is_service.get_device_who_is_info(), device.last_ip
+            )
 
         with self.subTest(
             "Test WhoIs create & deletion of old record when last ip is updated"
@@ -143,7 +165,9 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             mock_info.reset_mock()
             device.refresh_from_db()
 
-            _verify_whois_details(device.whois_service.get_whois_info(), device.last_ip)
+            _verify_who_is_details(
+                device.who_is_service.get_device_who_is_info(), device.last_ip
+            )
 
             # details related to old ip address should be deleted
             self.assertEqual(
@@ -156,18 +180,18 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
             self.assertEqual(mock_info.call_count, 0)
             mock_info.reset_mock()
 
-            # whois related to the device's last_ip should be deleted
+            # who_is related to the device's last_ip should be deleted
             self.assertEqual(WhoIsInfo.objects.filter(ip_address=ip_address).count(), 0)
 
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
-    @mock.patch(_WHOIS_TASKS_ERR_LOGGER)
-    @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
-    @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
-    def test_whois_task_failure_notification(self, mock_info, mock_warn, mock_error):
+    @mock.patch(_WHO_IS_TASKS_ERR_LOGGER)
+    @mock.patch(_WHO_IS_TASKS_WARN_LOGGER)
+    @mock.patch(_WHO_IS_TASKS_INFO_LOGGER)
+    def test_who_is_task_failure_notification(self, mock_info, mock_warn, mock_error):
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
 
         # we have 2 calls for error logging: 1 which is run by task for general errors
         # and one for generalized error logging for unexpected exceptions which
@@ -177,7 +201,7 @@ class TestWhoIsTransaction(CreateDeviceMixin, TransactionTestCase):
         ):
             with self.subTest(
                 f"Test notifications and logging when {exception.__name__} is raised"
-            ), mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exception("test")):
+            ), mock.patch(self._WHO_IS_GEOIP_CLIENT, side_effect=exception("test")):
                 Device.objects.all().delete()  # Clear existing devices
                 device = self._create_device(last_ip="172.217.22.14")
                 self.assertEqual(mock_info.call_count, info_calls)

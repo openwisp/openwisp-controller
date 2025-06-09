@@ -337,7 +337,8 @@ class AbstractDevice(OrgMixin, BaseModel):
         if not present_values:
             return
         self.refresh_from_db(fields=present_values.keys())
-        for field in present_values:
+        # TODO: check
+        for field in self._changed_checked_fields:
             setattr(self, f"_initial_{field}", field)
             setattr(self, field, present_values[field])
 
@@ -381,7 +382,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         if self._initial_last_ip == models.DEFERRED:
             return
 
-        self.whois_service.trigger_whois_lookup()
+        self.who_is_service.trigger_who_is_lookup()
 
         self._initial_last_ip = self.last_ip
 
@@ -424,12 +425,12 @@ class AbstractDevice(OrgMixin, BaseModel):
         return self._get_config_attr("get_status_display")
 
     @cached_property
-    def whois_service(self):
+    def who_is_service(self):
         """
         Used as a shortcut to get WhoIsService instance
         for the device.
         """
-        from ..whois.service import WhoIsService
+        from ..who_is.service import WhoIsService
 
         return WhoIsService(self)
 

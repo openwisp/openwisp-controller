@@ -78,11 +78,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="organizationconfigsettings",
-            name="whois_enabled",
+            name="who_is_enabled",
             field=openwisp_utils.fields.FallbackBooleanChoiceField(
                 blank=True,
                 default=None,
-                fallback=app_settings.WHOIS_ENABLED,
+                fallback=app_settings.WHO_IS_ENABLED,
                 help_text="Whether WhoIs details lookup is enabled",
                 null=True,
                 verbose_name="WhoIs Enabled",
