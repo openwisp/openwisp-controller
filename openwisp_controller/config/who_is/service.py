@@ -1,9 +1,9 @@
 import logging
-from functools import cached_property
 from ipaddress import ip_address
 
 import requests
 from celery import shared_task
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Subquery
 from django.utils.translation import gettext as _
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Device = load_model("config", "Device")
 WhoIsInfo = load_model("config", "WhoIsInfo")
+Config = load_model("config", "Config")
 
 EXCEPTION_MESSAGES = {
     errors.AddressNotFoundError: _(
@@ -58,13 +59,15 @@ class WhoIsService:
     A handler class for managing the WhoIs functionality.
     """
 
+    ORG_SETTINGS_CACHE_KEY = "organization_config_{org_pk}"
+
     def __init__(self, device):
         self.device = device
 
     @staticmethod
     def _get_geoip2_client():
         """
-        Returns a geoip2 webservice client instance.
+        Initializes a geoip2 webservice client instance.
         Host is based on the db that is used to fetch the details.
         As we are using GeoLite2, 'geolite.info' host is used.
         Refer: https://geoip2.readthedocs.io/en/latest/#sync-web-service-example
@@ -107,43 +110,51 @@ class WhoIsService:
     @staticmethod
     def is_valid_public_ip_address(ip):
         """
-        Returns True if the given IP address is a valid public IP address.
+        Check if given IP address is a valid public IP address.
         """
         try:
             return ip and ip_address(ip).is_global
         except ValueError:
             return False
 
-    @cached_property
-    def is_whois_enabled(self):
+    @property
+    def is_who_is_enabled(self):
         """
-        Returns True if WhoIs is enabled for the organization of the device.
+        Check if WhoIs is enabled for the organization of the device.
+        The OrganizationConfigSettings are cached as these settings
+        are not expected to change frequently. The timeout for the cache
+        is set to the same as the checksum cache timeout for consistency
+        with DeviceChecksumView.
         """
-        try:
-            device_pk = self.device.pk
-            # here we are fetching the organization settings from db instead of through
-            # device as in some views like `DeviceChecksumView` the device instance is
-            # cached, leading to stale data. Have used Subquery to fetch the settings
-            # in a single query.
-            org_settings = OrganizationConfigSettings.objects.get(
-                organization=Subquery(
-                    Device.objects.filter(pk=device_pk).values("organization_id")[:1]
+        org_pk = self.device.organization.pk
+        org_settings = cache.get(self.ORG_SETTINGS_CACHE_KEY.format(org_pk=org_pk))
+        if org_settings is None:
+            try:
+                org_settings = OrganizationConfigSettings.objects.get(
+                    organization=Subquery(
+                        Device.objects.filter(pk=self.device.pk).values(
+                            "organization_id"
+                        )[:1]
+                    )
                 )
+            except OrganizationConfigSettings.DoesNotExist:
+                # If organization settings do not exist, fall back to global setting
+                return app_settings.WHO_IS_ENABLED
+            cache.set(
+                self.ORG_SETTINGS_CACHE_KEY.format(org_pk=org_pk),
+                org_settings,
+                timeout=Config._CHECKSUM_CACHE_TIMEOUT,
             )
-            return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
-        except OrganizationConfigSettings.DoesNotExist:
-            # If organization settings do not exist, fall back to global setting
-            return app_settings.WHOIS_ENABLED
+        return getattr(org_settings, "who_is_enabled", app_settings.WHO_IS_ENABLED)
 
-    def _get_existing_whois(self, ip_address):
+    def _get_who_is_info_from_db(self, ip_address):
         """
-        Returns existing WhoIsInfo for given IP if present.
+        For getting existing WhoIsInfo for given IP from db if present.
         """
         return WhoIsInfo.objects.filter(ip_address=ip_address).first()
 
-    def _need_whois_lookup(self, initial_ip, new_ip):
+    def _need_who_is_lookup(self, initial_ip, new_ip):
         """
-        Returns True if the WhoIs lookup is needed.
         This is used to determine if the WhoIs lookup should be triggered
         when the device is saved.
 
@@ -158,28 +169,29 @@ class WhoIsService:
         # Check cheap conditions first before hitting the database
         return (
             self.is_valid_public_ip_address(new_ip)
-            and (initial_ip != new_ip or not self._get_existing_whois(new_ip))
-            and self.is_whois_enabled
+            and (initial_ip != new_ip or not self._get_who_is_info_from_db(new_ip))
+            and self.is_who_is_enabled
         )
 
-    def get_whois_info(self):
+    def get_device_who_is_info(self):
         """
-        Returns WhoIsInfo for the device if IP is valid public ip and WhoIs is enabled.
+        Used to get WhoIsInfo for a device if last_ip is valid public ip
+        and WhoIs is enabled.
         """
         ip_address = self.device.last_ip
-        if not (self.is_valid_public_ip_address(ip_address) and self.is_whois_enabled):
+        if not (self.is_valid_public_ip_address(ip_address) and self.is_who_is_enabled):
             return None
 
-        return self._get_existing_whois(ip_address=ip_address)
+        return self._get_who_is_info_from_db(ip_address=ip_address)
 
-    def trigger_whois_lookup(self):
+    def trigger_who_is_lookup(self):
         """
-        Trigger WhoIs lookup based on the conditions of `_need_whois_lookup`.
+        Trigger WhoIs lookup based on the conditions of `_need_who_is_lookup`.
         Task is triggered on commit to ensure redundant data is not created.
         """
-        if self._need_whois_lookup(self.device._initial_last_ip, self.device.last_ip):
+        if self._need_who_is_lookup(self.device._initial_last_ip, self.device.last_ip):
             transaction.on_commit(
-                lambda: self.fetch_whois_details.delay(
+                lambda: self.fetch_who_is_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
                     new_ip_address=self.device.last_ip,
@@ -192,7 +204,7 @@ class WhoIsService:
         base=WhoIsCeleryRetryTask,
         **app_settings.API_TASK_RETRY_OPTIONS,
     )
-    def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
+    def fetch_who_is_details(self, device_pk, initial_ip_address, new_ip_address):
         """
         Fetches the WhoIs details of the given IP address
         and creates/updates the WhoIs record.
@@ -223,14 +235,14 @@ class WhoIsService:
             logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
 
             # the following check ensures that for a case when device last_ip
-            # is not changed and there is no related whois record, we do not
+            # is not changed and there is no related who_is record, we do not
             # delete the newly created record as both `initial_ip_address` and
             # `new_ip_address` would be same for such case.
             if initial_ip_address != new_ip_address:
                 # If any active devices are linked to the following record,
                 # then they will trigger this task and new record gets created
                 # with latest data.
-                WhoIsService.delete_whois_record(ip_address=initial_ip_address)
+                WhoIsService.delete_who_is_record(ip_address=initial_ip_address)
 
         # Catching all possible exceptions raised by the geoip2 client
         # logging the exceptions and raising them with appropriate messages
@@ -251,7 +263,7 @@ class WhoIsService:
             raise e
 
     @shared_task
-    def delete_whois_record(ip_address):
+    def delete_who_is_record(ip_address):
         """
         Deletes the WhoIs record for the device's last IP address.
         This is used when the device is deleted or its last IP address is changed.

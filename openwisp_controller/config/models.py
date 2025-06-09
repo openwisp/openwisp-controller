@@ -10,7 +10,7 @@ from .base.multitenancy import (
 from .base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from .base.template import AbstractTemplate
 from .base.vpn import AbstractVpn, AbstractVpnClient
-from .base.whois import AbstractWhoIsInfo
+from .base.who_is import AbstractWhoIsInfo
 
 
 class Device(AbstractDevice):
@@ -116,7 +116,7 @@ class OrganizationLimits(AbstractOrganizationLimits):
 
 class WhoIsInfo(AbstractWhoIsInfo):
     """
-    Concrete Whois model
+    Concrete WhoIs model
     """
 
     class Meta(AbstractWhoIsInfo.Meta):

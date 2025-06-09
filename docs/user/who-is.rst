@@ -6,9 +6,9 @@ WHOIS lookup
     The WhoIs lookup feature is disabled by default.
 
     In order to enable this feature you have to follow the `setup
-    instructions <controller_setup_whois_lookup_>`_ below and then
+    instructions <controller_setup_who_is_lookup_>`_ below and then
     activate it via :ref:`global setting or from the admin interface
-    <OPENWISP_CONTROLLER_WHOIS_ENABLED>`.
+    <OPENWISP_CONTROLLER_WHO_IS_ENABLED>`.
 
 WhoIs feature includes fetching details of the last public ip address
 reported by a device to ensure better device management.
@@ -16,7 +16,7 @@ reported by a device to ensure better device management.
 The fetched details include Organization Name, ASN, CIDR, Address,
 Timezone.
 
-.. _controller_setup_whois_lookup:
+.. _controller_setup_who_is_lookup:
 
 Setup
 -----

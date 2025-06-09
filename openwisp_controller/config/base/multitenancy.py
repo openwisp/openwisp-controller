@@ -43,9 +43,9 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         ),
         verbose_name=_("Configuration Variables"),
     )
-    whois_enabled = FallbackBooleanChoiceField(
+    who_is_enabled = FallbackBooleanChoiceField(
         help_text=_("Whether WhoIs details lookup is enabled"),
-        fallback=app_settings.WHOIS_ENABLED,
+        fallback=app_settings.WHO_IS_ENABLED,
         verbose_name=_("WhoIs Enabled"),
     )
 
