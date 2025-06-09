@@ -71,12 +71,23 @@ django.jQuery(function ($) {
     },
     updateConfigTemplateField = function (templates) {
       var value = templates.join(","),
-        templateField = templatesFieldName();
+        templateField = templatesFieldName(),
+        updateInitialValue = false;
       $(`input[name="${templateField}"]`).attr("value", value);
-      if (pageLoading) {
+      if (
+        pageLoading ||
+        // Handle cases where the AJAX request finishes after initial page load.
+        // If we're editing an existing object and the initial value hasn't been set,
+        // assign it now to avoid false positives in the unsaved changes warning.
+        (!isAddingNewObject() &&
+          django._owcInitialValues[templateField] === undefined)
+      ) {
         django._owcInitialValues[templateField] = value;
+        updateInitialValue = true;
       }
-      $("input.sortedm2m:first").trigger("change");
+      $("input.sortedm2m:first").trigger("change", {
+        updateInitialValue: updateInitialValue,
+      });
     },
     getSelectedTemplates = function () {
       // Returns the selected templates from the sortedm2m input

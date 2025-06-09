@@ -326,13 +326,7 @@
         }
         alert(message);
       }
-      var contextField = $("#id_config-0-context");
-      if (contextField.length) {
-        var contextValue = JSON.parse(contextField.val());
-        contextField.val(
-          JSON.stringify(removeUnchangedDefaultValues(contextValue)),
-        );
-      }
+
       if ($advancedEl.is(":hidden")) {
         return;
       }
@@ -494,8 +488,8 @@
         getDefaultValues(true);
       });
     }
-    $(".sortedm2m-items").on("change", function () {
-      getDefaultValues();
+    $(".sortedm2m-items").on("change", function (event) {
+      getDefaultValues(event.updateInitialValue === true);
     });
     $(".sortedm2m-items").on("sortstop", function () {
       getDefaultValues();

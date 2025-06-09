@@ -523,6 +523,21 @@ class TestDeviceAdminUnsavedChanges(
 ):
     browser = "chrome"
 
+    def _is_unsaved_changes_alert_present(self):
+        for entry in self.get_browser_logs():
+            if (
+                entry["level"] == "WARNING"
+                and "You haven't saved your changes yet!" in entry["message"]
+            ):
+                return True
+        return False
+
+    def _override_unsaved_changes_alert(self):
+        self.web_driver.execute_script(
+            'django.jQuery(window).on("beforeunload", function(e) {'
+            " console.warn(e.returnValue); });"
+        )
+
     def test_unsaved_changes(self):
         """
         Execute this test using Chrome instead of Firefox.
@@ -530,17 +545,17 @@ class TestDeviceAdminUnsavedChanges(
         impossible to test the unsaved changes alert.
         """
         self.login()
+        self._create_template(default=True, default_values={"ssid": "default"})
         device = self._create_config(organization=self._get_org()).device
         path = reverse("admin:config_device_change", args=[device.id])
 
         with self.subTest("Alert should not be displayed without any change"):
             self.open(path)
             self.hide_loading_overlay()
-            try:
-                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
-            except TimeoutException:
-                pass
-            else:
+            self._override_unsaved_changes_alert()
+            # Simulate navigating away from the page
+            self.open(reverse("admin:index"))
+            if self._is_unsaved_changes_alert_present():
                 self.fail("Unsaved changes alert displayed without any change")
 
         with self.subTest("Alert should be displayed after making changes"):
@@ -550,10 +565,9 @@ class TestDeviceAdminUnsavedChanges(
             #
             # our own JS code sets e.returnValue when triggered
             # so we just need to ensure it's set as expected
-            self.web_driver.execute_script(
-                'django.jQuery(window).on("beforeunload", function(e) {'
-                " console.warn(e.returnValue); });"
-            )
+            self.open(path)
+            self.hide_loading_overlay()
+            self._override_unsaved_changes_alert()
             # simulate hand gestures
             self.find_element(by=By.TAG_NAME, value="body").click()
             self.find_element(by=By.NAME, value="name").click()
@@ -562,13 +576,7 @@ class TestDeviceAdminUnsavedChanges(
             # simulate hand gestures
             self.find_element(by=By.TAG_NAME, value="body").click()
             self.web_driver.refresh()
-            for entry in self.get_browser_logs():
-                if (
-                    entry["level"] == "WARNING"
-                    and "You haven't saved your changes yet!" in entry["message"]
-                ):
-                    break
-            else:
+            if not self._is_unsaved_changes_alert_present():
                 self.fail("Unsaved changes code was not executed.")
 
 
