@@ -524,6 +524,8 @@ class TestDevice(
             device.management_ip = "10.0.0.1"
             device.group_id = device_group.id
             device.organization_id = self._create_org().id
+            # assigning a random ip to last_ip
+            device.last_ip = "172.217.22.14"
             # Another query is generated due to "config.set_status_modified"
             # on name change
             with self.assertNumQueries(3):
