@@ -337,7 +337,6 @@ class AbstractDevice(OrgMixin, BaseModel):
         if not present_values:
             return
         self.refresh_from_db(fields=present_values.keys())
-        # TODO: check
         for field in self._changed_checked_fields:
             setattr(self, f"_initial_{field}", field)
             setattr(self, field, present_values[field])
