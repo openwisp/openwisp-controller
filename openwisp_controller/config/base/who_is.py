@@ -8,6 +8,8 @@ from jsonfield import JSONField
 
 from openwisp_utils.base import TimeStampedEditableModel
 
+from ..who_is.service import WhoIsService
+
 
 class AbstractWhoIsInfo(TimeStampedEditableModel):
     """
@@ -64,9 +66,6 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
         Delete WhoIs information for a device when the last IP address is removed or
         when device is deleted.
         """
-        # importing here to avoid AppRegistryNotReady error
-        from ..who_is.service import WhoIsService
-
         transaction.on_commit(
             lambda: WhoIsService.delete_who_is_record.delay(instance.last_ip)
         )
@@ -79,8 +78,5 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
         Invalidate the cache for Organization settings on update/delete of
         Organization settings instance.
         """
-        # importing here to avoid AppRegistryNotReady error
-        from ..who_is.service import WhoIsService
-
         org_id = instance.organization_id
         cache.delete(WhoIsService.get_cache_key(org_id))

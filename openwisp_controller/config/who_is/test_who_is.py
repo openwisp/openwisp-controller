@@ -193,11 +193,8 @@ class TestWhoIsTransaction(CreateConfigMixin, TransactionTestCase):
         org = self._get_org()
         OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
 
-        # we have 2 calls for error logging: 1 which is run by task for general errors
-        # and one for generalized error logging for unexpected exceptions which
-        # are not caught
         def assert_logging_on_exception(
-            exception, info_calls=0, warn_calls=0, error_calls=2
+            exception, info_calls=0, warn_calls=0, error_calls=1
         ):
             with self.subTest(
                 f"Test notifications and logging when {exception.__name__} is raised"

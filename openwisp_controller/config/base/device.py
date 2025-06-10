@@ -19,6 +19,7 @@ from ..signals import (
     management_ip_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
+from ..who_is.service import WhoIsService
 from .base import BaseModel
 
 
@@ -429,8 +430,6 @@ class AbstractDevice(OrgMixin, BaseModel):
         Used as a shortcut to get WhoIsService instance
         for the device.
         """
-        from ..who_is.service import WhoIsService
-
         return WhoIsService(self)
 
     def get_default_templates(self):
