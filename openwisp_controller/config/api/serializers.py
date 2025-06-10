@@ -9,6 +9,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
+from ..who_is.serializers import BriefWhoIsSerializer, WhoIsSerializerMixin
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
@@ -220,8 +221,12 @@ class DeviceListConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
 
 
-class DeviceListSerializer(DeviceConfigSerializer):
+class DeviceListSerializer(DeviceConfigSerializer, WhoIsSerializerMixin):
     config = DeviceListConfigSerializer(required=False)
+
+    # The serializer class for the brief WhoIs information, used in
+    # the WhoIsSerializerMixin.
+    _who_is_serializer_class = BriefWhoIsSerializer
 
     class Meta(BaseMeta):
         model = Device
@@ -241,6 +246,7 @@ class DeviceListSerializer(DeviceConfigSerializer):
             "config",
             "created",
             "modified",
+            "who_is",
         ]
         extra_kwargs = {
             "last_ip": {"allow_blank": True},
@@ -274,7 +280,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True)
 
 
-class DeviceDetailSerializer(DeviceConfigSerializer):
+class DeviceDetailSerializer(DeviceConfigSerializer, WhoIsSerializerMixin):
     config = DeviceDetailConfigSerializer(allow_null=True)
     is_deactivated = serializers.BooleanField(read_only=True)
 
@@ -297,6 +303,7 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
             "config",
             "created",
             "modified",
+            "who_is",
         ]
 
     def update(self, instance, validated_data):
