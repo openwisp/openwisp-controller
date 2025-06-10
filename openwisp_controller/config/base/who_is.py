@@ -1,7 +1,8 @@
 from ipaddress import ip_address
 
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 
@@ -56,3 +57,30 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
                 _("WhoIs information cannot be created for private IP addresses.")
             )
         return super().clean()
+
+    @staticmethod
+    def device_who_is_info_delete_handler(instance, **kwargs):
+        """
+        Delete WhoIs information for a device when the last IP address is removed or
+        when device is deleted.
+        """
+        # importing here to avoid AppRegistryNotReady error
+        from ..who_is.service import WhoIsService
+
+        transaction.on_commit(
+            lambda: WhoIsService.delete_who_is_record.delay(instance.last_ip)
+        )
+
+    # this method is kept here instead of in OrganizationConfigSettings because
+    # currently the caching is used only for WhoIs feature
+    @staticmethod
+    def invalidate_org_settings_cache(instance, **kwargs):
+        """
+        Invalidate the cache for Organization settings on update/delete of
+        Organization settings instance.
+        """
+        # importing here to avoid AppRegistryNotReady error
+        from ..who_is.service import WhoIsService
+
+        org_id = instance.organization_id
+        cache.delete(WhoIsService.get_cache_key(org_id))
