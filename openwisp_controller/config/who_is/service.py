@@ -16,10 +16,6 @@ from openwisp_utils.tasks import OpenwispCeleryTask
 
 logger = logging.getLogger(__name__)
 
-OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
-Device = load_model("config", "Device")
-WhoIsInfo = load_model("config", "WhoIsInfo")
-Config = load_model("config", "Config")
 
 EXCEPTION_MESSAGES = {
     errors.AddressNotFoundError: _(
@@ -105,11 +101,10 @@ class WhoIsService:
                 " [{notification.target}]({notification.target_link})"
             ),
             description=_(
-                f"WhoIs details could not be fetched for ip: {new_ip_address}.\n"
-                f"Details: {exc}"
+                f"WhoIs details could not be fetched for ip: {new_ip_address}."
             ),
         )
-        logger.error(f"WhoIs lookup failed for : {device_pk} for IP: {new_ip_address}.")
+        logger.error(f"WhoIs lookup failed. Details: {exc}")
 
     @staticmethod
     def is_valid_public_ip_address(ip):
@@ -130,6 +125,9 @@ class WhoIsService:
         is set to the same as the checksum cache timeout for consistency
         with DeviceChecksumView.
         """
+        OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+        Config = load_model("config", "Config")
+
         org_id = self.device.organization.pk
         org_settings = cache.get(self.get_cache_key(org_id=org_id))
         if org_settings is None:
@@ -151,6 +149,8 @@ class WhoIsService:
         """
         For getting existing WhoIsInfo for given IP from db if present.
         """
+        WhoIsInfo = load_model("config", "WhoIsInfo")
+
         return WhoIsInfo.objects.filter(ip_address=ip_address).first()
 
     def _need_who_is_lookup(self, initial_ip, new_ip):
@@ -215,6 +215,24 @@ class WhoIsService:
             ip_client = WhoIsService._get_geoip2_client()
 
             data = ip_client.city(ip_address=new_ip_address)
+
+        # Catching all possible exceptions raised by the geoip2 client
+        # logging the exceptions and raising them with appropriate messages
+        except (
+            errors.AddressNotFoundError,
+            errors.AuthenticationError,
+            errors.OutOfQueriesError,
+            errors.PermissionRequiredError,
+        ) as e:
+            exc_type = type(e)
+            message = EXCEPTION_MESSAGES.get(exc_type)
+            if exc_type is errors.AddressNotFoundError:
+                message = message.format(ip_address=new_ip_address)
+            raise exc_type(message)
+        except requests.RequestException as e:
+            raise e
+
+        else:
             # Format address using the data from the geoip2 response
             address = {
                 "city": getattr(data.city, "name", ""),
@@ -243,24 +261,6 @@ class WhoIsService:
                 # then they will trigger this task and new record gets created
                 # with latest data.
                 WhoIsService.delete_who_is_record(ip_address=initial_ip_address)
-
-        # Catching all possible exceptions raised by the geoip2 client
-        # logging the exceptions and raising them with appropriate messages
-        except (
-            errors.AddressNotFoundError,
-            errors.AuthenticationError,
-            errors.OutOfQueriesError,
-            errors.PermissionRequiredError,
-        ) as e:
-            exc_type = type(e)
-            message = EXCEPTION_MESSAGES.get(exc_type)
-            if exc_type is errors.AddressNotFoundError:
-                message = message.format(ip_address=new_ip_address)
-            logger.error(message)
-            raise exc_type(message)
-        except requests.RequestException as e:
-            logger.error(f"Error fetching WHOIS details for {new_ip_address}: {e}")
-            raise e
 
     @shared_task
     def delete_who_is_record(ip_address):
