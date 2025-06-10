@@ -5,7 +5,6 @@ import requests
 from celery import shared_task
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Subquery
 from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
@@ -59,10 +58,15 @@ class WhoIsService:
     A handler class for managing the WhoIs functionality.
     """
 
-    ORG_SETTINGS_CACHE_KEY = "organization_config_{org_pk}"
-
     def __init__(self, device):
         self.device = device
+
+    @staticmethod
+    def get_cache_key(org_id):
+        """
+        Used to get cache key for caching org settings of a device.
+        """
+        return f"organization_config_{org_id}"
 
     @staticmethod
     def _get_geoip2_client():
@@ -126,22 +130,18 @@ class WhoIsService:
         is set to the same as the checksum cache timeout for consistency
         with DeviceChecksumView.
         """
-        org_pk = self.device.organization.pk
-        org_settings = cache.get(self.ORG_SETTINGS_CACHE_KEY.format(org_pk=org_pk))
+        org_id = self.device.organization.pk
+        org_settings = cache.get(self.get_cache_key(org_id=org_id))
         if org_settings is None:
             try:
                 org_settings = OrganizationConfigSettings.objects.get(
-                    organization=Subquery(
-                        Device.objects.filter(pk=self.device.pk).values(
-                            "organization_id"
-                        )[:1]
-                    )
+                    organization=org_id
                 )
             except OrganizationConfigSettings.DoesNotExist:
                 # If organization settings do not exist, fall back to global setting
                 return app_settings.WHO_IS_ENABLED
             cache.set(
-                self.ORG_SETTINGS_CACHE_KEY.format(org_pk=org_pk),
+                self.get_cache_key(org_id=org_id),
                 org_settings,
                 timeout=Config._CHECKSUM_CACHE_TIMEOUT,
             )
