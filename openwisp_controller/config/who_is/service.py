@@ -209,6 +209,12 @@ class WhoIsService:
         Fetches the WhoIs details of the given IP address
         and creates/updates the WhoIs record.
         """
+        # The task is triggered if last_ip is updated irrespective
+        # if there is WhoIsInfo for the new IP address so we return
+        # from the task if that is the case.
+        if self._get_who_is_info_from_db(new_ip_address):
+            return
+
         WhoIsInfo = load_model("config", "WhoIsInfo")
 
         try:
