@@ -51,6 +51,12 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
         model = FloorPlan
 
 
+class DeviceFloorplanCoordinatesFilter(OrganizationManagedFilter):
+    class Meta(OrganizationManagedFilter.Meta):
+        model = Location
+        fields = OrganizationManagedFilter.Meta.fields + ["floorplan__floor"]
+
+
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
@@ -186,6 +192,38 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
+class DeviceFloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
+    """
+    List coordinates of device floorplan for a given location ID
+    """
+
+    serializer_class = DeviceLocationSerializer
+    pagination_class = ListViewPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = DeviceFloorplanCoordinatesFilter
+    queryset = DeviceLocation.objects.select_related(
+        "content_object", "location", "floorplan"
+    )
+
+    def get_queryset(self):
+        location_id = self.kwargs.get("pk")
+        floor = self.request.query_params.get("floor")
+        queryset = super().get_queryset().filter(location_id=location_id)
+        if floor:
+            queryset = queryset.filter(floorplan__floor=floor)
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        available_floors = queryset.values_list(
+            "floorplan__floor", flat=True
+        ).distinct()
+        return Response(
+            {"devices": serializer.data, "available_floors": list(available_floors)}
+        )
+
+
 class LocationDeviceList(
     FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
 ):
@@ -238,6 +276,7 @@ class LocationDetailView(
 # add with_geo filter to device API
 DeviceListCreateView.filterset_class = DeviceListFilter
 
+device_floorplan_coordinates = DeviceFloorplanCoordinatesList.as_view()
 device_coordinates = DeviceCoordinatesView.as_view()
 device_location = DeviceLocationView.as_view()
 geojson = GeoJsonLocationList.as_view()

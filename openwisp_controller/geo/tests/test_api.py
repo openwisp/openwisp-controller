@@ -1036,3 +1036,30 @@ class TestGeoApi(
         with self.subTest("Test deleting DeviceLocation"):
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 403)
+
+    def test_floorplan_coordinates(self):
+        org = self._create_org()
+        location = self._create_location(type="indoor", organization=org)
+        floor1 = self._create_floorplan(floor=1, location=location)
+        floor2 = self._create_floorplan(floor=2, location=location)
+        device1 = self._create_device(
+            name="device1", mac_address="00:00:00:00:00:01", organization=org
+        )
+        device2 = self._create_device(
+            name="device2", mac_address="00:00:00:00:00:02", organization=org
+        )
+        self._create_object_location(
+            content_object=device1,
+            location=location,
+            floorplan=floor1,
+            organization=org,
+        )
+        self._create_object_location(
+            content_object=device2,
+            location=location,
+            floorplan=floor2,
+            organization=org,
+        )
+        path = reverse("geo_api:device_floorplan_coordinates", args=[location.id])
+        response = self.client.get(path)
+        print(response.__dict__)
