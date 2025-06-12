@@ -488,8 +488,8 @@
         getDefaultValues(true);
       });
     }
-    $(".sortedm2m-items").on("change", function (event) {
-      getDefaultValues(event.updateInitialValue === true);
+    $(".sortedm2m-items").on("change", function (event, data) {
+      getDefaultValues(data && data.updateInitialValue === true);
     });
     $(".sortedm2m-items").on("sortstop", function () {
       getDefaultValues();
