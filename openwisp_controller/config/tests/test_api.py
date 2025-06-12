@@ -247,20 +247,14 @@ class TestConfigApi(
         self.assertEqual(response.data["group"], device_group.pk)
 
     def test_device_list_api(self):
-        self._create_device()
+        device = self._create_device()
         path = reverse("config_api:device_list")
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
-        with self.subTest("should return devices ordered by most recent first"):
-            Device.objects.all().delete()
+        with self.subTest("device list should show most recent first"):
             org = self._get_org()
-            recent1 = self._create_device(
-                name="recent-device-1",
-                mac_address="00:00:00:00:00:01",
-                organization=org,
-            )
-            recent2 = self._create_device(
+            recent = self._create_device(
                 name="recent-device-2",
                 mac_address="00:00:00:00:00:02",
                 organization=org,
@@ -276,7 +270,7 @@ class TestConfigApi(
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             names = [d["name"] for d in response.data["results"]]
-            expected = [recent2.name, recent1.name, oldest.name]
+            expected = [recent.name, device.name, oldest.name]
             self.assertEqual(names, expected)
 
     def test_device_list_api_filter(self):
@@ -1057,7 +1051,7 @@ class TestConfigApi(
         self.assertEqual(response.data["templates"], [template.pk])
 
     def test_devicegroup_list_api(self):
-        self._create_device_group()
+        dg = self._create_device_group()
         path = reverse("config_api:devicegroup_list")
         with self.subTest("assert number of queries"):
             with self.assertNumQueries(5):
@@ -1073,17 +1067,15 @@ class TestConfigApi(
             self.assertNotContains(
                 r, f'<option value="{t2.id}">{t2.name}</option>', html=True
             )
-        with self.subTest("should return device groups ordered by most recent first"):
-            DeviceGroup.objects.all().delete()
-            dg_recent1 = self._create_device_group(name="Recent 1")
+        with self.subTest("device group list should show most recent first"):
+            dg_recent = self._create_device_group(name="Recent")
             dg_old = self._create_device_group(name="Oldest")
-            dg_recent2 = self._create_device_group(name="Recent 2")
             old_date = timezone.now() - timedelta(days=2)
             DeviceGroup.objects.filter(pk=dg_old.pk).update(created=old_date)
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             returned_ids = [group["id"] for group in response.data["results"]]
-            expected_order = [str(dg_recent2.pk), str(dg_recent1.pk), str(dg_old.pk)]
+            expected_order = [str(dg_recent.pk), str(dg.pk), str(dg_old.pk)]
             self.assertEqual(returned_ids, expected_order)
 
     def test_devicegroup_list_api_filter(self):
