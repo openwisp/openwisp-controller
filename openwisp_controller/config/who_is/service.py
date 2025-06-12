@@ -116,6 +116,15 @@ class WhoIsService:
         except ValueError:
             return False
 
+    @staticmethod
+    def _get_who_is_info_from_db(ip_address):
+        """
+        For getting existing WhoIsInfo for given IP from db if present.
+        """
+        WhoIsInfo = load_model("config", "WhoIsInfo")
+
+        return WhoIsInfo.objects.filter(ip_address=ip_address)
+
     @property
     def is_who_is_enabled(self):
         """
@@ -145,33 +154,25 @@ class WhoIsService:
             )
         return getattr(org_settings, "who_is_enabled", app_settings.WHO_IS_ENABLED)
 
-    def _get_who_is_info_from_db(self, ip_address):
-        """
-        For getting existing WhoIsInfo for given IP from db if present.
-        """
-        WhoIsInfo = load_model("config", "WhoIsInfo")
-
-        return WhoIsInfo.objects.filter(ip_address=ip_address).first()
-
-    def _need_who_is_lookup(self, initial_ip, new_ip):
+    def _need_who_is_lookup(self, new_ip):
         """
         This is used to determine if the WhoIs lookup should be triggered
         when the device is saved.
 
-        The lookup is triggered if:
-            - The new IP address is not None.
-            - The WhoIs information is not already present or the initial IP is
-              different from the new IP.
-            - The new IP address is a global (public) IP address.
-            - WhoIs is enabled in the organization settings. (query from db)
+        The lookup is not triggered if:
+            - The new IP address is None or it is a private IP address.
+            - The WhoIs information of new ip is already present.
+            - WhoIs is disabled in the organization settings. (query from db)
         """
 
         # Check cheap conditions first before hitting the database
-        return (
-            self.is_valid_public_ip_address(new_ip)
-            and (initial_ip != new_ip or not self._get_who_is_info_from_db(new_ip))
-            and self.is_who_is_enabled
-        )
+        if not self.is_valid_public_ip_address(new_ip):
+            return False
+
+        if self._get_who_is_info_from_db(new_ip).exists():
+            return False
+
+        return self.is_who_is_enabled
 
     def get_device_who_is_info(self):
         """
@@ -182,14 +183,14 @@ class WhoIsService:
         if not (self.is_valid_public_ip_address(ip_address) and self.is_who_is_enabled):
             return None
 
-        return self._get_who_is_info_from_db(ip_address=ip_address)
+        return self._get_who_is_info_from_db(ip_address=ip_address).first()
 
     def trigger_who_is_lookup(self):
         """
         Trigger WhoIs lookup based on the conditions of `_need_who_is_lookup`.
         Task is triggered on commit to ensure redundant data is not created.
         """
-        if self._need_who_is_lookup(self.device._initial_last_ip, self.device.last_ip):
+        if self._need_who_is_lookup(self.device.last_ip):
             transaction.on_commit(
                 lambda: self.fetch_who_is_details.delay(
                     device_pk=self.device.pk,
@@ -209,17 +210,16 @@ class WhoIsService:
         Fetches the WhoIs details of the given IP address
         and creates/updates the WhoIs record.
         """
-        # The task is triggered if last_ip is updated irrespective
-        # if there is WhoIsInfo for the new IP address so we return
-        # from the task if that is the case.
-        if self._get_who_is_info_from_db(new_ip_address):
+        # The task can be triggered for same ip address multiple times
+        # so we need to return early if WhoIs is already created.
+        if WhoIsService._get_who_is_info_from_db(new_ip_address).exists():
             return
 
         WhoIsInfo = load_model("config", "WhoIsInfo")
 
-        try:
-            ip_client = WhoIsService._get_geoip2_client()
+        ip_client = WhoIsService._get_geoip2_client()
 
+        try:
             data = ip_client.city(ip_address=new_ip_address)
 
         # Catching all possible exceptions raised by the geoip2 client
