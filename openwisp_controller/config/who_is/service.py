@@ -3,6 +3,7 @@ from ipaddress import ip_address
 
 import requests
 from celery import shared_task
+from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -163,16 +164,21 @@ class WhoIsService:
             - The new IP address is None or it is a private IP address.
             - The WhoIs information of new ip is already present.
             - WhoIs is disabled in the organization settings. (query from db)
+
+        Two boolean values are returned:
+            - First boolean indicates if WhoIs lookup is needed.
+            - Second boolean indicates if WhoIs info already exists in the db,
+            which is used for managing fuzzy locations.
         """
 
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
-            return False
+            return False, False
 
         if self._get_who_is_info_from_db(new_ip).exists():
-            return False
+            return False, True
 
-        return self.is_who_is_enabled
+        return self.is_who_is_enabled, False
 
     def get_device_who_is_info(self):
         """
@@ -190,13 +196,19 @@ class WhoIsService:
         Trigger WhoIs lookup based on the conditions of `_need_who_is_lookup`.
         Task is triggered on commit to ensure redundant data is not created.
         """
-        if self._need_who_is_lookup(self.device.last_ip):
+
+        fetch_who_is, who_is_info_exists = self._need_who_is_lookup(self.device.last_ip)
+        if fetch_who_is:
             transaction.on_commit(
                 lambda: self.fetch_who_is_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
                     new_ip_address=self.device.last_ip,
                 )
+            )
+        elif who_is_info_exists and self.is_who_is_enabled:
+            self.manage_fuzzy_locations.delay(
+                self.device.pk, self.device.last_ip, add_existing=True
             )
 
     # device_pk is used when task fails to report for which device failure occurred
@@ -246,6 +258,25 @@ class WhoIsService:
                 "continent": getattr(data.continent, "name", ""),
                 "postal": str(getattr(data.postal, "code", "")),
             }
+            # create fuzzy location for the device
+            location_address = ", ".join(
+                i
+                for i in (
+                    address.get("city"),
+                    address.get("country"),
+                    address.get("continent"),
+                    address.get("postal"),
+                )
+                if i
+            )
+            WhoIsService.manage_fuzzy_locations.delay(
+                device_pk,
+                new_ip_address,
+                data.location.latitude,
+                data.location.longitude,
+                location_address,
+            )
+
             # Create the WhoIs information
             WhoIsInfo.objects.create(
                 organization_name=data.traits.autonomous_system_organization,
@@ -279,3 +310,63 @@ class WhoIsService:
         queryset = WhoIsInfo.objects.filter(ip_address=ip_address)
         if queryset.exists():
             queryset.delete()
+
+    @shared_task
+    def manage_fuzzy_locations(
+        device_pk,
+        ip_address,
+        latitude=None,
+        longitude=None,
+        address=None,
+        add_existing=False,
+    ):
+        Device = load_model("config", "Device")
+        Location = load_model("geo", "Location")
+        DeviceLocation = load_model("geo", "DeviceLocation")
+
+        device_location = (
+            DeviceLocation.objects.filter(content_object_id=device_pk)
+            .select_related("location")
+            .first()
+        )
+
+        if not device_location:
+            device_location = DeviceLocation(content_object_id=device_pk)
+
+        # for attaching existing location for the ip to device
+        if add_existing and not device_location.location:
+            device_with_location = (
+                Device.objects.select_related("device_location")
+                .filter(last_ip=ip_address, device_location__location__isnull=False)
+                .first()
+            )
+            if device_with_location:
+                location = device_with_location.device_location.location
+                device_location.location = location
+                device_location.full_clean()
+                device_location.save()
+        elif latitude and longitude:
+            device = Device.objects.get(pk=device_pk)
+            coords = Point(longitude, latitude, srid=4326)
+            # Create/update the device location mapping, updating existing location
+            # if exists else create a new location
+            location_defaults = {
+                "name": f"{device.name} Location",
+                "type": "outdoor",
+                "organization_id": device.organization_id,
+                "is_mobile": False,
+                "geometry": coords,
+                "address": address,
+            }
+            if device_location.location and device_location.location.fuzzy:
+                for attr, value in location_defaults.items():
+                    setattr(device_location.location, attr, value)
+                device_location.location.full_clean()
+                device_location.location.save()
+            elif not device_location.location:
+                location = Location(**location_defaults, fuzzy=True)
+                location.full_clean()
+                location.save()
+                device_location.location = location
+                device_location.full_clean()
+                device_location.save()
