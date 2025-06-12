@@ -2,6 +2,7 @@ import logging
 
 import requests
 from celery import shared_task
+from django.contrib.gis.geos import Point
 from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
@@ -158,3 +159,72 @@ def delete_whois_record(ip_address):
     queryset = WHOISInfo.objects.filter(ip_address=ip_address)
     if queryset.exists():
         queryset.delete()
+
+
+@shared_task
+def manage_fuzzy_locations(
+    device_pk,
+    ip_address,
+    latitude=None,
+    longitude=None,
+    address=None,
+    add_existing=False,
+):
+    """
+    Creates/updates fuzzy location for a device based on the latitude and longitude
+    or attaches an existing location if `add_existing` is True.
+    Existing location here means a location of a device whose last_ip matches
+    the given ip_address.
+    """
+    Device = load_model("config", "Device")
+    Location = load_model("geo", "Location")
+    DeviceLocation = load_model("geo", "DeviceLocation")
+
+    device_location = (
+        DeviceLocation.objects.filter(content_object_id=device_pk)
+        .select_related("location")
+        .first()
+    )
+
+    if not device_location:
+        device_location = DeviceLocation(content_object_id=device_pk)
+
+    # if attaching an existing location, the current device should not have
+    # a location already set.
+    # TODO: Do we do this if device location exists but is marked fuzzy?
+    if add_existing and not device_location.location:
+        existing_device_with_location = (
+            Device.objects.select_related("device_location")
+            .filter(last_ip=ip_address, device_location__location__isnull=False)
+            .first()
+        )
+        if existing_device_with_location:
+            location = existing_device_with_location.device_location.location
+            device_location.location = location
+            device_location.full_clean()
+            device_location.save()
+    elif latitude and longitude:
+        device = Device.objects.get(pk=device_pk)
+        coords = Point(longitude, latitude, srid=4326)
+        # Create/update the device location mapping, updating existing location
+        # if exists else create a new location
+        location_defaults = {
+            "name": f"{device.name} Location",
+            "type": "outdoor",
+            "organization_id": device.organization_id,
+            "is_mobile": False,
+            "geometry": coords,
+            "address": address,
+        }
+        if device_location.location and device_location.location.fuzzy:
+            for attr, value in location_defaults.items():
+                setattr(device_location.location, attr, value)
+            device_location.location.full_clean()
+            device_location.location.save()
+        elif not device_location.location:
+            location = Location(**location_defaults, fuzzy=True)
+            location.full_clean()
+            location.save()
+            device_location.location = location
+            device_location.full_clean()
+            device_location.save()
