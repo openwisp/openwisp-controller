@@ -6,7 +6,7 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
-from .tasks import fetch_whois_details
+from .tasks import fetch_whois_details, manage_fuzzy_locations
 
 
 class WHOISService:
@@ -79,18 +79,23 @@ class WHOISService:
 
         The lookup is not triggered if:
             - The new IP address is None or it is a private IP address.
-            - The WHOIS information of new ip is already present.
-            - WHOIS is disabled in the organization settings. (query from db)
+            - The WhoIs information of new ip is already present.
+            - WhoIs is disabled in the organization settings. (query from db)
+
+        Two boolean values are returned:
+            - First boolean indicates if WhoIs lookup is needed.
+            - Second boolean indicates if WhoIs info already exists in the db,
+            which is used for managing fuzzy locations.
         """
 
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
-            return False
+            return False, False
 
         if self._get_whois_info_from_db(new_ip).exists():
-            return False
+            return False, True
 
-        return self.is_whois_enabled
+        return self.is_whois_enabled, False
 
     def get_device_whois_info(self):
         """
@@ -108,11 +113,19 @@ class WHOISService:
         Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
         Task is triggered on commit to ensure redundant data is not created.
         """
-        if self._need_whois_lookup(self.device.last_ip):
+
+        fetch_whois, whois_info_exists = self._need_whois_lookup(self.device.last_ip)
+        if fetch_whois:
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
                     new_ip_address=self.device.last_ip,
+                )
+            )
+        elif whois_info_exists and self.is_whois_enabled:
+            transaction.on_commit(
+                manage_fuzzy_locations.delay(
+                    self.device.pk, self.device.last_ip, add_existing=True
                 )
             )
