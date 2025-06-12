@@ -137,6 +137,16 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
                 html=True,
             )
 
+    def test_location_readonly_fields(self):
+        location = self._create_location(
+            name="location1org", type="indoor", organization=self._get_org()
+        )
+        self._create_admin()
+        self._login()
+        url = reverse(f"admin:{self.app_label}_location_change", args=[location.pk])
+        response = self.client.get(url)
+        self.assertNotContains(response, '<input type="checkbox" name="is_estimated"')
+
 
 class TestDeviceAdmin(
     TestImportExportMixin, TestAdminMixin, TestGeoMixin, TestOrganizationMixin, TestCase
