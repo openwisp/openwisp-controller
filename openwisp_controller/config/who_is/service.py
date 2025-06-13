@@ -247,15 +247,17 @@ class WhoIsService:
                 "postal": str(getattr(data.postal, "code", "")),
             }
             # Create the WhoIs information
-            WhoIsInfo.objects.create(
+            who_is_obj = WhoIsInfo(
                 organization_name=data.traits.autonomous_system_organization,
                 asn=data.traits.autonomous_system_number,
-                country=data.country.name,
+                country=data.country.iso_code,
                 timezone=data.location.time_zone,
                 address=address,
                 cidr=data.traits.network,
                 ip_address=new_ip_address,
             )
+            who_is_obj.full_clean()
+            who_is_obj.save()
             logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
 
             # the following check ensures that for a case when device last_ip
