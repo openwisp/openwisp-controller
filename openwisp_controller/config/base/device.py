@@ -1,3 +1,4 @@
+from functools import cached_property
 from hashlib import md5
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -18,6 +19,7 @@ from ..signals import (
     management_ip_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
+from ..who_is.service import WhoIsService
 from .base import BaseModel
 
 
@@ -28,7 +30,13 @@ class AbstractDevice(OrgMixin, BaseModel):
     physical properties of a network device
     """
 
-    _changed_checked_fields = ["name", "group_id", "management_ip", "organization_id"]
+    _changed_checked_fields = [
+        "name",
+        "group_id",
+        "management_ip",
+        "organization_id",
+        "last_ip",
+    ]
 
     name = models.CharField(
         max_length=64,
@@ -279,6 +287,9 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
+        # We need to check for last_ip when device is created/updated to perform
+        # WhoIs lookup.
+        self._check_last_ip()
         if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
@@ -299,7 +310,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         self._get_initial_values_for_checked_fields()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
-            getattr(self, f"_check_{field}_changed")()
+            method = getattr(self, f"_check_{field}_changed", None)
+            if callable(method):
+                method()
 
     def _is_deferred(self, field):
         """
@@ -364,6 +377,15 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         self._initial_management_ip = self.management_ip
 
+    def _check_last_ip(self):
+        """Trigger WhoIs lookup if last_ip is not deferred."""
+        if self._initial_last_ip == models.DEFERRED:
+            return
+
+        self.who_is_service.trigger_who_is_lookup()
+
+        self._initial_last_ip = self.last_ip
+
     def _check_organization_id_changed(self):
         """
         Returns "True" if the device's organization has changed.
@@ -401,6 +423,14 @@ class AbstractDevice(OrgMixin, BaseModel):
         (eg: admin site)
         """
         return self._get_config_attr("get_status_display")
+
+    @cached_property
+    def who_is_service(self):
+        """
+        Used as a shortcut to get WhoIsService instance
+        for the device.
+        """
+        return WhoIsService(self)
 
     def get_default_templates(self):
         """
