@@ -1060,6 +1060,7 @@ class TestGeoApi(
             floorplan=floor2,
             organization=org,
         )
-        path = reverse("geo_api:device_floorplan_coordinates", args=[location.id])
+        path = reverse("geo_api:floorplan_coordinates_list", args=[location.id])
         response = self.client.get(path)
-        print(response.__dict__)
+        response = response.json()
+        print(response)

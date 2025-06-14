@@ -42,8 +42,8 @@ def get_geo_urls(geo_views):
             name="detail_location",
         ),
         path(
-            "api/v1/controller/location/<str:pk>/floorplan/devices/",
-            geo_views.device_floorplan_coordinates,
-            name="device_floorplan_coordinates",
+            "api/v1/controller/location/<str:pk>/floorplan_coordinates/",
+            geo_views.floorplan_coordinates_list,
+            name="floorplan_coordinates_list",
         ),
     ]
