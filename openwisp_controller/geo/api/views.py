@@ -19,6 +19,7 @@ from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
+    FloorplanCoordinatesSerializer,
     FloorPlanSerializer,
     GeoJsonLocationSerializer,
     LocationDeviceSerializer,
@@ -49,6 +50,15 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = FloorPlan
+
+
+class FloorplanCoordinatesFilter(OrganizationManagedFilter):
+    floor = filters.NumberFilter(field_name="floorplan__floor")
+    organization = filters.UUIDFilter(field_name="content_object__organization")
+
+    class Meta(OrganizationManagedFilter.Meta):
+        model = DeviceLocation
+        fields = OrganizationManagedFilter.Meta.fields + ["floor"]
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -186,6 +196,32 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
+class FloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
+    serializer_class = FloorplanCoordinatesSerializer
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = FloorplanCoordinatesFilter
+    queryset = (
+        DeviceLocation.objects.filter(
+            location__type="indoor",
+            floorplan__isnull=False,
+        )
+        .select_related(
+            "content_object", "location", "floorplan", "content_object__organization"
+        )
+        .order_by("floorplan__floor")
+    )
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        location_id = self.kwargs.get("pk")
+        qs = qs.filter(location__id=location_id)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response({"nodes": serializer.data, "links": []})
+
+
 class LocationDeviceList(
     FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
 ):
@@ -244,5 +280,6 @@ geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
 list_floorplan = FloorPlanListCreateView.as_view()
 detail_floorplan = FloorPlanDetailView.as_view()
+floorplan_coordinates_list = FloorplanCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
