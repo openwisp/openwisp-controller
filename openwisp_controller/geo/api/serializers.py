@@ -348,3 +348,46 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         )
         validated_data = self._validate(validated_data)
         return super().update(instance, validated_data)
+
+
+class FloorplanCoordinatesSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source="content_object.name")
+    mac_address = serializers.CharField(source="content_object.mac_address")
+    is_deactivated = serializers.BooleanField(source="content_object.is_deactivated")
+    model = serializers.CharField(source="content_object.model")
+    os = serializers.CharField(source="content_object.os")
+    floor_name = serializers.SerializerMethodField()
+    floor = serializers.IntegerField(source="floorplan.floor")
+    image = serializers.ImageField(source="floorplan.image", read_only=True)
+    location = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DeviceLocation
+        fields = (
+            "name",
+            "mac_address",
+            "is_deactivated",
+            "model",
+            "os",
+            "floor_name",
+            "floor",
+            "image",
+            "location",
+        )
+
+    def get_floor_name(self, obj):
+        loc_name = obj.floorplan.location.name
+        floor_no = obj.floorplan.floor
+        return f"{loc_name} {ordinal(floor_no)} Floor"
+
+    def get_location(self, obj):
+        """
+        NetJsonGraph expects indoor coordinates in {'lat': y, 'lng': x}.
+        """
+        if not obj.indoor:
+            raise serializers.ValidationError(
+                detail={"indoor": _("Floorplan indoor cordinates is null")}
+            )
+
+        x, y = obj.indoor.split(",", 1)
+        return {"lat": float(y), "lng": float(x)}

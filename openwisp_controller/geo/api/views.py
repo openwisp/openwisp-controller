@@ -19,6 +19,7 @@ from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
+    FloorplanCoordinatesSerializer,
     FloorPlanSerializer,
     GeoJsonLocationSerializer,
     LocationDeviceSerializer,
@@ -51,10 +52,13 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
         model = FloorPlan
 
 
-class DeviceFloorplanCoordinatesFilter(OrganizationManagedFilter):
+class FloorplanCoordinatesFilter(OrganizationManagedFilter):
+    floor = filters.NumberFilter(field_name="floorplan__floor")
+    organization = filters.UUIDFilter(field_name="content_object__organization")
+
     class Meta(OrganizationManagedFilter.Meta):
-        model = Location
-        fields = OrganizationManagedFilter.Meta.fields + ["floorplan__floor"]
+        model = DeviceLocation
+        fields = OrganizationManagedFilter.Meta.fields + ["floor"]
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -192,36 +196,30 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
-class DeviceFloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
-    """
-    List coordinates of device floorplan for a given location ID
-    """
-
-    serializer_class = DeviceLocationSerializer
-    pagination_class = ListViewPagination
+class FloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
+    serializer_class = FloorplanCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = DeviceFloorplanCoordinatesFilter
-    queryset = DeviceLocation.objects.select_related(
-        "content_object", "location", "floorplan"
+    filterset_class = FloorplanCoordinatesFilter
+    queryset = (
+        DeviceLocation.objects.filter(
+            location__type="indoor",
+            floorplan__isnull=False,
+        )
+        .select_related(
+            "content_object", "location", "floorplan", "content_object__organization"
+        )
+        .order_by("floorplan__floor")
     )
 
     def get_queryset(self):
+        qs = super().get_queryset()
         location_id = self.kwargs.get("pk")
-        floor = self.request.query_params.get("floor")
-        queryset = super().get_queryset().filter(location_id=location_id)
-        if floor:
-            queryset = queryset.filter(floorplan__floor=floor)
-        return queryset
+        qs = qs.filter(location__id=location_id)
+        return qs
 
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        available_floors = queryset.values_list(
-            "floorplan__floor", flat=True
-        ).distinct()
-        return Response(
-            {"devices": serializer.data, "available_floors": list(available_floors)}
-        )
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response({"nodes": serializer.data, "links": []})
 
 
 class LocationDeviceList(
@@ -276,12 +274,12 @@ class LocationDetailView(
 # add with_geo filter to device API
 DeviceListCreateView.filterset_class = DeviceListFilter
 
-device_floorplan_coordinates = DeviceFloorplanCoordinatesList.as_view()
 device_coordinates = DeviceCoordinatesView.as_view()
 device_location = DeviceLocationView.as_view()
 geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
 list_floorplan = FloorPlanListCreateView.as_view()
 detail_floorplan = FloorPlanDetailView.as_view()
+floorplan_coordinates_list = FloorplanCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
