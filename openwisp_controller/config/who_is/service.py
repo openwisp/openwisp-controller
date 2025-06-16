@@ -241,10 +241,10 @@ class WhoIsService:
         else:
             # Format address using the data from the geoip2 response
             address = {
-                "city": getattr(data.city, "name", ""),
-                "country": getattr(data.country, "name", ""),
-                "continent": getattr(data.continent, "name", ""),
-                "postal": str(getattr(data.postal, "code", "")),
+                "city": data.city.name or "",
+                "country": data.country.name or "",
+                "continent": data.continent.name or "",
+                "postal": str(data.postal.code or ""),
             }
             # Create the WhoIs information
             who_is_obj = WhoIsInfo(
