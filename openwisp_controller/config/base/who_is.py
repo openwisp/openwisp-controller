@@ -1,4 +1,4 @@
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -58,6 +58,16 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
             raise ValidationError(
                 _("WhoIs information cannot be created for private IP addresses.")
             )
+        if self.cidr:
+            try:
+                # strict is set to False to allow CIDR without a mask
+                # e.g. 192.168.1.12/24 with strict False normalizes to
+                # 192.168.1.0/24 else it would raise an error.
+                ip_network(self.cidr, strict=False)
+            except ValueError as e:
+                raise ValidationError(
+                    _("Invalid CIDR format: %(error)s") % {"error": str(e)}
+                )
         return super().clean()
 
     @staticmethod
@@ -80,3 +90,21 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
         """
         org_id = instance.organization_id
         cache.delete(WhoIsService.get_cache_key(org_id))
+
+    @property
+    def get_address(self):
+        """
+        Used as default formatter for address field.
+        'filter' is used to remove any None values
+        """
+        return ", ".join(
+            filter(
+                None,
+                [
+                    self.address.get("city"),
+                    self.address.get("country"),
+                    self.address.get("continent"),
+                    self.address.get("postal"),
+                ],
+            )
+        )
