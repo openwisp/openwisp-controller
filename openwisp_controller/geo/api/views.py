@@ -217,10 +217,6 @@ class FloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
         qs = qs.filter(location__id=location_id)
         return qs
 
-    def list(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_queryset(), many=True)
-        return Response({"nodes": serializer.data, "links": []})
-
 
 class LocationDeviceList(
     FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView

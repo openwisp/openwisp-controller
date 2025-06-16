@@ -363,7 +363,7 @@ class FloorplanCoordinatesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DeviceLocation
-        fields = (
+        fields = [
             "name",
             "mac_address",
             "is_deactivated",
@@ -373,7 +373,7 @@ class FloorplanCoordinatesSerializer(serializers.ModelSerializer):
             "floor",
             "image",
             "location",
-        )
+        ]
 
     def get_floor_name(self, obj):
         loc_name = obj.floorplan.location.name
@@ -389,5 +389,5 @@ class FloorplanCoordinatesSerializer(serializers.ModelSerializer):
                 detail={"indoor": _("Floorplan indoor cordinates is null")}
             )
 
-        x, y = obj.indoor.split(",", 1)
+        y, x = obj.indoor.split(",", 1)
         return {"lat": float(y), "lng": float(x)}
