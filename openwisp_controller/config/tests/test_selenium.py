@@ -5,26 +5,80 @@ from django.test import tag
 from django.urls.base import reverse
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
 
-from openwisp_utils.tests import SeleniumTestMixin
+from openwisp_utils.tests import SeleniumTestMixin as BaseSeleniumTestMixin
 
-from .utils import CreateConfigTemplateMixin, TestWireguardVpnMixin
+from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpnMixin
 
 Device = load_model("config", "Device")
+DeviceGroup = load_model("config", "DeviceGroup")
+Cert = load_model("django_x509", "Cert")
+
+
+class SeleniumTestMixin(BaseSeleniumTestMixin):
+    def _select_organization(self, org):
+        self.find_element(
+            by=By.CSS_SELECTOR, value="#select2-id_organization-container"
+        ).click()
+        self.wait_for_invisibility(
+            By.CSS_SELECTOR, ".select2-results__option.loading-results"
+        )
+        self.find_element(by=By.CLASS_NAME, value="select2-search__field").send_keys(
+            org.name
+        )
+        self.wait_for_invisibility(
+            By.CSS_SELECTOR, ".select2-results__option.loading-results"
+        )
+        self.find_element(by=By.CLASS_NAME, value="select2-results__option").click()
+
+    def _verify_templates_visibility(self, hidden=None, visible=None):
+        hidden = hidden or []
+        visible = visible or []
+        for template in hidden:
+            self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
+        for template in visible:
+            self.wait_for_visibility(By.XPATH, f'//*[@value="{template.id}"]')
 
 
 @tag("selenium_tests")
 class TestDeviceAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
     StaticLiveServerTestCase,
 ):
+    # helper function for adding/removing templates
+    def _update_template(self, device_id, templates, is_enabled=False):
+        self.open(
+            reverse("admin:config_device_change", args=[device_id]) + "#config-group"
+        )
+        self.wait_for_presence(By.CSS_SELECTOR, 'input[name="config-0-templates"]')
+
+        # if not is_enabled:
+        self.hide_loading_overlay()
+        for template in templates:
+            template_element = self.find_element(
+                By.XPATH, f'//*[@value="{template.id}"][@type="checkbox"]'
+            )
+            # if enabled by default, assert that the checkbox is selected and enabled
+            if is_enabled:
+                self.assertEqual(template_element.is_enabled(), True)
+                self.assertEqual(template_element.is_selected(), True)
+            # enable/disable the checkbox
+            template_element.click()
+
+        # Hide user tools because it covers the save button
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(by=By.NAME, value="_save").click()
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+
     def test_create_new_device(self):
         required_template = self._create_template(name="Required", required=True)
         default_template = self._create_template(name="Default", default=True)
@@ -86,7 +140,7 @@ class TestDeviceAdmin(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
         self.find_element(by=By.NAME, value="_save").click()
-        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success")
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
         self.assertEqual(
             self.find_elements(by=By.CLASS_NAME, value="success")[0].text,
             "The Device “11:22:33:44:55:66” was added successfully.",
@@ -113,9 +167,7 @@ class TestDeviceAdmin(
             self.wait_for_invisibility(By.CSS_SELECTOR, ".djnjc-overlay:not(.loading)")
 
     def test_multiple_organization_templates(self):
-        shared_required_template = self._create_template(
-            name="shared required", organization=None
-        )
+        shared_template = self._create_template(name="shared", organization=None)
 
         org1 = self._create_org(name="org1", slug="org1")
         org1_required_template = self._create_template(
@@ -133,30 +185,69 @@ class TestDeviceAdmin(
             name="org2 default", organization=org2, default=True
         )
 
-        org1_device = self._create_config(
+        device = self._create_config(
             device=self._create_device(organization=org1)
         ).device
 
         self.login()
         self.open(
-            reverse("admin:config_device_change", args=[org1_device.id])
-            + "#config-group"
+            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
         )
         self.hide_loading_overlay()
-        # org2 templates should not be visible
-        self.wait_for_invisibility(
-            By.XPATH, f'//*[@value="{org2_required_template.id}"]'
-        )
-        self.wait_for_invisibility(
-            By.XPATH, f'//*[@value="{org2_default_template.id}"]'
-        )
 
-        # org1 and shared templates should be visible
-        self.wait_for_visibility(By.XPATH, f'//*[@value="{org1_required_template.id}"]')
-        self.wait_for_visibility(By.XPATH, f'//*[@value="{org1_default_template.id}"]')
-        self.wait_for_visibility(
-            By.XPATH, f'//*[@value="{shared_required_template.id}"]'
-        )
+        with self.subTest("only org1 and shared templates should be visible"):
+            self._verify_templates_visibility(
+                hidden=[org2_required_template, org2_default_template],
+                visible=[
+                    org1_required_template,
+                    org1_default_template,
+                    shared_template,
+                ],
+            )
+
+        # Select shared template
+        self.find_element(
+            by=By.XPATH, value=f'//*[@value="{shared_template.id}"]'
+        ).click()
+
+        with self.subTest("changing org should update templates"):
+            self.find_element(
+                By.CSS_SELECTOR, value='a[href="#overview-group"]'
+            ).click()
+            self._select_organization(org2)
+            self.find_element(
+                by=By.CSS_SELECTOR, value='a[href="#config-group"]'
+            ).click()
+            self._verify_templates_visibility(
+                hidden=[
+                    org1_required_template,
+                    org1_default_template,
+                ],
+                visible=[
+                    org2_required_template,
+                    org2_default_template,
+                    shared_template,
+                ],
+            )
+            # Verify that shared template is selected
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f'input[type="checkbox"][value="{shared_template.id}"]',
+                ).is_selected(),
+                True,
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value='input[name="_continue"]'
+            ).click()
+            self._wait_until_page_ready()
+            device.refresh_from_db()
+            device.config.refresh_from_db()
+            self.assertEqual(device.organization, org2)
+            self.assertEqual(device.config.templates.count(), 3)
+            self.assertIn(org2_required_template, device.config.templates.all())
+            self.assertIn(org2_default_template, device.config.templates.all())
+            self.assertIn(shared_template, device.config.templates.all())
 
     def test_change_config_backend(self):
         device = self._create_config(organization=self._get_org()).device
@@ -174,43 +265,6 @@ class TestDeviceAdmin(
         )
         config_backend_select.select_by_visible_text("OpenWISP Firmware 1.x")
         self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
-
-    def test_template_context_variables(self):
-        self._create_template(
-            name="Template1", default_values={"vni": "1"}, required=True
-        )
-        self._create_template(
-            name="Template2", default_values={"vni": "2"}, required=True
-        )
-        device = self._create_config(organization=self._get_org()).device
-        self.login()
-        self.open(
-            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
-        )
-        self.hide_loading_overlay()
-        try:
-            WebDriverWait(self.web_driver, 2).until(
-                EC.text_to_be_present_in_element_value(
-                    (
-                        By.XPATH,
-                        '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]',
-                    ),
-                    "vni",
-                )
-            )
-        except TimeoutException:
-            self.fail("Timed out wating for configuration variabled to get loaded")
-        self.find_element(
-            by=By.XPATH, value='//*[@id="main-content"]/div[2]/a[3]'
-        ).click()
-        try:
-            WebDriverWait(self.web_driver, 2).until(EC.alert_is_present())
-        except TimeoutException:
-            pass
-        else:
-            alert = Alert(self.web_driver)
-            alert.accept()
-            self.fail("Unsaved changes alert displayed without any change")
 
     def test_force_delete_device_with_deactivating_config(self):
         self._create_template(default=True)
@@ -296,6 +350,132 @@ class TestDeviceAdmin(
         delete_confirm.click()
         self.assertEqual(Device.objects.count(), 0)
 
+    def test_add_remove_templates(self):
+        template = self._create_template(organization=self._get_org())
+        config = self._create_config(organization=self._get_org())
+        device = config.device
+        self.login()
+        # some times the url fetching in js gives unauthorized error
+        # so we add a wait to allow login to complete
+        time.sleep(2)
+
+        with self.subTest("Template should be added"):
+            self._update_template(device.id, templates=[template])
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.status, "modified")
+            config.set_status_applied()
+            self.assertEqual(config.status, "applied")
+
+        with self.subTest("Template should be removed"):
+            self._update_template(device.id, templates=[template], is_enabled=True)
+            config.refresh_from_db()
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.status, "modified")
+
+
+@tag("selenium_tests")
+class TestDeviceGroupAdmin(
+    SeleniumTestMixin,
+    CreateConfigTemplateMixin,
+    StaticLiveServerTestCase,
+):
+    def test_show_relevant_templates(self):
+        org1 = self._create_org(name="org1", slug="org1")
+        org2 = self._create_org(name="org2", slug="org2")
+        shared_template = self._create_template(name="shared template")
+        org1_template = self._create_template(name="org1 template", organization=org1)
+        org1_required_template = self._create_template(
+            name="org1 required", organization=org1, required=True
+        )
+        org1_default_template = self._create_template(
+            name="org1 default", organization=org1, default=True
+        )
+        org2_template = self._create_template(name="org2 template", organization=org2)
+        org2_required_template = self._create_template(
+            name="org2 required", organization=org2, required=True
+        )
+        org2_default_template = self._create_template(
+            name="org2 default", organization=org2, default=True
+        )
+
+        self.login()
+        self.open(reverse("admin:config_devicegroup_add"))
+        self.assertEqual(
+            self.wait_for_visibility(
+                By.CSS_SELECTOR, ".sortedm2m-container .help"
+            ).text,
+            "No Template available",
+        )
+        self.find_element(by=By.CSS_SELECTOR, value='input[name="name"]').send_keys(
+            "Test Device Group"
+        )
+        self._select_organization(org1)
+        self._verify_templates_visibility(
+            hidden=[
+                org1_default_template,
+                org1_required_template,
+                org2_template,
+                org2_default_template,
+                org2_required_template,
+            ],
+            visible=[shared_template, org1_template],
+        )
+        # Select org1 template
+        self.find_element(
+            by=By.XPATH, value=f'//*[@value="{org1_template.id}"]'
+        ).click()
+        self.web_driver.execute_script(
+            "window.scrollTo(0, document.body.scrollHeight);"
+        )
+        self.find_element(by=By.CSS_SELECTOR, value='input[name="_continue"]').click()
+        self._wait_until_page_ready()
+        device_group = DeviceGroup.objects.first()
+        self.assertEqual(device_group.name, "Test Device Group")
+        self.assertIn(org1_template, device_group.templates.all())
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR,
+                value=f'input[type="checkbox"][value="{org1_template.id}"]',
+            ).is_selected(),
+            True,
+        )
+
+        with self.subTest("Change organization to org2"):
+            self._select_organization(org2)
+            self._verify_templates_visibility(
+                hidden=[
+                    org1_template,
+                    org1_default_template,
+                    org1_required_template,
+                    org2_required_template,
+                    org2_default_template,
+                ],
+                visible=[
+                    shared_template,
+                    org2_template,
+                ],
+            )
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f'input[type="checkbox"][value="{org2_template.id}"]',
+                ).is_selected(),
+                False,
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value='input[name="_continue"]'
+            ).click()
+            self._wait_until_page_ready()
+            self.assertEqual(device_group.templates.count(), 0)
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f'input[type="checkbox"][value="{org2_template.id}"]',
+                ).is_selected(),
+                False,
+            )
+
 
 @tag("selenium_tests")
 class TestDeviceAdminUnsavedChanges(
@@ -305,6 +485,21 @@ class TestDeviceAdminUnsavedChanges(
 ):
     browser = "chrome"
 
+    def _is_unsaved_changes_alert_present(self):
+        for entry in self.get_browser_logs():
+            if (
+                entry["level"] == "WARNING"
+                and "You haven't saved your changes yet!" in entry["message"]
+            ):
+                return True
+        return False
+
+    def _override_unsaved_changes_alert(self):
+        self.web_driver.execute_script(
+            'django.jQuery(window).on("beforeunload", function(e) {'
+            " console.warn(e.returnValue); });"
+        )
+
     def test_unsaved_changes(self):
         """
         Execute this test using Chrome instead of Firefox.
@@ -312,17 +507,17 @@ class TestDeviceAdminUnsavedChanges(
         impossible to test the unsaved changes alert.
         """
         self.login()
+        self._create_template(default=True, default_values={"ssid": "default"})
         device = self._create_config(organization=self._get_org()).device
         path = reverse("admin:config_device_change", args=[device.id])
 
         with self.subTest("Alert should not be displayed without any change"):
             self.open(path)
             self.hide_loading_overlay()
-            try:
-                WebDriverWait(self.web_driver, 1).until(EC.alert_is_present())
-            except TimeoutException:
-                pass
-            else:
+            self._override_unsaved_changes_alert()
+            # Simulate navigating away from the page
+            self.open(reverse("admin:index"))
+            if self._is_unsaved_changes_alert_present():
                 self.fail("Unsaved changes alert displayed without any change")
 
         with self.subTest("Alert should be displayed after making changes"):
@@ -332,10 +527,9 @@ class TestDeviceAdminUnsavedChanges(
             #
             # our own JS code sets e.returnValue when triggered
             # so we just need to ensure it's set as expected
-            self.web_driver.execute_script(
-                'django.jQuery(window).on("beforeunload", function(e) {'
-                " console.warn(e.returnValue); });"
-            )
+            self.open(path)
+            self.hide_loading_overlay()
+            self._override_unsaved_changes_alert()
             # simulate hand gestures
             self.find_element(by=By.TAG_NAME, value="body").click()
             self.find_element(by=By.NAME, value="name").click()
@@ -344,14 +538,54 @@ class TestDeviceAdminUnsavedChanges(
             # simulate hand gestures
             self.find_element(by=By.TAG_NAME, value="body").click()
             self.web_driver.refresh()
-            for entry in self.get_browser_logs():
-                if (
-                    entry["level"] == "WARNING"
-                    and "You haven't saved your changes yet!" in entry["message"]
-                ):
-                    break
-            else:
+            if not self._is_unsaved_changes_alert_present():
                 self.fail("Unsaved changes code was not executed.")
+
+    def test_template_context_variables(self):
+        self._create_template(
+            name="Template1", default_values={"vni": "1"}, required=True
+        )
+        self._create_template(
+            name="Template2", default_values={"vni": "2"}, required=True
+        )
+        device = self._create_config(organization=self._get_org()).device
+        self.login()
+        self.open(
+            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+        )
+        self.hide_loading_overlay()
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                EC.text_to_be_present_in_element_value(
+                    (
+                        By.XPATH,
+                        '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]',
+                    ),
+                    "vni",
+                )
+            )
+        except TimeoutException:
+            self.fail("Timed out waiting for configuration variables to get loaded")
+
+        with self.subTest("Navigating away from the page should not show alert"):
+            self._override_unsaved_changes_alert()
+            # Simulate navigating away from the page
+            self.find_element(
+                by=By.XPATH, value='//*[@id="main-content"]/div[2]/a[3]'
+            ).click()
+            if self._is_unsaved_changes_alert_present():
+                self.fail("Unsaved changes alert displayed without any change")
+
+        with self.subTest("Saving the objects should not save context variables"):
+            self.open(reverse("admin:config_device_change", args=[device.id]))
+            self.web_driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);"
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value='input[name="_continue"]'
+            ).click()
+            device.refresh_from_db()
+            self.assertEqual(device.config.context, {})
 
 
 @tag("selenium_tests")

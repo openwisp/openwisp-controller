@@ -1,9 +1,10 @@
 import json
+from collections import OrderedDict
 from copy import deepcopy
 from uuid import UUID
 
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
@@ -11,12 +12,25 @@ from django.views.decorators.http import last_modified
 from swapper import load_model
 
 from .settings import BACKENDS, VPN_BACKENDS
-from .utils import get_object_or_404
 
 Organization = load_model("openwisp_users", "Organization")
 Template = load_model("config", "Template")
+Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+
+
+def _get_relevant_templates_dict(queryset, selected=False):
+    relevant_templates = OrderedDict()
+    for template in queryset:
+        relevant_templates[str(template.pk)] = dict(
+            name=template.name,
+            backend=template.get_backend_display(),
+            default=template.default,
+            required=template.required,
+            selected=selected,
+        )
+    return relevant_templates
 
 
 def get_relevant_templates(request, organization_id):
@@ -24,28 +38,80 @@ def get_relevant_templates(request, organization_id):
     returns default templates of specified organization
     """
     backend = request.GET.get("backend", None)
+    config_id = request.GET.get("config_id", None)
+    group_id = request.GET.get("group_id", None)
     user = request.user
-    if not user.is_superuser and not user.is_manager(organization_id):
+    # organization_id is passed as 'null' for add device
+    organization_id = None if organization_id == "null" else organization_id
+    if (
+        not user.is_superuser
+        and organization_id
+        and not user.is_manager(organization_id)
+    ):
         return HttpResponse(status=403)
-    org = get_object_or_404(Organization, pk=organization_id, is_active=True)
+
+    if organization_id:
+        # return 400 if organization_id is not a valid UUID
+        try:
+            organization_id = UUID(organization_id, version=4)
+        except ValueError:
+            return HttpResponseBadRequest(_(f"{organization_id} is not a valid UUID."))
+        if not Organization.objects.filter(pk=organization_id, is_active=True).exists():
+            raise Http404(_("Organization does not exist."))
+        org_filters = Q(organization_id=organization_id)
+    # if the user is superuser then we need to fetch all the templates
+    elif user.is_superuser:
+        org_filters = Q(organization_id__isnull=False)
+    # else fetch templates of organizations managed by the user
+    else:
+        org_filters = Q(organization_id__in=user.organizations_managed)
+
+    # this filter is for shared templates
+    org_filters |= Q(organization_id=None)
+
     filter_options = {}
     if backend:
         filter_options.update(backend=backend)
     else:
         filter_options.update(required=False, default=False)
+
     queryset = (
         Template.objects.filter(**filter_options)
-        .filter(Q(organization_id=org.pk) | Q(organization_id=None))
+        .filter(org_filters)
+        .order_by("-required", "-default")
         .only("id", "name", "backend", "default", "required")
     )
-    relevant_templates = {}
-    for template in queryset:
-        relevant_templates[str(template.pk)] = dict(
-            name=template.name,
-            backend=template.get_backend_display(),
-            default=template.default,
-            required=template.required,
+    selected_templates = []
+    if config_id:
+        try:
+            selected_templates = (
+                Config.objects.prefetch_related("templates")
+                .only("templates")
+                .get(pk=config_id)
+                .templates.filter(org_filters)
+                .filter(**filter_options)
+            )
+        except (Config.DoesNotExist, ValueError):
+            pass
+
+    if group_id:
+        try:
+            selected_templates = (
+                DeviceGroup.objects.prefetch_related("templates")
+                .only("templates")
+                .get(pk=group_id)
+                .templates.filter(org_filters)
+                .filter(**filter_options)
+            )
+        except (DeviceGroup.DoesNotExist, ValueError):
+            pass
+
+    relevant_templates = _get_relevant_templates_dict(selected_templates, selected=True)
+    relevant_templates.update(
+        _get_relevant_templates_dict(
+            queryset.exclude(pk__in=relevant_templates.keys()), selected=False
         )
+    )
     return JsonResponse(relevant_templates)
 
 

@@ -1,13 +1,18 @@
 "use strict";
 django.jQuery(function ($) {
-  var firstRun = true,
+  var pageLoading = true,
     backendFieldSelector = "#id_config-0-backend",
     orgFieldSelector = "#id_organization",
     isDeviceGroup = function () {
-      return window._deviceGroup;
+      return window._deviceGroupId !== undefined;
     },
     templatesFieldName = function () {
       return isDeviceGroup() ? "templates" : "config-0-templates";
+    },
+    isAddingNewObject = function () {
+      return isDeviceGroup()
+        ? !$(".add-form").length
+        : $('input[name="config-0-id"]').val().length === 0;
     },
     getTemplateOptionElement = function (
       index,
@@ -33,22 +38,14 @@ django.jQuery(function ($) {
       if (templateConfig.required) {
         inputField.prop("disabled", true);
       }
-      if (isSelected || templateConfig.required) {
+      // mark the template as selected if it is required or if it is enabled for the current device or group
+      if (isSelected || templateConfig.required || templateConfig.selected) {
         inputField.prop("checked", true);
       }
       return element;
     },
     resetTemplateOptions = function () {
       $("ul.sortedm2m-items").empty();
-    },
-    updateTemplateSelection = function (selectedTemplates) {
-      // Marks currently applied templates from database as selected
-      // Only executed at page load.
-      selectedTemplates.forEach(function (templateId) {
-        $(
-          `li.sortedm2m-item input[type="checkbox"][value="${templateId}"]:first`,
-        ).prop("checked", true);
-      });
     },
     updateTemplateHelpText = function () {
       var helpText = "Choose items and order by drag & drop.";
@@ -73,11 +70,32 @@ django.jQuery(function ($) {
       showRelevantTemplates();
     },
     updateConfigTemplateField = function (templates) {
-      $(`input[name="${templatesFieldName()}"]`).attr(
-        "value",
-        templates.join(","),
-      );
-      $("input.sortedm2m:first").trigger("change");
+      var value = templates.join(","),
+        templateField = templatesFieldName(),
+        updateInitialValue = false;
+      $(`input[name="${templateField}"]`).attr("value", value);
+      if (
+        pageLoading ||
+        // Handle cases where the AJAX request finishes after initial page load.
+        // If we're editing an existing object and the initial value hasn't been set,
+        // assign it now to avoid false positives in the unsaved changes warning.
+        (!isAddingNewObject() &&
+          django._owcInitialValues[templateField] === undefined)
+      ) {
+        django._owcInitialValues[templateField] = value;
+        updateInitialValue = true;
+      }
+      $("input.sortedm2m:first").trigger("change", {
+        updateInitialValue: updateInitialValue,
+      });
+    },
+    getSelectedTemplates = function () {
+      // Returns the selected templates from the sortedm2m input
+      var selectedTemplates = {};
+      $("input.sortedm2m:checked").each(function (index, element) {
+        selectedTemplates[$(element).val()] = $(element).prop("checked");
+      });
+      return selectedTemplates;
     },
     parseSelectedTemplates = function (selectedTemplates) {
       if (selectedTemplates !== undefined) {
@@ -88,85 +106,57 @@ django.jQuery(function ($) {
         }
       }
     },
+    getRelevantTemplateUrl = function (orgID, backend) {
+      // Returns the URL to fetch relevant templates
+      var baseUrl = window._relevantTemplateUrl.replace("org_id", orgID);
+      var url = new URL(baseUrl, window.location.origin);
+
+      // Get relevant templates of selected org and backend
+      if (backend) {
+        url.searchParams.set("backend", backend);
+      }
+      if (isDeviceGroup() && !$(".add-form").length) {
+        url.searchParams.set("group_id", window._deviceGroupId);
+      } else if ($('input[name="config-0-id"]').length) {
+        url.searchParams.set("config_id", $('input[name="config-0-id"]').val());
+      }
+      return url.toString();
+    },
     showRelevantTemplates = function () {
       var orgID = $(orgFieldSelector).val(),
         backend = isDeviceGroup() ? "" : $(backendFieldSelector).val(),
-        selectedTemplates;
+        currentSelection = getSelectedTemplates();
 
       // Hide templates if no organization or backend is selected
-      if (orgID.length === 0 || (!isDeviceGroup() && backend.length === 0)) {
+      if (!orgID || (!isDeviceGroup() && backend.length === 0)) {
         resetTemplateOptions();
         updateTemplateHelpText();
         return;
       }
 
-      if (firstRun) {
-        // selectedTemplates will be undefined on device add page or
-        // when the user has changed any of organization or backend field.
-        // selectedTemplates will be an empty string if no template is selected
-        // ''.split(',') returns [''] hence, this case requires special handling
-        selectedTemplates = isDeviceGroup()
-          ? parseSelectedTemplates($("#id_templates").val())
-          : parseSelectedTemplates(
-              django._owcInitialValues[templatesFieldName()],
-            );
-      }
-
-      var url = window._relevantTemplateUrl.replace("org_id", orgID);
-      // Get relevant templates of selected org and backend
-      url = url + "?backend=" + backend;
+      var url = getRelevantTemplateUrl(orgID, backend);
       $.get(url).done(function (data) {
         resetTemplateOptions();
         var enabledTemplates = [],
           sortedm2mUl = $("ul.sortedm2m-items:first"),
           sortedm2mPrefixUl = $("ul.sortedm2m-items:last");
 
-        // Adds "li" elements for templates that are already selected
-        // in the database. Select these templates and remove their key from "data"
-        // This maintains the order of the templates and keep
-        // enabled templates on the top
-        if (selectedTemplates !== undefined) {
-          selectedTemplates.forEach(function (templateId, index) {
-            // corner case in which backend of template does not match
-            if (!data[templateId]) {
-              return;
-            }
-            var element = getTemplateOptionElement(
-                index,
-                templateId,
-                data[templateId],
-                true,
-                false,
-              ),
-              prefixElement = getTemplateOptionElement(
-                index,
-                templateId,
-                data[templateId],
-                true,
-                true,
-              );
-            sortedm2mUl.append(element);
-            if (!isDeviceGroup()) {
-              sortedm2mPrefixUl.append(prefixElement);
-            }
-            delete data[templateId];
-          });
-        }
-
-        // Adds "li" elements for templates that are not selected
-        // in the database.
-        var counter =
-          selectedTemplates !== undefined ? selectedTemplates.length : 0;
+        // Adds "li" elements for templates
         Object.keys(data).forEach(function (templateId, index) {
-          // corner case in which backend of template does not match
-          if (!data[templateId]) {
-            return;
-          }
-          index = index + counter;
           var isSelected =
-              data[templateId].default &&
-              selectedTemplates === undefined &&
-              !data[templateId].required,
+              // Template is selected in the database
+              data[templateId].selected ||
+              // Shared template which was already selected
+              (currentSelection[templateId] !== undefined &&
+                currentSelection[templateId]) ||
+              // Default template should be selected when:
+              // 1. A new object is created.
+              // 2. Organization or backend field has changed.
+              //    (when the fields are changed, the currentSelection will be non-empty)
+              (data[templateId].default &&
+                (pageLoading ||
+                  isAddingNewObject() ||
+                  Object.keys(currentSelection).length > 0)),
             element = getTemplateOptionElement(
               index,
               templateId,
@@ -180,9 +170,6 @@ django.jQuery(function ($) {
               isSelected,
               true,
             );
-          // Default templates should only be enabled for new
-          // device or when user has changed any of organization
-          // or backend field
           if (isSelected === true) {
             enabledTemplates.push(templateId);
           }
@@ -191,14 +178,20 @@ django.jQuery(function ($) {
             sortedm2mPrefixUl.append(prefixElement);
           }
         });
-        if (firstRun === true && selectedTemplates !== undefined) {
-          updateTemplateSelection(selectedTemplates);
-        }
         updateTemplateHelpText();
         updateConfigTemplateField(enabledTemplates);
       });
     },
+    initTemplateField = function () {
+      // sortedm2m generates a hidden input dynamically using rendered input checkbox elements,
+      // but because the queryset is set to None in the Django admin, the input is created
+      // without a name attribute. This workaround assigns the correct name to the hidden input.
+      $('.sortedm2m-container input[type="hidden"][id="undefined"]')
+        .first()
+        .attr("name", templatesFieldName());
+    },
     bindDefaultTemplateLoading = function () {
+      initTemplateField();
       var backendField = $(backendFieldSelector);
       $(orgFieldSelector).change(function () {
         // Only fetch templates when backend field is present
@@ -211,16 +204,18 @@ django.jQuery(function ($) {
         addChangeEventHandlerToBackendField();
       } else if (isDeviceGroup()) {
         // Initially request data to get templates
+        initTemplateField();
         showRelevantTemplates();
       } else {
         // Add view: backendField is added when user adds configuration
         $("#config-group > fieldset.module").ready(function () {
           $("div.add-row > a").one("click", function () {
+            initTemplateField();
             addChangeEventHandlerToBackendField();
           });
         });
       }
-      firstRun = false;
+      pageLoading = false;
       $("#content-main form").submit(function () {
         $(
           'ul.sortedm2m-items:first input[type="checkbox"][data-required="true"]',

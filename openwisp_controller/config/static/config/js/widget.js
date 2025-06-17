@@ -494,8 +494,8 @@
         getDefaultValues(true);
       });
     }
-    $(".sortedm2m-items").on("change", function () {
-      getDefaultValues();
+    $(".sortedm2m-items").on("change", function (event, data) {
+      getDefaultValues(data && data.updateInitialValue === true);
     });
     $(".sortedm2m-items").on("sortstop", function () {
       getDefaultValues();
