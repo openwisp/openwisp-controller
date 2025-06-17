@@ -71,9 +71,10 @@ API_TASK_RETRY_OPTIONS = get_setting(
 GEOIP_ACCOUNT_ID = get_setting("GEOIP_ACCOUNT_ID", None)
 GEOIP_LICENSE_KEY = get_setting("GEOIP_LICENSE_KEY", None)
 WHO_IS_ENABLED = get_setting("WHO_IS_ENABLED", False)
+WHO_IS_CONFIGURED = GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY
 if WHO_IS_ENABLED:
     try:
-        assert GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY
+        assert WHO_IS_CONFIGURED
     except AssertionError:
         raise ImproperlyConfigured(
             "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "

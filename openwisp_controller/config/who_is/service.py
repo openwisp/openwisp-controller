@@ -248,9 +248,8 @@ class WhoIsService:
             }
             # Create the WhoIs information
             who_is_obj = WhoIsInfo(
-                organization_name=data.traits.autonomous_system_organization,
+                isp=data.traits.autonomous_system_organization,
                 asn=data.traits.autonomous_system_number,
-                country=data.country.iso_code,
                 timezone=data.location.time_zone,
                 address=address,
                 cidr=data.traits.network,

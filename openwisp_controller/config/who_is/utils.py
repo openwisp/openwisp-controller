@@ -16,8 +16,7 @@ class CreateWhoIsMixin(CreateConfigMixin):
                 "postal": "94043",
             },
             asn="15169",
-            organization_name="Google LLC",
-            country="US",
+            isp="Google LLC",
             timezone="America/Los_Angeles",
             cidr="172.217.22.0/24",
         )

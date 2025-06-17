@@ -1,14 +1,25 @@
-WHOIS lookup
+WHOIS Lookup
 ============
 
 .. important::
 
-    The WhoIs lookup feature is disabled by default.
+    The WhoIs Lookup feature is disabled by default.
 
     In order to enable this feature you have to follow the `setup
     instructions <controller_setup_who_is_lookup_>`_ below and then
     activate it via :ref:`global setting or from the admin interface
     <OPENWISP_CONTROLLER_WHO_IS_ENABLED>`.
+
+.. warning::
+
+    If the :ref:`OPENWISP_CONTROLLER_WHO_IS_ENABLED` setting is set to
+    ``True`` and the required environment variables are not set, then
+    ``ImproperlyConfigured`` exception will be raised.
+
+    Both of the settings :ref:`OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID` and
+    :ref:`OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY` are required to be set,
+    to ensure the WhoIs Lookup feature can be enabled/disabled for each
+    organization. Else, the feature will be disabled globally.
 
 WhoIs feature includes fetching details of the last public ip address
 reported by a device to ensure better device management.

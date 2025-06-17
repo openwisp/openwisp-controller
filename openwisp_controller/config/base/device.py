@@ -288,8 +288,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         state_adding = self._state.adding
         super().save(*args, **kwargs)
         # We need to check for last_ip when device is created/updated to perform
-        # WhoIs lookup.
-        self._check_last_ip()
+        # WhoIs lookup. This is run only when WhoIs is configured.
+        if app_settings.WHO_IS_CONFIGURED:
+            self._check_last_ip()
         if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
