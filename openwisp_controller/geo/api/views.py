@@ -200,6 +200,7 @@ class FloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
     serializer_class = FloorplanCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = FloorplanCoordinatesFilter
+    pagination_class = ListViewPagination
     queryset = (
         DeviceLocation.objects.filter(
             location__type="indoor",

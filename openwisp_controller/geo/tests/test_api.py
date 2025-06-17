@@ -1038,29 +1038,36 @@ class TestGeoApi(
             self.assertEqual(response.status_code, 403)
 
     def test_floorplan_coordinates(self):
-        org = self._create_org()
+        org = self._get_org()
         location = self._create_location(type="indoor", organization=org)
-        floor1 = self._create_floorplan(floor=1, location=location)
-        floor2 = self._create_floorplan(floor=2, location=location)
-        device1 = self._create_device(
+        f1 = self._create_floorplan(floor=1, location=location)
+        f2 = self._create_floorplan(floor=2, location=location)
+        d1 = self._create_device(
             name="device1", mac_address="00:00:00:00:00:01", organization=org
         )
-        device2 = self._create_device(
+        d2 = self._create_device(
             name="device2", mac_address="00:00:00:00:00:02", organization=org
         )
         self._create_object_location(
-            content_object=device1,
+            content_object=d1,
             location=location,
-            floorplan=floor1,
+            floorplan=f1,
             organization=org,
         )
         self._create_object_location(
-            content_object=device2,
+            content_object=d2,
             location=location,
-            floorplan=floor2,
+            floorplan=f2,
             organization=org,
         )
         path = reverse("geo_api:floorplan_coordinates_list", args=[location.id])
         response = self.client.get(path)
-        response = response.json()
-        print(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["name"], "device1")
+
+        with self.subTest("Test filter by floor"):
+            response = self.client.get(f"{path}?floor=2")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data), 1)
+            self.assertEqual(response.data[0]["name"], "device2")
