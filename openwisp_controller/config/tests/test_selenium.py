@@ -5,7 +5,6 @@ from django.test import tag
 from django.urls.base import reverse
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -266,43 +265,6 @@ class TestDeviceAdmin(
         )
         config_backend_select.select_by_visible_text("OpenWISP Firmware 1.x")
         self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
-
-    def test_template_context_variables(self):
-        self._create_template(
-            name="Template1", default_values={"vni": "1"}, required=True
-        )
-        self._create_template(
-            name="Template2", default_values={"vni": "2"}, required=True
-        )
-        device = self._create_config(organization=self._get_org()).device
-        self.login()
-        self.open(
-            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
-        )
-        self.hide_loading_overlay()
-        try:
-            WebDriverWait(self.web_driver, 2).until(
-                EC.text_to_be_present_in_element_value(
-                    (
-                        By.XPATH,
-                        '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]',
-                    ),
-                    "vni",
-                )
-            )
-        except TimeoutException:
-            self.fail("Timed out wating for configuration variabled to get loaded")
-        self.find_element(
-            by=By.XPATH, value='//*[@id="main-content"]/div[2]/a[3]'
-        ).click()
-        try:
-            WebDriverWait(self.web_driver, 2).until(EC.alert_is_present())
-        except TimeoutException:
-            pass
-        else:
-            alert = Alert(self.web_driver)
-            alert.accept()
-            self.fail("Unsaved changes alert displayed without any change")
 
     def test_force_delete_device_with_deactivating_config(self):
         self._create_template(default=True)
@@ -578,6 +540,52 @@ class TestDeviceAdminUnsavedChanges(
             self.web_driver.refresh()
             if not self._is_unsaved_changes_alert_present():
                 self.fail("Unsaved changes code was not executed.")
+
+    def test_template_context_variables(self):
+        self._create_template(
+            name="Template1", default_values={"vni": "1"}, required=True
+        )
+        self._create_template(
+            name="Template2", default_values={"vni": "2"}, required=True
+        )
+        device = self._create_config(organization=self._get_org()).device
+        self.login()
+        self.open(
+            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+        )
+        self.hide_loading_overlay()
+        try:
+            WebDriverWait(self.web_driver, 2).until(
+                EC.text_to_be_present_in_element_value(
+                    (
+                        By.XPATH,
+                        '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]',
+                    ),
+                    "vni",
+                )
+            )
+        except TimeoutException:
+            self.fail("Timed out waiting for configuration variables to get loaded")
+
+        with self.subTest("Navigating away from the page should not show alert"):
+            self._override_unsaved_changes_alert()
+            # Simulate navigating away from the page
+            self.find_element(
+                by=By.XPATH, value='//*[@id="main-content"]/div[2]/a[3]'
+            ).click()
+            if self._is_unsaved_changes_alert_present():
+                self.fail("Unsaved changes alert displayed without any change")
+
+        with self.subTest("Saving the objects should not save context variables"):
+            self.open(reverse("admin:config_device_change", args=[device.id]))
+            self.web_driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);"
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value='input[name="_continue"]'
+            ).click()
+            device.refresh_from_db()
+            self.assertEqual(device.config.context, {})
 
 
 @tag("selenium_tests")
