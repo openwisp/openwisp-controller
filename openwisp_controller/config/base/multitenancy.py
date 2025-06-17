@@ -2,6 +2,7 @@ import collections
 from copy import deepcopy
 
 import swapper
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
@@ -44,7 +45,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         verbose_name=_("Configuration Variables"),
     )
     who_is_enabled = FallbackBooleanChoiceField(
-        help_text=_("Whether WhoIs details lookup is enabled"),
+        help_text=_("Whether the WhoIs lookup feature is enabled"),
         fallback=app_settings.WHO_IS_ENABLED,
         verbose_name=_("WhoIs Enabled"),
     )
@@ -59,6 +60,16 @@ class AbstractOrganizationConfigSettings(UUIDModel):
 
     def get_context(self):
         return deepcopy(self.context)
+
+    def clean(self):
+        if self.who_is_enabled and not app_settings.WHO_IS_CONFIGURED:
+            raise ValidationError(
+                _(
+                    "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "
+                    + "before enabling WhoIs feature."
+                )
+            )
+        return super().clean()
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None

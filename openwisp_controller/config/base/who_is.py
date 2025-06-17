@@ -19,15 +19,10 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
 
     id = None
     ip_address = models.GenericIPAddressField(db_index=True, primary_key=True)
-    organization_name = models.CharField(
+    isp = models.CharField(
         max_length=100,
         blank=True,
-        help_text=_("Organization name"),
-    )
-    country = models.CharField(
-        max_length=4,
-        blank=True,
-        help_text=_("Country Code"),
+        help_text=_("Organization associated with registered Autonomous System Number"),
     )
     asn = models.CharField(
         max_length=6,
@@ -76,9 +71,10 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
         Delete WhoIs information for a device when the last IP address is removed or
         when device is deleted.
         """
-        transaction.on_commit(
-            lambda: WhoIsService.delete_who_is_record.delay(instance.last_ip)
-        )
+        if instance._get_organization__config_settings().who_is_enabled:
+            transaction.on_commit(
+                lambda: WhoIsService.delete_who_is_record.delay(instance.last_ip)
+            )
 
     # this method is kept here instead of in OrganizationConfigSettings because
     # currently the caching is used only for WhoIs feature
@@ -92,7 +88,7 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
         cache.delete(WhoIsService.get_cache_key(org_id))
 
     @property
-    def get_address(self):
+    def formatted_address(self):
         """
         Used as default formatter for address field.
         'filter' is used to remove any None values

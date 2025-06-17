@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404 as base_get_object_or_404
 from django.urls import path, re_path
 from openwisp_notifications.utils import _get_object_link
 
+from . import settings as app_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,7 +76,10 @@ def update_last_ip(device, request):
         device.last_ip = ip
         update_fields.append("last_ip")
     # for cases of devices who do not have who_is record
-    elif not device.who_is_service.get_device_who_is_info():
+    elif (
+        app_settings.WHO_IS_CONFIGURED
+        and not device.who_is_service.get_device_who_is_info()
+    ):
         device.who_is_service.trigger_who_is_lookup()
     if device.management_ip != management_ip:
         device.management_ip = management_ip

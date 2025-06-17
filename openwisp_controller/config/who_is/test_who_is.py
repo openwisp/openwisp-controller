@@ -7,6 +7,7 @@ from geoip2 import errors
 from swapper import load_model
 
 from .. import settings as app_settings
+from .handlers import connect_who_is_handlers
 from .utils import CreateWhoIsMixin
 
 Device = load_model("config", "Device")
@@ -20,8 +21,19 @@ notification_qs = Notification.objects.all()
 class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
     def setUp(self):
         self.admin = self._get_admin()
+        # connect the signals related to who_is
+        connect_who_is_handlers()
 
-    def test_validate_who_is_fields(self, **kwargs):
+    def test_who_is_feature(self):
+        org = self._get_org()
+        org_settings_obj = OrganizationConfigSettings(
+            organization=org, who_is_enabled=True
+        )
+        with self.assertRaises(ValidationError):
+            org_settings_obj.full_clean()
+            org_settings_obj.save()
+
+    def test_validate_who_is_fields(self):
         """
         Test db_constraints and validators for WhoIsInfo model fields.
         """
@@ -29,13 +41,10 @@ class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
         OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
 
         with self.assertRaises(ValidationError):
-            self._create_who_is_info(organization_name="a" * 101)
+            self._create_who_is_info(isp="a" * 101)
 
         with self.assertRaises(ValidationError):
             self._create_who_is_info(ip_address="127.0.0.1")
-
-        with self.assertRaises(ValidationError):
-            self._create_who_is_info(country="InvalidCountry")
 
         with self.assertRaises(ValidationError):
             self._create_who_is_info(timezone="a" * 36)
@@ -45,20 +54,6 @@ class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
 
         with self.assertRaises(ValidationError):
             self._create_who_is_info(asn="InvalidASN")
-
-
-class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
-    _WHO_IS_GEOIP_CLIENT = (
-        "openwisp_controller.config.who_is.service.geoip2_webservice.Client"
-    )
-    _WHO_IS_TASKS_INFO_LOGGER = "openwisp_controller.config.who_is.service.logger.info"
-    _WHO_IS_TASKS_WARN_LOGGER = (
-        "openwisp_controller.config.who_is.service.logger.warning"
-    )
-    _WHO_IS_TASKS_ERR_LOGGER = "openwisp_controller.config.who_is.service.logger.error"
-
-    def setUp(self):
-        self.admin = self._get_admin()
 
     def test_who_is_enabled(self):
         org = self._get_org()
@@ -81,6 +76,23 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
                 app_settings.WHO_IS_ENABLED,
             )
 
+
+class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
+    _WHO_IS_GEOIP_CLIENT = (
+        "openwisp_controller.config.who_is.service.geoip2_webservice.Client"
+    )
+    _WHO_IS_TASKS_INFO_LOGGER = "openwisp_controller.config.who_is.service.logger.info"
+    _WHO_IS_TASKS_WARN_LOGGER = (
+        "openwisp_controller.config.who_is.service.logger.warning"
+    )
+    _WHO_IS_TASKS_ERR_LOGGER = "openwisp_controller.config.who_is.service.logger.error"
+
+    def setUp(self):
+        self.admin = self._get_admin()
+        # connect the signals related to who_is
+        connect_who_is_handlers()
+
+    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
     @mock.patch(
         "openwisp_controller.config.who_is.service.WhoIsService.fetch_who_is_details.delay"  # noqa: E501
     )
@@ -137,6 +149,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         mocked_task.reset_mock()
 
     # mocking the geoip2 client to return a mock response
+    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
     @mock.patch(_WHO_IS_TASKS_INFO_LOGGER)
     @mock.patch(_WHO_IS_GEOIP_CLIENT)
     def test_who_is_info_tasks(self, mock_client, mock_info):
@@ -144,9 +157,8 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         # helper function for asserting the model details with
         # mocked api response
         def _verify_who_is_details(instance, ip_address):
-            self.assertEqual(instance.organization_name, "Google LLC")
+            self.assertEqual(instance.isp, "Google LLC")
             self.assertEqual(instance.asn, "15169")
-            self.assertEqual(instance.country, "US")
             self.assertEqual(instance.timezone, "America/Los_Angeles")
             self.assertEqual(
                 instance.address,
@@ -160,7 +172,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
             self.assertEqual(instance.cidr, "172.217.22.0/24")
             self.assertEqual(instance.ip_address, ip_address)
             self.assertEqual(
-                instance.get_address,
+                instance.formatted_address,
                 "Mountain View, United States, North America, 94043",
             )
 
@@ -170,7 +182,6 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         # mocking the response from the geoip2 client
         mock_response = mock.MagicMock()
         mock_response.city.name = "Mountain View"
-        mock_response.country.iso_code = "US"
         mock_response.country.name = "United States"
         mock_response.continent.name = "North America"
         mock_response.postal.code = "94043"
@@ -222,6 +233,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
+    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
     @mock.patch(_WHO_IS_TASKS_ERR_LOGGER)
     @mock.patch(_WHO_IS_TASKS_WARN_LOGGER)
     @mock.patch(_WHO_IS_TASKS_INFO_LOGGER)
