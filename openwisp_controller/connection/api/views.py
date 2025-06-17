@@ -53,7 +53,12 @@ class BaseCommandView(
         )
 
     def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs["device_id"])
+        return (
+            super()
+            .get_queryset()
+            .filter(device_id=self.kwargs["device_id"])
+            .order_by("-created")
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
