@@ -62,7 +62,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         return deepcopy(self.context)
 
     def clean(self):
-        if self.who_is_enabled and not app_settings.WHO_IS_CONFIGURED:
+        if not app_settings.WHO_IS_CONFIGURED and self.who_is_enabled:
             raise ValidationError(
                 _(
                     "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "

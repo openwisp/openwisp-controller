@@ -19,7 +19,8 @@ WHOIS Lookup
     Both of the settings :ref:`OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID` and
     :ref:`OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY` are required to be set,
     to ensure the WhoIs Lookup feature can be enabled/disabled for each
-    organization. Else, the feature will be disabled globally.
+    organization. Else, the feature will be disabled globally and the
+    field will not be available to configure on admin interface.
 
 WhoIs feature includes fetching details of the last public ip address
 reported by a device to ensure better device management.

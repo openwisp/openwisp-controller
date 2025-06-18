@@ -1,11 +1,14 @@
+import importlib
 from unittest import mock
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from geoip2 import errors
 from swapper import load_model
 
+from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from .handlers import connect_who_is_handlers
 from .utils import CreateWhoIsMixin
@@ -18,26 +21,124 @@ Notification = load_model("openwisp_notifications", "Notification")
 notification_qs = Notification.objects.all()
 
 
-class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
-    def setUp(self):
-        self.admin = self._get_admin()
-        # connect the signals related to who_is
-        connect_who_is_handlers()
+class TestWhoIsFeature(CreateWhoIsMixin, TestAdminMixin, TestCase):
+    @override_settings(
+        OPENWISP_CONTROLLER_WHO_IS_ENABLED=False,
+        OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID=None,
+        OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY=None,
+    )
+    def test_who_is_configuration_setting(self):
+        # disconnect previously connected signals on app start, if any
+        self._disconnect_signals()
+        # reload app_settings to apply the overridden settings
+        importlib.reload(app_settings)
 
-    def test_who_is_feature(self):
+        with self.subTest("Test Signals not connected when WHO_IS_CONFIGURED is False"):
+            # should not connect any handlers since WHO_IS_CONFIGURED is False
+            connect_who_is_handlers()
+
+            assert not any(
+                "device.delete_who_is_info" in str(r[0]) for r in post_delete.receivers
+            )
+            assert not any(
+                "invalidate_org_config_cache_on_org_config_save" in str(r[0])
+                for r in post_save.receivers
+            )
+            assert not any(
+                "invalidate_org_config_cache_on_org_config_delete" in str(r[0])
+                for r in post_delete.receivers
+            )
+
+        with self.subTest(
+            "Test WhoIs field hidden on admin when WHO_IS_CONFIGURED is False"
+        ):
+            self._login()
+            url = reverse(
+                "admin:openwisp_users_organization_change",
+                args=[self._get_org().pk],
+            )
+            response = self.client.get(url)
+            self.assertNotContains(response, 'name="config_settings-0-who_is_enabled"')
+
+        with self.subTest(
+            "Test ImproperlyConfigured raised when WHO_IS_CONFIGURED is False"
+        ):
+            with override_settings(OPENWISP_CONTROLLER_WHO_IS_ENABLED=True):
+                with self.assertRaises(ImproperlyConfigured):
+                    # reload app_settings to apply the overridden settings
+                    importlib.reload(app_settings)
+
+        with override_settings(
+            OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID="test_account_id",
+            OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY="test_license_key",
+        ):
+            importlib.reload(app_settings)
+            with self.subTest(
+                "Test WHO_IS_CONFIGURED is True when both settings are set"
+            ):
+                self.assertTrue(app_settings.WHO_IS_CONFIGURED)
+
+            with self.subTest(
+                "Test WhoIs field visible on admin when WHO_IS_CONFIGURED is True"
+            ):
+                self._login()
+                url = reverse(
+                    "admin:openwisp_users_organization_change",
+                    args=[self._get_org().pk],
+                )
+                response = self.client.get(url)
+                self.assertContains(response, 'name="config_settings-0-who_is_enabled"')
+
+    def test_who_is_enabled(self):
         org = self._get_org()
         org_settings_obj = OrganizationConfigSettings(
             organization=org, who_is_enabled=True
         )
-        with self.assertRaises(ValidationError):
+
+        with self.subTest("Test WhoIs not configured does not allow enabling who_is"):
+            with mock.patch.object(
+                app_settings, "WHO_IS_CONFIGURED", False
+            ), self.assertRaises(ValidationError):
+                org_settings_obj.full_clean()
+
+        # create org settings object with WHO_IS_CONFIGURED set to True
+        with mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True):
             org_settings_obj.full_clean()
             org_settings_obj.save()
 
-    def test_validate_who_is_fields(self):
+        with self.subTest("Test setting who_is enabled to True"):
+            org.config_settings.who_is_enabled = True
+            org.config_settings.save(update_fields=["who_is_enabled"])
+            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
+            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), True)
+
+        with self.subTest("Test setting who_is enabled to False"):
+            org.config_settings.who_is_enabled = False
+            org.config_settings.save(update_fields=["who_is_enabled"])
+            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
+            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), False)
+
+        with self.subTest(
+            "Test setting who_is enabled to None fallbacks to global setting"
+        ):
+            # reload app_settings to ensure latest settings are applied
+            importlib.reload(app_settings)
+            org.config_settings.who_is_enabled = None
+            org.config_settings.save(update_fields=["who_is_enabled"])
+            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
+            self.assertEqual(
+                getattr(org.config_settings, "who_is_enabled"),
+                app_settings.WHO_IS_ENABLED,
+            )
+
+
+class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
+    def test_who_is_model_fields_validation(self):
         """
         Test db_constraints and validators for WhoIsInfo model fields.
         """
         org = self._get_org()
+        # using `create` to bypass `clean` method validation
         OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
 
         with self.assertRaises(ValidationError):
@@ -55,27 +156,6 @@ class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
         with self.assertRaises(ValidationError):
             self._create_who_is_info(asn="InvalidASN")
 
-    def test_who_is_enabled(self):
-        org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org)
-
-        with self.subTest("Test who_is enabled set to True"):
-            org.config_settings.who_is_enabled = True
-            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), True)
-
-        with self.subTest("Test who_is enabled set to False"):
-            org.config_settings.who_is_enabled = False
-            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), False)
-
-        with self.subTest("Test who_is enabled set to None"):
-            org.config_settings.who_is_enabled = None
-            org.config_settings.save(update_fields=["who_is_enabled"])
-            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
-            self.assertEqual(
-                getattr(org.config_settings, "who_is_enabled"),
-                app_settings.WHO_IS_ENABLED,
-            )
-
 
 class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
     _WHO_IS_GEOIP_CLIENT = (
@@ -89,8 +169,6 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
 
     def setUp(self):
         self.admin = self._get_admin()
-        # connect the signals related to who_is
-        connect_who_is_handlers()
 
     @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
     @mock.patch(
@@ -99,6 +177,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
     def test_task_called(self, mocked_task):
         org = self._get_org()
         OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
+        connect_who_is_handlers()
 
         with self.subTest("task called when last_ip is public"):
             device = self._create_device(last_ip="172.217.22.14")
@@ -117,8 +196,9 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
-        with self.subTest("task not called when last_ip is not changed"):
-            device.last_ip = "10.0.0.1"
+        with self.subTest("task not called when last_ip has related WhoIsInfo"):
+            device.last_ip = "172.217.22.10"
+            self._create_who_is_info(ip_address=device.last_ip)
             device.save()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
@@ -127,7 +207,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
             Device.objects.all().delete()  # Clear existing devices
             org.config_settings.who_is_enabled = False
             # Invalidates old org config settings cache
-            org.config_settings.save()
+            org.config_settings.save(update_fields=["who_is_enabled"])
             device = self._create_device(last_ip="172.217.22.14")
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
@@ -135,7 +215,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         with self.subTest("task called via DeviceChecksumView when who_is is enabled"):
             org.config_settings.who_is_enabled = True
             # Invalidates old org config settings cache
-            org.config_settings.save()
+            org.config_settings.save(update_fields=["who_is_enabled"])
             # config is required for checksum view to work
             self._create_config(device=device)
             # setting remote address field to a public IP

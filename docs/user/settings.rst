@@ -758,7 +758,7 @@ Allows to enable WhoIs lookup feature.
 
 This feature is used to fetch details of a device based on its last
 reported public IP address. The fetched details include ASN, CIDR,
-address, timezone and organization name.
+address, timezone and name of organization associated with ASN.
 
 This feature is disabled by default and requires setting the
 :ref:`OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID

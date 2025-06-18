@@ -53,8 +53,7 @@ class ConfigConfig(AppConfig):
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
-        if app_settings.WHO_IS_CONFIGURED:
-            connect_who_is_handlers()
+        connect_who_is_handlers()
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
