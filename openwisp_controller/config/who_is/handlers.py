@@ -1,8 +1,15 @@
 from django.db.models.signals import post_delete, post_save
 from swapper import load_model
 
+from .. import settings as app_settings
+
 
 def connect_who_is_handlers():
+    # if WHO_IS_CONFIGURED is False, we do not connect the handlers
+    # and return early
+    if not app_settings.WHO_IS_CONFIGURED:
+        return
+
     Device = load_model("config", "Device")
     WhoIsInfo = load_model("config", "WhoIsInfo")
     OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
