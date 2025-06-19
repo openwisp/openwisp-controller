@@ -239,9 +239,9 @@ class ConfigConfig(AppConfig):
         )
 
         register_notification_type(
-            "api_task_error",
+            "generic_message_error",
             {
-                "verbose_name": _("Background API Task ERROR"),
+                "verbose_name": _("Generic Message ERROR"),
                 "verb": _("encountered an unrecoverable error"),
                 "level": "error",
                 "email_subject": _(
@@ -259,9 +259,9 @@ class ConfigConfig(AppConfig):
             models=[self.vpn_model],
         )
         register_notification_type(
-            "api_task_recovery",
+            "generic_message_recovery",
             {
-                "verbose_name": _("Background API Task RECOVERY"),
+                "verbose_name": _("Generic Message RECOVERY"),
                 "verb": _("has been completed successfully"),
                 "level": "info",
                 "email_subject": _(
