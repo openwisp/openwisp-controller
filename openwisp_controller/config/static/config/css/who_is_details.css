@@ -1,0 +1,80 @@
+#who_is_table,
+#who_is_details {
+  margin: 2em 0;
+  width: 50%;
+  border-radius: 15px;
+}
+#who_is_table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+#who_is_table th,
+#who_is_table td {
+  border: 1px solid #d0d5dd;
+}
+#who_is_table tr:first-child {
+  background-color: #f9fafb;
+  border-top: none;
+}
+#who_is_table tr:not(:first-child) {
+  background-color: white;
+}
+
+/* For rounding the individual corners */
+#who_is_table th:first-of-type {
+  border-top-left-radius: 15px;
+}
+#who_is_table th:last-of-type {
+  border-top-right-radius: 15px;
+}
+#who_is_table tr:last-child td:first-child {
+  border-bottom-left-radius: 15px;
+}
+#who_is_table tr:last-child td:last-child {
+  border-bottom-right-radius: 15px;
+}
+
+#who_is_details {
+  background: #f9fafb;
+}
+#who_is_details summary {
+  background: white;
+  border-radius: 15px;
+  list-style: none;
+  display: flex;
+}
+#who_is_details summary > div {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+#who_is_details summary::-webkit-details-marker {
+  display: none;
+}
+#who_is_details summary .mg-arrow {
+  transform: scale(1.75);
+}
+#who_is_details div {
+  padding: 0 1em;
+  font-size: 1em;
+}
+#isp_info {
+  display: inline-block;
+  border: 1px solid darkgray;
+  border-radius: 50%;
+  width: 1em;
+  height: 1em;
+  line-height: 1em;
+  text-align: center;
+  color: darkgray;
+  margin-left: 0.25em;
+  cursor: help;
+}
+.who_is_globe {
+  flex-shrink: 0;
+  mask: url(../images/who_is_globe.svg) no-repeat center;
+  -webkit-mask: url(../images/who_is_globe.svg) no-repeat center;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: #d0d5dd;
+}

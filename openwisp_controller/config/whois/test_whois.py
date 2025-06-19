@@ -183,6 +183,61 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 app_settings.WHOIS_ENABLED,
             )
 
+    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
+    def test_who_is_details_device_api(self):
+        """
+        Test the WhoIs details API endpoint.
+        """
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
+        who_is_obj = self._create_who_is_info()
+        device = self._create_device(last_ip=who_is_obj.ip_address)
+        self._login()
+
+        with self.subTest(
+            "Device List API has who_is_info when WHO_IS_CONFIGURED is True"
+        ):
+            response = self.client.get(reverse("config_api:device_list"))
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("who_is_info", response.data["results"][0])
+            self.assertDictEqual(
+                response.data["results"][0]["who_is_info"],
+                {"isp": who_is_obj.isp, "country": who_is_obj.address["country"]},
+            )
+
+        with self.subTest(
+            "Device Detail API has who_is_info when WHO_IS_CONFIGURED is True"
+        ):
+
+            response = self.client.get(
+                reverse("config_api:device_detail", args=[device.pk])
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("who_is_info", response.data)
+            api_who_is_info = response.data["who_is_info"]
+            self.assertEqual(api_who_is_info["isp"], who_is_obj.isp)
+            self.assertEqual(api_who_is_info["cidr"], who_is_obj.cidr)
+            self.assertEqual(api_who_is_info["asn"], who_is_obj.asn)
+            self.assertEqual(api_who_is_info["timezone"], who_is_obj.timezone)
+            self.assertEqual(api_who_is_info["address"], who_is_obj.address)
+
+        with mock.patch.object(app_settings, "WHO_IS_CONFIGURED", False):
+            with self.subTest(
+                "Device List API has no who_is_info when WHO_IS_CONFIGURED is False"
+            ):
+                response = self.client.get(reverse("config_api:device_list"))
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("who_is_info", response.data["results"][0])
+
+            with self.subTest(
+                "Device Detail API has no who_is_info when WHO_IS_CONFIGURED is False"
+            ):
+                response = self.client.get(
+                    reverse("config_api:device_detail", args=[device.pk])
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("who_is_info", response.data)
+
 
 class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
     def test_whois_model_fields_validation(self):
