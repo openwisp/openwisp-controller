@@ -36,7 +36,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
         # https://github.com/openwisp/openwisp-notifications/issues/264
         sleep(2)
         notify.send(
-            type=f"api_task_{type}",
+            type=f"generic_message_{type}",
             sender=vpn,
             target=vpn,
             action=action,
