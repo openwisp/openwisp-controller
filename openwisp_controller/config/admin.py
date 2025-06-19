@@ -561,13 +561,23 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    class Media(BaseConfigAdmin.Media):
+    @property
+    def media(self):
+        """
+        Override media to include the media from the parent class
+        and add custom JavaScript files.
+        """
         js = BaseConfigAdmin.Media.js + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
-            f"{prefix}js/who_is_details.js",
         ]
+        css = BaseConfigAdmin.Media.css["all"]
+        if app_settings.WHO_IS_CONFIGURED:
+            js.append(f"{prefix}js/who_is_details.js")
+            css += (f"{prefix}css/who_is_details.css",)
+
+        return forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
@@ -871,12 +881,16 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 self.admin_site.admin_view(get_default_values),
                 name="get_default_values",
             ),
-            path(
-                "get-who-is-info/",
-                self.admin_site.admin_view(get_who_is_info),
-                name="get_who_is_info",
-            ),
-        ] + super().get_urls()
+        ]
+        if app_settings.WHO_IS_CONFIGURED:
+            urls.append(
+                path(
+                    "get-who-is-info/",
+                    self.admin_site.admin_view(get_who_is_info),
+                    name="get_who_is_info",
+                ),
+            )
+        urls += super().get_urls()
         for inline in self.inlines + self.conditional_inlines:
             try:
                 urls.extend(inline(self, self.admin_site).get_urls())

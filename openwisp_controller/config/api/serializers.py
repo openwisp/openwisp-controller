@@ -9,7 +9,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
-from ..who_is.serializers import BriefWhoIsSerializer, WhoIsSerializerMixin
+from ..who_is.serializers import BriefWhoIsSerializer, WhoIsSerializer
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
@@ -221,12 +221,8 @@ class DeviceListConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
 
 
-class DeviceListSerializer(DeviceConfigSerializer, WhoIsSerializerMixin):
+class DeviceListSerializer(DeviceConfigSerializer):
     config = DeviceListConfigSerializer(required=False)
-
-    # The serializer class for the brief WhoIs information, used in
-    # the WhoIsSerializerMixin.
-    _who_is_serializer_class = BriefWhoIsSerializer
 
     class Meta(BaseMeta):
         model = Device
@@ -246,12 +242,25 @@ class DeviceListSerializer(DeviceConfigSerializer, WhoIsSerializerMixin):
             "config",
             "created",
             "modified",
-            "who_is",
         ]
         extra_kwargs = {
             "last_ip": {"allow_blank": True},
             "management_ip": {"allow_blank": True},
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if app_settings.WHO_IS_CONFIGURED:
+            self.fields["who_is_info"] = serializers.SerializerMethodField()
+
+    def get_who_is_info(self, obj):
+        if not obj.last_ip:
+            return None
+        who_is_obj = obj.who_is_service.get_device_who_is_info()
+        if not who_is_obj:
+            return None
+        return BriefWhoIsSerializer(who_is_obj).data
 
     def validate(self, data):
         # Validation of "config" is performed after
@@ -280,7 +289,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True)
 
 
-class DeviceDetailSerializer(DeviceConfigSerializer, WhoIsSerializerMixin):
+class DeviceDetailSerializer(DeviceConfigSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
     is_deactivated = serializers.BooleanField(read_only=True)
 
@@ -303,8 +312,21 @@ class DeviceDetailSerializer(DeviceConfigSerializer, WhoIsSerializerMixin):
             "config",
             "created",
             "modified",
-            "who_is",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if app_settings.WHO_IS_CONFIGURED:
+            self.fields["who_is_info"] = serializers.SerializerMethodField()
+
+    def get_who_is_info(self, obj):
+        if not obj.last_ip:
+            return None
+        who_is_obj = obj.who_is_service.get_device_who_is_info()
+        if not who_is_obj:
+            return None
+        return WhoIsSerializer(who_is_obj).data
 
     def update(self, instance, validated_data):
         config_data = validated_data.pop("config", {})
