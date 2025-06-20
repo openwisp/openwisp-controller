@@ -574,8 +574,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         ]
         css = BaseConfigAdmin.Media.css["all"]
         if app_settings.WHO_IS_CONFIGURED:
-            js.append(f"{prefix}js/who_is_details.js")
-            css += (f"{prefix}css/who_is_details.css",)
+            js.append(f"{who_is_prefix}js/who_is_details.js")
+            css += (f"{who_is_prefix}css/who_is_details.css",)
 
         return forms.Media(js=js, css={"all": css})
 
@@ -881,16 +881,13 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 self.admin_site.admin_view(get_default_values),
                 name="get_default_values",
             ),
-        ]
-        if app_settings.WHO_IS_CONFIGURED:
-            urls.append(
-                path(
-                    "get-who-is-info/",
-                    self.admin_site.admin_view(get_who_is_info),
-                    name="get_who_is_info",
-                ),
-            )
-        urls += super().get_urls()
+            path(
+                "get-who-is-info/",
+                self.admin_site.admin_view(get_who_is_info),
+                name="get_who_is_info",
+            ),
+        ] + super().get_urls()
+
         for inline in self.inlines + self.conditional_inlines:
             try:
                 urls.extend(inline(self, self.admin_site).get_urls())
