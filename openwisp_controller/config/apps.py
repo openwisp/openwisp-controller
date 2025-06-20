@@ -63,6 +63,8 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.org_config_model = load_model("config", "OrganizationConfigSettings")
+        self.who_is_model = load_model("config", "WhoIsInfo")
 
     def connect_signals(self):
         """
@@ -155,6 +157,21 @@ class ConfigConfig(AppConfig):
             self.org_limits.post_save_handler,
             sender=self.org_model,
             dispatch_uid="organization_allowed_devices_post_save_handler",
+        )
+        post_delete.connect(
+            self.who_is_model.device_who_is_info_delete_handler,
+            sender=self.device_model,
+            dispatch_uid="device.delete_who_is_info",
+        )
+        post_save.connect(
+            self.who_is_model.invalidate_org_settings_cache,
+            self.org_config_model,
+            dispatch_uid="invalidate_org_config_cache_on_org_config_save",
+        )
+        post_delete.connect(
+            self.who_is_model.invalidate_org_settings_cache,
+            self.org_config_model,
+            dispatch_uid="invalidate_org_config_cache_on_org_config_delete",
         )
 
     def register_menu_groups(self):
