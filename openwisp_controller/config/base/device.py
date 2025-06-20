@@ -120,8 +120,8 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # if WhoIs is configured, we need to look out for changes
-        # in last_ip field as well
+        # Initial value for last_ip is required in WhoIs
+        # to remove WhoIs info related to that ip address.
         if app_settings.WHO_IS_CONFIGURED:
             self._changed_checked_fields.append("last_ip")
 
@@ -286,7 +286,6 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
-        # WhoIs Lookup runs only when WhoIs is configured.
         if app_settings.WHO_IS_CONFIGURED:
             self._check_last_ip()
         if state_adding and self.group and self.group.templates.exists():
