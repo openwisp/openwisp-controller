@@ -112,6 +112,12 @@ USE_TZ = True
 USE_I18N = False
 USE_L10N = False
 STATIC_URL = "/static/"
+STATICFILES_DIRS = [
+    os.path.join(
+        os.path.dirname(os.path.dirname(BASE_DIR)),
+        "openwisp_controller/config/who_is/static",
+    )
+]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = f"{os.path.dirname(BASE_DIR)}/media/"
 

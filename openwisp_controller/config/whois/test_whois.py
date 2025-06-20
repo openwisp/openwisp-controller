@@ -1,12 +1,16 @@
 import importlib
 from unittest import mock
 
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.signals import post_delete, post_save
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
 from geoip2 import errors
+from selenium.webdriver.common.by import By
 from swapper import load_model
+
+from openwisp_utils.tests import SeleniumTestMixin
 
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
@@ -554,3 +558,46 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         assert_logging_on_exception(errors.AddressNotFoundError)
         assert_logging_on_exception(errors.AuthenticationError)
         assert_logging_on_exception(errors.PermissionRequiredError)
+
+@tag("selenium_tests")
+class TestWhoIsSelenium(SeleniumTestMixin, CreateWHOISMixin, StaticLiveServerTestCase):
+    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
+    def test_who_is_details_device_admin(self):
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
+        who_is_obj = self._create_who_is_info()
+        device = self._create_device(last_ip=who_is_obj.ip_address)
+        self.login()
+
+        with self.subTest(
+            "WhoIs details visible in device admin when WHO_IS_CONFIGURED is True"
+        ):
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="who_is_table"]')
+            table = self.find_element(By.ID, "who_is_table")
+            rows = table.find_elements(By.TAG_NAME, "tr")
+            for row in rows:
+                if cells := row.find_elements(By.TAG_NAME, "td"):
+                    self.assertEqual(cells[0].text, who_is_obj.isp)
+                    self.assertEqual(cells[1].text, who_is_obj.address["country"])
+
+            details = self.find_element(By.ID, "who_is_details")
+            self.web_driver.execute_script(
+                "arguments[0].setAttribute('open','')", details
+            )
+            paragraphs = details.find_elements(By.TAG_NAME, "p")
+            self.assertIn(who_is_obj.asn, paragraphs[0].text)
+            self.assertIn(who_is_obj.timezone, paragraphs[1].text)
+            self.assertIn(who_is_obj.formatted_address, paragraphs[2].text)
+            self.assertIn(who_is_obj.cidr, paragraphs[3].text)
+
+        with mock.patch.object(app_settings, "WHO_IS_CONFIGURED", False):
+            with self.subTest(
+                "WhoIs details not visible in device admin "
+                + "when WHO_IS_CONFIGURED is False"
+            ):
+                self.open(reverse("admin:config_device_change", args=[device.pk]))
+                self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="who_is_table"]')
+                self.wait_for_invisibility(
+                    By.CSS_SELECTOR, 'details[id="who_is_details"]'
+                )
