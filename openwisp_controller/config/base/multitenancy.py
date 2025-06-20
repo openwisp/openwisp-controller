@@ -2,12 +2,15 @@ import collections
 from copy import deepcopy
 
 import swapper
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
+from openwisp_utils.fields import FallbackBooleanChoiceField
 
+from .. import settings as app_settings
 from ..exceptions import OrganizationDeviceLimitExceeded
 from ..tasks import bulk_invalidate_config_get_cached_checksum
 
@@ -41,6 +44,11 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         ),
         verbose_name=_("Configuration Variables"),
     )
+    who_is_enabled = FallbackBooleanChoiceField(
+        help_text=_("Whether the WhoIs lookup feature is enabled"),
+        fallback=app_settings.WHO_IS_ENABLED,
+        verbose_name=_("WhoIs Enabled"),
+    )
 
     class Meta:
         verbose_name = _("Configuration management settings")
@@ -52,6 +60,16 @@ class AbstractOrganizationConfigSettings(UUIDModel):
 
     def get_context(self):
         return deepcopy(self.context)
+
+    def clean(self):
+        if not app_settings.WHO_IS_CONFIGURED and self.who_is_enabled:
+            raise ValidationError(
+                _(
+                    "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "
+                    + "before enabling WhoIs feature."
+                )
+            )
+        return super().clean()
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None

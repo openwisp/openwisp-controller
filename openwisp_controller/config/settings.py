@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
@@ -67,3 +68,15 @@ API_TASK_RETRY_OPTIONS = get_setting(
     "API_TASK_RETRY_OPTIONS",
     dict(max_retries=5, retry_backoff=True, retry_backoff_max=600, retry_jitter=True),
 )
+GEOIP_ACCOUNT_ID = get_setting("GEOIP_ACCOUNT_ID", None)
+GEOIP_LICENSE_KEY = get_setting("GEOIP_LICENSE_KEY", None)
+WHO_IS_ENABLED = get_setting("WHO_IS_ENABLED", False)
+WHO_IS_CONFIGURED = GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY
+if WHO_IS_ENABLED:
+    try:
+        assert WHO_IS_CONFIGURED
+    except AssertionError:
+        raise ImproperlyConfigured(
+            "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "
+            + "when WHO_IS_ENABLED is True."
+        )

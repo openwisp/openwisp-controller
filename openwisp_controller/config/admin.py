@@ -1362,6 +1362,12 @@ if getattr(app_settings, "REGISTRATION_ENABLED", True):
         model = OrganizationConfigSettings
         form = ConfigSettingsForm
 
+        def get_fields(self, request, obj=None):
+            fields = super().get_fields(request, obj)
+            if not app_settings.WHO_IS_CONFIGURED:
+                fields.remove("who_is_enabled")
+            return fields
+
     OrganizationAdmin.save_on_top = True
     OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
     limits_inline_position = 1

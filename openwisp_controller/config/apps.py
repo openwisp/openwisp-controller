@@ -31,6 +31,7 @@ from .signals import (
     vpn_peers_changed,
     vpn_server_modified,
 )
+from .who_is.handlers import connect_who_is_handlers
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -52,6 +53,7 @@ class ConfigConfig(AppConfig):
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
+        connect_who_is_handlers()
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
@@ -63,6 +65,7 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.org_config_model = load_model("config", "OrganizationConfigSettings")
 
     def connect_signals(self):
         """
