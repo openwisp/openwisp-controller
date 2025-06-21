@@ -9,6 +9,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
+from ..who_is.serializers import BriefWhoIsSerializer, WhoIsSerializer
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
@@ -247,6 +248,20 @@ class DeviceListSerializer(DeviceConfigSerializer):
             "management_ip": {"allow_blank": True},
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if app_settings.WHO_IS_CONFIGURED:
+            self.fields["who_is_info"] = serializers.SerializerMethodField()
+
+    def get_who_is_info(self, obj):
+        if not obj.last_ip:
+            return None
+        who_is_obj = obj.who_is_service.get_device_who_is_info()
+        if not who_is_obj:
+            return None
+        return BriefWhoIsSerializer(who_is_obj).data
+
     def validate(self, data):
         # Validation of "config" is performed after
         # device object is created in the "create" method.
@@ -298,6 +313,20 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
             "created",
             "modified",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if app_settings.WHO_IS_CONFIGURED:
+            self.fields["who_is_info"] = serializers.SerializerMethodField()
+
+    def get_who_is_info(self, obj):
+        if not obj.last_ip:
+            return None
+        who_is_obj = obj.who_is_service.get_device_who_is_info()
+        if not who_is_obj:
+            return None
+        return WhoIsSerializer(who_is_obj).data
 
     def update(self, instance, validated_data):
         config_data = validated_data.pop("config", {})

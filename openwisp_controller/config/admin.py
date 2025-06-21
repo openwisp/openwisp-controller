@@ -31,6 +31,7 @@ from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import get_default_values, get_relevant_templates
+from openwisp_controller.config.who_is.views import get_who_is_info
 from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
@@ -49,6 +50,7 @@ from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
+who_is_prefix = "who_is/"
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -552,12 +554,23 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    class Media(BaseConfigAdmin.Media):
+    @property
+    def media(self):
+        """
+        Override media to include the media from the parent class
+        and add custom JavaScript files.
+        """
         js = BaseConfigAdmin.Media.js + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
         ]
+        css = BaseConfigAdmin.Media.css["all"]
+        if app_settings.WHO_IS_CONFIGURED:
+            js.append(f"{who_is_prefix}js/who_is_details.js")
+            css += (f"{who_is_prefix}css/who_is_details.css",)
+
+        return forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
@@ -861,7 +874,13 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 self.admin_site.admin_view(get_default_values),
                 name="get_default_values",
             ),
+            path(
+                "get-who-is-info/",
+                self.admin_site.admin_view(get_who_is_info),
+                name="get_who_is_info",
+            ),
         ] + super().get_urls()
+
         for inline in self.inlines + self.conditional_inlines:
             try:
                 urls.extend(inline(self, self.admin_site).get_urls())
