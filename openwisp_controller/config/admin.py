@@ -561,23 +561,25 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    @property
-    def media(self):
-        """
-        Override media to include the media from the parent class
-        and add custom JavaScript files.
-        """
-        js = BaseConfigAdmin.Media.js + [
+    class Media:
+        css = (
+            {
+                "all": BaseConfigAdmin.Media.css["all"]
+                + (f"{who_is_prefix}css/who_is_details.css",)
+            }
+            if app_settings.WHO_IS_CONFIGURED
+            else BaseConfigAdmin.Media.css
+        )
+        js = list(BaseConfigAdmin.Media.js) + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
+            (
+                f"{who_is_prefix}js/who_is_details.js"
+                if app_settings.WHO_IS_CONFIGURED
+                else ""
+            ),
         ]
-        css = BaseConfigAdmin.Media.css["all"]
-        if app_settings.WHO_IS_CONFIGURED:
-            js.append(f"{who_is_prefix}js/who_is_details.js")
-            css += (f"{who_is_prefix}css/who_is_details.css",)
-
-        return forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
