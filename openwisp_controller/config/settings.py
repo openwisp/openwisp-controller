@@ -72,11 +72,8 @@ GEOIP_ACCOUNT_ID = get_setting("GEOIP_ACCOUNT_ID", None)
 GEOIP_LICENSE_KEY = get_setting("GEOIP_LICENSE_KEY", None)
 WHO_IS_ENABLED = get_setting("WHO_IS_ENABLED", False)
 WHO_IS_CONFIGURED = GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY
-if WHO_IS_ENABLED:
-    try:
-        assert WHO_IS_CONFIGURED
-    except AssertionError:
-        raise ImproperlyConfigured(
-            "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "
-            + "when WHO_IS_ENABLED is True."
-        )
+if WHO_IS_ENABLED and not WHO_IS_CONFIGURED:
+    raise ImproperlyConfigured(
+        "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "
+        + "when WHO_IS_ENABLED is True."
+    )

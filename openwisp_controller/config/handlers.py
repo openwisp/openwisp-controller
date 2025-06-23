@@ -14,7 +14,6 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Organization = load_model("openwisp_users", "Organization")
 Cert = load_model("django_x509", "Cert")
-WhoIsInfo = load_model("config", "WhoIsInfo")
 
 
 @receiver(

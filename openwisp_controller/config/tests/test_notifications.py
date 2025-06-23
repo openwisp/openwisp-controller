@@ -19,7 +19,6 @@ from ..signals import device_registered
 Vpn = load_model("config", "Vpn")
 Device = load_model("config", "Device")
 Notification = load_model("openwisp_notifications", "Notification")
-OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 notification_qs = Notification.objects.all()
 
