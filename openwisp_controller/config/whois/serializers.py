@@ -13,7 +13,7 @@ class BriefWhoIsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WhoIsInfo
-        fields = ("isp", "country")
+        fields = ("isp", "country", "ip_address")
 
 
 class WhoIsSerializer(serializers.ModelSerializer):
