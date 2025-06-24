@@ -350,7 +350,7 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class FloorplanCoordinatesSerializer(serializers.ModelSerializer):
+class IndoorCoordinatesSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source="content_object.name")
     mac_address = serializers.CharField(source="content_object.mac_address")
     is_deactivated = serializers.BooleanField(source="content_object.is_deactivated")

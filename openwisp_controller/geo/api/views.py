@@ -19,9 +19,9 @@ from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
-    FloorplanCoordinatesSerializer,
     FloorPlanSerializer,
     GeoJsonLocationSerializer,
+    IndoorCoordinatesSerializer,
     LocationDeviceSerializer,
     LocationSerializer,
 )
@@ -52,7 +52,7 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
         model = FloorPlan
 
 
-class FloorplanCoordinatesFilter(OrganizationManagedFilter):
+class IndoorCoordinatesFilter(OrganizationManagedFilter):
     floor = filters.NumberFilter(field_name="floorplan__floor")
     organization = filters.UUIDFilter(field_name="content_object__organization")
 
@@ -196,10 +196,10 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
-class FloorplanCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
-    serializer_class = FloorplanCoordinatesSerializer
+class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
+    serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = FloorplanCoordinatesFilter
+    filterset_class = IndoorCoordinatesFilter
     pagination_class = ListViewPagination
     queryset = (
         DeviceLocation.objects.filter(
@@ -277,6 +277,6 @@ geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
 list_floorplan = FloorPlanListCreateView.as_view()
 detail_floorplan = FloorPlanDetailView.as_view()
-floorplan_coordinates_list = FloorplanCoordinatesList.as_view()
+indoor_coordinates_list = IndoorCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()

@@ -1060,7 +1060,7 @@ class TestGeoApi(
             floorplan=f2,
             organization=org,
         )
-        path = reverse("geo_api:floorplan_coordinates_list", args=[location.id])
+        path = reverse("geo_api:indoor_coordinates_list", args=[location.id])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 2)
