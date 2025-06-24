@@ -82,7 +82,7 @@ class Migration(migrations.Migration):
             field=openwisp_utils.fields.FallbackBooleanChoiceField(
                 blank=True,
                 default=None,
-                fallback=app_settings.WHO_IS_ENABLED,
+                fallback=app_settings.WHOIS_ENABLED,
                 help_text="Whether WhoIs details lookup is enabled",
                 null=True,
                 verbose_name="WhoIs Enabled",

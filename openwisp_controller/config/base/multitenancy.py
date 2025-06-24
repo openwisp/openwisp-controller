@@ -34,6 +34,11 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         verbose_name=_("shared secret"),
         help_text=_("used for automatic registration of devices"),
     )
+    whois_enabled = FallbackBooleanChoiceField(
+        help_text=_("Whether the WhoIs lookup feature is enabled"),
+        fallback=app_settings.WHOIS_ENABLED,
+        verbose_name=_("WhoIs Enabled"),
+    )
     context = JSONField(
         blank=True,
         default=dict,
@@ -43,11 +48,6 @@ class AbstractOrganizationConfigSettings(UUIDModel):
             'This field can be used to add "Configuration Variables"' " to the devices."
         ),
         verbose_name=_("Configuration Variables"),
-    )
-    who_is_enabled = FallbackBooleanChoiceField(
-        help_text=_("Whether the WhoIs lookup feature is enabled"),
-        fallback=app_settings.WHO_IS_ENABLED,
-        verbose_name=_("WhoIs Enabled"),
     )
 
     class Meta:
@@ -62,12 +62,14 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         return deepcopy(self.context)
 
     def clean(self):
-        if not app_settings.WHO_IS_CONFIGURED and self.who_is_enabled:
+        if not app_settings.WHOIS_CONFIGURED and self.whois_enabled:
             raise ValidationError(
-                _(
-                    "GEOIP_ACCOUNT_ID and GEOIP_LICENSE_KEY must be set "
-                    + "before enabling WhoIs feature."
-                )
+                {
+                    "whois_enabled": _(
+                        "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
+                        + "before enabling WhoIs feature."
+                    )
+                }
             )
         return super().clean()
 

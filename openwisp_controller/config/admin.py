@@ -1364,8 +1364,8 @@ if getattr(app_settings, "REGISTRATION_ENABLED", True):
 
         def get_fields(self, request, obj=None):
             fields = super().get_fields(request, obj)
-            if not app_settings.WHO_IS_CONFIGURED:
-                fields.remove("who_is_enabled")
+            if not app_settings.WHOIS_CONFIGURED:
+                fields.remove("whois_enabled")
             return fields
 
     OrganizationAdmin.save_on_top = True

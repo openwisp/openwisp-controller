@@ -49,6 +49,7 @@ the OpenWISP architecture.
     user/openvpn.rst
     user/subnet-division-rules.rst
     user/rest-api.rst
+    user/who-is.rst
     user/settings.rst
 
 .. toctree::

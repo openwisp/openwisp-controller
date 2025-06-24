@@ -10,7 +10,7 @@ from .base.multitenancy import (
 from .base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from .base.template import AbstractTemplate
 from .base.vpn import AbstractVpn, AbstractVpnClient
-from .base.who_is import AbstractWhoIsInfo
+from .base.whois import AbstractWhoIsInfo
 
 
 class Device(AbstractDevice):

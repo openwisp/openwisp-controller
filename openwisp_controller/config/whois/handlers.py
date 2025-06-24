@@ -4,10 +4,10 @@ from swapper import load_model
 from .. import settings as app_settings
 
 
-def connect_who_is_handlers():
-    # if WHO_IS_CONFIGURED is False, we do not connect the handlers
+def connect_whois_handlers():
+    # if WHOIS_CONFIGURED is False, we do not connect the handlers
     # and return early
-    if not app_settings.WHO_IS_CONFIGURED:
+    if not app_settings.WHOIS_CONFIGURED:
         return
 
     Device = load_model("config", "Device")
@@ -15,9 +15,9 @@ def connect_who_is_handlers():
     OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
     post_delete.connect(
-        WhoIsInfo.device_who_is_info_delete_handler,
+        WhoIsInfo.device_whois_info_delete_handler,
         sender=Device,
-        dispatch_uid="device.delete_who_is_info",
+        dispatch_uid="device.delete_whois_info",
     )
     post_save.connect(
         WhoIsInfo.invalidate_org_settings_cache,

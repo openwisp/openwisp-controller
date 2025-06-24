@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 EXCEPTION_MESSAGES = {
     errors.AddressNotFoundError: _(
-        "No WhoIs information found for IP address {ip_address}"
+        "No WHOIS information found for IP address {ip_address}"
     ),
     errors.AuthenticationError: _(
         "Authentication failed for GeoIP2 service. "
-        "Check your OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID and "
-        "OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY settings."
+        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
     ),
     errors.OutOfQueriesError: _(
         "Your account has run out of queries for the GeoIP2 service."
@@ -73,8 +73,8 @@ class WhoIsService:
         Refer: https://geoip2.readthedocs.io/en/latest/#sync-web-service-example
         """
         return geoip2_webservice.Client(
-            account_id=app_settings.GEOIP_ACCOUNT_ID,
-            license_key=app_settings.GEOIP_LICENSE_KEY,
+            account_id=app_settings.WHOIS_GEOIP_ACCOUNT,
+            license_key=app_settings.WHOIS_GEOIP_KEY,
             host="geolite.info",
         )
 
@@ -97,14 +97,14 @@ class WhoIsService:
             action_object=device,
             level="error",
             message=_(
-                "Failed to fetch WhoIs details for device"
+                "Failed to fetch WHOIS details for device"
                 " [{notification.target}]({notification.target_link})"
             ),
             description=_(
-                f"WhoIs details could not be fetched for ip: {new_ip_address}."
+                f"WHOIS details could not be fetched for ip: {new_ip_address}."
             ),
         )
-        logger.error(f"WhoIs lookup failed. Details: {exc}")
+        logger.error(f"WHOIS lookup failed. Details: {exc}")
 
     @staticmethod
     def is_valid_public_ip_address(ip):
@@ -117,7 +117,7 @@ class WhoIsService:
             return False
 
     @staticmethod
-    def _get_who_is_info_from_db(ip_address):
+    def _get_whois_info_from_db(ip_address):
         """
         For getting existing WhoIsInfo for given IP from db if present.
         """
@@ -126,7 +126,7 @@ class WhoIsService:
         return WhoIsInfo.objects.filter(ip_address=ip_address)
 
     @property
-    def is_who_is_enabled(self):
+    def is_whois_enabled(self):
         """
         Check if WhoIs is enabled for the organization of the device.
         The OrganizationConfigSettings are cached as these settings
@@ -146,53 +146,53 @@ class WhoIsService:
                 )
             except OrganizationConfigSettings.DoesNotExist:
                 # If organization settings do not exist, fall back to global setting
-                return app_settings.WHO_IS_ENABLED
+                return app_settings.WHOIS_ENABLED
             cache.set(
                 self.get_cache_key(org_id=org_id),
                 org_settings,
                 timeout=Config._CHECKSUM_CACHE_TIMEOUT,
             )
-        return getattr(org_settings, "who_is_enabled", app_settings.WHO_IS_ENABLED)
+        return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
 
-    def _need_who_is_lookup(self, new_ip):
+    def _need_whois_lookup(self, new_ip):
         """
-        This is used to determine if the WhoIs lookup should be triggered
+        This is used to determine if the WHOIS lookup should be triggered
         when the device is saved.
 
         The lookup is not triggered if:
             - The new IP address is None or it is a private IP address.
-            - The WhoIs information of new ip is already present.
-            - WhoIs is disabled in the organization settings. (query from db)
+            - The WHOIS information of new ip is already present.
+            - WHOIS is disabled in the organization settings. (query from db)
         """
 
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
             return False
 
-        if self._get_who_is_info_from_db(new_ip).exists():
+        if self._get_whois_info_from_db(new_ip).exists():
             return False
 
-        return self.is_who_is_enabled
+        return self.is_whois_enabled
 
-    def get_device_who_is_info(self):
+    def get_device_whois_info(self):
         """
         Used to get WhoIsInfo for a device if last_ip is valid public ip
         and WhoIs is enabled.
         """
         ip_address = self.device.last_ip
-        if not (self.is_valid_public_ip_address(ip_address) and self.is_who_is_enabled):
+        if not (self.is_valid_public_ip_address(ip_address) and self.is_whois_enabled):
             return None
 
-        return self._get_who_is_info_from_db(ip_address=ip_address).first()
+        return self._get_whois_info_from_db(ip_address=ip_address).first()
 
-    def trigger_who_is_lookup(self):
+    def trigger_whois_lookup(self):
         """
-        Trigger WhoIs lookup based on the conditions of `_need_who_is_lookup`.
+        Trigger WhoIs lookup based on the conditions of `_need_whois_lookup`.
         Task is triggered on commit to ensure redundant data is not created.
         """
-        if self._need_who_is_lookup(self.device.last_ip):
+        if self._need_whois_lookup(self.device.last_ip):
             transaction.on_commit(
-                lambda: self.fetch_who_is_details.delay(
+                lambda: self.fetch_whois_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
                     new_ip_address=self.device.last_ip,
@@ -205,14 +205,14 @@ class WhoIsService:
         base=WhoIsCeleryRetryTask,
         **app_settings.API_TASK_RETRY_OPTIONS,
     )
-    def fetch_who_is_details(self, device_pk, initial_ip_address, new_ip_address):
+    def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
         """
         Fetches the WhoIs details of the given IP address
         and creates/updates the WhoIs record.
         """
         # The task can be triggered for same ip address multiple times
         # so we need to return early if WhoIs is already created.
-        if WhoIsService._get_who_is_info_from_db(new_ip_address).exists():
+        if WhoIsService._get_whois_info_from_db(new_ip_address).exists():
             return
 
         WhoIsInfo = load_model("config", "WhoIsInfo")
@@ -239,15 +239,16 @@ class WhoIsService:
             raise e
 
         else:
-            # Format address using the data from the geoip2 response
+            # The attributes are always present in the response,
+            # but they can be None, so added fallbacks.
             address = {
                 "city": data.city.name or "",
                 "country": data.country.name or "",
                 "continent": data.continent.name or "",
                 "postal": str(data.postal.code or ""),
             }
-            # Create the WhoIs information
-            who_is_obj = WhoIsInfo(
+
+            whois_obj = WhoIsInfo(
                 isp=data.traits.autonomous_system_organization,
                 asn=data.traits.autonomous_system_number,
                 timezone=data.location.time_zone,
@@ -255,24 +256,24 @@ class WhoIsService:
                 cidr=data.traits.network,
                 ip_address=new_ip_address,
             )
-            who_is_obj.full_clean()
-            who_is_obj.save()
+            whois_obj.full_clean()
+            whois_obj.save()
             logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
 
             # the following check ensures that for a case when device last_ip
-            # is not changed and there is no related who_is record, we do not
+            # is not changed and there is no related WHOIS record, we do not
             # delete the newly created record as both `initial_ip_address` and
             # `new_ip_address` would be same for such case.
             if initial_ip_address != new_ip_address:
                 # If any active devices are linked to the following record,
                 # then they will trigger this task and new record gets created
                 # with latest data.
-                WhoIsService.delete_who_is_record(ip_address=initial_ip_address)
+                WhoIsService.delete_whois_record(ip_address=initial_ip_address)
 
     @shared_task
-    def delete_who_is_record(ip_address):
+    def delete_whois_record(ip_address):
         """
-        Deletes the WhoIs record for the device's last IP address.
+        Deletes the WHOIS record for the device's last IP address.
         This is used when the device is deleted or its last IP address is changed.
         """
         WhoIsInfo = load_model("config", "WhoIsInfo")

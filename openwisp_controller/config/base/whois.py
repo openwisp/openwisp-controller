@@ -8,7 +8,7 @@ from jsonfield import JSONField
 
 from openwisp_utils.base import TimeStampedEditableModel
 
-from ..who_is.service import WhoIsService
+from ..whois.service import WhoIsService
 
 
 class AbstractWhoIsInfo(TimeStampedEditableModel):
@@ -51,7 +51,11 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
     def clean(self):
         if ip_address(self.ip_address).is_private:
             raise ValidationError(
-                _("WhoIs information cannot be created for private IP addresses.")
+                {
+                    "ip_address": _(
+                        "WhoIs information cannot be created for private IP addresses."
+                    )
+                }
             )
         if self.cidr:
             try:
@@ -61,19 +65,19 @@ class AbstractWhoIsInfo(TimeStampedEditableModel):
                 ip_network(self.cidr, strict=False)
             except ValueError as e:
                 raise ValidationError(
-                    _("Invalid CIDR format: %(error)s") % {"error": str(e)}
+                    {"cidr": _("Invalid CIDR format: %(error)s") % {"error": str(e)}}
                 )
         return super().clean()
 
     @staticmethod
-    def device_who_is_info_delete_handler(instance, **kwargs):
+    def device_whois_info_delete_handler(instance, **kwargs):
         """
         Delete WhoIs information for a device when the last IP address is removed or
         when device is deleted.
         """
-        if instance._get_organization__config_settings().who_is_enabled:
+        if instance._get_organization__config_settings().whois_enabled:
             transaction.on_commit(
-                lambda: WhoIsService.delete_who_is_record.delay(instance.last_ip)
+                lambda: WhoIsService.delete_whois_record.delay(instance.last_ip)
             )
 
     # this method is kept here instead of in OrganizationConfigSettings because

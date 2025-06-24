@@ -9,7 +9,7 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 class CreateWhoIsMixin(CreateConfigMixin):
-    def _create_who_is_info(self, **kwargs):
+    def _create_whois_info(self, **kwargs):
         options = dict(
             ip_address="172.217.22.14",
             address={
@@ -31,14 +31,14 @@ class CreateWhoIsMixin(CreateConfigMixin):
         return w
 
     # Signals are connected when apps are loaded,
-    # and if WhoIs is Configured all related WhoIs
+    # and if WHOIS is Configured all related WHOIS
     # handlers are also connected. Thus we need to
     # disconnect them.
     def _disconnect_signals(self):
         post_delete.disconnect(
-            WhoIsInfo.device_who_is_info_delete_handler,
+            WhoIsInfo.device_whois_info_delete_handler,
             sender=Device,
-            dispatch_uid="device.delete_who_is_info",
+            dispatch_uid="device.delete_whois_info",
         )
         post_save.disconnect(
             WhoIsInfo.invalidate_org_settings_cache,

@@ -80,15 +80,15 @@ def update_last_ip(device, request):
         update_fields.append("management_ip")
     if update_fields:
         device.save(update_fields=update_fields)
-    # When update fields are present then save() will run the WhoIs
+    # When update fields are present then save() will run the WHOIS
     # lookup. But if there are no update fields, we still want to
-    # trigger the WhoIs lookup if there is no record for the device's
+    # trigger the WHOIS lookup if there is no record for the device's
     # last_ip.
     elif (
-        app_settings.WHO_IS_CONFIGURED
-        and not device.who_is_service.get_device_who_is_info()
+        app_settings.WHOIS_CONFIGURED
+        and not device.whois_service.get_device_whois_info()
     ):
-        device.who_is_service.trigger_who_is_lookup()
+        device.whois_service.trigger_whois_lookup()
 
     return bool(update_fields)
 

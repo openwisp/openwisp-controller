@@ -10,7 +10,7 @@ from swapper import load_model
 
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
-from .handlers import connect_who_is_handlers
+from .handlers import connect_whois_handlers
 from .utils import CreateWhoIsMixin
 
 Device = load_model("config", "Device")
@@ -23,22 +23,22 @@ notification_qs = Notification.objects.all()
 
 class TestWhoIsFeature(CreateWhoIsMixin, TestAdminMixin, TestCase):
     @override_settings(
-        OPENWISP_CONTROLLER_WHO_IS_ENABLED=False,
-        OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID=None,
-        OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY=None,
+        OPENWISP_CONTROLLER_WHOIS_ENABLED=False,
+        OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT=None,
+        OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY=None,
     )
-    def test_who_is_configuration_setting(self):
+    def test_whois_configuration_setting(self):
         # disconnect previously connected signals on app start, if any
         self._disconnect_signals()
         # reload app_settings to apply the overridden settings
         importlib.reload(app_settings)
 
-        with self.subTest("Test Signals not connected when WHO_IS_CONFIGURED is False"):
-            # should not connect any handlers since WHO_IS_CONFIGURED is False
-            connect_who_is_handlers()
+        with self.subTest("Test Signals not connected when WHOIS_CONFIGURED is False"):
+            # should not connect any handlers since WHOIS_CONFIGURED is False
+            connect_whois_handlers()
 
             assert not any(
-                "device.delete_who_is_info" in str(r[0]) for r in post_delete.receivers
+                "device.delete_whois_info" in str(r[0]) for r in post_delete.receivers
             )
             assert not any(
                 "invalidate_org_config_cache_on_org_config_save" in str(r[0])
@@ -50,7 +50,7 @@ class TestWhoIsFeature(CreateWhoIsMixin, TestAdminMixin, TestCase):
             )
 
         with self.subTest(
-            "Test WhoIs field hidden on admin when WHO_IS_CONFIGURED is False"
+            "Test WHOIS field hidden on admin when WHOIS_CONFIGURED is False"
         ):
             self._login()
             url = reverse(
@@ -58,28 +58,28 @@ class TestWhoIsFeature(CreateWhoIsMixin, TestAdminMixin, TestCase):
                 args=[self._get_org().pk],
             )
             response = self.client.get(url)
-            self.assertNotContains(response, 'name="config_settings-0-who_is_enabled"')
+            self.assertNotContains(response, 'name="config_settings-0-whois_enabled"')
 
         with self.subTest(
-            "Test ImproperlyConfigured raised when WHO_IS_CONFIGURED is False"
+            "Test ImproperlyConfigured raised when WHOIS_CONFIGURED is False"
         ):
-            with override_settings(OPENWISP_CONTROLLER_WHO_IS_ENABLED=True):
+            with override_settings(OPENWISP_CONTROLLER_WHOIS_ENABLED=True):
                 with self.assertRaises(ImproperlyConfigured):
                     # reload app_settings to apply the overridden settings
                     importlib.reload(app_settings)
 
         with override_settings(
-            OPENWISP_CONTROLLER_GEOIP_ACCOUNT_ID="test_account_id",
-            OPENWISP_CONTROLLER_GEOIP_LICENSE_KEY="test_license_key",
+            OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT="test_account_id",
+            OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY="test_license_key",
         ):
             importlib.reload(app_settings)
             with self.subTest(
-                "Test WHO_IS_CONFIGURED is True when both settings are set"
+                "Test WHOIS_CONFIGURED is True when both settings are set"
             ):
-                self.assertTrue(app_settings.WHO_IS_CONFIGURED)
+                self.assertTrue(app_settings.WHOIS_CONFIGURED)
 
             with self.subTest(
-                "Test WhoIs field visible on admin when WHO_IS_CONFIGURED is True"
+                "Test WHOIS field visible on admin when WHOIS_CONFIGURED is True"
             ):
                 self._login()
                 url = reverse(
@@ -87,97 +87,119 @@ class TestWhoIsFeature(CreateWhoIsMixin, TestAdminMixin, TestCase):
                     args=[self._get_org().pk],
                 )
                 response = self.client.get(url)
-                self.assertContains(response, 'name="config_settings-0-who_is_enabled"')
+                self.assertContains(response, 'name="config_settings-0-whois_enabled"')
 
-    def test_who_is_enabled(self):
+    def test_whois_enabled(self):
         org = self._get_org()
         org_settings_obj = OrganizationConfigSettings(
-            organization=org, who_is_enabled=True
+            organization=org, whois_enabled=True
         )
 
-        with self.subTest("Test WhoIs not configured does not allow enabling who_is"):
+        with self.subTest("Test WHOIS not configured does not allow enabling WHOIS"):
             with mock.patch.object(
-                app_settings, "WHO_IS_CONFIGURED", False
-            ), self.assertRaises(ValidationError):
+                app_settings, "WHOIS_CONFIGURED", False
+            ), self.assertRaises(ValidationError) as context_manager:
                 org_settings_obj.full_clean()
+            try:
+                self.assertEqual(
+                    context_manager.exception.message_dict["whois_enabled"][0],
+                    "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
+                    + "before enabling WhoIs feature.",
+                )
+            except AssertionError:
+                self.fail("ValidationError message not equal to expected message.")
 
-        # create org settings object with WHO_IS_CONFIGURED set to True
-        with mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True):
+        # create org settings object with WHOIS_CONFIGURED set to True
+        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", True):
             org_settings_obj.full_clean()
             org_settings_obj.save()
 
-        with self.subTest("Test setting who_is enabled to True"):
-            org.config_settings.who_is_enabled = True
-            org.config_settings.save(update_fields=["who_is_enabled"])
-            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
-            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), True)
+        with self.subTest("Test setting WHOIS enabled to True"):
+            org.config_settings.whois_enabled = True
+            org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
+            self.assertEqual(getattr(org.config_settings, "whois_enabled"), True)
 
-        with self.subTest("Test setting who_is enabled to False"):
-            org.config_settings.who_is_enabled = False
-            org.config_settings.save(update_fields=["who_is_enabled"])
-            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
-            self.assertEqual(getattr(org.config_settings, "who_is_enabled"), False)
+        with self.subTest("Test setting WHOIS enabled to False"):
+            org.config_settings.whois_enabled = False
+            org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
+            self.assertEqual(getattr(org.config_settings, "whois_enabled"), False)
 
         with self.subTest(
-            "Test setting who_is enabled to None fallbacks to global setting"
+            "Test setting WHOIS enabled to None fallbacks to global setting"
         ):
             # reload app_settings to ensure latest settings are applied
             importlib.reload(app_settings)
-            org.config_settings.who_is_enabled = None
-            org.config_settings.save(update_fields=["who_is_enabled"])
-            org.config_settings.refresh_from_db(fields=["who_is_enabled"])
+            org.config_settings.whois_enabled = None
+            org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             self.assertEqual(
-                getattr(org.config_settings, "who_is_enabled"),
-                app_settings.WHO_IS_ENABLED,
+                getattr(org.config_settings, "whois_enabled"),
+                app_settings.WHOIS_ENABLED,
             )
 
 
 class TestWhoIsInfoModel(CreateWhoIsMixin, TestCase):
-    def test_who_is_model_fields_validation(self):
+    def test_whois_model_fields_validation(self):
         """
         Test db_constraints and validators for WhoIsInfo model fields.
         """
         org = self._get_org()
         # using `create` to bypass `clean` method validation
-        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
 
         with self.assertRaises(ValidationError):
-            self._create_who_is_info(isp="a" * 101)
+            self._create_whois_info(isp="a" * 101)
+
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_whois_info(ip_address="127.0.0.1")
+        try:
+            self.assertEqual(
+                context_manager.exception.message_dict["ip_address"][0],
+                "WhoIs information cannot be created for private IP addresses.",
+            )
+        except AssertionError:
+            self.fail("ValidationError message not equal to expected message.")
 
         with self.assertRaises(ValidationError):
-            self._create_who_is_info(ip_address="127.0.0.1")
+            self._create_whois_info(timezone="a" * 36)
+
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_whois_info(cidr="InvalidCIDR")
+        try:
+            # Not using assertEqual here because we are adding error message raised by
+            # ipaddress module to the ValidationError message.
+            self.assertIn(
+                "Invalid CIDR format: 'InvalidCIDR'",
+                context_manager.exception.message_dict["cidr"][0],
+            )
+        except AssertionError:
+            self.fail("ValidationError message not equal to expected message.")
 
         with self.assertRaises(ValidationError):
-            self._create_who_is_info(timezone="a" * 36)
-
-        with self.assertRaises(ValidationError):
-            self._create_who_is_info(cidr="InvalidCIDR")
-
-        with self.assertRaises(ValidationError):
-            self._create_who_is_info(asn="InvalidASN")
+            self._create_whois_info(asn="InvalidASN")
 
 
 class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
-    _WHO_IS_GEOIP_CLIENT = (
-        "openwisp_controller.config.who_is.service.geoip2_webservice.Client"
+    _WHOIS_GEOIP_CLIENT = (
+        "openwisp_controller.config.whois.service.geoip2_webservice.Client"
     )
-    _WHO_IS_TASKS_INFO_LOGGER = "openwisp_controller.config.who_is.service.logger.info"
-    _WHO_IS_TASKS_WARN_LOGGER = (
-        "openwisp_controller.config.who_is.service.logger.warning"
-    )
-    _WHO_IS_TASKS_ERR_LOGGER = "openwisp_controller.config.who_is.service.logger.error"
+    _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.service.logger.info"
+    _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.service.logger.warning"
+    _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.service.logger.error"
 
     def setUp(self):
         self.admin = self._get_admin()
 
-    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.config.who_is.service.WhoIsService.fetch_who_is_details.delay"  # noqa: E501
+        "openwisp_controller.config.whois.service.WhoIsService.fetch_whois_details.delay"  # noqa: E501
     )
     def test_task_called(self, mocked_task):
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
-        connect_who_is_handlers()
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+        connect_whois_handlers()
 
         with self.subTest("task called when last_ip is public"):
             device = self._create_device(last_ip="172.217.22.14")
@@ -198,24 +220,24 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
 
         with self.subTest("task not called when last_ip has related WhoIsInfo"):
             device.last_ip = "172.217.22.10"
-            self._create_who_is_info(ip_address=device.last_ip)
+            self._create_whois_info(ip_address=device.last_ip)
             device.save()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
-        with self.subTest("task not called when who_is is disabled"):
+        with self.subTest("task not called when WHOIS is disabled"):
             Device.objects.all().delete()  # Clear existing devices
-            org.config_settings.who_is_enabled = False
+            org.config_settings.whois_enabled = False
             # Invalidates old org config settings cache
-            org.config_settings.save(update_fields=["who_is_enabled"])
+            org.config_settings.save(update_fields=["whois_enabled"])
             device = self._create_device(last_ip="172.217.22.14")
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
-        with self.subTest("task called via DeviceChecksumView when who_is is enabled"):
-            org.config_settings.who_is_enabled = True
+        with self.subTest("task called via DeviceChecksumView when WHOIS is enabled"):
+            org.config_settings.whois_enabled = True
             # Invalidates old org config settings cache
-            org.config_settings.save(update_fields=["who_is_enabled"])
+            org.config_settings.save(update_fields=["whois_enabled"])
             # config is required for checksum view to work
             self._create_config(device=device)
             # setting remote address field to a public IP
@@ -229,14 +251,14 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         mocked_task.reset_mock()
 
     # mocking the geoip2 client to return a mock response
-    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
-    @mock.patch(_WHO_IS_TASKS_INFO_LOGGER)
-    @mock.patch(_WHO_IS_GEOIP_CLIENT)
-    def test_who_is_info_tasks(self, mock_client, mock_info):
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_whois_info_tasks(self, mock_client, mock_info):
 
         # helper function for asserting the model details with
         # mocked api response
-        def _verify_who_is_details(instance, ip_address):
+        def _verify_whois_details(instance, ip_address):
             self.assertEqual(instance.isp, "Google LLC")
             self.assertEqual(instance.asn, "15169")
             self.assertEqual(instance.timezone, "America/Los_Angeles")
@@ -257,7 +279,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
             )
 
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
 
         # mocking the response from the geoip2 client
         mock_response = mock.MagicMock()
@@ -272,18 +294,18 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         mock_client.return_value.city.return_value = mock_response
 
         # creating a device with a last public IP
-        with self.subTest("Test WhoIs create when device is created"):
+        with self.subTest("Test WHOIS create when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
             self.assertEqual(mock_info.call_count, 1)
             mock_info.reset_mock()
             device.refresh_from_db()
 
-            _verify_who_is_details(
-                device.who_is_service.get_device_who_is_info(), device.last_ip
+            _verify_whois_details(
+                device.whois_service.get_device_whois_info(), device.last_ip
             )
 
         with self.subTest(
-            "Test WhoIs create & deletion of old record when last ip is updated"
+            "Test WHOIS create & deletion of old record when last ip is updated"
         ):
             old_ip_address = device.last_ip
             device.last_ip = "172.217.22.10"
@@ -292,8 +314,8 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
             mock_info.reset_mock()
             device.refresh_from_db()
 
-            _verify_who_is_details(
-                device.who_is_service.get_device_who_is_info(), device.last_ip
+            _verify_whois_details(
+                device.whois_service.get_device_whois_info(), device.last_ip
             )
 
             # details related to old ip address should be deleted
@@ -301,32 +323,32 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
                 WhoIsInfo.objects.filter(ip_address=old_ip_address).count(), 0
             )
 
-        with self.subTest("Test WhoIs delete when device is deleted"):
+        with self.subTest("Test WHOIS delete when device is deleted"):
             ip_address = device.last_ip
             device.delete(check_deactivated=False)
             self.assertEqual(mock_info.call_count, 0)
             mock_info.reset_mock()
 
-            # who_is related to the device's last_ip should be deleted
+            # WHOIS related to the device's last_ip should be deleted
             self.assertEqual(WhoIsInfo.objects.filter(ip_address=ip_address).count(), 0)
 
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
-    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
-    @mock.patch(_WHO_IS_TASKS_ERR_LOGGER)
-    @mock.patch(_WHO_IS_TASKS_WARN_LOGGER)
-    @mock.patch(_WHO_IS_TASKS_INFO_LOGGER)
-    def test_who_is_task_failure_notification(self, mock_info, mock_warn, mock_error):
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_TASKS_ERR_LOGGER)
+    @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
+    @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
+    def test_whois_task_failure_notification(self, mock_info, mock_warn, mock_error):
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
 
         def assert_logging_on_exception(
             exception, info_calls=0, warn_calls=0, error_calls=1
         ):
             with self.subTest(
                 f"Test notifications and logging when {exception.__name__} is raised"
-            ), mock.patch(self._WHO_IS_GEOIP_CLIENT, side_effect=exception("test")):
+            ), mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exception("test")):
                 Device.objects.all().delete()  # Clear existing devices
                 device = self._create_device(last_ip="172.217.22.14")
                 self.assertEqual(mock_info.call_count, info_calls)
@@ -338,7 +360,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
                 self.assertEqual(notification.target, device)
                 self.assertEqual(notification.type, "generic_message")
                 self.assertIn(
-                    "Failed to fetch WhoIs details for device",
+                    "Failed to fetch WHOIS details for device",
                     notification.message,
                 )
                 self.assertIn(device.last_ip, notification.description)
