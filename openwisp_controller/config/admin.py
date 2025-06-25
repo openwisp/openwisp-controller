@@ -31,7 +31,7 @@ from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import get_default_values, get_relevant_templates
-from openwisp_controller.config.who_is.views import get_who_is_info
+from openwisp_controller.config.whois.views import get_whois_info
 from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
@@ -50,7 +50,7 @@ from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
-who_is_prefix = "who_is/"
+whois_prefix = "whois/"
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -565,19 +565,19 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         css = (
             {
                 "all": BaseConfigAdmin.Media.css["all"]
-                + (f"{who_is_prefix}css/who_is_details.css",)
+                + (f"{whois_prefix}css/whois_details.css",)
             }
-            if app_settings.WHO_IS_CONFIGURED
+            if app_settings.WHOIS_CONFIGURED
             else BaseConfigAdmin.Media.css
         )
         js = list(BaseConfigAdmin.Media.js) + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
-            (
-                f"{who_is_prefix}js/who_is_details.js"
-                if app_settings.WHO_IS_CONFIGURED
-                else ""
+            *(
+                [f"{whois_prefix}js/whois_details.js"]
+                if app_settings.WHOIS_CONFIGURED
+                else []
             ),
         ]
 
@@ -883,11 +883,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 self.admin_site.admin_view(get_default_values),
                 name="get_default_values",
             ),
-            path(
-                "get-who-is-info/",
-                self.admin_site.admin_view(get_who_is_info),
-                name="get_who_is_info",
-            ),
         ] + super().get_urls()
 
         for inline in self.inlines + self.conditional_inlines:
@@ -939,6 +934,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 ),
             }
         )
+        if app_settings.WHOIS_CONFIGURED and pk:
+            ctx["device_whois_details"] = json.dumps(get_whois_info(pk))
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):

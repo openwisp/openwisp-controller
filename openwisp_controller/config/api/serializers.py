@@ -9,8 +9,8 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
-from ..who_is.mixins import WhoIsMixin
-from ..who_is.serializers import BriefWhoIsSerializer
+from ..whois.mixins import WhoIsMixin
+from ..whois.serializers import BriefWhoIsSerializer
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")

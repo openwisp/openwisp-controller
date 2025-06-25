@@ -5,19 +5,19 @@ from .serializers import WhoIsSerializer
 class WhoIsMixin:
     """Mixin to add WhoIs information to the device representation."""
 
-    _who_is_serializer_class = WhoIsSerializer
+    _whois_serializer_class = WhoIsSerializer
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         org_config = instance._get_organization__config_settings()
-        if app_settings.WHO_IS_CONFIGURED and org_config.who_is_enabled:
-            data["who_is_info"] = self.get_who_is_info(instance)
+        if app_settings.WHOIS_CONFIGURED and org_config.whois_enabled:
+            data["whois_info"] = self.get_whois_info(instance)
         return data
 
-    def get_who_is_info(self, obj):
+    def get_whois_info(self, obj):
         if not obj.last_ip:
             return None
-        who_is_obj = obj.who_is_service.get_device_who_is_info()
-        if not who_is_obj:
+        whois_obj = obj.whois_service.get_device_whois_info()
+        if not whois_obj:
             return None
-        return self._who_is_serializer_class(who_is_obj).data
+        return self._whois_serializer_class(whois_obj).data
