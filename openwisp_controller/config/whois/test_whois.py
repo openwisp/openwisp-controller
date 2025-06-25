@@ -187,60 +187,60 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 app_settings.WHOIS_ENABLED,
             )
 
-    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
-    def test_who_is_details_device_api(self):
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_whois_details_device_api(self):
         """
         Test the WhoIs details API endpoint.
         """
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
-        who_is_obj = self._create_who_is_info()
-        device = self._create_device(last_ip=who_is_obj.ip_address)
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+        whois_obj = self._create_whois_info()
+        device = self._create_device(last_ip=whois_obj.ip_address)
         self._login()
 
         with self.subTest(
-            "Device List API has who_is_info when WHO_IS_CONFIGURED is True"
+            "Device List API has whois_info when WHOIS_CONFIGURED is True"
         ):
             response = self.client.get(reverse("config_api:device_list"))
             self.assertEqual(response.status_code, 200)
-            self.assertIn("who_is_info", response.data["results"][0])
+            self.assertIn("whois_info", response.data["results"][0])
             self.assertDictEqual(
-                response.data["results"][0]["who_is_info"],
-                {"isp": who_is_obj.isp, "country": who_is_obj.address["country"]},
+                response.data["results"][0]["whois_info"],
+                {"isp": whois_obj.isp, "country": whois_obj.address["country"]},
             )
 
         with self.subTest(
-            "Device Detail API has who_is_info when WHO_IS_CONFIGURED is True"
+            "Device Detail API has whois_info when WHOIS_CONFIGURED is True"
         ):
 
             response = self.client.get(
                 reverse("config_api:device_detail", args=[device.pk])
             )
             self.assertEqual(response.status_code, 200)
-            self.assertIn("who_is_info", response.data)
-            api_who_is_info = response.data["who_is_info"]
-            self.assertEqual(api_who_is_info["isp"], who_is_obj.isp)
-            self.assertEqual(api_who_is_info["cidr"], who_is_obj.cidr)
-            self.assertEqual(api_who_is_info["asn"], who_is_obj.asn)
-            self.assertEqual(api_who_is_info["timezone"], who_is_obj.timezone)
-            self.assertEqual(api_who_is_info["address"], who_is_obj.address)
+            self.assertIn("whois_info", response.data)
+            api_whois_info = response.data["whois_info"]
+            self.assertEqual(api_whois_info["isp"], whois_obj.isp)
+            self.assertEqual(api_whois_info["cidr"], whois_obj.cidr)
+            self.assertEqual(api_whois_info["asn"], whois_obj.asn)
+            self.assertEqual(api_whois_info["timezone"], whois_obj.timezone)
+            self.assertEqual(api_whois_info["address"], whois_obj.address)
 
-        with mock.patch.object(app_settings, "WHO_IS_CONFIGURED", False):
+        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
-                "Device List API has no who_is_info when WHO_IS_CONFIGURED is False"
+                "Device List API has no whois_info when WHOIS_CONFIGURED is False"
             ):
                 response = self.client.get(reverse("config_api:device_list"))
                 self.assertEqual(response.status_code, 200)
-                self.assertNotIn("who_is_info", response.data["results"][0])
+                self.assertNotIn("whois_info", response.data["results"][0])
 
             with self.subTest(
-                "Device Detail API has no who_is_info when WHO_IS_CONFIGURED is False"
+                "Device Detail API has no whois_info when WHOIS_CONFIGURED is False"
             ):
                 response = self.client.get(
                     reverse("config_api:device_detail", args=[device.pk])
                 )
                 self.assertEqual(response.status_code, 200)
-                self.assertNotIn("who_is_info", response.data)
+                self.assertNotIn("whois_info", response.data)
 
 
 class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
@@ -560,44 +560,42 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         assert_logging_on_exception(errors.PermissionRequiredError)
 
 @tag("selenium_tests")
-class TestWhoIsSelenium(SeleniumTestMixin, CreateWHOISMixin, StaticLiveServerTestCase):
-    @mock.patch.object(app_settings, "WHO_IS_CONFIGURED", True)
-    def test_who_is_details_device_admin(self):
-        org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, who_is_enabled=True)
-        who_is_obj = self._create_who_is_info()
-        device = self._create_device(last_ip=who_is_obj.ip_address)
+class TestWHOISSelenium(SeleniumTestMixin, CreateWHOISMixin, StaticLiveServerTestCase):
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_whois_device_admin(self):
+        whois_obj = self._create_whois_info()
+        device = self._create_device(last_ip=whois_obj.ip_address)
         self.login()
 
         with self.subTest(
-            "WhoIs details visible in device admin when WHO_IS_CONFIGURED is True"
+            "WhoIs details visible in device admin when WHOIS_CONFIGURED is True"
         ):
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="who_is_table"]')
-            table = self.find_element(By.ID, "who_is_table")
+            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            table = self.find_element(By.ID, "whois_table")
             rows = table.find_elements(By.TAG_NAME, "tr")
             for row in rows:
                 if cells := row.find_elements(By.TAG_NAME, "td"):
-                    self.assertEqual(cells[0].text, who_is_obj.isp)
-                    self.assertEqual(cells[1].text, who_is_obj.address["country"])
+                    self.assertEqual(cells[0].text, whois_obj.isp)
+                    self.assertEqual(cells[1].text, whois_obj.address["country"])
 
-            details = self.find_element(By.ID, "who_is_details")
+            details = self.find_element(By.ID, "whois_details")
             self.web_driver.execute_script(
                 "arguments[0].setAttribute('open','')", details
             )
             paragraphs = details.find_elements(By.TAG_NAME, "p")
-            self.assertIn(who_is_obj.asn, paragraphs[0].text)
-            self.assertIn(who_is_obj.timezone, paragraphs[1].text)
-            self.assertIn(who_is_obj.formatted_address, paragraphs[2].text)
-            self.assertIn(who_is_obj.cidr, paragraphs[3].text)
+            self.assertIn(whois_obj.asn, paragraphs[0].text)
+            self.assertIn(whois_obj.timezone, paragraphs[1].text)
+            self.assertIn(whois_obj.formatted_address, paragraphs[2].text)
+            self.assertIn(whois_obj.cidr, paragraphs[3].text)
 
-        with mock.patch.object(app_settings, "WHO_IS_CONFIGURED", False):
+        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
                 "WhoIs details not visible in device admin "
-                + "when WHO_IS_CONFIGURED is False"
+                + "when WHOIS_CONFIGURED is False"
             ):
                 self.open(reverse("admin:config_device_change", args=[device.pk]))
-                self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="who_is_table"]')
+                self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
                 self.wait_for_invisibility(
-                    By.CSS_SELECTOR, 'details[id="who_is_details"]'
+                    By.CSS_SELECTOR, 'details[id="whois_details"]'
                 )

@@ -112,10 +112,11 @@ USE_TZ = True
 USE_I18N = False
 USE_L10N = False
 STATIC_URL = "/static/"
+# For discovery of static files under whois subdirectory of config module
 STATICFILES_DIRS = [
     os.path.join(
         os.path.dirname(os.path.dirname(BASE_DIR)),
-        "openwisp_controller/config/who_is/static",
+        "openwisp_controller/config/whois/static",
     )
 ]
 MEDIA_URL = "/media/"
