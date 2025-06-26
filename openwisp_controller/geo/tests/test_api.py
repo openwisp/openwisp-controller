@@ -1037,7 +1037,7 @@ class TestGeoApi(
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 403)
 
-    def test_floorplan_coordinates(self):
+    def test_indoor_coordinates_list_api(self):
         org = self._get_org()
         location = self._create_location(type="indoor", organization=org)
         f1 = self._create_floorplan(floor=1, location=location)
@@ -1063,11 +1063,11 @@ class TestGeoApi(
         path = reverse("geo_api:indoor_coordinates_list", args=[location.id])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 2)
-        self.assertEqual(response.data[0]["name"], "device1")
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertEqual(response.data["results"][0]["device_name"], "device1")
 
         with self.subTest("Test filter by floor"):
             response = self.client.get(f"{path}?floor=2")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(response.data), 1)
-            self.assertEqual(response.data[0]["name"], "device2")
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device2")

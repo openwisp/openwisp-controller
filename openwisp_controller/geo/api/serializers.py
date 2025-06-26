@@ -351,11 +351,12 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
 
 
 class IndoorCoordinatesSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source="content_object.name")
+    content_object_id = serializers.UUIDField(
+        source="content_object.id", read_only=True
+    )
+    floorplan_id = serializers.UUIDField(source="floorplan.id", read_only=True)
+    device_name = serializers.CharField(source="content_object.name")
     mac_address = serializers.CharField(source="content_object.mac_address")
-    is_deactivated = serializers.BooleanField(source="content_object.is_deactivated")
-    model = serializers.CharField(source="content_object.model")
-    os = serializers.CharField(source="content_object.os")
     floor_name = serializers.SerializerMethodField()
     floor = serializers.IntegerField(source="floorplan.floor")
     image = serializers.ImageField(source="floorplan.image", read_only=True)
@@ -364,11 +365,11 @@ class IndoorCoordinatesSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeviceLocation
         fields = [
-            "name",
+            "id",
+            "content_object_id",
+            "floorplan_id",
+            "device_name",
             "mac_address",
-            "is_deactivated",
-            "model",
-            "os",
             "floor_name",
             "floor",
             "image",
