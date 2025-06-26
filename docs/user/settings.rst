@@ -758,11 +758,16 @@ Allows enabling the optional :doc:`WHOIS Lookup feature <whois>`.
 .. image:: https://github.com/user-attachments/assets/0737d39c-1fad-4fca-aca9-9b42bc321763
     :alt: WHOIS admin setting
 
-This feature is disabled by default. To enable it, set this option to
-``True`` and define both :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT
+After enabling this feature, you have to set
+:ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT
 <OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT>` and
 :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY
 <OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY>`.
+
+.. warning::
+
+    If these three settings are not configured as expected, an
+    ``ImproperlyConfigured`` exception will be raised.
 
 .. _openwisp_controller_whois_geoip_account:
 
@@ -774,7 +779,7 @@ This feature is disabled by default. To enable it, set this option to
 **default**: None
 ============ =======
 
-Maxmind Account ID required for the :doc:`WHOIS Lookup <whois>`.
+Maxmind Account ID required for the :doc:`WHOIS Lookup feature <whois>`.
 
 .. _openwisp_controller_whois_geoip_key:
 
@@ -786,4 +791,4 @@ Maxmind Account ID required for the :doc:`WHOIS Lookup <whois>`.
 **default**: None
 ============ =======
 
-Maxmind License Key required for the :doc:`WHOIS Lookup <whois>`.
+Maxmind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
