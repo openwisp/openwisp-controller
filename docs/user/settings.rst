@@ -755,7 +755,8 @@ documentation regarding automatic retries for known errors.
 
 Allows enabling the optional :doc:`WHOIS Lookup feature <whois>`.
 
-.. image:: https://github.com/user-attachments/assets/0737d39c-1fad-4fca-aca9-9b42bc321763
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.2/whois-admin-setting.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.2/whois-admin-setting.png
     :alt: WHOIS admin setting
 
 After enabling this feature, you have to set
