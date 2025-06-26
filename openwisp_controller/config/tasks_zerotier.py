@@ -41,7 +41,8 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 "verb": _("encountered an unrecoverable error"),
                 "message": _(
                     "Unable to perform {action} operation on the "
-                    "[{target}]({target_link}) VPN server due to an unrecoverable error "
+                    "[{target}]({target_link}) VPN server due to an "
+                    "unrecoverable error "
                     "(status code: {status_code})"
                 ),
                 "level": "error",
