@@ -271,7 +271,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_whois_info_tasks(self, mock_client, mock_info):
+    def test_whois_info_creation(self, mock_client, mock_info):
 
         # helper function for asserting the model details with
         # mocked api response

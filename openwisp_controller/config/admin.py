@@ -1363,11 +1363,12 @@ if getattr(app_settings, "REGISTRATION_ENABLED", True) or app_settings.WHOIS_CON
         form = ConfigSettingsForm
 
         def get_fields(self, request, obj=None):
-            fields = ["context"]
+            fields = []
             if app_settings.REGISTRATION_ENABLED:
                 fields += ["registration_enabled", "shared_secret"]
             if app_settings.WHOIS_CONFIGURED:
                 fields += ["whois_enabled"]
+            fields += ["context"]
             return fields
 
     OrganizationAdmin.save_on_top = True
