@@ -35,9 +35,9 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         help_text=_("used for automatic registration of devices"),
     )
     whois_enabled = FallbackBooleanChoiceField(
-        help_text=_("Whether the WhoIs lookup feature is enabled"),
+        help_text=_("Whether the WHOIS lookup feature is enabled"),
         fallback=app_settings.WHOIS_ENABLED,
-        verbose_name=_("WhoIs Enabled"),
+        verbose_name=_("WHOIS Enabled"),
     )
     context = JSONField(
         blank=True,
@@ -67,7 +67,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
                 {
                     "whois_enabled": _(
                         "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
-                        + "before enabling WhoIs feature."
+                        + "before enabling WHOIS feature."
                     )
                 }
             )

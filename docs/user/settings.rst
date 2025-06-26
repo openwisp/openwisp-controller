@@ -743,6 +743,8 @@ For more information on these settings, you can refer to the `the celery
 documentation regarding automatic retries for known errors.
 <https://docs.celeryq.dev/en/stable/userguide/tasks.html#automatic-retry-for-known-exceptions>`_
 
+.. _openwisp_controller_whois_enabled:
+
 ``OPENWISP_CONTROLLER_WHOIS_ENABLED``
 -------------------------------------
 
@@ -751,7 +753,7 @@ documentation regarding automatic retries for known errors.
 **default**: ``False``
 ============ =========
 
-Allows enabling the optional :doc:`WHOIS Lookup feature <who-is>`.
+Allows enabling the optional :doc:`WHOIS Lookup feature <whois>`.
 
 .. image:: https://github.com/user-attachments/assets/0737d39c-1fad-4fca-aca9-9b42bc321763
     :alt: WHOIS admin setting
@@ -762,6 +764,8 @@ This feature is disabled by default. To enable it, set this option to
 :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY
 <OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY>`.
 
+.. _openwisp_controller_whois_geoip_account:
+
 ``OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT``
 -------------------------------------------
 
@@ -770,7 +774,9 @@ This feature is disabled by default. To enable it, set this option to
 **default**: None
 ============ =======
 
-Maxmind Account ID required for :doc:`WHOIS Lookup <who-is>`.
+Maxmind Account ID required for the :doc:`WHOIS Lookup <whois>`.
+
+.. _openwisp_controller_whois_geoip_key:
 
 ``OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY``
 ---------------------------------------
@@ -780,4 +786,4 @@ Maxmind Account ID required for :doc:`WHOIS Lookup <who-is>`.
 **default**: None
 ============ =======
 
-Maxmind License Key required for :doc:`WHOIS Lookup <who-is>`.
+Maxmind License Key required for the :doc:`WHOIS Lookup <whois>`.

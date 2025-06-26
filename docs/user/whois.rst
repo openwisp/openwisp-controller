@@ -34,22 +34,19 @@ The fetched details include:
 - Timezone
 - Name of the organization associated with the ASN
 
+WHOIS lookup is triggered when a new device is registered or when a device
+fetches its checksum. However, for a WHOIS lookup to actually occur, the
+following conditions must be met:
+
+- The device’s last IP is public.
+- No WHOIS record exists for that IP.
+- WHOIS is enabled for the device's organization.
+
+If multiple devices share the same IP and one of them switches to a new
+IP, a lookup is triggered for the new IP and the old record is deleted.
+Devices still on the old IP can re-trigger the lookup if needed.
+
 .. _controller_setup_whois_lookup:
-
-Setup
------
-
-Add the following environment-based settings to your project’s
-``settings.py`` file:
-
-.. code-block:: python
-
-    OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT = os.getenv(
-        "OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT", ""
-    )
-    OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY = os.getenv(
-        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY", ""
-    )
 
 Steps to obtain account ID and license key
 ------------------------------------------
@@ -63,8 +60,6 @@ Steps to obtain account ID and license key
    https://github.com/user-attachments/assets/0c2f693f-d2f5-4811-abd1-6148750380e9
 3. Generate a new license key and name it as you prefer .. image::
    https://github.com/user-attachments/assets/57df27bc-4f9d-4701-88bf-91e6b715e4a6
-4. Copy the **Account ID** and **License Key**, then set them as
-   environment variables:
-
-   - ``OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT``
-   - ``OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY``
+4. Copy the **Account ID** and **License Key**, then set them as the
+   environment variables :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT`
+   and :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY` in your project.

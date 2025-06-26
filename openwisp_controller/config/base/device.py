@@ -19,7 +19,7 @@ from ..signals import (
     management_ip_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
-from ..whois.service import WhoIsService
+from ..whois.service import WHOISService
 from .base import BaseModel
 
 
@@ -120,8 +120,8 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Initial value for last_ip is required in WhoIs
-        # to remove WhoIs info related to that ip address.
+        # Initial value for last_ip is required in WHOIS
+        # to remove WHOIS info related to that ip address.
         if app_settings.WHOIS_CONFIGURED:
             self._changed_checked_fields.append("last_ip")
 
@@ -375,13 +375,6 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         self._initial_management_ip = self.management_ip
 
-    def _check_last_ip(self):
-        """Trigger WhoIs lookup if last_ip is not deferred."""
-        if self._initial_last_ip == models.DEFERRED:
-            return
-        self.whois_service.trigger_whois_lookup()
-        self._initial_last_ip = self.last_ip
-
     def _check_organization_id_changed(self):
         """
         Returns "True" if the device's organization has changed.
@@ -419,14 +412,6 @@ class AbstractDevice(OrgMixin, BaseModel):
         (eg: admin site)
         """
         return self._get_config_attr("get_status_display")
-
-    @cached_property
-    def whois_service(self):
-        """
-        Used as a shortcut to get WhoIsService instance
-        for the device.
-        """
-        return WhoIsService(self)
 
     def get_default_templates(self):
         """
@@ -516,3 +501,18 @@ class AbstractDevice(OrgMixin, BaseModel):
         is changed to 'deactivated'.
         """
         cls.objects.filter(pk=instance.device_id).update(management_ip="")
+
+    @cached_property
+    def whois_service(self):
+        """
+        Used as a shortcut to get WHOISService instance
+        for the device.
+        """
+        return WHOISService(self)
+
+    def _check_last_ip(self):
+        """Trigger WHOIS lookup if last_ip is not deferred."""
+        if self._initial_last_ip == models.DEFERRED:
+            return
+        self.whois_service.trigger_whois_lookup()
+        self._initial_last_ip = self.last_ip

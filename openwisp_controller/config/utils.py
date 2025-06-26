@@ -7,8 +7,6 @@ from django.shortcuts import get_object_or_404 as base_get_object_or_404
 from django.urls import path, re_path
 from openwisp_notifications.utils import _get_object_link
 
-from . import settings as app_settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -80,15 +78,6 @@ def update_last_ip(device, request):
         update_fields.append("management_ip")
     if update_fields:
         device.save(update_fields=update_fields)
-    # When update fields are present then save() will run the WHOIS
-    # lookup. But if there are no update fields, we still want to
-    # trigger the WHOIS lookup if there is no record for the device's
-    # last_ip.
-    elif (
-        app_settings.WHOIS_CONFIGURED
-        and not device.whois_service.get_device_whois_info()
-    ):
-        device.whois_service.trigger_whois_lookup()
 
     return bool(update_fields)
 

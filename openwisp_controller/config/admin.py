@@ -1352,7 +1352,7 @@ class OrganizationLimitsInline(admin.StackedInline):
 
 
 limits_inline_position = 0
-if getattr(app_settings, "REGISTRATION_ENABLED", True):
+if getattr(app_settings, "REGISTRATION_ENABLED", True) or app_settings.WHOIS_CONFIGURED:
 
     class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         class Meta:
@@ -1363,9 +1363,11 @@ if getattr(app_settings, "REGISTRATION_ENABLED", True):
         form = ConfigSettingsForm
 
         def get_fields(self, request, obj=None):
-            fields = super().get_fields(request, obj)
-            if not app_settings.WHOIS_CONFIGURED:
-                fields.remove("whois_enabled")
+            fields = ["context"]
+            if app_settings.REGISTRATION_ENABLED:
+                fields += ["registration_enabled", "shared_secret"]
+            if app_settings.WHOIS_CONFIGURED:
+                fields += ["whois_enabled"]
             return fields
 
     OrganizationAdmin.save_on_top = True
