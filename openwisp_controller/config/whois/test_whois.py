@@ -268,6 +268,95 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             mocked_task.assert_called()
         mocked_task.reset_mock()
 
+        with self.subTest(
+            "task called via DeviceChecksumView when a device has no WHOIS record"
+        ):
+            WHOISInfo.objects.all().delete()
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_called()
+        mocked_task.reset_mock()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
+    def test_whois_feature_multiple_orgs(self, mocked_task):
+        org1 = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org1, whois_enabled=True)
+        org2 = self._create_org(name="test org2", slug="test-org2")
+        OrganizationConfigSettings.objects.create(
+            organization=org2, whois_enabled=False
+        )
+        connect_whois_handlers()
+
+        with self.subTest("Test task calls when device created with public last_ip"):
+            device1 = self._create_device(last_ip="172.217.22.10", organization=org1)
+            mocked_task.assert_called()
+            mocked_task.reset_mock()
+            device2 = self._create_device(last_ip="172.217.22.11", organization=org2)
+            mocked_task.assert_not_called()
+            mocked_task.reset_mock()
+
+        with self.subTest("Test task calls when last_ip is changed and is public"):
+            device1.last_ip = "172.217.22.12"
+            device1.save()
+            mocked_task.assert_called()
+            mocked_task.reset_mock()
+            device2.last_ip = "172.217.22.13"
+            mocked_task.assert_not_called()
+            mocked_task.reset_mock()
+
+        with self.subTest("Test fetching WHOIS details"):
+            whois_obj1 = self._create_whois_info(ip_address=device1.last_ip)
+            self._create_whois_info(ip_address=device2.last_ip)
+            self.assertEqual(whois_obj1, device1.whois_service.get_device_whois_info())
+            self.assertIsNone(device2.whois_service.get_device_whois_info())
+
+        with self.subTest("Test task calls in DeviceChecksumView when last_ip changes"):
+            # config is required for checksum view to work
+            self._create_config(device=device1)
+            self._create_config(device=device2)
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device1.pk]),
+                {"key": device1.key},
+                REMOTE_ADDR="172.217.22.20",
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_called()
+            mocked_task.reset_mock()
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device2.pk]),
+                {"key": device2.key},
+                REMOTE_ADDR="172.217.22.30",
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_not_called()
+            mocked_task.reset_mock()
+
+        with self.subTest(
+            "task called via DeviceChecksumView when a device has no WHOIS record"
+        ):
+            WHOISInfo.objects.all().delete()
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device1.pk]),
+                {"key": device1.key},
+                REMOTE_ADDR=device1.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_called()
+            mocked_task.reset_mock()
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device2.pk]),
+                {"key": device2.key},
+                REMOTE_ADDR=device2.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_not_called()
+            mocked_task.reset_mock()
+
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
