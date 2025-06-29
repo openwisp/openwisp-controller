@@ -21,7 +21,7 @@ Notification = load_model("openwisp_notifications", "Notification")
 notification_qs = Notification.objects.all()
 
 
-class TestWHOISFeature(CreateWHOISMixin, TestAdminMixin, TestCase):
+class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     # Signals are connected when apps are loaded,
     # and if WHOIS is Configured all related WHOIS
     # handlers are also connected. Thus we need to
@@ -50,6 +50,7 @@ class TestWHOISFeature(CreateWHOISMixin, TestAdminMixin, TestCase):
     )
     def test_whois_configuration_setting(self):
         self._disconnect_signals()
+        org = self._get_org()
         # reload app_settings to apply the overridden settings
         importlib.reload(app_settings)
 
@@ -75,7 +76,7 @@ class TestWHOISFeature(CreateWHOISMixin, TestAdminMixin, TestCase):
             self._login()
             url = reverse(
                 "admin:openwisp_users_organization_change",
-                args=[self._get_org().pk],
+                args=[org.pk],
             )
             response = self.client.get(url)
             self.assertNotContains(response, 'name="config_settings-0-whois_enabled"')
@@ -98,21 +99,45 @@ class TestWHOISFeature(CreateWHOISMixin, TestAdminMixin, TestCase):
             ):
                 self.assertTrue(app_settings.WHOIS_CONFIGURED)
 
+            with self.subTest("Test Signals connected when WHOIS_CONFIGURED is True"):
+                connect_whois_handlers()
+
+                assert any(
+                    "device.delete_whois_info" in str(r[0])
+                    for r in post_delete.receivers
+                )
+                assert any(
+                    "invalidate_org_config_cache_on_org_config_save" in str(r[0])
+                    for r in post_save.receivers
+                )
+                assert any(
+                    "invalidate_org_config_cache_on_org_config_delete" in str(r[0])
+                    for r in post_delete.receivers
+                )
+
             with self.subTest(
                 "Test WHOIS field visible on admin when WHOIS_CONFIGURED is True"
             ):
                 self._login()
                 url = reverse(
                     "admin:openwisp_users_organization_change",
-                    args=[self._get_org().pk],
+                    args=[org.pk],
                 )
                 response = self.client.get(url)
                 self.assertContains(response, 'name="config_settings-0-whois_enabled"')
 
     def test_whois_enabled(self):
-        org = self._get_org()
+        OrganizationConfigSettings.objects.all().delete()
+        device = self._create_device()
+        with self.subTest(
+            "Test WHOIS fallback when Organization settings do not exist"
+        ):
+            self.assertEqual(
+                device.whois_service.is_whois_enabled, app_settings.WHOIS_ENABLED
+            )
+
         org_settings_obj = OrganizationConfigSettings(
-            organization=org, whois_enabled=True
+            organization=self._get_org(), whois_enabled=True
         )
 
         with self.subTest("Test WHOIS not configured does not allow enabling WHOIS"):
@@ -134,27 +159,27 @@ class TestWHOISFeature(CreateWHOISMixin, TestAdminMixin, TestCase):
             org_settings_obj.save()
 
         with self.subTest("Test setting WHOIS enabled to True"):
-            org.config_settings.whois_enabled = True
-            org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
-            self.assertEqual(getattr(org.config_settings, "whois_enabled"), True)
+            org_settings_obj.whois_enabled = True
+            org_settings_obj.save(update_fields=["whois_enabled"])
+            org_settings_obj.refresh_from_db(fields=["whois_enabled"])
+            self.assertEqual(getattr(org_settings_obj, "whois_enabled"), True)
 
         with self.subTest("Test setting WHOIS enabled to False"):
-            org.config_settings.whois_enabled = False
-            org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
-            self.assertEqual(getattr(org.config_settings, "whois_enabled"), False)
+            org_settings_obj.whois_enabled = False
+            org_settings_obj.save(update_fields=["whois_enabled"])
+            org_settings_obj.refresh_from_db(fields=["whois_enabled"])
+            self.assertEqual(getattr(org_settings_obj, "whois_enabled"), False)
 
         with self.subTest(
             "Test setting WHOIS enabled to None fallbacks to global setting"
         ):
             # reload app_settings to ensure latest settings are applied
             importlib.reload(app_settings)
-            org.config_settings.whois_enabled = None
-            org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
+            org_settings_obj.whois_enabled = None
+            org_settings_obj.save(update_fields=["whois_enabled"])
+            org_settings_obj.refresh_from_db(fields=["whois_enabled"])
             self.assertEqual(
-                getattr(org.config_settings, "whois_enabled"),
+                getattr(org_settings_obj, "whois_enabled"),
                 app_settings.WHOIS_ENABLED,
             )
 
@@ -164,10 +189,6 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
         """
         Test db_constraints and validators for WHOISInfo model fields.
         """
-        org = self._get_org()
-        # using `create` to bypass `clean` method validation
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
-
         with self.assertRaises(ValidationError):
             self._create_whois_info(isp="a" * 101)
 
@@ -209,13 +230,13 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
     _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.tasks.logger.error"
 
     def setUp(self):
+        super().setUp()
         self.admin = self._get_admin()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
-    def test_task_called(self, mocked_task):
+    def test_whois_task_called(self, mocked_task):
         org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
         connect_whois_handlers()
 
         with self.subTest("task called when last_ip is public"):
@@ -283,17 +304,16 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
-    def test_whois_feature_multiple_orgs(self, mocked_task):
-        org1 = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org1, whois_enabled=True)
+    def test_whois_multiple_orgs(self, mocked_task):
         org2 = self._create_org(name="test org2", slug="test-org2")
         OrganizationConfigSettings.objects.create(
             organization=org2, whois_enabled=False
         )
-        connect_whois_handlers()
 
         with self.subTest("Test task calls when device created with public last_ip"):
-            device1 = self._create_device(last_ip="172.217.22.10", organization=org1)
+            device1 = self._create_device(
+                last_ip="172.217.22.10", organization=self._get_org()
+            )
             mocked_task.assert_called()
             mocked_task.reset_mock()
             device2 = self._create_device(last_ip="172.217.22.11", organization=org2)
@@ -360,10 +380,11 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_whois_info_creation(self, mock_client, mock_info):
-
+    def test_whois_creation(self, mock_client, mock_info):
         # helper function for asserting the model details with
         # mocked api response
+        connect_whois_handlers()
+
         def _verify_whois_details(instance, ip_address):
             self.assertEqual(instance.isp, "Google LLC")
             self.assertEqual(instance.asn, "15169")
@@ -383,9 +404,6 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
                 instance.formatted_address,
                 "Mountain View, United States, North America, 94043",
             )
-
-        org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
 
         # mocking the response from the geoip2 client
         mock_response = mock.MagicMock()
@@ -445,9 +463,6 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
     @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     def test_whois_task_failure_notification(self, mock_info, mock_warn, mock_error):
-        org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
-
         def assert_logging_on_exception(
             exception, info_calls=0, warn_calls=0, error_calls=1
         ):

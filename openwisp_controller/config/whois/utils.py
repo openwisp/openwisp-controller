@@ -28,3 +28,9 @@ class CreateWHOISMixin(CreateConfigMixin):
         w.full_clean()
         w.save()
         return w
+
+    def setUp(self):
+        super().setUp()
+        OrganizationConfigSettings.objects.create(
+            organization=self._get_org(), whois_enabled=True
+        )
