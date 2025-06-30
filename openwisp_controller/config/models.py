@@ -10,6 +10,7 @@ from .base.multitenancy import (
 from .base.tag import AbstractTaggedTemplate, AbstractTemplateTag
 from .base.template import AbstractTemplate
 from .base.vpn import AbstractVpn, AbstractVpnClient
+from .base.whois import AbstractWHOISInfo
 
 
 class Device(AbstractDevice):
@@ -111,3 +112,13 @@ class OrganizationLimits(AbstractOrganizationLimits):
     class Meta(AbstractOrganizationLimits.Meta):
         abstract = False
         swappable = swapper.swappable_setting("config", "OrganizationLimits")
+
+
+class WHOISInfo(AbstractWHOISInfo):
+    """
+    Stores WHOIS information for devices.
+    """
+
+    class Meta(AbstractWHOISInfo.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting("config", "WHOISInfo")
