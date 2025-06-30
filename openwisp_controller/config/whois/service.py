@@ -125,7 +125,7 @@ class WHOISService:
             )
         elif whois_info_exists and self.is_whois_enabled:
             transaction.on_commit(
-                manage_fuzzy_locations.delay(
+                lambda: manage_fuzzy_locations.delay(
                     self.device.pk, self.device.last_ip, add_existing=True
                 )
             )
