@@ -1,6 +1,7 @@
 import importlib
 from unittest import mock
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -14,6 +15,7 @@ from .handlers import connect_whois_handlers
 from .utils import CreateWhoIsMixin
 
 Device = load_model("config", "Device")
+Location = load_model("geo", "Location")
 WhoIsInfo = load_model("config", "WhoIsInfo")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Notification = load_model("openwisp_notifications", "Notification")
@@ -192,11 +194,22 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
     def setUp(self):
         self.admin = self._get_admin()
 
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch(
-        "openwisp_controller.config.whois.service.WhoIsService.fetch_whois_details.delay"  # noqa: E501
-    )
-    def test_task_called(self, mocked_task):
+    @staticmethod
+    def _mocked_client_response():
+        mock_response = mock.MagicMock()
+        mock_response.city.name = "Mountain View"
+        mock_response.country.name = "United States"
+        mock_response.continent.name = "North America"
+        mock_response.postal.code = "94043"
+        mock_response.traits.autonomous_system_organization = "Google LLC"
+        mock_response.traits.autonomous_system_number = 15169
+        mock_response.traits.network = "172.217.22.0/24"
+        mock_response.location.time_zone = "America/Los_Angeles"
+        mock_response.location.latitude = 2
+        mock_response.location.longitude = 23
+        return mock_response
+
+    def _task_called(self, mocked_task):
         org = self._get_org()
         OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
         connect_whois_handlers()
@@ -214,13 +227,6 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
 
         with self.subTest("task not called when last_ip is private"):
             device.last_ip = "10.0.0.1"
-            device.save()
-            mocked_task.assert_not_called()
-        mocked_task.reset_mock()
-
-        with self.subTest("task not called when last_ip has related WhoIsInfo"):
-            device.last_ip = "172.217.22.10"
-            self._create_whois_info(ip_address=device.last_ip)
             device.save()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
@@ -250,11 +256,52 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
             mocked_task.assert_called()
         mocked_task.reset_mock()
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.config.whois.service.WhoIsService.fetch_whois_details.delay"  # noqa: E501
+    )
+    def test_lookup_task_called(self, mocked_lookup_task):
+        self._task_called(mocked_lookup_task)
+
+        Device.objects.all().delete()  # Clear existing devices
+        device = self._create_device()
+        with self.subTest("Lookup task not called when last_ip has related WhoIsInfo"):
+            device.last_ip = "172.217.22.14"
+            self._create_whois_info(ip_address=device.last_ip)
+            device.save()
+            mocked_lookup_task.assert_not_called()
+        mocked_lookup_task.reset_mock()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.config.whois.service.WhoIsService.manage_fuzzy_locations.delay"  # noqa: E501
+    )
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_fuzzy_location_task_called(
+        self, mocked_client, mocked_fuzzy_location_task
+    ):
+        """
+        Test that the fuzzy location task is called alongside the lookup task
+        """
+        mocked_client.return_value.city.return_value = self._mocked_client_response()
+        self._task_called(mocked_fuzzy_location_task)
+
+        Device.objects.all().delete()  # Clear existing devices
+        device = self._create_device()
+        with self.subTest(
+            "Fuzzy location task called when last_ip has related WhoIsInfo"
+        ):
+            device.last_ip = "172.217.22.14"
+            self._create_whois_info(ip_address=device.last_ip)
+            device.save()
+            mocked_fuzzy_location_task.assert_called()
+        mocked_fuzzy_location_task.reset_mock()
+
     # mocking the geoip2 client to return a mock response
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_whois_info_tasks(self, mock_client, mock_info):
+    def test_whois_info_creation(self, mock_client, mock_info):
 
         # helper function for asserting the model details with
         # mocked api response
@@ -282,16 +329,7 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
         OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
 
         # mocking the response from the geoip2 client
-        mock_response = mock.MagicMock()
-        mock_response.city.name = "Mountain View"
-        mock_response.country.name = "United States"
-        mock_response.continent.name = "North America"
-        mock_response.postal.code = "94043"
-        mock_response.traits.autonomous_system_organization = "Google LLC"
-        mock_response.traits.autonomous_system_number = 15169
-        mock_response.traits.network = "172.217.22.0/24"
-        mock_response.location.time_zone = "America/Los_Angeles"
-        mock_client.return_value.city.return_value = mock_response
+        mock_client.return_value.city.return_value = self._mocked_client_response()
 
         # creating a device with a last public IP
         with self.subTest("Test WHOIS create when device is created"):
@@ -331,6 +369,112 @@ class TestWhoIsTransaction(CreateWhoIsMixin, TransactionTestCase):
 
             # WHOIS related to the device's last_ip should be deleted
             self.assertEqual(WhoIsInfo.objects.filter(ip_address=ip_address).count(), 0)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_fuzzy_location_creation_and_update(self, mock_client):
+        connect_whois_handlers()
+
+        def _verify_location_details(device, mocked_response):
+            location = device.devicelocation.location
+            mocked_location = mocked_response.location
+            formatted_address = ", ".join(
+                [
+                    mocked_response.city.name,
+                    mocked_response.country.name,
+                    mocked_response.continent.name,
+                    mocked_response.postal.code,
+                ]
+            )
+            self.assertEqual(location.address, formatted_address)
+            self.assertEqual(
+                location.geometry,
+                GEOSGeometry(
+                    f"POINT({mocked_location.longitude} {mocked_location.latitude})",
+                    srid=4326,
+                ),
+            )
+
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
+
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+
+        with self.subTest("Test Fuzzy location created when device is created"):
+            device = self._create_device(last_ip="172.217.22.14")
+
+            location = device.devicelocation.location
+            self.assertEqual(location.fuzzy, True)
+            self.assertEqual(location.is_mobile, False)
+            self.assertEqual(location.type, "outdoor")
+            _verify_location_details(device, mocked_response)
+
+        with self.subTest("Test Fuzzy location updated when last ip is updated"):
+            device.last_ip = "172.217.22.10"
+            mocked_response.location.latitude = 100
+            mocked_response.location.longitude = 200
+            mocked_response.city.name = "New City"
+            mock_client.return_value.city.return_value = mocked_response
+            device.save()
+            device.refresh_from_db()
+
+            location = device.devicelocation.location
+            self.assertEqual(location.fuzzy, True)
+            self.assertEqual(location.is_mobile, False)
+            self.assertEqual(location.type, "outdoor")
+            _verify_location_details(device, mocked_response)
+
+        with self.subTest(
+            "Test Location not updated if it is not fuzzy when last ip is updated"
+        ):
+            device.last_ip = "172.217.22.11"
+            device.devicelocation.location.fuzzy = False
+            mock_client.return_value.city.return_value = self._mocked_client_response()
+            device.devicelocation.location.save()
+            device.save()
+            device.refresh_from_db()
+
+            location = device.devicelocation.location
+            self.assertEqual(location.fuzzy, False)
+            self.assertEqual(location.is_mobile, False)
+            self.assertEqual(location.type, "outdoor")
+            _verify_location_details(device, mocked_response)
+
+        with self.subTest(
+            "Test Location shared among devices with same last_ip when new device's location does not exist"
+        ):
+            Device.objects.all().delete()
+            device1 = self._create_device(last_ip="172.217.22.10")
+            device2 = self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.10",
+            )
+
+            self.assertEqual(
+                device1.devicelocation.location.pk, device2.devicelocation.location.pk
+            )
+
+        with self.subTest(
+            "Test Location shared among devices with same last_ip when new device's location exist"
+        ):
+            Device.objects.all().delete()
+            device1 = self._create_device(last_ip="172.217.22.10")
+            device2 = self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.11",
+            )
+            old_location = device2.devicelocation.location
+            device2.last_ip = "172.217.22.10"
+            device2.save()
+            device2.refresh_from_db()
+
+            self.assertEqual(
+                device1.devicelocation.location.pk, device2.devicelocation.location.pk
+            )
+            self.assertEqual(Location.objects.filter(pk=old_location.pk).count(), 0)
 
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed

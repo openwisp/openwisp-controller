@@ -272,6 +272,7 @@ class WhoIsService:
             whois_obj.save()
             logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
             location_address = whois_obj.formatted_address
+
             WhoIsService.manage_fuzzy_locations.delay(
                 device_pk,
                 new_ip_address,
@@ -314,8 +315,15 @@ class WhoIsService:
         """
         Creates/updates fuzzy location for a device based on the latitude and longitude
         or attaches an existing location if `add_existing` is True.
-        Existing location here means a location of a device whose last_ip matches
+        Existing location here means a location of another device whose last_ip matches
         the given ip_address.
+
+        - If attaching existing location and current device has no location then the existing
+        location is attached to the current device as well.
+        - If attaching existing location and current device already has a location,
+        then current device's location is deleted and set same as existing device's location.
+        - If not attaching existing then new location is created if no location exists for
+        current device, or existing one is updated if it is fuzzy.
         """
         Device = load_model("config", "Device")
         Location = load_model("geo", "Location")
@@ -332,16 +340,22 @@ class WhoIsService:
 
         # if attaching an existing location, the current device should not have
         # a location already set.
-        #TODO: Do we do this if device location exists but is marked fuzzy?
-        if add_existing and not device_location.location:
-            existing_device_with_location = (
-                Device.objects.select_related("device_location")
-                .filter(last_ip=ip_address, device_location__location__isnull=False)
+        current_location = device_location.location
+        if add_existing and (not current_location or current_location.fuzzy):
+            existing_device_location = (
+                Device.objects.select_related("devicelocation")
+                .filter(last_ip=ip_address, devicelocation__location__isnull=False)
+                .exclude(pk=device_pk)
                 .first()
             )
-            if existing_device_with_location:
-                location = existing_device_with_location.device_location.location
-                device_location.location = location
+            if existing_device_location:
+                existing_location = existing_device_location.devicelocation.location
+                if current_location and current_location.pk != existing_location.pk:
+                    # If current device already has a location, delete it
+                    # and set the existing location.
+                    current_location.delete()
+
+                device_location.location = existing_location
                 device_location.full_clean()
                 device_location.save()
         elif latitude and longitude:
