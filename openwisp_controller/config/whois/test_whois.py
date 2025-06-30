@@ -240,14 +240,18 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         connect_whois_handlers()
 
         with self.subTest("task called when last_ip is public"):
-            device = self._create_device(last_ip="172.217.22.14")
-            mocked_task.assert_called()
+            with mock.patch("django.core.cache.cache.set") as mocked_set:
+                device = self._create_device(last_ip="172.217.22.14")
+                mocked_task.assert_called()
+                mocked_set.assert_called_once()
         mocked_task.reset_mock()
 
         with self.subTest("task called when last_ip is changed and is public"):
-            device.last_ip = "172.217.22.10"
-            device.save()
-            mocked_task.assert_called()
+            with mock.patch("django.core.cache.cache.get") as mocked_get:
+                device.last_ip = "172.217.22.10"
+                device.save()
+                mocked_task.assert_called()
+                mocked_get.assert_called_once()
         mocked_task.reset_mock()
 
         with self.subTest("task not called when last_ip is private"):
