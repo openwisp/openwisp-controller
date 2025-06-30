@@ -1,11 +1,11 @@
 from .. import settings as app_settings
-from .serializers import WhoIsSerializer
+from .serializers import WHOISSerializer
 
 
-class WhoIsMixin:
-    """Mixin to add WhoIs information to the device representation."""
+class WHOISMixin:
+    """Mixin to add WHOIS information to the device representation."""
 
-    _whois_serializer_class = WhoIsSerializer
+    _whois_serializer_class = WHOISSerializer
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

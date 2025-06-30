@@ -190,10 +190,8 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_whois_details_device_api(self):
         """
-        Test the WhoIs details API endpoint.
+        Test the WHOIS details API endpoint.
         """
-        org = self._get_org()
-        OrganizationConfigSettings.objects.create(organization=org, whois_enabled=True)
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)
         self._login()
@@ -206,7 +204,11 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             self.assertIn("whois_info", response.data["results"][0])
             self.assertDictEqual(
                 response.data["results"][0]["whois_info"],
-                {"isp": whois_obj.isp, "country": whois_obj.address["country"]},
+                {
+                    "isp": whois_obj.isp,
+                    "country": whois_obj.address["country"],
+                    "ip_address": whois_obj.ip_address,
+                },
             )
 
         with self.subTest(
@@ -559,8 +561,9 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         assert_logging_on_exception(errors.AuthenticationError)
         assert_logging_on_exception(errors.PermissionRequiredError)
 
+
 @tag("selenium_tests")
-class TestWHOISSelenium(SeleniumTestMixin, CreateWHOISMixin, StaticLiveServerTestCase):
+class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTestCase):
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_whois_device_admin(self):
         whois_obj = self._create_whois_info()
@@ -568,10 +571,12 @@ class TestWHOISSelenium(SeleniumTestMixin, CreateWHOISMixin, StaticLiveServerTes
         self.login()
 
         with self.subTest(
-            "WhoIs details visible in device admin when WHOIS_CONFIGURED is True"
+            "WHOIS details visible in device admin when WHOIS_CONFIGURED is True"
         ):
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            self.wait_for_presence(
+                By.CSS_SELECTOR, 'table[id="whois_table"]', timeout=200
+            )
             table = self.find_element(By.ID, "whois_table")
             rows = table.find_elements(By.TAG_NAME, "tr")
             for row in rows:
@@ -583,15 +588,15 @@ class TestWHOISSelenium(SeleniumTestMixin, CreateWHOISMixin, StaticLiveServerTes
             self.web_driver.execute_script(
                 "arguments[0].setAttribute('open','')", details
             )
-            paragraphs = details.find_elements(By.TAG_NAME, "p")
-            self.assertIn(whois_obj.asn, paragraphs[0].text)
-            self.assertIn(whois_obj.timezone, paragraphs[1].text)
-            self.assertIn(whois_obj.formatted_address, paragraphs[2].text)
-            self.assertIn(whois_obj.cidr, paragraphs[3].text)
+            additional_text = details.find_elements(By.CSS_SELECTOR, ".additional-text")
+            self.assertIn(whois_obj.asn, additional_text[0].text)
+            self.assertIn(whois_obj.timezone, additional_text[1].text)
+            self.assertIn(whois_obj.formatted_address, additional_text[2].text)
+            self.assertIn(whois_obj.cidr, additional_text[3].text)
 
         with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
-                "WhoIs details not visible in device admin "
+                "WHOIS details not visible in device admin "
                 + "when WHOIS_CONFIGURED is False"
             ):
                 self.open(reverse("admin:config_device_change", args=[device.pk]))

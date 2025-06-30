@@ -6,7 +6,7 @@ django.jQuery(function ($) {
   if (
     $addForm.length ||
     !$deviceForm.length ||
-    deviceWhoIsDetails === undefined
+    deviceWHOISDetails === undefined
   ) {
     return;
   }
@@ -19,8 +19,8 @@ django.jQuery(function ($) {
             <th>Country</th>
           </tr>
           <tr>
-            <td>${deviceWhoIsDetails.isp}</td>
-            <td>${deviceWhoIsDetails.address.country}</td>
+            <td>${deviceWHOISDetails.isp}</td>
+            <td>${deviceWHOISDetails.address.country}</td>
           </tr>
         </table>
         <details id="whois_details">
@@ -31,10 +31,10 @@ django.jQuery(function ($) {
             </div>
           </summary>
           <div>
-            <span class="additional-text">ASN : ${deviceWhoIsDetails.asn}</span>
-            <span class="additional-text">Timezone : ${deviceWhoIsDetails.timezone}</span>
-            <span class="additional-text">Address : ${deviceWhoIsDetails.formatted_address}</span>
-            <span class="additional-text">CIDR : ${deviceWhoIsDetails.cidr}</span>
+            <span class="additional-text">ASN : ${deviceWHOISDetails.asn}</span>
+            <span class="additional-text">Timezone : ${deviceWHOISDetails.timezone}</span>
+            <span class="additional-text">Address : ${deviceWHOISDetails.formatted_address}</span>
+            <span class="additional-text">CIDR : ${deviceWHOISDetails.cidr}</span>
           </div>
         </details>`,
   );

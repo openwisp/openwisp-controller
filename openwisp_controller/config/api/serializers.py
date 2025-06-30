@@ -9,8 +9,8 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
-from ..whois.mixins import WhoIsMixin
-from ..whois.serializers import BriefWhoIsSerializer
+from ..whois.mixins import WHOISMixin
+from ..whois.serializers import BriefWHOISSerializer
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
@@ -222,10 +222,10 @@ class DeviceListConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
 
 
-class DeviceListSerializer(WhoIsMixin, DeviceConfigSerializer):
-    # This is part of WhoIsMixin, and is used to swap the
-    # serializer class used for the who_is_info field.
-    _who_is_serializer_class = BriefWhoIsSerializer
+class DeviceListSerializer(WHOISMixin, DeviceConfigSerializer):
+    # This is part of WHOISMixin, and is used to swap the
+    # serializer class used for the whois_info field.
+    _whois_serializer_class = BriefWHOISSerializer
 
     config = DeviceListConfigSerializer(required=False)
 
@@ -280,7 +280,7 @@ class DeviceDetailConfigSerializer(BaseConfigSerializer):
     templates = FilterTemplatesByOrganization(many=True)
 
 
-class DeviceDetailSerializer(WhoIsMixin, DeviceConfigSerializer):
+class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
     config = DeviceDetailConfigSerializer(allow_null=True)
     is_deactivated = serializers.BooleanField(read_only=True)
 

@@ -561,25 +561,19 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    class Media:
-        css = (
-            {
-                "all": BaseConfigAdmin.Media.css["all"]
-                + (f"{whois_prefix}css/whois_details.css",)
-            }
-            if app_settings.WHOIS_CONFIGURED
-            else BaseConfigAdmin.Media.css
-        )
-        js = list(BaseConfigAdmin.Media.js) + [
+    @property
+    def media(self):
+        js = BaseConfigAdmin.Media.js + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
-            *(
-                [f"{whois_prefix}js/whois_details.js"]
-                if app_settings.WHOIS_CONFIGURED
-                else []
-            ),
         ]
+        css = BaseConfigAdmin.Media.css["all"]
+        if app_settings.WHOIS_CONFIGURED:
+            js.append(f"{whois_prefix}js/whois_details.js")
+            css += (f"{whois_prefix}css/whois_details.css",)
+
+        return forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
@@ -884,7 +878,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 name="get_default_values",
             ),
         ] + super().get_urls()
-
         for inline in self.inlines + self.conditional_inlines:
             try:
                 urls.extend(inline(self, self.admin_site).get_urls())
@@ -934,8 +927,14 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 ),
             }
         )
-        if app_settings.WHOIS_CONFIGURED and pk:
-            ctx["device_whois_details"] = json.dumps(get_whois_info(pk))
+        # passing the whois details to the context to avoid
+        # the need to make an additional request in the js
+        if (
+            pk
+            and app_settings.WHOIS_CONFIGURED
+            and (data := json.dumps(get_whois_info(pk)))
+        ):
+            ctx["device_whois_details"] = data
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):
