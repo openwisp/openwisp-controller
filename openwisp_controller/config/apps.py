@@ -31,6 +31,7 @@ from .signals import (
     vpn_peers_changed,
     vpn_server_modified,
 )
+from .whois.handlers import connect_whois_handlers
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -52,6 +53,7 @@ class ConfigConfig(AppConfig):
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
+        connect_whois_handlers()
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
