@@ -208,6 +208,14 @@ DJANGO_LOCI_GEOCODE_STRICT_TEST = False
 OPENWISP_CONTROLLER_CONTEXT = {"vpnserver1": "vpn.testdomain.com"}
 OPENWISP_USERS_AUTH_API = True
 
+# GEOIP Related Settings
+OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT = os.getenv(
+    "OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT", ""
+)
+OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY = os.getenv(
+    "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY", ""
+)
+
 TEST_RUNNER = "openwisp_utils.tests.TimeLoggingTestRunner"
 
 if os.environ.get("SAMPLE_APP", False):
@@ -266,6 +274,7 @@ if os.environ.get("SAMPLE_APP", False):
     CONFIG_VPNCLIENT_MODEL = "sample_config.VpnClient"
     CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = "sample_config.OrganizationConfigSettings"
     CONFIG_ORGANIZATIONLIMITS_MODEL = "sample_config.OrganizationLimits"
+    CONFIG_WHOISINFO_MODEL = "sample_config.WHOISInfo"
     DJANGO_X509_CA_MODEL = "sample_pki.Ca"
     DJANGO_X509_CERT_MODEL = "sample_pki.Cert"
     GEO_LOCATION_MODEL = "sample_geo.Location"

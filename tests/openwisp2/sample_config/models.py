@@ -13,6 +13,7 @@ from openwisp_controller.config.base.tag import (
 )
 from openwisp_controller.config.base.template import AbstractTemplate
 from openwisp_controller.config.base.vpn import AbstractVpn, AbstractVpnClient
+from openwisp_controller.config.base.whois import AbstractWHOISInfo
 
 
 class DetailsModel(models.Model):
@@ -110,4 +111,13 @@ class OrganizationLimits(DetailsModel, AbstractOrganizationLimits):
     """
 
     class Meta(AbstractOrganizationLimits.Meta):
+        abstract = False
+
+
+class WHOISInfo(DetailsModel, AbstractWHOISInfo):
+    """
+    Stores WHOIS information for devices.
+    """
+
+    class Meta(AbstractWHOISInfo.Meta):
         abstract = False

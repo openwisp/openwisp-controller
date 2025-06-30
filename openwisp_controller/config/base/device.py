@@ -1,3 +1,4 @@
+from functools import cached_property
 from hashlib import md5
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -18,6 +19,7 @@ from ..signals import (
     management_ip_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
+from ..whois.service import WHOISService
 from .base import BaseModel
 
 
@@ -118,6 +120,11 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Initial value for last_ip is required in WHOIS
+        # to remove WHOIS info related to that ip address.
+        if app_settings.WHOIS_CONFIGURED:
+            self._changed_checked_fields.append("last_ip")
+
         self._set_initial_values_for_changed_checked_fields()
 
     def _set_initial_values_for_changed_checked_fields(self):
@@ -279,6 +286,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         super().save(*args, **kwargs)
+        if app_settings.WHOIS_CONFIGURED:
+            self._check_last_ip()
         if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
@@ -299,7 +308,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         self._get_initial_values_for_checked_fields()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
-            getattr(self, f"_check_{field}_changed")()
+            method = getattr(self, f"_check_{field}_changed", None)
+            if callable(method):
+                method()
 
     def _is_deferred(self, field):
         """
@@ -509,3 +520,18 @@ class AbstractDevice(OrgMixin, BaseModel):
         is changed to 'deactivated'.
         """
         cls.objects.filter(pk=instance.device_id).update(management_ip="")
+
+    @cached_property
+    def whois_service(self):
+        """
+        Used as a shortcut to get WHOISService instance
+        for the device.
+        """
+        return WHOISService(self)
+
+    def _check_last_ip(self):
+        """Trigger WHOIS lookup if last_ip is not deferred."""
+        if self._initial_last_ip == models.DEFERRED:
+            return
+        self.whois_service.trigger_whois_lookup()
+        self._initial_last_ip = self.last_ip
