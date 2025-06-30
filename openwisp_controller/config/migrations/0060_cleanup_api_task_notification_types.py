@@ -26,6 +26,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(
-            delete_old_notification_data, reverse_code=migrations.RunPython.noop
+            cleanup_api_task_notification_types, reverse_code=migrations.RunPython.noop
         ),
     ]
