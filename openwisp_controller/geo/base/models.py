@@ -1,4 +1,5 @@
 from django.contrib.gis.db import models
+from django.utils.translation import gettext_lazy as _
 from django_loci.base.models import (
     AbstractFloorPlan,
     AbstractLocation,
@@ -10,6 +11,14 @@ from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
+    fuzzy = models.BooleanField(
+        default=False,
+        help_text=_(
+            "If true, the location is considered fuzzy and "
+            "may not have precise coordinates."
+        ),
+    )
+
     class Meta(AbstractLocation.Meta):
         abstract = True
 
