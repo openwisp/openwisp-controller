@@ -2,15 +2,24 @@
 
 from django.db import migrations
 
+
 def delete_old_notification_data(apps, schema_editor):
-    Notification = apps.get_model('openwisp_notifications', 'Notification')
-    NotificationSetting = apps.get_model('openwisp_notifications', 'NotificationSetting')
+    # Skip if openwisp_notifications is not installed
+    if not apps.is_installed("openwisp_notifications"):
+        return
+
+    Notification = apps.get_model("openwisp_notifications", "Notification")
+    NotificationSetting = apps.get_model(
+        "openwisp_notifications", "NotificationSetting"
+    )
+
     NotificationSetting.objects.filter(
-        type__in=['api_task_error', 'api_task_recovery']
+        type__in=["api_task_error", "api_task_recovery"]
     ).delete()
     Notification.objects.filter(
-        type__in=['api_task_error', 'api_task_recovery']
+        type__in=["api_task_error", "api_task_recovery"]
     ).delete()
+
 
 class Migration(migrations.Migration):
 
@@ -19,6 +28,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(delete_old_notification_data),
+        migrations.RunPython(
+            delete_old_notification_data, reverse_code=migrations.RunPython.noop
+        ),
     ]
-
