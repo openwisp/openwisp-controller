@@ -1362,18 +1362,29 @@ class OrganizationLimitsInline(admin.StackedInline):
 
 
 limits_inline_position = 0
-if getattr(app_settings, "REGISTRATION_ENABLED", True):
 
-    class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
-        class Meta:
-            widgets = {"context": FlatJsonWidget}
 
-    class ConfigSettingsInline(admin.StackedInline):
-        model = OrganizationConfigSettings
-        form = ConfigSettingsForm
+class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
+    class Meta:
+        widgets = {"context": FlatJsonWidget}
 
-    OrganizationAdmin.save_on_top = True
-    OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
-    limits_inline_position = 1
+
+class ConfigSettingsInline(admin.StackedInline):
+    model = OrganizationConfigSettings
+    form = ConfigSettingsForm
+
+    def get_fields(self, request, obj=None):
+        fields = []
+        if app_settings.REGISTRATION_ENABLED:
+            fields += ["registration_enabled", "shared_secret"]
+        if app_settings.WHOIS_CONFIGURED:
+            fields += ["whois_enabled"]
+        fields += ["context"]
+        return fields
+
+
+OrganizationAdmin.save_on_top = True
+OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
+limits_inline_position = 1
 
 OrganizationAdmin.inlines.insert(limits_inline_position, OrganizationLimitsInline)
