@@ -136,6 +136,14 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
         whois_obj.full_clean()
         whois_obj.save()
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
+        location_address = whois_obj.formatted_address
+        manage_fuzzy_locations.delay(
+            device_pk,
+            new_ip_address,
+            data.location.latitude,
+            data.location.longitude,
+            location_address,
+        )
 
         # the following check ensures that for a case when device last_ip
         # is not changed and there is no related WHOIS record, we do not
@@ -192,15 +200,22 @@ def manage_fuzzy_locations(
     # if attaching an existing location, the current device should not have
     # a location already set.
     # TODO: Do we do this if device location exists but is marked fuzzy?
-    if add_existing and not device_location.location:
-        existing_device_with_location = (
-            Device.objects.select_related("device_location")
-            .filter(last_ip=ip_address, device_location__location__isnull=False)
+    current_location = device_location.location
+    if add_existing and (not current_location or current_location.fuzzy):
+        existing_device_location = (
+            Device.objects.select_related("devicelocation")
+            .filter(last_ip=ip_address, devicelocation__location__isnull=False)
+            .exclude(pk=device_pk)
             .first()
         )
-        if existing_device_with_location:
-            location = existing_device_with_location.device_location.location
-            device_location.location = location
+        if existing_device_location:
+            existing_location = existing_device_location.devicelocation.location
+            if current_location and current_location.pk != existing_location.pk:
+                # If current device already has a location, delete it
+                # and set the existing location.
+                current_location.delete()
+
+            device_location.location = existing_location
             device_location.full_clean()
             device_location.save()
     elif latitude and longitude:
