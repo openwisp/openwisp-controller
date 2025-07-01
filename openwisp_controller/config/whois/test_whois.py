@@ -394,7 +394,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         mocked_task.reset_mock()
 
         with self.subTest(
-            f"{task_name} task called via DeviceChecksumView when a device has no WHOIS record"
+            f"{task_name} task called via DeviceChecksumView for no WHOIS record"
         ):
             WHOISInfo.objects.all().delete()
             response = self.client.get(
@@ -413,7 +413,9 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
 
         Device.objects.all().delete()  # Clear existing devices
         device = self._create_device()
-        with self.subTest("WHOIS lookup task not called when last_ip has related WhoIsInfo"):
+        with self.subTest(
+            "WHOIS lookup task not called when last_ip has related WhoIsInfo"
+        ):
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
@@ -548,7 +550,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
 
         with self.subTest("Test WHOIS create when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
-            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_info.call_count, 2)
             mock_info.reset_mock()
             device.refresh_from_db()
 
@@ -562,7 +564,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             old_ip_address = device.last_ip
             device.last_ip = "172.217.22.10"
             device.save()
-            self.assertEqual(mock_info.call_count, 1)
+            self.assertEqual(mock_info.call_count, 2)
             mock_info.reset_mock()
             device.refresh_from_db()
 
@@ -616,7 +618,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             device = self._create_device(last_ip="172.217.22.14")
 
             location = device.devicelocation.location
-            self.assertEqual(location.fuzzy, True)
+            self.assertEqual(location.is_approximate, True)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
@@ -631,29 +633,29 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             device.refresh_from_db()
 
             location = device.devicelocation.location
-            self.assertEqual(location.fuzzy, True)
+            self.assertEqual(location.is_approximate, True)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
 
         with self.subTest(
-            "Test Location not updated if it is not fuzzy when last ip is updated"
+            "Test Location not updated if it is not approximate when last ip is updated"
         ):
             device.last_ip = "172.217.22.11"
-            device.devicelocation.location.fuzzy = False
+            device.devicelocation.location.is_approximate = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
             device.devicelocation.location.save()
             device.save()
             device.refresh_from_db()
 
             location = device.devicelocation.location
-            self.assertEqual(location.fuzzy, False)
+            self.assertEqual(location.is_approximate, False)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
 
         with self.subTest(
-            "Test Location shared among devices with same last_ip when new device's location does not exist"
+            "Test shared location for same IP when new device's location does not exist"
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
@@ -668,7 +670,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             )
 
         with self.subTest(
-            "Test Location shared among devices with same last_ip when new device's location exist"
+            "Test shared location for same IP when new device's location exist"
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
