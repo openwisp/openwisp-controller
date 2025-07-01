@@ -181,8 +181,15 @@ def manage_fuzzy_locations(
     """
     Creates/updates fuzzy location for a device based on the latitude and longitude
     or attaches an existing location if `add_existing` is True.
-    Existing location here means a location of a device whose last_ip matches
+    Existing location here means a location of another device whose last_ip matches
     the given ip_address.
+
+    - If attaching existing location and current device has no location then the
+    existing location is attached to the current device as well.
+    - If attaching existing location and current device already has location, then
+    current device's location is deleted and set same as existing device's location.
+    - If not attaching existing then new location is created if no location exists for
+    current device, or existing one is updated if it is approximate(fuzzy).
     """
     Device = load_model("config", "Device")
     Location = load_model("geo", "Location")
@@ -199,9 +206,8 @@ def manage_fuzzy_locations(
 
     # if attaching an existing location, the current device should not have
     # a location already set.
-    # TODO: Do we do this if device location exists but is marked fuzzy?
     current_location = device_location.location
-    if add_existing and (not current_location or current_location.fuzzy):
+    if add_existing and (not current_location or current_location.is_approximate):
         existing_device_location = (
             Device.objects.select_related("devicelocation")
             .filter(last_ip=ip_address, devicelocation__location__isnull=False)
@@ -223,23 +229,31 @@ def manage_fuzzy_locations(
         coords = Point(longitude, latitude, srid=4326)
         # Create/update the device location mapping, updating existing location
         # if exists else create a new location
+        location_name = (
+            " ".join(address.split(",")[:2])
+            if address
+            else f"Approximate Location {ip_address}"
+        )
         location_defaults = {
-            "name": f"{device.name} Location",
+            "name": location_name,
             "type": "outdoor",
             "organization_id": device.organization_id,
             "is_mobile": False,
             "geometry": coords,
             "address": address,
         }
-        if device_location.location and device_location.location.fuzzy:
+        if device_location.location and device_location.location.is_approximate:
             for attr, value in location_defaults.items():
                 setattr(device_location.location, attr, value)
             device_location.location.full_clean()
             device_location.location.save()
         elif not device_location.location:
-            location = Location(**location_defaults, fuzzy=True)
+            location = Location(**location_defaults, is_approximate=True)
             location.full_clean()
             location.save()
             device_location.location = location
             device_location.full_clean()
             device_location.save()
+    logger.info(
+        f"Fuzzy location saved successfully for {device_pk} for IP: {ip_address}"
+    )
