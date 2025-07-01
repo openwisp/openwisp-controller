@@ -7,11 +7,10 @@ class WHOISMixin:
 
     _whois_serializer_class = WHOISSerializer
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        org_config = instance._get_organization__config_settings()
-        if app_settings.WHOIS_CONFIGURED and org_config.whois_enabled:
-            data["whois_info"] = self.get_whois_info(instance)
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        if app_settings.WHOIS_CONFIGURED and obj.whois_service.is_whois_enabled:
+            data["whois_info"] = self.get_whois_info(obj)
         return data
 
     def get_whois_info(self, obj):
