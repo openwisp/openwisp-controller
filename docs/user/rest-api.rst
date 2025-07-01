@@ -1227,18 +1227,18 @@ Example for complete details:
     {
         ...
         "whois_info": {
-            "ip_address": "178.170.49.99",
+            "ip_address": "104.236.201.30",
             "address": {
-                "city": "Paris",
-                "country": "France",
-                "continent": "Europe",
-                "postal": ""
+                "city": "Clifton",
+                "country": "United States",
+                "continent": "North America",
+                "postal": "07014"
             },
-            "created": "2025-07-01T06:46:20.133101+02:00",
-            "modified": "2025-07-01T06:46:20.134356+02:00",
-            "isp": "Ikoula Net SAS",
-            "asn": "21409",
-            "timezone": "Europe/Paris",
-            "cidr": "178.170.48.0/21"
+            "created": "2025-07-01T17:04:35.845534+02:00",
+            "modified": "2025-07-01T17:04:35.848884+02:00",
+            "isp": "DIGITALOCEAN-ASN",
+            "asn": "14061",
+            "timezone": "America/New_York",
+            "cidr": "104.236.192.0/18"
         }
     }

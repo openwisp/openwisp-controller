@@ -574,9 +574,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             "WHOIS details visible in device admin when WHOIS_CONFIGURED is True"
         ):
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_presence(
-                By.CSS_SELECTOR, 'table[id="whois_table"]', timeout=200
-            )
+            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="whois_table"]')
             table = self.find_element(By.ID, "whois_table")
             rows = table.find_elements(By.TAG_NAME, "tr")
             for row in rows:

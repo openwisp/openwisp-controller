@@ -561,19 +561,21 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    @property
-    def media(self):
-        js = BaseConfigAdmin.Media.js + [
+    # Directly including the media files of WHOIS feature
+    # as testing it in isolation requires usage of media
+    # property which causes visibility issues in selenium
+    # tests.
+    class Media:
+        css = {
+            "all": BaseConfigAdmin.Media.css["all"]
+            + (f"{whois_prefix}css/whois_details.css",)
+        }
+        js = list(BaseConfigAdmin.Media.js) + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
+            f"{whois_prefix}js/whois_details.js",
         ]
-        css = BaseConfigAdmin.Media.css["all"]
-        if app_settings.WHOIS_CONFIGURED:
-            js.append(f"{whois_prefix}js/whois_details.js")
-            css += (f"{whois_prefix}css/whois_details.css",)
-
-        return forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
