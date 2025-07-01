@@ -11,12 +11,9 @@ from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
-    fuzzy = models.BooleanField(
+    is_approximate = models.BooleanField(
         default=False,
-        help_text=_(
-            "If true, the location is considered fuzzy and "
-            "may not have precise coordinates."
-        ),
+        help_text=_("Whether the location's coordinates are approximate."),
     )
 
     class Meta(AbstractLocation.Meta):

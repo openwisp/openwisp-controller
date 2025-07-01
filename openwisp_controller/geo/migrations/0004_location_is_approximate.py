@@ -12,13 +12,10 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="location",
-            name="fuzzy",
+            name="is_approximate",
             field=models.BooleanField(
                 default=False,
-                help_text=(
-                    "If true, the location is considered fuzzy and "
-                    "may not have precise coordinates."
-                ),
+                help_text=("Whether the location's coordinates are approximate."),
             ),
         ),
     ]
