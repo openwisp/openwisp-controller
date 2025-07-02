@@ -14,8 +14,6 @@ class WHOISMixin:
         return data
 
     def get_whois_info(self, obj):
-        if not obj.last_ip:
-            return None
         whois_obj = obj.whois_service.get_device_whois_info()
         if not whois_obj:
             return None

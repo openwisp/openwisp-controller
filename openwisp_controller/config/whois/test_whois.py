@@ -227,6 +227,26 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             self.assertEqual(api_whois_info["timezone"], whois_obj.timezone)
             self.assertEqual(api_whois_info["address"], whois_obj.address)
 
+        with self.subTest(
+            "Device List API has whois_info as None when no WHOISInfo exists"
+        ):
+            device.last_ip = "172.217.22.24"
+            device.save()
+            response = self.client.get(reverse("config_api:device_list"))
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("whois_info", response.data["results"][0])
+            self.assertIsNone(response.data["results"][0]["whois_info"])
+
+        with self.subTest(
+            "Device Detail API has whois_info as None when no WHOISInfo exists"
+        ):
+            response = self.client.get(
+                reverse("config_api:device_detail", args=[device.pk])
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("whois_info", response.data)
+            self.assertIsNone(response.data["whois_info"])
+
         with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
                 "Device List API has no whois_info when WHOIS_CONFIGURED is False"
@@ -284,7 +304,7 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
 
 class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client.city"
     )
     _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
     _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"
@@ -480,7 +500,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         mock_response.traits.autonomous_system_number = 15169
         mock_response.traits.network = "172.217.22.0/24"
         mock_response.location.time_zone = "America/Los_Angeles"
-        mock_client.return_value.city.return_value = mock_response
+        mock_client.return_value = mock_response
 
         with self.subTest("Test WHOIS create when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
