@@ -273,7 +273,7 @@ class TestNotifications(
                 notification = notification_qs.first()
                 self.assertEqual(notification.actor, vpn)
                 self.assertEqual(notification.target, vpn)
-                self.assertEqual(notification.type, "api_task_error")
+                self.assertEqual(notification.type, "generic_message")
                 self.assertIn(
                     "Unable to perform update operation", notification.message
                 )
@@ -315,14 +315,14 @@ class TestNotifications(
                 self.assertEqual(mock_info.call_count, 1)
                 self.assertEqual(notification_recovery.actor, vpn)
                 self.assertEqual(notification_recovery.target, vpn)
-                self.assertEqual(notification_recovery.type, "api_task_recovery")
+                self.assertEqual(notification_recovery.type, "generic_message")
                 self.assertIn("The update operation on", notification_recovery.message)
                 # For unrecoverable error
                 self.assertEqual(mock_warn.call_count, 0)
                 self.assertEqual(mock_error.call_count, 1)
                 self.assertEqual(notification_error.actor, vpn)
                 self.assertEqual(notification_error.target, vpn)
-                self.assertEqual(notification_error.type, "api_task_error")
+                self.assertEqual(notification_error.type, "generic_message")
                 self.assertIn(
                     "Unable to perform update member operation",
                     notification_error.message,

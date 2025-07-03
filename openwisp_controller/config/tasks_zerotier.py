@@ -5,6 +5,7 @@ from time import sleep
 from celery import shared_task
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import gettext as _
 from openwisp_notifications.signals import notify
 from requests.exceptions import RequestException
 from swapper import load_model
@@ -35,12 +36,37 @@ class OpenwispApiTask(OpenwispCeleryTask):
         # with the ow-notification container
         # https://github.com/openwisp/openwisp-notifications/issues/264
         sleep(2)
+        message_map = {
+            "error": {
+                "verb": _("encountered an unrecoverable error"),
+                "message": _(
+                    "Unable to perform {action} operation on the "
+                    "{target} VPN server due to an "
+                    "unrecoverable error "
+                    "(status code: {status_code})"
+                ),
+                "level": "error",
+            },
+            "recovery": {
+                "verb": _("has been completed successfully"),
+                "message": _("The {action} operation on {target} {verb}."),
+                "level": "info",
+            },
+        }
+        meta = message_map[type]
         notify.send(
-            type=f"api_task_{type}",
+            type="generic_message",
             sender=vpn,
             target=vpn,
             action=action,
-            status_code=status_code,
+            verb=meta["verb"],
+            message=meta["message"].format(
+                action=action,
+                target=str(vpn),
+                status_code=status_code,
+                verb=meta["verb"],
+            ),
+            level=meta["level"],
         )
 
     def handle_api_call(self, fn, *args, send_notification=True, **kwargs):
