@@ -195,11 +195,15 @@ class GeoJsonLocationList(
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = LocationOrganizationFilter
 
+class IndoorCoodinatesViewPagination(ListViewPagination):
+    # Todo: Make it 50
+    page_size = 5
 
 class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
     serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = IndoorCoordinatesFilter
+    pagination_class = IndoorCoodinatesViewPagination
     queryset = (
         DeviceLocation.objects.filter(
             location__type="indoor",
@@ -211,10 +215,34 @@ class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
         .order_by("floorplan__floor")
     )
 
+    def get_available_floors(self, qs):
+        floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
+        return floors
+    
+    def get_floor_from_query_or_default(self, qs, floor_param):
+        """
+        Returns first positive floor if no param is provieded if provived show for that perticular floor 
+        """
+        floors = self.get_available_floors(qs)
+        if floor_param is None:
+            first_positive_floor = [f for f in floors if f > 0]
+            return min(first_positive_floor) if first_positive_floor else min(floors)
+        else:
+            try:
+                floor = int(floor_param)
+            except ValueError:
+                return None
+            return floor if floor in floors else None
+
     def get_queryset(self):
         qs = super().get_queryset()
         location_id = self.kwargs.get("pk")
         qs = qs.filter(location__id=location_id)
+        floor_param = self.request.query_params.get("floor")
+        floor_no = self.get_floor_from_query_or_default(qs, floor_param)
+        if floor_no is None:
+            return qs.none()
+        qs = qs.filter(floorplan__floor=floor_no)
         return qs
 
 

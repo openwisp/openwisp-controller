@@ -385,10 +385,5 @@ class IndoorCoordinatesSerializer(serializers.ModelSerializer):
         """
         NetJsonGraph expects indoor coordinates in {'lat': y, 'lng': x}.
         """
-        if not obj.indoor:
-            raise serializers.ValidationError(
-                detail={"indoor": _("Floorplan indoor cordinates is null")}
-            )
-
         y, x = obj.indoor.split(",", 1)
         return {"lat": float(y), "lng": float(x)}
