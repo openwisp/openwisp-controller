@@ -573,8 +573,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         ]
         css = BaseConfigAdmin.Media.css["all"]
         if app_settings.WHOIS_CONFIGURED:
-            js.append(f"{whois_prefix}js/whois_details.js")
-            css += (f"{whois_prefix}css/whois_details.css",)
+            js.append(f"{whois_prefix}js/whois.js")
+            css += (f"{whois_prefix}css/whois.css",)
         return super().media + forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
@@ -931,11 +931,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         )
         # passing the whois details to the context to avoid
         # the need to make an additional request in the js
-        if (
-            pk
-            and app_settings.WHOIS_CONFIGURED
-            and (data := json.dumps(get_whois_info(pk)))
-        ):
+        if data := json.dumps(get_whois_info(pk)):
             ctx["device_whois_details"] = data
         return ctx
 

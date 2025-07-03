@@ -1,11 +1,11 @@
 from .. import settings as app_settings
-from .serializers import WHOISSerializer
+from .serializers import BriefWHOISSerializer, WHOISSerializer
 
 
 class WHOISMixin:
     """Mixin to add WHOIS information to the device representation."""
 
-    _whois_serializer_class = WHOISSerializer
+    serializer_class = WHOISSerializer
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
@@ -17,4 +17,8 @@ class WHOISMixin:
         whois_obj = obj.whois_service.get_device_whois_info()
         if not whois_obj:
             return None
-        return self._whois_serializer_class(whois_obj).data
+        return self.serializer_class(whois_obj).data
+
+
+class BriefWHOISMixin(WHOISMixin):
+    serializer_class = BriefWHOISSerializer

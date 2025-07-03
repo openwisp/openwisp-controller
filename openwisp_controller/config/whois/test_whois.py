@@ -622,3 +622,24 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 self.wait_for_invisibility(
                     By.CSS_SELECTOR, 'details[id="whois_details"]'
                 )
+
+        with self.subTest(
+            "WHOIS details not visible in device admin when WHOIS is disabled"
+        ):
+            org = self._get_org()
+            org.config_settings.whois_enabled = False
+            org.config_settings.save(update_fields=["whois_enabled"])
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
+
+        with self.subTest(
+            "WHOIS details not visible in device admin when WHOISInfo does not exist"
+        ):
+            org = self._get_org()
+            org.config_settings.whois_enabled = True
+            org.config_settings.save(update_fields=["whois_enabled"])
+            WHOISInfo.objects.all().delete()
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
