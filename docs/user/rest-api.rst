@@ -1190,6 +1190,8 @@ Revoke Cert
 
     POST /api/v1/controller/cert/{id}/revoke/
 
+.. _device_whois_details:
+
 WHOIS Details
 ~~~~~~~~~~~~~
 
@@ -1211,7 +1213,7 @@ Example for brief details:
         "previous": null,
         "results": [
             {
-            ...
+            ...,
             "whois_info": {
                 "isp": "Ikoula Net SAS",
                 "country": "France",
@@ -1225,7 +1227,7 @@ Example for complete details:
 .. code-block:: json
 
     {
-        ...
+        ...,
         "whois_info": {
             "ip_address": "104.236.201.30",
             "address": {

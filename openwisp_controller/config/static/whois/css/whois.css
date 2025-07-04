@@ -57,6 +57,7 @@
 }
 #whois_details summary .mg-arrow {
   transform: scale(1.75);
+  display: inline;
 }
 #whois_details > div {
   padding: 1em;

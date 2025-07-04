@@ -78,3 +78,20 @@ Setup Instructions
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_ENABLED` to ``True``.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT` to **Account ID**.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY` to **License Key**.
+
+Viewing WHOIS Lookup Data
+-------------------------
+
+Once the WHOIS Lookup feature is enabled and WHOIS data is available, he
+retrieved details can be viewed in the following locations:
+
+- **Device Admin**: On the device's admin page, the WHOIS data is
+  displayed alongside the device's last IP address.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.2/whois-admin-details.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.2/whois-admin-details.png
+    :alt: WHOIS admin details
+
+- **Device REST API**: The WHOIS details are included in the device's list
+  and details REST API responses under the ``whois_info`` field.
+  :ref:`REST API <device_whois_details>`
