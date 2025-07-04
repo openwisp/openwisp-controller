@@ -1189,3 +1189,58 @@ Revoke Cert
 .. code-block:: text
 
     POST /api/v1/controller/cert/{id}/revoke/
+
+.. _device_whois_details:
+
+WHOIS Details
+~~~~~~~~~~~~~
+
+.. note::
+
+    This feature is required to be enabled in the settings, see
+    :ref:`OPENWISP_CONTROLLER_WHOIS_ENABLED`.
+
+WHOIS details of a device can be retrieved by either using the device list
+endpoint or device detail endpoint. The list endpoint will contain brief
+details while the detail endpoint will contain all the WHOIS details.
+Example for brief details:
+
+.. code-block:: json
+
+    {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+            {
+            ...,
+            "whois_info": {
+                "isp": "Ikoula Net SAS",
+                "country": "France",
+                "ip_address": "178.170.49.99"
+            }
+        ]
+    }
+
+Example for complete details:
+
+.. code-block:: json
+
+    {
+        ...,
+        "whois_info": {
+            "ip_address": "104.236.201.30",
+            "address": {
+                "city": "Clifton",
+                "country": "United States",
+                "continent": "North America",
+                "postal": "07014"
+            },
+            "created": "2025-07-01T17:04:35.845534+02:00",
+            "modified": "2025-07-01T17:04:35.848884+02:00",
+            "isp": "DIGITALOCEAN-ASN",
+            "asn": "14061",
+            "timezone": "America/New_York",
+            "cidr": "104.236.192.0/18"
+        }
+    }

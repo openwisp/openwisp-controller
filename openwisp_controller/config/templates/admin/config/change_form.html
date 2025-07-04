@@ -19,6 +19,9 @@
         const owControllerApiHost = window.location;
     {% endif %}
         const owCommandApiEndpoint = '{{ commands_api_endpoint | safe }}';
+    {% if device_whois_details %}
+        const deviceWHOISDetails = {{ device_whois_details | safe }};
+    {% endif %}
     </script>
    {{ block.super}}
 {% endblock extrahead %}

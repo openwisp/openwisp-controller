@@ -1,12 +1,16 @@
 import importlib
 from unittest import mock
 
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.signals import post_delete, post_save
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
 from geoip2 import errors
+from selenium.webdriver.common.by import By
 from swapper import load_model
+
+from openwisp_utils.tests import SeleniumTestMixin
 
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
@@ -183,6 +187,83 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 app_settings.WHOIS_ENABLED,
             )
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_whois_details_device_api(self):
+        """
+        Test the WHOIS details API endpoint.
+        """
+        whois_obj = self._create_whois_info()
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        self._login()
+
+        with self.subTest(
+            "Device List API has whois_info when WHOIS_CONFIGURED is True"
+        ):
+            response = self.client.get(reverse("config_api:device_list"))
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("whois_info", response.data["results"][0])
+            self.assertDictEqual(
+                response.data["results"][0]["whois_info"],
+                {
+                    "isp": whois_obj.isp,
+                    "country": whois_obj.address["country"],
+                    "ip_address": whois_obj.ip_address,
+                },
+            )
+
+        with self.subTest(
+            "Device Detail API has whois_info when WHOIS_CONFIGURED is True"
+        ):
+
+            response = self.client.get(
+                reverse("config_api:device_detail", args=[device.pk])
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("whois_info", response.data)
+            api_whois_info = response.data["whois_info"]
+            self.assertEqual(api_whois_info["isp"], whois_obj.isp)
+            self.assertEqual(api_whois_info["cidr"], whois_obj.cidr)
+            self.assertEqual(api_whois_info["asn"], whois_obj.asn)
+            self.assertEqual(api_whois_info["timezone"], whois_obj.timezone)
+            self.assertEqual(api_whois_info["address"], whois_obj.address)
+
+        with self.subTest(
+            "Device List API has whois_info as None when no WHOISInfo exists"
+        ):
+            device.last_ip = "172.217.22.24"
+            device.save()
+            response = self.client.get(reverse("config_api:device_list"))
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("whois_info", response.data["results"][0])
+            self.assertIsNone(response.data["results"][0]["whois_info"])
+
+        with self.subTest(
+            "Device Detail API has whois_info as None when no WHOISInfo exists"
+        ):
+            response = self.client.get(
+                reverse("config_api:device_detail", args=[device.pk])
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("whois_info", response.data)
+            self.assertIsNone(response.data["whois_info"])
+
+        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
+            with self.subTest(
+                "Device List API has no whois_info when WHOIS_CONFIGURED is False"
+            ):
+                response = self.client.get(reverse("config_api:device_list"))
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("whois_info", response.data["results"][0])
+
+            with self.subTest(
+                "Device Detail API has no whois_info when WHOIS_CONFIGURED is False"
+            ):
+                response = self.client.get(
+                    reverse("config_api:device_detail", args=[device.pk])
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("whois_info", response.data)
+
 
 class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
     def test_whois_model_fields_validation(self):
@@ -223,7 +304,7 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
 
 class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client.city"
     )
     _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
     _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"
@@ -419,7 +500,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         mock_response.traits.autonomous_system_number = 15169
         mock_response.traits.network = "172.217.22.0/24"
         mock_response.location.time_zone = "America/Los_Angeles"
-        mock_client.return_value.city.return_value = mock_response
+        mock_client.return_value = mock_response
 
         with self.subTest("Test WHOIS create when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
@@ -499,3 +580,66 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
         assert_logging_on_exception(errors.AddressNotFoundError)
         assert_logging_on_exception(errors.AuthenticationError)
         assert_logging_on_exception(errors.PermissionRequiredError)
+
+
+@tag("selenium_tests")
+class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTestCase):
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_whois_device_admin(self):
+        whois_obj = self._create_whois_info()
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        self.login()
+
+        with self.subTest(
+            "WHOIS details visible in device admin when WHOIS_CONFIGURED is True"
+        ):
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            table = self.find_element(By.ID, "whois_table")
+            rows = table.find_elements(By.TAG_NAME, "tr")
+            for row in rows:
+                if cells := row.find_elements(By.TAG_NAME, "td"):
+                    self.assertEqual(cells[0].text, whois_obj.isp)
+                    self.assertEqual(cells[1].text, whois_obj.address["country"])
+
+            details = self.find_element(By.ID, "whois_details")
+            self.web_driver.execute_script(
+                "arguments[0].setAttribute('open','')", details
+            )
+            additional_text = details.find_elements(By.CSS_SELECTOR, ".additional-text")
+            self.assertIn(whois_obj.asn, additional_text[0].text)
+            self.assertIn(whois_obj.timezone, additional_text[1].text)
+            self.assertIn(whois_obj.formatted_address, additional_text[2].text)
+            self.assertIn(whois_obj.cidr, additional_text[3].text)
+
+        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
+            with self.subTest(
+                "WHOIS details not visible in device admin "
+                + "when WHOIS_CONFIGURED is False"
+            ):
+                self.open(reverse("admin:config_device_change", args=[device.pk]))
+                self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
+                self.wait_for_invisibility(
+                    By.CSS_SELECTOR, 'details[id="whois_details"]'
+                )
+
+        with self.subTest(
+            "WHOIS details not visible in device admin when WHOIS is disabled"
+        ):
+            org = self._get_org()
+            org.config_settings.whois_enabled = False
+            org.config_settings.save(update_fields=["whois_enabled"])
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
+
+        with self.subTest(
+            "WHOIS details not visible in device admin when WHOISInfo does not exist"
+        ):
+            org = self._get_org()
+            org.config_settings.whois_enabled = True
+            org.config_settings.save(update_fields=["whois_enabled"])
+            WHOISInfo.objects.all().delete()
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
+            self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
