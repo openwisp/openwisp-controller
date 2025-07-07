@@ -195,45 +195,40 @@ def manage_fuzzy_locations(
     Location = load_model("geo", "Location")
     DeviceLocation = load_model("geo", "DeviceLocation")
 
-    device_location = (
-        DeviceLocation.objects.filter(content_object_id=device_pk)
-        .select_related("location")
-        .first()
-    )
+    device = Device.objects.get(pk=device_pk)
 
-    if not device_location:
-        device_location = DeviceLocation(content_object_id=device_pk)
+    device_location, _ = DeviceLocation.objects.select_related(
+        "location"
+    ).get_or_create(content_object_id=device_pk)
 
-    # if attaching an existing location, the current device should not have
-    # a location already set.
     current_location = device_location.location
+    # For handling the case when WHOIS already exists for device's new last_ip
+    # then we attach the location of the device with same last_ip if it exists.
     if add_existing and (not current_location or current_location.is_approximate):
         existing_device_location = (
             Device.objects.select_related("devicelocation")
+            .filter(organization_id=device.organization_id)
             .filter(last_ip=ip_address, devicelocation__location__isnull=False)
             .exclude(pk=device_pk)
             .first()
         )
         if existing_device_location:
             existing_location = existing_device_location.devicelocation.location
+            # We need to remove any existing approximate location of the device
             if current_location and current_location.pk != existing_location.pk:
-                # If current device already has a location, delete it
-                # and set the existing location.
                 current_location.delete()
-
             device_location.location = existing_location
             device_location.full_clean()
             device_location.save()
     elif latitude and longitude:
-        device = Device.objects.get(pk=device_pk)
         coords = Point(longitude, latitude, srid=4326)
-        # Create/update the device location mapping, updating existing location
-        # if exists else create a new location
         location_name = (
             " ".join(address.split(",")[:2])
             if address
             else f"Approximate Location {ip_address}"
         )
+        # Used to update an existing location if it is approximate
+        # or create a new one if it doesn't exist
         location_defaults = {
             "name": location_name,
             "type": "outdoor",
@@ -242,12 +237,12 @@ def manage_fuzzy_locations(
             "geometry": coords,
             "address": address,
         }
-        if device_location.location and device_location.location.is_approximate:
+        if current_location and current_location.is_approximate:
             for attr, value in location_defaults.items():
-                setattr(device_location.location, attr, value)
-            device_location.location.full_clean()
-            device_location.location.save()
-        elif not device_location.location:
+                setattr(current_location, attr, value)
+            current_location.full_clean()
+            current_location.save()
+        elif not current_location:
             location = Location(**location_defaults, is_approximate=True)
             location.full_clean()
             location.save()
