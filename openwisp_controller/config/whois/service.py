@@ -81,21 +81,16 @@ class WHOISService:
             - The new IP address is None or it is a private IP address.
             - The WhoIs information of new ip is already present.
             - WhoIs is disabled in the organization settings. (query from db)
-
-        Two boolean values are returned:
-            - First boolean indicates if WhoIs lookup is needed.
-            - Second boolean indicates if WhoIs info already exists in the db,
-            which is used for managing fuzzy locations.
         """
 
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
-            return False, False
+            return False
 
         if self._get_whois_info_from_db(new_ip).exists():
-            return False, True
+            return False
 
-        return self.is_whois_enabled, False
+        return self.is_whois_enabled
 
     def get_device_whois_info(self):
         """
@@ -113,19 +108,21 @@ class WHOISService:
         Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
         Task is triggered on commit to ensure redundant data is not created.
         """
-
-        fetch_whois, whois_info_exists = self._need_whois_lookup(self.device.last_ip)
-        if fetch_whois:
+        new_ip = self.device.last_ip
+        if self._need_whois_lookup(new_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
-                    new_ip_address=self.device.last_ip,
+                    new_ip_address=new_ip,
                 )
             )
-        elif whois_info_exists and self.is_whois_enabled:
+        # we are only checking for 2 of the above conditions of `_need_whois_lookup`
+        # as we need to ensure that the fuzzy locations are managed only if there is
+        # existing WHOIS record
+        elif self.is_valid_public_ip_address(new_ip) and self.is_whois_enabled:
             transaction.on_commit(
                 lambda: manage_fuzzy_locations.delay(
-                    self.device.pk, self.device.last_ip, add_existing=True
+                    self.device.pk, new_ip, add_existing=True
                 )
             )
