@@ -52,15 +52,6 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
         model = FloorPlan
 
 
-class IndoorCoordinatesFilter(OrganizationManagedFilter):
-    floor = filters.NumberFilter(field_name="floorplan__floor")
-    organization = filters.UUIDFilter(field_name="content_object__organization")
-
-    class Meta(OrganizationManagedFilter.Meta):
-        model = DeviceLocation
-        fields = OrganizationManagedFilter.Meta.fields + ["floor"]
-
-
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
@@ -197,14 +188,12 @@ class GeoJsonLocationList(
 
 
 class IndoorCoodinatesViewPagination(ListViewPagination):
-    # Todo: Make it 50
-    page_size = 5
+    page_size = 50
 
 
 class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
     serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = IndoorCoordinatesFilter
     pagination_class = IndoorCoodinatesViewPagination
     queryset = (
         DeviceLocation.objects.filter(
@@ -227,9 +216,8 @@ class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
         return floors
 
     def get_floor_from_query_or_default(self, qs, floor_param):
-        # Todo: Make better comment
         """
-        Returns first positive floor if no param is provieded if provived show for that perticular floor
+        Returns the requested floor if valid, else the first positive floor.
         """
         floors = self.get_available_floors()
         if floor_param is None:
