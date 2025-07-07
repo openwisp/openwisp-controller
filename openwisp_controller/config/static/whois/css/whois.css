@@ -45,12 +45,18 @@
   border-radius: 15px;
   list-style: none;
   display: flex;
+  align-items: center;
+  color: rgba(0, 0, 0, 0.45) !important;
+  font-weight: 600;
+}
+#whois_details[open] summary {
+  padding-bottom: 0 !important;
 }
 #whois_details summary > div {
   display: flex;
   width: 100%;
   justify-content: space-between;
-  margin-left: 1em;
+  margin-left: 1.4em;
 }
 #whois_details summary::-webkit-details-marker {
   display: none;
@@ -60,16 +66,19 @@
   display: inline;
 }
 #whois_details > div {
-  padding: 1em;
+  padding: 15px;
   font-size: 1em;
+}
+#whois_details > div span:not(:first-child) {
+  margin-top: 5px;
 }
 .whois_globe {
   flex-shrink: 0;
   mask: url(../images/whois_globe.svg) no-repeat center;
   -webkit-mask: url(../images/whois_globe.svg) no-repeat center;
-  width: 1.4rem;
-  height: 1.4rem;
-  background-color: #d0d5dd;
+  width: 1.1rem;
+  height: 1.1rem;
+  background-color: rgba(0, 0, 0, 0.45);
 }
 #whois_table .ow-info-icon {
   width: 1rem;
@@ -80,7 +89,6 @@
   display: inline-block;
   flex-shrink: 0;
   background: #777;
-  color: #777;
   margin-left: 1em;
 }
 #whois_details .additional-text {
