@@ -228,7 +228,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             self.assertEqual(api_whois_info["address"], whois_obj.address)
 
         with self.subTest(
-            "Device List API has whois_info as None when no WHOISInfo exists"
+            "Device List API has whois_info as None when no WHOIS Info exists"
         ):
             device.last_ip = "172.217.22.24"
             device.save()
@@ -238,7 +238,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             self.assertIsNone(response.data["results"][0]["whois_info"])
 
         with self.subTest(
-            "Device Detail API has whois_info as None when no WHOISInfo exists"
+            "Device Detail API has whois_info as None when no WHOIS Info exists"
         ):
             response = self.client.get(
                 reverse("config_api:device_detail", args=[device.pk])
@@ -341,7 +341,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
-        with self.subTest("task not called when last_ip has related WHOISInfo"):
+        with self.subTest("task not called when last_ip has related WHOIS Info"):
             device.last_ip = "172.217.22.10"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
@@ -634,7 +634,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
 
         with self.subTest(
-            "WHOIS details not visible in device admin when WHOISInfo does not exist"
+            "WHOIS details not visible in device admin when WHOIS Info does not exist"
         ):
             org = self._get_org()
             org.config_settings.whois_enabled = True

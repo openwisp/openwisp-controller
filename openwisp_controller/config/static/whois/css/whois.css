@@ -1,8 +1,17 @@
+:root {
+  --whois-border-color: #d0d5dd;
+  --whois-bg-light: #f9fafb;
+  --whois-text-muted: rgba(0, 0, 0, 0.45);
+  --whois-border-radius: 15px;
+  --whois-padding: 15px;
+}
+
 #whois_table,
 #whois_details {
   margin-top: 1.25em;
-  width: 50%;
-  border-radius: 15px;
+  max-width: 500px;
+  width: 100%;
+  border-radius: var(--whois-border-radius);
 }
 #whois_table {
   border-collapse: separate;
@@ -10,11 +19,11 @@
 }
 #whois_table th,
 #whois_table td {
-  border: 1px solid #d0d5dd;
-  padding: 15px !important;
+  border: 1px solid var(--whois-border-color);
+  padding: var(--whois-padding) !important;
 }
 #whois_table tr:first-child {
-  background-color: #f9fafb;
+  background-color: var(--whois-bg-light);
   border-top: none;
 }
 #whois_table tr:not(:first-child) {
@@ -23,31 +32,32 @@
 
 /* For rounding the individual corners */
 #whois_table th:first-of-type {
-  border-top-left-radius: 15px;
+  border-top-left-radius: var(--whois-border-radius);
   display: flex;
   align-items: center;
 }
 #whois_table th:last-of-type {
-  border-top-right-radius: 15px;
+  border-top-right-radius: var(--whois-border-radius);
 }
 #whois_table tr:last-child td:first-child {
-  border-bottom-left-radius: 15px;
+  border-bottom-left-radius: var(--whois-border-radius);
 }
 #whois_table tr:last-child td:last-child {
-  border-bottom-right-radius: 15px;
+  border-bottom-right-radius: var(--whois-border-radius);
 }
 
 #whois_details {
-  background: #f9fafb;
+  background: var(--whois-bg-light);
 }
 #whois_details summary {
   background: white;
-  border-radius: 15px;
+  border-radius: var(--whois-border-radius);
   list-style: none;
   display: flex;
   align-items: center;
-  color: rgba(0, 0, 0, 0.45) !important;
+  color: var(--whois-text-muted) !important;
   font-weight: 600;
+  cursor: pointer;
 }
 #whois_details[open] summary {
   padding-bottom: 0 !important;
@@ -66,7 +76,7 @@
   display: inline;
 }
 #whois_details > div {
-  padding: 15px;
+  padding: var(--whois-padding);
   font-size: 1em;
 }
 #whois_details > div span:not(:first-child) {
@@ -78,7 +88,7 @@
   -webkit-mask: url(../images/whois_globe.svg) no-repeat center;
   width: 1.1rem;
   height: 1.1rem;
-  background-color: rgba(0, 0, 0, 0.45);
+  background-color: var(--whois-text-muted);
 }
 #whois_table .ow-info-icon {
   width: 1rem;
@@ -90,6 +100,9 @@
   flex-shrink: 0;
   background: #777;
   margin-left: 1em;
+}
+#whois_table .ow-info-icon:hover {
+  background: #007cba;
 }
 #whois_details .additional-text {
   display: block;
