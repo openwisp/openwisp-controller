@@ -57,6 +57,7 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
         "created",
         "modified",
     ]
+    sensitive_fields = ["params"]
 
     def get_urls(self):
         options = getattr(self.model, "_meta")

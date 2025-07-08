@@ -156,6 +156,24 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             ),
         )
 
+    def test_credential_admin_sensitive_fields(self):
+        """
+        Sensitive fields for shared credentials should be hidden for non-superusers.
+        """
+        org = self._get_org()
+        shared_credentials = self._create_credentials(organization=None)
+        org_credentials = self._create_credentials(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["params"],
+            shared_obj_path=reverse(
+                f"admin:{self.app_label}_credentials_change", args=(shared_credentials.id,)
+            ),
+            org_obj_path=reverse(
+                f"admin:{self.app_label}_credentials_change", args=(org_credentials.id,)
+            ),
+            organization=org,
+        )
+
 
 class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = "config"

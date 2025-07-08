@@ -14,6 +14,9 @@ Cert = load_model("django_x509", "Cert")
 @admin.register(Ca)
 class CaAdmin(MultitenantAdminMixin, AbstractCaAdmin, VersionAdmin):
     history_latest_first = True
+    sensitive_fields = [
+        "private_key",
+    ]
 
 
 CaAdmin.fields.insert(2, "organization")
@@ -25,6 +28,9 @@ CaAdmin.Media.js += ("admin/pki/js/show-org-field.js",)
 @admin.register(Cert)
 class CertAdmin(MultitenantAdminMixin, AbstractCertAdmin, VersionAdmin):
     multitenant_shared_relations = ("ca",)
+    sensitive_fields = [
+        "private_key",
+    ]
     history_latest_first = True
 
 

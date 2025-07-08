@@ -99,6 +99,24 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             path=reverse(f"admin:{self.app_label}_ca_change", args=[ca.pk]),
         )
 
+    def test_ca_admin_sensitive_fields(self):
+        """
+        Sensitive fields for shared CA should be hidden for non-superusers.
+        """
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        org_ca = self._create_ca(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["private_key"],
+            shared_obj_path=reverse(
+                f"admin:{self.app_label}_ca_change", args=(shared_ca.id,)
+            ),
+            org_obj_path=reverse(
+                f"admin:{self.app_label}_ca_change", args=(org_ca.id,)
+            ),
+            organization=org,
+        )
+
     def test_cert_queryset(self):
         data = self._create_multitenancy_test_env(cert=True)
         self._test_multitenant_admin(
@@ -172,6 +190,25 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         shared_cert = self._create_cert(ca=shared_ca, organization=None)
         self._test_org_admin_view_shareable_object(
             path=reverse(f"admin:{self.app_label}_cert_change", args=[shared_cert.pk]),
+        )
+
+    def test_cert_admin_sensitive_fields(self):
+        """
+        Sensitive fields for shared certificates should be hidden for non-superusers.
+        """
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        shared_cert = self._create_cert(ca=shared_ca, organization=None)
+        org_cert = self._create_cert(ca=shared_ca, organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["private_key"],
+            shared_obj_path=reverse(
+                f"admin:{self.app_label}_cert_change", args=(shared_cert.id,)
+            ),
+            org_obj_path=reverse(
+                f"admin:{self.app_label}_cert_change", args=(org_cert.id,)
+            ),
+            organization=org,
         )
 
     def test_cert_changeform_200(self):
