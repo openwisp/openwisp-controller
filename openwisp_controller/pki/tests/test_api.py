@@ -175,15 +175,22 @@ class TestPkiApi(
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
-            expected_status_codes={
-                "create": 400,
-                "list": 200,
-                "retrieve": 403,
-                "update": 403,
-                "delete": 403,
-                "head": 403,
-                "option": 200,
-            },
+        )
+
+    def test_ca_sensitive_fields_visibility(self):
+        """
+        Test that sensitive fields are hidden for shared objects for non-superusers.
+        """
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        org_ca = self._create_ca(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["private_key"],
+            shared_obj=shared_ca,
+            org_obj=org_ca,
+            listview_name="pki_api:ca_list",
+            detailview_name="pki_api:ca_detail",
+            organization=org,
         )
 
     def test_cert_post_api(self):
@@ -341,15 +348,6 @@ class TestPkiApi(
             create_payload=create_payload,
             update_payload=update_payload,
             expected_count=1,
-            expected_status_codes={
-                "create": 400,
-                "list": 200,
-                "retrieve": 403,
-                "update": 403,
-                "delete": 403,
-                "head": 403,
-                "option": 200,
-            },
         )
 
     def test_org_admin_access_cert_with_shared_ca(self):
@@ -379,9 +377,26 @@ class TestPkiApi(
                 "retrieve": 200,
                 "update": 200,
                 "delete": 204,
-                "head": 403,
+                "head": 200,
                 "option": 200,
             },
+        )
+
+    def test_cert_sensitive_fields_visibility(self):
+        """
+        Test that sensitive fields are hidden for shared objects for non-superusers.
+        """
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        shared_cert = self._create_cert(ca=shared_ca, organization=None)
+        org_cert = self._create_cert(ca=shared_ca, organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["private_key"],
+            shared_obj=shared_cert,
+            org_obj=org_cert,
+            listview_name="pki_api:cert_list",
+            detailview_name="pki_api:cert_detail",
+            organization=org,
         )
 
     @capture_any_output()

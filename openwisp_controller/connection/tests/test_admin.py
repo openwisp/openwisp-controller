@@ -166,7 +166,8 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         self._test_sensitive_fields_visibility_on_shared_and_org_objects(
             sensitive_fields=["params"],
             shared_obj_path=reverse(
-                f"admin:{self.app_label}_credentials_change", args=(shared_credentials.id,)
+                f"admin:{self.app_label}_credentials_change",
+                args=(shared_credentials.id,),
             ),
             org_obj_path=reverse(
                 f"admin:{self.app_label}_credentials_change", args=(org_credentials.id,)

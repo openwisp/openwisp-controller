@@ -6,7 +6,7 @@ from ...migrations import create_default_permissions, get_swapped_model
 def assign_permissions_to_groups(apps, schema_editor):
     create_default_permissions(apps, schema_editor)
     operators_read_only_admins_manage = ["ca", "cert"]
-    manage_operations = ["add", "change", "delete"]
+    manage_operations = ["add", "change", "view", "delete"]
     Group = get_swapped_model(apps, "openwisp_users", "Group")
 
     try:

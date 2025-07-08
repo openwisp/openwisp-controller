@@ -508,6 +508,22 @@ class TestConnectionApi(TestAdminMixin, CreateConnectionsMixin, APITestCase):
             expected_count=1,
         )
 
+    def test_credentials_sensitive_fields_visibility(self):
+        """
+        Test that sensitive fields are hidden for shared objects for non-superusers.
+        """
+        org = self._get_org()
+        shared_credentials = self._create_credentials(organization=None)
+        org_credentials = self._create_credentials(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["params"],
+            shared_obj=shared_credentials,
+            org_obj=org_credentials,
+            listview_name="connection_api:credential_list",
+            detailview_name="connection_api:credential_detail",
+            organization=org,
+        )
+
     def test_get_deviceconnection_list(self):
         d1 = self._create_device()
         path = reverse("connection_api:deviceconnection_list", args=(d1.pk,))
@@ -523,7 +539,6 @@ class TestConnectionApi(TestAdminMixin, CreateConnectionsMixin, APITestCase):
             for cred in creds:
                 DeviceConnection.objects.create(device=d1, credentials=cred)
             response = self.client.get(path)
-            print(response.data)
             self.assertEqual(response.status_code, 200)
             created_list = [conn["created"] for conn in response.data["results"]]
             sorted_created = sorted(created_list, reverse=True)
