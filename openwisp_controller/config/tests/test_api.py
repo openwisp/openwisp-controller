@@ -10,7 +10,7 @@ from swapper import load_model
 
 from openwisp_controller.config.api.serializers import BaseConfigSerializer
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
+from openwisp_users.tests.test_api import AuthenticationMixin, TestMultitenantApiMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
@@ -33,7 +33,7 @@ Location = load_model("geo", "Location")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
 
-class ApiTestMixin:
+class ApiTestMixin(AuthenticationMixin, TestMultitenantApiMixin):
     @property
     def _template_data(self):
         return {
@@ -103,7 +103,6 @@ class TestConfigApi(
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,
-    AuthenticationMixin,
     TestCase,
 ):
     def setUp(self):
@@ -671,29 +670,50 @@ class TestConfigApi(
         self.assertEqual(Template.objects.count(), 1)
         self.assertEqual(r.status_code, 201)
 
-    def test_template_create_with_shared_vpn(self):
-        org1 = self._get_org()
-        test_user = self._create_operator(organizations=[org1])
-        self.client.force_login(test_user)
-        vpn1 = self._create_vpn(name="vpn1", organization=None)
-        path = reverse("config_api:template_list")
-        data = self._template_data
-        data["type"] = "vpn"
-        data["vpn"] = vpn1.id
-        data["organization"] = org1.pk
-        r = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(r.status_code, 201)
-        self.assertEqual(Template.objects.count(), 1)
-        self.assertEqual(r.data["vpn"], vpn1.id)
-
-    def test_template_creation_with_no_org_by_operator(self):
-        path = reverse("config_api:template_list")
-        data = self._template_data
+    def test_operator_access_shared_template(self):
         test_user = self._create_operator(organizations=[self._get_org()])
-        self.client.force_login(test_user)
-        r = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(r.status_code, 400)
-        self.assertIn("This field may not be null.", str(r.content))
+        token = self._obtain_auth_token(test_user)
+        self._create_template(organization=None)
+        self._test_org_user_access_shared_object(
+            listview_name="config_api:template_list",
+            detailview_name="config_api:template_detail",
+            create_payload={"name": "test", "organization": ""},
+            update_payload={"name": "updated-test"},
+            expected_count=1,
+            token=token,
+        )
+
+    def test_org_admin_create_template_with_shared_vpn(self):
+        org = self._get_org()
+        vpn = self._create_vpn(organization=None)
+        create_payload = self._template_data
+        create_payload.update(
+            {
+                "organization": org.pk,
+                "type": "vpn",
+                "vpn": vpn.pk,
+            }
+        )
+        update_payload = create_payload.copy()
+        update_payload["name"] = "updated-test"
+        test_user = self._create_operator(organizations=[org])
+        self._test_org_user_access_shared_object(
+            listview_name="config_api:template_list",
+            detailview_name="config_api:template_detail",
+            create_payload=create_payload,
+            update_payload=update_payload,
+            expected_count=1,
+            token=self._obtain_auth_token(test_user),
+            expected_status_codes={
+                "create": 201,
+                "list": 200,
+                "retrieve": 200,
+                "update": 200,
+                "delete": 204,
+                "head": 200,
+                "option": 200,
+            },
+        )
 
     def test_template_create_with_empty_config(self):
         path = reverse("config_api:template_list")
@@ -855,19 +875,50 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Vpn.objects.count(), 1)
 
-    def test_vpn_create_with_shared_objects(self):
-        org1 = self._get_org()
+    def test_org_admin_access_vpn_with_shared_objects(self):
+        org = self._get_org()
         shared_ca = self._create_ca(name="shared_ca", organization=None)
-        test_user = self._create_administrator(organizations=[org1])
-        self.client.force_login(test_user)
+        create_payload = self._vpn_data
+        create_payload.update(
+            {
+                "organization": org.pk,
+                "ca": shared_ca.pk,
+            }
+        )
+        update_payload = create_payload.copy()
+        update_payload["name"] = "updated-test-vpn"
+        administrator = self._create_administrator(organizations=[org])
+        self._test_access_shared_object(
+            listview_name="config_api:vpn_list",
+            detailview_name="config_api:vpn_detail",
+            create_payload=create_payload,
+            update_payload=update_payload,
+            expected_count=1,
+            expected_status_codes={
+                "create": 201,
+                "list": 200,
+                "retrieve": 200,
+                "update": 200,
+                "delete": 204,
+                "head": 200,
+                "option": 200,
+            },
+            token=self._obtain_auth_token(administrator),
+        )
+
+    def test_org_admin_create_shared_vpn(self):
+        shared_ca = self._create_ca(name="shared_ca", organization=None)
         data = self._vpn_data
-        data["organization"] = org1.pk
         data["ca"] = shared_ca.pk
-        path = reverse("config_api:vpn_list")
-        r = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(Vpn.objects.count(), 1)
-        self.assertEqual(r.status_code, 201)
-        self.assertEqual(r.data["ca"], shared_ca.pk)
+        # API does not allow creating shared VPN by org admin,
+        # therefore we create an object to test the detail view.
+        self._create_vpn(organization=None, ca=shared_ca)
+        self._test_org_user_access_shared_object(
+            listview_name="config_api:vpn_list",
+            detailview_name="config_api:vpn_detail",
+            create_payload=data,
+            expected_count=1,
+        )
 
     def test_vpn_list_api(self):
         org = self._get_org()

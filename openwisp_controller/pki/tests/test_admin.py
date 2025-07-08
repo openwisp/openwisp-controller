@@ -58,12 +58,15 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
             url=reverse(f"admin:{self.app_label}_ca_changelist"),
-            visible=[data["ca1"].name, data["org1"].name],
+            visible=[
+                data["ca1"].name,
+                data["org1"].name,
+                data["ca_shared"].name,
+            ],
             hidden=[
                 data["ca2"].name,
                 data["org2"].name,
                 data["ca_inactive"].name,
-                data["ca_shared"].name,
             ],
         )
 
@@ -76,16 +79,57 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             administrator=True,
         )
 
+    def test_org_create_shared_ca(self):
+        self._test_org_admin_create_shareable_object(
+            path=reverse(f"admin:{self.app_label}_ca_add"),
+            model=Ca,
+            payload={
+                "name": "ca-shared",
+                "organization": "",
+                "key_length": 2048,
+                "digest": "sha256",
+                "operation_type": "new",
+                "extensions": "",
+            },
+        )
+
+    def test_org_admin_view_shared_ca(self):
+        ca = self._create_ca(organization=None)
+        self._test_org_admin_view_shareable_object(
+            path=reverse(f"admin:{self.app_label}_ca_change", args=[ca.pk]),
+        )
+
+    def test_ca_admin_sensitive_fields(self):
+        """
+        Sensitive fields for shared CA should be hidden for non-superusers.
+        """
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        org_ca = self._create_ca(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["private_key"],
+            shared_obj_path=reverse(
+                f"admin:{self.app_label}_ca_change", args=(shared_ca.id,)
+            ),
+            org_obj_path=reverse(
+                f"admin:{self.app_label}_ca_change", args=(org_ca.id,)
+            ),
+            organization=org,
+        )
+
     def test_cert_queryset(self):
         data = self._create_multitenancy_test_env(cert=True)
         self._test_multitenant_admin(
             url=reverse(f"admin:{self.app_label}_cert_changelist"),
-            visible=[data["cert1"].name, data["org1"].name],
+            visible=[
+                data["cert1"].name,
+                data["org1"].name,
+                data["cert_shared"].name,
+            ],
             hidden=[
                 data["cert2"].name,
                 data["org2"].name,
                 data["cert_inactive"].name,
-                data["cert_shared"].name,
             ],
         )
 
@@ -107,6 +151,64 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             visible=[data["ca1"].name],
             hidden=[data["ca2"].name, data["ca_inactive"].name],
             administrator=True,
+        )
+
+    def test_org_admin_create_cert_with_shared_ca(self):
+        org = self._get_org()
+        administrator = self._create_administrator(organizations=[org])
+        shared_ca = self._create_ca(organization=None)
+        payload = {
+            "name": "Test",
+            "organization": "",
+            "ca": str(shared_ca.pk),
+            "operation_type": "new",
+            "key_length": 2048,
+            "digest": "sha256",
+            "extensions": "[]",
+        }
+        with self.subTest("Should not allow creating shared certificate"):
+            self._test_org_admin_create_shareable_object(
+                path=reverse(f"admin:{self.app_label}_cert_add"),
+                model=Cert,
+                payload=payload,
+                user=administrator,
+            )
+
+        with self.subTest("Should allow creating non-shared certificate"):
+            payload["organization"] = str(org.pk)
+            self._test_org_admin_create_shareable_object(
+                path=reverse(f"admin:{self.app_label}_cert_add"),
+                model=Cert,
+                payload=payload,
+                user=administrator,
+                raises_error=False,
+                expected_count=1,
+            )
+
+    def test_org_admin_view_shared_cert(self):
+        shared_ca = self._create_ca(organization=None)
+        shared_cert = self._create_cert(ca=shared_ca, organization=None)
+        self._test_org_admin_view_shareable_object(
+            path=reverse(f"admin:{self.app_label}_cert_change", args=[shared_cert.pk]),
+        )
+
+    def test_cert_admin_sensitive_fields(self):
+        """
+        Sensitive fields for shared certificates should be hidden for non-superusers.
+        """
+        org = self._get_org()
+        shared_ca = self._create_ca(organization=None)
+        shared_cert = self._create_cert(ca=shared_ca, organization=None)
+        org_cert = self._create_cert(ca=shared_ca, organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["private_key"],
+            shared_obj_path=reverse(
+                f"admin:{self.app_label}_cert_change", args=(shared_cert.id,)
+            ),
+            org_obj_path=reverse(
+                f"admin:{self.app_label}_cert_change", args=(org_cert.id,)
+            ),
+            organization=org,
         )
 
     def test_cert_changeform_200(self):
