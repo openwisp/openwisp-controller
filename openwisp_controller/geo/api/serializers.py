@@ -351,6 +351,7 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
 
 
 class IndoorCoordinatesSerializer(serializers.ModelSerializer):
+    admin_edit_url = SerializerMethodField("get_admin_edit_url")
     content_object_id = serializers.UUIDField(
         source="content_object.id", read_only=True
     )
@@ -360,12 +361,13 @@ class IndoorCoordinatesSerializer(serializers.ModelSerializer):
     floor_name = serializers.SerializerMethodField()
     floor = serializers.IntegerField(source="floorplan.floor")
     image = serializers.ImageField(source="floorplan.image", read_only=True)
-    location = serializers.SerializerMethodField()
+    coordinates = serializers.SerializerMethodField()
 
     class Meta:
         model = DeviceLocation
         fields = [
             "id",
+            "admin_edit_url",
             "content_object_id",
             "floorplan_id",
             "device_name",
@@ -373,15 +375,23 @@ class IndoorCoordinatesSerializer(serializers.ModelSerializer):
             "floor_name",
             "floor",
             "image",
-            "location",
+            "coordinates",
         ]
+
+    def get_admin_edit_url(self, obj):
+        return self.context["request"].build_absolute_uri(
+            reverse(
+                f"admin:{obj.content_object._meta.app_label}_device_change",
+                args=(obj.content_object.id,),
+            )
+        )
 
     def get_floor_name(self, obj):
         loc_name = obj.floorplan.location.name
         floor_no = obj.floorplan.floor
         return f"{loc_name} {ordinal(floor_no)} Floor"
 
-    def get_location(self, obj):
+    def get_coordinates(self, obj):
         """
         NetJsonGraph expects indoor coordinates in {'lat': y, 'lng': x}.
         """
