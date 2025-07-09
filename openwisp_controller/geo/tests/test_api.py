@@ -1038,7 +1038,7 @@ class TestGeoApi(
             self.assertEqual(response.status_code, 403)
 
     def test_indoor_coordinates_list_api(self):
-        org = self._get_org()
+        org = self._create_org(name="Test org")
         location = self._create_location(type="indoor", organization=org)
         f1 = self._create_floorplan(floor=1, location=location)
         f2 = self._create_floorplan(floor=2, location=location)
@@ -1073,3 +1073,22 @@ class TestGeoApi(
             self.assertEqual(len(response.data["results"]), 1)
             self.assertEqual(response.data["results"][0]["device_name"], "device2")
             self.assertEqual(response.data["results"][0]["floor"], 2)
+
+        with self.subTest("Test with user of different org"):
+            org2 = self._create_org(name="org2")
+            user = self._create_user(username="org2user", email="user@org2.com")
+            self._create_org_user(organization=org2, user=user, is_admin=True)
+            self.client.force_login(user)
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("Test with administrator which manage the device org"):
+            administrator = self._create_administrator(organizations=[org, org2])
+            self.client.force_login(administrator)
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("Test for unauthenticated user"):
+            self.client.logout()
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 401)

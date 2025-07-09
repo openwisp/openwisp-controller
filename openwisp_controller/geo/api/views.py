@@ -52,6 +52,33 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
         model = FloorPlan
 
 
+class IndoorCoordinatesFilter(OrganizationManagedFilter):
+    floor = filters.NumberFilter(field_name="floorplan__floor")
+    organization = filters.UUIDFilter(field_name="content_object__organization")
+
+    def filter_queryset(self, queryset):
+        """
+        If no floor parameter is provided:
+        Return data for the first available positive floor
+        If no positive floor exists, return data for the highest negative floor
+        If a valid floor parameter is provided, return data for that specific floor.
+        """
+        organization_managed_qs = OrganizationManagedFilter.filter_queryset(
+            self, queryset
+        )
+        qs = filters.FilterSet.filter_queryset(self, organization_managed_qs)
+        if "floor" not in self.data:
+            floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
+            positives = [f for f in floors if f >= 0]
+            default_floor = min(positives) if positives else max(floors)
+            qs = qs.filter(floorplan__floor=default_floor)
+        return qs
+
+    class Meta(OrganizationManagedFilter.Meta):
+        model = DeviceLocation
+        fields = OrganizationManagedFilter.Meta.fields + ["floor"]
+
+
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
@@ -194,7 +221,9 @@ class IndoorCoodinatesViewPagination(ListViewPagination):
 class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
     serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = IndoorCoordinatesFilter
     pagination_class = IndoorCoodinatesViewPagination
+    organization_field = "content_object__organization"
     queryset = (
         DeviceLocation.objects.filter(
             location__type="indoor",
@@ -206,40 +235,26 @@ class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
         .order_by("floorplan__floor")
     )
 
-    def get_available_floors(self):
-        location_id = self.kwargs.get("pk")
-        floors = list(
-            self.queryset.filter(location__id=location_id)
-            .values_list("floorplan__floor", flat=True)
-            .distinct()
-        )
+    def get_available_floors(self, qs):
+        floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
         return floors
-
-    def get_floor_from_query_or_default(self, qs, floor_param):
-        """
-        Returns the requested floor if valid, else the first positive floor.
-        """
-        floors = self.get_available_floors()
-        if floor_param is None:
-            first_positive_floor = [f for f in floors if f > 0]
-            return min(first_positive_floor) if first_positive_floor else max(floors)
-        else:
-            try:
-                floor = int(floor_param)
-            except ValueError:
-                return None
-            return floor if floor in floors else None
 
     def get_queryset(self):
         qs = super().get_queryset()
         location_id = self.kwargs.get("pk")
         qs = qs.filter(location__id=location_id)
-        floor_param = self.request.query_params.get("floor")
-        floor_no = self.get_floor_from_query_or_default(qs, floor_param)
-        if floor_no is None:
-            return qs.none()
-        qs = qs.filter(floorplan__floor=floor_no)
         return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        floors = self.get_available_floors(qs)
+        filtered_qs = self.filter_queryset(qs)
+        page = self.paginate_queryset(filtered_qs)
+        serializer = self.get_serializer(page, many=True)
+        response = self.get_paginated_response(serializer.data)
+        if response.status_code == 200:
+            response.data["floors"] = floors
+        return response
 
 
 class LocationDeviceList(
