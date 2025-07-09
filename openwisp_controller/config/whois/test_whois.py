@@ -594,15 +594,14 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             "WHOIS details visible in device admin when WHOIS_CONFIGURED is True"
         ):
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_presence(By.CSS_SELECTOR, 'table[id="whois_table"]')
-            table = self.find_element(By.ID, "whois_table")
+            table = self.find_element(By.CSS_SELECTOR, "table.whois_table")
             rows = table.find_elements(By.TAG_NAME, "tr")
             for row in rows:
                 if cells := row.find_elements(By.TAG_NAME, "td"):
                     self.assertEqual(cells[0].text, whois_obj.isp)
                     self.assertEqual(cells[1].text, whois_obj.address["country"])
 
-            details = self.find_element(By.ID, "whois_details")
+            details = self.find_element(By.CSS_SELECTOR, "details.whois")
             self.web_driver.execute_script(
                 "arguments[0].setAttribute('open','')", details
             )
@@ -618,10 +617,8 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 + "when WHOIS_CONFIGURED is False"
             ):
                 self.open(reverse("admin:config_device_change", args=[device.pk]))
-                self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
-                self.wait_for_invisibility(
-                    By.CSS_SELECTOR, 'details[id="whois_details"]'
-                )
+                self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois_table")
+                self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
 
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS is disabled"
@@ -630,8 +627,8 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
-            self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
+            self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois_table")
+            self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
 
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS Info does not exist"
@@ -641,5 +638,5 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             org.config_settings.save(update_fields=["whois_enabled"])
             WHOISInfo.objects.all().delete()
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_invisibility(By.CSS_SELECTOR, 'table[id="whois_table"]')
-            self.wait_for_invisibility(By.CSS_SELECTOR, 'details[id="whois_details"]')
+            self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois_table")
+            self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")

@@ -82,7 +82,7 @@ Setup Instructions
 Viewing WHOIS Lookup Data
 -------------------------
 
-Once the WHOIS Lookup feature is enabled and WHOIS data is available, he
+Once the WHOIS Lookup feature is enabled and WHOIS data is available, the
 retrieved details can be viewed in the following locations:
 
 - **Device Admin**: On the device's admin page, the WHOIS data is
@@ -94,4 +94,4 @@ retrieved details can be viewed in the following locations:
 
 - **Device REST API**: The WHOIS details are included in the device's list
   and details REST API responses under the ``whois_info`` field.
-  :ref:`REST API <device_whois_details>`
+  :ref:`Live Documentation <controller_live_documentation>`

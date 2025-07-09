@@ -13,29 +13,29 @@ django.jQuery(function ($) {
   const $parentDiv = $("#overview-group .field-last_ip div:last");
 
   $parentDiv.after(
-    `<table id="whois_table">
-          <tr>
-            <th><span>ISP</span><span title="This is the Organization associated with registered ASN" class="ow-info-icon icon"></span></th>
-            <th>Country</th>
-          </tr>
-          <tr>
-            <td>${deviceWHOISDetails.isp}</td>
-            <td>${deviceWHOISDetails.address.country}</td>
-          </tr>
-        </table>
-        <details id="whois_details">
-          <summary>
-            <span class="whois_globe"></span>
-            <div>
-              <span>Additional Details</span><span class="mg-arrow"></span>
-            </div>
-          </summary>
+    `<table class="whois_table">
+        <tr>
+          <th><span>ISP</span><span title="This is the Organization associated with registered ASN" class="ow-info-icon icon"></span></th>
+          <th>Country</th>
+        </tr>
+        <tr>
+          <td>${deviceWHOISDetails.isp}</td>
+          <td>${deviceWHOISDetails.address.country}</td>
+        </tr>
+     </table>
+     <details class="whois">
+        <summary>
+          <span class="whois_globe"></span>
           <div>
-            <span class="additional-text">ASN : ${deviceWHOISDetails.asn}</span>
-            <span class="additional-text">Timezone : ${deviceWHOISDetails.timezone}</span>
-            <span class="additional-text">Address : ${deviceWHOISDetails.formatted_address}</span>
-            <span class="additional-text">CIDR : ${deviceWHOISDetails.cidr}</span>
+            <span>Additional Details</span><span class="mg-arrow"></span>
           </div>
-        </details>`,
+        </summary>
+        <div>
+          <span class="additional-text">ASN: ${deviceWHOISDetails.asn}</span>
+          <span class="additional-text">Timezone: ${deviceWHOISDetails.timezone}</span>
+          <span class="additional-text">Address: ${deviceWHOISDetails.formatted_address}</span>
+          <span class="additional-text">CIDR: ${deviceWHOISDetails.cidr}</span>
+        </div>
+     </details>`,
   );
 });
