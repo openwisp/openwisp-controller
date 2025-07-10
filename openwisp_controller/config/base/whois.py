@@ -51,6 +51,16 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         blank=True,
         help_text=_("CIDR"),
     )
+    latitude = models.FloatField(
+        null=True,
+        blank=True,
+        help_text=_("Latitude"),
+    )
+    longitude = models.FloatField(
+        null=True,
+        blank=True,
+        help_text=_("Longitude"),
+    )
 
     class Meta:
         abstract = True
