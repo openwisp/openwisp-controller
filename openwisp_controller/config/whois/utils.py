@@ -1,3 +1,8 @@
+from unittest import mock
+
+from django.urls import reverse
+from django.utils.translation import gettext as _
+from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from .. import settings as app_settings
@@ -5,6 +10,40 @@ from .serializers import WHOISSerializer
 from .service import WHOISService
 
 Device = load_model("config", "Device")
+
+MESSAGE_MAP = {
+    "device_error": {
+        "message": _(
+            "Failed to fetch WHOIS details for device"
+            " [{notification.target}]({notification.target_link})"
+        ),
+        "description": _("WHOIS details could not be fetched for ip: {ip_address}."),
+        "level": "error",
+    },
+    "location_error": {
+        "message": _(
+            "Unable to create approximate location for device "
+            "[{notification.target}]({notification.target_link}). "
+            "Please assign/create a location manually."
+        ),
+        "description": _("Multiple devices found for IP: {ip_address}"),
+        "level": "error",
+    },
+}
+
+
+def send_whois_task_notification(device_pk, notify_type):
+    device = Device.objects.get(pk=device_pk)
+    notify_details = MESSAGE_MAP[notify_type]
+    notify.send(
+        sender=device,
+        type="generic_message",
+        target=device,
+        action_object=device,
+        level=notify_details["level"],
+        message=notify_details["message"],
+        description=notify_details["description"].format(ip_address=device.last_ip),
+    )
 
 
 def get_whois_info(pk):
