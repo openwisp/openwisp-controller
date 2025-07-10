@@ -88,8 +88,8 @@ retrieved details can be viewed in the following locations:
 - **Device Admin**: On the device's admin page, the WHOIS data is
   displayed alongside the device's last IP address.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.2/whois-admin-details.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.2/whois-admin-details.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois-admin-details.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois-admin-details.png
     :alt: WHOIS admin details
 
 - **Device REST API**: The WHOIS details are included in the device's list
