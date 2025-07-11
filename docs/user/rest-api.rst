@@ -68,6 +68,12 @@ List Devices
 
     GET /api/v1/controller/device/
 
+**WHOIS Details**
+
+If :doc:`WHOIS Lookup feature <whois>` is enabled, each device in the list
+response will also include a ``whois_info`` field with related brief WHOIS
+information.
+
 **Available filters**
 
 You can filter a list of devices based on their configuration status using
@@ -144,6 +150,11 @@ Get Device Detail
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/
+
+**WHOIS Details**
+
+If :doc:`WHOIS Lookup feature <whois>` is enabled, the response will also
+include a ``whois_info`` field with related detailed WHOIS information.
 
 Download Device Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
