@@ -11,12 +11,13 @@ from swapper import load_model
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from .handlers import connect_whois_handlers
-from .utils import CreateWHOISMixin
+from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Device = load_model("config", "Device")
+Location = load_model("geo", "Location")
 WHOISInfo = load_model("config", "WHOISInfo")
-OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Notification = load_model("openwisp_notifications", "Notification")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 notification_qs = Notification.objects.all()
 
@@ -221,7 +222,9 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
             self._create_whois_info(asn="InvalidASN")
 
 
-class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
+class TestWHOISTransaction(
+    CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
+):
     _WHOIS_GEOIP_CLIENT = (
         "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
     )
@@ -235,76 +238,20 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
-    def test_whois_task_called(self, mocked_task):
-        org = self._get_org()
+    def test_whois_task_called(self, mocked_lookup_task):
         connect_whois_handlers()
+        self._task_called(mocked_lookup_task)
 
-        with self.subTest("task called when last_ip is public"):
-            with mock.patch("django.core.cache.cache.set") as mocked_set:
-                device = self._create_device(last_ip="172.217.22.14")
-                mocked_task.assert_called()
-                mocked_set.assert_called_once()
-        mocked_task.reset_mock()
-
-        with self.subTest("task called when last_ip is changed and is public"):
-            with mock.patch("django.core.cache.cache.get") as mocked_get:
-                device.last_ip = "172.217.22.10"
-                device.save()
-                mocked_task.assert_called()
-                mocked_get.assert_called_once()
-        mocked_task.reset_mock()
-
-        with self.subTest("task not called when last_ip is private"):
-            device.last_ip = "10.0.0.1"
-            device.save()
-            mocked_task.assert_not_called()
-        mocked_task.reset_mock()
-
-        with self.subTest("task not called when last_ip has related WHOISInfo"):
-            device.last_ip = "172.217.22.10"
+        Device.objects.all().delete()  # Clear existing devices
+        device = self._create_device()
+        with self.subTest(
+            "WHOIS lookup task not called when last_ip has related WhoIsInfo"
+        ):
+            device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
-            mocked_task.assert_not_called()
-        mocked_task.reset_mock()
-
-        with self.subTest("task not called when WHOIS is disabled"):
-            Device.objects.all().delete()
-            org.config_settings.whois_enabled = False
-            # Invalidates old org config settings cache
-            org.config_settings.save(update_fields=["whois_enabled"])
-            device = self._create_device(last_ip="172.217.22.14")
-            mocked_task.assert_not_called()
-        mocked_task.reset_mock()
-
-        with self.subTest("task called via DeviceChecksumView when WHOIS is enabled"):
-            org.config_settings.whois_enabled = True
-            # Invalidates old org config settings cache
-            org.config_settings.save(update_fields=["whois_enabled"])
-            # config is required for checksum view to work
-            self._create_config(device=device)
-            # setting remote address field to a public IP to trigger WHOIS task
-            # since the view uses this header for tracking the device's IP
-            response = self.client.get(
-                reverse("controller:device_checksum", args=[device.pk]),
-                {"key": device.key},
-                REMOTE_ADDR="172.217.22.10",
-            )
-            self.assertEqual(response.status_code, 200)
-            mocked_task.assert_called()
-        mocked_task.reset_mock()
-
-        with self.subTest(
-            "task called via DeviceChecksumView when a device has no WHOIS record"
-        ):
-            WHOISInfo.objects.all().delete()
-            response = self.client.get(
-                reverse("controller:device_checksum", args=[device.pk]),
-                {"key": device.key},
-                REMOTE_ADDR=device.last_ip,
-            )
-            self.assertEqual(response.status_code, 200)
-            mocked_task.assert_called()
-        mocked_task.reset_mock()
+            mocked_lookup_task.assert_not_called()
+        mocked_lookup_task.reset_mock()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
@@ -410,16 +357,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
             )
 
         # mocking the response from the geoip2 client
-        mock_response = mock.MagicMock()
-        mock_response.city.name = "Mountain View"
-        mock_response.country.name = "United States"
-        mock_response.continent.name = "North America"
-        mock_response.postal.code = "94043"
-        mock_response.traits.autonomous_system_organization = "Google LLC"
-        mock_response.traits.autonomous_system_number = 15169
-        mock_response.traits.network = "172.217.22.0/24"
-        mock_response.location.time_zone = "America/Los_Angeles"
-        mock_client.return_value.city.return_value = mock_response
+        mock_client.return_value.city.return_value = self._mocked_client_response()
 
         with self.subTest("Test WHOIS create when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
@@ -482,6 +420,7 @@ class TestWHOISTransaction(CreateWHOISMixin, TransactionTestCase):
                 notification = notification_qs.first()
                 self.assertEqual(notification.actor, device)
                 self.assertEqual(notification.target, device)
+                self.assertEqual(notification.level, "error")
                 self.assertEqual(notification.type, "generic_message")
                 self.assertIn(
                     "Failed to fetch WHOIS details for device",

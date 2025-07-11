@@ -39,6 +39,11 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         fallback=app_settings.WHOIS_ENABLED,
         verbose_name=_("WHOIS Enabled"),
     )
+    approximate_location_enabled = FallbackBooleanChoiceField(
+        help_text=_("Whether the approximate location feature is enabled"),
+        fallback=app_settings.APPROXIMATE_LOCATION_ENABLED,
+        verbose_name=_("Approximate Location Enabled"),
+    )
     context = JSONField(
         blank=True,
         default=dict,
@@ -68,6 +73,15 @@ class AbstractOrganizationConfigSettings(UUIDModel):
                     "whois_enabled": _(
                         "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
                         + "before enabling WHOIS feature."
+                    )
+                }
+            )
+        if not self.whois_enabled and self.approximate_location_enabled:
+            raise ValidationError(
+                {
+                    "approximate_location_enabled": _(
+                        "Approximate Location feature requires "
+                        "WHOIS Lookup feature to be enabled."
                     )
                 }
             )
