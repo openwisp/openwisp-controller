@@ -397,7 +397,7 @@ class TestConnectionApi(
     def test_get_credentials_list(self):
         self._create_credentials()
         path = reverse("connection_api:credential_list")
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         with self.subTest("Check ordering of credentials"):
@@ -421,7 +421,7 @@ class TestConnectionApi(
         OrganizationUser.objects.create(user=user, organization=org1, is_admin=True)
         self.client.force_login(user)
         path = reverse("connection_api:credential_list")
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
@@ -437,14 +437,14 @@ class TestConnectionApi(
             "auto_add": False,
             "params": {"username": "roOT", "password": "Pa$$w0Rd", "port": 22},
         }
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(7):
             response = self.client.post(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
 
     def test_get_credential_detail(self):
         cred = self._create_credentials()
         path = reverse("connection_api:credential_detail", args=(cred.pk,))
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
 
@@ -464,7 +464,7 @@ class TestConnectionApi(
             },
         }
         expected_queries = (
-            9 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 8
+            8 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 7
         )
         with self.assertNumQueries(expected_queries):
             response = self.client.put(path, data, content_type="application/json")
@@ -482,7 +482,7 @@ class TestConnectionApi(
         cred = self._create_credentials()
         path = reverse("connection_api:credential_detail", args=(cred.pk,))
         data = {"name": "Change Test credentials"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(7):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["name"], "Change Test credentials")
@@ -490,14 +490,14 @@ class TestConnectionApi(
     def test_delete_credential_detail(self):
         cred = self._create_credentials()
         path = reverse("connection_api:credential_detail", args=(cred.pk,))
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
     def test_get_deviceconnection_list(self):
         d1 = self._create_device()
         path = reverse("connection_api:deviceconnection_list", args=(d1.pk,))
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 0)
@@ -525,7 +525,7 @@ class TestConnectionApi(
             "enabled": True,
             "failure_reason": "",
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             response = self.client.post(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
 
@@ -538,7 +538,7 @@ class TestConnectionApi(
             "enabled": True,
             "failure_reason": "",
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             response = self.client.post(path, data, content_type="application/json")
         error_msg = """
             the update strategy can be determined automatically only if
@@ -555,7 +555,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
 
@@ -570,7 +570,7 @@ class TestConnectionApi(
             "enabled": False,
             "failure_reason": "",
         }
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -584,7 +584,7 @@ class TestConnectionApi(
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {"update_strategy": app_settings.UPDATE_STRATEGIES[1][0]}
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -595,7 +595,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(9):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 

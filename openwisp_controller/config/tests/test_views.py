@@ -70,7 +70,7 @@ class TestViews(
             inactive_t,
         ) = self._create_template_test_data()
         self._login()
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             response = self.client.get(
                 reverse("admin:get_relevant_templates", args=[org1.pk])
             )
@@ -92,7 +92,7 @@ class TestViews(
             default=False,
             required=True,
         )
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             response = self.client.get(
                 reverse("admin:get_relevant_templates", args=[org1.pk])
             )
@@ -130,7 +130,7 @@ class TestViews(
         )
         self._login()
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             response = self.client.get(
                 reverse("admin:get_relevant_templates", args=[org1.pk]),
                 {"backend": "netjsonconfig.OpenWrt"},
