@@ -6,7 +6,7 @@ django.jQuery(function ($) {
   if (
     $addForm.length ||
     !$deviceForm.length ||
-    deviceWHOISDetails === undefined
+    typeof deviceWHOISDetails === "undefined"
   ) {
     return;
   }
