@@ -1776,7 +1776,7 @@ class TestAdmin(
         path = reverse("admin:get_default_values")
 
         with self.subTest("get default values for one template"):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(2):
                 r = self.client.get(path, {"pks": f"{t1.pk}"})
                 self.assertEqual(r.status_code, 200)
                 expected = {"default_values": {"name1": "test1"}}
@@ -1784,14 +1784,14 @@ class TestAdmin(
 
         with self.subTest("get default values for multiple templates"):
             t2 = self._create_template(name="t2", default_values={"name2": "test2"})
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(2):
                 r = self.client.get(path, {"pks": f"{t1.pk},{t2.pk}"})
                 self.assertEqual(r.status_code, 200)
                 expected = {"default_values": {"name1": "test1", "name2": "test2"}}
                 self.assertEqual(r.json(), expected)
 
         with self.subTest("get default values conflicting with device group"):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(
                     path, {"pks": f"{t1.pk}", "group": str(group.pk)}
                 )
@@ -1803,7 +1803,7 @@ class TestAdmin(
                 self.assertNotIn("name4", response_data)
 
         with self.subTest("get default values conflicting with organization"):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(
                     path, {"pks": f"{t1.pk}", "organization": str(org.pk)}
                 )
@@ -1814,7 +1814,7 @@ class TestAdmin(
                 self.assertNotIn("name3", response_data)
 
         with self.subTest("get default values conflicting with organization and group"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(
                     path,
                     {
