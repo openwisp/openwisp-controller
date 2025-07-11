@@ -2103,13 +2103,13 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
-        expected_count = 24
+        expected_count = 22
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
             expected_count += 2
         with self.assertNumQueries(expected_count):
-            # contains 22 queries for fetching normal device data
+            # contains 20 queries for fetching normal device data
             response = self.client.get(path)
             # contains 2 queries, 1 for fetching organization
             # and 1 for fetching templates
