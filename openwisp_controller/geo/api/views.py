@@ -21,6 +21,7 @@ from .serializers import (
     DeviceLocationSerializer,
     FloorPlanSerializer,
     GeoJsonLocationSerializer,
+    IndoorCoordinatesSerializer,
     LocationDeviceSerializer,
     LocationSerializer,
 )
@@ -49,6 +50,33 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = FloorPlan
+
+
+class IndoorCoordinatesFilter(OrganizationManagedFilter):
+    floor = filters.NumberFilter(field_name="floorplan__floor")
+    organization = filters.UUIDFilter(field_name="content_object__organization")
+
+    def filter_queryset(self, queryset):
+        """
+        If no floor parameter is provided:
+        Return data for the first available positive floor
+        If no positive floor exists, return data for the highest negative floor
+        If a valid floor parameter is provided, return data for that specific floor.
+        """
+        organization_managed_qs = OrganizationManagedFilter.filter_queryset(
+            self, queryset
+        )
+        qs = filters.FilterSet.filter_queryset(self, organization_managed_qs)
+        if "floor" not in self.data:
+            floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
+            positives = [f for f in floors if f >= 0]
+            default_floor = min(positives) if positives else max(floors)
+            qs = qs.filter(floorplan__floor=default_floor)
+        return qs
+
+    class Meta(OrganizationManagedFilter.Meta):
+        model = DeviceLocation
+        fields = OrganizationManagedFilter.Meta.fields + ["floor"]
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -186,6 +214,55 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
+class IndoorCoodinatesViewPagination(ListViewPagination):
+    page_size = 50
+
+
+class IndoorCoordinatesList(
+    RelatedDeviceProtectedAPIMixin, FilterByParentManaged, generics.ListAPIView
+):
+    serializer_class = IndoorCoordinatesSerializer
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = IndoorCoordinatesFilter
+    pagination_class = IndoorCoodinatesViewPagination
+    organization_field = "content_object__organization"
+
+    queryset = (
+        DeviceLocation.objects.filter(
+            location__type="indoor",
+            floorplan__isnull=False,
+        )
+        .select_related(
+            "content_object", "location", "floorplan", "content_object__organization"
+        )
+        .order_by("floorplan__floor")
+    )
+
+    def get_parent_queryset(self):
+        return DeviceLocation.objects.filter(location__pk=self.kwargs.get("pk"))
+
+    def get_available_floors(self, qs):
+        floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
+        return floors
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        location_id = self.kwargs.get("pk")
+        qs = qs.filter(location__id=location_id)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        floors = self.get_available_floors(qs)
+        filtered_qs = self.filter_queryset(qs)
+        page = self.paginate_queryset(filtered_qs)
+        serializer = self.get_serializer(page, many=True)
+        response = self.get_paginated_response(serializer.data)
+        if response.status_code == 200:
+            response.data["floors"] = floors
+        return response
+
+
 class LocationDeviceList(
     FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
 ):
@@ -244,5 +321,6 @@ geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
 list_floorplan = FloorPlanListCreateView.as_view()
 detail_floorplan = FloorPlanDetailView.as_view()
+indoor_coordinates_list = IndoorCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
