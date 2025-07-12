@@ -218,12 +218,15 @@ class IndoorCoodinatesViewPagination(ListViewPagination):
     page_size = 50
 
 
-class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
+class IndoorCoordinatesList(
+    RelatedDeviceProtectedAPIMixin, FilterByParentManaged, generics.ListAPIView
+):
     serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = IndoorCoordinatesFilter
     pagination_class = IndoorCoodinatesViewPagination
     organization_field = "content_object__organization"
+
     queryset = (
         DeviceLocation.objects.filter(
             location__type="indoor",
@@ -234,6 +237,9 @@ class IndoorCoordinatesList(ProtectedAPIMixin, generics.ListAPIView):
         )
         .order_by("floorplan__floor")
     )
+
+    def get_parent_queryset(self):
+        return DeviceLocation.objects.filter(location__pk=self.kwargs.get("pk"))
 
     def get_available_floors(self, qs):
         floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
