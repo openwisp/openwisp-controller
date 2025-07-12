@@ -219,7 +219,7 @@ class IndoorCoodinatesViewPagination(ListViewPagination):
 
 
 class IndoorCoordinatesList(
-    RelatedDeviceProtectedAPIMixin, FilterByParentManaged, generics.ListAPIView
+    FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
 ):
     serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]

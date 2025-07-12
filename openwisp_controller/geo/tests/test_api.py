@@ -3,7 +3,6 @@ import tempfile
 import uuid
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -31,11 +30,12 @@ Group = load_model("openwisp_users", "Group")
 User = get_user_model()
 
 
-class TestApi(TestGeoMixin, TestCase):
+class TestApi(TestGeoMixin, CreateDeviceMixin, TestCase):
     url_name = "geo_api:device_coordinates"
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
+    floorplan_model = FloorPlan
 
     def test_permission_404(self):
         url = reverse(self.url_name, args=[self.object_model().pk])
@@ -159,6 +159,24 @@ class TestApi(TestGeoMixin, TestCase):
             )
             self.assertEqual(response.status_code, 200)
 
+        with self.subTest("Test IndoorCoordinatesList"):
+            org = self._get_org()
+            location = self._create_location(organization=org, type="indoor")
+            floor = self._create_floorplan(floor=1, location=location)
+            d = self._create_device()
+            self._create_object_location(
+                content_object=d,
+                location=location,
+                floorplan=floor,
+                organization=org,
+            )
+            response = self.client.get(
+                reverse("geo_api:indoor_coordinates_list", args=[location.id]),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            self.assertEqual(response.status_code, 200)
+
     def test_deactivated_device(self):
         device = self._create_object_location().device
         url = "{0}?key={1}".format(reverse(self.url_name, args=[device.pk]), device.key)
@@ -183,6 +201,7 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
+    floorplan_model = FloorPlan
 
     def setUp(self):
         super().setUp()
@@ -285,6 +304,59 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             self.client.logout()
             r = self.client.get(reverse(url))
             self.assertEqual(r.status_code, 401)
+
+    @capture_any_output()
+    def test_indoor_coodinate_list(self):
+        url = "geo_api:indoor_coordinates_list"
+        org_a = self._get_org("org_a")
+        org_b = self._get_org("org_b")
+        device_a = self._create_device(organization=org_a)
+        device_b = self._create_device(organization=org_b)
+        location_a = self._create_location(type="indoor", organization=org_a)
+        location_b = self._create_location(type="indoor", organization=org_b)
+        floor_a = self._create_floorplan(location=location_a)
+        floor_b = self._create_floorplan(location=location_b)
+        self._create_object_location(
+            content_object=device_a,
+            location=location_a,
+            floorplan=floor_a,
+            organization=org_a,
+        )
+        self._create_object_location(
+            content_object=device_b,
+            location=location_b,
+            floorplan=floor_b,
+            organization=org_b,
+        )
+
+        with self.subTest("Test indoor coordinate list for org operator"):
+            self.client.login(username="operator", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("Test indoor coordinate list for org superuser"):
+            self.client.login(username="admin", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertContains(r, str(device_b.id))
+
+        with self.subTest("Test indoor coordinate list for org administrator"):
+            administrator = self._create_administrator(organizations=[org_a, org_b])
+            self.client.force_login(administrator)
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, str(device_b.id))
+
+        with self.subTest("Test for unauthenticated user"):
+            self.client.logout()
+            response = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(response.status_code, 401)
 
 
 class TestGeoApi(
@@ -1191,51 +1263,3 @@ class TestGeoApi(
             self.assertEqual(len(response.data["results"]), 1)
             self.assertEqual(response.data["results"][0]["device_name"], "device-0")
             self.assertEqual(response.data["results"][0]["floor"], 0)
-
-        with self.subTest("Test user without explicit view permission"):
-            user = self._create_user(username="org_admin", email="admin@org1.com")
-            self._create_org_user(organization=org, user=user, is_admin=True)
-            self.client.force_login(user)
-            response = self.client.get(path)
-            self.assertEqual(response.status_code, 403)
-
-        with self.subTest("Test with user of different org"):
-            org2 = self._create_org(name="org2")
-            user = self._create_user(username="org2user", email="user@org2.com")
-            self._create_org_user(organization=org2, user=user, is_admin=True)
-            self.client.force_login(user)
-            response = self.client.get(path)
-            self.assertEqual(response.status_code, 404)
-
-        with self.subTest("Test user of org2 try to access its data and of org"):
-            location5 = self._create_location(type="indoor", organization=org2)
-            f3 = self._create_floorplan(floor=1, location=location5)
-            d3 = self._create_device(
-                name="device3", mac_address="00:00:00:00:00:03", organization=org2
-            )
-            self._create_object_location(
-                content_object=d3,
-                location=location5,
-                floorplan=f3,
-                organization=org2,
-            )
-            path2 = reverse("geo_api:indoor_coordinates_list", args=[location5.id])
-            view_perm = Permission.objects.filter(codename="view_devicelocation")
-            user.user_permissions.add(*view_perm)
-            self.client.force_login(user)
-            response = self.client.get(path2)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(response.data["results"]), 1)
-            self.assertEqual(response.data["results"][0]["device_name"], "device3")
-            self.assertEqual(response.data["results"][0]["floor"], 1)
-
-        with self.subTest("Test with administrator which manage the device org"):
-            administrator = self._create_administrator(organizations=[org, org2])
-            self.client.force_login(administrator)
-            response = self.client.get(path)
-            self.assertEqual(response.status_code, 200)
-
-        with self.subTest("Test for unauthenticated user"):
-            self.client.logout()
-            response = self.client.get(path)
-            self.assertEqual(response.status_code, 401)
