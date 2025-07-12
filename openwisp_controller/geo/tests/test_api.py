@@ -3,6 +3,7 @@ import tempfile
 import uuid
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -1074,13 +1075,42 @@ class TestGeoApi(
             self.assertEqual(response.data["results"][0]["device_name"], "device2")
             self.assertEqual(response.data["results"][0]["floor"], 2)
 
+        with self.subTest("Test user without explicit view permission"):
+            user = self._create_user(username="org_admin", email="admin@org1.com")
+            self._create_org_user(organization=org, user=user, is_admin=True)
+            self.client.force_login(user)
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 403)
+
         with self.subTest("Test with user of different org"):
             org2 = self._create_org(name="org2")
             user = self._create_user(username="org2user", email="user@org2.com")
             self._create_org_user(organization=org2, user=user, is_admin=True)
             self.client.force_login(user)
             response = self.client.get(path)
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Test user of org2 try to access its data and of org"):
+            location2 = self._create_location(type="indoor", organization=org2)
+            f3 = self._create_floorplan(floor=1, location=location2)
+            d3 = self._create_device(
+                name="device3", mac_address="00:00:00:00:00:03", organization=org2
+            )
+            self._create_object_location(
+                content_object=d3,
+                location=location2,
+                floorplan=f3,
+                organization=org2,
+            )
+            path2 = reverse("geo_api:indoor_coordinates_list", args=[location2.id])
+            view_perm = Permission.objects.filter(codename="view_devicelocation")
+            user.user_permissions.add(*view_perm)
+            self.client.force_login(user)
+            response = self.client.get(path2)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device3")
+            self.assertEqual(response.data["results"][0]["floor"], 1)
 
         with self.subTest("Test with administrator which manage the device org"):
             administrator = self._create_administrator(organizations=[org, org2])
