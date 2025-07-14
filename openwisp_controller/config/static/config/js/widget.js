@@ -252,7 +252,7 @@
     }
 
     // stop operation if empty admin inline object
-    if (field.attr("id").indexOf("__prefix__") > -1) {
+    if (field.attr("id") && field.attr("id").indexOf("__prefix__") > -1) {
       return;
     }
 
@@ -471,7 +471,7 @@
               });
             }
           }
-          $(`#${el.id}`).trigger("jsonschema-schemaloaded");
+          $(`textarea.jsoneditor-raw[name=${el.name}]`).trigger("jsonschema-schemaloaded");
         });
       },
     );

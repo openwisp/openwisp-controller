@@ -328,6 +328,10 @@ class BaseForm(forms.ModelForm):
     """
     Adds support for ``OPENWISP_CONTROLLER_DEFAULT_BACKEND``
     """
+    # It is required to declare fields otherwise,
+    # "django.contrib.admin.helpers.AdminReadonlyField" will not use
+    # the field widget for rendering in readonly mode.
+    config = forms.CharField(widget=JsonSchemaWidget, required=True)
 
     if app_settings.DEFAULT_BACKEND:
 
@@ -1056,6 +1060,17 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     ]
     readonly_fields = ["system_context"]
     autocomplete_fields = ["vpn"]
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        "Set the "read_only" attribute on widgets of jsonfield.
+        """
+        form = super().get_form(request, obj, **kwargs)
+        if obj:
+            for field in form.declared_fields.values():
+                if isinstance(field.widget, JsonSchemaWidget):
+                    field.widget.read_only = not self.has_change_permission(request, obj)
+        return form
 
     @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):

@@ -1,3 +1,5 @@
+from collections import OrderedDict
+import json
 from django import forms
 from django.contrib.admin.widgets import AdminTextareaWidget
 from django.template.loader import get_template
@@ -36,6 +38,10 @@ class JsonSchemaWidget(AdminTextareaWidget):
         return forms.Media(js=js, css=css)
 
     def render(self, name, value, attrs=None, renderer=None):
+        if isinstance(value, OrderedDict):
+            # In readonly mode, the widget gets the Python representation
+            # instead of the JSON string.
+            value = json.dumps(value, indent=4, ensure_ascii=False)
         template = get_template("admin/config/jsonschema-widget.html")
         context = {
             "netjsonconfig_hint": self.netjsonconfig_hint,
