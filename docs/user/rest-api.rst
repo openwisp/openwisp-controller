@@ -347,12 +347,109 @@ List Commands of a Device
 
     GET /api/v1/controller/device/{device_id}/command/
 
+.. _controller_execute_command_api:
+
 Execute a Command on a Device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     POST /api/v1/controller/device/{device_id}/command/
+
+This endpoint allows you to execute various types of commands on a device.
+
+**Request Parameters**
+
+============== ========================================================
+Parameter      Description
+============== ========================================================
+``type``       The type of command to execute (**required**)
+``input``      Input data for the command (format varies by type)
+               (**required**)
+``connection`` UUID of specific device connection to use (**optional**)
+============== ========================================================
+
+The ``input`` field requires data in a specific format that depends on the
+command type being executed.
+
+.. note::
+
+    The following examples show payloads for the default commands shipped
+    with OpenWISP. The available commands on a device depend on your
+    configuration of :ref:`OPENWISP_CONTROLLER_USER_COMMANDS
+    <openwisp_controller_user_commands>` and
+    :ref:`OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS` settings. For
+    detailed information about command execution, including how to add
+    command types, and restrict available commands per organization, see
+    :doc:`shell-commands`.
+
+**Available Command Types**
+
+1. **Custom Command** (``custom``)
+
+   Execute a custom command on the device.
+
+   **Input format:** ``{"command": "shell_command"}``
+
+   **Example payload:**
+
+   .. code-block:: json
+
+       {
+           "type": "custom",
+           "input": {
+               "command": "iwinfo"
+           }
+       }
+
+2. **Reboot** (``reboot``)
+
+   Reboot the device.
+
+   **Input format:** ``null`` (no input required)
+
+   **Example payload:**
+
+   .. code-block:: json
+
+       {
+           "type": "reboot",
+           "input": null
+       }
+
+3. **Change Password** (``change_password``)
+
+   Change the device's root password.
+
+   **Input format:** ``{"password": "new_pass", "confirm_password":
+   "new_pass"}``
+
+   **Example payload:**
+
+   .. code-block:: json
+
+       {
+           "type": "change_password",
+           "input": {
+               "password": "newpassword123",
+               "confirm_password": "newpassword123"
+           }
+       }
+
+**Example Request:**
+
+.. code-block:: shell
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/command/ \
+        -H 'authorization: Bearer yoursecretauthtoken' \
+        -H 'content-type: application/json' \
+        -d '{
+                "type": "custom",
+                "input": {
+                    "command": "uptime"
+                }
+            }'
 
 Get Command Details
 ~~~~~~~~~~~~~~~~~~~
