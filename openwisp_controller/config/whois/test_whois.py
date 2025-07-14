@@ -303,6 +303,37 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
         with self.assertRaises(ValidationError):
             self._create_whois_info(asn="InvalidASN")
 
+        # Common validation checks for latitude and longitude
+        latitudes = [
+            (100.0, "Ensure this value is less than or equal to 90.0."),
+            (-100.0, "Ensure this value is greater than or equal to -90.0."),
+        ]
+        for value, expected_msg in latitudes:
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_whois_info(latitude=value)
+            try:
+                self.assertEqual(
+                    context_manager.exception.message_dict["latitude"][0],
+                    expected_msg,
+                )
+            except AssertionError:
+                self.fail("ValidationError message not equal to expected message.")
+
+        longitudes = [
+            (200.0, "Ensure this value is less than or equal to 180.0."),
+            (-200.0, "Ensure this value is greater than or equal to -180.0."),
+        ]
+        for value, expected_msg in longitudes:
+            with self.assertRaises(ValidationError) as context_manager:
+                self._create_whois_info(longitude=value)
+            try:
+                self.assertEqual(
+                    context_manager.exception.message_dict["longitude"][0],
+                    expected_msg,
+                )
+            except AssertionError:
+                self.fail("ValidationError message not equal to expected message.")
+
 
 class TestWHOISTransaction(
     CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
@@ -437,6 +468,8 @@ class TestWHOISTransaction(
                 instance.formatted_address,
                 "Mountain View, United States, North America, 94043",
             )
+            self.assertEqual(instance.latitude, 50)
+            self.assertEqual(instance.longitude, 150)
 
         # mocking the response from the geoip2 client
         mock_client.return_value.city.return_value = self._mocked_client_response()
