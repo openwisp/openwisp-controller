@@ -60,6 +60,8 @@ class CreateWHOISMixin(CreateConfigMixin):
             isp="Google LLC",
             timezone="America/Los_Angeles",
             cidr="172.217.22.0/24",
+            longitude=150.0,
+            latitude=50.0,
         )
 
         options.update(kwargs)
@@ -87,8 +89,8 @@ class WHOISTransactionMixin:
         mock_response.traits.autonomous_system_number = 15169
         mock_response.traits.network = "172.217.22.0/24"
         mock_response.location.time_zone = "America/Los_Angeles"
-        mock_response.location.latitude = 2
-        mock_response.location.longitude = 23
+        mock_response.location.latitude = 50
+        mock_response.location.longitude = 150
         return mock_response
 
     def _task_called(self, mocked_task, task_name="WHOIS lookup"):
@@ -158,4 +160,19 @@ class WHOISTransactionMixin:
             )
             self.assertEqual(response.status_code, 200)
             mocked_task.assert_called()
+        mocked_task.reset_mock()
+
+        with self.subTest(
+            f"{task_name} task not called via DeviceChecksumView when WHOIS is disabled"
+        ):
+            WHOISInfo.objects.all().delete()
+            org.config_settings.whois_enabled = False
+            org.config_settings.save(update_fields=["whois_enabled"])
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_not_called()
         mocked_task.reset_mock()

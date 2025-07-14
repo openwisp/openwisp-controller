@@ -26,7 +26,7 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
         OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT="test_account",
         OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY="test_key",
     )
-    def test_whois_configuration_setting(self):
+    def test_approximate_location_configuration_setting(self):
         # reload app_settings to apply the overridden settings
         importlib.reload(config_app_settings)
         with self.subTest(
@@ -91,6 +91,9 @@ class TestApproximateLocationTransaction(
         with self.subTest(
             "Approximate location task called when last_ip has related WhoIsInfo"
         ):
+            device.organization.config_settings.whois_enabled = True
+            device.organization.config_settings.approximate_location_enabled = True
+            device.organization.config_settings.save()
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
@@ -136,8 +139,8 @@ class TestApproximateLocationTransaction(
 
         with self.subTest("Test Fuzzy location updated when last ip is updated"):
             device.last_ip = "172.217.22.10"
-            mocked_response.location.latitude = 100
-            mocked_response.location.longitude = 200
+            mocked_response.location.latitude = 50
+            mocked_response.location.longitude = 150
             mocked_response.city.name = "New City"
             mock_client.return_value.city.return_value = mocked_response
             device.save()

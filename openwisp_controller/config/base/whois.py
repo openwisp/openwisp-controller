@@ -2,6 +2,7 @@ from ipaddress import ip_address, ip_network
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
@@ -55,11 +56,13 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         null=True,
         blank=True,
         help_text=_("Latitude"),
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)],
     )
     longitude = models.FloatField(
         null=True,
         blank=True,
         help_text=_("Longitude"),
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)],
     )
 
     class Meta:
