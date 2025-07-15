@@ -37,6 +37,26 @@ def update_template_related_config_status(template_pk):
         )
 
 
+@shared_task(soft_time_limit=7200)
+def auto_add_template_to_existing_config(template_pk):
+    Template = load_model("config", "Template")
+    try:
+        template = Template.objects.get(pk=template_pk)
+    except ObjectDoesNotExist as e:
+        logger.warning(
+            f'auto_add_template_to_existing_config("{template_pk}") failed: {e}'
+        )
+        return
+    try:
+        template._auto_add_to_existing_configs()
+    except SoftTimeLimitExceeded:
+        logger.error(
+            "soft time limit hit while executing "
+            f"_auto_add_to_existing_configs for {template} "
+            f"(ID: {template_pk})"
+        )
+
+
 @shared_task(soft_time_limit=1200)
 def create_vpn_dh(vpn_pk):
     """
