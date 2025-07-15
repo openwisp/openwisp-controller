@@ -1,4 +1,7 @@
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import pagination
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import (
@@ -72,6 +75,22 @@ class CommandListCreateView(BaseCommandView, ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         self.assert_parent_exists()
         return super().create(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_description=_("Execute a command on a device"),
+        operation_summary=_("Execute device command"),
+        request_body=CommandSerializer,
+        responses={
+            201: openapi.Response(
+                description=_("Command created successfully"),
+                schema=CommandSerializer,
+            ),
+            400: openapi.Response(description=_("Invalid request data")),
+            404: openapi.Response(description=_("Device not found")),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class CommandDetailsView(BaseCommandView, RetrieveAPIView):

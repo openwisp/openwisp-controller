@@ -1,3 +1,5 @@
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from swapper import load_model
 
@@ -20,7 +22,18 @@ class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
 
 
 class CommandSerializer(ValidatedDeviceFieldSerializer):
-    input = serializers.JSONField(allow_null=True)
+    input = serializers.JSONField(
+        allow_null=True,
+        help_text=mark_safe(
+            _(
+                "JSON object containing the command input data. "
+                "The structure of this object depends on the command type. "
+                'Refer to the <a href="https://openwisp.io/docs/dev/controller/'
+                'user/rest-api.html#execute-a-command-on-a-device" target="_blank">'
+                "OpenWISP documentation</a> for details."
+            )
+        ),
+    )
     device = serializers.PrimaryKeyRelatedField(
         read_only=True, pk_field=serializers.UUIDField(format="hex_verbose")
     )
