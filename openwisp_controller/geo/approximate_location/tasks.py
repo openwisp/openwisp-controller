@@ -41,9 +41,9 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
         coords = Point(whois_obj.longitude, whois_obj.latitude, srid=4326)
         address = whois_obj.formatted_address
         location_name = (
-            " ".join(address.split(",")[:2])
+            ",".join(address.split(",")[:2]) + f" (Estimated: {ip_address})"
             if address
-            else f"Approximate Location {ip_address}"
+            else f"Estimated Location: {ip_address}"
         )
         # Used to update an existing location if it is approximate
         # or create a new one if it doesn't exist
@@ -60,6 +60,11 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
                 setattr(current_location, attr, value)
             current_location.full_clean()
             current_location.save()
+            send_whois_task_notification(
+                device_pk=device_pk,
+                notify_type="location_updated",
+                actor=current_location,
+            )
         elif not current_location:
             location = Location(**location_defaults, is_approximate=True)
             location.full_clean()
@@ -67,6 +72,9 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
             device_location.location = location
             device_location.full_clean()
             device_location.save()
+            send_whois_task_notification(
+                device_pk=device_pk, notify_type="location_created", actor=location
+            )
 
     # For handling the case when WHOIS already exists for device's new last_ip
     # then we attach the location of the device with same last_ip if it exists.
@@ -83,11 +91,16 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
             send_whois_task_notification(
                 device_pk=device_pk, notify_type="location_error"
             )
+            logger.info(f"Multiple devices exist for IP: {ip_address}")
             return
         # If existing devices with same last_ip do not have any location
         # then we create a new location based on WHOIS data.
         if existing_devices_location.count() == 0:
             _create_update_location()
+            logger.info(
+                f"Fuzzy location saved successfully for {device_pk} "
+                f"for IP: {ip_address}"
+            )
             return
         existing_location = existing_devices_location.first().devicelocation.location
         # We need to remove any existing approximate location of the device
@@ -96,6 +109,9 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
         device_location.location = existing_location
         device_location.full_clean()
         device_location.save()
+        send_whois_task_notification(
+            device_pk=device_pk, notify_type="location_updated", actor=existing_location
+        )
     elif whois_obj and whois_obj.latitude and whois_obj.longitude:
         _create_update_location()
 
