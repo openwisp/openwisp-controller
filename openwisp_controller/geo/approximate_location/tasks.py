@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 @shared_task
 def manage_approximate_locations(device_pk, ip_address, add_existing=False):
     """
-    Creates/updates fuzzy location for a device based on the latitude and longitude
-    or attaches an existing location if `add_existing` is True.
+    Creates/updates approximate location for a device based on the latitude and
+    longitude or attaches an existing location if `add_existing` is True.
     Existing location here means a location of another device whose last_ip matches
     the given ip_address.
 
@@ -21,7 +21,7 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
 
     When `add_existing` is False:
     - A new location is created if no location exists for current device, or
-    existing one is updated using coords from WHOIS record if it is approximate(fuzzy).
+    existing one is updated using coords from WHOIS record if it is approximate (fuzzy).
     """
     from openwisp_controller.config.whois.utils import send_whois_task_notification
 
@@ -41,9 +41,9 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
         coords = Point(whois_obj.longitude, whois_obj.latitude, srid=4326)
         address = whois_obj.formatted_address
         location_name = (
-            " ".join(address.split(",")[:2])
+            ",".join(address.split(",")[:2]) + f" (Estimated: {ip_address})"
             if address
-            else f"Approximate Location {ip_address}"
+            else f"Estimated Location: {ip_address}"
         )
         # Used to update an existing location if it is approximate
         # or create a new one if it doesn't exist
@@ -100,5 +100,5 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
         _create_update_location()
 
     logger.info(
-        f"Fuzzy location saved successfully for {device_pk} for IP: {ip_address}"
+        f"Approximate location saved successfully for {device_pk} for IP: {ip_address}"
     )

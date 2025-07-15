@@ -4,6 +4,7 @@ from unittest import mock
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.urls import reverse
 from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
@@ -59,6 +60,41 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
                 )
             except AssertionError:
                 self.fail("ValidationError message not equal to expected message.")
+
+        with self.subTest(
+            "Test Approximate Location field visible on admin when "
+            "WHOIS_CONFIGURED True"
+        ):
+            self._login()
+            org = self._get_org()
+            url = reverse(
+                "admin:openwisp_users_organization_change",
+                args=[org.pk],
+            )
+            response = self.client.get(url)
+            self.assertContains(
+                response, 'name="config_settings-0-approximate_location_enabled"'
+            )
+
+        with override_settings(
+            OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT=None,
+            OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY=None,
+        ):
+            importlib.reload(config_app_settings)
+            with self.subTest(
+                "Test Approximate Location field hidden on admin when "
+                "WHOIS_CONFIGURED False"
+            ):
+                self._login()
+                org = self._get_org()
+                url = reverse(
+                    "admin:openwisp_users_organization_change",
+                    args=[org.pk],
+                )
+                response = self.client.get(url)
+                self.assertNotContains(
+                    response, 'name="config_settings-0-approximate_location_enabled"'
+                )
 
 
 class TestApproximateLocationTransaction(
@@ -128,7 +164,7 @@ class TestApproximateLocationTransaction(
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
 
-        with self.subTest("Test Fuzzy location created when device is created"):
+        with self.subTest("Test Approximate location created when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
 
             location = device.devicelocation.location
@@ -137,7 +173,7 @@ class TestApproximateLocationTransaction(
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
 
-        with self.subTest("Test Fuzzy location updated when last ip is updated"):
+        with self.subTest("Test Approximate location updated when last ip is updated"):
             device.last_ip = "172.217.22.10"
             mocked_response.location.latitude = 50
             mocked_response.location.longitude = 150
