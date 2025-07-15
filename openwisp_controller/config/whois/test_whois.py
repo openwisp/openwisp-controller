@@ -19,7 +19,6 @@ from .tests_utils import CreateWHOISMixin
 from utils import WHOISTransactionMixin
 
 Device = load_model("config", "Device")
-Location = load_model("geo", "Location")
 WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
