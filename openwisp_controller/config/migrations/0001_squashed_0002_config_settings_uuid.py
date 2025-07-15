@@ -294,7 +294,7 @@ class Migration(migrations.Migration):
                         db_index=True,
                         default=False,
                         help_text=(
-                            "whether new configurations will have this "
+                            "whether all configurations will have this "
                             "template enabled by default"
                         ),
                         verbose_name="enabled by default",

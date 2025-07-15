@@ -14,6 +14,7 @@ from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
+from ..tasks import auto_add_template_to_existing_config
 from ..tasks import logger as task_logger
 from ..tasks import update_template_related_config_status
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
@@ -517,6 +518,36 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         template.full_clean()
         template.save()
 
+    def test_auto_add_to_existing_configs_error_handling(self):
+        with self.subTest("Template is not default or required"):
+            template = self._create_template(
+                name="test-template", required=False, default=False
+            )
+            with mock.patch.object(transaction, "atomic") as mocked_atomic:
+                template._auto_add_to_existing_configs()
+            mocked_atomic.assert_not_called()
+
+        with self.subTest("config.templates.add(template) raises error"):
+            config = self._create_config(device=self._create_device(name="test-device"))
+            template.required = True
+            template.full_clean()
+            template.save()
+            with mock.patch.object(
+                Config.templates.related_manager_cls,
+                "add",
+                side_effect=ValueError("Incompatible template"),
+            ), mock.patch("logging.Logger.exception") as mocked_logger:
+                template._auto_add_to_existing_configs()
+            mocked_logger.assert_called_once_with(
+                f"Failed to add template {template.pk} to config {config.pk}:"
+                " Incompatible template"
+            )
+
+    @mock.patch.object(task_logger, "warning")
+    def test_auto_add_template_to_existing_config_task_failure(self, mocked_warning):
+        auto_add_template_to_existing_config.delay(uuid.uuid4())
+        mocked_warning.assert_called_once()
+
 
 class TestTemplateTransaction(
     CreateConfigTemplateMixin,
@@ -749,3 +780,153 @@ class TestTemplateTransaction(
             template.save()
             mocked_error.assert_called_once()
         mocked_update_related_config_status.assert_called_once()
+
+    def _create_env_for_adding_template_to_existing_config(self):
+        org1 = self._get_org()
+        org1_config = self._create_config(organization=org1, status="applied")
+        org2 = self._create_org(name="org2", slug="org2")
+        org2_config = self._create_config(organization=org2, status="applied")
+        org2_deactivating_config = self._create_config(
+            status="deactivating",
+            device=self._create_device(
+                name="test-deactivating",
+                mac_address="11:22:33:44:55:67",
+                organization=org2,
+            ),
+        )
+        org2_deactivated_config = self._create_config(
+            status="deactivated",
+            device=self._create_device(
+                name="test-deactivated",
+                mac_address="11:22:33:44:55:68",
+                organization=org2,
+            ),
+        )
+        return (
+            org1_config,
+            org2_config,
+            org2_deactivating_config,
+            org2_deactivated_config,
+            org1,
+            org2,
+        )
+
+    def _assert_template_added_to_existing_config(
+        self,
+        template,
+        org1_config,
+        org2_config,
+        org2_deactivating_config,
+        org2_deactivated_config,
+    ):
+        org1_config.refresh_from_db()
+        self.assertEqual(org1_config.status, "modified")
+        self.assertIn(template, org1_config.templates.all())
+        org2_config.refresh_from_db()
+        self.assertEqual(org2_config.status, "modified")
+        self.assertIn(template, org2_config.templates.all())
+
+        org2_deactivating_config.refresh_from_db()
+        self.assertEqual(org2_deactivating_config.status, "deactivating")
+        self.assertEqual(org2_deactivating_config.templates.count(), 0)
+
+        org2_deactivated_config.refresh_from_db()
+        self.assertEqual(org2_deactivated_config.status, "deactivated")
+        self.assertEqual(org2_deactivated_config.templates.count(), 0)
+
+    def test_required_template_added_to_existing_config(self):
+        (
+            org1_config,
+            org2_config,
+            org2_deactivating_config,
+            org2_deactivated_config,
+            _,
+            _,
+        ) = self._create_env_for_adding_template_to_existing_config()
+        shared_template = self._create_template(
+            name="shared-template", required=True, default=True
+        )
+        self._assert_template_added_to_existing_config(
+            shared_template,
+            org1_config,
+            org2_config,
+            org2_deactivating_config,
+            org2_deactivated_config,
+        )
+
+    def test_default_template_added_to_existing_config(self):
+        (
+            org1_config,
+            org2_config,
+            org2_deactivating_config,
+            org2_deactivated_config,
+            _,
+            _,
+        ) = self._create_env_for_adding_template_to_existing_config()
+        default_template = self._create_template(name="default-template", default=True)
+        self._assert_template_added_to_existing_config(
+            default_template,
+            org1_config,
+            org2_config,
+            org2_deactivating_config,
+            org2_deactivated_config,
+        )
+
+    def test_update_existing_template_to_be_required(self):
+        template = self._create_template(
+            name="existing-template", required=False, default=False
+        )
+        config = self._create_config(organization=self._get_org())
+        self.assertNotIn(template, config.templates.all())
+
+        template.required = True
+        template.full_clean()
+        template.save()
+
+        config.refresh_from_db()
+        self.assertEqual(config.status, "modified")
+        self.assertIn(template, config.templates.all())
+
+    def test_update_existing_template_to_be_default(self):
+        template = self._create_template(
+            name="existing-template", required=False, default=False
+        )
+        config = self._create_config(organization=self._get_org())
+        self.assertNotIn(template, config.templates.all())
+
+        template.default = True
+        template.full_clean()
+        template.save()
+
+        config.refresh_from_db()
+        self.assertEqual(config.status, "modified")
+        self.assertIn(template, config.templates.all())
+
+    @mock.patch.object(auto_add_template_to_existing_config, "delay")
+    def test_auto_add_template_to_existing_config_not_triggered(self, mocked_task):
+        """
+        Ensure that auto_add_template_to_existing_config task is not triggered
+        when a required/default template is updated.
+        """
+        with self.subTest("Updating default template does not trigger task"):
+            default_template = self._create_template(
+                name="default-template", default=True
+            )
+            mocked_task.assert_called_once_with(str(default_template.pk))
+            mocked_task.reset_mock()
+
+            default_template.config["interfaces"][0]["name"] = "eth1"
+            default_template.full_clean()
+            default_template.save()
+            mocked_task.assert_not_called()
+
+        with self.subTest("Updating required template does not trigger task"):
+            required_template = self._create_template(
+                name="required-template", required=True
+            )
+            mocked_task.assert_called_once_with(str(required_template.pk))
+            mocked_task.reset_mock()
+            required_template.config["interfaces"][0]["name"] = "eth1"
+            required_template.full_clean()
+            required_template.save()
+            mocked_task.assert_not_called()
