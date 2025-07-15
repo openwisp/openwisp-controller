@@ -1384,7 +1384,7 @@ class ConfigSettingsInline(admin.StackedInline):
         if app_settings.REGISTRATION_ENABLED:
             fields += ["registration_enabled", "shared_secret"]
         if app_settings.WHOIS_CONFIGURED:
-            fields += ["whois_enabled"]
+            fields += ["whois_enabled", "approximate_location_enabled"]
         fields += ["context"]
         return fields
 
