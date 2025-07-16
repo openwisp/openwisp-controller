@@ -30,7 +30,7 @@ Group = load_model("openwisp_users", "Group")
 User = get_user_model()
 
 
-class TestApi(TestGeoMixin, CreateDeviceMixin, TestCase):
+class TestApi(TestGeoMixin, TestCase):
     url_name = "geo_api:device_coordinates"
     object_location_model = DeviceLocation
     location_model = Location
@@ -131,7 +131,17 @@ class TestApi(TestGeoMixin, CreateDeviceMixin, TestCase):
             username="admin", password="password", is_staff=True, is_superuser=True
         )
         token = Token.objects.create(user=user).key
-        device = self._create_object_location().device
+        device = self._create_object()
+        location = self._create_location(
+            organization=device.organization, type="indoor"
+        )
+        floor = self._create_floorplan(floor=1, location=location)
+        self._create_object_location(
+            content_object=device,
+            location=location,
+            floorplan=floor,
+            organization=device.organization,
+        )
 
         with self.subTest("Test DeviceLocationView"):
             response = self.client.get(
@@ -151,7 +161,6 @@ class TestApi(TestGeoMixin, CreateDeviceMixin, TestCase):
             self.assertEqual(response.status_code, 200)
 
         with self.subTest("Test LocationDeviceList"):
-            location = self._create_location(organization=device.organization)
             response = self.client.get(
                 reverse("geo_api:location_device_list", args=[location.id]),
                 content_type="application/json",
@@ -160,16 +169,6 @@ class TestApi(TestGeoMixin, CreateDeviceMixin, TestCase):
             self.assertEqual(response.status_code, 200)
 
         with self.subTest("Test IndoorCoordinatesList"):
-            org = self._get_org()
-            location = self._create_location(organization=org, type="indoor")
-            floor = self._create_floorplan(floor=1, location=location)
-            d = self._create_device()
-            self._create_object_location(
-                content_object=d,
-                location=location,
-                floorplan=floor,
-                organization=org,
-            )
             response = self.client.get(
                 reverse("geo_api:indoor_coordinates_list", args=[location.id]),
                 content_type="application/json",
@@ -336,7 +335,7 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             r = self.client.get(reverse(url, args=[location_b.id]))
             self.assertEqual(r.status_code, 404)
 
-        with self.subTest("Test indoor coordinate list for org superuser"):
+        with self.subTest("Test indoor coordinate list for superuser"):
             self.client.login(username="admin", password="tester")
             r = self.client.get(reverse(url, args=[location_a.id]))
             self.assertContains(r, str(device_a.id))
@@ -1113,24 +1112,24 @@ class TestGeoApi(
     def test_indoor_coordinates_list_api(self):
         org = self._create_org(name="Test org")
         location = self._create_location(type="indoor", organization=org)
-        f1 = self._create_floorplan(floor=1, location=location)
-        f2 = self._create_floorplan(floor=2, location=location)
-        d1 = self._create_device(
+        floor1 = self._create_floorplan(floor=1, location=location)
+        floor2 = self._create_floorplan(floor=2, location=location)
+        device1 = self._create_device(
             name="device1", mac_address="00:00:00:00:00:01", organization=org
         )
-        d2 = self._create_device(
+        device2 = self._create_device(
             name="device2", mac_address="00:00:00:00:00:02", organization=org
         )
         self._create_object_location(
-            content_object=d1,
+            content_object=device1,
             location=location,
-            floorplan=f1,
+            floorplan=floor1,
             organization=org,
         )
         self._create_object_location(
-            content_object=d2,
+            content_object=device2,
             location=location,
-            floorplan=f2,
+            floorplan=floor2,
             organization=org,
         )
         path = reverse("geo_api:indoor_coordinates_list", args=[location.id])
@@ -1149,34 +1148,34 @@ class TestGeoApi(
 
         with self.subTest("Test default floor with all positve floor"):
             location2 = self._create_location(type="indoor", organization=org)
-            f0 = self._create_floorplan(floor=0, location=location2)
-            f5 = self._create_floorplan(floor=5, location=location2)
-            f9 = self._create_floorplan(floor=9, location=location2)
-            d0 = self._create_device(
+            floor0 = self._create_floorplan(floor=0, location=location2)
+            floor5 = self._create_floorplan(floor=5, location=location2)
+            floor9 = self._create_floorplan(floor=9, location=location2)
+            device0 = self._create_device(
                 name="device", mac_address="00:00:00:00:00:00", organization=org
             )
-            d5 = self._create_device(
+            device5 = self._create_device(
                 name="device5", mac_address="00:00:00:00:00:05", organization=org
             )
-            d9 = self._create_device(
+            device9 = self._create_device(
                 name="device9", mac_address="00:00:00:00:00:09", organization=org
             )
             self._create_object_location(
-                content_object=d0,
+                content_object=device0,
                 location=location2,
-                floorplan=f0,
+                floorplan=floor0,
                 organization=org,
             )
             self._create_object_location(
-                content_object=d5,
+                content_object=device5,
                 location=location2,
-                floorplan=f5,
+                floorplan=floor5,
                 organization=org,
             )
             self._create_object_location(
-                content_object=d9,
+                content_object=device9,
                 location=location2,
-                floorplan=f9,
+                floorplan=floor9,
                 organization=org,
             )
             path = reverse("geo_api:indoor_coordinates_list", args=[location2.id])
@@ -1188,34 +1187,34 @@ class TestGeoApi(
 
         with self.subTest("Test default floor with all negative floor"):
             location3 = self._create_location(type="indoor", organization=org)
-            f_1 = self._create_floorplan(floor=-1, location=location3)
-            f_2 = self._create_floorplan(floor=-2, location=location3)
-            f_3 = self._create_floorplan(floor=-3, location=location3)
-            d_1 = self._create_device(
+            floor_1 = self._create_floorplan(floor=-1, location=location3)
+            floor_2 = self._create_floorplan(floor=-2, location=location3)
+            floor_3 = self._create_floorplan(floor=-3, location=location3)
+            device_1 = self._create_device(
                 name="device-1", mac_address="00:00:00:00:10:01", organization=org
             )
-            d_2 = self._create_device(
+            device_2 = self._create_device(
                 name="device-2", mac_address="00:00:00:00:10:02", organization=org
             )
-            d_3 = self._create_device(
+            device_3 = self._create_device(
                 name="device-3", mac_address="00:00:00:00:10:03", organization=org
             )
             self._create_object_location(
-                content_object=d_1,
+                content_object=device_1,
                 location=location3,
-                floorplan=f_1,
+                floorplan=floor_1,
                 organization=org,
             )
             self._create_object_location(
-                content_object=d_2,
+                content_object=device_2,
                 location=location3,
-                floorplan=f_2,
+                floorplan=floor_2,
                 organization=org,
             )
             self._create_object_location(
-                content_object=d_3,
+                content_object=device_3,
                 location=location3,
-                floorplan=f_3,
+                floorplan=floor_3,
                 organization=org,
             )
             path = reverse("geo_api:indoor_coordinates_list", args=[location3.id])
@@ -1227,34 +1226,34 @@ class TestGeoApi(
 
         with self.subTest("Test default floor with positive and negative floor"):
             location4 = self._create_location(type="indoor", organization=org)
-            f_4 = self._create_floorplan(floor=-4, location=location4)
-            f0 = self._create_floorplan(floor=0, location=location4)
-            f22 = self._create_floorplan(floor=22, location=location4)
-            d_3 = self._create_device(
+            floor_4 = self._create_floorplan(floor=-4, location=location4)
+            floor0 = self._create_floorplan(floor=0, location=location4)
+            floor22 = self._create_floorplan(floor=22, location=location4)
+            device_3 = self._create_device(
                 name="device-4", mac_address="00:00:00:10:10:03", organization=org
             )
-            d0 = self._create_device(
+            device0 = self._create_device(
                 name="device-0", mac_address="00:00:00:00:10:00", organization=org
             )
-            d22 = self._create_device(
+            device22 = self._create_device(
                 name="device22", mac_address="00:00:00:00:10:22", organization=org
             )
             self._create_object_location(
-                content_object=d_3,
+                content_object=device_3,
                 location=location4,
-                floorplan=f_4,
+                floorplan=floor_4,
                 organization=org,
             )
             self._create_object_location(
-                content_object=d0,
+                content_object=device0,
                 location=location4,
-                floorplan=f0,
+                floorplan=floor0,
                 organization=org,
             )
             self._create_object_location(
-                content_object=d22,
+                content_object=device22,
                 location=location4,
-                floorplan=f22,
+                floorplan=floor22,
                 organization=org,
             )
             path = reverse("geo_api:indoor_coordinates_list", args=[location4.id])
