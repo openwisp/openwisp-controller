@@ -229,6 +229,37 @@ class TestApproximateLocationTransaction(
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_approximate_location_notification(self, mock_client):
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+        device1 = self._create_device(last_ip="172.217.22.10")
+        self.assertEqual(notification_qs.count(), 1)
+        notification = notification_qs.first()
+        self.assertEqual(notification.actor, device1.devicelocation.location)
+        self.assertEqual(notification.target, device1)
+        self.assertEqual(notification.type, "generic_message")
+        self.assertEqual(notification.level, "info")
+        self.assertIn("created successfully", notification.message)
+        self.assertIn(device1.last_ip, notification.description)
+
+        notification_qs.delete()
+        # will have same location as first device
+        device2 = self._create_device(
+            name="11:22:33:44:55:66",
+            mac_address="11:22:33:44:55:66",
+            last_ip="172.217.22.10",
+        )
+        self.assertEqual(notification_qs.count(), 1)
+        notification = notification_qs.first()
+        self.assertEqual(notification.actor, device2.devicelocation.location)
+        self.assertEqual(notification.target, device2)
+        self.assertEqual(notification.type, "generic_message")
+        self.assertEqual(notification.level, "info")
+        self.assertIn("updated successfully", notification.message)
+        self.assertIn(device2.last_ip, notification.description)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_approximate_location_notification_error(self, mock_client):
         """
         For testing notification related to location is sent to user
         when already multiple devices with same last_ip exist.
@@ -249,8 +280,10 @@ class TestApproximateLocationTransaction(
             mac_address="11:22:33:44:55:77",
             last_ip="172.217.22.10",
         )
-        self.assertEqual(notification_qs.count(), 1)
-        notification = notification_qs.first()
+        # 2 count will be created for device1 and device2 and 1 for
+        # device3
+        self.assertEqual(notification_qs.count(), 3)
+        notification = notification_qs.get(actor_object_id=device3.pk)
         self.assertEqual(notification.actor, device3)
         self.assertEqual(notification.target, device3)
         self.assertEqual(notification.type, "generic_message")
