@@ -1,6 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count
 from django.http import Http404
+from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination, status
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -52,31 +53,35 @@ class FloorPlanOrganizationFilter(OrganizationManagedFilter):
         model = FloorPlan
 
 
-class IndoorCoordinatesFilter(OrganizationManagedFilter):
-    floor = filters.NumberFilter(field_name="floorplan__floor")
-    organization = filters.UUIDFilter(field_name="content_object__organization")
+class IndoorCoordinatesFilter(filters.FilterSet):
+    floor = filters.NumberFilter(label=_("Floor"), method="filter_by_floor")
 
-    def filter_queryset(self, queryset):
+    @property
+    def qs(self):
+        qs = super().qs
+        if "floor" not in self.data:
+            qs = self.filter_by_floor(qs, "floor", None)
+        return qs
+
+    def filter_by_floor(self, queryset, name, value):
         """
         If no floor parameter is provided:
-        Return data for the first available positive floor
-        If no positive floor exists, return data for the highest negative floor
-        If a valid floor parameter is provided, return data for that specific floor.
+        - Return data for the first available non-negative floor.
+        - If no non-negative floor exists, return data for the maximum negative floor.
         """
-        organization_managed_qs = OrganizationManagedFilter.filter_queryset(
-            self, queryset
-        )
-        qs = filters.FilterSet.filter_queryset(self, organization_managed_qs)
-        if "floor" not in self.data:
-            floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
-            positives = [f for f in floors if f >= 0]
-            default_floor = min(positives) if positives else max(floors)
-            qs = qs.filter(floorplan__floor=default_floor)
-        return qs
+        if value is not None:
+            return queryset.filter(floorplan__floor=value)
+        # No floor parameter provided
+        floors = list(queryset.values_list("floorplan__floor", flat=True).distinct())
+        if not floors:
+            return queryset.none()
+        non_negative_floors = [f for f in floors if f >= 0]
+        default_floor = min(non_negative_floors) if non_negative_floors else max(floors)
+        return queryset.filter(floorplan__floor=default_floor)
 
     class Meta(OrganizationManagedFilter.Meta):
         model = DeviceLocation
-        fields = OrganizationManagedFilter.Meta.fields + ["floor"]
+        fields = ["floor"]
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -278,6 +283,17 @@ class LocationDeviceList(
         super().get_queryset()
         qs = Device.objects.filter(devicelocation__location_id=self.kwargs["pk"])
         return qs
+
+    def get_has_floorplan(self, qs):
+        qs = qs.filter(devicelocation__floorplan__isnull=False).exists()
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        has_floorplan = self.get_has_floorplan(self.get_queryset())
+        response = super().list(self, request, *args, **kwargs)
+        if response.status_code == 200:
+            response.data["has_floorplan"] = has_floorplan
+        return response
 
 
 class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
