@@ -6,7 +6,7 @@ Approximate Location
     The **Approximate Location** feature is **disabled by default**.
 
     Before enabling it, the :doc:`WHOIS Lookup feature <whois>` must be
-    enabled and then set
+    enabled. Then set
     :ref:`OPENWISP_CONTROLLER_APPROXIMATE_LOCATION_ENABLED` to ``True``
 
 .. contents:: **Table of contents**:
@@ -35,12 +35,17 @@ Approximate Location is triggered when:
 Behavior
 --------
 
-If **a matching location already exists** for another device with the same
-IP, the system will **attach that location** to the current device if:
+The system will **attach the already existing matching location** of
+another device with same ip to the current device if:
 
 - Only one device is found with that IP and it has a location.
-- The current device **has no location** or if it does then the location
-  is **approximate**.
+- The current device **has no location** or that location is
+  **approximate**.
+
+If there are multiple devices with location for the same IP, the system
+will **not attach any location** to the current device and a notification
+will be sent suggesting the user to manually assign/create a location for
+the device.
 
 If there is **no matching location**, a new approximate location is
 created or the existing one is updated using coordinates from the WHOIS

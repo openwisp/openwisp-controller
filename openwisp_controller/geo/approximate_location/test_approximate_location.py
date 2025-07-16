@@ -63,7 +63,7 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
 
         with self.subTest(
             "Test Approximate Location field visible on admin when "
-            "WHOIS_CONFIGURED True"
+            "WHOIS_CONFIGURED is True"
         ):
             self._login()
             org = self._get_org()
@@ -83,7 +83,7 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
             importlib.reload(config_app_settings)
             with self.subTest(
                 "Test Approximate Location field hidden on admin when "
-                "WHOIS_CONFIGURED False"
+                "WHOIS_CONFIGURED is False"
             ):
                 self._login()
                 org = self._get_org()
@@ -118,6 +118,7 @@ class TestApproximateLocationTransaction(
     ):
         connect_whois_handlers()
         mocked_client.return_value.city.return_value = self._mocked_client_response()
+
         self._task_called(
             mocked_approximate_location_task, task_name="Approximate location"
         )
@@ -144,7 +145,7 @@ class TestApproximateLocationTransaction(
         def _verify_location_details(device, mocked_response):
             location = device.devicelocation.location
             mocked_location = mocked_response.location
-            formatted_address = ", ".join(
+            address = ", ".join(
                 [
                     mocked_response.city.name,
                     mocked_response.country.name,
@@ -152,7 +153,13 @@ class TestApproximateLocationTransaction(
                     mocked_response.postal.code,
                 ]
             )
-            self.assertEqual(location.address, formatted_address)
+            ip_address = mocked_response.ip_address or device.last_ip
+            location_name = (
+                ",".join(address.split(",")[:2])
+                + f" (Estimated Location: {ip_address})"
+            )
+            self.assertEqual(location.name, location_name)
+            self.assertEqual(location.address, address)
             self.assertEqual(
                 location.geometry,
                 GEOSGeometry(
@@ -168,6 +175,7 @@ class TestApproximateLocationTransaction(
             device = self._create_device(last_ip="172.217.22.14")
 
             location = device.devicelocation.location
+            mocked_response.ip_address = device.last_ip
             self.assertEqual(location.is_approximate, True)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
@@ -183,6 +191,7 @@ class TestApproximateLocationTransaction(
             device.refresh_from_db()
 
             location = device.devicelocation.location
+            mocked_response.ip_address = device.last_ip
             self.assertEqual(location.is_approximate, True)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
@@ -191,6 +200,7 @@ class TestApproximateLocationTransaction(
         with self.subTest(
             "Test Location not updated if it is not approximate when last ip is updated"
         ):
+            mocked_response.ip_address = device.last_ip
             device.last_ip = "172.217.22.11"
             device.devicelocation.location.is_approximate = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
