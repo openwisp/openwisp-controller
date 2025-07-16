@@ -41,7 +41,7 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
         coords = Point(whois_obj.longitude, whois_obj.latitude, srid=4326)
         address = whois_obj.formatted_address
         location_name = (
-            ",".join(address.split(",")[:2]) + f" (Estimated: {ip_address})"
+            ",".join(address.split(",")[:2]) + f" (Estimated Location: {ip_address})"
             if address
             else f"Estimated Location: {ip_address}"
         )
