@@ -12,7 +12,7 @@ from openwisp_controller.config.whois.handlers import connect_whois_handlers
 from openwisp_controller.config.whois.utils import WHOISTransactionMixin
 
 from ...tests.utils import TestAdminMixin
-from .utils import TestApproximateLocationMixin
+from .utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
@@ -22,47 +22,47 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 notification_qs = Notification.objects.all()
 
 
-class TestApproximateLocation(TestAdminMixin, TestCase):
+class TestEstimatedLocation(TestAdminMixin, TestCase):
     @override_settings(
         OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT="test_account",
         OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY="test_key",
     )
-    def test_approximate_location_configuration_setting(self):
+    def test_estimated_location_configuration_setting(self):
         # reload app_settings to apply the overridden settings
         importlib.reload(config_app_settings)
         with self.subTest(
-            "ImproperlyConfigured raised when APPROXIMATE_LOCATION_ENABLED is True "
+            "ImproperlyConfigured raised when ESTIMATED_LOCATION_ENABLED is True "
             "and WHOIS_ENABLED is False globally"
         ):
             with override_settings(
                 OPENWISP_CONTROLLER_WHOIS_ENABLED=False,
-                OPENWISP_CONTROLLER_APPROXIMATE_LOCATION_ENABLED=True,
+                OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED=True,
             ):
                 with self.assertRaises(ImproperlyConfigured):
                     # reload app_settings to apply the overridden settings
                     importlib.reload(config_app_settings)
 
         with self.subTest(
-            "Test WHOIS not enabled does not allow enabling Approximate Location"
+            "Test WHOIS not enabled does not allow enabling Estimated Location"
         ):
             org_settings_obj = OrganizationConfigSettings(organization=self._get_org())
             with self.assertRaises(ValidationError) as context_manager:
                 org_settings_obj.whois_enabled = False
-                org_settings_obj.approximate_location_enabled = True
+                org_settings_obj.estimated_location_enabled = True
                 org_settings_obj.full_clean()
             try:
                 self.assertEqual(
                     context_manager.exception.message_dict[
-                        "approximate_location_enabled"
+                        "estimated_location_enabled"
                     ][0],
-                    "Approximate Location feature requires "
+                    "Estimated Location feature requires "
                     + "WHOIS Lookup feature to be enabled.",
                 )
             except AssertionError:
                 self.fail("ValidationError message not equal to expected message.")
 
         with self.subTest(
-            "Test Approximate Location field visible on admin when "
+            "Test Estimated Location field visible on admin when "
             "WHOIS_CONFIGURED is True"
         ):
             self._login()
@@ -73,7 +73,7 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
             )
             response = self.client.get(url)
             self.assertContains(
-                response, 'name="config_settings-0-approximate_location_enabled"'
+                response, 'name="config_settings-0-estimated_location_enabled"'
             )
 
         with override_settings(
@@ -82,7 +82,7 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
         ):
             importlib.reload(config_app_settings)
             with self.subTest(
-                "Test Approximate Location field hidden on admin when "
+                "Test Estimated Location field hidden on admin when "
                 "WHOIS_CONFIGURED is False"
             ):
                 self._login()
@@ -93,12 +93,12 @@ class TestApproximateLocation(TestAdminMixin, TestCase):
                 )
                 response = self.client.get(url)
                 self.assertNotContains(
-                    response, 'name="config_settings-0-approximate_location_enabled"'
+                    response, 'name="config_settings-0-estimated_location_enabled"'
                 )
 
 
-class TestApproximateLocationTransaction(
-    TestApproximateLocationMixin, WHOISTransactionMixin, TransactionTestCase
+class TestEstimatedLocationTransaction(
+    TestEstimatedLocationMixin, WHOISTransactionMixin, TransactionTestCase
 ):
     _WHOIS_GEOIP_CLIENT = (
         "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
@@ -110,36 +110,36 @@ class TestApproximateLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.geo.approximate_location.tasks.manage_approximate_locations.delay"  # noqa
+        "openwisp_controller.geo.estimated_location.tasks.manage_estimated_locations.delay"  # noqa
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_approximate_location_task_called(
-        self, mocked_client, mocked_approximate_location_task
+    def test_estimated_location_task_called(
+        self, mocked_client, mocked_estimated_location_task
     ):
         connect_whois_handlers()
         mocked_client.return_value.city.return_value = self._mocked_client_response()
 
         self._task_called(
-            mocked_approximate_location_task, task_name="Approximate location"
+            mocked_estimated_location_task, task_name="Estimated location"
         )
 
         Device.objects.all().delete()
         device = self._create_device()
         with self.subTest(
-            "Approximate location task called when last_ip has related WhoIsInfo"
+            "Estimated location task called when last_ip has related WhoIsInfo"
         ):
             device.organization.config_settings.whois_enabled = True
-            device.organization.config_settings.approximate_location_enabled = True
+            device.organization.config_settings.estimated_location_enabled = True
             device.organization.config_settings.save()
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
-            mocked_approximate_location_task.assert_called()
-        mocked_approximate_location_task.reset_mock()
+            mocked_estimated_location_task.assert_called()
+        mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_approximate_location_creation_and_update(self, mock_client):
+    def test_estimated_location_creation_and_update(self, mock_client):
         connect_whois_handlers()
 
         def _verify_location_details(device, mocked_response):
@@ -171,17 +171,17 @@ class TestApproximateLocationTransaction(
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
 
-        with self.subTest("Test Approximate location created when device is created"):
+        with self.subTest("Test Estimated location created when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
 
             location = device.devicelocation.location
             mocked_response.ip_address = device.last_ip
-            self.assertEqual(location.is_approximate, True)
+            self.assertEqual(location.is_estimated, True)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
 
-        with self.subTest("Test Approximate location updated when last ip is updated"):
+        with self.subTest("Test Estimated location updated when last ip is updated"):
             device.last_ip = "172.217.22.10"
             mocked_response.location.latitude = 50
             mocked_response.location.longitude = 150
@@ -192,24 +192,24 @@ class TestApproximateLocationTransaction(
 
             location = device.devicelocation.location
             mocked_response.ip_address = device.last_ip
-            self.assertEqual(location.is_approximate, True)
+            self.assertEqual(location.is_estimated, True)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
 
         with self.subTest(
-            "Test Location not updated if it is not approximate when last ip is updated"
+            "Test Location not updated if it is not estimated when last ip is updated"
         ):
             mocked_response.ip_address = device.last_ip
             device.last_ip = "172.217.22.11"
-            device.devicelocation.location.is_approximate = False
+            device.devicelocation.location.is_estimated = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
             device.devicelocation.location.save()
             device.save()
             device.refresh_from_db()
 
             location = device.devicelocation.location
-            self.assertEqual(location.is_approximate, False)
+            self.assertEqual(location.is_estimated, False)
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
@@ -230,7 +230,7 @@ class TestApproximateLocationTransaction(
             )
 
         with self.subTest(
-            "Test location shared for same IP when new device's location is approximate"
+            "Test location shared for same IP when new device's location is estimated"
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
@@ -251,7 +251,7 @@ class TestApproximateLocationTransaction(
 
         with self.subTest(
             "Test location not shared for same IP when new "
-            "device's location is not approximate"
+            "device's location is not estimated"
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
@@ -261,7 +261,7 @@ class TestApproximateLocationTransaction(
                 last_ip="172.217.22.11",
             )
             old_location = device2.devicelocation.location
-            old_location.is_approximate = False
+            old_location.is_estimated = False
             old_location.save()
             device2.last_ip = "172.217.22.10"
             device2.save()
@@ -274,7 +274,7 @@ class TestApproximateLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_approximate_location_notification(self, mock_client):
+    def test_estimated_location_notification(self, mock_client):
         """
         For testing notification related to location is sent to user
         when already multiple devices with same last_ip exist.
@@ -302,7 +302,7 @@ class TestApproximateLocationTransaction(
         self.assertEqual(notification.type, "generic_message")
         self.assertEqual(notification.level, "error")
         self.assertIn(
-            "Unable to create approximate location for device",
+            "Unable to create estimated location for device",
             notification.message,
         )
         self.assertIn(device3.last_ip, notification.description)

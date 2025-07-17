@@ -77,8 +77,8 @@ if WHOIS_ENABLED and not WHOIS_CONFIGURED:
         "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
         + "when WHOIS_ENABLED is True."
     )
-APPROXIMATE_LOCATION_ENABLED = get_setting("APPROXIMATE_LOCATION_ENABLED", False)
-if APPROXIMATE_LOCATION_ENABLED and not WHOIS_ENABLED:
+ESTIMATED_LOCATION_ENABLED = get_setting("ESTIMATED_LOCATION_ENABLED", False)
+if ESTIMATED_LOCATION_ENABLED and not WHOIS_ENABLED:
     raise ImproperlyConfigured(
-        "WHOIS must be enabled before enabling APPROXIMATE_LOCATION globally"
+        "WHOIS must be enabled before enabling ESTIMATED_LOCATION globally"
     )

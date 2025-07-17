@@ -796,19 +796,19 @@ Maxmind Account ID required for the :doc:`WHOIS Lookup feature <whois>`.
 
 Maxmind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
 
-.. _openwisp_controller_whois_approximate_location_enabled:
+.. _openwisp_controller_whois_estimated_location_enabled:
 
-``OPENWISP_CONTROLLER_WHOIS_APPROXIMATE_LOCATION_ENABLED``
-----------------------------------------------------------
+``OPENWISP_CONTROLLER_WHOIS_ESTIMATED_LOCATION_ENABLED``
+--------------------------------------------------------
 
 ============ =========
 **type**:    ``bool``
 **default**: ``False``
 ============ =========
 
-Allows enabling the optional :doc:`Approximate Location feature
-<approximate-location>`.
+Allows enabling the optional :doc:`Estimated Location feature
+<estimated-location>`.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/approximate-location-setting.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/approximate-location-setting.png
-    :alt: Approximate Location setting
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-location-setting.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-location-setting.png
+    :alt: Estimated Location setting

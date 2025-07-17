@@ -1,13 +1,13 @@
-Approximate Location
-====================
+Estimated Location
+==================
 
 .. important::
 
-    The **Approximate Location** feature is **disabled by default**.
+    The **Estimated Location** feature is **disabled by default**.
 
     Before enabling it, the :doc:`WHOIS Lookup feature <whois>` must be
     enabled. Then set
-    :ref:`OPENWISP_CONTROLLER_APPROXIMATE_LOCATION_ENABLED` to ``True``
+    :ref:`OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED` to ``True``
 
 .. contents:: **Table of contents**:
     :depth: 1
@@ -16,20 +16,20 @@ Approximate Location
 Overview
 --------
 
-The Approximate Location feature automatically creates or updates a
-device’s location based on latitude and longitude information retrieved
-from the WHOIS Lookup feature.
+The Estimated Location feature automatically creates or updates a device’s
+location based on latitude and longitude information retrieved from the
+WHOIS Lookup feature.
 
 Trigger Conditions
 ------------------
 
-Approximate Location is triggered when:
+Estimated Location is triggered when:
 
 - A **fresh WHOIS lookup** is performed for a device.
 - Or when a WHOIS record already exists for the device’s IP **and**:
 
   - The device’s last IP address is **public**.
-  - WHOIS lookup and Approximate Location is **enabled** for the device’s
+  - WHOIS lookup and Estimated Location is **enabled** for the device’s
     organization.
 
 Behavior
@@ -40,13 +40,13 @@ another device with same ip to the current device if:
 
 - Only one device is found with that IP and it has a location.
 - The current device **has no location** or that location is
-  **approximate**.
+  **estimated**.
 
 If there are multiple devices with location for the same IP, the system
 will **not attach any location** to the current device and a notification
 will be sent suggesting the user to manually assign/create a location for
 the device.
 
-If there is **no matching location**, a new approximate location is
-created or the existing one is updated using coordinates from the WHOIS
-record, but only if the existing location is approximate.
+If there is **no matching location**, a new estimated location is created
+or the existing one is updated using coordinates from the WHOIS record,
+but only if the existing location is estimated.

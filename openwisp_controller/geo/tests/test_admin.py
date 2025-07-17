@@ -145,7 +145,7 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         self._login()
         url = reverse(f"admin:{self.app_label}_location_change", args=[location.pk])
         response = self.client.get(url)
-        self.assertNotContains(response, '<input type="checkbox" name="is_approximate"')
+        self.assertNotContains(response, '<input type="checkbox" name="is_estimated"')
 
 
 class TestDeviceAdmin(

@@ -11,9 +11,9 @@ from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
-    is_approximate = models.BooleanField(
+    is_estimated = models.BooleanField(
         default=False,
-        help_text=_("Whether the location's coordinates are approximate."),
+        help_text=_("Whether the location's coordinates are estimated."),
     )
 
     class Meta(AbstractLocation.Meta):

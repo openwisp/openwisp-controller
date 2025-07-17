@@ -6,7 +6,7 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
-from .tasks import fetch_whois_details, manage_approximate_locations
+from .tasks import fetch_whois_details, manage_estimated_locations
 
 
 class WHOISService:
@@ -73,16 +73,16 @@ class WHOISService:
         return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
 
     @property
-    def is_approximate_location_enabled(self):
+    def is_estimated_location_enabled(self):
         """
-        Check if the Approximate location feature is enabled.
+        Check if the Estimated location feature is enabled.
         This does not require to set cache as `is_whois_enabled` already sets it
         """
         org_settings = cache.get(self.get_cache_key(org_id=self.device.organization.pk))
         return getattr(
             org_settings,
-            "approximate_location_enabled",
-            app_settings.APPROXIMATE_LOCATION_ENABLED,
+            "estimated_location_enabled",
+            app_settings.ESTIMATED_LOCATION_ENABLED,
         )
 
     def _need_whois_lookup(self, new_ip):
@@ -105,9 +105,9 @@ class WHOISService:
 
         return self.is_whois_enabled
 
-    def _need_approximate_location_management(self, new_ip):
+    def _need_estimated_location_management(self, new_ip):
         """
-        Used to determine if Approximate locations need to be created/updated
+        Used to determine if Estimated locations need to be created/updated
         or not during WHOIS lookup.
         """
         if not self.is_valid_public_ip_address(new_ip):
@@ -116,7 +116,7 @@ class WHOISService:
         if not self.is_whois_enabled:
             return False
 
-        return self.is_approximate_location_enabled
+        return self.is_estimated_location_enabled
 
     def get_device_whois_info(self):
         """
@@ -145,10 +145,10 @@ class WHOISService:
             )
         # `add_existing` is `True` to handle the case when WHOIS already exists
         # as in that case WHOIS lookup is not triggered but we still need to
-        # manage approximate locations.
-        elif self._need_approximate_location_management(new_ip):
+        # manage estimated locations.
+        elif self._need_estimated_location_management(new_ip):
             transaction.on_commit(
-                lambda: manage_approximate_locations.delay(
+                lambda: manage_estimated_locations.delay(
                     device_pk=self.device.pk, ip_address=new_ip, add_existing=True
                 )
             )
