@@ -7,9 +7,7 @@ from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
 
-from openwisp_controller.geo.approximate_location.tasks import (
-    manage_approximate_locations,
-)
+from openwisp_controller.geo.estimated_location.tasks import manage_estimated_locations
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
@@ -126,8 +124,8 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
         whois_obj.save()
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
 
-        if device._get_organization__config_settings().approximate_location_enabled:
-            manage_approximate_locations.delay(
+        if device._get_organization__config_settings().estimated_location_enabled:
+            manage_estimated_locations.delay(
                 device_pk=device_pk, ip_address=new_ip_address
             )
 

@@ -39,10 +39,10 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         fallback=app_settings.WHOIS_ENABLED,
         verbose_name=_("WHOIS Enabled"),
     )
-    approximate_location_enabled = FallbackBooleanChoiceField(
-        help_text=_("Whether the approximate location feature is enabled"),
-        fallback=app_settings.APPROXIMATE_LOCATION_ENABLED,
-        verbose_name=_("Approximate Location Enabled"),
+    estimated_location_enabled = FallbackBooleanChoiceField(
+        help_text=_("Whether the estimated location feature is enabled"),
+        fallback=app_settings.ESTIMATED_LOCATION_ENABLED,
+        verbose_name=_("Estimated Location Enabled"),
     )
     context = JSONField(
         blank=True,
@@ -76,11 +76,11 @@ class AbstractOrganizationConfigSettings(UUIDModel):
                     )
                 }
             )
-        if not self.whois_enabled and self.approximate_location_enabled:
+        if not self.whois_enabled and self.estimated_location_enabled:
             raise ValidationError(
                 {
-                    "approximate_location_enabled": _(
-                        "Approximate Location feature requires "
+                    "estimated_location_enabled": _(
+                        "Estimated Location feature requires "
                         "WHOIS Lookup feature to be enabled."
                     )
                 }

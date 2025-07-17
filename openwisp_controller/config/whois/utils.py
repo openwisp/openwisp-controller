@@ -22,7 +22,7 @@ MESSAGE_MAP = {
     },
     "location_error": {
         "message": _(
-            "Unable to create approximate location for device "
+            "Unable to create estimated location for device "
             "[{notification.target}]({notification.target_link}). "
             "Please assign/create a location manually."
         ),

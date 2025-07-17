@@ -12,10 +12,10 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="location",
-            name="is_approximate",
+            name="is_estimated",
             field=models.BooleanField(
                 default=False,
-                help_text=("Whether the location's coordinates are approximate."),
+                help_text=("Whether the location's coordinates are estimated."),
             ),
         ),
     ]

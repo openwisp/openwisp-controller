@@ -8,20 +8,20 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def manage_approximate_locations(device_pk, ip_address, add_existing=False):
+def manage_estimated_locations(device_pk, ip_address, add_existing=False):
     """
-    Creates/updates approximate location for a device based on the latitude and
+    Creates/updates estimated location for a device based on the latitude and
     longitude or attaches an existing location if `add_existing` is True.
     Existing location here means a location of another device whose last_ip matches
     the given ip_address.
 
     When `add_existing` is True:
     - If the current device has no location, attach the existing one; if it does,
-    update it with the existing one only if it is approximate (fuzzy).
+    update it with the existing one only if it is estimated (fuzzy).
 
     When `add_existing` is False:
     - A new location is created if no location exists for current device, or
-    existing one is updated using coords from WHOIS record if it is approximate (fuzzy).
+    existing one is updated using coords from WHOIS record if it is estimated (fuzzy).
     """
     from openwisp_controller.config.whois.utils import send_whois_task_notification
 
@@ -45,7 +45,7 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
             if address
             else f"Estimated Location: {ip_address}"
         )
-        # Used to update an existing location if it is approximate
+        # Used to update an existing location if it is estimated
         # or create a new one if it doesn't exist
         location_defaults = {
             "name": location_name,
@@ -55,13 +55,13 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
             "geometry": coords,
             "address": address,
         }
-        if current_location and current_location.is_approximate:
+        if current_location and current_location.is_estimated:
             for attr, value in location_defaults.items():
                 setattr(current_location, attr, value)
             current_location.full_clean()
             current_location.save()
         elif not current_location:
-            location = Location(**location_defaults, is_approximate=True)
+            location = Location(**location_defaults, is_estimated=True)
             location.full_clean()
             location.save()
             device_location.location = location
@@ -70,7 +70,7 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
 
     # For handling the case when WHOIS already exists for device's new last_ip
     # then we attach the location of the device with same last_ip if it exists.
-    if add_existing and (not current_location or current_location.is_approximate):
+    if add_existing and (not current_location or current_location.is_estimated):
         existing_devices_location = (
             Device.objects.select_related("devicelocation")
             .filter(organization_id=device.organization_id)
@@ -90,7 +90,7 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
             _create_update_location()
             return
         existing_location = existing_devices_location.first().devicelocation.location
-        # We need to remove any existing approximate location of the device
+        # We need to remove any existing estimated location of the device
         if current_location and current_location.pk != existing_location.pk:
             current_location.delete()
         device_location.location = existing_location
@@ -100,5 +100,5 @@ def manage_approximate_locations(device_pk, ip_address, add_existing=False):
         _create_update_location()
 
     logger.info(
-        f"Approximate location saved successfully for {device_pk} for IP: {ip_address}"
+        f"Estimated location saved successfully for {device_pk} for IP: {ip_address}"
     )
