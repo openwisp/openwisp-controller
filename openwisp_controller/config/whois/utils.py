@@ -22,7 +22,7 @@ MESSAGE_MAP = {
     },
     "location_error": {
         "message": _(
-            "Unable to create approximate location for device "
+            "Unable to create estimated location for device "
             "[{notification.target}]({notification.target_link}). "
             "Please assign/create a location manually."
         ),
@@ -111,7 +111,7 @@ class WHOISTransactionMixin:
                 device.save()
                 mocked_task.assert_called()
                 # The cache `get` is called twice, once for `whois_enabled` and
-                # once for `approximate_location_enabled`
+                # once for `estimated_location_enabled`
                 mocked_get.assert_called()
         mocked_task.reset_mock()
 

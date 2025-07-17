@@ -98,7 +98,7 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     form = LocationForm
     inlines = [FloorPlanInline]
     list_select_related = ("organization",)
-    readonly_fields = ("is_approximate",)
+    readonly_fields = ("is_estimated",)
 
 
 LocationAdmin.list_display.insert(1, "organization")

@@ -49,7 +49,7 @@ the OpenWISP architecture.
     user/openvpn.rst
     user/subnet-division-rules.rst
     user/whois.rst
-    user/approximate-location.rst
+    user/estimated-location.rst
     user/rest-api.rst
     user/settings.rst
 

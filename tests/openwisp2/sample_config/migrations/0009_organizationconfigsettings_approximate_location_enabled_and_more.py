@@ -15,14 +15,14 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="organizationconfigsettings",
-            name="approximate_location_enabled",
+            name="estimated_location_enabled",
             field=openwisp_utils.fields.FallbackBooleanChoiceField(
                 blank=True,
                 default=None,
                 fallback=False,
-                help_text="Whether the approximate location feature is enabled",
+                help_text="Whether the estimated location feature is enabled",
                 null=True,
-                verbose_name="Approximate Location Enabled",
+                verbose_name="Estimated Location Enabled",
             ),
         ),
         migrations.AddField(
