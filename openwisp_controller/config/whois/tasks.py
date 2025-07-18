@@ -2,6 +2,7 @@ import logging
 
 import requests
 from celery import shared_task
+from django.contrib.gis.geos import Point
 from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
@@ -109,7 +110,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
             "continent": data.continent.name or "",
             "postal": str(data.postal.code or ""),
         }
-
+        coordinates = Point(data.location.longitude, data.location.latitude, srid=4326)
         whois_obj = WHOISInfo(
             isp=data.traits.autonomous_system_organization,
             asn=data.traits.autonomous_system_number,
@@ -117,8 +118,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
             address=address,
             cidr=data.traits.network,
             ip_address=new_ip_address,
-            longitude=data.location.longitude,
-            latitude=data.location.latitude,
+            coordinates=coordinates,
         )
         whois_obj.full_clean()
         whois_obj.save()

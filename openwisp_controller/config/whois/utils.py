@@ -1,6 +1,3 @@
-from unittest import mock
-
-from django.urls import reverse
 from django.utils.translation import gettext as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
@@ -33,6 +30,8 @@ MESSAGE_MAP = {
 
 
 def send_whois_task_notification(device_pk, notify_type):
+    Device = load_model("config", "Device")
+
     device = Device.objects.get(pk=device_pk)
     notify_details = MESSAGE_MAP[notify_type]
     notify.send(
