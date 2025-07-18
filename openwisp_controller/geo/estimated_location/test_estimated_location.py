@@ -9,10 +9,10 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.whois.handlers import connect_whois_handlers
-from openwisp_controller.config.whois.utils import WHOISTransactionMixin
+from openwisp_controller.config.whois.tests_utils import WHOISTransactionMixin
 
 from ...tests.utils import TestAdminMixin
-from .utils import TestEstimatedLocationMixin
+from .tests_utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
