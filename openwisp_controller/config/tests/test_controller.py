@@ -11,7 +11,7 @@ from swapper import load_model
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
-from ..base.config import logger as config_model_logger
+from ..base.base import logger as base_config_logger
 from ..controller.views import DeviceChecksumView
 from ..controller.views import logger as controller_views_logger
 from ..signals import (
@@ -186,7 +186,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
                     with patch.object(
-                        config_model_logger, "debug"
+                        base_config_logger, "debug"
                     ) as mocked_config_debug:
                         self.client.get(
                             url, {"key": d.key, "management_ip": "10.0.0.2"}
@@ -200,7 +200,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
                     with patch.object(
-                        config_model_logger, "debug"
+                        base_config_logger, "debug"
                     ) as mocked_config_debug:
                         self.client.get(
                             url, {"key": d.key, "management_ip": "10.0.0.3"}
@@ -223,7 +223,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
                     with patch.object(
-                        config_model_logger, "debug"
+                        base_config_logger, "debug"
                     ) as mocked_config_debug:
                         self.client.get(
                             url, {"key": d.key, "management_ip": "10.0.0.3"}
@@ -233,7 +233,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
 
         with self.subTest("ensure cache invalidation works"):
             old_checksum = d.config.checksum
-            with patch.object(config_model_logger, "debug") as mocked_debug:
+            with patch.object(base_config_logger, "debug") as mocked_debug:
                 d.config.config["general"]["timezone"] = "Europe/Rome"
                 d.config.full_clean()
                 d.config.save()

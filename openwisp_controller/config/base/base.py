@@ -1,8 +1,10 @@
 import collections
 import hashlib
 import json
+import logging
 from copy import deepcopy
 
+from cache_memoize import cache_memoize
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.functional import cached_property
@@ -14,6 +16,52 @@ from netjsonconfig.exceptions import ValidationError as SchemaError
 from openwisp_utils.base import TimeStampedEditableModel
 
 from .. import settings as app_settings
+
+logger = logging.getLogger(__name__)
+
+
+def get_cached_checksum_args_rewrite(instance):
+    """
+    Use only the PK parameter for calculating the cache key
+    """
+    return instance.pk.hex
+
+
+class ChecksumCacheMixin:
+    """
+    Mixin that provides checksum caching functionality
+    """
+
+    _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 30 days
+
+    @cache_memoize(
+        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_checksum_args_rewrite
+    )
+    def get_cached_checksum(self):
+        """
+        Handles caching,
+        timeout=None means value is cached indefinitely
+        (invalidation handled on post_save/post_delete signal)
+        """
+        logger.debug(f"calculating checksum for {self.__class__.__name__} ID {self.pk}")
+        return self.checksum
+
+    @classmethod
+    def bulk_invalidate_get_cached_checksum(cls, query_params):
+        """
+        Bulk invalidate checksum cache for multiple instances
+        """
+        for instance in cls.objects.only("id").filter(**query_params).iterator():
+            instance.get_cached_checksum.invalidate(instance)
+
+    def invalidate_checksum_cache(self):
+        """
+        Invalidate the checksum cache for this instance
+        """
+        self.get_cached_checksum.invalidate(self)
+        logger.debug(
+            f"invalidated checksum cache for {self.__class__.__name__} ID {self.pk}"
+        )
 
 
 class BaseModel(TimeStampedEditableModel):
