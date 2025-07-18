@@ -480,7 +480,7 @@ class VpnChecksumView(GetVpnView):
         if bad_request:
             return bad_request
         checksum_requested.send(sender=vpn.__class__, instance=vpn, request=request)
-        return ControllerResponse(vpn.checksum, content_type="text/plain")
+        return ControllerResponse(vpn.get_cached_checksum(), content_type="text/plain")
 
 
 class VpnDownloadConfigView(GetVpnView):
