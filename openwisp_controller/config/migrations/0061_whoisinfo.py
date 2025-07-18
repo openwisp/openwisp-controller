@@ -10,7 +10,7 @@ import openwisp_utils.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("config", "0059_zerotier_templates_ow_zt_to_global"),
+        ("config", "0060_cleanup_api_task_notification_types"),
     ]
 
     operations = [
