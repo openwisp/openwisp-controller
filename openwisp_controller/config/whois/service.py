@@ -1,4 +1,4 @@
-from ipaddress import ip_address
+from ipaddress import ip_address as ip_addr
 
 from django.core.cache import cache
 from django.db import transaction
@@ -30,7 +30,7 @@ class WHOISService:
         Check if given IP address is a valid public IP address.
         """
         try:
-            return ip and ip_address(ip).is_global
+            return ip and ip_addr(ip).is_global
         except ValueError:
             return False
 

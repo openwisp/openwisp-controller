@@ -2,6 +2,7 @@ import importlib
 from unittest import mock
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.contrib.gis.geos import Point
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings, tag
@@ -15,8 +16,7 @@ from openwisp_utils.tests import SeleniumTestMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from .handlers import connect_whois_handlers
-from .tests_utils import CreateWHOISMixin
-from utils import WHOISTransactionMixin
+from .tests_utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Device = load_model("config", "Device")
 WHOISInfo = load_model("config", "WHOISInfo")
@@ -302,32 +302,20 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
         with self.assertRaises(ValidationError):
             self._create_whois_info(asn="InvalidASN")
 
-        # Common validation checks for latitude and longitude
-        latitudes = [
-            (100.0, "Ensure this value is less than or equal to 90.0."),
-            (-100.0, "Ensure this value is greater than or equal to -90.0."),
+        # Common validation checks for longitude and latitude
+        coordinates_cases = [
+            (150.0, 100.0, "Latitude must be between -90 and 90 degrees."),
+            (150.0, -100.0, "Latitude must be between -90 and 90 degrees."),
+            (200.0, 80.0, "Longitude must be between -180 and 180 degrees."),
+            (-200.0, -80.0, "Longitude must be between -180 and 180 degrees."),
         ]
-        for value, expected_msg in latitudes:
+        for longitude, latitude, expected_msg in coordinates_cases:
             with self.assertRaises(ValidationError) as context_manager:
-                self._create_whois_info(latitude=value)
+                point = Point(longitude, latitude, srid=4326)
+                self._create_whois_info(coordinates=point)
             try:
                 self.assertEqual(
-                    context_manager.exception.message_dict["latitude"][0],
-                    expected_msg,
-                )
-            except AssertionError:
-                self.fail("ValidationError message not equal to expected message.")
-
-        longitudes = [
-            (200.0, "Ensure this value is less than or equal to 180.0."),
-            (-200.0, "Ensure this value is greater than or equal to -180.0."),
-        ]
-        for value, expected_msg in longitudes:
-            with self.assertRaises(ValidationError) as context_manager:
-                self._create_whois_info(longitude=value)
-            try:
-                self.assertEqual(
-                    context_manager.exception.message_dict["longitude"][0],
+                    context_manager.exception.message_dict["coordinates"][0],
                     expected_msg,
                 )
             except AssertionError:
@@ -467,8 +455,8 @@ class TestWHOISTransaction(
                 instance.formatted_address,
                 "Mountain View, United States, North America, 94043",
             )
-            self.assertEqual(instance.latitude, 50)
-            self.assertEqual(instance.longitude, 150)
+            self.assertEqual(instance.coordinates.x, 150.0)
+            self.assertEqual(instance.coordinates.y, 50.0)
 
         # mocking the response from the geoip2 client
         mock_client.return_value.city.return_value = self._mocked_client_response()
