@@ -8,6 +8,8 @@ from django.test.testcases import TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
 
+from openwisp_controller.config.models import OrganizationConfigSettings
+from openwisp_users.models import Organization
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
@@ -885,6 +887,20 @@ class TestConfig(
                 )
                 self.assertTrue(d.config.templates.filter(pk=t2.pk).exists())
                 self.assertFalse(d.config.templates.filter(pk=t1.pk).exists())
+
+    def test_config_status_modification_on_change(self):
+        org = self._get_org()
+        device = Device.objects.create(name="orgtest-device", organization=org)
+        config = Config.objects.create(
+            device=device, status="applied", backend="netjsonconfig.OpenWrt", config={}
+        )
+        org_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={"ssid": "initial"}
+        )
+        org_settings.context = {"ssid": "changed"}
+        org_settings.save()
+        config.refresh_from_db()
+        self.assertEqual(config.status, "modified")
 
 
 class TestTransactionConfig(
