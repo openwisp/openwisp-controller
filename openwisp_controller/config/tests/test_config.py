@@ -8,7 +8,6 @@ from django.test.testcases import TransactionTestCase
 from netjsonconfig import OpenWrt
 from swapper import load_model
 
-from openwisp_controller.config.models import OrganizationConfigSettings
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
@@ -21,6 +20,7 @@ Device = load_model("config", "Device")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 class TestConfig(
