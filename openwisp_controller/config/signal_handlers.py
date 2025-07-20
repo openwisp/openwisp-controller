@@ -1,8 +1,12 @@
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from swapper import load_model
 
-from openwisp_controller.config.models import Config, Device, OrganizationConfigSettings
 from openwisp_controller.config.signals import config_modified
+
+Config = load_model("config", "Config")
+Device = load_model("config", "Device")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 @receiver(pre_save, sender=OrganizationConfigSettings)
