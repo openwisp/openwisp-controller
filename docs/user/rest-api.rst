@@ -68,6 +68,8 @@ List Devices
 
     GET /api/v1/controller/device/
 
+.. _device_list_whois:
+
 **WHOIS Details**
 
 If :doc:`WHOIS Lookup feature <whois>` is enabled, each device in the list
@@ -150,6 +152,8 @@ Get Device Detail
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/
+
+.. _device_detail_whois:
 
 **WHOIS Details**
 

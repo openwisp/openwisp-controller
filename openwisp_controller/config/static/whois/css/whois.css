@@ -6,46 +6,46 @@
   --whois-padding: 15px;
 }
 
-.whois_table,
+.whois-table,
 .whois {
   margin-top: 1.25em;
   max-width: 500px;
   width: 100%;
   border-radius: var(--whois-border-radius);
 }
-.whois_table {
+.whois-table {
   border-collapse: separate !important;
   border-spacing: 0;
 }
-.whois_table th,
-.whois_table td {
+.whois-table th,
+.whois-table td {
   border: 1px solid var(--whois-border-color);
   padding: var(--whois-padding) !important;
 }
-.whois_table tr:first-child {
+.whois-table tr:first-child {
   background-color: var(--whois-bg-light);
   border-top: none;
 }
-.whois_table tr:not(:first-child) {
+.whois-table tr:not(:first-child) {
   background-color: white;
 }
 
 /* For rounding the individual corners */
-.whois_table th:first-of-type {
+.whois-table th:first-of-type {
   border-top-left-radius: var(--whois-border-radius);
   display: flex;
   align-items: center;
 }
-.whois_table th:last-of-type {
+.whois-table th:last-of-type {
   border-top-right-radius: var(--whois-border-radius);
 }
-.whois_table tr:last-child td:first-child {
+.whois-table tr:last-child td:first-child {
   border-bottom-left-radius: var(--whois-border-radius);
 }
-.whois_table tr:last-child td:last-child {
+.whois-table tr:last-child td:last-child {
   border-bottom-right-radius: var(--whois-border-radius);
 }
-.whois_table .ow-info-icon {
+.whois-table .ow-info-icon {
   width: 1rem;
   height: 1rem;
   mask-repeat: no-repeat;
@@ -56,7 +56,7 @@
   background: #777;
   margin-left: 1em;
 }
-.whois_table .ow-info-icon:hover {
+.whois-table .ow-info-icon:hover {
   background: #007cba;
 }
 
@@ -99,7 +99,7 @@ details.whois[open] summary {
 .whois .additional-text + .additional-text {
   margin-top: 5px;
 }
-.whois_globe {
+.whois-globe {
   flex-shrink: 0;
   mask: url(../images/whois_globe.svg) no-repeat center;
   -webkit-mask: url(../images/whois_globe.svg) no-repeat center;

@@ -594,7 +594,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             "WHOIS details visible in device admin when WHOIS_CONFIGURED is True"
         ):
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            table = self.find_element(By.CSS_SELECTOR, "table.whois_table")
+            table = self.find_element(By.CSS_SELECTOR, "table.whois-table")
             rows = table.find_elements(By.TAG_NAME, "tr")
             for row in rows:
                 if cells := row.find_elements(By.TAG_NAME, "td"):
@@ -617,7 +617,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 + "when WHOIS_CONFIGURED is False"
             ):
                 self.open(reverse("admin:config_device_change", args=[device.pk]))
-                self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois_table")
+                self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
                 self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
 
         with self.subTest(
@@ -627,7 +627,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois_table")
+            self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
 
         with self.subTest(
@@ -638,5 +638,5 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             org.config_settings.save(update_fields=["whois_enabled"])
             WHOISInfo.objects.all().delete()
             self.open(reverse("admin:config_device_change", args=[device.pk]))
-            self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois_table")
+            self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")

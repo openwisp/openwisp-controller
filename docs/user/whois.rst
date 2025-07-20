@@ -92,6 +92,6 @@ retrieved details can be viewed in the following locations:
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois-admin-details.png
     :alt: WHOIS admin details
 
-- **Device REST API**: The WHOIS details are included in the device's list
-  and details REST API responses under the ``whois_info`` field.
-  :ref:`Live Documentation <controller_live_documentation>`
+- **Device REST API**: See WHOIS details in the :ref:`Device List
+  <device_list_whois>` and :ref:`Device Detail <device_detail_whois>`
+  responses.
