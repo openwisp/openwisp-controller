@@ -12,7 +12,7 @@ from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
 from ..base.base import logger as base_config_logger
-from ..controller.views import DeviceChecksumView
+from ..controller.views import DeviceChecksumView, VpnChecksumView
 from ..controller.views import logger as controller_views_logger
 from ..signals import (
     checksum_requested,
@@ -20,6 +20,7 @@ from ..signals import (
     config_modified,
     config_status_changed,
     device_registered,
+    vpn_server_modified,
 )
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
@@ -365,11 +366,20 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertEqual(response.status_code, 405)
 
     def test_vpn_checksum(self):
-        v = self._create_vpn()
-        url = reverse("controller:vpn_checksum", args=[v.pk])
-        response = self.client.get(url, {"key": v.key})
-        self.assertEqual(response.content.decode(), v.checksum)
-        self._check_header(response)
+        vpn = self._create_vpn()
+        url = reverse("controller:vpn_checksum", args=[vpn.pk])
+
+        with self.subTest("First request will calculate the checksum"):
+            with self.assertNumQueries(3):
+                response = self.client.get(url, {"key": vpn.key})
+            self.assertEqual(response.content.decode(), vpn.checksum)
+            self._check_header(response)
+
+        with self.subTest("Second request will return cached checksum"):
+            with self.assertNumQueries(0):
+                response = self.client.get(url, {"key": vpn.key})
+            self.assertEqual(response.content.decode(), vpn.checksum)
+            self._check_header(response)
 
     def test_vpn_checksum_bad_uuid(self):
         v = self._create_vpn()
@@ -407,6 +417,49 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self._test_view_organization_disabled(
             vpn, reverse("controller:vpn_checksum", args=[vpn.pk])
         )
+
+    def test_vpn_get_object_cached(self):
+        vpn = self._create_vpn()
+        view = VpnChecksumView()
+        view.kwargs = {"pk": str(vpn.pk)}
+
+        with self.subTest("check cache set"):
+            with patch("django.core.cache.cache.set") as mock:
+                self.assertEqual(view.get_vpn(), vpn)
+                mock.assert_called_once()
+
+        with self.subTest("check cache get"):
+            with patch("django.core.cache.cache.get", return_value=vpn) as mock:
+                view.get_vpn()
+                mock.assert_called_once()
+
+        with self.subTest("check cache invalidation"):
+            with patch("django.core.cache.cache.delete") as mock:
+                view.get_vpn.invalidate(view)
+                mock.assert_called_once()
+
+    def test_vpn_checksum_cache_invalidation_handler(self):
+        vpn = self._create_vpn()
+        url = reverse("controller:vpn_checksum", args=[vpn.pk])
+        # Warm up the cache
+        with self.assertNumQueries(1):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+        # Cache works are expected
+        with self.assertNumQueries(0):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+        # Change VPN config to trigger invalidation
+        vpn.config["openvpn"][0]["proto"] = "tcp-server"
+        vpn.full_clean()
+        vpn.save()
+
+        del vpn.backend_instance
+        with self.assertNumQueries(1):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
 
     def test_vpn_download_config(self):
         v = self._create_vpn()

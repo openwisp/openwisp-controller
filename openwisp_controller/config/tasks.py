@@ -149,11 +149,31 @@ def bulk_invalidate_config_get_cached_checksum(query_params):
 
 
 @shared_task(base=OpenwispCeleryTask)
-def invalidate_device_checksum_view_cache(organization_id):
-    from .controller.views import DeviceChecksumView
+def invalidate_controller_views_cache(organization_id):
+    """
+    Asynchronously invalidates device and VPN controller views cache
+    """
+    from .controller.views import DeviceChecksumView, VpnChecksumView
 
     Device = load_model("config", "Device")
+    Vpn = load_model("config", "Vpn")
+
+    # Invalidate device views cache
     for device in (
         Device.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         DeviceChecksumView.invalidate_get_device_cache(device)
+
+    # Invalidate VPN views cache
+    for vpn in (
+        Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
+    ):
+        VpnChecksumView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(base=OpenwispCeleryTask)
+def invalidate_device_checksum_view_cache(organization_id):
+    """
+    Deprecated: Use invalidate_controller_views_cache instead.
+    """
+    return invalidate_controller_views_cache(organization_id)

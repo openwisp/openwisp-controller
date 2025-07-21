@@ -264,7 +264,7 @@ class ConfigConfig(AppConfig):
         Triggers the cache invalidation for the
         device config checksum (view and model method)
         """
-        from .controller.views import DeviceChecksumView
+        from .controller.views import DeviceChecksumView, VpnChecksumView
         from .handlers import (
             device_cache_invalidation_handler,
             devicegroup_change_handler,
@@ -292,6 +292,21 @@ class ConfigConfig(AppConfig):
         config_modified.connect(
             DeviceChecksumView.invalidate_checksum_cache,
             dispatch_uid="invalidate_checksum_cache",
+        )
+        # VPN cache invalidation
+        post_save.connect(
+            VpnChecksumView.invalidate_get_vpn_cache,
+            sender=self.vpn_model,
+            dispatch_uid="invalidate_get_vpn_cache",
+        )
+        pre_delete.connect(
+            VpnChecksumView.invalidate_get_vpn_cache,
+            sender=self.vpn_model,
+            dispatch_uid="vpn_server_pre_delete_invalidate_get_vpn_cache",
+        )
+        vpn_server_modified.connect(
+            VpnChecksumView.invalidate_get_vpn_cache,
+            dispatch_uid="vpn_server_modified_invalidate_get_vpn_cache",
         )
         device_group_changed.connect(
             devicegroup_change_handler,

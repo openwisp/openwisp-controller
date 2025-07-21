@@ -127,6 +127,18 @@ def get_device_args_rewrite(view):
     return pk.hex
 
 
+def get_vpn_args_rewrite(view):
+    """
+    Use only the PK parameter for calculating the cache key for VPN
+    """
+    pk = view.kwargs["pk"]
+    try:
+        pk = uuid.UUID(pk)
+    except ValueError:
+        return pk
+    return pk.hex
+
+
 class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
     """
     returns device's configuration checksum
@@ -463,8 +475,10 @@ class GetVpnView(SingleObjectMixin, View):
     model = Vpn
 
     def get_object(self, *args, **kwargs):
-        queryset = self.model.objects.select_related("organization").filter(
-            Q(organization__is_active=True) | Q(organization__isnull=True)
+        queryset = (
+            self.model.objects.select_related("organization")
+            .filter(Q(organization__is_active=True) | Q(organization__isnull=True))
+            .select_related("ca", "cert", "subnet", "ip")
         )
         return get_object_or_404(queryset, *args, **kwargs)
 
@@ -475,12 +489,31 @@ class VpnChecksumView(GetVpnView):
     """
 
     def get(self, request, *args, **kwargs):
-        vpn = self.get_object(*args, **kwargs)
+        vpn = self.get_vpn()
         bad_request = forbid_unallowed(request, "GET", "key", vpn.key)
         if bad_request:
             return bad_request
         checksum_requested.send(sender=vpn.__class__, instance=vpn, request=request)
         return ControllerResponse(vpn.get_cached_checksum(), content_type="text/plain")
+
+    @cache_memoize(
+        timeout=Vpn._CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_vpn_args_rewrite
+    )
+    def get_vpn(self):
+        pk = self.kwargs["pk"]
+        logger.debug(f"retrieving VPN ID {pk} from DB")
+        return self.get_object(pk=pk)
+
+    @classmethod
+    def invalidate_get_vpn_cache(cls, instance, **kwargs):
+        """
+        Called from signal receiver which performs cache invalidation
+        """
+        view = cls()
+        pk = str(instance.pk.hex)
+        view.kwargs = {"pk": pk}
+        view.get_vpn.invalidate(view)
+        logger.debug(f"invalidated view cache for VPN ID {pk}")
 
 
 class VpnDownloadConfigView(GetVpnView):
@@ -489,7 +522,7 @@ class VpnDownloadConfigView(GetVpnView):
     """
 
     def get(self, request, *args, **kwargs):
-        vpn = self.get_object(*args, **kwargs)
+        vpn = self.get_vpn()
         bad_request = forbid_unallowed(request, "GET", "key", vpn.key)
         if bad_request:
             return bad_request

@@ -148,7 +148,7 @@ class AbstractVpn(ChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # for internal usage
-        self._send_vpn_modified_after_save = False
+        self._should_send_vpn_modified_after_save = False
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
@@ -280,10 +280,10 @@ class AbstractVpn(ChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
             raise e
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
-        if not created and self._send_vpn_modified_after_save:
+        if not created and self._should_send_vpn_modified_after_save:
             self.invalidate_checksum_cache()
             self._send_vpn_modified_signal()
-            self._send_vpn_modified_after_save = False
+            self._should_send_vpn_modified_after_save = False
         # For ZeroTier VPN server, if the
         # ZeroTier network is created successfully,
         # this method triggers a background task to
@@ -310,7 +310,7 @@ class AbstractVpn(ChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
         current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
         for attr in attrs:
             if getattr(self, attr) != getattr(current, attr):
-                self._send_vpn_modified_after_save = True
+                self._should_send_vpn_modified_after_save = True
                 break
 
     def _send_vpn_modified_signal(self):

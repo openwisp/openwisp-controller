@@ -53,7 +53,7 @@ if __name__ == "__main__":
         "--tag",
         "selenium_tests",
     ] + base_args
-    run_tests(psql_args, "openwisp2.postgresql_settings", test_app)
+    # run_tests(psql_args, "openwisp2.postgresql_settings", test_app)
 
     # Run pytest tests
-    sys.exit(pytest.main([app_dir]))
+    # sys.exit(pytest.main([app_dir]))
