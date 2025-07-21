@@ -153,7 +153,7 @@ def invalidate_controller_views_cache(organization_id):
     """
     Asynchronously invalidates device and VPN controller views cache
     """
-    from .controller.views import DeviceChecksumView, VpnChecksumView
+    from .controller.views import DeviceChecksumView, GetVpnView
 
     Device = load_model("config", "Device")
     Vpn = load_model("config", "Vpn")
@@ -168,7 +168,7 @@ def invalidate_controller_views_cache(organization_id):
     for vpn in (
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
-        VpnChecksumView.invalidate_get_vpn_cache(vpn)
+        GetVpnView.invalidate_get_vpn_cache(vpn)
 
 
 @shared_task(base=OpenwispCeleryTask)

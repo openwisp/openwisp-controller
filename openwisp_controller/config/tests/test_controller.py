@@ -20,7 +20,6 @@ from ..signals import (
     config_modified,
     config_status_changed,
     device_registered,
-    vpn_server_modified,
 )
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
 
@@ -370,7 +369,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         url = reverse("controller:vpn_checksum", args=[vpn.pk])
 
         with self.subTest("First request will calculate the checksum"):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(1):
                 response = self.client.get(url, {"key": vpn.key})
             self.assertEqual(response.content.decode(), vpn.checksum)
             self._check_header(response)
@@ -464,11 +463,39 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
     def test_vpn_download_config(self):
         v = self._create_vpn()
         url = reverse("controller:vpn_download_config", args=[v.pk])
-        response = self.client.get(url, {"key": v.key})
+        # First request will populate the cache
+        with self.assertNumQueries(1), patch.object(
+            Vpn, "generate", return_value=v.generate()
+        ) as mocked_generate:
+            response = self.client.get(url, {"key": v.key})
+            mocked_generate.assert_called_once()
         self.assertEqual(
             response["Content-Disposition"], "attachment; filename=test.tar.gz"
         )
         self._check_header(response)
+
+        with self.subTest("Second request will return cached config"):
+            with patch.object(Vpn, "generate") as mocked_generate:
+                response = self.client.get(url, {"key": v.key})
+                mocked_generate.assert_not_called()
+            self.assertEqual(
+                response["Content-Disposition"], "attachment; filename=test.tar.gz"
+            )
+            self._check_header(response)
+
+        with self.subTest("Changing Vpn configuration will invalidate cache"):
+            v.config["openvpn"][0]["proto"] = "tcp-server"
+            v.full_clean()
+            v.save()
+            with self.assertNumQueries(1), patch.object(
+                Vpn, "generate", return_value=v.generate()
+            ) as mocked_generate:
+                response = self.client.get(url, {"key": v.key})
+                mocked_generate.assert_called_once()
+            self.assertEqual(
+                response["Content-Disposition"], "attachment; filename=test.tar.gz"
+            )
+            self._check_header(response)
 
     def test_vpn_download_config_bad_uuid(self):
         v = self._create_vpn()

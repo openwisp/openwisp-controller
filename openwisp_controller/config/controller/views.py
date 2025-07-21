@@ -482,20 +482,6 @@ class GetVpnView(SingleObjectMixin, View):
         )
         return get_object_or_404(queryset, *args, **kwargs)
 
-
-class VpnChecksumView(GetVpnView):
-    """
-    returns vpn's configuration checksum
-    """
-
-    def get(self, request, *args, **kwargs):
-        vpn = self.get_vpn()
-        bad_request = forbid_unallowed(request, "GET", "key", vpn.key)
-        if bad_request:
-            return bad_request
-        checksum_requested.send(sender=vpn.__class__, instance=vpn, request=request)
-        return ControllerResponse(vpn.get_cached_checksum(), content_type="text/plain")
-
     @cache_memoize(
         timeout=Vpn._CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_vpn_args_rewrite
     )
@@ -513,7 +499,22 @@ class VpnChecksumView(GetVpnView):
         pk = str(instance.pk.hex)
         view.kwargs = {"pk": pk}
         view.get_vpn.invalidate(view)
+        send_vpn_config.invalidate(instance, None)
         logger.debug(f"invalidated view cache for VPN ID {pk}")
+
+
+class VpnChecksumView(GetVpnView):
+    """
+    returns vpn's configuration checksum
+    """
+
+    def get(self, request, *args, **kwargs):
+        vpn = self.get_vpn()
+        bad_request = forbid_unallowed(request, "GET", "key", vpn.key)
+        if bad_request:
+            return bad_request
+        checksum_requested.send(sender=vpn.__class__, instance=vpn, request=request)
+        return ControllerResponse(vpn.get_cached_checksum(), content_type="text/plain")
 
 
 class VpnDownloadConfigView(GetVpnView):
