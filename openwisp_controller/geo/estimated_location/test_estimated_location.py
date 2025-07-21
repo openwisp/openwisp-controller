@@ -103,6 +103,12 @@ class TestEstimatedLocationTransaction(
     _WHOIS_GEOIP_CLIENT = (
         "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
     )
+    _ESTIMATED_LOCATION_INFO_LOGGER = (
+        "openwisp_controller.geo.estimated_location.tasks.logger.info"
+    )
+    _ESTIMATED_LOCATION_ERROR_LOGGER = (
+        "openwisp_controller.geo.estimated_location.tasks.logger.error"
+    )
 
     def setUp(self):
         super().setUp()
@@ -138,8 +144,9 @@ class TestEstimatedLocationTransaction(
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_creation_and_update(self, mock_client):
+    def test_estimated_location_creation_and_update(self, mock_client, mock_info):
         connect_whois_handlers()
 
         def _verify_location_details(device, mocked_response):
@@ -180,6 +187,11 @@ class TestEstimatedLocationTransaction(
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
+            mock_info.assert_called_once_with(
+                f"Estimated location saved successfully for {device.pk}"
+                f" for IP: {device.last_ip}"
+            )
+        mock_info.reset_mock()
 
         with self.subTest("Test Estimated location updated when last ip is updated"):
             device.last_ip = "172.217.22.10"
@@ -196,6 +208,11 @@ class TestEstimatedLocationTransaction(
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
+            mock_info.assert_called_once_with(
+                f"Estimated location saved successfully for {device.pk}"
+                f" for IP: {device.last_ip}"
+            )
+        mock_info.reset_mock()
 
         with self.subTest(
             "Test Location not updated if it is not estimated when last ip is updated"
@@ -213,12 +230,15 @@ class TestEstimatedLocationTransaction(
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
+            mock_info.assert_not_called()
+        mock_info.reset_mock()
 
         with self.subTest(
             "Test location shared for same IP when new device's location does not exist"
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
+            mock_info.reset_mock()
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
                 mac_address="11:22:33:44:55:66",
@@ -228,6 +248,11 @@ class TestEstimatedLocationTransaction(
             self.assertEqual(
                 device1.devicelocation.location.pk, device2.devicelocation.location.pk
             )
+            mock_info.assert_called_once_with(
+                f"Estimated location saved successfully for {device2.pk}"
+                f" for IP: {device2.last_ip}"
+            )
+        mock_info.reset_mock()
 
         with self.subTest(
             "Test location shared for same IP when new device's location is estimated"
@@ -239,15 +264,21 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.11",
             )
+            mock_info.reset_mock()
             old_location = device2.devicelocation.location
             device2.last_ip = "172.217.22.10"
             device2.save()
+            mock_info.assert_called_once_with(
+                f"Estimated location saved successfully for {device2.pk}"
+                f" for IP: {device2.last_ip}"
+            )
             device2.refresh_from_db()
 
             self.assertEqual(
                 device1.devicelocation.location.pk, device2.devicelocation.location.pk
             )
             self.assertEqual(Location.objects.filter(pk=old_location.pk).count(), 0)
+        mock_info.reset_mock()
 
         with self.subTest(
             "Test location not shared for same IP when new "
@@ -260,21 +291,53 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.11",
             )
+            mock_info.reset_mock()
             old_location = device2.devicelocation.location
             old_location.is_estimated = False
             old_location.save()
             device2.last_ip = "172.217.22.10"
             device2.save()
+            mock_info.assert_not_called()
             device2.refresh_from_db()
 
             self.assertNotEqual(
                 device1.devicelocation.location.pk, device2.devicelocation.location.pk
             )
             self.assertEqual(Location.objects.filter(pk=old_location.pk).count(), 1)
+        mock_info.reset_mock()
+
+        with self.subTest(
+            "Shared location not updated when either device's last_ip changes. "
+            "New location created for device with updated last_ip"
+        ):
+            Device.objects.all().delete()
+            device1 = self._create_device(last_ip="172.217.22.10")
+            device2 = self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.10",
+            )
+            mock_info.reset_mock()
+            self.assertEqual(
+                device1.devicelocation.location.pk, device2.devicelocation.location.pk
+            )
+            device2.last_ip = "172.217.22.11"
+            device2.save()
+            mock_info.assert_called_once_with(
+                f"Estimated location saved successfully for {device2.pk}"
+                f" for IP: {device2.last_ip}"
+            )
+            device2.refresh_from_db()
+            self.assertNotEqual(
+                device1.devicelocation.location.pk, device2.devicelocation.location.pk
+            )
+        mock_info.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
+    @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_notification(self, mock_client):
+    def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
         """
         For testing notification related to location is sent to user
         when already multiple devices with same last_ip exist.
@@ -288,12 +351,18 @@ class TestEstimatedLocationTransaction(
             mac_address="11:22:33:44:55:66",
             last_ip="172.217.22.10",
         )
+        mock_info.reset_mock()
         # device3 will not have same location as first two devices
         # as multiple devices found for same last_ip causing conflict
         device3 = self._create_device(
             name="11:22:33:44:55:77",
             mac_address="11:22:33:44:55:77",
             last_ip="172.217.22.10",
+        )
+        mock_info.assert_not_called()
+        mock_error.assert_called_once_with(
+            f"Multiple devices with locations found with same "
+            f"last_ip {device3.last_ip}. Please resolve the conflict manually."
         )
         self.assertEqual(notification_qs.count(), 1)
         notification = notification_qs.first()
