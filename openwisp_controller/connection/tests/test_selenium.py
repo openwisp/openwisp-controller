@@ -55,3 +55,15 @@ class TestDeviceAdmin(
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
 
         self.assertEqual(Command.objects.count(), 1)
+        # TODO: Selenium tests does not support websocket connections.
+        # Thus, we need to refresh the page. Remove this when support for
+        # websockets is added.
+        self.open(path)
+        self.wait_for_visibility(
+            By.CSS_SELECTOR,
+            (  # selector for Django 5.2
+                "#tabs-container li.recent.commands,"
+                # selector for Django 4.2
+                " #tabs-container li.recent-commands"
+            ),
+        )
