@@ -387,6 +387,61 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         )
 
 
+# The same tests, but with a normal user
+class TestCommandsApiNonAdmin(TestCommandsAPI):
+    def setUp(self):
+        # Organisation to manage devices
+        org1 = self._get_org()
+        # Admin for this organisation
+        self.administrator = self._create_administrator(organizations=[org1])
+        self.client.force_login(self.administrator)
+        # Credentials for the same organisation
+        cred1 = self._create_credentials(organization=org1)
+        # Connection to a device with these credentials
+        self.device_conn = self._create_device_connection(credentials=cred1)
+        self.device_id = self.device_conn.device.id
+
+    def test_bearer_authentication(self):
+        self.client.logout()
+        command_obj = self._create_command(device_conn=self.device_conn)
+        token = self._obtain_auth_token(username="administrator", password="tester")
+
+        with self.subTest("Test creating command"):
+            url = self._get_path("device_command_list", self.device_id)
+            payload = {
+                "type": "custom",
+                "input": {"command": "echo test"},
+            }
+            response = self.client.post(
+                url,
+                data=payload,
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertIn("id", response.data)
+
+        with self.subTest("Test retrieving command"):
+            url = self._get_path(
+                "device_command_details", self.device_id, command_obj.id
+            )
+            response = self.client.get(
+                url,
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("id", response.data)
+
+        with self.subTest("Test listing command"):
+            url = self._get_path("device_command_list", self.device_id)
+            response = self.client.get(
+                url,
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 2)
+
+
 class TestConnectionApi(
     TestAdminMixin, AuthenticationMixin, TestCase, CreateConnectionsMixin
 ):
