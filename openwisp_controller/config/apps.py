@@ -44,8 +44,6 @@ class ConfigConfig(AppConfig):
     default_auto_field = "django.db.models.AutoField"
 
     def ready(self, *args, **kwargs):
-        import openwisp_controller.config.signal_handlers  # noqa: F401
-
         self.__setmodels__()
         self.connect_signals()
         self.register_notification_types()
