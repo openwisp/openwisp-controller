@@ -26,8 +26,10 @@ django.jQuery(function ($) {
     `<table class="whois-table">
         <tr>
           <th>
-            <span>${gettext("ISP")}</span>
-            <span title="${tooltipText}" class="ow-info-icon icon"></span>
+            <div>
+              <span>${gettext("ISP")}</span>
+              <span title="${tooltipText}" class="ow-info-icon icon"></span>
+            </div>
           </th>
           <th>${gettext("Country")}</th>
         </tr>
