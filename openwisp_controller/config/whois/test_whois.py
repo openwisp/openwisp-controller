@@ -1,8 +1,8 @@
 import importlib
 from unittest import mock
 
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.contrib.gis.geos import Point
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings, tag
@@ -326,7 +326,7 @@ class TestWHOISTransaction(
     CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
 ):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client.city"
+        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
     )
     _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
     _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"

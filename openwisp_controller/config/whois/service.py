@@ -92,8 +92,8 @@ class WHOISService:
 
         The lookup is not triggered if:
             - The new IP address is None or it is a private IP address.
-            - The WhoIs information of new ip is already present.
-            - WhoIs is disabled in the organization settings. (query from db)
+            - The WHOIS information of new ip is already present.
+            - WHOIS is disabled in the organization settings. (query from db)
         """
 
         # Check cheap conditions first before hitting the database

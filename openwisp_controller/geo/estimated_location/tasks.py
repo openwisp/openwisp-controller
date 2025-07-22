@@ -59,14 +59,13 @@ def manage_estimated_locations(device_pk, ip_address, add_existing=False):
                     # we do not update it, but create a new one.
                     _create_estimated_location(device_location, location_defaults)
                     return
-                updated = False
+                update_fields = []
                 for attr, value in location_defaults.items():
                     if getattr(current_location, attr) != value:
                         setattr(current_location, attr, value)
-                        updated = True
-                if updated:
-                    current_location.full_clean()
-                    current_location.save()
+                        update_fields.append(attr)
+                if update_fields:
+                    current_location.save(update_fields=update_fields)
                     logger.info(
                         f"Estimated location saved successfully for {device_pk}"
                         f" for IP: {ip_address}"
