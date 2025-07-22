@@ -3,10 +3,6 @@ from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from .. import settings as app_settings
-from .serializers import WHOISSerializer
-from .service import WHOISService
-
-Device = load_model("config", "Device")
 
 MESSAGE_MAP = {
     "device_error": {
@@ -46,6 +42,11 @@ def send_whois_task_notification(device_pk, notify_type):
 
 
 def get_whois_info(pk):
+    from .serializers import WHOISSerializer
+    from .service import WHOISService
+
+    Device = load_model("config", "Device")
+
     if not app_settings.WHOIS_CONFIGURED or not pk:
         return None
     device = (

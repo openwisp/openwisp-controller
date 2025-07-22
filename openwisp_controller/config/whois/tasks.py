@@ -12,6 +12,7 @@ from openwisp_controller.geo.estimated_location.tasks import manage_estimated_lo
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
+from .utils import send_whois_task_notification
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,6 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Notify the user about the failure of the WHOIS task."""
-        from .utils import send_whois_task_notification
-
         device_pk = kwargs.get("device_pk")
         send_whois_task_notification(device_pk=device_pk, notify_type="device_error")
         logger.error(f"WHOIS lookup failed. Details: {exc}")
