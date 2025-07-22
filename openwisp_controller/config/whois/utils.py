@@ -1,36 +1,25 @@
 from swapper import load_model
 
-from ..tests.utils import CreateConfigMixin
+from .. import settings as app_settings
+from .serializers import WHOISSerializer
+from .service import WHOISService
 
 Device = load_model("config", "Device")
-WHOISInfo = load_model("config", "WHOISInfo")
-OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
-class CreateWHOISMixin(CreateConfigMixin):
-    def _create_whois_info(self, **kwargs):
-        options = dict(
-            ip_address="172.217.22.14",
-            address={
-                "city": "Mountain View",
-                "country": "United States",
-                "continent": "North America",
-                "postal": "94043",
-            },
-            asn="15169",
-            isp="Google LLC",
-            timezone="America/Los_Angeles",
-            cidr="172.217.22.0/24",
-        )
-
-        options.update(kwargs)
-        w = WHOISInfo(**options)
-        w.full_clean()
-        w.save()
-        return w
-
-    def setUp(self):
-        super().setUp()
-        OrganizationConfigSettings.objects.create(
-            organization=self._get_org(), whois_enabled=True
-        )
+def get_whois_info(pk):
+    if not app_settings.WHOIS_CONFIGURED or not pk:
+        return None
+    device = (
+        Device.objects.select_related("organization__config_settings")
+        .filter(pk=pk)
+        .first()
+    )
+    if not device or not device._get_organization__config_settings().whois_enabled:
+        return None
+    whois_obj = WHOISService(device).get_device_whois_info()
+    if not whois_obj:
+        return None
+    data = WHOISSerializer(whois_obj).data
+    data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
+    return data
