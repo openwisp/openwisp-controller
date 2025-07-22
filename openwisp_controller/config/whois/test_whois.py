@@ -15,7 +15,7 @@ from openwisp_utils.tests import SeleniumTestMixin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from .handlers import connect_whois_handlers
-from .utils import CreateWHOISMixin
+from .tests_utils import CreateWHOISMixin
 
 Device = load_model("config", "Device")
 WHOISInfo = load_model("config", "WHOISInfo")

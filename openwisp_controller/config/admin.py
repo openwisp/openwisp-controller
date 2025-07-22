@@ -31,7 +31,7 @@ from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import get_default_values, get_relevant_templates
-from openwisp_controller.config.whois.functions import get_whois_info
+from openwisp_controller.config.whois.utils import get_whois_info
 from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
