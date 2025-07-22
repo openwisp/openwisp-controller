@@ -52,18 +52,6 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         blank=True,
         help_text=_("CIDR"),
     )
-    # latitude = models.FloatField(
-    #     null=True,
-    #     blank=True,
-    #     help_text=_("Latitude"),
-    #     validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)],
-    # )
-    # longitude = models.FloatField(
-    #     null=True,
-    #     blank=True,
-    #     help_text=_("Longitude"),
-    #     validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)],
-    # )
     coordinates = PointField(
         null=True,
         blank=True,
