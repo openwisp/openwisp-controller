@@ -14,7 +14,7 @@ button[disabled] {
 #command_set-group .add-row,
 #command_set-group .advanced_editor,
 #command_set-group .form-row.field-type,
-li.commands {
+li.commands:not(.recent) {
   display: none !important;
 }
 
