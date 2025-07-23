@@ -484,7 +484,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             self._check_header(response)
 
         with self.subTest("Changing Vpn configuration will invalidate cache"):
-            v.config["openvpn"][0]["proto"] = "tcp-server"
+            v.config["wireguard"][0]["port"] = "51821"
             v.full_clean()
             v.save()
             with self.assertNumQueries(1), patch.object(

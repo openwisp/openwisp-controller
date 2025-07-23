@@ -499,7 +499,6 @@ class GetVpnView(SingleObjectMixin, View):
         pk = str(instance.pk.hex)
         view.kwargs = {"pk": pk}
         view.get_vpn.invalidate(view)
-        send_vpn_config.invalidate(instance, None)
         logger.debug(f"invalidated view cache for VPN ID {pk}")
 
 

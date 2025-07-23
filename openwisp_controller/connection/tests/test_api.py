@@ -509,7 +509,6 @@ class TestConnectionApi(
             for cred in creds:
                 DeviceConnection.objects.create(device=d1, credentials=cred)
             response = self.client.get(path)
-            print(response.data)
             self.assertEqual(response.status_code, 200)
             created_list = [conn["created"] for conn in response.data["results"]]
             sorted_created = sorted(created_list, reverse=True)

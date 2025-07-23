@@ -1,6 +1,5 @@
 import logging
 
-from cache_memoize import cache_memoize
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpResponse
@@ -53,17 +52,14 @@ def send_device_config(config, request):
     )
 
 
-@cache_memoize(
-    timeout=60 * 60 * 24 * 30,
-    args_rewrite=lambda vpn, request: (vpn.pk, vpn.key),
-)
 def send_vpn_config(vpn, request):
     """
     returns a ``ControllerResponse``which includes the configuration
     tar.gz as attachment
     """
     return send_file(
-        filename="{0}.tar.gz".format(vpn.name), contents=vpn.generate().getvalue()
+        filename="{0}.tar.gz".format(vpn.name),
+        contents=vpn.get_cached_configuration().getvalue(),
     )
 
 

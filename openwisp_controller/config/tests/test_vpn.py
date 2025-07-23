@@ -700,6 +700,21 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
                 context_manager.exception.message_dict, expected_error_dict
             )
 
+    def test_cache_invalidation_on_vpn_changes(self):
+        vpn = self._create_wireguard_vpn()
+        initial_checksum = vpn.get_cached_checksum()
+        initial_config = vpn.get_cached_configuration().getvalue()
+
+        # Modify VPN configuration
+        vpn.config["wireguard"][0]["port"] = 51822
+        vpn.full_clean()
+        vpn.save()
+        del vpn.backend_instance
+
+        # Verify cache is invalidated
+        self.assertNotEqual(initial_checksum, vpn.get_cached_checksum())
+        self.assertNotEqual(initial_config, vpn.get_cached_configuration())
+
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
     def test_auto_peer_configuration(self):
@@ -740,14 +755,33 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                     "organization": device.organization,
                 }
             )
-            device2.config.templates.add(template)
+            with mock.patch.object(
+                Vpn, "invalidate_cache", return_value=vpn.invalidate_cache()
+            ) as mocked_invalidate_cache, mock.patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=vpn.get_cached_configuration(),
+            ) as mocked_cached_configuration:
+                device2.config.templates.add(template)
+                # The Vpn configuration cache is invalidated and re-populated
+                mocked_invalidate_cache.assert_called_once()
+                mocked_cached_configuration.assert_called_once()
             # cache is invalidated and updated, hence no queries expected
             with self.assertNumQueries(0):
                 vpn_config = vpn.get_config()["wireguard"][0]
             self.assertEqual(len(vpn_config.get("peers", [])), 2)
 
-        with self.subTest("cache updated when a new peer is deleted"):
-            device2.delete(check_deactivated=False)
+        with self.subTest("cache updated when a peer is deleted"):
+            with mock.patch.object(
+                Vpn, "invalidate_cache", return_value=vpn.invalidate_cache()
+            ) as mocked_invalidate_cache, mock.patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=vpn.get_cached_configuration(),
+            ) as mocked_cached_configuration:
+                device2.delete(check_deactivated=False)
+                mocked_invalidate_cache.assert_called_once()
+                mocked_cached_configuration.assert_not_called()
             # cache is invalidated but not updated
             # hence we expect queries to be generated
             with self.assertNumQueries(1):
