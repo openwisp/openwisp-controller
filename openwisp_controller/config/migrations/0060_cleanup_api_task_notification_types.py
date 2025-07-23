@@ -22,6 +22,10 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("config", "0059_zerotier_templates_ow_zt_to_global"),
+        (
+            "openwisp_notifications",
+            "0009_alter_notificationsetting_organization_and_more",
+        ),
     ]
 
     operations = [
