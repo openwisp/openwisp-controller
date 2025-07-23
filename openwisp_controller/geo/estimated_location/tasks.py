@@ -44,6 +44,9 @@ def manage_estimated_locations(device_pk, ip_address):
                 f"Estimated location saved successfully for {device_pk}"
                 f" for IP: {ip_address}"
             )
+            send_whois_task_notification(
+                device_pk=device_pk, notify_type="location_created", actor=location
+            )
 
     def _update_or_create_estimated_location(
         device_location, whois_obj, attached_devices_exists=False
@@ -71,6 +74,11 @@ def manage_estimated_locations(device_pk, ip_address):
                     logger.info(
                         f"Estimated location saved successfully for {device_pk}"
                         f" for IP: {ip_address}"
+                    )
+                    send_whois_task_notification(
+                        device_pk=device_pk,
+                        notify_type="location_updated",
+                        actor=current_location,
                     )
             elif not current_location:
                 # If there is no current location, we create a new one.
@@ -122,6 +130,9 @@ def manage_estimated_locations(device_pk, ip_address):
         logger.info(
             f"Estimated location saved successfully for {device_pk}"
             f" for IP: {ip_address}"
+        )
+        send_whois_task_notification(
+            device_pk=device_pk, notify_type="location_updated", actor=existing_location
         )
 
     whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()

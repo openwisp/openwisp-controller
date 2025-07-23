@@ -403,40 +403,48 @@ class TestEstimatedLocationTransaction(
     @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
-        """
-        For testing notification related to location is sent to user
-        when already multiple devices with same last_ip exist.
-        """
-        mocked_response = self._mocked_client_response()
-        mock_client.return_value.city.return_value = mocked_response
-        self._create_device(last_ip="172.217.22.10")
-        # will have same location as first device
-        self._create_device(
-            name="11:22:33:44:55:66",
-            mac_address="11:22:33:44:55:66",
-            last_ip="172.217.22.10",
-        )
-        mock_info.reset_mock()
-        # device3 will not have same location as first two devices
-        # as multiple devices found for same last_ip causing conflict
-        device3 = self._create_device(
-            name="11:22:33:44:55:77",
-            mac_address="11:22:33:44:55:77",
-            last_ip="172.217.22.10",
-        )
-        mock_info.assert_not_called()
-        mock_error.assert_called_once_with(
-            f"Multiple devices with locations found with same "
-            f"last_ip {device3.last_ip}. Please resolve the conflict manually."
-        )
-        self.assertEqual(notification_qs.count(), 1)
-        notification = notification_qs.first()
-        self.assertEqual(notification.actor, device3)
-        self.assertEqual(notification.target, device3)
-        self.assertEqual(notification.type, "generic_message")
-        self.assertEqual(notification.level, "error")
-        self.assertIn(
-            "Unable to create estimated location for device",
-            notification.message,
-        )
-        self.assertIn(device3.last_ip, notification.description)
+        def _verify_notification(notification, device, message, notify_type="info"):
+            self.assertEqual(notification_qs.count(), 1)
+            self.assertEqual(
+                notification.actor, device.devicelocation.location or device
+            )
+            self.assertEqual(notification.target, device)
+            self.assertEqual(notification.type, "generic_message")
+            self.assertEqual(notification.level, notify_type)
+            self.assertIn(message, notification.message)
+            self.assertIn(device.last_ip, notification.description)
+
+        with self.subTest("Test Notification for location create"):
+            mocked_response = self._mocked_client_response()
+            mock_client.return_value.city.return_value = mocked_response
+            device1 = self._create_device(last_ip="172.217.22.10")
+            notification = notification_qs.first()
+            _verify_notification(notification, device1, "created successfully")
+
+        with self.subTest("Test Notification for location update"):
+            notification_qs.delete()
+            # will have same location as first device
+            device2 = self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.10",
+            )
+            notification = notification_qs.first()
+            _verify_notification(notification, device2, "updated successfully")
+
+        with self.subTest("Test Error Notification for conflicting locations"):
+            notification_qs.delete()
+            mock_info.reset_mock()
+            device3 = self._create_device(
+                name="11:22:33:44:55:77",
+                mac_address="11:22:33:44:55:77",
+                last_ip="172.217.22.10",
+            )
+            mock_info.assert_not_called()
+            mock_error.assert_called_once_with(
+                f"Multiple devices with locations found with same "
+                f"last_ip {device3.last_ip}. Please resolve the conflict manually."
+            )
+            notification = notification_qs.get(actor_object_id=device3.pk)
+            message = "Unable to create estimated location for device"
+            _verify_notification(notification, device3, message, "error")
