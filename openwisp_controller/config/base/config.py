@@ -23,9 +23,17 @@ from ..signals import (
 )
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
-from .base import BaseConfig, ChecksumCacheMixin
+from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
 
 logger = logging.getLogger(__name__)
+
+
+def get_cached_checksum_args_rewrite(config):
+    """
+    DEPRECATED: Use get_cached_args_rewrite instead.
+
+    """
+    return get_cached_args_rewrite(config)
 
 
 class TemplatesThrough(object):

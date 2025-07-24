@@ -183,6 +183,6 @@ def invalidate_controller_views_cache(organization_id):
 @shared_task(base=OpenwispCeleryTask)
 def invalidate_device_checksum_view_cache(organization_id):
     """
-    Deprecated: Use invalidate_controller_views_cache instead.
+    DEPRECATED: Use invalidate_controller_views_cache instead.
     """
     return invalidate_controller_views_cache(organization_id)

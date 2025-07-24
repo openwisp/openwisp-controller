@@ -475,11 +475,9 @@ class GetVpnView(SingleObjectMixin, View):
     model = Vpn
 
     def get_object(self, *args, **kwargs):
-        queryset = (
-            self.model.objects.select_related("organization")
-            .filter(Q(organization__is_active=True) | Q(organization__isnull=True))
-            .select_related("ca", "cert", "subnet", "ip")
-        )
+        queryset = self.model.objects.select_related(
+            "organization", "ca", "cert", "subnet", "ip"
+        ).filter(Q(organization__is_active=True) | Q(organization__isnull=True))
         return get_object_or_404(queryset, *args, **kwargs)
 
     @cache_memoize(

@@ -1,4 +1,5 @@
 import json
+import uuid
 from subprocess import CalledProcessError, TimeoutExpired
 from unittest import mock
 
@@ -19,7 +20,7 @@ from .. import settings as app_settings
 from ..exceptions import ZeroTierIdentityGenerationError
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
-from ..tasks import create_vpn_dh
+from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
 from .utils import (
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
@@ -714,6 +715,16 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         # Verify cache is invalidated
         self.assertNotEqual(initial_checksum, vpn.get_cached_checksum())
         self.assertNotEqual(initial_config, vpn.get_cached_configuration())
+
+    def test_trigger_vpn_server_endpoint_invalid_vpn_id(self):
+        with mock.patch("logging.Logger.error") as mocked_logger:
+            vpn_id = uuid.uuid4().hex
+            trigger_vpn_server_endpoint(
+                endpoint="https://vpn_updater", auth_token="secret", vpn_id=vpn_id
+            )
+            mocked_logger.assert_called_once_with(
+                f"VPN Server UUID: {vpn_id} does not exist."
+            )
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
