@@ -99,6 +99,15 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
 
 @shared_task(base=OpenwispCeleryTask)
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
+    Vpn = load_model("config", "Vpn")
+    try:
+        vpn = Vpn.objects.get(pk=vpn_id)
+    except Vpn.DoesNotExist:
+        logger.error(f"VPN Server UUID: {vpn_id} does not exist.")
+        return
+
+    # Cache the configuration here makes downloading the configuration quicker.
+    vpn.get_cached_configuration()
     response = requests.post(
         endpoint,
         params={"key": auth_token},
