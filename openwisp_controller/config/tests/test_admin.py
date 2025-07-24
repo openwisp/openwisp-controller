@@ -1991,6 +1991,103 @@ class TestAdmin(
             )
             self.assertEqual(mocked_deactivate.call_count, 1)
 
+    def test_enforcing_required_template_does_not_recreate_vpn_client(self):
+        """
+        This test verifies that removing and re-adding VPN templates via admin
+        does not recreate VPN clients.
+        """
+
+        def _update_template(templates):
+            params.update(
+                {
+                    "config-0-templates": ",".join(
+                        [str(template.pk) for template in templates]
+                    )
+                }
+            )
+            response = self.client.post(path, data=params, follow=True)
+            self.assertEqual(response.status_code, 200)
+            return response
+
+        # Create required and default templates
+        required_template = self._create_template(
+            name="required-template", required=True
+        )
+
+        # Create VPNs and VPN templates
+        vpn1 = self._create_vpn(
+            name="test-vpn1",
+        )
+        vpn2 = self._create_vpn(
+            name="test-vpn2",
+        )
+        vpn1_template = self._create_template(
+            name="vpn1-template",
+            type="vpn",
+            vpn=vpn1,
+        )
+        vpn2_template = self._create_template(
+            name="vpn2-template",
+            type="vpn",
+            vpn=vpn2,
+        )
+
+        # Add a new device
+        path = reverse(f"admin:{self.app_label}_device_add")
+        params = self._get_device_params(org=self._get_org())
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        config = Device.objects.first().config
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        self.assertEqual(config.templates.count(), 1)
+
+        # Change to device change form
+        path = reverse(f"admin:{self.app_label}_device_change", args=[config.device_id])
+        params.update(
+            {
+                "config-0-id": str(config.pk),
+                "config-0-device": str(config.device_id),
+                "config-INITIAL_FORMS": 1,
+                "_continue": True,
+            }
+        )
+
+        # Add first VPN template via admin
+        _update_template(templates=[required_template, vpn1_template])
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        vpn1_client = config.vpnclient_set.first()
+
+        # Add second VPN template via admin
+        _update_template(
+            templates=[
+                required_template,
+                vpn1_template,
+                vpn2_template,
+            ]
+        )
+        self.assertEqual(config.templates.count(), 3)
+        self.assertEqual(config.vpnclient_set.count(), 2)
+        # Verify that the first VPN client is preserved (same PK)
+        self.assertEqual(
+            vpn1_client.pk, config.vpnclient_set.filter(vpn=vpn1).first().pk
+        )
+        vpn2_client = config.vpnclient_set.filter(vpn=vpn2).first()
+
+        # Remove first VPN template via admin
+        _update_template(templates=[required_template, vpn2_template])
+
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        # Verify only vpn2 client remains
+        self.assertFalse(config.vpnclient_set.filter(vpn=vpn1).exists())
+        self.assertTrue(config.vpnclient_set.filter(vpn=vpn2).exists())
+        # Verify that the vpn2 client is the same as before (same PK)
+        self.assertEqual(
+            vpn2_client.pk, config.vpnclient_set.filter(vpn=vpn2).first().pk
+        )
+
     def test_vpn_template_switch(self):
         """
         Test switching between two VPN templates that use the same VPN server
