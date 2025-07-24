@@ -257,12 +257,8 @@ class IndoorCoordinatesList(
         return qs
 
     def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
-        floors = self.get_available_floors(qs)
-        filtered_qs = self.filter_queryset(qs)
-        page = self.paginate_queryset(filtered_qs)
-        serializer = self.get_serializer(page, many=True)
-        response = self.get_paginated_response(serializer.data)
+        floors = self.get_available_floors(self.get_queryset())
+        response = super().list(request, *args, **kwargs)
         if response.status_code == 200:
             response.data["floors"] = floors
         return response
