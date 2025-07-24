@@ -10,20 +10,22 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def manage_estimated_locations(device_pk, ip_address, add_existing=False):
+def manage_estimated_locations(device_pk, ip_address):
     """
     Creates/updates estimated location for a device based on the latitude and
-    longitude or attaches an existing location if `add_existing` is True.
+    longitude or attaches an existing location.
     Existing location here means a location of another device whose last_ip matches
     the given ip_address.
+    Does not alters the existing location if it is not estimated.
 
-    When `add_existing` is True:
-    - If the current device has no location, attach the existing one; if it does,
-    update it with the existing one only if it is estimated (fuzzy).
+    - If the current device has no location or location is estimate, either update
+    to an existing location; if it exists, else
 
-    When `add_existing` is False:
     - A new location is created if no location exists for current device, or
-    existing one is updated using coords from WHOIS record if it is estimated (fuzzy).
+    existing one is updated using coords from WHOIS record if it is estimated.
+
+    In case of multiple devices with same last_ip, the task will send a notification
+    to the user to resolve the conflict manually.
     """
     Device = load_model("config", "Device")
     Location = load_model("geo", "Location")
@@ -123,10 +125,14 @@ def manage_estimated_locations(device_pk, ip_address, add_existing=False):
         )
 
     whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
-    device = Device.objects.get(pk=device_pk)
-    device_location, _ = DeviceLocation.objects.select_related(
-        "location"
-    ).get_or_create(content_object_id=device_pk)
+    device = (
+        Device.objects.select_related("devicelocation__location", "organization")
+        .only("organization_id", "devicelocation")
+        .get(pk=device_pk)
+    )
+
+    if not (device_location := getattr(device, "devicelocation", None)):
+        device_location = DeviceLocation(content_object=device)
 
     attached_devices_exists = False
     if current_location := device_location.location:
@@ -136,12 +142,7 @@ def manage_estimated_locations(device_pk, ip_address, add_existing=False):
             .exists()
         )
 
-    if add_existing and (not current_location or current_location.is_estimated):
+    if not current_location or current_location.is_estimated:
         _handle_attach_existing_location(
             device, device_location, whois_obj, attached_devices_exists
-        )
-
-    else:
-        _update_or_create_estimated_location(
-            device_location, whois_obj, attached_devices_exists
         )

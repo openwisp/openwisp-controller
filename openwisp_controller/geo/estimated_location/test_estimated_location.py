@@ -16,6 +16,7 @@ from .tests_utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
+WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
@@ -140,6 +141,22 @@ class TestEstimatedLocationTransaction(
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
+            mocked_estimated_location_task.assert_called()
+        mocked_estimated_location_task.reset_mock()
+
+        with self.subTest(
+            "Estimated location task not called via DeviceChecksumView when "
+            "last_ip has related WhoIsInfo"
+        ):
+            WHOISInfo.objects.all().delete()
+            self._create_whois_info(ip_address=device.last_ip)
+            self._create_config(device=device)
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
             mocked_estimated_location_task.assert_called()
         mocked_estimated_location_task.reset_mock()
 
