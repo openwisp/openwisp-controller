@@ -347,9 +347,27 @@ class TestWHOISTransaction(
         with self.subTest(
             "WHOIS lookup task not called when last_ip has related WhoIsInfo"
         ):
+            device.organization.config_settings.whois_enabled = True
+            device.organization.config_settings.save()
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
+            mocked_lookup_task.assert_not_called()
+        mocked_lookup_task.reset_mock()
+
+        with self.subTest(
+            "WHOIS lookup task not called via DeviceChecksumView when "
+            "last_ip has related WhoIsInfo"
+        ):
+            WHOISInfo.objects.all().delete()
+            self._create_whois_info(ip_address=device.last_ip)
+            self._create_config(device=device)
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
             mocked_lookup_task.assert_not_called()
         mocked_lookup_task.reset_mock()
 

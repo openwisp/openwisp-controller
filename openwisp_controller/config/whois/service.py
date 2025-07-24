@@ -149,6 +149,6 @@ class WHOISService:
         elif self._need_estimated_location_management(new_ip):
             transaction.on_commit(
                 lambda: manage_estimated_locations.delay(
-                    device_pk=self.device.pk, ip_address=new_ip, add_existing=True
+                    device_pk=self.device.pk, ip_address=new_ip
                 )
             )
