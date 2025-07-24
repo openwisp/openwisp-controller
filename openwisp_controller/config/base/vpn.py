@@ -33,7 +33,7 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
 )
-from .base import BaseConfig, ConfigCacheMixin
+from .base import BaseConfig, ConfigChecksumCacheMixin
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def _peer_cache_key(vpn):
     return str(vpn.pk)
 
 
-class AbstractVpn(ConfigCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
+class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
     """
     Abstract VPN model
     """
@@ -281,7 +281,7 @@ class AbstractVpn(ConfigCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
         if not created and self._should_send_vpn_modified_after_save:
-            self.invalidate_cache()
+            self.invalidate_checksum_cache()
             self._send_vpn_modified_signal()
             self._should_send_vpn_modified_after_save = False
         # For ZeroTier VPN server, if the
@@ -687,7 +687,7 @@ class AbstractVpn(ConfigCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
         for backend in ["wireguard", "vxlan"]:
             if self._is_backend_type(backend):
                 getattr(self, f"_get_{backend}_peers").invalidate(self)
-                self.invalidate_cache()
+                self.invalidate_checksum_cache()
                 if update:
                     getattr(self, f"_get_{backend}_peers")()
                     self.get_cached_configuration()

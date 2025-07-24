@@ -23,7 +23,7 @@ from ..signals import (
 )
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
-from .base import BaseConfig, ConfigCacheMixin
+from .base import BaseConfig, ChecksumCacheMixin
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class TemplatesThrough(object):
         return _("Relationship with {0}").format(self.template.name)
 
 
-class AbstractConfig(ConfigCacheMixin, BaseConfig):
+class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     """
     Abstract model implementing the
     NetJSON DeviceConfiguration object

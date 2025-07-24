@@ -312,7 +312,10 @@ class BaseConfigAdmin(BaseAdmin):
             config = instance.config
         else:
             raise Http404()
-        config_archive = config.generate()
+        if hasattr(config, "get_cached_configuration"):
+            config_archive = config.get_cached_configuration()
+        else:
+            config_archive = config.generate()
         return send_file(
             filename="{0}.tar.gz".format(config.name),
             contents=config_archive.getvalue(),

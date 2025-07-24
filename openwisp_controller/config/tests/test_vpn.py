@@ -756,15 +756,17 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 }
             )
             with mock.patch.object(
-                Vpn, "invalidate_cache", return_value=vpn.invalidate_cache()
-            ) as mocked_invalidate_cache, mock.patch.object(
+                Vpn,
+                "invalidate_checksum_cache",
+                return_value=vpn.invalidate_checksum_cache(),
+            ) as mocked_invalidate_checksum_cache, mock.patch.object(
                 Vpn,
                 "get_cached_configuration",
                 return_value=vpn.get_cached_configuration(),
             ) as mocked_cached_configuration:
                 device2.config.templates.add(template)
                 # The Vpn configuration cache is invalidated and re-populated
-                mocked_invalidate_cache.assert_called_once()
+                mocked_invalidate_checksum_cache.assert_called_once()
                 mocked_cached_configuration.assert_called_once()
             # cache is invalidated and updated, hence no queries expected
             with self.assertNumQueries(0):
@@ -773,14 +775,16 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
 
         with self.subTest("cache updated when a peer is deleted"):
             with mock.patch.object(
-                Vpn, "invalidate_cache", return_value=vpn.invalidate_cache()
-            ) as mocked_invalidate_cache, mock.patch.object(
+                Vpn,
+                "invalidate_checksum_cache",
+                return_value=vpn.invalidate_checksum_cache(),
+            ) as mocked_invalidate_checksum_cache, mock.patch.object(
                 Vpn,
                 "get_cached_configuration",
                 return_value=vpn.get_cached_configuration(),
             ) as mocked_cached_configuration:
                 device2.delete(check_deactivated=False)
-                mocked_invalidate_cache.assert_called_once()
+                mocked_invalidate_checksum_cache.assert_called_once()
                 mocked_cached_configuration.assert_not_called()
             # cache is invalidated but not updated
             # hence we expect queries to be generated

@@ -27,9 +27,9 @@ def get_cached_args_rewrite(instance):
     return instance.pk.hex
 
 
-class ConfigCacheMixin:
+class ChecksumCacheMixin:
     """
-    Mixin that provides checksum caching functionality
+    Mixin that provides caching for checksum.
     """
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 30 days
@@ -45,15 +45,6 @@ class ConfigCacheMixin:
         """
         logger.debug(f"calculating checksum for {self.__class__.__name__} ID {self.pk}")
         return self.checksum
-
-    @cache_memoize(
-        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_args_rewrite
-    )
-    def get_cached_configuration(self):
-        """
-        Returns cached configuration
-        """
-        return self.generate()
 
     @classmethod
     def bulk_invalidate_get_cached_checksum(cls, query_params):
@@ -72,6 +63,22 @@ class ConfigCacheMixin:
             f"invalidated checksum cache for {self.__class__.__name__} ID {self.pk}"
         )
 
+
+class ConfigChecksumCacheMixin(ChecksumCacheMixin):
+    """
+    Mixin that provides caching for both checksum and configuration.
+    """
+
+    @cache_memoize(
+        timeout=ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT,
+        args_rewrite=get_cached_args_rewrite,
+    )
+    def get_cached_configuration(self):
+        """
+        Returns cached configuration
+        """
+        return self.generate()
+
     def invalidate_configuration_cache(self):
         """
         Invalidate the configuration cache for this instance
@@ -82,15 +89,9 @@ class ConfigCacheMixin:
             f" ID {self.pk}"
         )
 
-    def invalidate_cache(self):
-        """
-        Invalidate all caches related to this instance
-        """
-        self.invalidate_checksum_cache()
+    def invalidate_checksum_cache(self):
+        super().invalidate_checksum_cache()
         self.invalidate_configuration_cache()
-        logger.debug(
-            f"invalidated all caches for {self.__class__.__name__} ID {self.pk}"
-        )
 
 
 class BaseModel(TimeStampedEditableModel):
