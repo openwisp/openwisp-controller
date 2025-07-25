@@ -19,6 +19,14 @@ class BaseLocation(OrgMixin, AbstractLocation):
     class Meta(AbstractLocation.Meta):
         abstract = True
 
+    def save(self, *args, from_task=False, **kwargs):
+        # estimate locations are created only via `manage_estimated_locations` task
+        # so we set `is_estimated` to False from all other sources as they imply
+        # manual refinement
+        if not from_task:
+            self.is_estimated = False
+        return super().save(*args, **kwargs)
+
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):
     location = models.ForeignKey(get_model_name("geo", "Location"), models.CASCADE)
