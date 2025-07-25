@@ -140,7 +140,7 @@ def devicegroup_templates_change_handler(instance, **kwargs):
 
 def organization_disabled_handler(instance, **kwargs):
     """
-    Asynchronously invalidates DeviceCheckView.get_device cache
+    Asynchronously invalidates device and VPN controller views cache
     """
     if instance.is_active:
         return
@@ -151,4 +151,4 @@ def organization_disabled_handler(instance, **kwargs):
     if instance.is_active == db_instance.is_active:
         # No change in is_active
         return
-    tasks.invalidate_device_checksum_view_cache.delay(str(instance.id))
+    tasks.invalidate_controller_views_cache.delay(str(instance.id))

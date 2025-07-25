@@ -3,7 +3,6 @@ import logging
 import re
 from collections import defaultdict
 
-from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
@@ -24,9 +23,18 @@ from ..signals import (
 )
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
-from .base import BaseConfig
+from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
 
 logger = logging.getLogger(__name__)
+
+
+def get_cached_checksum_args_rewrite(config):
+    """
+    DEPRECATED: Use get_cached_args_rewrite instead.
+
+    TODO: Remove this in 1.2.0 release.
+    """
+    return get_cached_args_rewrite(config)
 
 
 class TemplatesThrough(object):
@@ -38,14 +46,7 @@ class TemplatesThrough(object):
         return _("Relationship with {0}").format(self.template.name)
 
 
-def get_cached_checksum_args_rewrite(config):
-    """
-    Use only the PK parameter for calculating the cache key
-    """
-    return config.pk.hex
-
-
-class AbstractConfig(BaseConfig):
+class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     """
     Abstract model implementing the
     NetJSON DeviceConfiguration object
@@ -149,23 +150,6 @@ class AbstractConfig(BaseConfig):
         (kept for backward compatibility with pre 0.6 versions)
         """
         return self.device.key
-
-    @cache_memoize(
-        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_checksum_args_rewrite
-    )
-    def get_cached_checksum(self):
-        """
-        Handles caching,
-        timeout=None means value is cached indefinitely
-        (invalidation handled on post_save/post_delete signal)
-        """
-        logger.debug(f"calculating checksum for config ID {self.pk}")
-        return self.checksum
-
-    @classmethod
-    def bulk_invalidate_get_cached_checksum(cls, query_params):
-        for config in cls.objects.only("id").filter(**query_params).iterator():
-            config.get_cached_checksum.invalidate(config)
 
     @classmethod
     def get_template_model(cls):

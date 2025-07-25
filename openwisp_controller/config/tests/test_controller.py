@@ -11,8 +11,8 @@ from swapper import load_model
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
-from ..base.config import logger as config_model_logger
-from ..controller.views import DeviceChecksumView
+from ..base.base import logger as base_config_logger
+from ..controller.views import DeviceChecksumView, VpnChecksumView
 from ..controller.views import logger as controller_views_logger
 from ..signals import (
     checksum_requested,
@@ -186,7 +186,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
                     with patch.object(
-                        config_model_logger, "debug"
+                        base_config_logger, "debug"
                     ) as mocked_config_debug:
                         self.client.get(
                             url, {"key": d.key, "management_ip": "10.0.0.2"}
@@ -200,7 +200,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
                     with patch.object(
-                        config_model_logger, "debug"
+                        base_config_logger, "debug"
                     ) as mocked_config_debug:
                         self.client.get(
                             url, {"key": d.key, "management_ip": "10.0.0.3"}
@@ -223,7 +223,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                     controller_views_logger, "debug"
                 ) as mocked_view_debug:
                     with patch.object(
-                        config_model_logger, "debug"
+                        base_config_logger, "debug"
                     ) as mocked_config_debug:
                         self.client.get(
                             url, {"key": d.key, "management_ip": "10.0.0.3"}
@@ -233,7 +233,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
 
         with self.subTest("ensure cache invalidation works"):
             old_checksum = d.config.checksum
-            with patch.object(config_model_logger, "debug") as mocked_debug:
+            with patch.object(base_config_logger, "debug") as mocked_debug:
                 d.config.config["general"]["timezone"] = "Europe/Rome"
                 d.config.full_clean()
                 d.config.save()
@@ -365,11 +365,20 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertEqual(response.status_code, 405)
 
     def test_vpn_checksum(self):
-        v = self._create_vpn()
-        url = reverse("controller:vpn_checksum", args=[v.pk])
-        response = self.client.get(url, {"key": v.key})
-        self.assertEqual(response.content.decode(), v.checksum)
-        self._check_header(response)
+        vpn = self._create_vpn()
+        url = reverse("controller:vpn_checksum", args=[vpn.pk])
+
+        with self.subTest("First request will calculate the checksum"):
+            with self.assertNumQueries(1):
+                response = self.client.get(url, {"key": vpn.key})
+            self.assertEqual(response.content.decode(), vpn.checksum)
+            self._check_header(response)
+
+        with self.subTest("Second request will return cached checksum"):
+            with self.assertNumQueries(0):
+                response = self.client.get(url, {"key": vpn.key})
+            self.assertEqual(response.content.decode(), vpn.checksum)
+            self._check_header(response)
 
     def test_vpn_checksum_bad_uuid(self):
         v = self._create_vpn()
@@ -408,14 +417,85 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             vpn, reverse("controller:vpn_checksum", args=[vpn.pk])
         )
 
+    def test_vpn_get_object_cached(self):
+        vpn = self._create_vpn()
+        view = VpnChecksumView()
+        view.kwargs = {"pk": str(vpn.pk)}
+
+        with self.subTest("check cache set"):
+            with patch("django.core.cache.cache.set") as mock:
+                self.assertEqual(view.get_vpn(), vpn)
+                mock.assert_called_once()
+
+        with self.subTest("check cache get"):
+            with patch("django.core.cache.cache.get", return_value=vpn) as mock:
+                view.get_vpn()
+                mock.assert_called_once()
+
+        with self.subTest("check cache invalidation"):
+            with patch("django.core.cache.cache.delete") as mock:
+                view.get_vpn.invalidate(view)
+                mock.assert_called_once()
+
+    def test_vpn_checksum_cache_invalidation_handler(self):
+        vpn = self._create_vpn()
+        url = reverse("controller:vpn_checksum", args=[vpn.pk])
+        # Warm up the cache
+        with self.assertNumQueries(1):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+        # Cache works are expected
+        with self.assertNumQueries(0):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+        # Change VPN config to trigger invalidation
+        vpn.config["openvpn"][0]["proto"] = "tcp-server"
+        vpn.full_clean()
+        vpn.save()
+
+        del vpn.backend_instance
+        with self.assertNumQueries(1):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
     def test_vpn_download_config(self):
         v = self._create_vpn()
         url = reverse("controller:vpn_download_config", args=[v.pk])
-        response = self.client.get(url, {"key": v.key})
+        # First request will populate the cache
+        with self.assertNumQueries(1), patch.object(
+            Vpn, "generate", return_value=v.generate()
+        ) as mocked_generate:
+            response = self.client.get(url, {"key": v.key})
+            mocked_generate.assert_called_once()
         self.assertEqual(
             response["Content-Disposition"], "attachment; filename=test.tar.gz"
         )
         self._check_header(response)
+
+        with self.subTest("Second request will return cached config"):
+            with patch.object(Vpn, "generate") as mocked_generate:
+                response = self.client.get(url, {"key": v.key})
+                mocked_generate.assert_not_called()
+            self.assertEqual(
+                response["Content-Disposition"], "attachment; filename=test.tar.gz"
+            )
+            self._check_header(response)
+
+        with self.subTest("Changing Vpn configuration will invalidate cache"):
+            v.config["wireguard"][0]["port"] = "51821"
+            v.full_clean()
+            v.save()
+            with self.assertNumQueries(1), patch.object(
+                Vpn, "generate", return_value=v.generate()
+            ) as mocked_generate:
+                response = self.client.get(url, {"key": v.key})
+                mocked_generate.assert_called_once()
+            self.assertEqual(
+                response["Content-Disposition"], "attachment; filename=test.tar.gz"
+            )
+            self._check_header(response)
 
     def test_vpn_download_config_bad_uuid(self):
         v = self._create_vpn()

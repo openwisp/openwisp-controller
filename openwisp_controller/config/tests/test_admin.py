@@ -1536,8 +1536,29 @@ class TestAdmin(
     def test_download_vpn_config(self):
         v = self._create_vpn()
         path = reverse(f"admin:{self.app_label}_vpn_download", args=[v.pk])
-        response = self.client.get(path)
-        self.assertEqual(response.get("content-type"), "application/octet-stream")
+        # First request warms up the cache
+        with patch.object(
+            Vpn, "generate", return_value=v.generate()
+        ) as mocked_generate, patch.object(
+            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
+        ) as mocked_get_cached_configuration:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get("content-type"), "application/octet-stream")
+            mocked_generate.assert_called_once()
+            mocked_get_cached_configuration.assert_called_once()
+
+        # Second request uses the cached config
+        with patch.object(
+            Vpn, "generate", return_value=v.generate()
+        ) as mocked_generate, patch.object(
+            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
+        ) as mocked_get_cached_configuration:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get("content-type"), "application/octet-stream")
+            mocked_generate.assert_not_called()
+            mocked_get_cached_configuration.assert_called_once()
 
     def test_vpn_has_download_config(self):
         v = self._create_vpn()
