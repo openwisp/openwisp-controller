@@ -32,6 +32,7 @@ def get_cached_checksum_args_rewrite(config):
     """
     DEPRECATED: Use get_cached_args_rewrite instead.
 
+    TODO: Remove this in 1.2.0 release.
     """
     return get_cached_args_rewrite(config)
 
