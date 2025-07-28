@@ -230,31 +230,44 @@ class IndoorCoordinatesList(
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = IndoorCoordinatesFilter
     pagination_class = IndoorCoodinatesViewPagination
-    organization_field = "content_object__organization"
-
     queryset = (
         DeviceLocation.objects.filter(
             location__type="indoor",
             floorplan__isnull=False,
         )
         .select_related(
-            "content_object", "location", "floorplan", "content_object__organization"
+            "content_object", "location", "floorplan", "location__organization"
         )
         .order_by("floorplan__floor")
     )
 
     def get_parent_queryset(self):
-        return DeviceLocation.objects.filter(location__pk=self.kwargs.get("pk"))
+        qs = Location.objects.filter(pk=self.kwargs["pk"])
+        return qs
+
+    def get_queryset(self):
+        return super().get_queryset().filter(location_id=self.kwargs["pk"])
+
+    def get_organization_queryset(self, qs):
+        """
+        Perform organization lookup based on the model.
+
+        We need to filter the DeviceLocation queryset based on the related
+        Location.organization because the DeviceLocation object does not have
+        a direct relation to Organization.
+
+        TODO: Remove this working when the issue is fixed in openwisp-users.
+        https://github.com/openwisp/openwisp-users/issues/455
+        """
+        lookup_value = getattr(self.request.user, self._user_attr)
+        lookup_key = (
+            "organization__in" if qs.model == Location else "location__organization__in"
+        )
+        return qs.filter(**{lookup_key: lookup_value})
 
     def get_available_floors(self, qs):
         floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
         return floors
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        location_id = self.kwargs.get("pk")
-        qs = qs.filter(location__id=location_id)
-        return qs
 
     def list(self, request, *args, **kwargs):
         floors = self.get_available_floors(self.get_queryset())

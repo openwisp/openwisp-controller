@@ -304,7 +304,6 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             r = self.client.get(reverse(url))
             self.assertEqual(r.status_code, 401)
 
-    @capture_any_output()
     def test_indoor_coodinate_list(self):
         url = "geo_api:indoor_coordinates_list"
         org_a = self._get_org("org_a")
@@ -321,7 +320,7 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             floorplan=floor_a,
             organization=org_a,
         )
-        self._create_object_location(
+        device_location_b = self._create_object_location(
             content_object=device_b,
             location=location_b,
             floorplan=floor_b,
@@ -350,7 +349,35 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             self.assertContains(r, str(device_a.id))
             r = self.client.get(reverse(url, args=[location_b.id]))
             self.assertEqual(r.status_code, 200)
-            self.assertContains(r, str(device_b.id))
+            # Verify all fields in the response
+            self.assertEqual(r.data["count"], 1)
+            self.assertIsNone(r.data["next"])
+            self.assertIsNone(r.data["previous"])
+            self.assertEqual(len(r.data["results"]), 1)
+            self.assertEqual(r.data["floors"], [floor_b.floor])
+            indoor_coordinate = r.data["results"][0]
+            self.assertEqual(indoor_coordinate["id"], str(device_location_b.id))
+            self.assertEqual(indoor_coordinate["device_id"], str(device_b.id))
+            self.assertEqual(indoor_coordinate["floorplan_id"], str(floor_b.id))
+            self.assertEqual(indoor_coordinate["device_name"], device_b.name)
+            self.assertEqual(indoor_coordinate["mac_address"], device_b.mac_address)
+            self.assertEqual(indoor_coordinate["floor_name"], str(floor_b))
+            self.assertEqual(indoor_coordinate["floor"], floor_b.floor)
+            self.assertEqual(
+                indoor_coordinate["admin_edit_url"],
+                "http://testserver{}".format(
+                    reverse(
+                        f"admin:{Device._meta.app_label}_device_change",
+                        args=(device_b.id,),
+                    )
+                ),
+            )
+            self.assertEqual(
+                indoor_coordinate["image"], f"http://testserver{floor_b.image.url}"
+            )
+            self.assertEqual(
+                indoor_coordinate["coordinates"], {"lat": -140.3862, "lng": 40.369227}
+            )
 
         with self.subTest("Test for unauthenticated user"):
             self.client.logout()

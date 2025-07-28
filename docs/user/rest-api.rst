@@ -961,7 +961,7 @@ List Indoor Coordinates of a Location
 
 .. note::
 
-    this endpoint returns device coordinates from the first floor above
+    This endpoint returns device coordinates from the first floor above
     ground (lowest non-negative floors) by default. If a location only has
     negative floors (e.g. underground parking lot), then it will return
     the closest floor to the ground (maximum negative floor).

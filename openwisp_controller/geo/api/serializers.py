@@ -352,9 +352,7 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
 
 class IndoorCoordinatesSerializer(serializers.ModelSerializer):
     admin_edit_url = SerializerMethodField("get_admin_edit_url")
-    content_object_id = serializers.UUIDField(
-        source="content_object.id", read_only=True
-    )
+    device_id = serializers.UUIDField(source="content_object.id", read_only=True)
     floorplan_id = serializers.UUIDField(source="floorplan.id", read_only=True)
     device_name = serializers.CharField(source="content_object.name")
     mac_address = serializers.CharField(source="content_object.mac_address")
@@ -368,7 +366,7 @@ class IndoorCoordinatesSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "admin_edit_url",
-            "content_object_id",
+            "device_id",
             "floorplan_id",
             "device_name",
             "mac_address",
@@ -387,9 +385,7 @@ class IndoorCoordinatesSerializer(serializers.ModelSerializer):
         )
 
     def get_floor_name(self, obj):
-        loc_name = obj.floorplan.location.name
-        floor_no = obj.floorplan.floor
-        return f"{loc_name} {ordinal(floor_no)} Floor"
+        return str(obj.floorplan)
 
     def get_coordinates(self, obj):
         """
