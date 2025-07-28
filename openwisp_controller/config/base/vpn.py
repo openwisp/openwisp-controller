@@ -33,7 +33,7 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
 )
-from .base import BaseConfig
+from .base import BaseConfig, ConfigChecksumCacheMixin
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def _peer_cache_key(vpn):
     return str(vpn.pk)
 
 
-class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
+class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
     """
     Abstract VPN model
     """
@@ -281,6 +281,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
         if not created and self._send_vpn_modified_after_save:
+            self.invalidate_checksum_cache()
             self._send_vpn_modified_signal()
             self._send_vpn_modified_after_save = False
         # For ZeroTier VPN server, if the
@@ -308,10 +309,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         ]
         current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
         for attr in attrs:
-            if getattr(self, attr) == getattr(current, attr):
-                continue
-            self._send_vpn_modified_after_save = True
-            break
+            if getattr(self, attr) != getattr(current, attr):
+                self._send_vpn_modified_after_save = True
+                break
 
     def _send_vpn_modified_signal(self):
         vpn_server_modified.send(sender=self.__class__, instance=self)
@@ -687,8 +687,10 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         for backend in ["wireguard", "vxlan"]:
             if self._is_backend_type(backend):
                 getattr(self, f"_get_{backend}_peers").invalidate(self)
+                self.invalidate_checksum_cache()
                 if update:
                     getattr(self, f"_get_{backend}_peers")()
+                    self.get_cached_configuration()
                 # Send signal for peers changed
                 vpn_peers_changed.send(sender=self.__class__, instance=self)
 
