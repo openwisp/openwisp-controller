@@ -135,13 +135,20 @@ class TestEstimatedLocationTransaction(
         with self.subTest(
             "Estimated location task called when last_ip has related WhoIsInfo"
         ):
-            device.organization.config_settings.whois_enabled = True
-            device.organization.config_settings.estimated_location_enabled = True
-            device.organization.config_settings.save()
-            device.last_ip = "172.217.22.14"
-            self._create_whois_info(ip_address=device.last_ip)
-            device.save()
-            mocked_estimated_location_task.assert_called()
+            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
+                "django.core.cache.cache.set"
+            ) as mocked_set:
+                device.organization.config_settings.whois_enabled = True
+                device.organization.config_settings.estimated_location_enabled = True
+                device.organization.config_settings.save()
+                device.last_ip = "172.217.22.14"
+                self._create_whois_info(ip_address=device.last_ip)
+                device.save()
+                mocked_set.assert_not_called()
+                # The cache `get` is called twice, once for `whois_enabled` and
+                # once for `estimated_location_enabled`
+                mocked_get.assert_called()
+                mocked_estimated_location_task.assert_called()
         mocked_estimated_location_task.reset_mock()
 
         with self.subTest(
