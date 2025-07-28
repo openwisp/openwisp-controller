@@ -99,6 +99,15 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
 
 @shared_task(base=OpenwispCeleryTask)
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
+    Vpn = load_model("config", "Vpn")
+    try:
+        vpn = Vpn.objects.get(pk=vpn_id)
+    except Vpn.DoesNotExist:
+        logger.error(f"VPN Server UUID: {vpn_id} does not exist.")
+        return
+
+    # Cache the configuration here makes downloading the configuration faster.
+    vpn.get_cached_configuration()
     response = requests.post(
         endpoint,
         params={'key': auth_token},
@@ -149,11 +158,31 @@ def bulk_invalidate_config_get_cached_checksum(query_params):
 
 
 @shared_task(base=OpenwispCeleryTask)
-def invalidate_device_checksum_view_cache(organization_id):
-    from .controller.views import DeviceChecksumView
+def invalidate_controller_views_cache(organization_id):
+    """
+    Invalidates the cache of DeviceChecksumView, GetVpnView
+    """
+    from .controller.views import DeviceChecksumView, GetVpnView
 
     Device = load_model('config', 'Device')
+    Vpn = load_model('config', 'Vpn')
+
     for device in (
         Device.objects.filter(organization_id=organization_id).only('id').iterator()
     ):
         DeviceChecksumView.invalidate_get_device_cache(device)
+
+    for vpn in (
+        Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
+    ):
+        GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(base=OpenwispCeleryTask)
+def invalidate_device_checksum_view_cache(organization_id):
+    """
+    DEPRECATED: Use invalidate_controller_views_cache instead.
+
+    TODO: Remove this in 1.2.0 release.
+    """
+    return invalidate_controller_views_cache(organization_id)

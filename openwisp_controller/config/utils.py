@@ -58,7 +58,8 @@ def send_vpn_config(vpn, request):
     tar.gz as attachment
     """
     return send_file(
-        filename='{0}.tar.gz'.format(vpn.name), contents=vpn.generate().getvalue()
+        filename='{0}.tar.gz'.format(vpn.name),
+        contents=vpn.get_cached_configuration().getvalue(),
     )
 
 

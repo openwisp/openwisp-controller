@@ -131,7 +131,7 @@ UqzLuoNWCyj8KCicbA7tiBxX+2zgQpch8wIBAg==
             name='test',
             host='vpn1.test.com',
             backend=self._BACKENDS['openvpn'],
-            config=self._vpn_config,
+            config=deepcopy(self._vpn_config),
             dh=self._dh,
         )
         options.update(**kwargs)
