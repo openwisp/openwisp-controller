@@ -143,8 +143,8 @@ class WHOISService:
                     new_ip_address=new_ip,
                 )
             )
-        # `add_existing` is `True` to handle the case when WHOIS already exists
-        # as in that case WHOIS lookup is not triggered but we still need to
+        # To handle the case when WHOIS already exists as in that case
+        # WHOIS lookup is not triggered but we still need to
         # manage estimated locations.
         elif self._need_estimated_location_management(new_ip):
             transaction.on_commit(

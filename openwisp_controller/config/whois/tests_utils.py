@@ -70,13 +70,14 @@ class WHOISTransactionMixin:
         with self.subTest(
             f"{task_name} task called when last_ip is changed and is public"
         ):
-            with mock.patch("django.core.cache.cache.get") as mocked_get:
+            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
+                "django.core.cache.cache.set"
+            ) as mocked_set:
                 device.last_ip = "172.217.22.10"
                 device.save()
                 mocked_task.assert_called()
-                # The cache `get` is called twice, once for `whois_enabled` and
-                # once for `estimated_location_enabled`
-                mocked_get.assert_called()
+                mocked_set.assert_not_called()
+                mocked_get.assert_called_once()
         mocked_task.reset_mock()
 
         with self.subTest(f"{task_name} task not called when last_ip is private"):
