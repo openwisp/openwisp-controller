@@ -35,6 +35,7 @@ class TestApi(TestGeoMixin, TestCase):
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
+    floorplan_model = FloorPlan
 
     def test_permission_404(self):
         url = reverse(self.url_name, args=[self.object_model().pk])
@@ -130,7 +131,17 @@ class TestApi(TestGeoMixin, TestCase):
             username="admin", password="password", is_staff=True, is_superuser=True
         )
         token = Token.objects.create(user=user).key
-        device = self._create_object_location().device
+        device = self._create_object()
+        location = self._create_location(
+            organization=device.organization, type="indoor"
+        )
+        floor = self._create_floorplan(floor=1, location=location)
+        self._create_object_location(
+            content_object=device,
+            location=location,
+            floorplan=floor,
+            organization=device.organization,
+        )
 
         with self.subTest("Test DeviceLocationView"):
             response = self.client.get(
@@ -150,9 +161,16 @@ class TestApi(TestGeoMixin, TestCase):
             self.assertEqual(response.status_code, 200)
 
         with self.subTest("Test LocationDeviceList"):
-            location = self._create_location(organization=device.organization)
             response = self.client.get(
                 reverse("geo_api:location_device_list", args=[location.id]),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("Test IndoorCoordinatesList"):
+            response = self.client.get(
+                reverse("geo_api:indoor_coordinates_list", args=[location.id]),
                 content_type="application/json",
                 HTTP_AUTHORIZATION=f"Bearer {token}",
             )
@@ -182,6 +200,7 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
+    floorplan_model = FloorPlan
 
     def setUp(self):
         super().setUp()
@@ -284,6 +303,86 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             self.client.logout()
             r = self.client.get(reverse(url))
             self.assertEqual(r.status_code, 401)
+
+    def test_indoor_coodinate_list(self):
+        url = "geo_api:indoor_coordinates_list"
+        org_a = self._get_org("org_a")
+        org_b = self._get_org("org_b")
+        device_a = self._create_device(organization=org_a)
+        device_b = self._create_device(organization=org_b)
+        location_a = self._create_location(type="indoor", organization=org_a)
+        location_b = self._create_location(type="indoor", organization=org_b)
+        floor_a = self._create_floorplan(location=location_a)
+        floor_b = self._create_floorplan(location=location_b)
+        self._create_object_location(
+            content_object=device_a,
+            location=location_a,
+            floorplan=floor_a,
+            organization=org_a,
+        )
+        device_location_b = self._create_object_location(
+            content_object=device_b,
+            location=location_b,
+            floorplan=floor_b,
+            organization=org_b,
+        )
+
+        with self.subTest("Test indoor coordinate list for org operator"):
+            self.client.login(username="operator", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("Test indoor coordinate list for superuser"):
+            self.client.login(username="admin", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertContains(r, str(device_b.id))
+
+        with self.subTest("Test indoor coordinate list for org administrator"):
+            administrator = self._create_administrator(organizations=[org_a, org_b])
+            self.client.force_login(administrator)
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertEqual(r.status_code, 200)
+            # Verify all fields in the response
+            self.assertEqual(r.data["count"], 1)
+            self.assertIsNone(r.data["next"])
+            self.assertIsNone(r.data["previous"])
+            self.assertEqual(len(r.data["results"]), 1)
+            self.assertEqual(r.data["floors"], [floor_b.floor])
+            indoor_coordinate = r.data["results"][0]
+            self.assertEqual(indoor_coordinate["id"], str(device_location_b.id))
+            self.assertEqual(indoor_coordinate["device_id"], str(device_b.id))
+            self.assertEqual(indoor_coordinate["floorplan_id"], str(floor_b.id))
+            self.assertEqual(indoor_coordinate["device_name"], device_b.name)
+            self.assertEqual(indoor_coordinate["mac_address"], device_b.mac_address)
+            self.assertEqual(indoor_coordinate["floor_name"], str(floor_b))
+            self.assertEqual(indoor_coordinate["floor"], floor_b.floor)
+            self.assertEqual(
+                indoor_coordinate["admin_edit_url"],
+                "http://testserver{}".format(
+                    reverse(
+                        f"admin:{Device._meta.app_label}_device_change",
+                        args=(device_b.id,),
+                    )
+                ),
+            )
+            self.assertEqual(
+                indoor_coordinate["image"], f"http://testserver{floor_b.image.url}"
+            )
+            self.assertEqual(
+                indoor_coordinate["coordinates"], {"lat": -140.3862, "lng": 40.369227}
+            )
+
+        with self.subTest("Test for unauthenticated user"):
+            self.client.logout()
+            response = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(response.status_code, 401)
 
 
 class TestGeoApi(
@@ -1036,3 +1135,157 @@ class TestGeoApi(
         with self.subTest("Test deleting DeviceLocation"):
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 403)
+
+    def test_indoor_coordinates_list_api(self):
+        org = self._create_org(name="Test org")
+        location = self._create_location(type="indoor", organization=org)
+        floor1 = self._create_floorplan(floor=1, location=location)
+        floor2 = self._create_floorplan(floor=2, location=location)
+        device1 = self._create_device(
+            name="device1", mac_address="00:00:00:00:00:01", organization=org
+        )
+        device2 = self._create_device(
+            name="device2", mac_address="00:00:00:00:00:02", organization=org
+        )
+        self._create_object_location(
+            content_object=device1,
+            location=location,
+            floorplan=floor1,
+            organization=org,
+        )
+        self._create_object_location(
+            content_object=device2,
+            location=location,
+            floorplan=floor2,
+            organization=org,
+        )
+        path = reverse("geo_api:indoor_coordinates_list", args=[location.id])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["device_name"], "device1")
+        self.assertEqual(response.data["results"][0]["floor"], 1)
+
+        with self.subTest("Test filter by floor"):
+            response = self.client.get(f"{path}?floor=2")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device2")
+            self.assertEqual(response.data["results"][0]["floor"], 2)
+
+        with self.subTest("Test default floor with all positve floor"):
+            location2 = self._create_location(type="indoor", organization=org)
+            floor0 = self._create_floorplan(floor=0, location=location2)
+            floor5 = self._create_floorplan(floor=5, location=location2)
+            floor9 = self._create_floorplan(floor=9, location=location2)
+            device0 = self._create_device(
+                name="device", mac_address="00:00:00:00:00:00", organization=org
+            )
+            device5 = self._create_device(
+                name="device5", mac_address="00:00:00:00:00:05", organization=org
+            )
+            device9 = self._create_device(
+                name="device9", mac_address="00:00:00:00:00:09", organization=org
+            )
+            self._create_object_location(
+                content_object=device0,
+                location=location2,
+                floorplan=floor0,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device5,
+                location=location2,
+                floorplan=floor5,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device9,
+                location=location2,
+                floorplan=floor9,
+                organization=org,
+            )
+            path = reverse("geo_api:indoor_coordinates_list", args=[location2.id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device")
+            self.assertEqual(response.data["results"][0]["floor"], 0)
+
+        with self.subTest("Test default floor with all negative floor"):
+            location3 = self._create_location(type="indoor", organization=org)
+            floor_1 = self._create_floorplan(floor=-1, location=location3)
+            floor_2 = self._create_floorplan(floor=-2, location=location3)
+            floor_3 = self._create_floorplan(floor=-3, location=location3)
+            device_1 = self._create_device(
+                name="device-1", mac_address="00:00:00:00:10:01", organization=org
+            )
+            device_2 = self._create_device(
+                name="device-2", mac_address="00:00:00:00:10:02", organization=org
+            )
+            device_3 = self._create_device(
+                name="device-3", mac_address="00:00:00:00:10:03", organization=org
+            )
+            self._create_object_location(
+                content_object=device_1,
+                location=location3,
+                floorplan=floor_1,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device_2,
+                location=location3,
+                floorplan=floor_2,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device_3,
+                location=location3,
+                floorplan=floor_3,
+                organization=org,
+            )
+            path = reverse("geo_api:indoor_coordinates_list", args=[location3.id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device-1")
+            self.assertEqual(response.data["results"][0]["floor"], -1)
+
+        with self.subTest("Test default floor with positive and negative floor"):
+            location4 = self._create_location(type="indoor", organization=org)
+            floor_4 = self._create_floorplan(floor=-4, location=location4)
+            floor0 = self._create_floorplan(floor=0, location=location4)
+            floor22 = self._create_floorplan(floor=22, location=location4)
+            device_3 = self._create_device(
+                name="device-4", mac_address="00:00:00:10:10:03", organization=org
+            )
+            device0 = self._create_device(
+                name="device-0", mac_address="00:00:00:00:10:00", organization=org
+            )
+            device22 = self._create_device(
+                name="device22", mac_address="00:00:00:00:10:22", organization=org
+            )
+            self._create_object_location(
+                content_object=device_3,
+                location=location4,
+                floorplan=floor_4,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device0,
+                location=location4,
+                floorplan=floor0,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device22,
+                location=location4,
+                floorplan=floor22,
+                organization=org,
+            )
+            path = reverse("geo_api:indoor_coordinates_list", args=[location4.id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device-0")
+            self.assertEqual(response.data["results"][0]["floor"], 0)
