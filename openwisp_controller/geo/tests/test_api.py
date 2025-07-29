@@ -7,6 +7,7 @@ from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.urls import reverse
+from django.urls.exceptions import NoReverseMatch
 from PIL import Image
 from rest_framework.authtoken.models import Token
 from swapper import load_model
@@ -499,18 +500,20 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 201)
 
     def test_get_location_detail(self):
-        with self.subTest('Test with invalid pk'):
-            path = reverse('geo_api:detail_location', args=['wrong-pk'])
-            with self.assertNumQueries(2):
-                response = self.client.get(path)
-            self.assertEqual(response.status_code, 404)
-
-        with self.subTest('Test with correct pk'):
+        with self.subTest('Test standard behavior'):
             location = self._create_location()
             path = reverse('geo_api:detail_location', args=[location.pk])
             with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
+
+        with self.subTest('Test with invalid pk'):
+            try:
+                reverse('geo_api:detail_location', args=['wrong-pk'])
+            except NoReverseMatch as e:
+                self.assertIn('wrong-pk', str(e))
+            else:
+                self.fail('NoReverseMatch not raised as expected')
 
     def test_put_location_detail(self):
         l1 = self._create_location()

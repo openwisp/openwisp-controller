@@ -4,12 +4,12 @@ from django.urls import path
 def get_geo_urls(geo_views):
     return [
         path(
-            'api/v1/controller/device/<str:pk>/coordinates/',
+            'api/v1/controller/device/<uuid:pk>/coordinates/',
             geo_views.device_coordinates,
             name='device_coordinates',
         ),
         path(
-            'api/v1/controller/device/<str:pk>/location/',
+            'api/v1/controller/device/<uuid:pk>/location/',
             geo_views.device_location,
             name='device_location',
         ),
@@ -19,7 +19,7 @@ def get_geo_urls(geo_views):
             name='location_geojson',
         ),
         path(
-            'api/v1/controller/location/<str:pk>/device/',
+            'api/v1/controller/location/<uuid:pk>/device/',
             geo_views.location_device_list,
             name='location_device_list',
         ),
@@ -29,7 +29,7 @@ def get_geo_urls(geo_views):
             name='list_floorplan',
         ),
         path(
-            'api/v1/controller/floorplan/<str:pk>/',
+            'api/v1/controller/floorplan/<uuid:pk>/',
             geo_views.detail_floorplan,
             name='detail_floorplan',
         ),
@@ -37,7 +37,7 @@ def get_geo_urls(geo_views):
             'api/v1/controller/location/', geo_views.list_location, name='list_location'
         ),
         path(
-            'api/v1/controller/location/<str:pk>/',
+            'api/v1/controller/location/<uuid:pk>/',
             geo_views.detail_location,
             name='detail_location',
         ),
