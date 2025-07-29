@@ -128,14 +128,12 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
                 device_pk=device_pk, ip_address=new_ip_address
             )
 
-        # the following check ensures that for a case when device last_ip
-        # is not changed and there is no related WHOIS record, we do not
-        # delete the newly created record as both `initial_ip_address` and
-        # `new_ip_address` would be same for such case.
-        if initial_ip_address != new_ip_address:
-            # If any active devices are linked to the following record,
-            # then they will trigger this task and new record gets created
-            # with latest data.
+        # delete WHOIS record for initial IP if no devices are linked to it
+        if (
+            not Device.objects.filter(_is_deactivated=False)
+            .filter(last_ip=initial_ip_address)
+            .exists()
+        ):
             delete_whois_record(ip_address=initial_ip_address)
 
 

@@ -21,8 +21,8 @@ def manage_estimated_locations(device_pk, ip_address):
     - If the current device has no location or location is estimate, either update
     to an existing location; if it exists, else
 
-    - A new location is created if no location exists for current device, or
-    existing one is updated using coords from WHOIS record if it is estimated.
+    - A new location is created if current device has no location, or
+    if it does; it is updated using coords from WHOIS record if it is estimated.
 
     In case of multiple devices with same last_ip, the task will send a notification
     to the user to resolve the conflict manually.

@@ -40,25 +40,23 @@ A WHOIS lookup is triggered automatically when:
 However, the lookup will only run if **all** the following conditions are
 met:
 
+- The device is either **newly created** or has a **changed last IP**.
 - The device's last IP address is **public**.
 - There is **no existing WHOIS record** for that IP.
 - WHOIS lookup is **enabled** for the device's organization.
 
-Behavior with Shared IP Addresses
----------------------------------
+Managing WHOIS Records
+----------------------
 
-If multiple devices share the same public IP address and one of them
-switches to a different IP, the following occurs:
-
-- A lookup is triggered for the **new IP**.
-- The WHOIS record for the **old IP** is deleted.
-- The next time a device still using the old IP fetches its checksum, a
-  new lookup is triggered, ensuring up-to-date data.
+If a device updates its last IP address, lookup is triggered for the **new
+IP** and the **WHOIS record for the old IP** is deleted if no active
+devices are associated with that IP address.
 
 .. note::
 
     When a device with an associated WHOIS record is deleted, its WHOIS
-    record is automatically removed.
+    record is automatically removed only if no active devices are
+    associated with that IP address.
 
 .. _controller_setup_whois_lookup:
 

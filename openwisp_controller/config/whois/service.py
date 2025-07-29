@@ -129,10 +129,12 @@ class WHOISService:
 
         return self._get_whois_info_from_db(ip_address=ip_address).first()
 
-    def trigger_whois_lookup(self):
+    def process_ip_data_and_location(self):
         """
-        Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
-        Task is triggered on commit to ensure redundant data is not created.
+        Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`
+        and also manage estimated locations based on the conditions of
+        `_need_estimated_location_management`.
+        Tasks are triggered on commit to ensure redundant data is not created.
         """
         new_ip = self.device.last_ip
         if self._need_whois_lookup(new_ip):
