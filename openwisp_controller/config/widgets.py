@@ -1,10 +1,32 @@
+import json
+
 from django import forms
 from django.contrib.admin.widgets import AdminTextareaWidget
+from django.forms.widgets import Widget
 from django.template.loader import get_template
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 from swapper import load_model
 
 DeviceGroup = load_model("config", "DeviceGroup")
+
+
+class ReadOnlyJsonWidget(Widget):
+    read_only = True
+
+    @property
+    def media(self):
+        css = {
+            "all": [
+                "config/css/readonly-json-widget.css",
+            ]
+        }
+        return forms.Media(css=css)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        value = value or {}
+        value = json.dumps(value, indent=4, sort_keys=True)
+        return mark_safe(f'<pre class="readonly-json-widget">{value}</pre>')
 
 
 class JsonSchemaWidget(AdminTextareaWidget):

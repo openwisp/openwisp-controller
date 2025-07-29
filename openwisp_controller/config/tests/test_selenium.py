@@ -1,5 +1,7 @@
+import json
 import time
 
+from django.contrib.auth.models import Permission
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
@@ -13,10 +15,16 @@ from swapper import load_model
 
 from openwisp_utils.tests import SeleniumTestMixin as BaseSeleniumTestMixin
 
-from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpnMixin
+from .utils import (
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestVpnX509Mixin,
+    TestWireguardVpnMixin,
+)
 
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Cert = load_model("django_x509", "Cert")
 
 
@@ -43,6 +51,80 @@ class SeleniumTestMixin(BaseSeleniumTestMixin):
             self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
         for template in visible:
             self.wait_for_visibility(By.XPATH, f'//*[@value="{template.id}"]')
+
+    def _create_readonly_user(
+        self, username="readonly_user", email="readonly@openwisp.org", organization=None
+    ):
+        """
+        Creates a readonly user with staff privileges and view-only permissions.
+        Returns the user object.
+        """
+        readonly_user = self._create_user(username=username, email=email, is_staff=True)
+        org = organization or self._get_org()
+        self._create_org_user(user=readonly_user, organization=org, is_admin=True)
+        readonly_user.user_permissions.add(
+            *Permission.objects.filter(
+                codename__in=[
+                    "view_device",
+                    "view_template",
+                    "view_vpn",
+                    "view_config",
+                    "view_devicegroup",
+                    "view_organization",
+                    "view_organizationconfigsettings",
+                ]
+            )
+        )
+        return readonly_user
+
+    def _test_readonly_json_fields(
+        self,
+        url,
+        field_selectors,
+        scroll_to_bottom=True,
+        hide_loading_overlay=True,
+        user=None,
+    ):
+        """
+        Reusable method to test readonly JSON fields rendering.
+
+        Args:
+            url: The URL to open for testing
+            field_selectors: Dictionary where key is CSS selector and value is
+                            expected text content
+            scroll_to_bottom: Whether to scroll to bottom of page (default: True)
+            user: User object to login as. If None, creates a readonly user
+                  (default: None)
+        """
+        if user is None:
+            org = self._get_org()
+            user = self._create_readonly_user(organization=org)
+
+        self.login(username=user.username, password="tester")
+        self.open(url)
+        if hide_loading_overlay:
+            self.hide_loading_overlay()
+
+        if scroll_to_bottom:
+            self.web_driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);"
+            )
+
+        for css_selector, expected_content in field_selectors.items():
+            readonly_element = self.find_element(
+                by=By.CSS_SELECTOR,
+                value=css_selector,
+            )
+            self.assertEqual(readonly_element.is_displayed(), True)
+            if isinstance(expected_content, dict):
+                # If expected_content is a dict, format it as JSON
+                self.assertEqual(
+                    readonly_element.text,
+                    json.dumps(expected_content, indent=4),
+                )
+            else:
+                # Otherwise, check if the text contains the expected content
+                self.assertIn(expected_content, readonly_element.text)
 
 
 @tag("selenium_tests")
@@ -373,11 +455,73 @@ class TestDeviceAdmin(
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.status, "modified")
 
+    def test_readonly_config_fields(self):
+        """
+        Test that configuration variables and configuration render properly
+        when the device only has read only permission.
+        """
+        org = self._get_org()
+        readonly_user = self._create_readonly_user(organization=org)
+
+        template = self._create_template(
+            organization=org,
+            default_values={"mac_address": "00:00:00:00:00:00", "ssid": "OpenWisp"},
+            config={
+                "interfaces": [
+                    {
+                        "name": "wlan0",
+                        "network": "br-lan",
+                        "type": "wireless",
+                        "wireless": {
+                            "mode": "access_point",
+                            "radio": "radio0",
+                            "ssid": "{{ ssid }}",
+                        },
+                    }
+                ]
+            },
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(
+            device=device,
+            context={"hostname": "readonly-device", "ssid": "ReadOnlyWiFi"},
+        )
+        config.templates.add(template)
+
+        with self.subTest("Template default values and config rendered as readonly"):
+            template_url = reverse("admin:config_template_change", args=[template.id])
+            template_selectors = {
+                ".field-default_values .readonly pre.readonly-json-widget": (
+                    template.default_values
+                ),
+                ".field-config .readonly pre.readonly-json-widget": template.config,
+            }
+            self._test_readonly_json_fields(
+                url=template_url, field_selectors=template_selectors, user=readonly_user
+            )
+
+        with self.subTest("Device configuration variables rendered as readonly"):
+            device_url = (
+                reverse("admin:config_device_change", args=[device.id])
+                + "#config-group"
+            )
+            device_selectors = {
+                ".field-context .readonly pre.readonly-json-widget": {
+                    "hostname": "readonly-device",
+                    "ssid": "ReadOnlyWiFi",
+                },
+                ".field-config .readonly pre.readonly-json-widget": config.config,
+            }
+            self._test_readonly_json_fields(
+                url=device_url, field_selectors=device_selectors, user=readonly_user
+            )
+
 
 @tag("selenium_tests")
 class TestDeviceGroupAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
     StaticLiveServerTestCase,
 ):
     def test_show_relevant_templates(self):
@@ -475,6 +619,35 @@ class TestDeviceGroupAdmin(
                 ).is_selected(),
                 False,
             )
+
+    def test_readonly_devicegroup(self):
+        """
+        Test that device group context renders properly
+        when the user only has read only permission.
+        """
+        org = self._get_org()
+        readonly_user = self._create_readonly_user(organization=org)
+        device_group = self._create_device_group(
+            name="readonly-group",
+            organization=org,
+            context={"mesh_id": "readonly-mesh", "vni": "100"},
+        )
+
+        device_group_url = reverse(
+            "admin:config_devicegroup_change", args=[device_group.id]
+        )
+        device_group_selectors = {
+            ".field-context .readonly pre.readonly-json-widget": device_group.context,
+            ".field-meta_data .readonly pre.readonly-json-widget": (
+                device_group.meta_data
+            ),
+        }
+        self._test_readonly_json_fields(
+            url=device_group_url,
+            field_selectors=device_group_selectors,
+            user=readonly_user,
+            hide_loading_overlay=False,
+        )
 
 
 @tag("selenium_tests")
@@ -618,3 +791,43 @@ class TestVpnAdmin(
             backend.select_by_visible_text("OpenVPN")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-auth_token")
+
+    def test_readonly_vpn_config(self):
+        """
+        Test that VPN configuration renders properly
+        when the user only has read only permission.
+        """
+        org = self._get_org()
+        readonly_user = self._create_readonly_user(organization=org)
+        vpn = self._create_wireguard_vpn(organization=org)
+
+        vpn_url = reverse("admin:config_vpn_change", args=[vpn.id])
+        vpn_selectors = {
+            ".field-config .readonly pre.readonly-json-widget": vpn.config,
+        }
+        self._test_readonly_json_fields(
+            url=vpn_url, field_selectors=vpn_selectors, user=readonly_user
+        )
+
+
+@tag("selenium_tests")
+class TestOrganizationConfigSettingsInlineAdmin(
+    SeleniumTestMixin, CreateConfigTemplateMixin, StaticLiveServerTestCase
+):
+    def test_organization_config_settings_readonly_fields(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org,
+            context={"key1": "value1", "key2": "value2"},
+        )
+        readonly_user = self._create_readonly_user(organization=org)
+        self._test_readonly_json_fields(
+            url=reverse("admin:openwisp_users_organization_change", args=[org.id]),
+            field_selectors={
+                ".field-context .readonly pre.readonly-json-widget": (
+                    config_settings.context
+                ),
+            },
+            user=readonly_user,
+            hide_loading_overlay=False,
+        )
