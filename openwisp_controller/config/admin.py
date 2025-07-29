@@ -9,6 +9,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.actions import delete_selected
 from django.contrib.admin.models import ADDITION, LogEntry
+from django.contrib.auth import get_permission_codename
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import (
     FieldDoesNotExist,
@@ -46,7 +47,7 @@ from .base.vpn import AbstractVpn
 from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
-from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
+from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget, ReadOnlyJsonWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
@@ -104,7 +105,42 @@ class DeactivatedDeviceReadOnlyMixin(object):
         return super().get_extra(request, obj, **kwargs)
 
 
-class BaseConfigAdmin(BaseAdmin):
+class ReadOnlyJsonFieldMixin(object):
+    def _change_json_fields_widgets(self, request, obj, form, can_change):
+        if obj and not can_change:
+            widgets = getattr(form._meta, "widgets", {}) or {}
+            for field, widget in widgets.items():
+                if issubclass(widget, (JsonSchemaWidget, FlatJsonWidget)):
+                    form.base_fields[field] = forms.JSONField(
+                        widget=ReadOnlyJsonWidget, disabled=True
+                    )
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """
+        This method is used by the inline admin to generate the form.
+        """
+        formset = super().get_formset(request, obj, **kwargs)
+        form = formset.form
+        can_change = self.has_change_permission(request, obj) and request.user.has_perm(
+            "{}.{}".format(
+                self.parent_model._meta.app_label,
+                get_permission_codename("change", self.parent_model._meta),
+            )
+        )
+        self._change_json_fields_widgets(request, obj, form, can_change)
+        return formset
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        This method is used by the ModelAdmin to generate the form.
+        """
+        form = super().get_form(request, obj, **kwargs)
+        can_change = self.has_change_permission(request, obj)
+        self._change_json_fields_widgets(request, obj, form, can_change)
+        return form
+
+
+class BaseConfigAdmin(ReadOnlyJsonFieldMixin, BaseAdmin):
     change_form_template = "admin/config/change_form.html"
     preview_template = None
     actions_on_bottom = True
@@ -421,6 +457,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
 
 
 class ConfigInline(
+    ReadOnlyJsonFieldMixin,
     DeactivatedDeviceReadOnlyMixin,
     MultitenantAdminMixin,
     TimeReadonlyAdminMixin,
@@ -1279,7 +1316,7 @@ class DeviceGroupForm(BaseForm):
         widgets = {"meta_data": DeviceGroupJsonSchemaWidget, "context": FlatJsonWidget}
 
 
-class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
+class DeviceGroupAdmin(MultitenantAdminMixin, ReadOnlyJsonFieldMixin, BaseAdmin):
     change_form_template = "admin/device_group/change_form.html"
     form = DeviceGroupForm
     list_display = [
@@ -1374,7 +1411,7 @@ class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         widgets = {"context": FlatJsonWidget}
 
 
-class ConfigSettingsInline(admin.StackedInline):
+class ConfigSettingsInline(ReadOnlyJsonFieldMixin, admin.StackedInline):
     model = OrganizationConfigSettings
     form = ConfigSettingsForm
 
