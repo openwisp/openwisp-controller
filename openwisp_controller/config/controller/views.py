@@ -158,7 +158,7 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         # trigger the WHOIS lookup which checks if WHOIS lookup is required
         # or not
         elif app_settings.WHOIS_CONFIGURED:
-            device.whois_service.trigger_whois_lookup()
+            device.whois_service.process_ip_data_and_location()
         checksum_requested.send(
             sender=device.__class__, instance=device, request=request
         )

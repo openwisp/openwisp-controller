@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
+from swapper import load_model
 
 from openwisp_utils.base import TimeStampedEditableModel
 
@@ -103,7 +104,17 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         Delete WHOIS information for a device when the last IP address is removed or
         when device is deleted.
         """
-        if instance._get_organization__config_settings().whois_enabled:
+        Device = load_model("config", "Device")
+
+        last_ip = instance.last_ip
+        existing_devices = Device.objects.filter(_is_deactivated=False).filter(
+            last_ip=last_ip
+        )
+        if (
+            last_ip
+            and instance._get_organization__config_settings().whois_enabled
+            and not existing_devices.exists()
+        ):
             transaction.on_commit(lambda: delete_whois_record.delay(instance.last_ip))
 
     # this method is kept here instead of in OrganizationConfigSettings because

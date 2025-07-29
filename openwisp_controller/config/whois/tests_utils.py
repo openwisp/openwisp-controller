@@ -80,6 +80,12 @@ class WHOISTransactionMixin:
                 mocked_get.assert_called_once()
         mocked_task.reset_mock()
 
+        with self.subTest(f"{task_name} task not called when last_ip not updated"):
+            device.name = "default.test.Device2"
+            device.save()
+            mocked_task.assert_not_called()
+        mocked_task.reset_mock()
+
         with self.subTest(f"{task_name} task not called when last_ip is private"):
             device.last_ip = "10.0.0.1"
             device.save()

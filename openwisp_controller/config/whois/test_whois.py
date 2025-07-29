@@ -491,6 +491,7 @@ class TestWHOISTransaction(
 
         with self.subTest(
             "Test WHOIS create & deletion of old record when last ip is updated"
+            " when no other devices are linked to the old ip address"
         ):
             old_ip_address = device.last_ip
             device.last_ip = "172.217.22.10"
@@ -508,9 +509,58 @@ class TestWHOISTransaction(
                 WHOISInfo.objects.filter(ip_address=old_ip_address).count(), 0
             )
 
-        with self.subTest("Test WHOIS delete when device is deleted"):
+        with self.subTest(
+            "Test WHOIS create & deletion of old record when last ip is updated"
+            " when other devices are linked to the old ip address"
+        ):
+            old_ip_address = device.last_ip
+            self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.11",
+            )
+            device.last_ip = "172.217.22.11"
+            device.save()
+            self.assertEqual(mock_info.call_count, 1)
+            mock_info.reset_mock()
+            device.refresh_from_db()
+
+            _verify_whois_details(
+                device.whois_service.get_device_whois_info(), device.last_ip
+            )
+
+            # details related to old ip address should be not be deleted
+            self.assertEqual(
+                WHOISInfo.objects.filter(ip_address=old_ip_address).count(), 1
+            )
+
+        with self.subTest(
+            "Test WHOIS not deleted when device is deleted and"
+            " other active devices are linked to the last_ip"
+        ):
             ip_address = device.last_ip
             device.delete(check_deactivated=False)
+            self.assertEqual(mock_info.call_count, 0)
+            mock_info.reset_mock()
+
+            # WHOIS related to the device's last_ip should be deleted
+            self.assertEqual(WHOISInfo.objects.filter(ip_address=ip_address).count(), 1)
+
+        Device.objects.all().delete()
+        with self.subTest(
+            "Test WHOIS deleted when device is deleted and"
+            " no other active devices are linked to the last_ip"
+        ):
+            device1 = self._create_device(last_ip="172.217.22.11")
+            device2 = self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.11",
+            )
+            device2.deactivate()
+            mock_info.reset_mock()
+            ip_address = device1.last_ip
+            device1.delete(check_deactivated=False)
             self.assertEqual(mock_info.call_count, 0)
             mock_info.reset_mock()
 
