@@ -2077,16 +2077,22 @@ class TestAdmin(
 
         # Remove first VPN template via admin
         _update_template(templates=[required_template, vpn2_template])
-
         self.assertEqual(config.templates.count(), 2)
         self.assertEqual(config.vpnclient_set.count(), 1)
         # Verify only vpn2 client remains
-        self.assertFalse(config.vpnclient_set.filter(vpn=vpn1).exists())
-        self.assertTrue(config.vpnclient_set.filter(vpn=vpn2).exists())
+        self.assertEqual(config.vpnclient_set.filter(vpn=vpn1).exists(), False)
+        self.assertEqual(config.vpnclient_set.filter(vpn=vpn2).exists(), True)
         # Verify that the vpn2 client is the same as before (same PK)
         self.assertEqual(
             vpn2_client.pk, config.vpnclient_set.filter(vpn=vpn2).first().pk
         )
+
+        # Remove the second VPN template and ensure the required template remains.
+        # This verifies that VpnClient object should get deleted it there's only
+        # one required template applied.
+        _update_template(templates=[required_template])
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 0)
 
     def test_vpn_template_switch(self):
         """
