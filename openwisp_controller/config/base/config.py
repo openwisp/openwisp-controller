@@ -314,11 +314,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         else:
             templates = pk_set
 
-        # Get current VPNs in use by any template
-        current_vpns = set(
-            instance.templates.filter(type='vpn').values_list('vpn_id', flat=True)
-        )
-
         # Handle template actions
         for template in templates.filter(type='vpn'):
             if action == 'post_add':
@@ -334,8 +329,26 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     client.full_clean()
                     client.save()
 
-        # Clean up any VPN clients that aren't associated with current templates
-        instance.vpnclient_set.exclude(vpn_id__in=current_vpns).delete()
+        if len(pk_set) != templates.filter(required=True).count():
+            # Explanation:
+            # SortedManyToManyField clears all existing templates before adding
+            # new ones. This triggers an m2m_changed signal with the "post_clear"
+            # action, which is handled by the "enforce_required_templates" signal
+            # receiver. That receiver re-adds the required templates.
+            #
+            # Re-adding required templates triggers another m2m_changed signal
+            # with the "post_add" action. At this stage, only required templates
+            # exist in the DB, so we cannot yet determine which VpnClient objects
+            # should be deleted based on the new selection.
+            #
+            # Therefore, we defer deletion of VpnClient objects until the "post_add"
+            # signal is triggered again—after all templates, including the required
+            # ones, have been fully added. At that point, we can identify and
+            # delete VpnClient objects not linked to the final template set.
+            current_vpns = set(
+                instance.templates.filter(type='vpn').values_list('vpn_id', flat=True)
+            )
+            instance.vpnclient_set.exclude(vpn_id__in=current_vpns).delete()
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, raw_data=None, **kwargs):
