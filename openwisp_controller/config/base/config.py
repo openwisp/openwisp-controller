@@ -314,10 +314,27 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         else:
             templates = pk_set
 
-        # Delete VPN clients that are not associated with current templates
-        instance.vpnclient_set.exclude(
-            template_id__in=instance.templates.values_list("id", flat=True)
-        ).delete()
+        # Check if all templates in pk_set are required templates. If they are,
+        # skip deletion of VpnClient objects at this point.
+        if len(pk_set) != templates.filter(required=True).count():
+            # Explanation:
+            # SortedManyToManyField clears all existing templates before adding
+            # new ones. This triggers an m2m_changed signal with the "post_clear"
+            # action, which is handled by the "enforce_required_templates" signal
+            # receiver. That receiver re-adds the required templates.
+            #
+            # Re-adding required templates triggers another m2m_changed signal
+            # with the "post_add" action. At this stage, only required templates
+            # exist in the DB, so we cannot yet determine which VpnClient objects
+            # should be deleted based on the new selection.
+            #
+            # Therefore, we defer deletion of VpnClient objects until the "post_add"
+            # signal is triggered again—after all templates, including the required
+            # ones, have been fully added. At that point, we can identify and
+            # delete VpnClient objects not linked to the final template set.
+            instance.vpnclient_set.exclude(
+                template_id__in=instance.templates.values_list("id", flat=True)
+            ).delete()
 
         if action == "post_add":
             for template in templates.filter(type="vpn"):
