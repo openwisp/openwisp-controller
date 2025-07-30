@@ -286,6 +286,11 @@ class TestAdmin(
     def setUp(self):
         self.client.force_login(self._get_admin())
 
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        devnull.close()
+
     def _get_device_params(self, org):
         p = self._device_params.copy()
         p.update(self._additional_params)
@@ -1954,11 +1959,6 @@ class TestAdmin(
         response = self.client.post(path, params, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(vpn_client, config.vpnclient_set.first())
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        devnull.close()
 
     @patch.object(Device, "deactivate")
     def test_device_changelist_activate_deactivate_admin_action_security(
