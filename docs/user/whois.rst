@@ -45,6 +45,17 @@ met:
 - There is **no existing WHOIS record** for that IP.
 - WHOIS lookup is **enabled** for the device's organization.
 
+Handling Existing Devices
+-------------------------
+
+For creating WHOIS records for existing devices, run the ``clear_last_ip``
+management command, to clear the last IP address of **all active devices
+across organizations**. Active devices will update their last IP address,
+triggering the WHOIS lookup automatically.
+
+It accepts an optional flag ``--whois-related`` to exclude devices with
+WHOIS records.
+
 Managing WHOIS Records
 ----------------------
 
