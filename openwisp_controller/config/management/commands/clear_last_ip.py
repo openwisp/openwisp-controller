@@ -16,14 +16,13 @@ class Command(BaseCommand):
             dest="interactive",
             help="Do NOT prompt the user for input of any kind.",
         )
-        parser.add_argument(
-            "--whois-related",
-            action="store_true",
-            help="Clear only those IPs having no WHOIS information.",
-        )
         return super().add_arguments(parser)
 
     def handle(self, *args, **options):
+        if not app_settings.WHOIS_CONFIGURED:
+            self.stdout.write("WHOIS must be configured to use this option.")
+            return
+
         Device = load_model("config", "Device")
         WHOISInfo = load_model("config", "WHOISInfo")
 
@@ -39,20 +38,15 @@ class Command(BaseCommand):
             if input("".join(message)) != "yes":
                 raise CommandError("Operation cancelled by user.")
 
-        devices = Device.objects.filter(_is_deactivated=False).exclude(last_ip=None)
-        devices = devices.only("last_ip")
-        if options["whois_related"]:
-            if not app_settings.WHOIS_CONFIGURED:
-                self.stdout.write("WHOIS must be configured to use this option.")
-                return
-            # Filter devices that have no WHOIS information for their last IP
-            devices = devices.exclude(
-                last_ip__in=Subquery(
-                    WHOISInfo.objects.filter(ip_address=OuterRef("last_ip")).values(
-                        "ip_address"
-                    )
+        devices = Device.objects.filter(_is_deactivated=False).only("last_ip")
+        # Filter devices that have no WHOIS information for their last IP
+        devices = devices.exclude(last_ip=None).exclude(
+            last_ip__in=Subquery(
+                WHOISInfo.objects.filter(ip_address=OuterRef("last_ip")).values(
+                    "ip_address"
                 )
-            )
+            ),
+        )
 
         updated_devices = devices.update(last_ip=None)
         if updated_devices:
