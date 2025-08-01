@@ -6,6 +6,41 @@ Version 1.2.0 [Unreleased]
 
 Work in progress.
 
+Version 1.1.2 [2025-08-01]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `compatibility of OpenWrt.update_config with openwisp-config >=
+  1.1.0 <https://github.com/openwisp/openwisp-controller/issues/964>`__.
+- Fixed `VPN-client template switch issue when switching between VPN
+  servers with the same address
+  <https://github.com/openwisp/openwisp-controller/issues/973>`__.
+- Fixed `missing config_changed signal when reverting a template
+  <https://github.com/openwisp/openwisp-controller/issues/836>`__.
+- Fixed `Zerotier network name being set to "ow_zt" instead of "global"
+  <https://github.com/openwisp/openwisp-controller/issues/982>`__.
+- Fixed error in preview when device has no name set.
+- Fixed live updates for "Send commands" when multiple websocket
+  connections are open for the same device.
+- Limited command results in the device admin to 30 entries to avoid
+  loading issues.
+- Fixed uncaught exception in ``leaflet.draw.i18n.js``.
+- Fixed `handling of devices without a DeviceConnection when creating
+  commands
+  <https://github.com/openwisp/openwisp-controller/issues/1016>`__.
+- Prevented `adding multiple VPN client templates pointing to the same VPN
+  server <https://github.com/openwisp/openwisp-controller/issues/832>`__.
+- Fixed timeout issues in VPN checksum and download configuration views
+  for large VPN setups (e.g., 2000+ WireGuard peers) by caching the
+  checksum and generated configuration.
+- Fixed an issue where enforcing required templates was accidentally
+  deleting `VpnClient` objects, causing them to be recreated whenever
+  device templates were modified in the Django admin.
+- Fixed ``HTTP 500 Server Error`` when geographic REST API endpoints
+  receive a malformed resource ID.
+
 Version 1.1.1 [2025-01-31]
 --------------------------
 
