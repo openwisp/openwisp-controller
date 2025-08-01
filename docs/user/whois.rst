@@ -45,17 +45,6 @@ met:
 - There is **no existing WHOIS record** for that IP.
 - WHOIS lookup is **enabled** for the device's organization.
 
-Handling Existing Devices
--------------------------
-
-For creating WHOIS records for existing devices, run the ``clear_last_ip``
-management command, to clear the last IP address of **all active devices
-across organizations**. Active devices will update their last IP address,
-triggering the WHOIS lookup automatically.
-
-It accepts an optional flag ``--whois-related`` to exclude devices with
-WHOIS records.
-
 Managing WHOIS Records
 ----------------------
 
@@ -87,6 +76,26 @@ Setup Instructions
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_ENABLED` to ``True``.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT` to **Account ID**.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY` to **License Key**.
+
+6. Restart the application/containers if using ansible-openwisp2 or
+   docker.
+7. Run the ``clear_last_ip`` management command to clear the last IP
+   address of **all active devices across organizations**.
+
+   - If using ansible-openwisp2 (default directory is /opt/openwisp2,
+     unless changed in Ansible playbook configuration):
+
+     .. code-block:: bash
+
+         source /opt/openwisp2/env/bin/activate
+         python /opt/openwisp2/src/manage.py clear_last_ip
+
+   - If using docker:
+
+     .. code-block:: bash
+
+         docker exec -it <openwisp_container_name> sh
+         python manage.py clear_last_ip
 
 Viewing WHOIS Lookup Data
 -------------------------

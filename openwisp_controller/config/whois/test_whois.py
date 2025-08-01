@@ -279,27 +279,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         device.refresh_from_db()
         self.assertIsNone(device.last_ip)
 
-        device.last_ip = "172.217.22.11"
-        device.save()
-        self._create_whois_info(ip_address=device.last_ip)
-        device2 = self._create_device(
-            name="11:22:33:44:55:66",
-            mac_address="11:22:33:44:55:66",
-            last_ip="172.217.22.12",
-        )
-        args.append("--whois-related")
-        call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
-        self.assertIn(
-            "Cleared last IP addresses for 1 active device(s).", out.getvalue()
-        )
-        device.refresh_from_db()
-        device2.refresh_from_db()
-        self.assertIsNotNone(device.last_ip)
-        self.assertIsNone(device2.last_ip)
-
-        device.last_ip = None
-        WHOISInfo.objects.all().delete()
-        device.save()
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
 
