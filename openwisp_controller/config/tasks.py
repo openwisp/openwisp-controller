@@ -9,6 +9,8 @@ from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
 
+from .utils import send_api_task_notification
+
 logger = logging.getLogger(__name__)
 
 
@@ -120,6 +122,12 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
             "Failed to update VPN Server configuration. "
             f"Response status code: {response.status_code}, "
             f"VPN Server UUID: {vpn_id}",
+        )
+        send_api_task_notification(
+            "error",
+            instance=vpn,
+            action="update",
+            status_code=response.status_code,
         )
 
 
