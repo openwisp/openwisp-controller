@@ -42,6 +42,15 @@ MESSAGE_MAP = {
         "description": _("Location updated for IP: {ip_address}"),
         "level": "info",
     },
+    "location_info": {
+        "message": _(
+            "Non Estimated Location found for device."
+            " [{notification.target}]({notification.target_link})"
+            " Please update it manually."
+        ),
+        "description": _("Unexpected IP changed: {ip_address}."),
+        "level": "info",
+    },
 }
 
 

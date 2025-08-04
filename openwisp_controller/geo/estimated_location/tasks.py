@@ -157,3 +157,11 @@ def manage_estimated_locations(device_pk, ip_address):
         _handle_attach_existing_location(
             device, device_location, whois_obj, attached_devices_exists
         )
+    else:
+        logger.info(
+            f"Non Estimated location already set for {device_pk}. Update"
+            f" location manually as per IP: {ip_address}"
+        )
+        send_whois_task_notification(
+            device_pk=device_pk, notify_type="location_info", actor=current_location
+        )
