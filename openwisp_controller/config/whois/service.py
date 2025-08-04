@@ -1,4 +1,4 @@
-from ipaddress import ip_address
+from ipaddress import ip_address as ip_addr
 
 from django.core.cache import cache
 from django.db import transaction
@@ -6,7 +6,7 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
-from .tasks import fetch_whois_details
+from .tasks import fetch_whois_details, manage_estimated_locations
 
 
 class WHOISService:
@@ -30,7 +30,7 @@ class WHOISService:
         Check if given IP address is a valid public IP address.
         """
         try:
-            return ip and ip_address(ip).is_global
+            return ip and ip_addr(ip).is_global
         except ValueError:
             return False
 
@@ -72,6 +72,19 @@ class WHOISService:
             )
         return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
 
+    @property
+    def is_estimated_location_enabled(self):
+        """
+        Check if the Estimated location feature is enabled.
+        This does not require to set cache as `is_whois_enabled` already sets it
+        """
+        org_settings = cache.get(self.get_cache_key(org_id=self.device.organization.pk))
+        return getattr(
+            org_settings,
+            "estimated_location_enabled",
+            app_settings.ESTIMATED_LOCATION_ENABLED,
+        )
+
     def _need_whois_lookup(self, new_ip):
         """
         This is used to determine if the WHOIS lookup should be triggered
@@ -92,6 +105,19 @@ class WHOISService:
 
         return self.is_whois_enabled
 
+    def _need_estimated_location_management(self, new_ip):
+        """
+        Used to determine if Estimated locations need to be created/updated
+        or not during WHOIS lookup.
+        """
+        if not self.is_valid_public_ip_address(new_ip):
+            return False
+
+        if not self.is_whois_enabled:
+            return False
+
+        return self.is_estimated_location_enabled
+
     def get_device_whois_info(self):
         """
         If the WHOIS lookup feature is enabled and the device ``last_ip``
@@ -103,16 +129,28 @@ class WHOISService:
 
         return self._get_whois_info_from_db(ip_address=ip_address).first()
 
-    def trigger_whois_lookup(self):
+    def process_ip_data_and_location(self):
         """
-        Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
-        Task is triggered on commit to ensure redundant data is not created.
+        Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`
+        and also manage estimated locations based on the conditions of
+        `_need_estimated_location_management`.
+        Tasks are triggered on commit to ensure redundant data is not created.
         """
-        if self._need_whois_lookup(self.device.last_ip):
+        new_ip = self.device.last_ip
+        if self._need_whois_lookup(new_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
-                    new_ip_address=self.device.last_ip,
+                    new_ip_address=new_ip,
+                )
+            )
+        # To handle the case when WHOIS already exists as in that case
+        # WHOIS lookup is not triggered but we still need to
+        # manage estimated locations.
+        elif self._need_estimated_location_management(new_ip):
+            transaction.on_commit(
+                lambda: manage_estimated_locations.delay(
+                    device_pk=self.device.pk, ip_address=new_ip
                 )
             )
