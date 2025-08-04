@@ -511,7 +511,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         return WHOISService(self)
 
     def _check_last_ip(self, creating=False):
-        """Trigger WHOIS lookup if last_ip is not deferred."""
+        """
+        Process details and location related to last_ip if last_ip has
+        changed or is being set for the first time.
+        """
         if self._initial_last_ip == models.DEFERRED:
             return
         if creating or self.last_ip != self._initial_last_ip:

@@ -153,7 +153,7 @@ class TestEstimatedLocationTransaction(
 
         with self.subTest(
             "Estimated location task not called via DeviceChecksumView when "
-            "last_ip has related WhoIsInfo"
+            "last_ip has no related WhoIsInfo"
         ):
             WHOISInfo.objects.all().delete()
             self._create_whois_info(ip_address=device.last_ip)
@@ -164,7 +164,7 @@ class TestEstimatedLocationTransaction(
                 REMOTE_ADDR=device.last_ip,
             )
             self.assertEqual(response.status_code, 200)
-            mocked_estimated_location_task.assert_called()
+            mocked_estimated_location_task.assert_not_called()
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)

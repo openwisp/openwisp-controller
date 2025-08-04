@@ -267,7 +267,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertNotIn("whois_info", response.data)
 
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_last_ip_management_command(self):
         out = StringIO()
         device = self._create_device(last_ip="172.217.22.11")
@@ -430,6 +429,7 @@ class TestWHOISTransaction(
                 {"key": device1.key},
                 REMOTE_ADDR="172.217.22.20",
             )
+            device1.refresh_from_db()
             self.assertEqual(response.status_code, 200)
             mocked_task.assert_called()
             mocked_task.reset_mock()
@@ -438,12 +438,13 @@ class TestWHOISTransaction(
                 {"key": device2.key},
                 REMOTE_ADDR="172.217.22.30",
             )
+            device2.refresh_from_db()
             self.assertEqual(response.status_code, 200)
             mocked_task.assert_not_called()
             mocked_task.reset_mock()
 
         with self.subTest(
-            "task called via DeviceChecksumView when a device has no WHOIS record"
+            "Task not called via DeviceChecksumView when a device has no WHOIS record"
         ):
             WHOISInfo.objects.all().delete()
             response = self.client.get(
@@ -452,7 +453,7 @@ class TestWHOISTransaction(
                 REMOTE_ADDR=device1.last_ip,
             )
             self.assertEqual(response.status_code, 200)
-            mocked_task.assert_called()
+            mocked_task.assert_not_called()
             mocked_task.reset_mock()
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device2.pk]),

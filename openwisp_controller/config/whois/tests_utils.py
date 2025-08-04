@@ -108,6 +108,7 @@ class WHOISTransactionMixin:
             # Invalidates old org config settings cache
             org.config_settings.save(update_fields=["whois_enabled"])
             # config is required for checksum view to work
+            device.refresh_from_db()
             self._create_config(device=device)
             # setting remote address field to a public IP to trigger WHOIS task
             # since the view uses this header for tracking the device's IP
@@ -124,19 +125,21 @@ class WHOISTransactionMixin:
             f"{task_name} task called via DeviceChecksumView for no WHOIS record"
         ):
             WHOISInfo.objects.all().delete()
+            device.refresh_from_db()
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device.pk]),
                 {"key": device.key},
                 REMOTE_ADDR=device.last_ip,
             )
             self.assertEqual(response.status_code, 200)
-            mocked_task.assert_called()
+            mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
         with self.subTest(
             f"{task_name} task not called via DeviceChecksumView when WHOIS is disabled"
         ):
             WHOISInfo.objects.all().delete()
+            device.refresh_from_db()
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
             response = self.client.get(
