@@ -115,7 +115,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             and instance._get_organization__config_settings().whois_enabled
             and not existing_devices.exists()
         ):
-            transaction.on_commit(lambda: delete_whois_record.delay(instance.last_ip))
+            transaction.on_commit(lambda: delete_whois_record.delay(last_ip))
 
     # this method is kept here instead of in OrganizationConfigSettings because
     # currently the caching is used only for WHOIS feature
@@ -155,8 +155,8 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         if address:
             parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
             location = ", ".join(parts)
-            return f"{location} (Estimated Location: {self.ip_address})"
-        return f"Estimated Location: {self.ip_address}"
+            return _(f"{location} (Estimated Location: {self.ip_address})")
+        return _(f"Estimated Location: {self.ip_address}")
 
     def _get_defaults_for_estimated_location(self):
         """

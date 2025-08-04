@@ -153,12 +153,6 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         # updates cache if ip addresses changed
         if updated:
             self.update_device_cache(device)
-        # When update fields are present then save() will run the WHOIS
-        # lookup. But if there are no update fields, we still want to
-        # trigger the WHOIS lookup which checks if WHOIS lookup is required
-        # or not
-        elif app_settings.WHOIS_CONFIGURED:
-            device.whois_service.process_ip_data_and_location()
         checksum_requested.send(
             sender=device.__class__, instance=device, request=request
         )

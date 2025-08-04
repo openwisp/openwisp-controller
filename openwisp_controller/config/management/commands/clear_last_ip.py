@@ -2,8 +2,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db.models import OuterRef, Subquery
 from swapper import load_model
 
-from openwisp_controller.config import settings as app_settings
-
 
 class Command(BaseCommand):
     help = "Clear the last IP address, if set, of active devices of all organizations."
@@ -19,10 +17,6 @@ class Command(BaseCommand):
         return super().add_arguments(parser)
 
     def handle(self, *args, **options):
-        if not app_settings.WHOIS_CONFIGURED:
-            self.stdout.write("WHOIS must be configured to use this option.")
-            return
-
         Device = load_model("config", "Device")
         WHOISInfo = load_model("config", "WHOISInfo")
 
