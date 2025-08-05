@@ -1,4 +1,7 @@
+import re
+
 from django.contrib.gis.db import models
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.models import (
     AbstractFloorPlan,
@@ -18,6 +21,20 @@ class BaseLocation(OrgMixin, AbstractLocation):
 
     class Meta(AbstractLocation.Meta):
         abstract = True
+
+    def save(self, *args, from_task=False, **kwargs):
+        # estimate locations are created only via `manage_estimated_locations` task
+        # so we set `is_estimated` to False from all other sources as they imply
+        # manual refinement
+        if not from_task:
+            self.is_estimated = False
+            estimated_string = gettext("Estimated Location")
+            if self.name and estimated_string in self.name:
+                # remove string starting with "(Estimated Location"
+                self.name = re.sub(
+                    rf"\s\({estimated_string}.*", "", self.name, flags=re.IGNORECASE
+                )
+        return super().save(*args, **kwargs)
 
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):

@@ -245,7 +245,7 @@ class TestEstimatedLocationTransaction(
             device.last_ip = "172.217.22.11"
             device.devicelocation.location.is_estimated = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
-            device.devicelocation.location.save()
+            device.devicelocation.location.save(from_task=True)
             device.save()
             device.refresh_from_db()
 
@@ -399,3 +399,16 @@ class TestEstimatedLocationTransaction(
             notification.message,
         )
         self.assertIn(device3.last_ip, notification.description)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_estimate_location_status_remove(self, mock_client):
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+        device = self._create_device(last_ip="172.217.22.10")
+        location = device.devicelocation.location
+        self.assertTrue(location.is_estimated)
+        location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
+        location.save()
+        self.assertFalse(location.is_estimated)
+        self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)
