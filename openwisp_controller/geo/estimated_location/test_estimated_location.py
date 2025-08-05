@@ -294,7 +294,7 @@ class TestEstimatedLocationTransaction(
             device.last_ip = "172.217.22.11"
             device.devicelocation.location.is_estimated = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
-            device.devicelocation.location.save()
+            device.devicelocation.location.save(from_task=True)
             device.save()
             device.refresh_from_db()
 
@@ -480,3 +480,4 @@ class TestEstimatedLocationTransaction(
         location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
         location.save()
         self.assertFalse(location.is_estimated)
+        self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)

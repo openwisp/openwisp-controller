@@ -66,3 +66,7 @@ includes indicators for the estimated status.
   <ip_address>)**.
 - A warning on top of the page.
 - **Is Estimated** field.
+
+Any manual changes to the estimated location will set the `is_estimated`
+field to `False` and remove the `(Estimated Location)` suffix with IP from
+the location name.
