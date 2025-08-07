@@ -286,6 +286,11 @@ class TestAdmin(
     def setUp(self):
         self.client.force_login(self._get_admin())
 
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        devnull.close()
+
     def _get_device_params(self, org):
         p = self._device_params.copy()
         p.update(self._additional_params)
@@ -1536,8 +1541,29 @@ class TestAdmin(
     def test_download_vpn_config(self):
         v = self._create_vpn()
         path = reverse(f"admin:{self.app_label}_vpn_download", args=[v.pk])
-        response = self.client.get(path)
-        self.assertEqual(response.get("content-type"), "application/octet-stream")
+        # First request warms up the cache
+        with patch.object(
+            Vpn, "generate", return_value=v.generate()
+        ) as mocked_generate, patch.object(
+            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
+        ) as mocked_get_cached_configuration:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get("content-type"), "application/octet-stream")
+            mocked_generate.assert_called_once()
+            mocked_get_cached_configuration.assert_called_once()
+
+        # Second request uses the cached config
+        with patch.object(
+            Vpn, "generate", return_value=v.generate()
+        ) as mocked_generate, patch.object(
+            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
+        ) as mocked_get_cached_configuration:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get("content-type"), "application/octet-stream")
+            mocked_generate.assert_not_called()
+            mocked_get_cached_configuration.assert_called_once()
 
     def test_vpn_has_download_config(self):
         v = self._create_vpn()
@@ -1776,7 +1802,7 @@ class TestAdmin(
         path = reverse("admin:get_default_values")
 
         with self.subTest("get default values for one template"):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(2):
                 r = self.client.get(path, {"pks": f"{t1.pk}"})
                 self.assertEqual(r.status_code, 200)
                 expected = {"default_values": {"name1": "test1"}}
@@ -1784,14 +1810,14 @@ class TestAdmin(
 
         with self.subTest("get default values for multiple templates"):
             t2 = self._create_template(name="t2", default_values={"name2": "test2"})
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(2):
                 r = self.client.get(path, {"pks": f"{t1.pk},{t2.pk}"})
                 self.assertEqual(r.status_code, 200)
                 expected = {"default_values": {"name1": "test1", "name2": "test2"}}
                 self.assertEqual(r.json(), expected)
 
         with self.subTest("get default values conflicting with device group"):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(
                     path, {"pks": f"{t1.pk}", "group": str(group.pk)}
                 )
@@ -1803,7 +1829,7 @@ class TestAdmin(
                 self.assertNotIn("name4", response_data)
 
         with self.subTest("get default values conflicting with organization"):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(
                     path, {"pks": f"{t1.pk}", "organization": str(org.pk)}
                 )
@@ -1814,7 +1840,7 @@ class TestAdmin(
                 self.assertNotIn("name3", response_data)
 
         with self.subTest("get default values conflicting with organization and group"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(
                     path,
                     {
@@ -1934,11 +1960,6 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(vpn_client, config.vpnclient_set.first())
 
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        devnull.close()
-
     @patch.object(Device, "deactivate")
     def test_device_changelist_activate_deactivate_admin_action_security(
         self, mocked_deactivate
@@ -1990,6 +2011,99 @@ class TestAdmin(
                 follow=True,
             )
             self.assertEqual(mocked_deactivate.call_count, 1)
+
+    def test_required_template_doesnt_recreate_vpn_client(self):
+        """The required templates logic should not delete VpnClients"""
+
+        def _update_template(templates):
+            params.update(
+                {
+                    "config-0-templates": ",".join(
+                        [str(template.pk) for template in templates]
+                    )
+                }
+            )
+            response = self.client.post(path, data=params, follow=True)
+            self.assertEqual(response.status_code, 200)
+            return response
+
+        # Create required and default templates
+        required_template = self._create_template(
+            name="required-template", required=True
+        )
+        # Create VPNs and VPN templates
+        vpn1 = self._create_vpn(
+            name="test-vpn1",
+        )
+        vpn2 = self._create_vpn(
+            name="test-vpn2",
+        )
+        vpn1_template = self._create_template(
+            name="vpn1-template",
+            type="vpn",
+            vpn=vpn1,
+        )
+        vpn2_template = self._create_template(
+            name="vpn2-template",
+            type="vpn",
+            vpn=vpn2,
+        )
+        # Add a new device
+        path = reverse(f"admin:{self.app_label}_device_add")
+        params = self._get_device_params(org=self._get_org())
+        response = self.client.post(path, data=params, follow=True)
+        # Verify pre-codintions
+        self.assertEqual(response.status_code, 200)
+        config = Device.objects.first().config
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        self.assertEqual(config.templates.count(), 1)
+        # Change to device change form
+        path = reverse(f"admin:{self.app_label}_device_change", args=[config.device_id])
+        params.update(
+            {
+                "config-0-id": str(config.pk),
+                "config-0-device": str(config.device_id),
+                "config-INITIAL_FORMS": 1,
+                "_continue": True,
+            }
+        )
+        # Add first VPN template via admin
+        _update_template(templates=[required_template, vpn1_template])
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        vpn1_client = config.vpnclient_set.first()
+        # Add second VPN template via admin
+        _update_template(
+            templates=[
+                required_template,
+                vpn1_template,
+                vpn2_template,
+            ]
+        )
+        self.assertEqual(config.templates.count(), 3)
+        self.assertEqual(config.vpnclient_set.count(), 2)
+        # Verify that the first VPN client is preserved (same PK)
+        self.assertEqual(
+            vpn1_client.pk, config.vpnclient_set.filter(vpn=vpn1).first().pk
+        )
+        vpn2_client = config.vpnclient_set.filter(vpn=vpn2).first()
+        # Remove first VPN template via admin
+        _update_template(templates=[required_template, vpn2_template])
+        self.assertEqual(config.templates.count(), 2)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        # Verify only vpn2 client remains
+        self.assertEqual(config.vpnclient_set.filter(vpn=vpn1).exists(), False)
+        self.assertEqual(config.vpnclient_set.filter(vpn=vpn2).exists(), True)
+        # Verify that the vpn2 client is the same as before (same PK)
+        self.assertEqual(
+            vpn2_client.pk, config.vpnclient_set.filter(vpn=vpn2).first().pk
+        )
+        # Remove the second VPN template and ensure the required template remains.
+        # This verifies that VpnClient object should get deleted it there's only
+        # one required template applied.
+        _update_template(templates=[required_template])
+        self.assertEqual(config.templates.count(), 1)
+        self.assertEqual(config.vpnclient_set.count(), 0)
 
     def test_vpn_template_switch(self):
         """
@@ -2103,13 +2217,13 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
-        expected_count = 24
+        expected_count = 22
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
             expected_count += 2
         with self.assertNumQueries(expected_count):
-            # contains 22 queries for fetching normal device data
+            # contains 20 queries for fetching normal device data
             response = self.client.get(path)
             # contains 2 queries, 1 for fetching organization
             # and 1 for fetching templates

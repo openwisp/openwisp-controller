@@ -1,0 +1,13 @@
+pre.readonly-json-widget {
+  margin-top: 0px;
+  color: var(--body-loud-color);
+  background: var(--darkened-bg);
+  padding: 6px 10px;
+  font-size: inherit;
+  margin-top: 0;
+}
+.readonly:has(pre.readonly-json-widget) {
+  width: 100%;
+  overflow: auto;
+  padding-top: 0 !important;
+}

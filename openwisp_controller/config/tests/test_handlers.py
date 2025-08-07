@@ -8,7 +8,7 @@ from .. import tasks
 
 
 class TestHandlers(TestOrganizationMixin, TestCase):
-    @patch.object(tasks.invalidate_device_checksum_view_cache, "delay")
+    @patch.object(tasks.invalidate_controller_views_cache, "delay")
     def test_organization_disabled_handler(self, mocked_task):
         with self.subTest("Test task not executed on creating active orgs"):
             org = self._create_org()

@@ -149,16 +149,15 @@ OPENWISP_CONTROLLER_GROUP_PIE_CHART = True
 # during development only
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-if not TESTING:
-    CACHES = {
-        "default": {
-            "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"{REDIS_URL}/6",
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            },
-        }
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"{REDIS_URL}/6",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
+}
 
 if not TESTING:
     CELERY_BROKER_URL = f"{REDIS_URL}/1"
@@ -166,6 +165,9 @@ else:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = "memory://"
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
 
 LOGGING = {
     "version": 1,

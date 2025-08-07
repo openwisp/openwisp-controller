@@ -3,7 +3,6 @@ import logging
 import re
 from collections import defaultdict
 
-from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
@@ -24,9 +23,18 @@ from ..signals import (
 )
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
-from .base import BaseConfig
+from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
 
 logger = logging.getLogger(__name__)
+
+
+def get_cached_checksum_args_rewrite(config):
+    """
+    DEPRECATED: Use get_cached_args_rewrite instead.
+
+    TODO: Remove this in 1.2.0 release.
+    """
+    return get_cached_args_rewrite(config)
 
 
 class TemplatesThrough(object):
@@ -38,14 +46,7 @@ class TemplatesThrough(object):
         return _("Relationship with {0}").format(self.template.name)
 
 
-def get_cached_checksum_args_rewrite(config):
-    """
-    Use only the PK parameter for calculating the cache key
-    """
-    return config.pk.hex
-
-
-class AbstractConfig(BaseConfig):
+class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     """
     Abstract model implementing the
     NetJSON DeviceConfiguration object
@@ -149,23 +150,6 @@ class AbstractConfig(BaseConfig):
         (kept for backward compatibility with pre 0.6 versions)
         """
         return self.device.key
-
-    @cache_memoize(
-        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_checksum_args_rewrite
-    )
-    def get_cached_checksum(self):
-        """
-        Handles caching,
-        timeout=None means value is cached indefinitely
-        (invalidation handled on post_save/post_delete signal)
-        """
-        logger.debug(f"calculating checksum for config ID {self.pk}")
-        return self.checksum
-
-    @classmethod
-    def bulk_invalidate_get_cached_checksum(cls, query_params):
-        for config in cls.objects.only("id").filter(**query_params).iterator():
-            config.get_cached_checksum.invalidate(config)
 
     @classmethod
     def get_template_model(cls):
@@ -330,10 +314,27 @@ class AbstractConfig(BaseConfig):
         else:
             templates = pk_set
 
-        # Delete VPN clients that are not associated with current templates
-        instance.vpnclient_set.exclude(
-            template_id__in=instance.templates.values_list("id", flat=True)
-        ).delete()
+        # Check if all templates in pk_set are required templates. If they are,
+        # skip deletion of VpnClient objects at this point.
+        if len(pk_set) != templates.filter(required=True).count():
+            # Explanation:
+            # SortedManyToManyField clears all existing templates before adding
+            # new ones. This triggers an m2m_changed signal with the "post_clear"
+            # action, which is handled by the "enforce_required_templates" signal
+            # receiver. That receiver re-adds the required templates.
+            #
+            # Re-adding required templates triggers another m2m_changed signal
+            # with the "post_add" action. At this stage, only required templates
+            # exist in the DB, so we cannot yet determine which VpnClient objects
+            # should be deleted based on the new selection.
+            #
+            # Therefore, we defer deletion of VpnClient objects until the "post_add"
+            # signal is triggered again—after all templates, including the required
+            # ones, have been fully added. At that point, we can identify and
+            # delete VpnClient objects not linked to the final template set.
+            instance.vpnclient_set.exclude(
+                template_id__in=instance.templates.values_list("id", flat=True)
+            ).delete()
 
         if action == "post_add":
             for template in templates.filter(type="vpn"):

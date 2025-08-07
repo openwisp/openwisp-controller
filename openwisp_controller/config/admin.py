@@ -2,6 +2,7 @@ import json
 import logging
 from collections.abc import Iterable
 
+import jsonfield
 import reversion
 from django import forms
 from django.conf import settings
@@ -9,12 +10,14 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.actions import delete_selected
 from django.contrib.admin.models import ADDITION, LogEntry
+from django.contrib.auth import get_permission_codename
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import (
     FieldDoesNotExist,
     ObjectDoesNotExist,
     ValidationError,
 )
+from django.db import models
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
@@ -46,7 +49,7 @@ from .base.vpn import AbstractVpn
 from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
-from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
+from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget, ReadOnlyJsonWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
@@ -104,7 +107,64 @@ class DeactivatedDeviceReadOnlyMixin(object):
         return super().get_extra(request, obj, **kwargs)
 
 
-class BaseConfigAdmin(BaseAdmin):
+class ReadOnlyJsonFieldMixin(object):
+    """
+    Mixin to display JSON fields as read-only for users without change permission.
+
+    This mixin overrides the default widgets for JSON fields, replacing them with
+    read-only alternatives when the user lacks permission to modify the fields.
+
+    It works around a Django limitation that prevents a single widget from being reused
+    in both editable and read-only contexts.
+
+    For context, see: https://code.djangoproject.com/ticket/30577#comment:10
+    """
+
+    def _change_json_fields_widgets(self, obj, form, can_change):
+        if obj and not can_change:
+            form_fields = form.base_fields.keys() or form._meta.fields
+            for field in form_fields:
+                try:
+                    if isinstance(
+                        self.model._meta.get_field(field),
+                        (models.JSONField, jsonfield.JSONField),
+                    ):
+                        form.base_fields[field] = forms.JSONField(
+                            widget=ReadOnlyJsonWidget, disabled=True
+                        )
+                except FieldDoesNotExist:
+                    # A field could be a Model property or ModelAdmin method,
+                    # which does not exist in the model.
+                    continue
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """
+        This method is used by the inline admin to generate the form.
+        """
+        formset = super().get_formset(request, obj, **kwargs)
+        form = formset.form
+        # The user should have change permission on both the parent model
+        # and the inline model to be able to change the JSON fields.
+        can_change = self.has_change_permission(request, obj) and request.user.has_perm(
+            "{}.{}".format(
+                self.parent_model._meta.app_label,
+                get_permission_codename("change", self.parent_model._meta),
+            )
+        )
+        self._change_json_fields_widgets(obj, form, can_change)
+        return formset
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        This method is used by the ModelAdmin to generate the form.
+        """
+        form = super().get_form(request, obj, **kwargs)
+        can_change = self.has_change_permission(request, obj)
+        self._change_json_fields_widgets(obj, form, can_change)
+        return form
+
+
+class BaseConfigAdmin(ReadOnlyJsonFieldMixin, BaseAdmin):
     change_form_template = "admin/config/change_form.html"
     preview_template = None
     actions_on_bottom = True
@@ -314,7 +374,8 @@ class BaseConfigAdmin(BaseAdmin):
             config = instance.config
         else:
             raise Http404()
-        config_archive = config.generate()
+        get_configuration = getattr(config, "get_cached_configuration", config.generate)
+        config_archive = get_configuration()
         return send_file(
             filename="{0}.tar.gz".format(config.name),
             contents=config_archive.getvalue(),
@@ -421,6 +482,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
 
 
 class ConfigInline(
+    ReadOnlyJsonFieldMixin,
     DeactivatedDeviceReadOnlyMixin,
     MultitenantAdminMixin,
     TimeReadonlyAdminMixin,
@@ -1279,7 +1341,7 @@ class DeviceGroupForm(BaseForm):
         widgets = {"meta_data": DeviceGroupJsonSchemaWidget, "context": FlatJsonWidget}
 
 
-class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
+class DeviceGroupAdmin(MultitenantAdminMixin, ReadOnlyJsonFieldMixin, BaseAdmin):
     change_form_template = "admin/device_group/change_form.html"
     form = DeviceGroupForm
     list_display = [
@@ -1374,7 +1436,7 @@ class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         widgets = {"context": FlatJsonWidget}
 
 
-class ConfigSettingsInline(admin.StackedInline):
+class ConfigSettingsInline(ReadOnlyJsonFieldMixin, admin.StackedInline):
     model = OrganizationConfigSettings
     form = ConfigSettingsForm
 

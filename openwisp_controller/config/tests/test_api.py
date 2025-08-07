@@ -554,7 +554,7 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse("config_api:download_device_config", args=[d1.pk])
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(7):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -715,7 +715,7 @@ class TestConfigApi(
         org1 = self._get_org()
         self._create_template(name="t1", organization=org1)
         path = reverse("config_api:template_list")
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Template.objects.count(), 1)
@@ -808,7 +808,7 @@ class TestConfigApi(
     def test_template_detail_api(self):
         t1 = self._create_template(name="t1")
         path = reverse("config_api:template_detail", args=[t1.pk])
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], None)
@@ -841,7 +841,7 @@ class TestConfigApi(
     def test_template_download_api(self):
         t1 = self._create_template(name="t1")
         path = reverse("config_api:download_template_config", args=[t1.pk])
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -880,7 +880,7 @@ class TestConfigApi(
         org = self._get_org()
         self._create_vpn(organization=org)
         path = reverse("config_api:vpn_list")
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -942,7 +942,7 @@ class TestConfigApi(
     def test_vpn_detail_no_org_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], None)
@@ -952,7 +952,7 @@ class TestConfigApi(
         org = self._get_org()
         vpn1 = self._create_vpn(name="test-vpn", organization=org)
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], org.pk)
@@ -987,7 +987,7 @@ class TestConfigApi(
     def test_vpn_download_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
         path = reverse("config_api:download_vpn_config", args=[vpn1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -1061,7 +1061,7 @@ class TestConfigApi(
         dg = self._create_device_group()
         path = reverse("config_api:devicegroup_list")
         with self.subTest("assert number of queries"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 r = self.client.get(path)
             self.assertEqual(r.status_code, 200)
         with self.subTest("should not contain default or required templates"):
@@ -1130,7 +1130,7 @@ class TestConfigApi(
         path = reverse("config_api:devicegroup_detail", args=[device_group.pk])
 
         with self.subTest("Test GET"):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["name"], device_group.name)
@@ -1361,11 +1361,11 @@ class TestConfigApiTransaction(
             self.assertEqual(response.status_code, 200)
 
         def _assert_cache_invalidation(path, org_slug):
-            with self.assertNumQueries(6):
+            with self.assertNumQueries(5):
                 response = self.client.get(path, data={"org": org_slug})
                 self.assertEqual(response.status_code, 200)
 
-            with self.assertNumQueries(6):
+            with self.assertNumQueries(5):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
 
@@ -1376,11 +1376,11 @@ class TestConfigApiTransaction(
 
         with self.subTest("Test caching works"):
             _build_cache(path, org.slug)
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(2):
                 response = self.client.get(path, data={"org": org.slug})
                 self.assertEqual(response.status_code, 200)
 
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(2):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
 
@@ -1422,11 +1422,11 @@ class TestConfigApiTransaction(
             "config_api:devicegroup_x509_commonname", args=[cert.common_name]
         )
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             response = self.client.get(path, data={"org": org.slug})
             self.assertEqual(response.status_code, 200)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             response = self.client.get(path, data={"org": org.slug})
             self.assertEqual(response.status_code, 200)
 
@@ -1440,11 +1440,11 @@ class TestConfigApiTransaction(
             "config_api:devicegroup_x509_commonname", args=[cert.common_name]
         )
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             response = self.client.get(path, data={"org": org.slug})
             self.assertEqual(response.status_code, 200)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             response = self.client.get(path, data={"org": org.slug})
             self.assertEqual(response.status_code, 200)
 
@@ -1458,11 +1458,11 @@ class TestConfigApiTransaction(
             "config_api:devicegroup_x509_commonname", args=[cert.common_name]
         )
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             response = self.client.get(path, data={"org": org.slug})
             self.assertEqual(response.status_code, 200)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             response = self.client.get(path, data={"org": org.slug})
             self.assertEqual(response.status_code, 200)
 
