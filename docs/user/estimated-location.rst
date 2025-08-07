@@ -51,10 +51,6 @@ If there is **no matching location**, a new estimated location is created
 or the existing one is updated using coordinates from the WHOIS record,
 but only if the existing location is estimated.
 
-If the device's current location is **not estimated**, no action is taken
-and a notification is sent to the user suggesting to manually update the
-location.
-
 If two devices share the same IP address and are assigned to the same
 location, and the last IP of one of the devices is updated, the system
 will create a new estimated location for that device.
