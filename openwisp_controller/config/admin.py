@@ -120,7 +120,8 @@ class ReadOnlyJsonFieldMixin(object):
 
     def _change_json_fields_widgets(self, obj, form, can_change):
         if obj and not can_change:
-            for field in form._meta.fields:
+            form_fields = form.base_fields.keys() or form._meta.fields
+            for field in form_fields:
                 try:
                     if isinstance(
                         self.model._meta.get_field(field),
