@@ -143,17 +143,28 @@ reversion.register(model=Location)
 
 
 class DeviceLocationFilter(admin.SimpleListFilter):
-    title = _("has geographic position set?")
+    title = _("geographic position")
     parameter_name = "with_geo"
 
     def lookups(self, request, model_admin):
         return (
-            ("true", _("Yes")),
-            ("false", _("No")),
+            ("outdoor", _("Outdoor (Excluding Estimated)")),
+            ("indoor", _("Indoor")),
+            ("estimated", _("Estimated")),
+            ("false", _("No Location")),
         )
 
     def queryset(self, request, queryset):
-        if self.value():
+        if value := self.value():
+            if value == "estimated":
+                return queryset.filter(devicelocation__location__is_estimated=True)
+            elif value in ("indoor", "outdoor"):
+                # estimated locations are outdoor by default
+                # so we need to exclude them from the result
+                return queryset.filter(
+                    devicelocation__location__type=value,
+                    devicelocation__location__is_estimated=False,
+                )
             return queryset.filter(devicelocation__isnull=self.value() == "false")
         return queryset
 
