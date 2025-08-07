@@ -38,8 +38,8 @@ shell commands, you can add new commands by following instructions in the
 
 .. note::
 
-    You can also use the `REST API <controller_execute_command_api>`_ to
-    execute commands on a device.
+    You can also use the :ref:`REST API <controller_execute_command_api>`
+    to execute commands on a device.
 
 .. note::
 
