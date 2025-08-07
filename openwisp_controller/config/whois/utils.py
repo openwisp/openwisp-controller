@@ -5,51 +5,38 @@ from swapper import load_model
 from .. import settings as app_settings
 
 MESSAGE_MAP = {
-    "device_error": {
+    "whois_device_error": {
+        "type": "generic_message",
+        "level": "error",
         "message": _(
             "Failed to fetch WHOIS details for device"
             " [{notification.target}]({notification.target_link})"
         ),
         "description": _("WHOIS details could not be fetched for ip: {ip_address}."),
-        "level": "error",
     },
-    "location_error": {
+    "estimated_location_error": {
+        "level": "error",
+        "type": "estimated_location_info",
         "message": _(
             "Unable to create estimated location for device "
             "[{notification.target}]({notification.target_link}). "
             "Please assign/create a location manually."
         ),
         "description": _("Multiple devices found for IP: {ip_address}"),
-        "level": "error",
     },
-    "location_created": {
-        "message": _(
-            "Approximate location [{notification.actor}]({notification.actor_link})"
-            " for device"
-            " [{notification.target}]({notification.target_link}#devicelocation-group)"
-            " created successfully."
-        ),
-        "description": _("Location created for IP: {ip_address}"),
-        "level": "info",
+    "estimated_location_created": {
+        "type": "estimated_location_info",
+        "description": _("Estimated Location {notification.verb} for IP: {ip_address}"),
     },
-    "location_updated": {
+    "estimated_location_updated": {
+        "type": "estimated_location_info",
         "message": _(
-            "Approximate location [{notification.actor}]({notification.actor_link})"
+            "Estimated location [{notification.actor}]({notification.actor_link})"
             " for device"
-            " [{notification.target}]({notification.target_link}#devicelocation-group)"
+            " [{notification.target}]({notification.target_link})"
             " updated successfully."
         ),
-        "description": _("Location updated for IP: {ip_address}"),
-        "level": "info",
-    },
-    "location_info": {
-        "message": _(
-            "Non Estimated Location found for device."
-            " [{notification.target}]({notification.target_link})"
-            " Please update it manually."
-        ),
-        "description": _("Unexpected IP changed: {ip_address}."),
-        "level": "info",
+        "description": _("Estimated Location updated for IP: {ip_address}"),
     },
 }
 
@@ -61,12 +48,10 @@ def send_whois_task_notification(device_pk, notify_type, actor=None):
     notify_details = MESSAGE_MAP[notify_type]
     notify.send(
         sender=actor or device,
-        type="generic_message",
         target=device,
         action_object=device,
-        level=notify_details["level"],
-        message=notify_details["message"],
-        description=notify_details["description"].format(ip_address=device.last_ip),
+        ip_address=device.last_ip,
+        **notify_details,
     )
 
 

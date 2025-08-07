@@ -45,7 +45,9 @@ def manage_estimated_locations(device_pk, ip_address):
                 f" for IP: {ip_address}"
             )
             send_whois_task_notification(
-                device_pk=device_pk, notify_type="location_created", actor=location
+                device_pk=device_pk,
+                notify_type="estimated_location_created",
+                actor=location,
             )
 
     def _update_or_create_estimated_location(
@@ -77,7 +79,7 @@ def manage_estimated_locations(device_pk, ip_address):
                     )
                     send_whois_task_notification(
                         device_pk=device_pk,
-                        notify_type="location_updated",
+                        notify_type="estimated_location_updated",
                         actor=current_location,
                     )
             elif not current_location:
@@ -105,7 +107,7 @@ def manage_estimated_locations(device_pk, ip_address):
         # the user to resolve the conflict manually.
         if devices_with_location.count() > 1:
             send_whois_task_notification(
-                device_pk=device_pk, notify_type="location_error"
+                device_pk=device_pk, notify_type="estimated_location_error"
             )
             logger.error(
                 "Multiple devices with locations found with same "
@@ -132,7 +134,9 @@ def manage_estimated_locations(device_pk, ip_address):
             f" for IP: {ip_address}"
         )
         send_whois_task_notification(
-            device_pk=device_pk, notify_type="location_updated", actor=existing_location
+            device_pk=device_pk,
+            notify_type="estimated_location_updated",
+            actor=existing_location,
         )
 
     whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
@@ -161,7 +165,4 @@ def manage_estimated_locations(device_pk, ip_address):
         logger.info(
             f"Non Estimated location already set for {device_pk}. Update"
             f" location manually as per IP: {ip_address}"
-        )
-        send_whois_task_notification(
-            device_pk=device_pk, notify_type="location_info", actor=current_location
         )
