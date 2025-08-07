@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
@@ -43,7 +44,12 @@ class DevicePermission(BasePermission):
 class LocationOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = Location
-        fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
+        fields = OrganizationManagedFilter.Meta.fields + [
+            "is_mobile",
+            "type",
+            "is_estimated",
+        ]
+        exclude = None if config_app_settings.WHOIS_CONFIGURED else ["is_estimated"]
 
 
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
