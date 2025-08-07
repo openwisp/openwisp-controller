@@ -409,7 +409,7 @@ class TestEstimatedLocationTransaction(
     @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
-        def _verify_notification(device, message, notify_type="info"):
+        def _verify_notification(device, messages, notify_level="info"):
             self.assertEqual(notification_qs.count(), 1)
             notification = notification_qs.first()
             device_location = getattr(device, "devicelocation", None)
@@ -418,16 +418,18 @@ class TestEstimatedLocationTransaction(
                 actor = device_location.location
             self.assertEqual(notification.actor, actor)
             self.assertEqual(notification.target, device)
-            self.assertEqual(notification.type, "generic_message")
-            self.assertEqual(notification.level, notify_type)
-            self.assertIn(message, notification.message)
-            self.assertIn(device.last_ip, notification.description)
+            self.assertEqual(notification.type, "estimated_location_info")
+            self.assertEqual(notification.level, notify_level)
+            for message in messages:
+                self.assertIn(message, notification.message)
+            self.assertIn(device.last_ip, notification.rendered_description)
 
         with self.subTest("Test Notification for location create"):
             mocked_response = self._mocked_client_response()
             mock_client.return_value.city.return_value = mocked_response
             device1 = self._create_device(last_ip="172.217.22.10")
-            _verify_notification(device1, "created successfully")
+            messages = ["Estimated location", "created successfully"]
+            _verify_notification(device1, messages)
 
         with self.subTest("Test Notification for location update"):
             notification_qs.delete()
@@ -437,23 +439,8 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
-            _verify_notification(device2, "updated successfully")
-
-        with self.subTest("Test Notification for non estimated location"):
-            notification_qs.delete()
-            mock_info.reset_mock()
-            device2.devicelocation.location.is_estimated = False
-            device2.devicelocation.location.save()
-            device2.last_ip = "172.217.22.11"
-            device2.save()
-            mock_info.assert_called_once_with(
-                f"Non Estimated location already set for {device2.pk}. Update"
-                f" location manually as per IP: {device2.last_ip}"
-            )
-            message = "Non Estimated Location found for device"
-            _verify_notification(device2, message, "info")
-            notification = notification_qs.first()
-            self.assertIn("Please update it manually.", notification.message)
+            messages = ["Estimated location", "updated successfully"]
+            _verify_notification(device2, messages)
 
         with self.subTest("Test Error Notification for conflicting locations"):
             device2.last_ip = device1.last_ip
@@ -471,5 +458,5 @@ class TestEstimatedLocationTransaction(
                 f"Multiple devices with locations found with same "
                 f"last_ip {device3.last_ip}. Please resolve the conflict manually."
             )
-            message = "Unable to create estimated location for device"
-            _verify_notification(device3, message, "error")
+            messages = ["Unable to create estimated location for device"]
+            _verify_notification(device3, messages, "error")

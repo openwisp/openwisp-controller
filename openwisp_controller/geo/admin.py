@@ -106,8 +106,11 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
         if obj and not check_estimate_location_configured(obj.organization_id):
             fields.remove("is_estimated")
         return fields
-    
+
     def change_view(self, request, object_id, form_url="", extra_context=None):
+        data = super().change_view(request, object_id, form_url, extra_context)
+        # Add after calling super() to ensure that latest object is fetched
+        # thus, avoiding duplicate messages.
         obj = self.get_object(request, object_id)
         if obj and obj.is_estimated:
             messages.warning(
@@ -115,7 +118,7 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
                 "This location is estimated based on the device's last IP address."
                 " Please refine it for greater accuracy.",
             )
-        return super().change_view(request, object_id, form_url, extra_context)
+        return data
 
 
 LocationAdmin.list_display.insert(1, "organization")
