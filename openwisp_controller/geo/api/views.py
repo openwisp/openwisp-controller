@@ -44,12 +44,14 @@ class DevicePermission(BasePermission):
 class LocationOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = Location
-        fields = OrganizationManagedFilter.Meta.fields + [
-            "is_mobile",
-            "type",
-            "is_estimated",
-        ]
-        exclude = None if config_app_settings.WHOIS_CONFIGURED else ["is_estimated"]
+        fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
+
+    def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
+        super().__init__(data, queryset, request=request, prefix=prefix)
+        if config_app_settings.WHOIS_CONFIGURED:
+            self.filters["is_estimated"] = filters.BooleanFilter(
+                field_name="is_estimated"
+            )
 
 
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
