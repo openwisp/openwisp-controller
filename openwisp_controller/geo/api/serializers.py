@@ -232,7 +232,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
 
 
 class NestedtLocationSerializer(
-    EstimatedLocationMixin, gis_serializers.GeoFeatureModelSerializer
+    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
 ):
     class Meta:
         model = Location

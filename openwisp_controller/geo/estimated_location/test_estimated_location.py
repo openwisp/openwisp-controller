@@ -20,6 +20,7 @@ from .tests_utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
+DeviceLocation = load_model("geo", "DeviceLocation")
 WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
@@ -510,3 +511,93 @@ class TestEstimatedLocationTransaction(
             location.save()
             self.assertFalse(location.is_estimated)
             self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)
+
+
+class TestEstimatedLocationApi(TestEstimatedLocationMixin, TestGeoMixin, TestCase):
+    location_model = Location
+    object_location_model = DeviceLocation
+
+    def setUp(self):
+        super().setUp()
+        admin = self._create_admin()
+        self.client.force_login(admin)
+
+    def _create_device_location(self, **kwargs):
+        options = dict()
+        options.update(kwargs)
+        device_location = self.object_location_model(**options)
+        device_location.full_clean()
+        device_location.save()
+        return device_location
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_list(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2")
+        org1_location = self._create_location(
+            name="org1-location", organization=org1, is_estimated=True
+        )
+        org2_location = self._create_location(name="org2-location", organization=org2)
+        org1_device = self._create_device(organization=org1)
+        org2_device = self._create_device(organization=org2)
+        self._create_device_location(content_object=org1_device, location=org1_location)
+        self._create_device_location(content_object=org2_device, location=org2_location)
+
+        with self.subTest("Test Estimated Location in Locations List"):
+            path = reverse("geo_api:list_location")
+            with self.assertNumQueries(7):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 2)
+            self.assertContains(response, org1_location.id)
+            self.assertContains(response, org2_location.id)
+            location1 = response.data["results"][1]
+            location2 = response.data["results"][0]
+            self.assertIn("is_estimated", location1)
+            self.assertNotIn("is_estimated", location2)
+
+        with self.subTest("Test Estimated Location in Device Locations List"):
+            path = reverse("geo_api:device_location", args=[org1_device.pk])
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("is_estimated", response.data["location"]["properties"])
+
+            path = reverse("geo_api:device_location", args=[org2_device.pk])
+            with self.assertNumQueries(6):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("is_estimated", response.data["location"]["properties"])
+
+        with self.subTest("Test Estimated Location in GeoJSON List"):
+            path = reverse("geo_api:location_geojson")
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 2)
+            for i in response.data["features"]:
+                if i["id"] == org1_location.id:
+                    self.assertIn("is_estimated", i["properties"])
+                    self.assertTrue(i["properties"]["is_estimated"])
+                elif i["id"] == org2_location.id:
+                    self.assertNotIn("is_estimated", i["properties"])
+                    self.assertFalse(i["properties"].get("is_estimated", False))
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_filter_list(self):
+        org = self._get_org()
+        location1 = self._create_location(
+            name="location1", is_estimated=True, organization=org
+        )
+        location2 = self._create_location(
+            name="location2", is_estimated=False, organization=org
+        )
+
+        path = reverse("geo_api:list_location")
+
+        with self.assertNumQueries(5):
+            response = self.client.get(path, {"is_estimated": True})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertContains(response, location1.id)
+        self.assertNotContains(response, location2.id)
