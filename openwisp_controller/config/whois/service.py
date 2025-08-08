@@ -25,6 +25,31 @@ class WHOISService:
         return f"organization_config_{org_id}"
 
     @staticmethod
+    def get_config_settings(org_id):
+        """
+        Caches the organization settings for WHOIS.
+        """
+        OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+        Config = load_model("config", "Config")
+
+        cache_key = WHOISService.get_cache_key(org_id=org_id)
+        org_settings = cache.get(cache_key)
+        if org_settings is None:
+            try:
+                org_settings = OrganizationConfigSettings.objects.get(
+                    organization=org_id
+                )
+            except OrganizationConfigSettings.DoesNotExist:
+                # If organization settings do not exist, fall back to global setting
+                return None
+            cache.set(
+                cache_key,
+                org_settings,
+                timeout=Config._CHECKSUM_CACHE_TIMEOUT,
+            )
+        return org_settings
+
+    @staticmethod
     def is_valid_public_ip_address(ip):
         """
         Check if given IP address is a valid public IP address.
@@ -52,24 +77,7 @@ class WHOISService:
         is set to the same as the checksum cache timeout for consistency
         with DeviceChecksumView.
         """
-        OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
-        Config = load_model("config", "Config")
-
-        org_id = self.device.organization.pk
-        org_settings = cache.get(self.get_cache_key(org_id=org_id))
-        if org_settings is None:
-            try:
-                org_settings = OrganizationConfigSettings.objects.get(
-                    organization=org_id
-                )
-            except OrganizationConfigSettings.DoesNotExist:
-                # If organization settings do not exist, fall back to global setting
-                return app_settings.WHOIS_ENABLED
-            cache.set(
-                self.get_cache_key(org_id=org_id),
-                org_settings,
-                timeout=Config._CHECKSUM_CACHE_TIMEOUT,
-            )
+        org_settings = self.get_config_settings(org_id=self.device.organization.pk)
         return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
 
     @property
@@ -78,7 +86,7 @@ class WHOISService:
         Check if the Estimated location feature is enabled.
         This does not require to set cache as `is_whois_enabled` already sets it
         """
-        org_settings = cache.get(self.get_cache_key(org_id=self.device.organization.pk))
+        org_settings = self.get_config_settings(org_id=self.device.organization.pk)
         return getattr(
             org_settings,
             "estimated_location_enabled",
