@@ -65,6 +65,11 @@ class AbstractOrganizationConfigSettings(UUIDModel):
             bulk_invalidate_config_get_cached_checksum.delay(
                 {"device__organization_id": str(self.organization_id)}
             )
+            Device = swapper.load_model("config", "Device")
+            for device in Device.objects.filter(organization=self.organization):
+                if hasattr(device, "config") and device.config.status == "applied":
+                    device.config.set_status_modified()
+                    device.config.save()
 
 
 class AbstractOrganizationLimits(models.Model):
