@@ -16,6 +16,7 @@ from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdminExportable
+from .estimated_location.utils import check_estimate_location_configured
 from .exportable import GeoDeviceResource
 
 DeviceLocation = load_model("geo", "DeviceLocation")
@@ -98,6 +99,13 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     form = LocationForm
     inlines = [FloorPlanInline]
     list_select_related = ("organization",)
+    readonly_fields = ("is_estimated",)
+
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        if obj and not check_estimate_location_configured(obj.organization_id):
+            fields.remove("is_estimated")
+        return fields
 
 
 LocationAdmin.list_display.insert(1, "organization")
