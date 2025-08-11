@@ -43,11 +43,10 @@ class WHOISService:
 
         return WHOISInfo.objects.filter(ip_address=ip_address)
 
-    @property
-    def is_whois_enabled(self):
+    @staticmethod
+    def get_org_config_settings(org_id):
         """
-        Check if the WHOIS lookup feature is enabled.
-        The OrganizationConfigSettings are cached as these settings
+        Caches the OrganizationConfigSettings as these settings
         are not expected to change frequently. The timeout for the cache
         is set to the same as the checksum cache timeout for consistency
         with DeviceChecksumView.
@@ -55,8 +54,8 @@ class WHOISService:
         OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
         Config = load_model("config", "Config")
 
-        org_id = self.device.organization.pk
-        org_settings = cache.get(self.get_cache_key(org_id=org_id))
+        cache_key = WHOISService.get_cache_key(org_id=org_id)
+        org_settings = cache.get(cache_key)
         if org_settings is None:
             try:
                 org_settings = OrganizationConfigSettings.objects.get(
@@ -64,21 +63,28 @@ class WHOISService:
                 )
             except OrganizationConfigSettings.DoesNotExist:
                 # If organization settings do not exist, fall back to global setting
-                return app_settings.WHOIS_ENABLED
+                return None
             cache.set(
-                self.get_cache_key(org_id=org_id),
+                cache_key,
                 org_settings,
                 timeout=Config._CHECKSUM_CACHE_TIMEOUT,
             )
+        return org_settings
+
+    @property
+    def is_whois_enabled(self):
+        """
+        Check if the WHOIS lookup feature is enabled.
+        """
+        org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
         return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
 
     @property
     def is_estimated_location_enabled(self):
         """
         Check if the Estimated location feature is enabled.
-        This does not require to set cache as `is_whois_enabled` already sets it
         """
-        org_settings = cache.get(self.get_cache_key(org_id=self.device.organization.pk))
+        org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
         return getattr(
             org_settings,
             "estimated_location_enabled",

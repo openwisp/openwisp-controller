@@ -12,6 +12,7 @@ from openwisp_controller.config.whois.handlers import connect_whois_handlers
 from openwisp_controller.config.whois.tests_utils import WHOISTransactionMixin
 
 from ...tests.utils import TestAdminMixin
+from ..tests.utils import TestGeoMixin
 from .tests_utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
@@ -96,6 +97,46 @@ class TestEstimatedLocation(TestAdminMixin, TestCase):
                 self.assertNotContains(
                     response, 'name="config_settings-0-estimated_location_enabled"'
                 )
+
+
+class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestCase):
+    location_model = Location
+
+    def test_estimated_location_field(self):
+        org = self._get_org()
+        org.config_settings.estimated_location_enabled = False
+        org.config_settings.save()
+        org.refresh_from_db()
+        with self.assertRaises(ValidationError) as context_manager:
+            self._create_location(organization=org, is_estimated=True)
+        try:
+            self.assertEqual(
+                context_manager.exception.message_dict["is_estimated"][0],
+                "Estimated Location feature required to be configured.",
+            )
+        except AssertionError:
+            self.fail("ValidationError message not equal to expected message.")
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_admin(self):
+        connect_whois_handlers()
+        admin = self._create_admin()
+        self.client.force_login(admin)
+        org = self._get_org()
+        location = self._create_location(organization=org, is_estimated=True)
+        path = reverse("admin:geo_location_change", args=[location.pk])
+        response = self.client.get(path)
+        self.assertContains(response, "field-is_estimated")
+        self.assertContains(
+            response, "Whether the location's coordinates are estimated."
+        )
+        org.config_settings.estimated_location_enabled = False
+        org.config_settings.save()
+        response = self.client.get(path)
+        self.assertNotContains(response, "field-is_estimated")
+        self.assertNotContains(
+            response, "Whether the location's coordinates are estimated."
+        )
 
 
 class TestEstimatedLocationTransaction(

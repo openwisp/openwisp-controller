@@ -1,4 +1,5 @@
 from django.contrib.gis.db import models
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.models import (
     AbstractFloorPlan,
@@ -9,6 +10,8 @@ from swapper import get_model_name
 
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
+from ..estimated_location.utils import check_estimate_location_configured
+
 
 class BaseLocation(OrgMixin, AbstractLocation):
     is_estimated = models.BooleanField(
@@ -18,6 +21,19 @@ class BaseLocation(OrgMixin, AbstractLocation):
 
     class Meta(AbstractLocation.Meta):
         abstract = True
+
+    def clean(self):
+        if self.is_estimated and not check_estimate_location_configured(
+            self.organization_id
+        ):
+            raise ValidationError(
+                {
+                    "is_estimated": _(
+                        "Estimated Location feature required to be configured."
+                    )
+                }
+            )
+        return super().clean()
 
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):
