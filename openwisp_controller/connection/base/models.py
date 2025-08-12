@@ -1,16 +1,15 @@
-import collections
 import logging
 
 import django
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
@@ -101,8 +100,6 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         _("parameters"),
         default=dict,
         help_text=_("global connection parameters"),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     auto_add = models.BooleanField(
         _("auto add"),
@@ -245,8 +242,6 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             "local connection parameters (will override "
             "the global parameters if specified)"
         ),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     # usability improvements
     is_working = models.BooleanField(null=True, blank=True, default=None)
@@ -425,8 +420,6 @@ class AbstractCommand(TimeStampedEditableModel):
     input = JSONField(
         blank=True,
         null=True,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     output = models.TextField(blank=True)
 
