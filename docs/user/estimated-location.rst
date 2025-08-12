@@ -54,3 +54,12 @@ but only if the existing location is estimated.
 If two devices share the same IP address and are assigned to the same
 location, and the last IP of one of the devices is updated, the system
 will create a new estimated location for that device.
+
+Visibility of Estimated Status
+------------------------------
+
+The field will be visible in the :ref:`Device Location
+<device_location_estimated>`, :ref:`Location list
+<location_list_estimated>`, :ref:`Location Detail
+<location_detail_estimated>` and :ref:`Location Detail (GeoJson)
+<location_geojson_estimated>` if the feature is **enabled**.
