@@ -294,7 +294,7 @@ class TestEstimatedLocationTransaction(
             device.last_ip = "172.217.22.11"
             device.devicelocation.location.is_estimated = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
-            device.devicelocation.location.save(from_task=True)
+            device.devicelocation.location.save(_set_estimated=True)
             device.save()
             device.refresh_from_db()
 

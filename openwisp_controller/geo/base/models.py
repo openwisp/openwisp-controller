@@ -46,11 +46,11 @@ class BaseLocation(OrgMixin, AbstractLocation):
             )
         return super().clean()
 
-    def save(self, *args, from_task=False, **kwargs):
+    def save(self, *args, _set_estimated=False, **kwargs):
         # estimate locations are created only via `manage_estimated_locations` task
         # so we set `is_estimated` to False from all other sources as they imply
         # manual refinement
-        if not from_task:
+        if not _set_estimated:
             self.is_estimated = False
             estimated_string = gettext("Estimated Location")
             if self.name and estimated_string in self.name:
