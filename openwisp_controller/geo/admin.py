@@ -112,7 +112,11 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
         # Add after calling super() to ensure that latest object is fetched
         # thus, avoiding duplicate messages.
         obj = self.get_object(request, object_id)
-        if obj and obj.is_estimated:
+        if (
+            obj
+            and obj.is_estimated
+            and check_estimate_location_configured(obj.organization_id)
+        ):
             messages.warning(
                 request,
                 "This location is estimated based on the device's last IP address."

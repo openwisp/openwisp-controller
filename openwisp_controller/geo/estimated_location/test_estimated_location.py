@@ -1,3 +1,4 @@
+import contextlib
 import importlib
 from unittest import mock
 
@@ -5,6 +6,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
@@ -13,6 +15,7 @@ from openwisp_controller.config.whois.tests_utils import WHOISTransactionMixin
 
 from ...tests.utils import TestAdminMixin
 from ..tests.utils import TestGeoMixin
+from .handlers import register_estimated_location_notification_types
 from .tests_utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
@@ -155,6 +158,11 @@ class TestEstimatedLocationTransaction(
     def setUp(self):
         super().setUp()
         self.admin = self._get_admin()
+        # Unregister the notification type if it was previously registered
+        with contextlib.suppress(ImproperlyConfigured):
+            unregister_notification_type("estimated_location_info")
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True):
+            register_estimated_location_notification_types()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
