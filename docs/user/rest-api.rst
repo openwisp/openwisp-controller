@@ -551,6 +551,14 @@ Get Device Location
 
     GET /api/v1/controller/device/{id}/location/
 
+.. _device_location_estimated:
+
+**Estimated Status**
+
+If :doc:`Estimate Location feature <estimated-location>` is enabled, the
+location response will also include a ``is_estimated`` field in the
+``properties`` object.
+
 .. _create_device_location:
 
 Create Device Location
@@ -787,6 +795,13 @@ List Locations
 
     GET /api/v1/controller/location/
 
+.. _location_list_estimated:
+
+**Estimated Status**
+
+If :doc:`Estimate Location feature <estimated-location>` is enabled, each
+location in the response will also include a ``is_estimated`` field.
+
 **Available filters**
 
 You can filter using ``organization_id`` or ``organization_slug`` to get
@@ -868,6 +883,13 @@ Get Location Details
 
     GET /api/v1/controller/location/{pk}/
 
+.. _location_detail_estimated:
+
+**Estimated Status**
+
+If :doc:`Estimate Location feature <estimated-location>` is enabled, the
+location response will also include a ``is_estimated`` field.
+
 Change Location Details
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -909,6 +931,14 @@ List Locations with Devices Deployed (in GeoJSON Format)
 .. code-block:: text
 
     GET /api/v1/controller/location/geojson/
+
+.. _location_geojson_estimated:
+
+**Estimated Status**
+
+If :doc:`Estimate Location feature <estimated-location>` is enabled, each
+location in the response will also include a ``is_estimated`` field in the
+``properties`` object.
 
 **Available filters**
 
