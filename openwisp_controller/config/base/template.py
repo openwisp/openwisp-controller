@@ -4,9 +4,10 @@ from collections import OrderedDict
 from copy import copy
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import get_model_name, load_model
 from taggit.managers import TaggableManager
@@ -101,8 +102,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "These values are used during validation and when a variable is "
             "not provided by the device, group, or organization."
         ),
-        load_kwargs={"object_pairs_hook": OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
     __template__ = True
 
