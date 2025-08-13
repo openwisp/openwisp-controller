@@ -904,7 +904,7 @@ class AbstractVpnClient(models.Model):
     @classmethod
     def post_save(cls, instance, **kwargs):
         def _post_save():
-            instance.vpn._invalidate_peer_cache(update=True)
+            instance.vpn._invalidate_peer_cache()
 
         transaction.on_commit(_post_save)
         # ZT network member should be authorized and assigned
