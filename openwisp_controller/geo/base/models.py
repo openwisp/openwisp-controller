@@ -22,9 +22,19 @@ class BaseLocation(OrgMixin, AbstractLocation):
     class Meta(AbstractLocation.Meta):
         abstract = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_is_estimated = self.is_estimated
+
     def clean(self):
-        if self.is_estimated and not check_estimate_location_configured(
-            self.organization_id
+        # When feature is disabled then field is not visible on admin, hence
+        # for locations having this field set as True will cause the following
+        # validation error. Thus, the Validation Error must be raised if location
+        # is added or this field is updated.
+        if (
+            (self._state.adding or self._initial_is_estimated != self.is_estimated)
+            and self.is_estimated
+            and not check_estimate_location_configured(self.organization_id)
         ):
             raise ValidationError(
                 {

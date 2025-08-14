@@ -44,6 +44,11 @@ def manage_estimated_locations(device_pk, ip_address):
                 f"Estimated location saved successfully for {device_pk}"
                 f" for IP: {ip_address}"
             )
+            send_whois_task_notification(
+                device_pk=device_pk,
+                notify_type="estimated_location_created",
+                actor=location,
+            )
 
     def _update_or_create_estimated_location(
         device_location, whois_obj, attached_devices_exists=False
@@ -72,6 +77,11 @@ def manage_estimated_locations(device_pk, ip_address):
                         f"Estimated location saved successfully for {device_pk}"
                         f" for IP: {ip_address}"
                     )
+                    send_whois_task_notification(
+                        device_pk=device_pk,
+                        notify_type="estimated_location_updated",
+                        actor=current_location,
+                    )
             elif not current_location:
                 # If there is no current location, we create a new one.
                 _create_estimated_location(device_location, location_defaults)
@@ -97,7 +107,7 @@ def manage_estimated_locations(device_pk, ip_address):
         # the user to resolve the conflict manually.
         if devices_with_location.count() > 1:
             send_whois_task_notification(
-                device_pk=device_pk, notify_type="location_error"
+                device_pk=device_pk, notify_type="estimated_location_error"
             )
             logger.error(
                 "Multiple devices with locations found with same "
@@ -123,6 +133,11 @@ def manage_estimated_locations(device_pk, ip_address):
             f"Estimated location saved successfully for {device_pk}"
             f" for IP: {ip_address}"
         )
+        send_whois_task_notification(
+            device_pk=device_pk,
+            notify_type="estimated_location_updated",
+            actor=existing_location,
+        )
 
     whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
     device = (
@@ -145,4 +160,9 @@ def manage_estimated_locations(device_pk, ip_address):
     if not current_location or current_location.is_estimated:
         _handle_attach_existing_location(
             device, device_location, whois_obj, attached_devices_exists
+        )
+    else:
+        logger.info(
+            f"Non Estimated location already set for {device_pk}. Update"
+            f" location manually as per IP: {ip_address}"
         )
