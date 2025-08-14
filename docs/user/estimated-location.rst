@@ -54,3 +54,7 @@ but only if the existing location is estimated.
 If two devices share the same IP address and are assigned to the same
 location, and the last IP of one of the devices is updated, the system
 will create a new estimated location for that device.
+
+Any manual changes to the estimated location will set the ``is_estimated``
+field to ``False`` and remove the "(Estimated Location)" suffix with IP
+from the location name.
