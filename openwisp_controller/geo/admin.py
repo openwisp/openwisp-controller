@@ -1,5 +1,5 @@
 import reversion
-from django.contrib import admin, messages
+from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.admin import (
     AbstractFloorPlanAdmin,
@@ -99,30 +99,29 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     form = LocationForm
     inlines = [FloorPlanInline]
     list_select_related = ("organization",)
-    readonly_fields = ("is_estimated",)
+    change_form_template = "admin/geo/location/change_form.html"
 
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
         if obj and not check_estimate_location_configured(obj.organization_id):
-            fields.remove("is_estimated")
+            if "is_estimated" in fields:
+                fields.remove("is_estimated")
+        return fields
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        if obj and check_estimate_location_configured(obj.organization_id):
+            fields = fields + ("is_estimated",)
         return fields
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
-        data = super().change_view(request, object_id, form_url, extra_context)
-        # Add after calling super() to ensure that latest object is fetched
-        # thus, avoiding duplicate messages.
         obj = self.get_object(request, object_id)
-        if (
-            obj
-            and obj.is_estimated
-            and check_estimate_location_configured(obj.organization_id)
-        ):
-            messages.warning(
-                request,
-                "This location is estimated based on the device's last IP address."
-                " Please refine it for greater accuracy.",
+        extra_context = {
+            "estimated_configured": check_estimate_location_configured(
+                obj.organization_id
             )
-        return data
+        }
+        return super().change_view(request, object_id, form_url, extra_context)
 
 
 LocationAdmin.list_display.insert(1, "organization")

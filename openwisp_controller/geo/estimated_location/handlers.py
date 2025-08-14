@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import register_notification_type
 from swapper import load_model
 
@@ -18,13 +19,13 @@ def register_estimated_location_notification_types():
     register_notification_type(
         "estimated_location_info",
         {
-            "verbose_name": "Estimated Location INFO",
-            "verb": "created",
+            "verbose_name": _("Estimated Location INFO"),
+            "verb": _("created"),
             "level": "info",
-            "email_subject": (
+            "email_subject": _(
                 "Estimated Location: Created for device {notification.target}"
             ),
-            "message": (
+            "message": _(
                 "Estimated location [{notification.actor}]({notification.actor_link})"
                 " for device"
                 " [{notification.target}]({notification.target_link})"
