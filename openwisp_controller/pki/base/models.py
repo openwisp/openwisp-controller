@@ -10,6 +10,8 @@ from ..utils import UnqiueCommonNameMixin
 
 
 class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
+    sensitive_fields = ["private_key"]
+
     class Meta(BaseCa.Meta):
         abstract = True
         constraints = [
@@ -21,6 +23,8 @@ class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
 
 
 class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
+    sensitive_fields = ["private_key"]
+
     ca = models.ForeignKey(
         get_model_name("django_x509", "Ca"),
         verbose_name=_("CA"),

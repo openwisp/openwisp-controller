@@ -132,6 +132,49 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
                 url = reverse(f"admin:{self.app_label}_{model}_changelist")
                 self.assertContains(response, f' class="mg-link" href="{url}"')
 
+    def test_org_admin_create_shared_credentials(self):
+        self._test_org_admin_create_shareable_object(
+            path=reverse(f"admin:{self.app_label}_credentials_add"),
+            model=Credentials,
+            payload={
+                "name": "Shared Credentials",
+                "organization": "",
+                "connector": "openwisp_controller.connection.connectors.ssh.Ssh",
+                "params": {
+                    "username": "root",
+                    "password": "password",
+                    "port": 22,
+                },
+            },
+        )
+
+    def test_org_admin_view_shared_credentials(self):
+        credentials = self._create_credentials(organization=None)
+        self._test_org_admin_view_shareable_object(
+            path=reverse(
+                f"admin:{self.app_label}_credentials_change", args=[credentials.pk]
+            ),
+        )
+
+    def test_credential_admin_sensitive_fields(self):
+        """
+        Sensitive fields for shared credentials should be hidden for non-superusers.
+        """
+        org = self._get_org()
+        shared_credentials = self._create_credentials(organization=None)
+        org_credentials = self._create_credentials(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["params"],
+            shared_obj_path=reverse(
+                f"admin:{self.app_label}_credentials_change",
+                args=(shared_credentials.id,),
+            ),
+            org_obj_path=reverse(
+                f"admin:{self.app_label}_credentials_change", args=(org_credentials.id,)
+            ),
+            organization=org,
+        )
+
 
 class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
     config_app_label = "config"

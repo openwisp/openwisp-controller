@@ -12,7 +12,7 @@ from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
+from openwisp_users.tests.test_api import APITestCase, AuthenticationMixin
 
 from .. import settings as app_settings
 from ..api.views import ListViewPagination
@@ -387,9 +387,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         )
 
 
-class TestConnectionApi(
-    TestAdminMixin, AuthenticationMixin, TestCase, CreateConnectionsMixin
-):
+class TestConnectionApi(TestAdminMixin, CreateConnectionsMixin, APITestCase):
     def setUp(self):
         super().setUp()
         self._login()
@@ -493,6 +491,38 @@ class TestConnectionApi(
         with self.assertNumQueries(4):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
+
+    def test_operator_access_shared_credentials(self):
+        self._create_credentials(organization=None)
+        self._test_org_user_access_shared_object(
+            listview_name="connection_api:credential_list",
+            detailview_name="connection_api:credential_detail",
+            create_payload={
+                "connector": "openwisp_controller.connection.connectors.ssh.Ssh",
+                "name": "Test credentials",
+                "organization": "",
+                "auto_add": False,
+                "params": {"username": "root", "password": "Pa$$w0Rd", "port": 22},
+            },
+            update_payload={"name": "updated-test"},
+            expected_count=1,
+        )
+
+    def test_credentials_sensitive_fields_visibility(self):
+        """
+        Test that sensitive fields are hidden for shared objects for non-superusers.
+        """
+        org = self._get_org()
+        shared_credentials = self._create_credentials(organization=None)
+        org_credentials = self._create_credentials(organization=org)
+        self._test_sensitive_fields_visibility_on_shared_and_org_objects(
+            sensitive_fields=["params"],
+            shared_obj=shared_credentials,
+            org_obj=org_credentials,
+            listview_name="connection_api:credential_list",
+            detailview_name="connection_api:credential_detail",
+            organization=org,
+        )
 
     def test_get_deviceconnection_list(self):
         d1 = self._create_device()

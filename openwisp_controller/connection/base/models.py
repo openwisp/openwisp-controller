@@ -90,6 +90,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
     # Controls the number of objects which can be stored in memory
     # before commiting them to database during bulk auto add operation.
     chunk_size = 1000
+    sensitive_fields = ["params"]
 
     connector = models.CharField(
         _("connection type"),
