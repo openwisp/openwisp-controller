@@ -728,9 +728,18 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
-    def test_auto_peer_configuration(self):
+    @mock.patch(
+        "openwisp_controller.config.tasks.requests.post",
+        return_value=HttpResponse(status=200),
+    )
+    def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
-        device, vpn, template = self._create_wireguard_vpn_template()
+        device, vpn, template = self._create_wireguard_vpn_template(
+            vpn_options={
+                "webhook_endpoint": "https://example.com:8080/trigger-update",
+                "auth_token": "openwisp",
+            }
+        )
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
@@ -770,16 +779,12 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 Vpn,
                 "invalidate_checksum_cache",
                 return_value=vpn.invalidate_checksum_cache(),
-            ) as mocked_invalidate_checksum_cache, mock.patch.object(
-                Vpn,
-                "get_cached_configuration",
-                return_value=vpn.get_cached_configuration(),
-            ) as mocked_cached_configuration:
+            ) as mocked_invalidate_checksum_cache:
                 device2.config.templates.add(template)
                 # The Vpn configuration cache is invalidated and re-populated
                 mocked_invalidate_checksum_cache.assert_called_once()
-                mocked_cached_configuration.assert_called_once()
-            # cache is invalidated and updated, hence no queries expected
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task),
+            # hence no queries expected
             with self.assertNumQueries(0):
                 vpn_config = vpn.get_config()["wireguard"][0]
             self.assertEqual(len(vpn_config.get("peers", [])), 2)
@@ -789,17 +794,12 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 Vpn,
                 "invalidate_checksum_cache",
                 return_value=vpn.invalidate_checksum_cache(),
-            ) as mocked_invalidate_checksum_cache, mock.patch.object(
-                Vpn,
-                "get_cached_configuration",
-                return_value=vpn.get_cached_configuration(),
-            ) as mocked_cached_configuration:
+            ) as mocked_invalidate_checksum_cache:
                 device2.delete(check_deactivated=False)
                 mocked_invalidate_checksum_cache.assert_called_once()
-                mocked_cached_configuration.assert_not_called()
-            # cache is invalidated but not updated
-            # hence we expect queries to be generated
-            with self.assertNumQueries(1):
+            # cache is invalidated and is updated by the
+            # trigger_vpn_server_endpoint task
+            with self.assertNumQueries(0):
                 vpn_config = vpn.get_config()["wireguard"][0]
             self.assertEqual(len(vpn_config.get("peers", [])), 1)
 
@@ -985,9 +985,18 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 class TestVxlanTransaction(
     BaseTestVpn, TestVxlanWireguardVpnMixin, TransactionTestCase
 ):
-    def test_auto_peer_configuration(self):
+    @mock.patch(
+        "openwisp_controller.config.tasks.requests.post",
+        return_value=HttpResponse(status=200),
+    )
+    def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
-        device, vpn, template = self._create_vxlan_vpn_template()
+        device, vpn, template = self._create_vxlan_vpn_template(
+            vpn_options={
+                "webhook_endpoint": "https://example.com:8080/trigger-update",
+                "auth_token": "openwisp",
+            }
+        )
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
@@ -1014,7 +1023,8 @@ class TestVxlanTransaction(
                 }
             )
             device2.config.templates.add(template)
-            # cache is invalidated and updated, hence no queries expected
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task),
+            # hence no queries expected
             with self.assertNumQueries(0):
                 config = vpn.get_config()
             peers = json.loads(config["files"][0]["contents"])
@@ -1022,9 +1032,8 @@ class TestVxlanTransaction(
 
         with self.subTest("cache updated when a new peer is deleted"):
             device2.delete(check_deactivated=False)
-            # cache is invalidated but not updated
-            # hence we expect queries to be generated
-            with self.assertNumQueries(2):
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task)
+            with self.assertNumQueries(0):
                 config = vpn.get_config()
             peers = json.loads(config["files"][0]["contents"])
             self.assertEqual(len(peers), 1)

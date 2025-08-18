@@ -99,7 +99,7 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
 
 # Generating large configurations can be time-consuming; hence,
 # a custom soft time limit is applied here.
-@shared_task(soft_time_limit=120)
+@shared_task(soft_time_limit=300)
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     Vpn = load_model("config", "Vpn")
     try:
