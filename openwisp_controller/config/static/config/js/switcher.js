@@ -21,19 +21,11 @@ django.jQuery(function ($) {
                 "the configuration of the server).",
             ),
             p2 = gettext(
-              "You can then tweak the VPN client " +
-                "configuration in the next step.",
+              "You can then tweak the VPN client " + "configuration in the next step.",
             );
-          $(".jsoneditor-wrapper")
-            .hide()
-            .after('<div class="form-row autovpn"></div>');
+          $(".jsoneditor-wrapper").hide().after('<div class="form-row autovpn"></div>');
           $(".autovpn").html(
-            "<p><strong>" +
-              p1 +
-              "</strong></p>" +
-              "<p><strong>" +
-              p2 +
-              "</strong></p>",
+            "<p><strong>" + p1 + "</strong></p>" + "<p><strong>" + p2 + "</strong></p>",
           );
         }
       } else {
