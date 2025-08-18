@@ -17,6 +17,8 @@ from ..estimated_location.utils import check_estimate_location_configured
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
+    _changed_checked_fields = ["is_estimated", "address", "geometry"]
+
     is_estimated = models.BooleanField(
         default=False,
         help_text=_("Whether the location's coordinates are estimated."),
@@ -27,7 +29,15 @@ class BaseLocation(OrgMixin, AbstractLocation):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._initial_is_estimated = self.is_estimated
+        self._set_initial_values_for_changed_checked_fields()
+
+    def _set_initial_values_for_changed_checked_fields(self):
+        deferred_fields = self.get_deferred_fields()
+        for field in self._changed_checked_fields:
+            if field in deferred_fields:
+                setattr(self, f"_initial_{field}", models.DEFERRED)
+            else:
+                setattr(self, f"_initial_{field}", getattr(self, field))
 
     def clean(self):
         # Raise validation error if `is_estimated` is True but estimated feature is
@@ -47,17 +57,25 @@ class BaseLocation(OrgMixin, AbstractLocation):
         return super().clean()
 
     def save(self, *args, _set_estimated=False, **kwargs):
-        # estimate locations are created only via `manage_estimated_locations` task
+        # Estimate locations are created only via `manage_estimated_locations` task
         # so we set `is_estimated` to False from all other sources as they imply
-        # manual refinement
-        if not _set_estimated:
-            self.is_estimated = False
-            estimated_string = gettext("Estimated Location")
-            if self.name and estimated_string in self.name:
-                # remove string starting with "(Estimated Location"
-                self.name = re.sub(
-                    rf"\s\({estimated_string}.*", "", self.name, flags=re.IGNORECASE
-                )
+        # manual refinement via the `_set_estimated` kwarg.
+        # This should be done when estimated feature is enabled
+        # else original value must be retained.
+        if check_estimate_location_configured(self.organization_id):
+            if not _set_estimated and (
+                self._initial_address != self.address
+                or self._initial_geometry != self.geometry
+            ):
+                self.is_estimated = False
+                estimated_string = gettext("Estimated Location")
+                if self.name and estimated_string in self.name:
+                    # remove string starting with "(Estimated Location"
+                    self.name = re.sub(
+                        rf"\s\({estimated_string}.*", "", self.name, flags=re.IGNORECASE
+                    )
+        else:
+            self.is_estimated = self._initial_is_estimated
         return super().save(*args, **kwargs)
 
 

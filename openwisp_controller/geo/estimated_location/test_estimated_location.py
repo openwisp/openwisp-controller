@@ -477,7 +477,35 @@ class TestEstimatedLocationTransaction(
         device = self._create_device(last_ip="172.217.22.10")
         location = device.devicelocation.location
         self.assertTrue(location.is_estimated)
-        location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
-        location.save()
-        self.assertFalse(location.is_estimated)
-        self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)
+        org = self._get_org()
+
+        with self.subTest(
+            "Test Estimated Status unchanged if Estimated feature is disabled"
+        ):
+            org.config_settings.estimated_location_enabled = False
+            org.config_settings.save()
+            location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
+            location.save()
+            self.assertTrue(location.is_estimated)
+            self.assertIn(f"(Estimated Location: {device.last_ip})", location.name)
+
+        with self.subTest(
+            "Test Estimated Status unchanged if Estimated feature is enabled"
+            " and desired fields not changed"
+        ):
+            org.config_settings.estimated_location_enabled = True
+            org.config_settings.save()
+            location._set_initial_values_for_changed_checked_fields()
+            location.type = "outdoor"
+            location.is_mobile = True
+            location.save()
+            self.assertTrue(location.is_estimated)
+
+        with self.subTest(
+            "Test Estimated Status changed if Estimated feature is enabled"
+            " and desired fields changed"
+        ):
+            location.geometry = GEOSGeometry("POINT(15.512124 45.898903)", srid=4326)
+            location.save()
+            self.assertFalse(location.is_estimated)
+            self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)
