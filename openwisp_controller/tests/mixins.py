@@ -14,6 +14,11 @@ class GetEditFormInlineMixin(object):
                 # device limit inline
                 "config_limits-TOTAL_FORMS": 0,
                 "config_limits-INITIAL_FORMS": 0,
+                # notification settings inline
+                "notification_settings-TOTAL_FORMS": 1,
+                "notification_settings-INITIAL_FORMS": 1,
+                "notification_settings-MIN_NUM_FORMS": 0,
+                "notification_settings-MAX_NUM_FORMS": 1,
             }
         )
         return params
