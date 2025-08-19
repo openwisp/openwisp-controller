@@ -12,11 +12,11 @@ from django_loci.base.admin import (
 )
 from swapper import load_model
 
+from openwisp_controller.config.whois.service import WHOISService
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdminExportable
-from .estimated_location.utils import check_estimate_location_configured
 from .exportable import GeoDeviceResource
 
 DeviceLocation = load_model("geo", "DeviceLocation")
@@ -103,7 +103,8 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
 
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
-        if obj and not check_estimate_location_configured(obj.organization_id):
+        org_id = obj.organization_id if obj else None
+        if not WHOISService.check_estimate_location_configured(org_id):
             if "is_estimated" in fields:
                 fields.remove("is_estimated")
         return fields

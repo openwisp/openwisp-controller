@@ -11,9 +11,8 @@ from django_loci.base.models import (
 )
 from swapper import get_model_name
 
+from openwisp_controller.config.whois.service import WHOISService
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
-
-from ..estimated_location.utils import check_estimate_location_configured
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
@@ -45,7 +44,7 @@ class BaseLocation(OrgMixin, AbstractLocation):
         if (
             (self._state.adding or self._initial_is_estimated != self.is_estimated)
             and self.is_estimated
-            and not check_estimate_location_configured(self.organization_id)
+            and not WHOISService.check_estimate_location_configured(self.organization_id)
         ):
             raise ValidationError(
                 {
@@ -57,12 +56,19 @@ class BaseLocation(OrgMixin, AbstractLocation):
         return super().clean()
 
     def save(self, *args, _set_estimated=False, **kwargs):
-        # Estimate locations are created only via `manage_estimated_locations` task
-        # so we set `is_estimated` to False from all other sources as they imply
-        # manual refinement via the `_set_estimated` kwarg.
-        # This should be done when estimated feature is enabled
-        # else original value must be retained.
-        if check_estimate_location_configured(self.organization_id):
+        """
+        Save the location object with special handling for estimated locations.
+
+        Parameters:
+            _set_estimated: Boolean flag to indicate if this save is being performed
+            by the estimated location system. When False (default),
+            manual edits will clear the estimated status.
+            *args, **kwargs: Arguments passed to the parent save method.
+
+        Returns:
+            The result of the parent save method.
+        """
+        if WHOISService.check_estimate_location_configured(self.organization_id):
             if not _set_estimated and (
                 self._initial_address != self.address
                 or self._initial_geometry != self.geometry
