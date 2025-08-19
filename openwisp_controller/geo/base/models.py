@@ -27,10 +27,8 @@ class BaseLocation(OrgMixin, AbstractLocation):
         self._initial_is_estimated = self.is_estimated
 
     def clean(self):
-        # When feature is disabled then field is not visible on admin, hence
-        # for locations having this field set as True will cause the following
-        # validation error. Thus, the Validation Error must be raised if location
-        # is added or this field is updated.
+        # Raise validation error if `is_estimated` is True but estimated feature is
+        # disabled.
         if (
             (self._state.adding or self._initial_is_estimated != self.is_estimated)
             and self.is_estimated
