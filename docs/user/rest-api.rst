@@ -544,6 +544,13 @@ of certificate's organization as show in the example below:
 
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
+.. |est_loc| replace:: Estimated Location feature
+
+.. _est_loc: estimated-location.html
+
+.. |estimated_details| replace:: If |est_loc|_ is enabled, the location
+    response will also include ``is_estimated`` status field.
+
 Get Device Location
 ~~~~~~~~~~~~~~~~~~~
 
@@ -555,9 +562,7 @@ Get Device Location
 
 **Estimated Status**
 
-If :doc:`Estimate Location feature <estimated-location>` is enabled, the
-location response will also include a ``is_estimated`` field in the
-``properties`` object.
+|estimated_details|
 
 .. _create_device_location:
 
@@ -799,8 +804,7 @@ List Locations
 
 **Estimated Status**
 
-If :doc:`Estimate Location feature <estimated-location>` is enabled, each
-location in the response will also include a ``is_estimated`` field.
+|estimated_details|
 
 **Available filters**
 
@@ -887,8 +891,7 @@ Get Location Details
 
 **Estimated Status**
 
-If :doc:`Estimate Location feature <estimated-location>` is enabled, the
-location response will also include a ``is_estimated`` field.
+|estimated_details|
 
 Change Location Details
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -936,9 +939,7 @@ List Locations with Devices Deployed (in GeoJSON Format)
 
 **Estimated Status**
 
-If :doc:`Estimate Location feature <estimated-location>` is enabled, each
-location in the response will also include a ``is_estimated`` field in the
-``properties`` object.
+|estimated_details|
 
 **Available filters**
 

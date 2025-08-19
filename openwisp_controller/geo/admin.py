@@ -155,7 +155,7 @@ class DeviceLocationFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         if config_app_settings.WHOIS_CONFIGURED:
             return (
-                ("outdoor", _("Outdoor (Excluding Estimated)")),
+                ("outdoor", _("Outdoor (Not Estimated)")),
                 ("indoor", _("Indoor")),
                 ("estimated", _("Estimated")),
                 ("false", _("No Location")),
@@ -166,19 +166,20 @@ class DeviceLocationFilter(admin.SimpleListFilter):
         )
 
     def queryset(self, request, queryset):
-        if value := self.value():
-            if config_app_settings.WHOIS_CONFIGURED:
-                if value == "estimated":
-                    return queryset.filter(devicelocation__location__is_estimated=True)
-                elif value in ("indoor", "outdoor"):
-                    # estimated locations are outdoor by default
-                    # so we need to exclude them from the result
-                    return queryset.filter(
-                        devicelocation__location__type=value,
-                        devicelocation__location__is_estimated=False,
-                    )
-            return queryset.filter(devicelocation__isnull=self.value() == "false")
-        return queryset
+        value = self.value()
+        if not value:
+            return queryset
+        if config_app_settings.WHOIS_CONFIGURED:
+            if value == "estimated":
+                return queryset.filter(devicelocation__location__is_estimated=True)
+            elif value in ("indoor", "outdoor"):
+                # estimated locations are outdoor by default
+                # so we need to exclude them from the result
+                return queryset.filter(
+                    devicelocation__location__type=value,
+                    devicelocation__location__is_estimated=False,
+                )
+        return queryset.filter(devicelocation__isnull=self.value() == "false")
 
 
 # Prepend DeviceLocationInline to config.DeviceAdminExportable
