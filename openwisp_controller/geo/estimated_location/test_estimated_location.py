@@ -1,3 +1,4 @@
+import contextlib
 import importlib
 from unittest import mock
 
@@ -5,6 +6,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
@@ -13,6 +15,7 @@ from openwisp_controller.config.whois.tests_utils import WHOISTransactionMixin
 
 from ...tests.utils import TestAdminMixin
 from ..tests.utils import TestGeoMixin
+from .handlers import register_estimated_location_notification_types
 from .tests_utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
@@ -155,6 +158,11 @@ class TestEstimatedLocationTransaction(
     def setUp(self):
         super().setUp()
         self.admin = self._get_admin()
+        # Unregister the notification type if it was previously registered
+        with contextlib.suppress(ImproperlyConfigured):
+            unregister_notification_type("estimated_location_info")
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True):
+            register_estimated_location_notification_types()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
@@ -280,7 +288,7 @@ class TestEstimatedLocationTransaction(
         mock_info.reset_mock()
 
         with self.subTest(
-            "Test Location not updated if it is not estimated when last ip is updated"
+            "Test Non Estimated Location not updated when last ip is updated"
         ):
             mocked_response.ip_address = device.last_ip
             device.last_ip = "172.217.22.11"
@@ -295,7 +303,10 @@ class TestEstimatedLocationTransaction(
             self.assertEqual(location.is_mobile, False)
             self.assertEqual(location.type, "outdoor")
             _verify_location_details(device, mocked_response)
-            mock_info.assert_not_called()
+            mock_info.assert_called_once_with(
+                f"Non Estimated location already set for {device.pk}. Update"
+                f" location manually as per IP: {device.last_ip}"
+            )
         mock_info.reset_mock()
 
         with self.subTest(
@@ -362,7 +373,10 @@ class TestEstimatedLocationTransaction(
             old_location.save()
             device2.last_ip = "172.217.22.10"
             device2.save()
-            mock_info.assert_not_called()
+            mock_info.assert_called_once_with(
+                f"Non Estimated location already set for {device2.pk}. Update"
+                f" location manually as per IP: {device2.last_ip}"
+            )
             device2.refresh_from_db()
 
             self.assertNotEqual(
@@ -403,40 +417,54 @@ class TestEstimatedLocationTransaction(
     @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
-        """
-        For testing notification related to location is sent to user
-        when already multiple devices with same last_ip exist.
-        """
-        mocked_response = self._mocked_client_response()
-        mock_client.return_value.city.return_value = mocked_response
-        self._create_device(last_ip="172.217.22.10")
-        # will have same location as first device
-        self._create_device(
-            name="11:22:33:44:55:66",
-            mac_address="11:22:33:44:55:66",
-            last_ip="172.217.22.10",
-        )
-        mock_info.reset_mock()
-        # device3 will not have same location as first two devices
-        # as multiple devices found for same last_ip causing conflict
-        device3 = self._create_device(
-            name="11:22:33:44:55:77",
-            mac_address="11:22:33:44:55:77",
-            last_ip="172.217.22.10",
-        )
-        mock_info.assert_not_called()
-        mock_error.assert_called_once_with(
-            f"Multiple devices with locations found with same "
-            f"last_ip {device3.last_ip}. Please resolve the conflict manually."
-        )
-        self.assertEqual(notification_qs.count(), 1)
-        notification = notification_qs.first()
-        self.assertEqual(notification.actor, device3)
-        self.assertEqual(notification.target, device3)
-        self.assertEqual(notification.type, "generic_message")
-        self.assertEqual(notification.level, "error")
-        self.assertIn(
-            "Unable to create estimated location for device",
-            notification.message,
-        )
-        self.assertIn(device3.last_ip, notification.description)
+        def _verify_notification(device, messages, notify_level="info"):
+            self.assertEqual(notification_qs.count(), 1)
+            notification = notification_qs.first()
+            device_location = getattr(device, "devicelocation", None)
+            actor = device
+            if device_location:
+                actor = device_location.location
+            self.assertEqual(notification.actor, actor)
+            self.assertEqual(notification.target, device)
+            self.assertEqual(notification.type, "estimated_location_info")
+            self.assertEqual(notification.level, notify_level)
+            for message in messages:
+                self.assertIn(message, notification.message)
+            self.assertIn(device.last_ip, notification.rendered_description)
+
+        with self.subTest("Test Notification for location create"):
+            mocked_response = self._mocked_client_response()
+            mock_client.return_value.city.return_value = mocked_response
+            device1 = self._create_device(last_ip="172.217.22.10")
+            messages = ["Estimated location", "created successfully"]
+            _verify_notification(device1, messages)
+
+        with self.subTest("Test Notification for location update"):
+            notification_qs.delete()
+            # will have same location as first device
+            device2 = self._create_device(
+                name="11:22:33:44:55:66",
+                mac_address="11:22:33:44:55:66",
+                last_ip="172.217.22.10",
+            )
+            messages = ["Estimated location", "updated successfully"]
+            _verify_notification(device2, messages)
+
+        with self.subTest("Test Error Notification for conflicting locations"):
+            device2.last_ip = device1.last_ip
+            device2.save()
+            notification_qs.delete()
+            mock_info.reset_mock()
+            mock_error.reset_mock()
+            device3 = self._create_device(
+                name="11:22:33:44:55:77",
+                mac_address="11:22:33:44:55:77",
+                last_ip=device2.last_ip,
+            )
+            mock_info.assert_not_called()
+            mock_error.assert_called_once_with(
+                f"Multiple devices with locations found with same "
+                f"last_ip {device3.last_ip}. Please resolve the conflict manually."
+            )
+            messages = ["Unable to create estimated location for device"]
+            _verify_notification(device3, messages, "error")

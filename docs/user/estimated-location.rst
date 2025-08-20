@@ -54,3 +54,15 @@ but only if the existing location is estimated.
 If two devices share the same IP address and are assigned to the same
 location, and the last IP of one of the devices is updated, the system
 will create a new estimated location for that device.
+
+Visibility of Estimated Status
+------------------------------
+
+The estimated status of a location is visible on the location page if the
+feature is enabled for the organization. The location admin page also
+includes indicators for the estimated status.
+
+- The name of the location will have suffix **(Estimated Location :
+  <ip_address>)**.
+- A warning on top of the page.
+- **Is Estimated** field.
