@@ -614,7 +614,7 @@ class TestWHOISTransaction(
                     "Failed to fetch WHOIS details for device",
                     notification.message,
                 )
-                self.assertIn(device.last_ip, notification.description)
+                self.assertIn(device.last_ip, notification.rendered_description)
 
             mock_info.reset_mock()
             mock_warn.reset_mock()

@@ -22,9 +22,17 @@ class BaseLocation(OrgMixin, AbstractLocation):
     class Meta(AbstractLocation.Meta):
         abstract = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_is_estimated = self.is_estimated
+
     def clean(self):
-        if self.is_estimated and not check_estimate_location_configured(
-            self.organization_id
+        # Raise validation error if `is_estimated` is True but estimated feature is
+        # disabled.
+        if (
+            (self._state.adding or self._initial_is_estimated != self.is_estimated)
+            and self.is_estimated
+            and not check_estimate_location_configured(self.organization_id)
         ):
             raise ValidationError(
                 {
