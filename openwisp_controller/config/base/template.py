@@ -4,8 +4,8 @@ from copy import copy
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import get_model_name
 from taggit.managers import TaggableManager
@@ -95,8 +95,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "template; these default variables will "
             "be used during schema validation."
         ),
-        load_kwargs={"object_pairs_hook": OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     __template__ = True
 
