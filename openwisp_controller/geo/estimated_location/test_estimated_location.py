@@ -635,3 +635,62 @@ class TestEstimatedLocationApi(TestEstimatedLocationMixin, TestGeoMixin, TestCas
         self.assertEqual(response.data["count"], 1)
         self.assertContains(response, location1.id)
         self.assertNotContains(response, location2.id)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_admin_filter(self):
+        org = self._get_org()
+        estimated_location = self._create_location(
+            name="location1", is_estimated=True, organization=org
+        )
+        outdoor_location = self._create_location(name="location2", organization=org)
+        indoor_location = self._create_location(
+            name="location3", organization=org, type="indoor"
+        )
+
+        estimated_device = self._create_device()
+        outdoor_device = self._create_device(
+            name="11:22:33:44:55:66", mac_address="11:22:33:44:55:66"
+        )
+        indoor_device = self._create_device(
+            name="11:22:33:44:55:77", mac_address="11:22:33:44:55:77"
+        )
+        self._create_device_location(
+            content_object=estimated_device, location=estimated_location
+        )
+        self._create_device_location(
+            content_object=outdoor_device, location=outdoor_location
+        )
+        self._create_device_location(
+            content_object=indoor_device, location=indoor_location
+        )
+
+        path = reverse("admin:config_device_changelist")
+        with self.subTest("Test All Locations Filter"):
+            response = self.client.get(path)
+            self.assertContains(response, estimated_device.id)
+            self.assertContains(response, outdoor_device.id)
+            self.assertContains(response, indoor_device.id)
+
+        with self.subTest("Test Estimated Location Filter"):
+            response = self.client.get(path, query_params={"with_geo": "estimated"})
+            self.assertContains(response, estimated_device.id)
+            self.assertNotContains(response, outdoor_device.id)
+            self.assertNotContains(response, indoor_device.id)
+
+        with self.subTest("Test Outdoor Location Filter"):
+            response = self.client.get(path, query_params={"with_geo": "outdoor"})
+            self.assertContains(response, outdoor_device.id)
+            self.assertNotContains(response, estimated_device.id)
+            self.assertNotContains(response, indoor_device.id)
+
+        with self.subTest("Test Indoor Location Filter"):
+            response = self.client.get(path, query_params={"with_geo": "indoor"})
+            self.assertContains(response, indoor_device.id)
+            self.assertNotContains(response, outdoor_device.id)
+            self.assertNotContains(response, estimated_device.id)
+
+        with self.subTest("Test Indoor Location Filter"):
+            response = self.client.get(path, query_params={"with_geo": "false"})
+            self.assertNotContains(response, indoor_device.id)
+            self.assertNotContains(response, outdoor_device.id)
+            self.assertNotContains(response, estimated_device.id)

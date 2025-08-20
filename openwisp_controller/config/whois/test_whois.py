@@ -631,6 +631,13 @@ class TestWHOISTransaction(
 class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTestCase):
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_whois_device_admin(self):
+        def no_console_warnings():
+            for error in self.get_browser_logs():
+                if error["level"] == "WARNING" and error["message"] not in [
+                    "wrong event specified: touchleave"
+                ]:
+                    self.fail(f'Browser console error: {error["message"]}')
+
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)
         self.login()
@@ -655,6 +662,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.assertIn(whois_obj.timezone, additional_text[1].text)
             self.assertIn(whois_obj.formatted_address, additional_text[2].text)
             self.assertIn(whois_obj.cidr, additional_text[3].text)
+            no_console_warnings()
 
         with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
@@ -664,6 +672,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 self.open(reverse("admin:config_device_change", args=[device.pk]))
                 self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
                 self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
+                no_console_warnings()
 
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS is disabled"
@@ -674,6 +683,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
+            no_console_warnings()
 
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS Info does not exist"
@@ -685,3 +695,4 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
+            no_console_warnings()
