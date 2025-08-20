@@ -46,7 +46,9 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Notify the user about the failure of the WHOIS task."""
         device_pk = kwargs.get("device_pk")
-        send_whois_task_notification(device_pk=device_pk, notify_type="device_error")
+        send_whois_task_notification(
+            device_pk=device_pk, notify_type="whois_device_error"
+        )
         logger.error(f"WHOIS lookup failed. Details: {exc}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 
