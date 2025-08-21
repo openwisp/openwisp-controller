@@ -44,7 +44,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
         if (
             (self._state.adding or self._initial_is_estimated != self.is_estimated)
             and self.is_estimated
-            and not WHOISService.check_estimate_location_configured(self.organization_id)
+            and not WHOISService.check_estimate_location_configured(
+                self.organization_id
+            )
         ):
             raise ValidationError(
                 {

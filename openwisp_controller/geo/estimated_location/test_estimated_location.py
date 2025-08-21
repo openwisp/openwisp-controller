@@ -431,6 +431,7 @@ class TestEstimatedLocationTransaction(
             for message in messages:
                 self.assertIn(message, notification.message)
             self.assertIn(device.last_ip, notification.rendered_description)
+            self.assertIn("#devicelocation-group", notification.target_url)
 
         with self.subTest("Test Notification for location create"):
             mocked_response = self._mocked_client_response()

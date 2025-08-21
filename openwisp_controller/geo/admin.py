@@ -111,17 +111,16 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
-        if obj and check_estimate_location_configured(obj.organization_id):
+        org_id = obj.organization_id if obj else None
+        if obj and WHOISService.check_estimate_location_configured(org_id):
             fields = fields + ("is_estimated",)
         return fields
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         obj = self.get_object(request, object_id)
-        extra_context = {
-            "estimated_configured": check_estimate_location_configured(
-                obj.organization_id
-            )
-        }
+        org_id = obj.organization_id if obj else None
+        estimated_configured = WHOISService.check_estimate_location_configured(org_id)
+        extra_context = {"estimated_configured": estimated_configured}
         return super().change_view(request, object_id, form_url, extra_context)
 
 
