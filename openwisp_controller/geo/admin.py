@@ -155,7 +155,7 @@ class DeviceLocationFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         if config_app_settings.WHOIS_CONFIGURED:
             return (
-                ("outdoor", _("Outdoor (Not Estimated)")),
+                ("outdoor", _("Outdoor")),
                 ("indoor", _("Indoor")),
                 ("estimated", _("Estimated")),
                 ("false", _("No Location")),
