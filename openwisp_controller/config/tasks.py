@@ -9,7 +9,7 @@ from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
 
-from .utils import send_api_task_notification
+from .utils import handle_error_notification, handle_recovery_notification
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,7 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
 
     # Cache the configuration here makes downloading the configuration faster.
     vpn.get_cached_configuration()
+    task_key = f"vpn_update_task:{vpn_id}"
     response = requests.post(
         endpoint,
         params={"key": auth_token},
@@ -117,17 +118,22 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     )
     if response.status_code == 200:
         logger.info(f"Triggered update webhook of VPN Server UUID: {vpn_id}")
+        handle_recovery_notification(
+            task_key,
+            instance=vpn,
+            action="update",
+        )
     else:
         logger.error(
             "Failed to update VPN Server configuration. "
             f"Response status code: {response.status_code}, "
             f"VPN Server UUID: {vpn_id}",
         )
-        send_api_task_notification(
-            "error",
+        handle_error_notification(
+            task_key,
+            response,
             instance=vpn,
             action="update",
-            status_code=response.status_code,
         )
 
 
