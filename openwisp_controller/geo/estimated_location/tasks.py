@@ -36,7 +36,7 @@ def manage_estimated_locations(device_pk, ip_address):
         with transaction.atomic():
             location = Location(**location_defaults, is_estimated=True)
             location.full_clean()
-            location.save()
+            location.save(_set_estimated=True)
             device_location.location = location
             device_location.full_clean()
             device_location.save()
@@ -72,7 +72,9 @@ def manage_estimated_locations(device_pk, ip_address):
                         setattr(current_location, attr, value)
                         update_fields.append(attr)
                 if update_fields:
-                    current_location.save(update_fields=update_fields)
+                    current_location.save(
+                        update_fields=update_fields, _set_estimated=True
+                    )
                     logger.info(
                         f"Estimated location saved successfully for {device_pk}"
                         f" for IP: {ip_address}"
