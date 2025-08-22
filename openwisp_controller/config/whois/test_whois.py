@@ -217,7 +217,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         with self.subTest(
             "Device Detail API has whois_info when WHOIS_CONFIGURED is True"
         ):
-
             response = self.client.get(
                 reverse("config_api:device_detail", args=[device.pk])
             )

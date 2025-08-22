@@ -294,7 +294,7 @@ class TestEstimatedLocationTransaction(
             device.last_ip = "172.217.22.11"
             device.devicelocation.location.is_estimated = False
             mock_client.return_value.city.return_value = self._mocked_client_response()
-            device.devicelocation.location.save()
+            device.devicelocation.location.save(_set_estimated=True)
             device.save()
             device.refresh_from_db()
 
@@ -431,6 +431,7 @@ class TestEstimatedLocationTransaction(
             for message in messages:
                 self.assertIn(message, notification.message)
             self.assertIn(device.last_ip, notification.rendered_description)
+            self.assertIn("#devicelocation-group", notification.target_url)
 
         with self.subTest("Test Notification for location create"):
             mocked_response = self._mocked_client_response()
@@ -468,3 +469,44 @@ class TestEstimatedLocationTransaction(
             )
             messages = ["Unable to create estimated location for device"]
             _verify_notification(device3, messages, "error")
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_estimate_location_status_remove(self, mock_client):
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+        device = self._create_device(last_ip="172.217.22.10")
+        location = device.devicelocation.location
+        self.assertTrue(location.is_estimated)
+        org = self._get_org()
+
+        with self.subTest(
+            "Test Estimated Status unchanged if Estimated feature is disabled"
+        ):
+            org.config_settings.estimated_location_enabled = False
+            org.config_settings.save()
+            location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
+            location.save()
+            self.assertTrue(location.is_estimated)
+            self.assertIn(f"(Estimated Location: {device.last_ip})", location.name)
+
+        with self.subTest(
+            "Test Estimated Status unchanged if Estimated feature is enabled"
+            " and desired fields not changed"
+        ):
+            org.config_settings.estimated_location_enabled = True
+            org.config_settings.save()
+            location._set_initial_values_for_changed_checked_fields()
+            location.type = "outdoor"
+            location.is_mobile = True
+            location.save()
+            self.assertTrue(location.is_estimated)
+
+        with self.subTest(
+            "Test Estimated Status changed if Estimated feature is enabled"
+            " and desired fields changed"
+        ):
+            location.geometry = GEOSGeometry("POINT(15.512124 45.898903)", srid=4326)
+            location.save()
+            self.assertFalse(location.is_estimated)
+            self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)

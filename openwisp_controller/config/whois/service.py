@@ -71,6 +71,15 @@ class WHOISService:
             )
         return org_settings
 
+    @staticmethod
+    def check_estimate_location_configured(org_id):
+        if not org_id:
+            return False
+        if not app_settings.WHOIS_CONFIGURED:
+            return False
+        org_settings = WHOISService.get_org_config_settings(org_id=org_id)
+        return getattr(org_settings, "estimated_location_enabled")
+
     @property
     def is_whois_enabled(self):
         """
@@ -85,11 +94,7 @@ class WHOISService:
         Check if the Estimated location feature is enabled.
         """
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
-        return getattr(
-            org_settings,
-            "estimated_location_enabled",
-            app_settings.ESTIMATED_LOCATION_ENABLED,
-        )
+        return getattr(org_settings, "estimated_location_enabled")
 
     def _need_whois_lookup(self, new_ip):
         """
