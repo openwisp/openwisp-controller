@@ -548,11 +548,9 @@ div.jsoneditor > div > h3.controls {
   margin-top: 45px;
   margin-left: -2px;
 }
-.jsoneditor-wrapper
-  div[data-schemapath^="root.radios"][data-schemapath$=".hwmode"] {
+.jsoneditor-wrapper div[data-schemapath^="root.radios"][data-schemapath$=".hwmode"] {
   display: none;
 }
-.jsoneditor-wrapper
-  div[data-schemapath^="root.radios"][data-schemapath$=".band"] {
+.jsoneditor-wrapper div[data-schemapath^="root.radios"][data-schemapath$=".band"] {
   display: none;
 }

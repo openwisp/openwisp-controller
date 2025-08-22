@@ -19,9 +19,7 @@ getContext = function () {
   if (contextDiv && !contextDiv.querySelector("span")) {
     contextDiv.appendChild(span);
   }
-  return document.querySelectorAll(
-    "#id_config-0-context, #id_default_values",
-  )[0];
+  return document.querySelectorAll("#id_config-0-context, #id_default_values")[0];
 };
 
 // check default_values is valid

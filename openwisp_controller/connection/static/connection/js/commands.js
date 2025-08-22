@@ -112,10 +112,7 @@ function initCommandDropdown($) {
     function (e) {
       // Hide dropdown while accessing dropdown through keyboard
       e.stopPropagation();
-      if (
-        $(".ow-device-command-option-container").has(e.relatedTarget).length ===
-        0
-      ) {
+      if ($(".ow-device-command-option-container").has(e.relatedTarget).length === 0) {
         hideDropdown();
       }
     },
@@ -150,9 +147,7 @@ function initCommandDropdown($) {
     $("#id_command_set-0-type").val(commandType);
     $("#id_command_set-0-type").trigger("change");
 
-    let element = $(
-        "#id_command_set-0-input_jsoneditor .errorlist li:first-child",
-      ),
+    let element = $("#id_command_set-0-input_jsoneditor .errorlist li:first-child"),
       schema = django._schemas[$("#id_command_set-0-input").data("schema-url")],
       message = schema[commandType].message;
 
@@ -165,9 +160,7 @@ function initCommandDropdown($) {
     // Set focus to input field inside overlay
     $("#command_set-group").css("display", "block");
     $("html").css("overflow-y", "hidden");
-    $(
-      "#id_command_set-0-input_jsoneditor input.vTextField:visible:first",
-    ).focus();
+    $("#id_command_set-0-input_jsoneditor input.vTextField:visible:first").focus();
     $("#id_command_set-0-input_jsoneditor .form-row").removeClass("errors");
 
     // Update custom validation message on command form
@@ -192,16 +185,12 @@ function initCommandOverlay($) {
         resetCommandForm();
       });
 
-      $("#device_form").on(
-        "click",
-        "#ow-command-confirm-dialog-wrapper",
-        function (e) {
-          if ($("#ow-command-confirm-dialog").has(e.target).length === 0) {
-            closeOverlay();
-            resetCommandForm();
-          }
-        },
-      );
+      $("#device_form").on("click", "#ow-command-confirm-dialog-wrapper", function (e) {
+        if ($("#ow-command-confirm-dialog").has(e.target).length === 0) {
+          closeOverlay();
+          resetCommandForm();
+        }
+      });
 
       // Hitting ESC key closes overlay
       $("body").keyup(function (e) {
@@ -283,15 +272,11 @@ function initCommandOverlay($) {
   });
 
   // Close overlay on clicking close button
-  $("#command_set-group").on(
-    "click",
-    "#ow-command-overlay-close",
-    function (e) {
-      e.preventDefault();
-      closeOverlay();
-      resetCommandForm();
-    },
-  );
+  $("#command_set-group").on("click", "#ow-command-overlay-close", function (e) {
+    e.preventDefault();
+    closeOverlay();
+    resetCommandForm();
+  });
 
   // Click handler for execute button
   $("#command_set-group").on("click", "#ow-command-submit-btn", function (e) {
@@ -321,9 +306,7 @@ function initCommandOverlay($) {
       // Show error only for input fields having error
       errors.forEach(function (el) {
         let inputName = el.path.replace(".", "[") + "]",
-          element = $(
-            `#id_command_set-0-input_jsoneditor input[name="${inputName}"]`,
-          ),
+          element = $(`#id_command_set-0-input_jsoneditor input[name="${inputName}"]`),
           errorList = element.next();
         errorList.addClass("ow-command-errorlist");
       });
@@ -465,9 +448,7 @@ function initCommandOverlay($) {
       return;
     }
 
-    let firstElement = $(
-        "#command_set-2-group fieldset .dynamic-command_set-2:first",
-      ),
+    let firstElement = $("#command_set-2-group fieldset .dynamic-command_set-2:first"),
       counter = firstElement.attr("id")
         ? String(Number(firstElement.attr("id").split("-")[2]) - 1)
         : "-1",
@@ -539,8 +520,7 @@ function initCommandOverlay($) {
   }
 
   function getCurrentCommandSchema() {
-    let schema =
-        django._schemas[$("#id_command_set-0-input").data("schema-url")],
+    let schema = django._schemas[$("#id_command_set-0-input").data("schema-url")],
       commandType = $("#id_command_set-0-type").val();
     return schema[commandType];
   }
@@ -577,9 +557,7 @@ function initCommandWebSockets($, commandWebSocket) {
 
     commandObjectFieldset.find(".field-status .readonly").html(data.status);
     commandObjectFieldset.find(".field-input .readonly").html(input);
-    commandObjectFieldset
-      .find(".field-output_data .readonly")
-      .html(data.output);
+    commandObjectFieldset.find(".field-output_data .readonly").html(data.output);
 
     // Is it required to update modified timestamp?
     // We will require to to manipulation for rendering dates tp maintain consistency
@@ -660,7 +638,5 @@ function getFormattedDateTimeString(DateTimeString) {
 }
 
 function isDeviceRecoverForm() {
-  return (
-    document.getElementsByTagName("title")[0].innerText.indexOf("Recover") > -1
-  );
+  return document.getElementsByTagName("title")[0].innerText.indexOf("Recover") > -1;
 }

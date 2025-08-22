@@ -79,8 +79,7 @@ django.jQuery(function ($) {
         // Handle cases where the AJAX request finishes after initial page load.
         // If we're editing an existing object and the initial value hasn't been set,
         // assign it now to avoid false positives in the unsaved changes warning.
-        (!isAddingNewObject() &&
-          django._owcInitialValues[templateField] === undefined)
+        (!isAddingNewObject() && django._owcInitialValues[templateField] === undefined)
       ) {
         django._owcInitialValues[templateField] = value;
         updateInitialValue = true;
@@ -217,9 +216,10 @@ django.jQuery(function ($) {
       }
       pageLoading = false;
       $("#content-main form").submit(function () {
-        $(
-          'ul.sortedm2m-items:first input[type="checkbox"][data-required="true"]',
-        ).prop("checked", false);
+        $('ul.sortedm2m-items:first input[type="checkbox"][data-required="true"]').prop(
+          "checked",
+          false,
+        );
       });
     };
   window.bindDefaultTemplateLoading = bindDefaultTemplateLoading;

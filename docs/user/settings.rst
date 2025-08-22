@@ -552,6 +552,8 @@ separately.
 Allows to specify a ``list`` of tuples for adding commands as described in
 the section: :ref:`defining_new_menu_options`.
 
+.. _openwisp_controller_organization_enabled_commands:
+
 ``OPENWISP_CONTROLLER_ORGANIZATION_ENABLED_COMMANDS``
 -----------------------------------------------------
 

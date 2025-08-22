@@ -2,16 +2,16 @@
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/italia/publiccode.yml
 
-publiccodeYmlVersion: '0.3'
+publiccodeYmlVersion: "0.3"
 name: OpenWISP Controller
-url: 'https://github.com/openwisp/openwisp-controller'
+url: "https://github.com/openwisp/openwisp-controller"
 developmentStatus: stable
 platforms:
   - linux
 softwareType: standalone/web
-releaseDate: '2022-04-29'
+releaseDate: "2022-04-29"
 softwareVersion: 1.0.0
-logo: 'openwisp.org.svg'
+logo: "openwisp.org.svg"
 categories:
   - network-management
 maintenance:
@@ -35,7 +35,7 @@ it:
 description:
   en:
     genericName: Network Management System
-    documentation: 'http://openwisp.io/docs/'
+    documentation: "http://openwisp.io/docs/"
     shortDescription: A Hackable Network Management System for the 21st Century
     longDescription: >
       OpenWISP is a software platform designed to ease and automate the
@@ -48,8 +48,8 @@ description:
       build custom networking applications in order to bring innovation in the
       network infrastructure of communities that most need it.
     videos:
-      - 'https://www.youtube.com/watch?v=MY097Y2cPQ0'
-      - 'https://www.youtube.com/watch?v=n531yTtJimU&t=4s'
+      - "https://www.youtube.com/watch?v=MY097Y2cPQ0"
+      - "https://www.youtube.com/watch?v=n531yTtJimU&t=4s"
     features:
       - Network Management & Automation
       - Special focus on wireless networks (public wifi, mesh networks, community networks, IoT)
