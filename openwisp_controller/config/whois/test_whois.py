@@ -636,14 +636,6 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             for log in self.get_browser_logs():
                 if self.browser == "chrome" and log["source"] != "console-api":
                     continue
-                # ignore errors coming from the library
-                # to reduce flakyness, if there's really
-                # a sever error the UI will not work as expected
-                elif (
-                    "/static/netjsongraph/js/src/netjsongraph.min.js" in log["message"]
-                ):
-                    print(f"ignoring library error: {log}")
-                    continue
                 elif log["message"] in ["wrong event specified: touchleave"]:
                     continue
                 browser_logs.append(log)
