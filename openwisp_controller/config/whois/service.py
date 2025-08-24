@@ -78,6 +78,8 @@ class WHOISService:
         if not app_settings.WHOIS_CONFIGURED:
             return False
         org_settings = WHOISService.get_org_config_settings(org_id=org_id)
+        # there can be case of organization having no config settings, in that case
+        # we want to fallback to global setting
         return getattr(
             org_settings,
             "estimated_location_enabled",
@@ -90,6 +92,8 @@ class WHOISService:
         Check if the WHOIS lookup feature is enabled.
         """
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
+        # there can be case of organization having no config settings, in that case
+        # we want to fallback to global setting
         return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
 
     @property
@@ -98,6 +102,8 @@ class WHOISService:
         Check if the Estimated location feature is enabled.
         """
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
+        # there can be case of organization having no config settings, in that case
+        # we want to fallback to global setting
         return getattr(
             org_settings,
             "estimated_location_enabled",
