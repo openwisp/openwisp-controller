@@ -30,12 +30,14 @@ associated with the device's public IP address and includes:
 - Timezone of the ASN's registered location
 - Coordinates (Latitude and Longitude)
 
+.. _whois_trigger_conditions:
+
 Trigger Conditions
 ------------------
 
 A WHOIS lookup is triggered automatically when:
 
-- A new device is registered.
+- A new device is registered or its last IP address is changed.
 - A device fetches its checksum.
 
 However, the lookup will only run if **all** the following conditions are
@@ -114,3 +116,16 @@ retrieved details can be viewed in the following locations:
 - **Device REST API**: See WHOIS details in the :ref:`Device List
   <device_list_whois>` and :ref:`Device Detail <device_detail_whois>`
   responses.
+
+.. _whois_older_records:
+
+Managing Older WHOIS Records
+----------------------------
+
+If a record is older than :ref:`Threshold
+<openwisp_controller_whois_refresh_threshold_days>`, it will be refreshed
+automatically.
+
+This will be triggered for the same scenarios defined in `trigger
+conditions <whois_trigger_conditions_>`_ but among the conditions **only
+WHOIS enablement is required**.
