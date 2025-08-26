@@ -536,6 +536,11 @@ class TestEstimatedLocationFieldFilters(
     def test_estimated_location_api_status_configured(self):
         org1 = self._get_org()
         org2 = self._create_org(name="org2")
+        OrganizationConfigSettings.objects.create(
+            organization=org2,
+            whois_enabled=False,
+            estimated_location_enabled=False,
+        )
         org1_location = self._create_location(
             name="org1-location", organization=org1, is_estimated=True
         )
@@ -547,7 +552,7 @@ class TestEstimatedLocationFieldFilters(
 
         with self.subTest("Test Estimated Location in Locations List"):
             path = reverse("geo_api:list_location")
-            with self.assertNumQueries(6):
+            with self.assertNumQueries(5):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -566,14 +571,14 @@ class TestEstimatedLocationFieldFilters(
             self.assertIn("is_estimated", response.data["location"]["properties"])
 
             path = reverse("geo_api:device_location", args=[org2_device.pk])
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertNotIn("is_estimated", response.data["location"]["properties"])
 
         with self.subTest("Test Estimated Location in GeoJSON List"):
             path = reverse("geo_api:location_geojson")
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
