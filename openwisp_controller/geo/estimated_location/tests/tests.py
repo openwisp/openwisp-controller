@@ -1,11 +1,13 @@
 import contextlib
 import importlib
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
@@ -174,7 +176,9 @@ class TestEstimatedLocationTransaction(
         self, mocked_client, mocked_estimated_location_task
     ):
         connect_whois_handlers()
-        mocked_client.return_value.city.return_value = self._mocked_client_response()
+        mocked_response = self._mocked_client_response()
+        mocked_client.return_value.city.return_value = mocked_response
+        threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
 
         self._task_called(
             mocked_estimated_location_task, task_name="Estimated location"
@@ -182,6 +186,8 @@ class TestEstimatedLocationTransaction(
 
         Device.objects.all().delete()
         device = self._create_device()
+        self._create_config(device=device)
+
         with self.subTest(
             "Estimated location task called when last_ip has related WhoIsInfo"
         ):
@@ -207,7 +213,6 @@ class TestEstimatedLocationTransaction(
         ):
             WHOISInfo.objects.all().delete()
             self._create_whois_info(ip_address=device.last_ip)
-            self._create_config(device=device)
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device.pk]),
                 {"key": device.key},
@@ -215,6 +220,65 @@ class TestEstimatedLocationTransaction(
             )
             self.assertEqual(response.status_code, 200)
             mocked_estimated_location_task.assert_not_called()
+        mocked_estimated_location_task.reset_mock()
+
+        with self.subTest(
+            "Estimate location task not called when address/coordinates not updated"
+        ):
+            WHOISInfo.objects.all().delete()
+            whois_obj = self._create_whois_info(ip_address=device.last_ip)
+            WHOISInfo.objects.filter(pk=whois_obj.pk).update(
+                modified=timezone.now() - timedelta(days=threshold)
+            )
+            device.save()
+            mocked_estimated_location_task.assert_not_called()
+            mocked_estimated_location_task.reset_mock()
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_estimated_location_task.assert_not_called()
+        mocked_estimated_location_task.reset_mock()
+
+        with self.subTest(
+            "Estimate location task called when address/coordinates updated"
+        ):
+            WHOISInfo.objects.all().delete()
+            whois_obj = self._create_whois_info(ip_address=device.last_ip)
+            WHOISInfo.objects.filter(pk=whois_obj.pk).update(
+                modified=timezone.now() - timedelta(days=threshold)
+            )
+            mocked_response.city.name = "New city"
+            mocked_client.return_value.city.return_value = mocked_response
+            device.save()
+            mocked_estimated_location_task.assert_called()
+            mocked_estimated_location_task.reset_mock()
+            mocked_response.city.name = "New city 2"
+            mocked_client.return_value.city.return_value = mocked_response
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_estimated_location_task.assert_called()
+
+            mocked_response.location.latitude = 60
+            mocked_client.return_value.city.return_value = mocked_response
+            device.save()
+            mocked_estimated_location_task.assert_called()
+            mocked_estimated_location_task.reset_mock()
+            mocked_response.location.longitude = 160
+            mocked_client.return_value.city.return_value = mocked_response
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_estimated_location_task.assert_called()
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)

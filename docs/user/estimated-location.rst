@@ -78,3 +78,10 @@ In REST API, the field will be visible in the :ref:`Device Location
 <location_geojson_estimated>` if the feature is **enabled**. The field can
 also be used for filtering in the location list (including geojson)
 endpoints and in the :ref:`Device List <device_list_estimated_filters>`.
+
+Managing Older Estimated Locations
+----------------------------------
+
+Whenever location related fields in WHOIS record are updated as per
+:ref:`Managing WHOIS Older Records <whois_older_records>`; the location
+will also be updated automatically.
