@@ -315,35 +315,90 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 200)
 
-    def test_non_superuser(self):
+    def test_endpoints_for_org_operators_own_org(self):
+        self.client.logout()
+        operator = self._create_operator(organizations=[self._get_org()])
+        self.client.force_login(operator)
+        list_path = self._get_path("device_command_list", self.device_id)
+        command = self._create_command(device_conn=self.device_conn)
+
+        with self.subTest("Operator can list commands for device"):
+            response = self.client.get(list_path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["results"][0]["id"], str(command.id))
+
+        with self.subTest("Operator can create command for device"):
+            self.assertEqual(Command.objects.count(), 1)
+            payload = {
+                "type": "custom",
+                "input": {"command": "echo test"},
+            }
+            response = self.client.post(
+                list_path, data=payload, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.data["type"], "Custom commands")
+            self.assertEqual(response.data["input"], "echo test")
+            self.assertEqual(Command.objects.count(), 2)
+
+        with self.subTest("Operator can retrieve command for device"):
+            detail_path = self._get_path(
+                "device_command_details", self.device_id, command.id
+            )
+            response = self.client.get(detail_path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["id"], str(command.id))
+
+    def test_endpoints_for_org_operator_different_org(self):
+        org2 = self._create_org(name="org2", slug="org2")
+        org2_admin = self._create_operator(organizations=[org2])
+        org1_command = self._create_command(device_conn=self.device_conn)
+        list_url = self._get_path("device_command_list", self.device_id)
+        detail_url = self._get_path(
+            "device_command_details", self.device_id, org1_command.id
+        )
+
+        self.client.logout()
+        self.client.force_login(org2_admin)
+
+        with self.subTest("List operation"):
+            response = self.client.get(list_url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Create operation"):
+            response = self.client.post(
+                list_url,
+                data={"type": "custom", "input": {"command": "echo test"}},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Retrieve operation"):
+            response = self.client.get(detail_url)
+            self.assertEqual(response.status_code, 404)
+
+    def test_unauthenticated_user(self):
         list_url = self._get_path("device_command_list", self.device_id)
         command = self._create_command(device_conn=self.device_conn)
-        device = command.device
+        self.client.logout()
 
-        with self.subTest("Test with unauthenticated user"):
-            self.client.logout()
+        with self.subTest("List operation"):
             response = self.client.get(list_url)
             self.assertEqual(response.status_code, 401)
 
-        with self.subTest("Test with organization member"):
-            org_user = self._create_org_user(is_admin=True)
-            org_user.user.groups.add(Group.objects.get(name="Operator"))
-            self.client.force_login(org_user.user)
-            self.assertEqual(device.organization, org_user.organization)
+        with self.subTest("Create operation"):
+            response = self.client.post(
+                list_url,
+                data={"type": "custom", "input": {"command": "echo test"}},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 401)
 
-            response = self.client.get(list_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data["count"], 1)
-
-        with self.subTest("Test with org member of different org"):
-            org2 = self._create_org(name="org2", slug="org2")
-            org2_user = self._create_user(username="org2user", email="user@org2.com")
-            self._create_org_user(organization=org2, user=org2_user, is_admin=True)
-            self.client.force_login(org2_user)
-            org2_user.groups.add(Group.objects.get(name="Operator"))
-
-            response = self.client.get(list_url)
-            self.assertEqual(response.status_code, 404)
+        with self.subTest("Retrieve operation"):
+            response = self.client.get(
+                self._get_path("device_command_details", self.device_id, command.id)
+            )
+            self.assertEqual(response.status_code, 401)
 
     def test_non_existent_command(self):
         url = self._get_path("device_command_list", self.device_id)

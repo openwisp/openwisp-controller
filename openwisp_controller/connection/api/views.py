@@ -43,6 +43,8 @@ class BaseCommandView(
     BaseProtectedAPIMixin,
     FilterByParentManaged,
 ):
+    organization_field = "device__organization"
+    organization_lookup = "organization__in"
     model = Command
     queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
