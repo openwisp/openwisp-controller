@@ -74,5 +74,7 @@ will set the ``is_estimated`` field to ``False`` and remove the
 In REST API, the field will be visible in the :ref:`Device Location
 <device_location_estimated>`, :ref:`Location list
 <location_list_estimated>`, :ref:`Location Detail
-<location_detail_estimated>` and :ref:`Location Detail (GeoJson)
-<location_geojson_estimated>` if the feature is **enabled**.
+<location_detail_estimated>` and :ref:`Location list (GeoJson)
+<location_geojson_estimated>` if the feature is **enabled**. The field can
+also be used for filtering in the location list (including geojson)
+endpoints and in the :ref:`Device List <device_list_estimated_filters>`.

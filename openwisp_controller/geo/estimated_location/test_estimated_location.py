@@ -633,11 +633,18 @@ class TestEstimatedLocationFieldFilters(
         location2 = self._create_location(
             name="location2", is_estimated=False, organization=org
         )
+        device1 = self._create_device()
+        device2 = self._create_device(
+            name="11:22:33:44:55:66", mac_address="11:22:33:44:55:66"
+        )
+        self._create_device_location(content_object=device1, location=location1)
+        self._create_device_location(content_object=device2, location=location2)
 
         path = reverse("geo_api:list_location")
 
         with self.subTest(
-            "Test Estimated Location filter available when WHOIS is configured"
+            "Test Estimated Location filter available in location list "
+            "when WHOIS is configured"
         ):
             with self.assertNumQueries(4):
                 response = self.client.get(path, {"is_estimated": True})
@@ -648,7 +655,8 @@ class TestEstimatedLocationFieldFilters(
 
         with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
-                "Test Estimated Location filter not available when WHOIS not configured"
+                "Test Estimated Location filter not available in location list "
+                "when WHOIS not configured"
             ):
                 with self.assertNumQueries(5):
                     response = self.client.get(path, {"is_estimated": True})
@@ -656,6 +664,31 @@ class TestEstimatedLocationFieldFilters(
                 self.assertEqual(response.data["count"], 2)
                 self.assertContains(response, location1.id)
                 self.assertContains(response, location2.id)
+
+        path = reverse("config_api:device_list")
+
+        with self.subTest(
+            "Test Estimated Location filter available in device list "
+            "when WHOIS is configured"
+        ):
+            with self.assertNumQueries(3):
+                response = self.client.get(path, {"geo_is_estimated": True})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            self.assertContains(response, device1.id)
+            self.assertNotContains(response, device2.id)
+
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+            with self.subTest(
+                "Test Estimated Location filter not available in device list "
+                "when WHOIS not configured"
+            ):
+                with self.assertNumQueries(3):
+                    response = self.client.get(path, {"geo_is_estimated": True})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["count"], 2)
+                self.assertContains(response, device1.id)
+                self.assertContains(response, device2.id)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_estimated_location_filter_admin(self):

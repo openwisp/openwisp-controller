@@ -76,6 +76,14 @@ If :doc:`WHOIS Lookup feature <whois>` is enabled, each device in the list
 response will also include a ``whois_info`` field with related brief WHOIS
 information.
 
+.. _device_list_estimated_filters:
+
+**Estimated Location Filters**
+
+if :doc:`Estimated Location feature <estimated-location>` is enabled,
+devices can be filtered based on the estimated nature of their location
+using the ``geo_is_estimated``.
+
 **Available filters**
 
 You can filter a list of devices based on their configuration status using
@@ -806,6 +814,8 @@ List Locations
 
 |estimated_details|
 
+Locations can also be filtered using the ``is_estimated``.
+
 **Available filters**
 
 You can filter using ``organization_id`` or ``organization_slug`` to get
@@ -940,6 +950,8 @@ List Locations with Devices Deployed (in GeoJSON Format)
 **Estimated Status**
 
 |estimated_details|
+
+Locations can also be filtered using the ``is_estimated``.
 
 **Available filters**
 
