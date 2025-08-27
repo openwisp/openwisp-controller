@@ -1,11 +1,9 @@
 import logging
-from datetime import timedelta
 
 import requests
 from celery import shared_task
 from django.contrib.gis.geos import Point
 from django.db import transaction
-from django.utils import timezone
 from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
@@ -75,7 +73,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         new_ip_address = device.last_ip
         # If there is existing WHOIS older record then it needs to be updated
         whois_obj = WHOISInfo.objects.filter(ip_address=new_ip_address).first()
-        if whois_obj and (timezone.now() - whois_obj.modified) < timedelta(days=14):
+        if whois_obj and not device.whois_service.is_older(whois_obj.modified):
             return
 
         # Host is based on the db that is used to fetch the details.
