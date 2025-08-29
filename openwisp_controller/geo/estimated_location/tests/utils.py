@@ -1,6 +1,6 @@
 from swapper import load_model
 
-from openwisp_controller.config.whois.tests_utils import CreateWHOISMixin
+from openwisp_controller.config.whois.tests.utils import CreateWHOISMixin
 
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 

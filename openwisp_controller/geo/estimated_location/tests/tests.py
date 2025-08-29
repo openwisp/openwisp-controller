@@ -11,15 +11,16 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.whois.handlers import connect_whois_handlers
-from openwisp_controller.config.whois.tests_utils import WHOISTransactionMixin
+from openwisp_controller.config.whois.tests.utils import WHOISTransactionMixin
 
-from ...tests.utils import TestAdminMixin
-from ..tests.utils import TestGeoMixin
-from .handlers import register_estimated_location_notification_types
-from .tests_utils import TestEstimatedLocationMixin
+from ....tests.utils import TestAdminMixin
+from ...tests.utils import TestGeoMixin
+from ..handlers import register_estimated_location_notification_types
+from .utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
+DeviceLocation = load_model("geo", "DeviceLocation")
 WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
@@ -510,3 +511,251 @@ class TestEstimatedLocationTransaction(
             location.save()
             self.assertFalse(location.is_estimated)
             self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)
+
+
+class TestEstimatedLocationFieldFilters(
+    TestEstimatedLocationMixin, TestGeoMixin, TestCase
+):
+    location_model = Location
+    object_location_model = DeviceLocation
+
+    def setUp(self):
+        super().setUp()
+        admin = self._create_admin()
+        self.client.force_login(admin)
+
+    def _create_device_location(self, **kwargs):
+        options = dict()
+        options.update(kwargs)
+        device_location = self.object_location_model(**options)
+        device_location.full_clean()
+        device_location.save()
+        return device_location
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_api_status_configured(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2")
+        OrganizationConfigSettings.objects.create(
+            organization=org2,
+            whois_enabled=False,
+            estimated_location_enabled=False,
+        )
+        org1_location = self._create_location(
+            name="org1-location", organization=org1, is_estimated=True
+        )
+        org2_location = self._create_location(name="org2-location", organization=org2)
+        org1_device = self._create_device(organization=org1)
+        org2_device = self._create_device(organization=org2)
+        self._create_device_location(content_object=org1_device, location=org1_location)
+        self._create_device_location(content_object=org2_device, location=org2_location)
+
+        with self.subTest("Test Estimated Location in Locations List"):
+            path = reverse("geo_api:list_location")
+            with self.assertNumQueries(5):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 2)
+            self.assertContains(response, org1_location.id)
+            self.assertContains(response, org2_location.id)
+            location1 = response.data["results"][1]
+            location2 = response.data["results"][0]
+            self.assertIn("is_estimated", location1)
+            self.assertNotIn("is_estimated", location2)
+
+        with self.subTest("Test Estimated Location in Device Locations List"):
+            path = reverse("geo_api:device_location", args=[org1_device.pk])
+            with self.assertNumQueries(4):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("is_estimated", response.data["location"]["properties"])
+
+            path = reverse("geo_api:device_location", args=[org2_device.pk])
+            with self.assertNumQueries(4):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("is_estimated", response.data["location"]["properties"])
+
+        with self.subTest("Test Estimated Location in GeoJSON List"):
+            path = reverse("geo_api:location_geojson")
+            with self.assertNumQueries(3):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 2)
+            for i in response.data["features"]:
+                if i["id"] == org1_location.id:
+                    self.assertIn("is_estimated", i["properties"])
+                    self.assertTrue(i["properties"]["is_estimated"])
+                elif i["id"] == org2_location.id:
+                    self.assertNotIn("is_estimated", i["properties"])
+                    self.assertFalse(i["properties"]["is_estimated"])
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
+    def test_estimated_location_api_status_not_configured(self):
+        org = self._get_org()
+        location = self._create_location(name="org1-location", organization=org)
+        device = self._create_device(organization=org)
+        self._create_device_location(content_object=device, location=location)
+
+        with self.subTest("Test Estimated status not in Locations List"):
+            path = reverse("geo_api:list_location")
+            with self.assertNumQueries(4):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            self.assertContains(response, location.id)
+            api_location = response.data["results"][0]
+            self.assertNotIn("is_estimated", api_location)
+
+        with self.subTest("Test Estimated status not in Device Locations List"):
+            path = reverse("geo_api:device_location", args=[device.pk])
+            with self.assertNumQueries(4):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("is_estimated", response.data["location"]["properties"])
+
+        with self.subTest("Test Estimated status not in GeoJSON Location List"):
+            path = reverse("geo_api:location_geojson")
+            with self.assertNumQueries(3):
+                response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            location_features = response.data["features"][0]
+            self.assertNotIn("is_estimated", location_features["properties"])
+            self.assertFalse(location_features["properties"].get("is_estimated", False))
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_filter_list_api(self):
+        org = self._get_org()
+        location1 = self._create_location(
+            name="location1", is_estimated=True, organization=org
+        )
+        location2 = self._create_location(
+            name="location2", is_estimated=False, organization=org
+        )
+        device1 = self._create_device()
+        device2 = self._create_device(
+            name="11:22:33:44:55:66", mac_address="11:22:33:44:55:66"
+        )
+        self._create_device_location(content_object=device1, location=location1)
+        self._create_device_location(content_object=device2, location=location2)
+
+        path = reverse("geo_api:list_location")
+
+        with self.subTest(
+            "Test Estimated Location filter available in location list "
+            "when WHOIS is configured"
+        ):
+            with self.assertNumQueries(4):
+                response = self.client.get(path, {"is_estimated": True})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            self.assertContains(response, location1.id)
+            self.assertNotContains(response, location2.id)
+
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+            with self.subTest(
+                "Test Estimated Location filter not available in location list "
+                "when WHOIS not configured"
+            ):
+                with self.assertNumQueries(5):
+                    response = self.client.get(path, {"is_estimated": True})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["count"], 2)
+                self.assertContains(response, location1.id)
+                self.assertContains(response, location2.id)
+
+        path = reverse("config_api:device_list")
+
+        with self.subTest(
+            "Test Estimated Location filter available in device list "
+            "when WHOIS is configured"
+        ):
+            with self.assertNumQueries(3):
+                response = self.client.get(path, {"geo_is_estimated": True})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            self.assertContains(response, device1.id)
+            self.assertNotContains(response, device2.id)
+
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+            with self.subTest(
+                "Test Estimated Location filter not available in device list "
+                "when WHOIS not configured"
+            ):
+                with self.assertNumQueries(3):
+                    response = self.client.get(path, {"geo_is_estimated": True})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["count"], 2)
+                self.assertContains(response, device1.id)
+                self.assertContains(response, device2.id)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_filter_admin(self):
+        org = self._get_org()
+        estimated_location = self._create_location(
+            name="location1", is_estimated=True, organization=org
+        )
+        outdoor_location = self._create_location(name="location2", organization=org)
+        indoor_location = self._create_location(
+            name="location3", organization=org, type="indoor"
+        )
+
+        estimated_device = self._create_device()
+        outdoor_device = self._create_device(
+            name="11:22:33:44:55:66", mac_address="11:22:33:44:55:66"
+        )
+        indoor_device = self._create_device(
+            name="11:22:33:44:55:77", mac_address="11:22:33:44:55:77"
+        )
+        self._create_device_location(
+            content_object=estimated_device, location=estimated_location
+        )
+        self._create_device_location(
+            content_object=outdoor_device, location=outdoor_location
+        )
+        self._create_device_location(
+            content_object=indoor_device, location=indoor_location
+        )
+
+        path = reverse("admin:config_device_changelist")
+        with self.subTest("Test All Locations Filter"):
+            response = self.client.get(path)
+            self.assertContains(response, estimated_device.id)
+            self.assertContains(response, outdoor_device.id)
+            self.assertContains(response, indoor_device.id)
+
+        with self.subTest("Test Estimated Location Filter"):
+            response = self.client.get(path, {"with_geo": "estimated"})
+            self.assertContains(response, estimated_device.id)
+            self.assertNotContains(response, outdoor_device.id)
+            self.assertNotContains(response, indoor_device.id)
+
+        with self.subTest("Test Outdoor Location Filter"):
+            response = self.client.get(path, {"with_geo": "outdoor"})
+            self.assertContains(response, outdoor_device.id)
+            self.assertNotContains(response, estimated_device.id)
+            self.assertNotContains(response, indoor_device.id)
+
+        with self.subTest("Test Indoor Location Filter"):
+            response = self.client.get(path, {"with_geo": "indoor"})
+            self.assertContains(response, indoor_device.id)
+            self.assertNotContains(response, outdoor_device.id)
+            self.assertNotContains(response, estimated_device.id)
+
+        with self.subTest("Test Indoor Location Filter"):
+            response = self.client.get(path, {"with_geo": "false"})
+            self.assertNotContains(response, indoor_device.id)
+            self.assertNotContains(response, outdoor_device.id)
+            self.assertNotContains(response, estimated_device.id)
+
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+            with self.subTest(
+                "Test Estimated Location Admin specific filters not available"
+                " when WHOIS not configured"
+            ):
+                for i in ["estimated", "outdoor", "indoor"]:
+                    response = self.client.get(path, {"with_geo": i})
+                    self.assertContains(response, estimated_device.id)
+                    self.assertContains(response, outdoor_device.id)
+                    self.assertContains(response, indoor_device.id)

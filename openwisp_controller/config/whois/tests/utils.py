@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Point
 from django.urls import reverse
 from swapper import load_model
 
-from ..tests.utils import CreateConfigMixin
+from ...tests.utils import CreateConfigMixin
 
 Device = load_model("config", "Device")
 WHOISInfo = load_model("config", "WHOISInfo")
