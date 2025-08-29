@@ -1,5 +1,6 @@
 import logging
 import socket
+import time
 from io import BytesIO, StringIO
 
 import paramiko
@@ -186,6 +187,7 @@ class Ssh(object):
         logger.info("Executing command: {0}".format(command))
         # execute commmand
         try:
+            start_cmd = time.perf_counter()
             stdin, stdout, stderr = self.shell.exec_command(command, timeout=timeout)
         # re-raise socket.timeout to avoid being catched
         # by the subsequent `except Exception as e` block
@@ -199,7 +201,9 @@ class Ssh(object):
         # workaround https://github.com/paramiko/paramiko/issues/1815
         # workaround https://github.com/paramiko/paramiko/issues/1787
         # Ref. https://docs.paramiko.org/en/stable/api/channel.html#paramiko.channel.Channel.recv_exit_status  # noqa
-        stdout.channel.status_event.wait(timeout=timeout)
+        stdout.channel.status_event.wait(
+            timeout=timeout - int(time.perf_counter() - start_cmd)
+        )
         assert stdout.channel.status_event.is_set()
         exit_status = stdout.channel.exit_status
         # log standard output
