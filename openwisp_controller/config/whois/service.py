@@ -1,14 +1,36 @@
 from datetime import timedelta
 from ipaddress import ip_address as ip_addr
 
+import requests
+from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from geoip2 import errors
+from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
 from .tasks import fetch_whois_details, manage_estimated_locations
+
+EXCEPTION_MESSAGES = {
+    errors.AddressNotFoundError: _(
+        "No WHOIS information found for IP address {ip_address}"
+    ),
+    errors.AuthenticationError: _(
+        "Authentication failed for GeoIP2 service. "
+        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
+    ),
+    errors.OutOfQueriesError: _(
+        "Your account has run out of queries for the GeoIP2 service."
+    ),
+    errors.PermissionRequiredError: _(
+        "Your account does not have permission to access this service."
+    ),
+}
 
 
 class WHOISService:
@@ -18,6 +40,20 @@ class WHOISService:
 
     def __init__(self, device):
         self.device = device
+
+    @staticmethod
+    def geoip_client():
+        """
+        Used to get a GeoIP2 web service client instance.
+        Host is based on the db that is used to fetch the details.
+        As we are using GeoLite2, 'geolite.info' host is used.
+        Refer: https://geoip2.readthedocs.io/en/latest/#sync-web-service-example
+        """
+        return geoip2_webservice.Client(
+            account_id=app_settings.WHOIS_GEOIP_ACCOUNT,
+            license_key=app_settings.WHOIS_GEOIP_KEY,
+            host="geolite.info",
+        )
 
     @staticmethod
     def get_cache_key(org_id):
@@ -115,6 +151,55 @@ class WHOISService:
             return False
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
         return org_settings.estimated_location_enabled
+
+    def process_whois_details(self, ip_address):
+        """
+        Fetch WHOIS details for a given IP address and return only
+        the relevant information.
+        """
+        ip_client = self.geoip_client()
+
+        try:
+            data = ip_client.city(ip_address=ip_address)
+
+        # Catching all possible exceptions raised by the geoip2 client
+        # and raising them with appropriate messages to be handled by the task
+        # retry mechanism.
+        except (
+            errors.AddressNotFoundError,
+            errors.AuthenticationError,
+            errors.OutOfQueriesError,
+            errors.PermissionRequiredError,
+        ) as e:
+            exc_type = type(e)
+            message = EXCEPTION_MESSAGES.get(exc_type)
+            if exc_type is errors.AddressNotFoundError:
+                message = message.format(ip_address=ip_address)
+            raise exc_type(message)
+        except requests.RequestException as e:
+            raise e
+
+        else:
+            # The attributes are always present in the response,
+            # but they can be None, so added fallbacks.
+            address = {
+                "city": data.city.name or "",
+                "country": data.country.name or "",
+                "continent": data.continent.name or "",
+                "postal": str(data.postal.code or ""),
+            }
+            coordinates = Point(
+                data.location.longitude, data.location.latitude, srid=4326
+            )
+            return {
+                "isp": data.traits.autonomous_system_organization,
+                "asn": data.traits.autonomous_system_number,
+                "timezone": data.location.time_zone,
+                "address": address,
+                "coordinates": coordinates,
+                "cidr": data.traits.network,
+                "ip_address": ip_address,
+            }
 
     def _need_whois_lookup(self, new_ip):
         """

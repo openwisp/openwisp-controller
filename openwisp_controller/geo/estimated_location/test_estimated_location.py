@@ -149,7 +149,7 @@ class TestEstimatedLocationTransaction(
     TestEstimatedLocationMixin, WHOISTransactionMixin, TransactionTestCase
 ):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+        "openwisp_controller.config.whois.service.geoip2_webservice.Client"
     )
     _ESTIMATED_LOCATION_INFO_LOGGER = (
         "openwisp_controller.geo.estimated_location.tasks.logger.info"
