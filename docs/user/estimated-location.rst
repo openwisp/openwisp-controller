@@ -16,14 +16,14 @@ Estimated Location
 Overview
 --------
 
-The Estimated Location feature automatically creates or updates a device’s
-location based on latitude and longitude information retrieved from the
-WHOIS Lookup feature.
+This feature automatically creates or updates a device’s location based on
+latitude and longitude information retrieved from the WHOIS Lookup
+feature.
 
 Trigger Conditions
 ------------------
 
-Estimated Location is triggered when:
+This feature is triggered when:
 
 - A **fresh WHOIS lookup** is performed for a device.
 - Or when a WHOIS record already exists for the device’s IP **and**:
