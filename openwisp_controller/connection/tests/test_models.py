@@ -46,7 +46,7 @@ class BaseTestModels(CreateConnectionsMixin):
         stderr_ = mock.Mock()
         stdin_.read().decode.return_value = stdin
         stdout_.read().decode.return_value = stdout
-        stdout_.channel.recv_exit_status.return_value = exit_code
+        stdout_.channel.exit_status = exit_code
         stderr_.read().decode.return_value = stderr
         return (stdin_, stdout_, stderr_)
 
