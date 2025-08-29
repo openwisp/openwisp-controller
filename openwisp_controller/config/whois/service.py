@@ -46,10 +46,15 @@ class WHOISService:
     @staticmethod
     def get_org_config_settings(org_id):
         """
-        Caches the OrganizationConfigSettings as these settings
-        are not expected to change frequently. The timeout for the cache
-        is set to the same as the checksum cache timeout for consistency
-        with DeviceChecksumView.
+        Retrieve and cache organization-specific configuration settings.
+
+        Returns a "read-only" OrganizationConfigSettings instance for the
+        given organization.
+        If no settings exist for the organization, returns an empty instance to allow
+        fallback to global defaults.
+
+        OrganizationConfigSettings are cached for performance, using the same timeout
+        as DeviceChecksumView for consistency.
         """
         OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
         Config = load_model("config", "Config")
@@ -63,7 +68,7 @@ class WHOISService:
                 )
             except OrganizationConfigSettings.DoesNotExist:
                 # If organization settings do not exist, fall back to global setting
-                return None
+                org_settings = OrganizationConfigSettings()
             cache.set(
                 cache_key,
                 org_settings,
@@ -78,7 +83,7 @@ class WHOISService:
         if not app_settings.WHOIS_CONFIGURED:
             return False
         org_settings = WHOISService.get_org_config_settings(org_id=org_id)
-        return getattr(org_settings, "estimated_location_enabled")
+        return org_settings.estimated_location_enabled
 
     @property
     def is_whois_enabled(self):
@@ -86,7 +91,7 @@ class WHOISService:
         Check if the WHOIS lookup feature is enabled.
         """
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
-        return getattr(org_settings, "whois_enabled", app_settings.WHOIS_ENABLED)
+        return org_settings.whois_enabled
 
     @property
     def is_estimated_location_enabled(self):
@@ -94,7 +99,7 @@ class WHOISService:
         Check if the Estimated location feature is enabled.
         """
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
-        return getattr(org_settings, "estimated_location_enabled")
+        return org_settings.estimated_location_enabled
 
     def _need_whois_lookup(self, new_ip):
         """

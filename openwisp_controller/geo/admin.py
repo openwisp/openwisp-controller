@@ -12,6 +12,7 @@ from django_loci.base.admin import (
 )
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.whois.service import WHOISService
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
@@ -146,16 +147,39 @@ class DeviceLocationFilter(admin.SimpleListFilter):
     title = _("has geographic position set?")
     parameter_name = "with_geo"
 
+    def __init__(self, request, params, model, model_admin):
+        super().__init__(request, params, model, model_admin)
+        if config_app_settings.WHOIS_CONFIGURED:
+            self.title = _("geographic position")
+
     def lookups(self, request, model_admin):
+        if config_app_settings.WHOIS_CONFIGURED:
+            return (
+                ("outdoor", _("Outdoor")),
+                ("indoor", _("Indoor")),
+                ("estimated", _("Estimated")),
+                ("false", _("No Location")),
+            )
         return (
             ("true", _("Yes")),
             ("false", _("No")),
         )
 
     def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(devicelocation__isnull=self.value() == "false")
-        return queryset
+        value = self.value()
+        if not value:
+            return queryset
+        if config_app_settings.WHOIS_CONFIGURED:
+            if value == "estimated":
+                return queryset.filter(devicelocation__location__is_estimated=True)
+            elif value in ("indoor", "outdoor"):
+                # estimated locations are outdoor by default
+                # so we need to exclude them from the result
+                return queryset.filter(
+                    devicelocation__location__type=value,
+                    devicelocation__location__is_estimated=False,
+                )
+        return queryset.filter(devicelocation__isnull=self.value() == "false")
 
 
 # Prepend DeviceLocationInline to config.DeviceAdminExportable

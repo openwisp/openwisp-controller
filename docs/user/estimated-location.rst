@@ -70,3 +70,11 @@ includes indicators for the estimated status.
 Changes to the ``coordinates`` and ``geometry`` of the estimated location
 will set the ``is_estimated`` field to ``False`` and remove the
 "(Estimated Location)" suffix with IP from the location name.
+
+In REST API, the field will be visible in the :ref:`Device Location
+<device_location_estimated>`, :ref:`Location list
+<location_list_estimated>`, :ref:`Location Detail
+<location_detail_estimated>` and :ref:`Location list (GeoJson)
+<location_geojson_estimated>` if the feature is **enabled**. The field can
+also be used for filtering in the location list (including geojson)
+endpoints and in the :ref:`Device List <device_list_estimated_filters>`.

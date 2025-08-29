@@ -28,6 +28,7 @@ associated with the device's public IP address and includes:
 - CIDR block assigned to the ASN
 - Physical address registered to the ASN
 - Timezone of the ASN's registered location
+- Coordinates (Latitude and Longitude)
 
 Trigger Conditions
 ------------------
