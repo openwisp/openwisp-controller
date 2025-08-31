@@ -209,7 +209,7 @@ class WHOISService:
         The lookup is not triggered if:
             - The new IP address is None or it is a private IP address.
             - The WHOIS information of new ip is present and is not older than
-              14 days.
+              X days (defined by "WHOIS_REFRESH_THRESHOLD_DAYS").
             - WHOIS is disabled in the organization settings. (query from db)
         """
 
