@@ -37,7 +37,8 @@ Trigger Conditions
 
 A WHOIS lookup is triggered automatically when:
 
-- A new device is registered or its last IP address is changed.
+- A new device is registered.
+- An existing device's last IP address is changed.
 - A device fetches its checksum.
 
 However, the lookup will only run if **all** the following conditions are
