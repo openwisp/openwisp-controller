@@ -1,12 +1,36 @@
+from datetime import timedelta
 from ipaddress import ip_address as ip_addr
 
+import requests
+from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from geoip2 import errors
+from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
 from .tasks import fetch_whois_details, manage_estimated_locations
+
+EXCEPTION_MESSAGES = {
+    errors.AddressNotFoundError: _(
+        "No WHOIS information found for IP address {ip_address}"
+    ),
+    errors.AuthenticationError: _(
+        "Authentication failed for GeoIP2 service. "
+        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
+    ),
+    errors.OutOfQueriesError: _(
+        "Your account has run out of queries for the GeoIP2 service."
+    ),
+    errors.PermissionRequiredError: _(
+        "Your account does not have permission to access this service."
+    ),
+}
 
 
 class WHOISService:
@@ -16,6 +40,20 @@ class WHOISService:
 
     def __init__(self, device):
         self.device = device
+
+    @staticmethod
+    def geoip_client():
+        """
+        Used to get a GeoIP2 web service client instance.
+        Host is based on the db that is used to fetch the details.
+        As we are using GeoLite2, 'geolite.info' host is used.
+        Refer: https://geoip2.readthedocs.io/en/latest/#sync-web-service-example
+        """
+        return geoip2_webservice.Client(
+            account_id=app_settings.WHOIS_GEOIP_ACCOUNT,
+            license_key=app_settings.WHOIS_GEOIP_KEY,
+            host="geolite.info",
+        )
 
     @staticmethod
     def get_cache_key(org_id):
@@ -42,6 +80,15 @@ class WHOISService:
         WHOISInfo = load_model("config", "WHOISInfo")
 
         return WHOISInfo.objects.filter(ip_address=ip_address)
+
+    @staticmethod
+    def is_older(datetime):
+        """
+        Check if given datetime is older than the refresh threshold.
+        """
+        return (timezone.now() - datetime) >= timedelta(
+            days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS
+        )
 
     @staticmethod
     def get_org_config_settings(org_id):
@@ -90,6 +137,8 @@ class WHOISService:
         """
         Check if the WHOIS lookup feature is enabled.
         """
+        if not app_settings.WHOIS_CONFIGURED:
+            return False
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
         return org_settings.whois_enabled
 
@@ -98,8 +147,59 @@ class WHOISService:
         """
         Check if the Estimated location feature is enabled.
         """
+        if not app_settings.WHOIS_CONFIGURED:
+            return False
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
         return org_settings.estimated_location_enabled
+
+    def process_whois_details(self, ip_address):
+        """
+        Fetch WHOIS details for a given IP address and return only
+        the relevant information.
+        """
+        ip_client = self.geoip_client()
+
+        try:
+            data = ip_client.city(ip_address=ip_address)
+
+        # Catching all possible exceptions raised by the geoip2 client
+        # and raising them with appropriate messages to be handled by the task
+        # retry mechanism.
+        except (
+            errors.AddressNotFoundError,
+            errors.AuthenticationError,
+            errors.OutOfQueriesError,
+            errors.PermissionRequiredError,
+        ) as e:
+            exc_type = type(e)
+            message = EXCEPTION_MESSAGES.get(exc_type)
+            if exc_type is errors.AddressNotFoundError:
+                message = message.format(ip_address=ip_address)
+            raise exc_type(message)
+        except requests.RequestException as e:
+            raise e
+
+        else:
+            # The attributes are always present in the response,
+            # but they can be None, so added fallbacks.
+            address = {
+                "city": data.city.name or "",
+                "country": data.country.name or "",
+                "continent": data.continent.name or "",
+                "postal": str(data.postal.code or ""),
+            }
+            coordinates = Point(
+                data.location.longitude, data.location.latitude, srid=4326
+            )
+            return {
+                "isp": data.traits.autonomous_system_organization,
+                "asn": data.traits.autonomous_system_number,
+                "timezone": data.location.time_zone,
+                "address": address,
+                "coordinates": coordinates,
+                "cidr": data.traits.network,
+                "ip_address": ip_address,
+            }
 
     def _need_whois_lookup(self, new_ip):
         """
@@ -108,7 +208,8 @@ class WHOISService:
 
         The lookup is not triggered if:
             - The new IP address is None or it is a private IP address.
-            - The WHOIS information of new ip is already present.
+            - The WHOIS information of new ip is present and is not older than
+              X days (defined by "WHOIS_REFRESH_THRESHOLD_DAYS").
             - WHOIS is disabled in the organization settings. (query from db)
         """
 
@@ -116,7 +217,8 @@ class WHOISService:
         if not self.is_valid_public_ip_address(new_ip):
             return False
 
-        if self._get_whois_info_from_db(new_ip).exists():
+        whois_obj = self._get_whois_info_from_db(ip_address=new_ip).first()
+        if whois_obj and not self.is_older(whois_obj.modified):
             return False
 
         return self.is_whois_enabled
@@ -145,7 +247,7 @@ class WHOISService:
 
         return self._get_whois_info_from_db(ip_address=ip_address).first()
 
-    def process_ip_data_and_location(self):
+    def process_ip_data_and_location(self, force_lookup=False):
         """
         Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`
         and also manage estimated locations based on the conditions of
@@ -153,12 +255,11 @@ class WHOISService:
         Tasks are triggered on commit to ensure redundant data is not created.
         """
         new_ip = self.device.last_ip
-        if self._need_whois_lookup(new_ip):
+        if force_lookup or self._need_whois_lookup(new_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
                     initial_ip_address=self.device._initial_last_ip,
-                    new_ip_address=new_ip,
                 )
             )
         # To handle the case when WHOIS already exists as in that case
@@ -170,3 +271,17 @@ class WHOISService:
                     device_pk=self.device.pk, ip_address=new_ip
                 )
             )
+
+    def update_whois_info(self):
+        """
+        Update the WHOIS information for the device.
+        """
+        ip_address = self.device.last_ip
+        if not self.is_valid_public_ip_address(ip_address):
+            return
+
+        if not self.is_whois_enabled:
+            return
+        whois_obj = WHOISService._get_whois_info_from_db(ip_address=ip_address).first()
+        if whois_obj and self.is_older(whois_obj.modified):
+            fetch_whois_details.delay(device_pk=self.device.pk, initial_ip_address=None)
