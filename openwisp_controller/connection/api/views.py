@@ -39,10 +39,7 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class BaseCommandView(
-    BaseProtectedAPIMixin,
-    FilterByParentManaged,
-):
+class BaseCommandView(RelatedDeviceProtectedAPIMixin):
     organization_field = "device__organization"
     organization_lookup = "organization__in"
     model = Command
@@ -118,35 +115,14 @@ class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CredentialSerializer
 
 
-class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
+class BaseDeviceConnection(
+    RelatedDeviceProtectedAPIMixin,
+):
+    organization_field = "device__organization"
+    organization_lookup = "organization__in"
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
-
-    def get_queryset(self):
-        return DeviceConnection.objects.prefetch_related("device")
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context["device_id"] = self.kwargs["device_id"]
-        return context
-
-    def initial(self, *args, **kwargs):
-        super().initial(*args, **kwargs)
-        self.assert_parent_exists()
-
-    def assert_parent_exists(self):
-        try:
-            assert self.get_parent_queryset().exists()
-        except (AssertionError, ValidationError):
-            device_id = self.kwargs["device_id"]
-            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
-
-    def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs["device_id"])
-
-
-class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
-    pagination_class = ListViewPagination
+    queryset = DeviceConnection.objects.prefetch_related("device")
 
     def get_queryset(self):
         return (
@@ -155,6 +131,18 @@ class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
             .filter(device_id=self.kwargs["device_id"])
             .order_by("-created")
         )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["device_id"] = self.kwargs["device_id"]
+        return context
+
+    def get_parent_queryset(self):
+        return Device.objects.filter(pk=self.kwargs["device_id"])
+
+
+class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
+    pagination_class = ListViewPagination
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
