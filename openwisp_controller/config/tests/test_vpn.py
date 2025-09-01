@@ -516,10 +516,11 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
 
     def test_vpn_server_change_invalidates_device_cache(self):
         device, vpn, template = self._create_wireguard_vpn_template()
-        with (
-            catch_signal(vpn_server_modified) as mocked_vpn_server_modified,
-            catch_signal(config_modified) as mocked_config_modified,
-        ):
+        with catch_signal(
+            vpn_server_modified
+        ) as mocked_vpn_server_modified, catch_signal(
+            config_modified
+        ) as mocked_config_modified:
             vpn.host = "localhost"
             vpn.save(update_fields=["host"])
         mocked_vpn_server_modified.assert_called_once_with(
@@ -727,9 +728,18 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
-    def test_auto_peer_configuration(self):
+    @mock.patch(
+        "openwisp_controller.config.tasks.requests.post",
+        return_value=HttpResponse(status=200),
+    )
+    def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
-        device, vpn, template = self._create_wireguard_vpn_template()
+        device, vpn, template = self._create_wireguard_vpn_template(
+            vpn_options={
+                "webhook_endpoint": "https://example.com:8080/trigger-update",
+                "auth_token": "openwisp",
+            }
+        )
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
@@ -765,46 +775,31 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                     "organization": device.organization,
                 }
             )
-            with (
-                mock.patch.object(
-                    Vpn,
-                    "invalidate_checksum_cache",
-                    return_value=vpn.invalidate_checksum_cache(),
-                ) as mocked_invalidate_checksum_cache,
-                mock.patch.object(
-                    Vpn,
-                    "get_cached_configuration",
-                    return_value=vpn.get_cached_configuration(),
-                ) as mocked_cached_configuration,
-            ):
+            with mock.patch.object(
+                Vpn,
+                "invalidate_checksum_cache",
+                return_value=vpn.invalidate_checksum_cache(),
+            ) as mocked_invalidate_checksum_cache:
                 device2.config.templates.add(template)
                 # The Vpn configuration cache is invalidated and re-populated
                 mocked_invalidate_checksum_cache.assert_called_once()
-                mocked_cached_configuration.assert_called_once()
-            # cache is invalidated and updated, hence no queries expected
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task),
+            # hence no queries expected
             with self.assertNumQueries(0):
                 vpn_config = vpn.get_config()["wireguard"][0]
             self.assertEqual(len(vpn_config.get("peers", [])), 2)
 
         with self.subTest("cache updated when a peer is deleted"):
-            with (
-                mock.patch.object(
-                    Vpn,
-                    "invalidate_checksum_cache",
-                    return_value=vpn.invalidate_checksum_cache(),
-                ) as mocked_invalidate_checksum_cache,
-                mock.patch.object(
-                    Vpn,
-                    "get_cached_configuration",
-                    return_value=vpn.get_cached_configuration(),
-                ) as mocked_cached_configuration,
-            ):
+            with mock.patch.object(
+                Vpn,
+                "invalidate_checksum_cache",
+                return_value=vpn.invalidate_checksum_cache(),
+            ) as mocked_invalidate_checksum_cache:
                 device2.delete(check_deactivated=False)
                 mocked_invalidate_checksum_cache.assert_called_once()
-                mocked_cached_configuration.assert_not_called()
-            # cache is invalidated but not updated
-            # hence we expect queries to be generated
-            with self.assertNumQueries(1):
+            # cache is invalidated and is updated by the
+            # trigger_vpn_server_endpoint task
+            with self.assertNumQueries(0):
                 vpn_config = vpn.get_config()["wireguard"][0]
             self.assertEqual(len(vpn_config.get("peers", [])), 1)
 
@@ -835,14 +830,11 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             vpn.auth_token = "super-secret-token"
             vpn.save()
             vpn_client.refresh_from_db()
-            with (
-                mock.patch(
-                    "openwisp_controller.config.tasks.logger.info"
-                ) as mocked_logger,
-                mock.patch("requests.post", return_value=HttpResponse()),
-                mock.patch(
-                    "openwisp_controller.config.tasks.handle_recovery_notification"
-                ) as mocked_recovery,
+
+            with mock.patch(
+                "openwisp_controller.config.tasks.logger.info"
+            ) as mocked_logger, mock.patch(
+                "requests.post", return_value=HttpResponse()
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
@@ -850,16 +842,9 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 mocked_logger.assert_called_once_with(
                     f"Triggered update webhook of VPN Server UUID: {vpn.pk}"
                 )
-                mocked_recovery.assert_called_once()
-                args, kwargs = mocked_recovery.call_args
-                self.assertEqual(kwargs["instance"], vpn)
-                self.assertEqual(kwargs["action"], "update")
-            with (
-                mock.patch("logging.Logger.error") as mocked_logger,
-                mock.patch("requests.post", return_value=HttpResponseNotFound()),
-                mock.patch(
-                    "openwisp_controller.config.tasks.handle_error_notification"
-                ) as mocked_error,
+
+            with mock.patch("logging.Logger.error") as mocked_logger, mock.patch(
+                "requests.post", return_value=HttpResponseNotFound()
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
@@ -868,10 +853,6 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                     "Failed to update VPN Server configuration. "
                     f"Response status code: 404, VPN Server UUID: {vpn.pk}"
                 )
-                mocked_error.assert_called_once()
-                args, kwargs = mocked_error.call_args
-                self.assertEqual(kwargs["instance"], vpn)
-                self.assertEqual(kwargs["action"], "update")
 
     def test_vpn_peers_changed(self):
         with self.subTest("VpnClient created"):
@@ -1004,9 +985,18 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 class TestVxlanTransaction(
     BaseTestVpn, TestVxlanWireguardVpnMixin, TransactionTestCase
 ):
-    def test_auto_peer_configuration(self):
+    @mock.patch(
+        "openwisp_controller.config.tasks.requests.post",
+        return_value=HttpResponse(status=200),
+    )
+    def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
-        device, vpn, template = self._create_vxlan_vpn_template()
+        device, vpn, template = self._create_vxlan_vpn_template(
+            vpn_options={
+                "webhook_endpoint": "https://example.com:8080/trigger-update",
+                "auth_token": "openwisp",
+            }
+        )
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
@@ -1033,7 +1023,8 @@ class TestVxlanTransaction(
                 }
             )
             device2.config.templates.add(template)
-            # cache is invalidated and updated, hence no queries expected
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task),
+            # hence no queries expected
             with self.assertNumQueries(0):
                 config = vpn.get_config()
             peers = json.loads(config["files"][0]["contents"])
@@ -1041,9 +1032,8 @@ class TestVxlanTransaction(
 
         with self.subTest("cache updated when a new peer is deleted"):
             device2.delete(check_deactivated=False)
-            # cache is invalidated but not updated
-            # hence we expect queries to be generated
-            with self.assertNumQueries(2):
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task)
+            with self.assertNumQueries(0):
                 config = vpn.get_config()
             peers = json.loads(config["files"][0]["contents"])
             self.assertEqual(len(peers), 1)
@@ -1863,22 +1853,18 @@ class TestZeroTierTransaction(
         mock_error.reset_mock()
         mock_requests.reset_mock()
 
-        with (
-            self.subTest(
-                "Test zerotier configuration update "
-                "with retry mechanism (recoverable errors)"
-            ),
-            mock.patch("celery.app.task.Task.request") as mock_task_request,
-        ):
+        with self.subTest(
+            "Test zerotier configuration update "
+            "with retry mechanism (recoverable errors)"
+        ), mock.patch("celery.app.task.Task.request") as mock_task_request:
             max_retries = API_TASK_RETRY_OPTIONS.get("max_retries")
             mock_task_request.called_directly = False
             config = vpn.get_config()["zerotier"][0]
             config.update({"private": True})
 
-            with (
-                self.subTest("Test update when max retry limit is not reached"),
-                self.assertRaises(Retry),
-            ):
+            with self.subTest(
+                "Test update when max retry limit is not reached"
+            ), self.assertRaises(Retry):
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
@@ -1929,10 +1915,9 @@ class TestZeroTierTransaction(
             # During the last attempt, the task will give up
             # retrying and raise a 'RequestException',
             # which will be handled and logged as an error
-            with (
-                self.subTest("Test update when max retry limit is reached"),
-                self.assertRaises(RequestException),
-            ):
+            with self.subTest(
+                "Test update when max retry limit is reached"
+            ), self.assertRaises(RequestException):
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)

@@ -47,11 +47,11 @@ class OpenwispApiTask(OpenwispCeleryTask):
             **kwargs: Arguments used by the _send_api_task_notification method
         """
         updated_config = None
-        err_msg = kwargs.get("err")
-        info_msg = kwargs.get("info")
-        vpn = kwargs.get("instance")
+        err_msg = kwargs.get('err')
+        info_msg = kwargs.get('info')
+        vpn = kwargs.get('instance')
         if send_notification:
-            task_key = f"{self.name}_{vpn.pk.hex}_last_operation"
+            task_key = f'{self.name}_{vpn.pk.hex}_last_operation'
         # Execute API call and get response
         response = fn(*args)
         if isinstance(response, tuple):
@@ -63,18 +63,19 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 handle_recovery_notification(task_key, **kwargs)
         except RequestException as e:
             if response.status_code in self._RECOVERABLE_API_CODES:
-                retry_logger = logger.warn
+                retry_logger = logger.warning
                 # When retry limit is reached, use error logging
                 if self.request.retries == self.max_retries:
                     retry_logger = logger.error
                 retry_logger(
-                    f"Try [{self.request.retries}/{self.max_retries}] "
-                    f"{err_msg}, Error: {e}"
+                    f'Try [{self.request.retries}/{self.max_retries}] '
+                    f'{err_msg}, Error: {e}'
                 )
                 raise e
-            logger.error(f"{err_msg}, Error: {e}")
+            logger.error(f'{err_msg}, Error: {e}')
             if send_notification:
-                handle_error_notification(task_key, response, **kwargs)
+                # **** THIS IS THE LINE TO CHANGE ****
+                handle_error_notification(task_key, exception=e, **kwargs)
         return (response, updated_config) if updated_config else response
 
 

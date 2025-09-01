@@ -99,41 +99,43 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
         )
 
 
-@shared_task(base=OpenwispCeleryTask)
+@shared_task(soft_time_limit=300)
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
-    Vpn = load_model("config", "Vpn")
+    Vpn = load_model('config', 'Vpn')
     try:
         vpn = Vpn.objects.get(pk=vpn_id)
     except Vpn.DoesNotExist:
-        logger.error(f"VPN Server UUID: {vpn_id} does not exist.")
+        logger.error(f'VPN Server UUID: {vpn_id} does not exist.')
         return
 
     # Cache the configuration here makes downloading the configuration faster.
     vpn.get_cached_configuration()
-    task_key = f"vpn_update_task:{vpn_id}"
-    response = requests.post(
-        endpoint,
-        params={"key": auth_token},
-        verify=False if getattr(settings, "DEBUG") else True,
-    )
-    if response.status_code == 200:
-        logger.info(f"Triggered update webhook of VPN Server UUID: {vpn_id}")
-        handle_recovery_notification(
-            task_key,
-            instance=vpn,
-            action="update",
-        )
-    else:
-        logger.error(
-            "Failed to update VPN Server configuration. "
-            f"Response status code: {response.status_code}, "
-            f"VPN Server UUID: {vpn_id}",
+    task_key = f'vpn_update_task:{vpn_id}'
+    try:
+        response = requests.post(
+            endpoint,
+            params={'key': auth_token},
+            verify=False if getattr(settings, 'DEBUG') else True,
+        ) 
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning(
+            f'Failed to update VPN Server configuration. '
+            f'Error: {str(e)}, '
+            f'VPN Server UUID: {vpn_id}'
         )
         handle_error_notification(
             task_key,
-            response,
+            exception=e,
             instance=vpn,
-            action="update",
+            action='update',
+        )
+    else:
+        logger.info(f'Triggered update webhook of VPN Server UUID: {vpn_id}')
+        handle_recovery_notification(
+            task_key,
+            instance=vpn,
+            action='update',
         )
 
 
