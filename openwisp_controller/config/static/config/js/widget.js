@@ -9,10 +9,7 @@
     removeDefaultValues = function (contextValue, defaultValues) {
       // remove default values when template is removed.
       Object.keys(prevDefaultValues).forEach(function (key) {
-        if (
-          !defaultValues.hasOwnProperty(key) &&
-          contextValue.hasOwnProperty(key)
-        ) {
+        if (!defaultValues.hasOwnProperty(key) && contextValue.hasOwnProperty(key)) {
           delete contextValue[key];
         }
       });
@@ -63,11 +60,7 @@
         }
 
         contextField.val(
-          JSON.stringify(
-            removeDefaultValues(contextValue, defaultValues),
-            null,
-            4,
-          ),
+          JSON.stringify(removeDefaultValues(contextValue, defaultValues), null, 4),
         );
         prevDefaultValues = JSON.parse(JSON.stringify(defaultValues));
         $(".flat-json-toggle-textarea").trigger("click");
@@ -147,10 +140,7 @@
     // remove powered by ace link
     advanced.find(".jsoneditor-menu a").remove();
     // add  listener to .screen-mode button for toggleScreenMode
-    advanced
-      .parents(".field-config")
-      .find(".screen-mode")
-      .click(toggleFullScreen);
+    advanced.parents(".field-config").find(".screen-mode").click(toggleFullScreen);
     // add controls to the editor header
     advanced
       .find(".jsoneditor-menu")
@@ -204,9 +194,7 @@
     $(".jsoneditor input[maxlength]:not(.has-max-length)").map((i, field) => {
       $(field).attr("data-maxlength", $(field).attr("maxLength"));
     });
-    $(".jsoneditor input[maxlength]:not(.has-max-length)").addClass(
-      "has-max-length",
-    );
+    $(".jsoneditor input[maxlength]:not(.has-max-length)").addClass("has-max-length");
   };
 
   var validateOnDefaultValuesChange = function (editor, advancedEditor) {
@@ -263,9 +251,7 @@
       disable_edit_json: true,
       startval: startval,
       keep_oneof_values: false,
-      show_errors: field.data("show-errors")
-        ? field.data("show-errors")
-        : "change",
+      show_errors: field.data("show-errors") ? field.data("show-errors") : "change",
       // if no backend selected use empty schema
       schema: backend ? schemas[backend] : {},
     };
@@ -329,9 +315,7 @@
       var contextField = $("#id_config-0-context");
       if (contextField.length) {
         var contextValue = JSON.parse(contextField.val());
-        contextField.val(
-          JSON.stringify(removeUnchangedDefaultValues(contextValue)),
-        );
+        contextField.val(JSON.stringify(removeUnchangedDefaultValues(contextValue)));
       }
       if ($advancedEl.is(":hidden")) {
         return;
@@ -370,9 +354,7 @@
     // advanced mode button
     header.find(".advanced-mode").click(function () {
       if (!window.isContextValid()) {
-        alert(
-          "Advanced mode does not work when default value field is invalid JSON!",
-        );
+        alert("Advanced mode does not work when default value field is invalid JSON!");
       } else {
         // update autogenrated advanced json editor with new data
         advancedEditor.set(JSON.parse(field.val()));
@@ -432,49 +414,44 @@
   };
 
   var bindLoadUi = function () {
-    $('.jsoneditor-raw:not([name*="__prefix__"]):not(.manual)').each(
-      function (i, el) {
-        // Add query parameters defined in the widget
-        var url,
-          queryString = "?",
-          queryParams = $(el).data("query-params");
-        if (queryParams !== undefined) {
-          var queryKeys = Object.keys(queryParams);
-          for (var j = 0; j < queryKeys.length; ++j) {
-            queryString +=
-              "&" +
-              queryKeys[j] +
-              "=" +
-              $("#" + queryParams[queryKeys[j]]).val();
+    $('.jsoneditor-raw:not([name*="__prefix__"]):not(.manual)').each(function (i, el) {
+      // Add query parameters defined in the widget
+      var url,
+        queryString = "?",
+        queryParams = $(el).data("query-params");
+      if (queryParams !== undefined) {
+        var queryKeys = Object.keys(queryParams);
+        for (var j = 0; j < queryKeys.length; ++j) {
+          queryString +=
+            "&" + queryKeys[j] + "=" + $("#" + queryParams[queryKeys[j]]).val();
+        }
+      }
+      url = $(el).data("schema-url") + queryString;
+      $.getJSON(url, function (schemas) {
+        django._schemas[$(el).data("schema-url")] = schemas;
+        var field = $(el),
+          schema = field.attr("data-schema"),
+          schemaSelector = field.attr("data-schema-selector");
+        if (schema !== undefined) {
+          loadUi(el, schema, schemas, true);
+        } else {
+          if (schemaSelector === undefined) {
+            schemaSelector = "#id_backend, #id_config-0-backend";
+          }
+          var selector = $(schemaSelector),
+            schemaKey = selector.val() || false;
+          // load first time
+          loadUi(el, schemaKey, schemas, true);
+          // reload when selector is changed
+          if (selector.length) {
+            selector.change(function () {
+              loadUi(el, selector.val(), schemas);
+            });
           }
         }
-        url = $(el).data("schema-url") + queryString;
-        $.getJSON(url, function (schemas) {
-          django._schemas[$(el).data("schema-url")] = schemas;
-          var field = $(el),
-            schema = field.attr("data-schema"),
-            schemaSelector = field.attr("data-schema-selector");
-          if (schema !== undefined) {
-            loadUi(el, schema, schemas, true);
-          } else {
-            if (schemaSelector === undefined) {
-              schemaSelector = "#id_backend, #id_config-0-backend";
-            }
-            var selector = $(schemaSelector),
-              schemaKey = selector.val() || false;
-            // load first time
-            loadUi(el, schemaKey, schemas, true);
-            // reload when selector is changed
-            if (selector.length) {
-              selector.change(function () {
-                loadUi(el, selector.val(), schemas);
-              });
-            }
-          }
-          $(`#${el.id}`).trigger("jsonschema-schemaloaded");
-        });
-      },
-    );
+        $(`#${el.id}`).trigger("jsonschema-schemaloaded");
+      });
+    });
   };
 
   $(function () {
@@ -536,8 +513,7 @@
           interf.wireless.bssid.indexOf("{{") > -1
         ) {
           try {
-            delete schema.definitions.bssid_wireless_property.properties.bssid
-              .pattern;
+            delete schema.definitions.bssid_wireless_property.properties.bssid.pattern;
           } catch (e) {}
         }
       });
@@ -830,10 +806,7 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
       return;
     }
     input.errmsg.parentNode.style.display = "none";
-    input.parentNode.className = input.parentNode.className.replace(
-      /\s?errors/g,
-      "",
-    );
+    input.parentNode.className = input.parentNode.className.replace(/\s?errors/g, "");
   },
   addTableRowError: function () {
     return;
@@ -934,10 +907,7 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
 
 // This method has been copied from jdorn/json-editor library to facilitate
 // overriding JSONEditor.defaults.editors.multiple.prototype.setValue
-JSONEditor.defaults.editors.multiple.prototype.$each = function (
-  obj,
-  callback,
-) {
+JSONEditor.defaults.editors.multiple.prototype.$each = function (obj, callback) {
   if (!obj || typeof obj !== "object") {
     return;
   }
@@ -978,10 +948,7 @@ JSONEditor.defaults.editors.multiple.prototype.$each = function (
 // contains a variable: this customization is required for validation to pass
 // (the variable name could be longer than maxlength and may not fit).
 // Later, the maxLength attribute is added back to restore validator to it's original form.
-JSONEditor.defaults.editors.multiple.prototype.setValue = function (
-  val,
-  initial,
-) {
+JSONEditor.defaults.editors.multiple.prototype.setValue = function (val, initial) {
   // Determine type by getting the first one that validates
   var self = this,
     validatorModification = {};
@@ -990,10 +957,7 @@ JSONEditor.defaults.editors.multiple.prototype.setValue = function (
     if (val && typeof val === "object") {
       Object.entries(val).forEach(function (entry) {
         if (typeof entry[1] === "string" && entry[1].indexOf("{{") > -1) {
-          if (
-            validator.schema.properties &&
-            validator.schema.properties[entry[0]]
-          ) {
+          if (validator.schema.properties && validator.schema.properties[entry[0]]) {
             validatorModification[i] = {
               propertyName: entry[0],
               maxLength: validator.schema.properties[entry[0]].maxLength,
@@ -1016,9 +980,8 @@ JSONEditor.defaults.editors.multiple.prototype.setValue = function (
 
   // Customization to restore validators starts here
   Object.entries(validatorModification).forEach(function (entry) {
-    self.validators[entry[0]].schema.properties[
-      entry[1].propertyName
-    ].maxLength = entry[1].maxLength;
+    self.validators[entry[0]].schema.properties[entry[1].propertyName].maxLength =
+      entry[1].maxLength;
   });
   // Customization to restore validators ends here
 

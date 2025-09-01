@@ -36,10 +36,7 @@ django.jQuery(function ($) {
       $('#subnetdivisionrule_set-group select[name$="-organization"]').each(
         function (index, element) {
           element = $(element);
-          if (
-            element.val() === "" ||
-            element.val() === $("#id_organization").val()
-          ) {
+          if (element.val() === "" || element.val() === $("#id_organization").val()) {
             element.val($("#id_organization").val());
             element.parent().parent().parent().hide();
           } else {
