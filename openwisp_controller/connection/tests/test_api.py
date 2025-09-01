@@ -583,7 +583,7 @@ class TestConnectionApi(
             the update strategy manually.
         """
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(
+        self.assertTrue(
             " ".join(error_msg.split()), response.data["update_strategy"][0].title()
         )
 
@@ -760,32 +760,32 @@ class TestConnectionApi(
 
             self.assertEqual(response.status_code, expected_status["create"])
 
-        # with self.subTest("Retrieve operation"):
-        #     response = self.client.get(detail_path)
-        #     self.assertEqual(response.status_code, expected_status["retrieve"])
+        with self.subTest("Retrieve operation"):
+            response = self.client.get(detail_path)
+            self.assertEqual(response.status_code, expected_status["retrieve"])
 
-        # with self.subTest("Update operation"):
-        #     response = self.client.put(
-        #         detail_path,
-        #         {
-        #             "credentials": self._get_credentials().pk,
-        #             "update_strategy": app_settings.UPDATE_STRATEGIES[1][0],
-        #             "enabled": False,
-        #             "failure_reason": "",
-        #         },
-        #         content_type="application/json",
-        #     )
-        #     self.assertEqual(response.status_code, expected_status["update"])
+        with self.subTest("Update operation"):
+            response = self.client.put(
+                detail_path,
+                {
+                    "credentials": self._get_credentials().pk,
+                    "update_strategy": app_settings.UPDATE_STRATEGIES[1][0],
+                    "enabled": False,
+                    "failure_reason": "",
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, expected_status["update"])
 
-        # with self.subTest("Partial update operation"):
-        #     response = self.client.patch(
-        #         detail_path, {"enabled": False}, content_type="application/json"
-        #     )
-        #     self.assertEqual(response.status_code, expected_status["patch"])
+        with self.subTest("Partial update operation"):
+            response = self.client.patch(
+                detail_path, {"enabled": False}, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, expected_status["patch"])
 
-        # with self.subTest("Delete operation"):
-        #     response = self.client.delete(detail_path)
-        #     self.assertEqual(response.status_code, expected_status["delete"])
+        with self.subTest("Delete operation"):
+            response = self.client.delete(detail_path)
+            self.assertEqual(response.status_code, expected_status["delete"])
 
     def test_deviceconnection_endpoints_for_org_operators_own_org(self):
         self.client.logout()
