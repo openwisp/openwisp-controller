@@ -574,7 +574,7 @@ class TestConnectionApi(
             "enabled": True,
             "failure_reason": "",
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             response = self.client.post(path, data, content_type="application/json")
         error_msg = """
             the update strategy can be determined automatically only if

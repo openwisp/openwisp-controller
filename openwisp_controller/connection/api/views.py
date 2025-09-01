@@ -1,20 +1,14 @@
-from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import pagination
-from rest_framework.exceptions import NotFound
 from rest_framework.generics import (
-    GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
 from swapper import load_model
-
-from openwisp_users.api.mixins import FilterByParentManaged
-from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 
 from ...mixins import (
     ProtectedAPIMixin,
