@@ -14,7 +14,7 @@ from taggit.managers import TaggableManager
 from ...base import ShareableOrgMixinUniqueName
 from ..settings import DEFAULT_AUTO_CERT
 from ..tasks import (
-    auto_add_template_to_existing_config,
+    auto_add_template_to_existing_configs,
     update_template_related_config_status,
 )
 from .base import BaseConfig
@@ -67,7 +67,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         default=False,
         db_index=True,
         help_text=_(
-            "whether all configurations will have this template enabled by default"
+            "whether this template is applied to all current and future devices"
+            " by default (can be unassigned manually)"
         ),
     )
     required = models.BooleanField(
@@ -153,7 +154,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             created and (instance.default or instance.required)
         ):
             transaction.on_commit(
-                lambda: auto_add_template_to_existing_config.delay(str(instance.pk))
+                lambda: auto_add_template_to_existing_configs.delay(str(instance.pk))
             )
 
     def _update_related_config_status(self):

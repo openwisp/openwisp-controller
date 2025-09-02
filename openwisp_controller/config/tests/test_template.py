@@ -14,7 +14,7 @@ from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
 from ..signals import config_modified, config_status_changed
-from ..tasks import auto_add_template_to_existing_config
+from ..tasks import auto_add_template_to_existing_configs
 from ..tasks import logger as task_logger
 from ..tasks import update_template_related_config_status
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin
@@ -544,8 +544,8 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             )
 
     @mock.patch.object(task_logger, "warning")
-    def test_auto_add_template_to_existing_config_task_failure(self, mocked_warning):
-        auto_add_template_to_existing_config.delay(uuid.uuid4())
+    def test_auto_add_template_to_existing_configs_task_failure(self, mocked_warning):
+        auto_add_template_to_existing_configs.delay(uuid.uuid4())
         mocked_warning.assert_called_once()
 
 
@@ -902,10 +902,10 @@ class TestTemplateTransaction(
         self.assertEqual(config.status, "modified")
         self.assertIn(template, config.templates.all())
 
-    @mock.patch.object(auto_add_template_to_existing_config, "delay")
-    def test_auto_add_template_to_existing_config_not_triggered(self, mocked_task):
+    @mock.patch.object(auto_add_template_to_existing_configs, "delay")
+    def test_auto_add_template_to_existing_configs_not_triggered(self, mocked_task):
         """
-        Ensure that auto_add_template_to_existing_config task is not triggered
+        Ensure that auto_add_template_to_existing_configs task is not triggered
         when a required/default template is updated.
         """
         with self.subTest("Updating default template does not trigger task"):

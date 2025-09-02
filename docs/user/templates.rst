@@ -79,7 +79,7 @@ Default Templates
     :alt: Templates enabled by default
 
 When templates are flagged as **"Enabled by default"**, they will be
-automatically assigned to new and existing devices.
+automatically assigned to all devices, **this includes existing devices**.
 
 This is a very powerful feature: **once default templates are correctly
 configured to implement the use case you need, you will only have to
@@ -95,7 +95,7 @@ default templates without the need of manual intervention from the network
 operators.
 
 An organization specific template flagged as default will be automatically
-assigned to all existing and new devices in the same organization.
+assigned to all current and future devices in the same organization.
 
 A shared default template instead will be automatically assigned to all
 existing and new devices in the system, regardless of organization.

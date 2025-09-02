@@ -38,13 +38,13 @@ def update_template_related_config_status(template_pk):
 
 
 @shared_task(soft_time_limit=7200)
-def auto_add_template_to_existing_config(template_pk):
+def auto_add_template_to_existing_configs(template_pk):
     Template = load_model("config", "Template")
     try:
         template = Template.objects.get(pk=template_pk)
     except ObjectDoesNotExist as e:
         logger.warning(
-            f'auto_add_template_to_existing_config("{template_pk}") failed: {e}'
+            f'auto_add_template_to_existing_configs("{template_pk}") failed: {e}'
         )
         return
     try:
