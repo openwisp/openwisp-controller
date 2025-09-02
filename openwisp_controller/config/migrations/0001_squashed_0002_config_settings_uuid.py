@@ -294,8 +294,8 @@ class Migration(migrations.Migration):
                         db_index=True,
                         default=False,
                         help_text=(
-                            "whether new configurations will have this "
-                            "template enabled by default"
+                            "whether this template is applied to all current and future"
+                            " devices by default (can be unassigned manually)"
                         ),
                         verbose_name="enabled by default",
                     ),
