@@ -315,35 +315,72 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 200)
 
-    def test_non_superuser(self):
-        list_url = self._get_path("device_command_list", self.device_id)
+    def _test_command_endpoints(
+        self,
+        list_path,
+        detail_path,
+        expected_status,
+    ):
+        with self.subTest("List operation"):
+            response = self.client.get(list_path)
+            self.assertEqual(response.status_code, expected_status["list"])
+
+        with self.subTest("Create operation"):
+            response = self.client.post(
+                list_path,
+                data={"type": "custom", "input": {"command": "echo test"}},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, expected_status["create"])
+
+        with self.subTest("Retrieve operation"):
+            response = self.client.get(detail_path)
+            self.assertEqual(response.status_code, expected_status["retrieve"])
+
+    def test_endpoints_for_org_operators_own_org(self):
+        self.client.logout()
+        operator = self._create_operator(organizations=[self._get_org()])
+        self.client.force_login(operator)
+        list_path = self._get_path("device_command_list", self.device_id)
         command = self._create_command(device_conn=self.device_conn)
-        device = command.device
+        detail_path = self._get_path(
+            "device_command_details", self.device_id, command.id
+        )
+        self._test_command_endpoints(
+            list_path,
+            detail_path,
+            expected_status={"list": 200, "create": 201, "retrieve": 200},
+        )
 
-        with self.subTest("Test with unauthenticated user"):
-            self.client.logout()
-            response = self.client.get(list_url)
-            self.assertEqual(response.status_code, 401)
+    def test_endpoints_for_org_operator_different_org(self):
+        org2 = self._create_org(name="org2", slug="org2")
+        org2_admin = self._create_operator(organizations=[org2])
+        org1_command = self._create_command(device_conn=self.device_conn)
+        list_path = self._get_path("device_command_list", self.device_id)
+        detail_path = self._get_path(
+            "device_command_details", self.device_id, org1_command.id
+        )
 
-        with self.subTest("Test with organization member"):
-            org_user = self._create_org_user(is_admin=True)
-            org_user.user.groups.add(Group.objects.get(name="Operator"))
-            self.client.force_login(org_user.user)
-            self.assertEqual(device.organization, org_user.organization)
+        self.client.logout()
+        self.client.force_login(org2_admin)
+        self._test_command_endpoints(
+            list_path,
+            detail_path,
+            expected_status={"list": 404, "create": 404, "retrieve": 404},
+        )
 
-            response = self.client.get(list_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data["count"], 1)
-
-        with self.subTest("Test with org member of different org"):
-            org2 = self._create_org(name="org2", slug="org2")
-            org2_user = self._create_user(username="org2user", email="user@org2.com")
-            self._create_org_user(organization=org2, user=org2_user, is_admin=True)
-            self.client.force_login(org2_user)
-            org2_user.groups.add(Group.objects.get(name="Operator"))
-
-            response = self.client.get(list_url)
-            self.assertEqual(response.status_code, 404)
+    def test_unauthenticated_user(self):
+        list_path = self._get_path("device_command_list", self.device_id)
+        command = self._create_command(device_conn=self.device_conn)
+        self.client.logout()
+        detail_path = self._get_path(
+            "device_command_details", self.device_id, command.id
+        )
+        self._test_command_endpoints(
+            list_path,
+            detail_path,
+            expected_status={"list": 401, "create": 401, "retrieve": 401},
+        )
 
     def test_non_existent_command(self):
         url = self._get_path("device_command_list", self.device_id)
@@ -497,7 +534,7 @@ class TestConnectionApi(
     def test_get_deviceconnection_list(self):
         d1 = self._create_device()
         path = reverse("connection_api:deviceconnection_list", args=(d1.pk,))
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 0)
@@ -554,7 +591,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
 
@@ -569,7 +606,7 @@ class TestConnectionApi(
             "enabled": False,
             "failure_reason": "",
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -583,7 +620,7 @@ class TestConnectionApi(
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
         self.assertEqual(dc.update_strategy, app_settings.UPDATE_STRATEGIES[0][0])
         data = {"update_strategy": app_settings.UPDATE_STRATEGIES[1][0]}
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -594,7 +631,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(10):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
@@ -697,3 +734,129 @@ class TestConnectionApi(
                 detail_api_path,
             )
             self.assertEqual(response.status_code, 403)
+
+    def _test_deviceconnection_endpoints(
+        self,
+        device_id,
+        list_path,
+        detail_path,
+        expected_status,
+    ):
+        with self.subTest("List operation"):
+            response = self.client.get(list_path)
+            self.assertEqual(response.status_code, expected_status["list"])
+
+        with self.subTest("Create operation"):
+            response = self.client.post(
+                list_path,
+                data={
+                    "credentials": self._get_credentials(name="New Credentials").pk,
+                    "update_strategy": app_settings.UPDATE_STRATEGIES[0][0],
+                    "enabled": True,
+                    "failure_reason": "",
+                },
+                content_type="application/json",
+            )
+
+            self.assertEqual(response.status_code, expected_status["create"])
+
+        with self.subTest("Retrieve operation"):
+            response = self.client.get(detail_path)
+            self.assertEqual(response.status_code, expected_status["retrieve"])
+
+        with self.subTest("Update operation"):
+            response = self.client.put(
+                detail_path,
+                {
+                    "credentials": self._get_credentials().pk,
+                    "update_strategy": app_settings.UPDATE_STRATEGIES[1][0],
+                    "enabled": False,
+                    "failure_reason": "",
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, expected_status["update"])
+
+        with self.subTest("Partial update operation"):
+            response = self.client.patch(
+                detail_path, {"enabled": False}, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, expected_status["patch"])
+
+        with self.subTest("Delete operation"):
+            response = self.client.delete(detail_path)
+            self.assertEqual(response.status_code, expected_status["delete"])
+
+    def test_deviceconnection_endpoints_for_org_operators_own_org(self):
+        self.client.logout()
+        operator = self._create_operator(organizations=[self._get_org()])
+        self.client.force_login(operator)
+        device = self._create_device()
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        list_path = reverse("connection_api:deviceconnection_list", args=(device.pk,))
+        detail_path = reverse(
+            "connection_api:deviceconnection_detail", args=(device.pk, dc.pk)
+        )
+        self._test_deviceconnection_endpoints(
+            device.pk,
+            list_path,
+            detail_path,
+            expected_status={
+                "list": 200,
+                "create": 201,
+                "retrieve": 200,
+                "update": 200,
+                "patch": 200,
+                "delete": 204,
+            },
+        )
+
+    def test_deviceconnection_endpoints_for_org_operator_different_org(self):
+        org2 = self._create_org(name="org2", slug="org2")
+        org2_operator = self._create_operator(organizations=[org2])
+        device = self._create_device()
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        list_path = reverse("connection_api:deviceconnection_list", args=(device.pk,))
+        detail_path = reverse(
+            "connection_api:deviceconnection_detail", args=(device.pk, dc.pk)
+        )
+        self.client.logout()
+        self.client.force_login(org2_operator)
+        self._test_deviceconnection_endpoints(
+            device.pk,
+            list_path,
+            detail_path,
+            expected_status={
+                "list": 404,
+                "create": 404,
+                "retrieve": 404,
+                "update": 404,
+                "patch": 404,
+                "delete": 404,
+            },
+        )
+
+    def test_deviceconnection_unauthenticated_user(self):
+        device = self._create_device()
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        list_path = reverse("connection_api:deviceconnection_list", args=(device.pk,))
+        detail_path = reverse(
+            "connection_api:deviceconnection_detail", args=(device.pk, dc.pk)
+        )
+        self.client.logout()
+        self._test_deviceconnection_endpoints(
+            device.pk,
+            list_path,
+            detail_path,
+            expected_status={
+                "list": 401,
+                "create": 401,
+                "retrieve": 401,
+                "update": 401,
+                "patch": 401,
+                "delete": 401,
+            },
+        )

@@ -1,4 +1,4 @@
-from openwisp_users.api.mixins import FilterByOrganizationManaged
+from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizationManager
 
@@ -24,9 +24,7 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
         return self._has_permissions(request, view, perm, obj)
 
 
-class RelatedDeviceProtectedAPIMixin(
-    BaseProtectedAPIMixin, FilterByOrganizationManaged
-):
+class RelatedDeviceProtectedAPIMixin(FilterByParentManaged, BaseProtectedAPIMixin):
     permission_classes = [
         IsOrganizationManager,
         RelatedDeviceModelPermission,
