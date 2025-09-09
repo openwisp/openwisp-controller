@@ -12,6 +12,8 @@ from django_loci.base.admin import (
 )
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
+from openwisp_controller.config.whois.service import WHOISService
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
@@ -98,6 +100,29 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     form = LocationForm
     inlines = [FloorPlanInline]
     list_select_related = ("organization",)
+    change_form_template = "admin/geo/location/change_form.html"
+
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        org_id = obj.organization_id if obj else None
+        if not WHOISService.check_estimate_location_configured(org_id):
+            if "is_estimated" in fields:
+                fields.remove("is_estimated")
+        return fields
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        org_id = obj.organization_id if obj else None
+        if obj and WHOISService.check_estimate_location_configured(org_id):
+            fields = fields + ("is_estimated",)
+        return fields
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        obj = self.get_object(request, object_id)
+        org_id = obj.organization_id if obj else None
+        estimated_configured = WHOISService.check_estimate_location_configured(org_id)
+        extra_context = {"estimated_configured": estimated_configured}
+        return super().change_view(request, object_id, form_url, extra_context)
 
 
 LocationAdmin.list_display.insert(1, "organization")
@@ -122,16 +147,39 @@ class DeviceLocationFilter(admin.SimpleListFilter):
     title = _("has geographic position set?")
     parameter_name = "with_geo"
 
+    def __init__(self, request, params, model, model_admin):
+        super().__init__(request, params, model, model_admin)
+        if config_app_settings.WHOIS_CONFIGURED:
+            self.title = _("geographic position")
+
     def lookups(self, request, model_admin):
+        if config_app_settings.WHOIS_CONFIGURED:
+            return (
+                ("outdoor", _("Outdoor")),
+                ("indoor", _("Indoor")),
+                ("estimated", _("Estimated")),
+                ("false", _("No Location")),
+            )
         return (
             ("true", _("Yes")),
             ("false", _("No")),
         )
 
     def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(devicelocation__isnull=self.value() == "false")
-        return queryset
+        value = self.value()
+        if not value:
+            return queryset
+        if config_app_settings.WHOIS_CONFIGURED:
+            if value == "estimated":
+                return queryset.filter(devicelocation__location__is_estimated=True)
+            elif value in ("indoor", "outdoor"):
+                # estimated locations are outdoor by default
+                # so we need to exclude them from the result
+                return queryset.filter(
+                    devicelocation__location__type=value,
+                    devicelocation__location__is_estimated=False,
+                )
+        return queryset.filter(devicelocation__isnull=self.value() == "false")
 
 
 # Prepend DeviceLocationInline to config.DeviceAdminExportable

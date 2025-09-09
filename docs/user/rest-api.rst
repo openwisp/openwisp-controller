@@ -76,6 +76,14 @@ If :doc:`WHOIS Lookup feature <whois>` is enabled, each device in the list
 response will also include a ``whois_info`` field with related brief WHOIS
 information.
 
+.. _device_list_estimated_filters:
+
+**Estimated Location Filters**
+
+if :doc:`Estimated Location feature <estimated-location>` is enabled,
+devices can be filtered based on the estimated nature of their location
+using the ``geo_is_estimated``.
+
 **Available filters**
 
 You can filter a list of devices based on their configuration status using
@@ -544,12 +552,25 @@ of certificate's organization as show in the example below:
 
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
+.. |est_loc| replace:: Estimated Location feature
+
+.. _est_loc: estimated-location.html
+
+.. |estimated_details| replace:: If |est_loc|_ is enabled, the location
+    response will also include ``is_estimated`` status field.
+
 Get Device Location
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/location/
+
+.. _device_location_estimated:
+
+**Estimated Status**
+
+|estimated_details|
 
 .. _create_device_location:
 
@@ -787,6 +808,14 @@ List Locations
 
     GET /api/v1/controller/location/
 
+.. _location_list_estimated:
+
+**Estimated Status**
+
+|estimated_details|
+
+Locations can also be filtered using the ``is_estimated``.
+
 **Available filters**
 
 You can filter using ``organization_id`` or ``organization_slug`` to get
@@ -868,6 +897,12 @@ Get Location Details
 
     GET /api/v1/controller/location/{pk}/
 
+.. _location_detail_estimated:
+
+**Estimated Status**
+
+|estimated_details|
+
 Change Location Details
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -909,6 +944,14 @@ List Locations with Devices Deployed (in GeoJSON Format)
 .. code-block:: text
 
     GET /api/v1/controller/location/geojson/
+
+.. _location_geojson_estimated:
+
+**Estimated Status**
+
+|estimated_details|
+
+Locations can also be filtered using the ``is_estimated``.
 
 **Available filters**
 
