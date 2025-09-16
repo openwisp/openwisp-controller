@@ -129,6 +129,16 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("details", models.CharField(blank=True, max_length=64, null=True)),
+                (
+                    "checksum_db",
+                    models.CharField(
+                        blank=True,
+                        help_text=("Checksum of the generated configuration."),
+                        max_length=32,
+                        null=True,
+                        verbose_name="configuration checksum",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "configuration",
