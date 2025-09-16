@@ -3,6 +3,7 @@ import logging
 import re
 from collections import defaultdict
 
+from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
@@ -100,8 +101,15 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},
     )
+    checksum_db = models.CharField(
+        _("configuration checksum"),
+        max_length=32,
+        blank=True,
+        null=True,
+        help_text=_("Checksum of the generated configuration."),
+    )
 
-    _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
+    _CHECKSUM_CACHE_TIMEOUT = ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT
     _config_context_functions = list()
     _old_backend = None
 
@@ -150,6 +158,32 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         (kept for backward compatibility with pre 0.6 versions)
         """
         return self.device.key
+
+    @cache_memoize(
+        timeout=ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT,
+        args_rewrite=get_cached_args_rewrite,
+    )
+    def get_cached_checksum(self):
+        """
+        Returns the cached configuration checksum.
+
+        Unlike `ChecksumCacheMixin.get_cached_checksum`, this returns the
+        value from the `checksum_db` field instead of recalculating it.
+        """
+        self.refresh_from_db(fields=["checksum_db"])
+        return self.checksum_db
+
+    @classmethod
+    def bulk_invalidate_get_cached_checksum(cls, query_params):
+        """
+        Bulk invalidates cached configuration checksums for matching instances
+
+        Sets status to modified if the configuration of the instance has changed.
+        """
+        for instance in cls.objects.only("id").filter(**query_params).iterator():
+            has_changed = instance.update_status_if_checksum_changed()
+            if has_changed:
+                instance.get_cached_checksum.invalidate(instance)
 
     @classmethod
     def get_template_model(cls):
@@ -276,9 +310,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             if not instance._just_created:
                 # sends only config modified signal
                 instance._send_config_modified_signal(action="m2m_templates_changed")
-            if instance.status != "modified":
-                # sends both status modified and config modified signals
-                instance.set_status_modified(send_config_modified_signal=False)
+            instance.update_status_if_checksum_changed(
+                send_config_modified_signal=False
+            )
 
     @classmethod
     def manage_vpn_clients(cls, action, instance, pk_set, **kwargs):
@@ -443,7 +477,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         except ObjectDoesNotExist:
             return
         else:
-            transaction.on_commit(config.set_status_modified)
+            transaction.on_commit(config.update_status_if_checksum_changed)
 
     @classmethod
     def register_context_function(cls, func):
@@ -541,6 +575,8 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         # check if config has been modified (so we can emit signals)
         if not created:
             self._check_changes()
+        self._invalidate_backend_instance_cache()
+        self.checksum_db = self.checksum
         self._just_created = created
         result = super().save(*args, **kwargs)
         # add default templates if config has just been created
@@ -584,8 +620,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if self.backend != current.backend:
             # storing old backend to send backend change signal after save
             self._old_backend = current.backend
-        if hasattr(self, "backend_instance"):
-            del self.backend_instance
+        self._invalidate_backend_instance_cache()
         if self.checksum != current.checksum:
             if self.status != "modified":
                 self.set_status_modified(save=False)
@@ -593,6 +628,52 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                 # config modified signal is always sent
                 # regardless of the current status
                 self._send_config_modified_after_save = True
+
+    def update_status_if_checksum_changed(
+        self, save=True, send_config_modified_signal=True
+    ):
+        """
+        Updates the instance status if its checksum has changed.
+
+        Returns:
+            bool: True if the checksum changed and an update was applied,
+            False otherwise.
+        """
+        checksum_changed = self._should_update_status_based_on_checksum()
+        if checksum_changed:
+            self.checksum_db = self.checksum
+            if self.status != "modified":
+                self.set_status_modified(
+                    save=save,
+                    send_config_modified_signal=send_config_modified_signal,
+                    extra_update_fields=["checksum_db"],
+                )
+            else:
+                # Instead of calling the "save()" method, which would
+                # trigger various signals and checks, we directly update
+                # the "checksum_db" field in the database.
+                self._meta.model.objects.filter(pk=self.pk).update(
+                    checksum_db=self.checksum_db
+                )
+        return checksum_changed
+
+    def _should_update_status_based_on_checksum(self):
+        """
+        Determines whether the config status should be updated based on
+        checksum comparison.
+
+        Returns True if:
+        - No checksum_db exists (first time)
+        - Current checksum differs from checksum_db
+
+        Returns False if:
+        - Current checksum is the same as checksum_db
+        """
+        if self.checksum_db is None:
+            # First time or no database checksum, should update
+            return True
+        self._invalidate_backend_instance_cache()
+        return self.checksum_db != self.checksum
 
     def _send_config_modified_signal(self, action):
         """
@@ -668,10 +749,12 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if save:
             self.save(update_fields=update_fields)
 
-    def set_status_modified(self, save=True, send_config_modified_signal=True):
+    def set_status_modified(
+        self, save=True, send_config_modified_signal=True, extra_update_fields=None
+    ):
         if send_config_modified_signal:
             self._send_config_modified_after_save = True
-        self._set_status("modified", save)
+        self._set_status("modified", save, extra_update_fields)
 
     def set_status_applied(self, save=True):
         self._set_status("applied", save)

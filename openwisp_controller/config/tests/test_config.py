@@ -232,7 +232,7 @@ class TestConfig(
             with patch.object(base_config_logger, "debug") as mocked_debug:
                 c.get_cached_checksum.invalidate(c)
                 self.assertEqual(len(c.get_cached_checksum()), 32)
-                mocked_debug.assert_called_once()
+                mocked_debug.assert_not_called()
 
         with self.subTest(
             "ensure fresh checksum is NOT calculated when cache is present"
@@ -250,7 +250,7 @@ class TestConfig(
                 del c.backend_instance
                 self.assertNotEqual(c.checksum, old_checksum)
                 self.assertEqual(c.get_cached_checksum(), c.checksum)
-                mocked_debug.assert_called_once()
+                mocked_debug.assert_not_called()
 
         with self.subTest("test cache invalidation when config templates are changed"):
             with patch.object(base_config_logger, "debug") as mocked_debug:
@@ -260,7 +260,7 @@ class TestConfig(
                 del c.backend_instance
                 self.assertNotEqual(c.checksum, old_checksum)
                 self.assertEqual(c.get_cached_checksum(), c.checksum)
-                mocked_debug.assert_called_once()
+                mocked_debug.assert_not_called()
 
     def test_backend_import_error(self):
         """
@@ -962,7 +962,7 @@ class TestTransactionConfig(
             vpnclient_cert.renew()
             # An additional call from cache invalidation of
             # DeviceGroupCommonName View
-            self.assertEqual(mocked_delete.call_count, 3)
+            self.assertEqual(mocked_delete.call_count, 2)
             del config.backend_instance
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()
