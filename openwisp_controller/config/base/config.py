@@ -639,7 +639,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             bool: True if the checksum changed and an update was applied,
             False otherwise.
         """
-        checksum_changed = self._should_update_status_based_on_checksum()
+        checksum_changed = self._has_configuration_checksum_changed()
         if checksum_changed:
             self.checksum_db = self.checksum
             if self.status != "modified":
@@ -649,18 +649,12 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     extra_update_fields=["checksum_db"],
                 )
             else:
-                # Instead of calling the "save()" method, which would
-                # trigger various signals and checks, we directly update
-                # the "checksum_db" field in the database.
-                self._meta.model.objects.filter(pk=self.pk).update(
-                    checksum_db=self.checksum_db
-                )
+                self._update_checksum_db(new_checksum=self.checksum_db)
         return checksum_changed
 
-    def _should_update_status_based_on_checksum(self):
+    def _has_configuration_checksum_changed(self):
         """
-        Determines whether the config status should be updated based on
-        checksum comparison.
+        Determines whether the config checksum has changed
 
         Returns True if:
         - No checksum_db exists (first time)
@@ -674,6 +668,16 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             return True
         self._invalidate_backend_instance_cache()
         return self.checksum_db != self.checksum
+
+    def _update_checksum_db(self, new_checksum=None):
+        """
+        Updates checksum_db field in the database
+
+        It does not call save() to avoid sending signals
+        and updating other fields.
+        """
+        new_checksum = new_checksum or self.checksum
+        self._meta.model.objects.filter(pk=self.pk).update(checksum_db=new_checksum)
 
     def _send_config_modified_signal(self, action):
         """
@@ -780,12 +784,20 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         # Invalidate cached property before checking checksum.
         self._invalidate_backend_instance_cache()
-        old_checksum = self.checksum
+        old_checksum = self.checksum_db
+        # Don't alter the order of the following steps.
+        # We need to set the status to deactivating before clearing the templates
+        # otherwise, the "enforce_required_templates" and "add_default_templates"
+        # methods would re-add required/default templates.
+        # The "templates_changed" receiver skips post_clear action. Thus,
+        # we need to update the checksum_db field manually.
         self.config = {}
-        self.set_status_deactivating()
+        self.set_status_deactivating(save=False)
         self.templates.clear()
-        del self.backend_instance
-        if old_checksum == self.checksum:
+        self._invalidate_backend_instance_cache()
+        self.checksum_db = self.checksum
+        self.save()
+        if old_checksum == self.checksum_db:
             # Accelerate deactivation if the configuration remains
             # unchanged (i.e. empty configuration)
             self.set_status_deactivated()
