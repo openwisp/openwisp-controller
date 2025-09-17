@@ -10,17 +10,14 @@ def populate_checksum_db(apps, schema_editor):
     for existing Config objects.
     """
     Config = load_model("config", "Config")
-    batch = []
-    batch_size = 500
-    qs = Config.objects.filter(checksum_db__isnull=True).iterator()
+    qs = (
+        Config.objects.prefetch_related("vpnclient_set", "templates")
+        .select_related("device", "device__organization__config_settings")
+        .filter(checksum_db__isnull=True)
+        .iterator(chunk_size=100)
+    )
     for config in qs:
-        config.checksum_db = config.checksum
-        batch.append(config)
-        if len(batch) >= batch_size:
-            Config.objects.bulk_update(batch, ["checksum_db"])
-            batch = []
-    if batch:
-        Config.objects.bulk_update(batch, ["checksum_db"])
+        config.update_status_if_checksum_changed()
 
 
 class Migration(migrations.Migration):

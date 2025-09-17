@@ -1412,7 +1412,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             )
         # triggers more queries because devices with conflicting addresses
         # need to be updated, luckily it does not happen often
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(8):
             self.client.get(
                 reverse("controller:device_checksum", args=[c2.device.pk]),
                 {"key": c2.device.key, "management_ip": "192.168.1.99"},
