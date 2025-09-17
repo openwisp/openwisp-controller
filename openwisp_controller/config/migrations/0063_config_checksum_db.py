@@ -35,7 +35,10 @@ def populate_checksum_db(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("config", "0060_cleanup_api_task_notification_types"),
+        (
+            "config",
+            "0062_organizationconfigsettings_approximate_location_enabled_and_more",
+        ),
     ]
 
     operations = [
