@@ -2,15 +2,17 @@ import logging
 
 import requests
 from celery import shared_task
+from django.contrib.gis.geos import Point
 from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
-from openwisp_notifications.signals import notify
 from swapper import load_model
 
+from openwisp_controller.geo.estimated_location.tasks import manage_estimated_locations
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
+from .utils import send_whois_task_notification
 
 logger = logging.getLogger(__name__)
 
@@ -43,25 +45,9 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Notify the user about the failure of the WHOIS task."""
-        Device = load_model("config", "Device")
-
         device_pk = kwargs.get("device_pk")
-        new_ip_address = kwargs.get("new_ip_address")
-        device = Device.objects.get(pk=device_pk)
-
-        notify.send(
-            sender=device,
-            type="generic_message",
-            target=device,
-            action_object=device,
-            level="error",
-            message=_(
-                "Failed to fetch WHOIS details for device"
-                " [{notification.target}]({notification.target_link})"
-            ),
-            description=_(
-                f"WHOIS details could not be fetched for ip: {new_ip_address}."
-            ),
+        send_whois_task_notification(
+            device_pk=device_pk, notify_type="whois_device_error"
         )
         logger.error(f"WHOIS lookup failed. Details: {exc}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
@@ -78,6 +64,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
     Fetches the WHOIS details of the given IP address
     and creates/updates the WHOIS record.
     """
+    Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
 
     # The task can be triggered for same ip address multiple times
@@ -85,6 +72,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
     if WHOISInfo.objects.filter(ip_address=new_ip_address).exists():
         return
 
+    device = Device.objects.get(pk=device_pk)
     # Host is based on the db that is used to fetch the details.
     # As we are using GeoLite2, 'geolite.info' host is used.
     # Refer: https://geoip2.readthedocs.io/en/latest/#sync-web-service-example
@@ -123,7 +111,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
             "continent": data.continent.name or "",
             "postal": str(data.postal.code or ""),
         }
-
+        coordinates = Point(data.location.longitude, data.location.latitude, srid=4326)
         whois_obj = WHOISInfo(
             isp=data.traits.autonomous_system_organization,
             asn=data.traits.autonomous_system_number,
@@ -131,19 +119,23 @@ def fetch_whois_details(self, device_pk, initial_ip_address, new_ip_address):
             address=address,
             cidr=data.traits.network,
             ip_address=new_ip_address,
+            coordinates=coordinates,
         )
         whois_obj.full_clean()
         whois_obj.save()
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
 
-        # the following check ensures that for a case when device last_ip
-        # is not changed and there is no related WHOIS record, we do not
-        # delete the newly created record as both `initial_ip_address` and
-        # `new_ip_address` would be same for such case.
-        if initial_ip_address != new_ip_address:
-            # If any active devices are linked to the following record,
-            # then they will trigger this task and new record gets created
-            # with latest data.
+        if device._get_organization__config_settings().estimated_location_enabled:
+            manage_estimated_locations.delay(
+                device_pk=device_pk, ip_address=new_ip_address
+            )
+
+        # delete WHOIS record for initial IP if no devices are linked to it
+        if (
+            not Device.objects.filter(_is_deactivated=False)
+            .filter(last_ip=initial_ip_address)
+            .exists()
+        ):
             delete_whois_record(ip_address=initial_ip_address)
 
 

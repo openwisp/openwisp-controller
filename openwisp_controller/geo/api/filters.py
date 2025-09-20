@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.api.filters import (
     DeviceListFilter as BaseDeviceListFilter,
 )
@@ -29,6 +30,20 @@ class DeviceListFilter(BaseDeviceListFilter):
     def filter_devicelocation(self, queryset, name, value):
         # Returns list of device that have devicelocation objects
         return queryset.exclude(devicelocation__isnull=value)
+
+    def filter_is_estimated(self, queryset, name, value):
+        return queryset.filter(devicelocation__location__is_estimated=value)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if config_app_settings.WHOIS_CONFIGURED:
+            self.filters["geo_is_estimated"] = filters.BooleanFilter(
+                field_name="devicelocation__location__is_estimated",
+                method=self.filter_is_estimated,
+            )
+            self.filters["geo_is_estimated"].label = _(
+                "Is geographic location estimated?"
+            )
 
     class Meta:
         model = BaseDeviceListFilter.Meta.model
