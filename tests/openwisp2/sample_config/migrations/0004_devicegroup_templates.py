@@ -7,25 +7,25 @@ import openwisp_controller.config.sortedm2m.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('sample_config', '0003_name_unique_per_organization'),
+        ("sample_config", "0003_name_unique_per_organization"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='devicegroup',
-            name='templates',
+            model_name="devicegroup",
+            name="templates",
             field=openwisp_controller.config.sortedm2m.fields.SortedManyToManyField(
                 blank=True,
                 help_text=(
-                    'These templates are automatically assigned to the devices '
-                    'that are part of the group. Default and required templates '
-                    'are excluded from this list. If the group of the device is '
-                    'changed, these templates will be automatically removed and '
-                    'the templates of the new group will be assigned.'
+                    "These templates are automatically assigned to the devices "
+                    "that are part of the group. Default and required templates "
+                    "are excluded from this list. If the group of the device is "
+                    "changed, these templates will be automatically removed and "
+                    "the templates of the new group will be assigned."
                 ),
-                related_name='device_group_relations',
-                to='sample_config.template',
-                verbose_name='templates',
+                related_name="device_group_relations",
+                to="sample_config.template",
+                verbose_name="templates",
             ),
         ),
     ]

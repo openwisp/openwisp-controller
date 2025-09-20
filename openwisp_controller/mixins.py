@@ -1,10 +1,10 @@
-from openwisp_users.api.mixins import FilterByOrganizationManaged
+from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizationManager
 
 
 class RelatedDeviceModelPermission(DjangoModelPermissions):
-    _device_field = 'device'
+    _device_field = "device"
 
     def _has_permissions(self, request, view, perm, obj=None):
         if request.method in self.READ_ONLY_METHOD:
@@ -12,8 +12,8 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
         if obj:
             device = getattr(obj, self._device_field)
         else:
-            device = view.get_parent_queryset()[0]
-        return perm and not device.is_deactivated()
+            device = view.get_parent_queryset().first()
+        return perm and device and not device.is_deactivated()
 
     def has_permission(self, request, view):
         perm = super().has_permission(request, view)
@@ -24,9 +24,7 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
         return self._has_permissions(request, view, perm, obj)
 
 
-class RelatedDeviceProtectedAPIMixin(
-    BaseProtectedAPIMixin, FilterByOrganizationManaged
-):
+class RelatedDeviceProtectedAPIMixin(FilterByParentManaged, BaseProtectedAPIMixin):
     permission_classes = [
         IsOrganizationManager,
         RelatedDeviceModelPermission,

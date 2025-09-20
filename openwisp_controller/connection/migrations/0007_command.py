@@ -18,16 +18,16 @@ from . import assign_command_permissions_to_groups
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('connection', '0006_name_unique_per_organization'),
-        swapper.dependency('config', 'Device'),
+        ("connection", "0006_name_unique_per_organization"),
+        swapper.dependency("config", "Device"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Command',
+            name="Command",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -36,75 +36,77 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'status',
+                    "status",
                     models.CharField(
                         choices=[
-                            ('in-progress', 'in progress'),
-                            ('success', 'success'),
-                            ('failed', 'failed'),
+                            ("in-progress", "in progress"),
+                            ("success", "success"),
+                            ("failed", "failed"),
                         ],
-                        default='in-progress',
+                        default="in-progress",
                         max_length=12,
                     ),
                 ),
                 (
-                    'type',
+                    "type",
                     models.CharField(
-                        choices=COMMAND_CHOICES
-                        if django.VERSION < (5, 0)
-                        else get_command_choices,
+                        choices=(
+                            COMMAND_CHOICES
+                            if django.VERSION < (5, 0)
+                            else get_command_choices
+                        ),
                         max_length=16,
                     ),
                 ),
                 (
-                    'input',
+                    "input",
                     jsonfield.fields.JSONField(
                         blank=True,
-                        dump_kwargs={'indent': 4},
-                        load_kwargs={'object_pairs_hook': collections.OrderedDict},
+                        dump_kwargs={"indent": 4},
+                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         null=True,
                     ),
                 ),
-                ('output', models.TextField(blank=True)),
+                ("output", models.TextField(blank=True)),
                 (
-                    'connection',
+                    "connection",
                     models.ForeignKey(
                         null=True,
                         blank=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        to=swapper.get_model_name('connection', 'DeviceConnection'),
+                        to=swapper.get_model_name("connection", "DeviceConnection"),
                     ),
                 ),
                 (
-                    'device',
+                    "device",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=swapper.get_model_name('config', 'Device'),
+                        to=swapper.get_model_name("config", "Device"),
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Command',
-                'verbose_name_plural': 'Commands',
-                'ordering': ('created',),
-                'abstract': False,
-                'swappable': swapper.swappable_setting('connection', 'Command'),
+                "verbose_name": "Command",
+                "verbose_name_plural": "Commands",
+                "ordering": ("created",),
+                "abstract": False,
+                "swappable": swapper.swappable_setting("connection", "Command"),
             },
         ),
         migrations.RunPython(

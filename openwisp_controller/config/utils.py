@@ -29,15 +29,15 @@ class ControllerResponse(HttpResponse):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self['X-Openwisp-Controller'] = 'true'
+        self["X-Openwisp-Controller"] = "true"
 
 
 def send_file(filename, contents):
     """
     returns a ``ControllerResponse`` object with an attachment
     """
-    response = ControllerResponse(contents, content_type='application/octet-stream')
-    response['Content-Disposition'] = 'attachment; filename={0}'.format(filename)
+    response = ControllerResponse(contents, content_type="application/octet-stream")
+    response["Content-Disposition"] = "attachment; filename={0}".format(filename)
     return response
 
 
@@ -48,7 +48,7 @@ def send_device_config(config, request):
     """
     update_last_ip(config.device, request)
     return send_file(
-        filename='{0}.tar.gz'.format(config.name), contents=config.generate().getvalue()
+        filename="{0}.tar.gz".format(config.name), contents=config.generate().getvalue()
     )
 
 
@@ -58,7 +58,8 @@ def send_vpn_config(vpn, request):
     tar.gz as attachment
     """
     return send_file(
-        filename='{0}.tar.gz'.format(vpn.name), contents=vpn.generate().getvalue()
+        filename="{0}.tar.gz".format(vpn.name),
+        contents=vpn.get_cached_configuration().getvalue(),
     )
 
 
@@ -66,16 +67,16 @@ def update_last_ip(device, request):
     """
     updates ``last_ip`` if necessary
     """
-    ip = request.META.get('REMOTE_ADDR')
-    management_ip = request.GET.get('management_ip')
+    ip = request.META.get("REMOTE_ADDR")
+    management_ip = request.GET.get("management_ip")
     update_fields = []
 
     if device.last_ip != ip:
         device.last_ip = ip
-        update_fields.append('last_ip')
+        update_fields.append("last_ip")
     if device.management_ip != management_ip:
         device.management_ip = management_ip
-        update_fields.append('management_ip')
+        update_fields.append("management_ip")
     if update_fields:
         device.save(update_fields=update_fields)
 
@@ -97,16 +98,16 @@ def forbid_unallowed(request, param_group, param, allowed_values=None):
     if allowed_values and not isinstance(allowed_values, list):
         allowed_values = [allowed_values]
     if allowed_values is not None and value not in allowed_values:
-        error = 'error: wrong {}\n'.format(param)
+        error = "error: wrong {}\n".format(param)
         return invalid_response(request, error, status=403)
 
 
-def invalid_response(request, error, status, content_type='text/plain'):
+def invalid_response(request, error, status, content_type="text/plain"):
     """
     logs an invalid request and returns a ``ControllerResponse``
     with the specified HTTP status code, which defaults to 403
     """
-    logger.warning(error, extra={'request': request, 'stack': True})
+    logger.warning(error, extra={"request": request, "stack": True})
     return ControllerResponse(error, content_type=content_type, status=status)
 
 
@@ -116,65 +117,65 @@ def get_controller_urls(views_module):
     """
     urls = [
         re_path(
-            'controller/device/checksum/(?P<pk>[^/]+)/$',
+            "controller/device/checksum/(?P<pk>[^/]+)/$",
             views_module.device_checksum,
-            name='device_checksum',
+            name="device_checksum",
         ),
         re_path(
-            'controller/device/download-config/(?P<pk>[^/]+)/$',
+            "controller/device/download-config/(?P<pk>[^/]+)/$",
             views_module.device_download_config,
-            name='device_download_config',
+            name="device_download_config",
         ),
         re_path(
-            'controller/device/update-info/(?P<pk>[^/]+)/$',
+            "controller/device/update-info/(?P<pk>[^/]+)/$",
             views_module.device_update_info,
-            name='device_update_info',
+            name="device_update_info",
         ),
         re_path(
-            'controller/device/report-status/(?P<pk>[^/]+)/$',
+            "controller/device/report-status/(?P<pk>[^/]+)/$",
             views_module.device_report_status,
-            name='device_report_status',
+            name="device_report_status",
         ),
         path(
-            'controller/device/register/',
+            "controller/device/register/",
             views_module.device_register,
-            name='device_register',
+            name="device_register",
         ),
         re_path(
-            'controller/vpn/checksum/(?P<pk>[^/]+)/$',
+            "controller/vpn/checksum/(?P<pk>[^/]+)/$",
             views_module.vpn_checksum,
-            name='vpn_checksum',
+            name="vpn_checksum",
         ),
         re_path(
-            'controller/vpn/download-config/(?P<pk>[^/]+)/$',
+            "controller/vpn/download-config/(?P<pk>[^/]+)/$",
             views_module.vpn_download_config,
-            name='vpn_download_config',
+            name="vpn_download_config",
         ),
         # legacy URLs
         re_path(
-            'controller/checksum/(?P<pk>[^/]+)/$',
+            "controller/checksum/(?P<pk>[^/]+)/$",
             views_module.device_checksum,
-            name='checksum_legacy',
+            name="checksum_legacy",
         ),
         re_path(
-            'controller/download-config/(?P<pk>[^/]+)/$',
+            "controller/download-config/(?P<pk>[^/]+)/$",
             views_module.device_download_config,
-            name='download_config_legacy',
+            name="download_config_legacy",
         ),
         re_path(
-            'controller/update-info/(?P<pk>[^/]+)/$',
+            "controller/update-info/(?P<pk>[^/]+)/$",
             views_module.device_update_info,
-            name='update_info_legacy',
+            name="update_info_legacy",
         ),
         re_path(
-            'controller/report-status/(?P<pk>[^/]+)/$',
+            "controller/report-status/(?P<pk>[^/]+)/$",
             views_module.device_report_status,
-            name='report_status_legacy',
+            name="report_status_legacy",
         ),
         path(
-            'controller/register/',
+            "controller/register/",
             views_module.device_register,
-            name='register_legacy',
+            name="register_legacy",
         ),
     ]
     return urls
@@ -196,7 +197,7 @@ def get_default_templates_queryset(
     if organization_id:
         queryset = queryset.filter(
             Q(organization_id=organization_id) | Q(organization_id=None)
-        ).order_by('-required', 'name')
+        ).order_by("-required", "name")
     if backend:
         queryset = queryset.filter(backend=backend)
     return queryset
@@ -204,4 +205,4 @@ def get_default_templates_queryset(
 
 def get_config_error_notification_target_url(obj, field, absolute_url=True):
     url = _get_object_link(obj._related_object(field), absolute_url)
-    return f'{url}#config-group'
+    return f"{url}#config-group"

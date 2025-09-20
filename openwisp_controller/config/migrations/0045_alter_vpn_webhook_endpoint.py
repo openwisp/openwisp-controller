@@ -5,21 +5,21 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0044_config_error_reason'),
+        ("config", "0044_config_error_reason"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vpn',
-            name='webhook_endpoint',
+            model_name="vpn",
+            name="webhook_endpoint",
             field=models.URLField(
                 blank=True,
                 help_text=(
-                    'Webhook to trigger for updating server configuration'
-                    ' (e.g. https://openwisp2.mydomain.com:8081/trigger-update)'
+                    "Webhook to trigger for updating server configuration"
+                    " (e.g. https://openwisp2.mydomain.com:8081/trigger-update)"
                 ),
                 null=True,
-                verbose_name='Webhook Endpoint',
+                verbose_name="Webhook Endpoint",
             ),
         ),
     ]

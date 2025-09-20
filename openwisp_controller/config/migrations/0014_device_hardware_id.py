@@ -6,12 +6,12 @@ from openwisp_controller.config import settings as app_settings
 
 
 class Migration(migrations.Migration):
-    dependencies = [('config', '0013_last_ip_management_ip_and_status_applied')]
+    dependencies = [("config", "0013_last_ip_management_ip_and_status_applied")]
 
     operations = [
         migrations.AddField(
-            model_name='device',
-            name='hardware_id',
+            model_name="device",
+            name="hardware_id",
             field=models.CharField(**(app_settings.HARDWARE_ID_OPTIONS)),
         )
     ]

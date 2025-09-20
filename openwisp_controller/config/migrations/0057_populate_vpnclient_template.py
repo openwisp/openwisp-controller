@@ -5,7 +5,7 @@ from django.db import migrations
 
 
 def populate_vpnclient_template(apps, schema_editor):
-    VpnClient = apps.get_model('config', 'VpnClient')
+    VpnClient = apps.get_model("config", "VpnClient")
 
     for vpn_client in VpnClient.objects.iterator():
         if vpn_client.template is None:
@@ -17,7 +17,7 @@ def populate_vpnclient_template(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0056_vpnclient_template'),
+        ("config", "0056_vpnclient_template"),
     ]
 
     operations = [

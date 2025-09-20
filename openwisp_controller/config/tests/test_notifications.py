@@ -16,9 +16,9 @@ from openwisp_controller.config.tests.utils import (
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import device_registered
 
-Vpn = load_model('config', 'Vpn')
-Device = load_model('config', 'Device')
-Notification = load_model('openwisp_notifications', 'Notification')
+Vpn = load_model("config", "Vpn")
+Device = load_model("config", "Device")
+Notification = load_model("openwisp_notifications", "Notification")
 
 notification_qs = Notification.objects.all()
 
@@ -28,11 +28,11 @@ class TestNotifications(
     TestZeroTierVpnMixin,
     TransactionTestCase,
 ):
-    app_label = 'config'
-    _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
-    _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.info'
-    _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.warn'
-    _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.error'
+    app_label = "config"
+    _ZT_SERVICE_REQUESTS = "openwisp_controller.config.api.zerotier_service.requests"
+    _ZT_API_TASKS_INFO_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.info"
+    _ZT_API_TASKS_WARN_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.warn"
+    _ZT_API_TASKS_ERR_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.error"
     # As the locmem cache does not support the redis backend cache.keys() method
     _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
 
@@ -44,25 +44,25 @@ class TestNotifications(
         device = config.device
         config.set_status_error()
 
-        self.assertEqual(config.status, 'error')
+        self.assertEqual(config.status, "error")
         self.assertEqual(notification_qs.count(), 1)
         notification = notification_qs.first()
         self.assertEqual(notification.actor, config)
         self.assertEqual(notification.target, config.device)
-        self.assertEqual(notification.type, 'config_error')
+        self.assertEqual(notification.type, "config_error")
         self.assertEqual(
             notification.email_subject,
             f'[example.com] ERROR: "{config.device}"'
-            ' configuration encountered an error',
+            " configuration encountered an error",
         )
-        expected_target_url = ('https://example.com{}#config-group').format(
-            reverse(f'admin:{self.app_label}_device_change', args=[device.id])
+        expected_target_url = ("https://example.com{}#config-group").format(
+            reverse(f"admin:{self.app_label}_device_change", args=[device.id])
         )
         self.assertEqual(
             notification.message,
             f'<p>The configuration of <a href="{expected_target_url}">{device.name}</a>'
-            ' has encountered an error. The last working configuration has been'
-            ' restored from a backup present on the filesystem of the device.</p>',
+            " has encountered an error. The last working configuration has been"
+            " restored from a backup present on the filesystem of the device.</p>",
         )
 
     def test_device_registered(self):
@@ -71,31 +71,31 @@ class TestNotifications(
         config = self._create_config()
         device = config.device
 
-        with self.subTest('is_new=True'):
+        with self.subTest("is_new=True"):
             device_registered.send(sender=Device, instance=config.device, is_new=True)
             self.assertEqual(notification_qs.count(), 1)
             notification = notification_qs.first()
             self.assertEqual(notification.actor, device)
             self.assertEqual(notification.target, device)
-            self.assertEqual(notification.type, 'device_registered')
+            self.assertEqual(notification.type, "device_registered")
             self.assertEqual(
                 notification.email_subject,
                 f'[example.com] SUCCESS: "{device}" registered successfully',
             )
-            self.assertIn('registered successfully', notification.message)
-            self.assertIn('A new device', notification.message)
+            self.assertIn("registered successfully", notification.message)
+            self.assertIn("A new device", notification.message)
 
         Notification.objects.all().delete()
 
-        with self.subTest('is_new=True'):
+        with self.subTest("is_new=True"):
             device_registered.send(sender=Device, instance=config.device, is_new=False)
             self.assertEqual(notification_qs.count(), 1)
             notification = notification_qs.first()
-            self.assertIn('The existing device', notification.message)
+            self.assertIn("The existing device", notification.message)
 
-    @patch('openwisp_notifications.types.NOTIFICATION_TYPES', {})
-    @patch('openwisp_utils.admin_theme.dashboard.DASHBOARD_CHARTS', {})
-    @patch('openwisp_utils.admin_theme.menu.MENU', {})
+    @patch("openwisp_notifications.types.NOTIFICATION_TYPES", {})
+    @patch("openwisp_utils.admin_theme.dashboard.DASHBOARD_CHARTS", {})
+    @patch("openwisp_utils.admin_theme.menu.MENU", {})
     def test_default_notification_type_already_unregistered(self):
         # Simulates if 'default notification type is already unregistered
         # by some other module
@@ -131,7 +131,7 @@ class TestNotifications(
             # For controller auth and ip assignment
             self._get_mock_response(200),
         ]
-        mock_locmem_cache_keys.return_value = ['test_zt_api_tasks_notification_key']
+        mock_locmem_cache_keys.return_value = ["test_zt_api_tasks_notification_key"]
         vpn = self._create_zerotier_vpn()
         self.assertEqual(Vpn.objects.count(), 1)
         notification_qs = Notification.objects.all()
@@ -143,7 +143,7 @@ class TestNotifications(
         mock_requests.reset_mock()
 
         with self.subTest(
-            'Test no notifications are generated for the vpn server update'
+            "Test no notifications are generated for the vpn server update"
         ):
             mock_requests.get.side_effect = [
                 # For node status
@@ -156,8 +156,8 @@ class TestNotifications(
                 self._get_mock_response(200),
             ]
             # Let's update the vpn config
-            config = vpn.get_config()['zerotier'][0]
-            config.update({'private': True})
+            config = vpn.get_config()["zerotier"][0]
+            config.update({"private": True})
             vpn.full_clean()
             vpn.save()
             self.assertEqual(mock_info.call_count, 2)
@@ -169,17 +169,17 @@ class TestNotifications(
 
         with self.subTest(
             (
-                'Test no notifications are generated for '
-                'the vpn server api tasks (retry mechanism)'
+                "Test no notifications are generated for "
+                "the vpn server api tasks (retry mechanism)"
             )
-        ), patch('celery.app.task.Task.request') as mock_task_request:
-            max_retries = API_TASK_RETRY_OPTIONS.get('max_retries')
+        ), patch("celery.app.task.Task.request") as mock_task_request:
+            max_retries = API_TASK_RETRY_OPTIONS.get("max_retries")
             mock_task_request.called_directly = False
-            config = vpn.get_config()['zerotier'][0]
-            config.update({'private': True})
+            config = vpn.get_config()["zerotier"][0]
+            config.update({"private": True})
 
             with self.subTest(
-                'Test notification when update when max retry limit is not reached'
+                "Test notification when update when max retry limit is not reached"
             ), self.assertRaises(Retry):
                 mock_requests.get.side_effect = [
                     # For node status
@@ -210,7 +210,7 @@ class TestNotifications(
             mock_requests.reset_mock()
 
             with self.subTest(
-                'Test notification when update when max retry limit is reached'
+                "Test notification when update when max retry limit is reached"
             ), self.assertRaises(RequestException):
                 mock_requests.get.side_effect = [
                     # For node status
@@ -241,10 +241,10 @@ class TestNotifications(
             mock_requests.reset_mock()
 
         with self.subTest(
-            'Test notifications are generated for API tasks (unrecoverable errors)'
+            "Test notifications are generated for API tasks (unrecoverable errors)"
         ):
             with self.subTest(
-                'Test error notification on failure of first call (update network)'
+                "Test error notification on failure of first call (update network)"
             ):
                 # mock_get.return_value = None
                 mock_requests.get.side_effect = [
@@ -257,12 +257,12 @@ class TestNotifications(
                     # and cache.get(task_key) will be 'None'
                     self._get_mock_response(
                         400,
-                        response={'message': 'body JSON is invalid'},
+                        response={"message": "body JSON is invalid"},
                         exc=RequestException,
                     ),
                 ]
-                config = vpn.get_config()['zerotier'][0]
-                config.update({'private': True})
+                config = vpn.get_config()["zerotier"][0]
+                config.update({"private": True})
                 vpn.full_clean()
                 vpn.save()
                 self.assertEqual(mock_info.call_count, 0)
@@ -273,9 +273,9 @@ class TestNotifications(
                 notification = notification_qs.first()
                 self.assertEqual(notification.actor, vpn)
                 self.assertEqual(notification.target, vpn)
-                self.assertEqual(notification.type, 'api_task_error')
+                self.assertEqual(notification.type, "generic_message")
                 self.assertIn(
-                    'Unable to perform update operation', notification.message
+                    "Unable to perform update operation", notification.message
                 )
 
             mock_info.reset_mock()
@@ -285,8 +285,8 @@ class TestNotifications(
 
             with self.subTest(
                 (
-                    'Test recovery notification on first call (update network)'
-                    'and error notification on second call (update network member)'
+                    "Test recovery notification on first call (update network)"
+                    "and error notification on second call (update network member)"
                 )
             ):
                 mock_requests.get.side_effect = [
@@ -304,8 +304,8 @@ class TestNotifications(
                         exc=RequestException,
                     ),
                 ]
-                config = vpn.get_config()['zerotier'][0]
-                config.update({'private': True})
+                config = vpn.get_config()["zerotier"][0]
+                config.update({"private": True})
                 vpn.full_clean()
                 vpn.save()
                 self.assertEqual(notification_qs.count(), 2)
@@ -315,16 +315,16 @@ class TestNotifications(
                 self.assertEqual(mock_info.call_count, 1)
                 self.assertEqual(notification_recovery.actor, vpn)
                 self.assertEqual(notification_recovery.target, vpn)
-                self.assertEqual(notification_recovery.type, 'api_task_recovery')
-                self.assertIn('The update operation on', notification_recovery.message)
+                self.assertEqual(notification_recovery.type, "generic_message")
+                self.assertIn("The update operation on", notification_recovery.message)
                 # For unrecoverable error
                 self.assertEqual(mock_warn.call_count, 0)
                 self.assertEqual(mock_error.call_count, 1)
                 self.assertEqual(notification_error.actor, vpn)
                 self.assertEqual(notification_error.target, vpn)
-                self.assertEqual(notification_error.type, 'api_task_error')
+                self.assertEqual(notification_error.type, "generic_message")
                 self.assertIn(
-                    'Unable to perform update member operation',
+                    "Unable to perform update member operation",
                     notification_error.message,
                 )
 
@@ -333,7 +333,7 @@ class TestNotifications(
             mock_requests.reset_mock()
             notification_qs.delete()
 
-        with self.subTest('Test no notifications are generated for vpn deletion'):
+        with self.subTest("Test no notifications are generated for vpn deletion"):
             mock_requests.delete.side_effect = [
                 # For delete network
                 self._get_mock_response(200, response={}),

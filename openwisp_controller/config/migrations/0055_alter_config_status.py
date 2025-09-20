@@ -27,9 +27,9 @@ class Migration(migrations.Migration):
                     '"applied" means the configuration is applied successfully; \n'
                     '"error" means the configuration caused issues and it was'
                     ' rolled back; \n"deactivating" means the device has been'
-                    ' deactivated and the configuration is being removed; \n'
+                    " deactivated and the configuration is being removed; \n"
                     '"deactivated" means the configuration has been removed '
-                    'from the device;'
+                    "from the device;"
                 ),
                 max_length=100,
                 no_check_for_status=True,

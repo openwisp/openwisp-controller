@@ -13,15 +13,15 @@ from openwisp_controller.subnet_division.tests.test_models import (
 
 
 class TestDeviceAdmin(BaseTestDeviceAdmin):
-    config_label = 'sample_config'
+    config_label = "sample_config"
 
 
 class TestSubnetAdmin(BaseTestSubnetAdmin):
-    config_label = 'sample_config'
+    config_label = "sample_config"
 
 
 class TestSubnetDivsionRule(BaseTestSubnetDivisionRule):
-    config_label = 'sample_config'
+    config_label = "sample_config"
 
 
 class TestIPAdmin(BaseTestIPAdmin):

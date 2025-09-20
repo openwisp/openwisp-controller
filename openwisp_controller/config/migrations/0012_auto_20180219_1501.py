@@ -7,22 +7,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [('config', '0011_update_device_mac_address')]
+    dependencies = [("config", "0011_update_device_mac_address")]
 
     operations = [
         migrations.AlterField(
-            model_name='device',
-            name='mac_address',
+            model_name="device",
+            name="mac_address",
             field=models.CharField(
                 db_index=True,
-                help_text='primary mac address',
+                help_text="primary mac address",
                 max_length=17,
                 unique=True,
                 validators=[
                     django.core.validators.RegexValidator(
-                        re.compile('^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'),
-                        code='invalid',
-                        message='Must be a valid mac address.',
+                        re.compile("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"),
+                        code="invalid",
+                        message="Must be a valid mac address.",
                     )
                 ],
             ),

@@ -4,21 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [('config', '0033_name_unique_per_organization')]
+    dependencies = [("config", "0033_name_unique_per_organization")]
 
     operations = [
         migrations.AddField(
-            model_name='template',
-            name='required',
+            model_name="template",
+            name="required",
             field=models.BooleanField(
                 db_index=True,
                 default=False,
                 help_text=(
-                    'if checked, will force the assignment of this template to all the '
-                    'devices of the organization (if no organization is selected, it '
-                    'will be required for every device in the system)'
+                    "if checked, will force the assignment of this template to all the "
+                    "devices of the organization (if no organization is selected, it "
+                    "will be required for every device in the system)"
                 ),
-                verbose_name='required',
+                verbose_name="required",
             ),
         ),
     ]

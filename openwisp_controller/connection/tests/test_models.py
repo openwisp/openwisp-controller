@@ -23,23 +23,23 @@ from ..signals import is_working_changed
 from ..tasks import _TASK_NAME, update_config
 from .utils import CreateConnectionsMixin
 
-Config = load_model('config', 'Config')
-Device = load_model('config', 'Device')
-Credentials = load_model('connection', 'Credentials')
-DeviceConnection = load_model('connection', 'DeviceConnection')
-Group = load_model('openwisp_users', 'Group')
-Organization = load_model('openwisp_users', 'Organization')
-Command = load_model('connection', 'Command')
+Config = load_model("config", "Config")
+Device = load_model("config", "Device")
+Credentials = load_model("connection", "Credentials")
+DeviceConnection = load_model("connection", "DeviceConnection")
+Group = load_model("openwisp_users", "Group")
+Organization = load_model("openwisp_users", "Organization")
+Command = load_model("connection", "Command")
 
-_connect_path = 'paramiko.SSHClient.connect'
-_exec_command_path = 'paramiko.SSHClient.exec_command'
+_connect_path = "paramiko.SSHClient.connect"
+_exec_command_path = "paramiko.SSHClient.exec_command"
 
 
 class BaseTestModels(CreateConnectionsMixin):
-    app_label = 'connection'
+    app_label = "connection"
 
     def _exec_command_return_value(
-        self, stdin='', stdout='mocked', stderr='', exit_code=0
+        self, stdin="", stdout="mocked", stderr="", exit_code=0
     ):
         stdin_ = mock.Mock()
         stdout_ = mock.Mock()
@@ -53,16 +53,16 @@ class BaseTestModels(CreateConnectionsMixin):
 
 class TestModels(BaseTestModels, TestCase):
     def test_connection_str(self):
-        c = Credentials(name='Dev Key', connector=app_settings.CONNECTORS[0][0])
+        c = Credentials(name="Dev Key", connector=app_settings.CONNECTORS[0][0])
         self.assertIn(c.name, str(c))
         self.assertIn(c.get_connector_display(), str(c))
 
     def test_device_connection_get_params(self):
         dc = self._create_device_connection()
         self.assertEqual(dc.get_params(), dc.credentials.params)
-        dc.params = {'port': 2400}
-        self.assertEqual(dc.get_params()['port'], 2400)
-        self.assertEqual(dc.get_params()['username'], 'root')
+        dc.params = {"port": 2400}
+        self.assertEqual(dc.get_params()["port"], 2400)
+        self.assertEqual(dc.get_params()["username"], "root")
 
     def test_device_connection_auto_update_strategy(self):
         dc = self._create_device_connection()
@@ -71,8 +71,8 @@ class TestModels(BaseTestModels, TestCase):
     def test_device_connection_auto_update_strategy_key_error(self):
         orig_strategy = app_settings.UPDATE_STRATEGIES
         orig_mapping = app_settings.CONFIG_UPDATE_MAPPING
-        app_settings.UPDATE_STRATEGIES = (('meddle', 'meddle'),)
-        app_settings.CONFIG_UPDATE_MAPPING = {'wrong': 'wrong'}
+        app_settings.UPDATE_STRATEGIES = (("meddle", "meddle"),)
+        app_settings.CONFIG_UPDATE_MAPPING = {"wrong": "wrong"}
         try:
             self._create_device_connection()
         except ValidationError:
@@ -83,17 +83,17 @@ class TestModels(BaseTestModels, TestCase):
         app_settings.UPDATE_STRATEGIES = orig_strategy
         app_settings.CONFIG_UPDATE_MAPPING = orig_mapping
         if failed:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_device_connection_auto_update_strategy_missing_config(self):
         device = self._create_device(organization=self._get_org())
-        self.assertFalse(hasattr(device, 'config'))
+        self.assertFalse(hasattr(device, "config"))
         try:
             self._create_device_connection(device=device)
         except ValidationError as e:
-            self.assertIn('inferred from', str(e))
+            self.assertIn("inferred from", str(e))
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_device_connection_connector_instance(self):
         dc = self._create_device_connection()
@@ -102,59 +102,59 @@ class TestModels(BaseTestModels, TestCase):
     def test_device_connection_ssh_rsa_key_param(self):
         ckey = self._create_credentials_with_key()
         dc = self._create_device_connection(credentials=ckey)
-        self.assertIn('pkey', dc.connector_instance.params)
+        self.assertIn("pkey", dc.connector_instance.params)
         self.assertIsInstance(
-            dc.connector_instance.params['pkey'], paramiko.rsakey.RSAKey
+            dc.connector_instance.params["pkey"], paramiko.rsakey.RSAKey
         )
-        self.assertNotIn('key', dc.connector_instance.params)
+        self.assertNotIn("key", dc.connector_instance.params)
 
     def test_device_connection_ssh_ed22519_key_param(self):
         ckey = self._create_credentials_with_ed_key()
         dc = self._create_device_connection(credentials=ckey)
-        self.assertIn('pkey', dc.connector_instance.params)
+        self.assertIn("pkey", dc.connector_instance.params)
         self.assertIsInstance(
-            dc.connector_instance.params['pkey'], paramiko.ed25519key.Ed25519Key
+            dc.connector_instance.params["pkey"], paramiko.ed25519key.Ed25519Key
         )
-        self.assertNotIn('key', dc.connector_instance.params)
+        self.assertNotIn("key", dc.connector_instance.params)
 
-    @mock.patch.object(DeviceConnection, 'connect')
+    @mock.patch.object(DeviceConnection, "connect")
     def test_device_connection_get_working_connection(self, mocked_connect):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
 
-        with self.subTest('Test device has no connection object'):
+        with self.subTest("Test device has no connection object"):
             with self.assertRaises(NoWorkingDeviceConnectionError) as error:
                 conn = DeviceConnection.get_working_connection(device)
             self.assertEqual(error.exception.connection, None)
 
         conn1 = self._create_device_connection(
             device=device,
-            credentials=self._create_credentials(organization=org, name='test1'),
+            credentials=self._create_credentials(organization=org, name="test1"),
             is_working=True,
         )
         conn2 = self._create_device_connection(
             device=device,
-            credentials=self._create_credentials(organization=org, name='test2'),
+            credentials=self._create_credentials(organization=org, name="test2"),
             is_working=False,
         )
         self._create_device_connection(
             device=device,
-            credentials=self._create_credentials(organization=org, name='test3'),
+            credentials=self._create_credentials(organization=org, name="test3"),
             is_working=None,
         )
 
-        with self.subTest('Test previously working credential is attempted first'):
+        with self.subTest("Test previously working credential is attempted first"):
             mocked_connect.side_effect = [True]
             conn = DeviceConnection.get_working_connection(device)
             self.assertEqual(conn, conn1)
 
-        with self.subTest('Test attempt with other credentials on failure'):
+        with self.subTest("Test attempt with other credentials on failure"):
             mocked_connect.side_effect = [False, True]
             conn = DeviceConnection.get_working_connection(device)
             self.assertEqual(conn, conn2)
 
-        with self.subTest('Test no working credentials'):
+        with self.subTest("Test no working credentials"):
             mocked_connect.side_effect = [False, False, False]
             with self.assertRaises(NoWorkingDeviceConnectionError) as error:
                 conn = DeviceConnection.get_working_connection(device)
@@ -164,7 +164,7 @@ class TestModels(BaseTestModels, TestCase):
     def test_update_config_task_use_get_working_connection(self, *args):
         device_conn = self._create_device_connection()
         with mock.patch.object(
-            DeviceConnection, 'get_working_connection'
+            DeviceConnection, "get_working_connection"
         ) as mocked_func:
             update_config.delay(device_conn.device_id)
         mocked_func.assert_called_once_with(device_conn.device)
@@ -198,16 +198,16 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         ]
         for invalid_key in invalid_keys:
             opts = dict(
-                name='Test SSH Key',
-                params={'username': 'root', 'key': invalid_key, 'port': 22},
+                name="Test SSH Key",
+                params={"username": "root", "key": invalid_key, "port": 22},
             )
-            with self.subTest(f'Testing key {invalid_key}'):
+            with self.subTest(f"Testing key {invalid_key}"):
                 with self.assertRaises(ValidationError) as ctx:
                     self._create_credentials(**opts)
-                self.assertIn('params', ctx.exception.message_dict)
+                self.assertIn("params", ctx.exception.message_dict)
                 self.assertIn(
-                    'Unrecognized or unsupported SSH key algorithm',
-                    str(ctx.exception.message_dict['params']),
+                    "Unrecognized or unsupported SSH key algorithm",
+                    str(ctx.exception.message_dict["params"]),
                 )
 
     @mock.patch(_connect_path)
@@ -218,71 +218,71 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         mocked_connect.assert_called_once()
         self.assertTrue(dc.is_working)
         self.assertIsNotNone(dc.last_attempt)
-        self.assertEqual(dc.failure_reason, '')
+        self.assertEqual(dc.failure_reason, "")
         dc.disconnect()
 
     def test_ssh_connect_failure(self):
         ckey = self._create_credentials_with_key(
-            username='wrong', port=self.ssh_server.port
+            username="wrong", port=self.ssh_server.port
         )
         dc = self._create_device_connection(credentials=ckey)
         dc.device.last_ip = None
         dc.device.save()
         with mock.patch(_connect_path) as mocked_connect:
-            mocked_connect.side_effect = Exception('Authentication failed.')
+            mocked_connect.side_effect = Exception("Authentication failed.")
             dc.connect()
             mocked_connect.assert_called_once()
         self.assertEqual(dc.is_working, False)
         self.assertIsNotNone(dc.last_attempt)
-        self.assertEqual(dc.failure_reason, 'Authentication failed.')
+        self.assertEqual(dc.failure_reason, "Authentication failed.")
 
     def test_credentials_schema(self):
         # unrecognized parameter
         try:
             self._create_credentials(
                 params={
-                    'username': 'root',
-                    'password': 'password',
-                    'unrecognized': True,
+                    "username": "root",
+                    "password": "password",
+                    "unrecognized": True,
                 }
             )
         except ValidationError as e:
-            self.assertIn('params', e.message_dict)
+            self.assertIn("params", e.message_dict)
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
         # missing password or key
         try:
-            self._create_credentials(params={'username': 'root', 'port': 22})
+            self._create_credentials(params={"username": "root", "port": 22})
         except ValidationError as e:
-            self.assertIn('params', e.message_dict)
+            self.assertIn("params", e.message_dict)
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_credentials_connection_missing(self):
         with self.assertRaises(ValidationError) as e:
             c = Credentials(
-                name='Test credentials',
+                name="Test credentials",
                 connector=None,
-                params={'username': 'root', 'password': 'password', 'port': 22},
+                params={"username": "root", "password": "password", "port": 22},
                 organization=self._get_org(),
             )
             c.full_clean()
-            self.assertIn('connector', e.message_dict)
+            self.assertIn("connector", e.message_dict)
 
     def test_device_connection_schema(self):
         # unrecognized parameter
         try:
             self._create_device_connection(
                 params={
-                    'username': 'root',
-                    'password': 'password',
-                    'unrecognized': True,
+                    "username": "root",
+                    "password": "password",
+                    "unrecognized": True,
                 }
             )
         except ValidationError as e:
-            self.assertIn('params', e.message_dict)
+            self.assertIn("params", e.message_dict)
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def _prepare_address_list_test(self, last_ip=None, management_ip=None):
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
@@ -300,31 +300,31 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
     def test_address_list_with_device_ip(self):
         dc = self._prepare_address_list_test(
-            management_ip='10.0.0.2', last_ip='84.32.46.153'
+            management_ip="10.0.0.2", last_ip="84.32.46.153"
         )
-        with self.subTest('Test MANAGEMENT_IP_ONLY is set to True'):
-            with mock.patch.object(app_settings, 'MANAGEMENT_IP_ONLY', True):
-                self.assertEqual(dc.get_addresses(), ['10.0.0.2'])
+        with self.subTest("Test MANAGEMENT_IP_ONLY is set to True"):
+            with mock.patch.object(app_settings, "MANAGEMENT_IP_ONLY", True):
+                self.assertEqual(dc.get_addresses(), ["10.0.0.2"])
 
-        with self.subTest('Test MANAGEMENT_IP_ONLY is set to False'):
-            with mock.patch.object(app_settings, 'MANAGEMENT_IP_ONLY', False):
-                self.assertEqual(dc.get_addresses(), ['10.0.0.2', '84.32.46.153'])
+        with self.subTest("Test MANAGEMENT_IP_ONLY is set to False"):
+            with mock.patch.object(app_settings, "MANAGEMENT_IP_ONLY", False):
+                self.assertEqual(dc.get_addresses(), ["10.0.0.2", "84.32.46.153"])
 
     def test_device_connection_credential_org_validation(self):
         dc = self._create_device_connection()
-        shared = self._create_credentials(name='cred-shared', organization=None)
+        shared = self._create_credentials(name="cred-shared", organization=None)
         dc.credentials = shared
         dc.full_clean()
         # ensure credentials of other orgs aren't accepted
-        org2 = self._create_org(name='org2')
-        cred2 = self._create_credentials(name='cred2', organization=org2)
+        org2 = self._create_org(name="org2")
+        cred2 = self._create_credentials(name="cred2", organization=org2)
         try:
             dc.credentials = cred2
             dc.full_clean()
         except ValidationError as e:
-            self.assertIn('credentials', e.message_dict)
+            self.assertIn("credentials", e.message_dict)
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_device_connection_same_credential_twice(self):
         device_conn = self._create_device_connection()
@@ -334,13 +334,13 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             )
             device_conn.full_clean()
         self.assertEqual(
-            context_manager.exception.message_dict['__all__'][0],
-            'Device connection with this Device and Credentials already exists.',
+            context_manager.exception.message_dict["__all__"][0],
+            "Device connection with this Device and Credentials already exists.",
         )
 
     def test_auto_add_to_new_device(self):
         c = self._create_credentials(auto_add=True, organization=None)
-        self._create_credentials(name='cred2', auto_add=False, organization=None)
+        self._create_credentials(name="cred2", auto_add=False, organization=None)
         d = self._create_device(organization=Organization.objects.first())
         self._create_config(device=d)
         d.refresh_from_db()
@@ -362,7 +362,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         with mock.patch(_exec_command_path) as mocked:
             mocked.return_value = self._exec_command_return_value(exit_code=1)
             with self.assertRaises(Exception):
-                dc.connector_instance.exec_command('trigger_command_not_found')
+                dc.connector_instance.exec_command("trigger_command_not_found")
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
@@ -375,7 +375,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         with mock.patch(_exec_command_path) as mocked:
             mocked.side_effect = socket.timeout()
             with self.assertRaises(socket.timeout):
-                dc.connector_instance.exec_command('trigger_timeout')
+                dc.connector_instance.exec_command("trigger_timeout")
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
@@ -386,9 +386,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         dc = self._create_device_connection(credentials=ckey)
         dc.connector_instance.connect()
         with mock.patch(_exec_command_path) as mocked:
-            mocked.side_effect = RuntimeError('test')
+            mocked.side_effect = RuntimeError("test")
             with self.assertRaises(RuntimeError):
-                dc.connector_instance.exec_command('trigger_exception')
+                dc.connector_instance.exec_command("trigger_exception")
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
 
@@ -408,8 +408,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             dc.is_working = True
             dc.save()
         handler.assert_called_once_with(
-            failure_reason='',
-            old_failure_reason='',
+            failure_reason="",
+            old_failure_reason="",
             instance=dc,
             is_working=True,
             old_is_working=None,
@@ -418,16 +418,16 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         )
 
     def test_operator_group_permissions(self):
-        group = Group.objects.get(name='Operator')
+        group = Group.objects.get(name="Operator")
         permissions = group.permissions.filter(
-            content_type__app_label=f'{self.app_label}'
+            content_type__app_label=f"{self.app_label}"
         )
         self.assertEqual(permissions.count(), 6)
 
     def test_administrator_group_permissions(self):
-        group = Group.objects.get(name='Administrator')
+        group = Group.objects.get(name="Administrator")
         permissions = group.permissions.filter(
-            content_type__app_label=f'{self.app_label}'
+            content_type__app_label=f"{self.app_label}"
         )
         self.assertEqual(permissions.count(), 12)
 
@@ -437,162 +437,174 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             params=dc.get_params(), addresses=dc.get_addresses()
         )
         connector.IS_MODIFIED = True
-        self.assertFalse(hasattr(dc.connector_instance, 'IS_MODIFIED'))
+        self.assertFalse(hasattr(dc.connector_instance, "IS_MODIFIED"))
         del dc.connector_instance
         dc.set_connector(connector)
-        self.assertTrue(hasattr(dc.connector_instance, 'IS_MODIFIED'))
-        self.assertTrue(dc.connector_instance, 'IS_MODIFIED')
+        self.assertTrue(hasattr(dc.connector_instance, "IS_MODIFIED"))
+        self.assertTrue(dc.connector_instance, "IS_MODIFIED")
         dc.credentials.delete()
         # ensure change not permanent
-        org2 = self._create_org(name='org2')
+        org2 = self._create_org(name="org2")
         dev2 = self._create_device(organization=org2)
         self._create_config(device=dev2)
         dc2 = self._create_device_connection(device=dev2)
-        self.assertFalse(hasattr(dc2.connector_instance, 'IS_MODIFIED'))
+        self.assertFalse(hasattr(dc2.connector_instance, "IS_MODIFIED"))
 
     def test_command_str(self):
-        with self.subTest('custom command short'):
-            command = Command(type='custom', input={'command': 'echo test'})
-            self.assertIn('«echo test» sent on', str(command))
-        with self.subTest('custom command long'):
-            cmd = {'command': 'echo "longer than thirtytwo characters"'}
-            command = Command(type='custom', input=cmd)
+        with self.subTest("custom command short"):
+            command = Command(type="custom", input={"command": "echo test"})
+            self.assertIn("«echo test» sent on", str(command))
+        with self.subTest("custom command long"):
+            cmd = {"command": 'echo "longer than thirtytwo characters"'}
+            command = Command(type="custom", input=cmd)
             self.assertIn('«echo "longer than thirtytwo char…»', str(command))
-        with self.subTest('predefined command'):
-            command = Command(type='reboot')
+        with self.subTest("predefined command"):
+            command = Command(type="reboot")
             created = timezone.localtime(command.created).strftime(
                 "%d %b %Y at %I:%M %p"
             )
-            self.assertIn('«Reboot» sent on', str(command))
+            self.assertIn("«Reboot» sent on", str(command))
             self.assertIn(created, str(command))
 
     def test_command_arguments(self):
-        with self.subTest('Test arguments for a custom command'):
-            command = Command(type='custom', input={'command': 'echo test'})
+        with self.subTest("Test arguments for a custom command"):
+            command = Command(type="custom", input={"command": "echo test"})
             with self.assertRaises(TypeError):
                 command.arguments
 
-        with self.subTest('Test arguments for change password command'):
+        with self.subTest("Test arguments for change password command"):
             command = Command(
-                type='change_password',
-                input={'password': 'Pass@1234', 'confirm_password': 'Pass@1234'},
+                type="change_password",
+                input={"password": "Pass@1234", "confirm_password": "Pass@1234"},
             )
-            self.assertEqual(list(command.arguments), ['Pass@1234', 'Pass@1234'])
+            self.assertEqual(list(command.arguments), ["Pass@1234", "Pass@1234"])
 
     def test_command_is_custom(self):
-        command = Command(type='custom', input={'command': 'echo test'})
+        command = Command(type="custom", input={"command": "echo test"})
         self.assertTrue(command.is_custom)
 
     def test_command_validation(self):
         dc = self._create_device_connection()
         command = Command(
-            device=dc.device, type='custom', input={'command': 'echo test'}
+            device=dc.device, type="custom", input={"command": "echo test"}
         )
 
-        with self.subTest('custom type without input raises ValidationError'):
-            command.type = 'custom'
-            command.input = {'command': '\n'}
+        with self.subTest("custom type without input raises ValidationError"):
+            command.type = "custom"
+            command.input = {"command": "\n"}
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
-            self.assertIn('input', e.message_dict)
-            self.assertEqual(e.message_dict['input'], ["'\\n' does not match '.'"])
+            self.assertIn("input", e.message_dict)
+            self.assertEqual(e.message_dict["input"], ["'\\n' does not match '.'"])
 
-        with self.subTest('test extra arg on reboot'):
-            command.type = 'reboot'
+        with self.subTest("test extra arg on reboot"):
+            command.type = "reboot"
             command.input = '["test"]'
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
-            self.assertIn('input', e.message_dict)
+            self.assertIn("input", e.message_dict)
             self.assertEqual(
-                e.message_dict['input'], ["['test'] is not of type 'null'"]
+                e.message_dict["input"], ["['test'] is not of type 'null'"]
             )
 
-        with self.subTest('test extra arg on password'):
-            command.type = 'change_password'
+        with self.subTest("test extra arg on password"):
+            command.type = "change_password"
             command.input = {
-                'password': 'Pass@1234',
-                'confirm_password': 'Pass@1234',
-                'command': 'wrong',
+                "password": "Pass@1234",
+                "confirm_password": "Pass@1234",
+                "command": "wrong",
             }
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
-            self.assertIn('input', e.message_dict)
+            self.assertIn("input", e.message_dict)
             self.assertIn(
-                'Additional properties are not allowed',
-                e.message_dict['input'][0],
+                "Additional properties are not allowed",
+                e.message_dict["input"][0],
             )
 
-        with self.subTest('JSON check on arguments'):
-            command.type = 'change_password'
-            command.input = 'notjson'
+        with self.subTest("JSON check on arguments"):
+            command.type = "change_password"
+            command.input = "notjson"
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
-            self.assertIn('input', e.message_dict)
+            self.assertIn("input", e.message_dict)
             self.assertEqual(
-                e.message_dict['input'],
-                ['Enter valid JSON.', "'notjson' is not of type 'object'"],
+                e.message_dict["input"],
+                ["Enter valid JSON.", "'notjson' is not of type 'object'"],
             )
 
-        with self.subTest('JSON check on arguments'):
-            command.type = 'change_password'
-            command.input = '[]'
+        with self.subTest("JSON check on arguments"):
+            command.type = "change_password"
+            command.input = "[]"
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
-            self.assertIn('input', e.message_dict)
-            self.assertEqual(e.message_dict['input'], ["[] is not of type 'object'"])
+            self.assertIn("input", e.message_dict)
+            self.assertEqual(e.message_dict["input"], ["[] is not of type 'object'"])
 
-        with self.subTest('Test executing command not available for org'):
+        with self.subTest("Test executing command not available for org"):
             org_id = dc.device.organization_id
             with mock.patch.dict(
-                ORGANIZATION_ENABLED_COMMANDS, {str(org_id): ('reboot',)}
+                ORGANIZATION_ENABLED_COMMANDS, {str(org_id): ("reboot",)}
             ):
                 with self.assertRaises(ValidationError) as context_manager:
                     command.full_clean()
                 exception = context_manager.exception
-                self.assertIn('input', exception.message_dict)
+                self.assertIn("input", exception.message_dict)
                 self.assertEqual(
-                    exception.message_dict['input'],
+                    exception.message_dict["input"],
                     [
                         '"change_password" command is not available'
-                        ' for this organization'
+                        " for this organization"
                     ],
                 )
 
-    @tag('skip_prod')
+        with self.subTest("Test command creation without device connection"):
+            device = dc.device
+            device.deviceconnection_set.all().delete()
+            with self.assertRaises(ValidationError) as context_manager:
+                command.full_clean()
+            exception = context_manager.exception
+            self.assertIn("device", exception.message_dict)
+            self.assertEqual(
+                exception.message_dict["device"],
+                ["Device has no credentials assigned."],
+            )
+
+    @tag("skip_prod")
     def test_enabled_command(self):
         self.assertEqual(
-            ORGANIZATION_ENABLED_COMMANDS['__all__'], tuple(COMMANDS.keys())
+            ORGANIZATION_ENABLED_COMMANDS["__all__"], tuple(COMMANDS.keys())
         )
 
     def test_custom_command(self):
-        command = Command(input='test', type='change_password')
+        command = Command(input="test", type="change_password")
         with self.assertRaises(TypeError) as context_manager:
             command.custom_command
         self.assertEqual(
             str(context_manager.exception),
-            'custom_commands property is not applicable in '
+            "custom_commands property is not applicable in "
             'command instance of type "change_password"',
         )
 
     def test_arguments(self):
         command = Command(
-            type='change_password',
-            input={'password': 'newpwd', 'confirm_password': 'newpwd'},
+            type="change_password",
+            input={"password": "newpwd", "confirm_password": "newpwd"},
         )
-        self.assertEqual(list(command.arguments), ['newpwd', 'newpwd'])
+        self.assertEqual(list(command.arguments), ["newpwd", "newpwd"])
 
-        with self.subTest('value error'):
-            command = Command(input='["echo test"]', type='custom')
+        with self.subTest("value error"):
+            command = Command(input='["echo test"]', type="custom")
             with self.assertRaises(TypeError) as context_manager:
                 command.arguments
             self.assertEqual(
                 str(context_manager.exception),
-                'arguments property is not applicable in '
+                "arguments property is not applicable in "
                 'command instance of type "custom"',
             )
 
@@ -602,12 +614,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         command = Command(
             device=dc.device,
             connection=dc,
-            type='custom',
-            input={'command': 'cat /tmp/doesntexist'},
+            type="custom",
+            input={"command": "cat /tmp/doesntexist"},
         )
         command.full_clean()
-        stdout = 'not found'
-        stderr = 'error'
+        stdout = "not found"
+        stderr = "error"
         with mock.patch(_exec_command_path) as mocked:
             mocked.return_value = self._exec_command_return_value(
                 stdout=stdout, stderr=stderr, exit_code=1
@@ -618,47 +630,47 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             connect_mocked.assert_called_once()
             mocked.assert_called_once()
         command.refresh_from_db()
-        self.assertEqual(command.status, 'failed')
+        self.assertEqual(command.status, "failed")
         info = 'Command "cat /tmp/doesntexist" returned non-zero exit code: 1'
-        self.assertEqual(command.output, f'{stdout}\n{stderr}\n{info}\n')
+        self.assertEqual(command.output, f"{stdout}\n{stderr}\n{info}\n")
 
     def test_execute_command_failure_connection_failed(self):
         dc = self._create_device_connection()
         command = Command(
             device=dc.device,
             connection=dc,
-            type='custom',
-            input={'command': 'echo test'},
+            type="custom",
+            input={"command": "echo test"},
         )
         command.full_clean()
         with mock.patch(_connect_path) as mocked_connect:
-            mocked_connect.side_effect = Exception('Authentication failed.')
+            mocked_connect.side_effect = Exception("Authentication failed.")
             command.save()
             # must call this explicitly because lack of transactions in this test case
             command.execute()
             mocked_connect.assert_called_once()
         command.refresh_from_db()
         dc.refresh_from_db()
-        self.assertEqual(command.status, 'failed')
+        self.assertEqual(command.status, "failed")
         self.assertFalse(dc.is_working)
         self.assertEqual(command.output, dc.failure_reason)
 
-        with self.subTest('attempt to repeat execution should fail'):
+        with self.subTest("attempt to repeat execution should fail"):
             with self.assertRaises(RuntimeError) as context_manager:
                 command.execute()
             self.assertEqual(
                 str(context_manager.exception),
-                'This command has already been executed, ' 'please create a new one.',
+                "This command has already been executed, " "please create a new one.",
             )
 
     @mock.patch(_connect_path)
     def test_execute_reboot(self, connect_mocked):
         dc = self._create_device_connection()
-        command = Command(device=dc.device, connection=dc, type='reboot')
+        command = Command(device=dc.device, connection=dc, type="reboot")
         command.full_clean()
         with mock.patch(_exec_command_path) as mocked_exec_command:
             mocked_exec_command.return_value = self._exec_command_return_value(
-                stdout='Rebooting.'
+                stdout="Rebooting."
             )
             command.save()
             # must call this explicitly because lack of transactions in this test case
@@ -666,18 +678,18 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             connect_mocked.assert_called_once()
             mocked_exec_command.assert_called_once()
             mocked_exec_command.assert_called_with(
-                'reboot', timeout=app_settings.SSH_COMMAND_TIMEOUT
+                "reboot", timeout=app_settings.SSH_COMMAND_TIMEOUT
             )
         command.refresh_from_db()
-        self.assertEqual(command.status, 'success')
-        self.assertEqual(command.output, 'Rebooting.\n')
+        self.assertEqual(command.status, "success")
+        self.assertEqual(command.output, "Rebooting.\n")
 
-        with self.subTest('attempt to repeat execution should fail'):
+        with self.subTest("attempt to repeat execution should fail"):
             with self.assertRaises(RuntimeError) as context_manager:
                 command.execute()
             self.assertEqual(
                 str(context_manager.exception),
-                'This command has already been executed, ' 'please create a new one.',
+                "This command has already been executed, " "please create a new one.",
             )
 
     @mock.patch(_connect_path)
@@ -686,13 +698,13 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         command = Command(
             device=dc.device,
             connection=dc,
-            type='change_password',
-            input={'password': 'Newpasswd@123', 'confirm_password': 'Newpasswd@123'},
+            type="change_password",
+            input={"password": "Newpasswd@123", "confirm_password": "Newpasswd@123"},
         )
         command.full_clean()
         with mock.patch(_exec_command_path) as mocked_exec_command:
             mocked_exec_command.return_value = self._exec_command_return_value(
-                stdout='Changed password for user root.'
+                stdout="Changed password for user root."
             )
             command.save()
             # must call this explicitly because lack of transactions in this test case
@@ -704,20 +716,20 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 timeout=app_settings.SSH_COMMAND_TIMEOUT,
             )
         command.refresh_from_db()
-        self.assertEqual(command.status, 'success')
-        self.assertEqual(command.output, 'Changed password for user root.\n')
-        self.assertEqual(list(command.arguments), ['********'])
+        self.assertEqual(command.status, "success")
+        self.assertEqual(command.output, "Changed password for user root.\n")
+        self.assertEqual(list(command.arguments), ["********"])
 
     @mock.patch(_connect_path)
     @mock.patch.dict(
-        ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('callable_ping', 'path_ping')}
+        ORGANIZATION_ENABLED_COMMANDS, {"__all__": ("callable_ping", "path_ping")}
     )
     def test_execute_user_registered_command(self, connect_mocked):
         @mock.patch(_exec_command_path)
         def _command_assertions(destination_address, mocked_exec_command):
             command.full_clean()
             mocked_exec_command.return_value = self._exec_command_return_value(
-                stdout='Destination host unreachable'
+                stdout="Destination host unreachable"
             )
             command.save()
             # must call this explicitly because lack of transactions in this test case
@@ -725,92 +737,92 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             connect_mocked.assert_called()
             mocked_exec_command.assert_called_once()
             mocked_exec_command.assert_called_with(
-                f'ping -c 4 {destination_address} -I eth0',
+                f"ping -c 4 {destination_address} -I eth0",
                 timeout=app_settings.SSH_COMMAND_TIMEOUT,
             )
             command.refresh_from_db()
-            self.assertEqual(command.status, 'success')
-            self.assertEqual(command.output, stderr + '\n')
+            self.assertEqual(command.status, "success")
+            self.assertEqual(command.output, stderr + "\n")
 
         ping_command_schema = {
-            'label': 'Ping',
-            'schema': {
-                'title': 'Ping',
-                'type': 'object',
-                'required': ['destination_address'],
-                'properties': {
-                    'destination_address': {
-                        'type': 'string',
-                        'title': 'Destination Address',
-                        'pattern': '.',
+            "label": "Ping",
+            "schema": {
+                "title": "Ping",
+                "type": "object",
+                "required": ["destination_address"],
+                "properties": {
+                    "destination_address": {
+                        "type": "string",
+                        "title": "Destination Address",
+                        "pattern": ".",
                     },
-                    'interface_name': {'type': 'string', 'title': 'Interface Name'},
+                    "interface_name": {"type": "string", "title": "Interface Name"},
                 },
-                'message': 'Destination Address cannot be empty',
-                'additionalProperties': False,
+                "message": "Destination Address cannot be empty",
+                "additionalProperties": False,
             },
         }
         callable_path = (
-            'openwisp_controller.connection.tests.utils.' '_ping_command_callable'
+            "openwisp_controller.connection.tests.utils." "_ping_command_callable"
         )
         dc = self._create_device_connection()
-        stderr = 'Destination host unreachable'
+        stderr = "Destination host unreachable"
 
-        with self.subTest('Callable is a method'):
-            ping_command_schema['callable'] = import_string(callable_path)
-            register_command('callable_ping', ping_command_schema)
+        with self.subTest("Callable is a method"):
+            ping_command_schema["callable"] = import_string(callable_path)
+            register_command("callable_ping", ping_command_schema)
             command = Command(
                 device=dc.device,
                 connection=dc,
-                type='callable_ping',
-                input={'destination_address': 'example.com', 'interface_name': 'eth0'},
+                type="callable_ping",
+                input={"destination_address": "example.com", "interface_name": "eth0"},
             )
-            _command_assertions('example.com')
+            _command_assertions("example.com")
 
-        with self.subTest('Callable is dotted path'):
-            ping_command_schema['callable'] = callable_path
-            register_command('path_ping', ping_command_schema)
+        with self.subTest("Callable is dotted path"):
+            ping_command_schema["callable"] = callable_path
+            register_command("path_ping", ping_command_schema)
             command = Command(
                 device=dc.device,
                 connection=dc,
-                type='path_ping',
+                type="path_ping",
                 input={
-                    'destination_address': 'subdomain.example.com',
-                    'interface_name': 'eth0',
+                    "destination_address": "subdomain.example.com",
+                    "interface_name": "eth0",
                 },
             )
-            _command_assertions('subdomain.example.com')
+            _command_assertions("subdomain.example.com")
 
-        unregister_command('callable_ping')
-        unregister_command('path_ping')
+        unregister_command("callable_ping")
+        unregister_command("path_ping")
 
     @mock.patch(_connect_path)
     @mock.patch.dict(COMMANDS, {})
-    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {'__all__': ('restart_network')})
+    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {"__all__": ("restart_network",)})
     @mock.patch(_exec_command_path)
     def test_execute_user_registered_command_without_input(
         self, mocked_exec_command, connect_mocked
     ):
         restart_network_schema = {
-            'label': 'Restart Network',
-            'schema': {
-                'title': 'Restart Network',
-                'type': 'null',
-                'additionalProperties': False,
+            "label": "Restart Network",
+            "schema": {
+                "title": "Restart Network",
+                "type": "null",
+                "additionalProperties": False,
             },
-            'callable': 'openwisp_controller.connection.tests.utils'
-            '._restart_network_command_callable',
+            "callable": "openwisp_controller.connection.tests.utils"
+            "._restart_network_command_callable",
         }
         dc = self._create_device_connection()
-        register_command('restart_network', restart_network_schema)
+        register_command("restart_network", restart_network_schema)
         command = Command(
             device=dc.device,
             connection=dc,
-            type='restart_network',
+            type="restart_network",
         )
         command.full_clean()
         mocked_exec_command.return_value = self._exec_command_return_value(
-            stdout='Network restarted'
+            stdout="Network restarted"
         )
         command.save()
         # must call this explicitly because lack of transactions in this test case
@@ -818,32 +830,32 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         connect_mocked.assert_called()
         mocked_exec_command.assert_called_once()
         mocked_exec_command.assert_called_with(
-            '/etc/init.d/networking restart',
+            "/etc/init.d/networking restart",
             timeout=app_settings.SSH_COMMAND_TIMEOUT,
         )
         command.refresh_from_db()
-        self.assertEqual(command.status, 'success')
-        self.assertEqual(command.output, 'Network restarted\n')
+        self.assertEqual(command.status, "success")
+        self.assertEqual(command.output, "Network restarted\n")
 
     def test_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(
-            app_label=self.app_label, model='command'
+            app_label=self.app_label, model="command"
         )
-        operator_group = Group.objects.get(name='Operator')
-        admin_group = Group.objects.get(name='Administrator')
+        operator_group = Group.objects.get(name="Operator")
+        admin_group = Group.objects.get(name="Administrator")
         operator_permissions = operator_group.permissions.filter(content_type=ct)
         admin_permissions = admin_group.permissions.filter(content_type=ct)
 
-        with self.subTest('operator permissions'):
+        with self.subTest("operator permissions"):
             self.assertEqual(operator_permissions.count(), 2)
             self.assertTrue(
-                operator_permissions.filter(codename='add_command').exists()
+                operator_permissions.filter(codename="add_command").exists()
             )
             self.assertTrue(
-                operator_permissions.filter(codename='view_command').exists()
+                operator_permissions.filter(codename="view_command").exists()
             )
 
-        with self.subTest('administrator permissions'):
+        with self.subTest("administrator permissions"):
             self.assertEqual(admin_permissions.count(), 4)
 
     @mock.patch(_connect_path)
@@ -853,21 +865,21 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self._create_config(device=device)
         dc1 = self._create_device_connection(
             device=device,
-            credentials=self._create_credentials(organization=org, name='test1'),
+            credentials=self._create_credentials(organization=org, name="test1"),
             is_working=True,
         )
         dc2 = self._create_device_connection(
             device=device,
-            credentials=self._create_credentials(organization=org, name='test2'),
+            credentials=self._create_credentials(organization=org, name="test2"),
             is_working=False,
         )
 
-        with self.subTest('Test auto assignment of connection'):
-            command = Command(device=device, type='reboot')
+        with self.subTest("Test auto assignment of connection"):
+            command = Command(device=device, type="reboot")
             command.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
-                    stdout='Rebooting.'
+                    stdout="Rebooting."
                 )
                 command.save()
                 command.execute()
@@ -876,9 +888,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertEqual(command.connection, dc1)
 
         connect_mocked.reset_mock()
-        with self.subTest('Test all connection failed'):
-            connect_mocked.side_effect = Exception('Authentication failed.')
-            command = Command(device=device, type='reboot')
+        with self.subTest("Test all connection failed"):
+            connect_mocked.side_effect = Exception("Authentication failed.")
+            command = Command(device=device, type="reboot")
             command.full_clean()
             command.save()
             command.execute()
@@ -890,22 +902,22 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     def _prepare_conf_object(self, organization=None):
         if not organization:
-            organization = self._create_org(name='org1')
+            organization = self._create_org(name="org1")
         cred = self._create_credentials_with_key(
             organization=organization, port=self.ssh_server.port
         )
         device = self._create_device(organization=organization)
         update_strategy = app_settings.UPDATE_STRATEGIES[0][0]
-        conf = self._create_config(device=device, status='applied')
+        conf = self._create_config(device=device, status="applied")
         self._create_device_connection(
             device=device, credentials=cred, update_strategy=update_strategy
         )
         conf.config = {
-            'interfaces': [
+            "interfaces": [
                 {
-                    'name': 'eth10',
-                    'type': 'ethernet',
-                    'addresses': [{'family': 'ipv4', 'proto': 'dhcp'}],
+                    "name": "eth10",
+                    "type": "ethernet",
+                    "addresses": [{"family": "ipv4", "proto": "dhcp"}],
                 }
             ]
         }
@@ -914,7 +926,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
 
     @capture_any_output()
     @mock.patch(_connect_path)
-    @mock.patch('time.sleep')
+    @mock.patch("time.sleep")
     def test_device_config_created(self, mocked_sleep, mocked_connect):
         """
         The update_config task must not be initiated when
@@ -928,25 +940,25 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
 
     @capture_any_output()
     @mock.patch(_connect_path)
-    @mock.patch('time.sleep')
+    @mock.patch("time.sleep")
     def test_device_config_update(self, mocked_sleep, mocked_connect):
         def _assert_version_check_command(mocked_exec):
             args, _ = mocked_exec.call_args_list[0]
             self.assertEqual(
                 args[0],
-                '(openwisp-config --version || openwisp_config --version) 2>/dev/null',
+                "(openwisp-config --version || openwisp_config --version) 2>/dev/null",
             )
 
         def _assert_applying_conf_test_command(mocked_exec):
             args, _ = mocked_exec_command.call_args_list[1]
             self.assertEqual(
                 args[0],
-                'test -f /tmp/openwisp/applying_conf',
+                "test -f /tmp/openwisp/applying_conf",
             )
 
         conf = self._prepare_conf_object()
 
-        with self.subTest('Unable to get openwisp-config version'):
+        with self.subTest("Unable to get openwisp-config version"):
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
                     exit_code=1
@@ -955,43 +967,43 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 self.assertEqual(mocked_exec_command.call_count, 1)
                 _assert_version_check_command(mocked_exec_command)
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'modified')
+            self.assertEqual(conf.status, "modified")
 
-        with self.subTest('openwisp_config >= 0.6.0a'):
+        with self.subTest("openwisp_config >= 0.6.0a"):
             conf.config = '{"dns_servers": []}'
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
-                    stdout='openwisp_config 0.6.0a'
+                    stdout="openwisp_config 0.6.0a"
                 )
                 conf.save()
                 self.assertEqual(mocked_exec_command.call_count, 2)
                 _assert_version_check_command(mocked_exec_command)
                 args, _ = mocked_exec_command.call_args_list[1]
-                self.assertIn('OW_CONFIG_PID', args[0])
+                self.assertIn("OW_CONFIG_PID", args[0])
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'modified')
+            self.assertEqual(conf.status, "modified")
 
-        with self.subTest('openwisp_config < 0.6.0a: exit_code 0'):
+        with self.subTest("openwisp_config < 0.6.0a: exit_code 0"):
             conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
-                    stdout='openwisp_config 0.5.0'
+                    stdout="openwisp_config 0.5.0"
                 )
                 conf.save()
                 self.assertEqual(mocked_exec_command.call_count, 2)
                 _assert_version_check_command(mocked_exec_command)
                 _assert_applying_conf_test_command(mocked_exec_command)
             conf.refresh_from_db()
-            self.assertEqual(conf.status, 'modified')
+            self.assertEqual(conf.status, "modified")
 
-        with self.subTest('openwisp_config < 0.6.0a: exit_code 1'):
+        with self.subTest("openwisp_config < 0.6.0a: exit_code 1"):
             conf.config = '{"radios": []}'
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 stdin, stdout, stderr = self._exec_command_return_value(
-                    stdout='openwisp_config 0.5.0'
+                    stdout="openwisp_config 0.5.0"
                 )
                 # An iterable side effect is required for different exit codes:
                 # 1. Checking openwisp_config returns with 0
@@ -1004,33 +1016,33 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 _assert_version_check_command(mocked_exec_command)
                 _assert_applying_conf_test_command(mocked_exec_command)
                 args, _ = mocked_exec_command.call_args_list[2]
-                self.assertEqual(args[0], '/etc/init.d/openwisp_config restart')
+                self.assertEqual(args[0], "/etc/init.d/openwisp_config restart")
             conf.refresh_from_db()
             # exit code 1 considers the update not successful
-            self.assertEqual(conf.status, 'modified')
+            self.assertEqual(conf.status, "modified")
 
-    @mock.patch('time.sleep')
-    @mock.patch.object(DeviceConnection, 'update_config')
-    @mock.patch.object(DeviceConnection, 'get_working_connection')
+    @mock.patch("time.sleep")
+    @mock.patch.object(DeviceConnection, "update_config")
+    @mock.patch.object(DeviceConnection, "get_working_connection")
     def test_device_update_config_in_progress(
         self, mocked_get_working_connection, update_config, mocked_sleep
     ):
         conf = self._prepare_conf_object()
 
-        with mock.patch('celery.app.control.Inspect.active') as mocked_active:
+        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
             mocked_active.return_value = {
-                'task': [{'name': _TASK_NAME, 'args': [str(conf.device.pk)]}]
+                "task": [{"name": _TASK_NAME, "args": [str(conf.device.pk)]}]
             }
-            conf.config = {'general': {'timezone': 'UTC'}}
+            conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
             mocked_get_working_connection.assert_not_called()
             update_config.assert_not_called()
 
-    @mock.patch('time.sleep')
-    @mock.patch.object(DeviceConnection, 'update_config')
-    @mock.patch.object(DeviceConnection, 'get_working_connection')
+    @mock.patch("time.sleep")
+    @mock.patch.object(DeviceConnection, "update_config")
+    @mock.patch.object(DeviceConnection, "get_working_connection")
     def test_device_update_config_not_in_progress(
         self, mocked_get_working_connection, mocked_update_config, mocked_sleep
     ):
@@ -1039,11 +1051,11 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.device.deviceconnection_set.first()
         )
 
-        with mock.patch('celery.app.control.Inspect.active') as mocked_active:
+        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
             mocked_active.return_value = {
-                'task': [{'name': _TASK_NAME, 'args': ['...']}]
+                "task": [{"name": _TASK_NAME, "args": ["..."]}]
             }
-            conf.config = {'general': {'timezone': 'UTC'}}
+            conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
             conf.save()
             mocked_active.assert_called_once()
@@ -1056,8 +1068,8 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         command = Command(
             device=dc.device,
             connection=dc,
-            type='custom',
-            input={'command': 'echo test'},
+            type="custom",
+            input={"command": "echo test"},
         )
         command.full_clean()
         with mock.patch(_exec_command_path) as mocked:
@@ -1066,16 +1078,16 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             connect_mocked.assert_called_once()
             mocked.assert_called_once()
         command.refresh_from_db()
-        self.assertEqual(command.status, 'success')
-        self.assertEqual(command.output, 'mocked\n')
+        self.assertEqual(command.status, "success")
+        self.assertEqual(command.output, "mocked\n")
 
     def test_auto_add_to_existing_device_on_edit(self):
         d = self._create_device(organization=self._get_org())
         self._create_config(device=d)
         self.assertEqual(d.deviceconnection_set.count(), 0)
         c = self._create_credentials(auto_add=False, organization=None)
-        org2 = Organization.objects.create(name='org2', slug='org2')
-        self._create_credentials(name='cred2', auto_add=True, organization=org2)
+        org2 = Organization.objects.create(name="org2", slug="org2")
+        self._create_credentials(name="cred2", auto_add=True, organization=org2)
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 0)
         c.auto_add = True
@@ -1085,7 +1097,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
         # ensure further edits are idempotent
-        c.name = 'changed'
+        c.name = "changed"
         c.full_clean()
         c.save()
         d.refresh_from_db()
@@ -1097,12 +1109,12 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         self._create_config(device=d)
         self.assertEqual(d.deviceconnection_set.count(), 0)
         c = self._create_credentials(auto_add=True, organization=None)
-        org2 = Organization.objects.create(name='org2', slug='org2')
-        self._create_credentials(name='cred2', auto_add=True, organization=org2)
+        org2 = Organization.objects.create(name="org2", slug="org2")
+        self._create_credentials(name="cred2", auto_add=True, organization=org2)
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
-        self._create_credentials(name='cred3', auto_add=False, organization=None)
+        self._create_credentials(name="cred3", auto_add=False, organization=None)
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
@@ -1112,20 +1124,20 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         self._create_config(device=self._create_device(organization=org))
         self._create_config(
             device=self._create_device(
-                organization=org, name='device2', mac_address='22:22:22:22:22:22'
+                organization=org, name="device2", mac_address="22:22:22:22:22:22"
             )
         )
         self._create_config(
             device=self._create_device(
-                organization=org, name='device3', mac_address='33:33:33:33:33:33'
+                organization=org, name="device3", mac_address="33:33:33:33:33:33"
             )
         )
         with self.assertNumQueries(32):
             credential = self._create_credentials(auto_add=True, organization=org)
         self.assertEqual(credential.deviceconnection_set.count(), 3)
 
-        with mock.patch.object(Credentials, 'chunk_size', 2):
+        with mock.patch.object(Credentials, "chunk_size", 2):
             with self.assertNumQueries(35):
                 credential = self._create_credentials(
-                    name='Mocked Credential', auto_add=True, organization=org
+                    name="Mocked Credential", auto_add=True, organization=org
                 )

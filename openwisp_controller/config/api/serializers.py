@@ -10,16 +10,16 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 from ...serializers import BaseSerializer
 from .. import settings as app_settings
 
-Template = load_model('config', 'Template')
-Vpn = load_model('config', 'Vpn')
-Device = load_model('config', 'Device')
-DeviceGroup = load_model('config', 'DeviceGroup')
-Config = load_model('config', 'Config')
-Organization = load_model('openwisp_users', 'Organization')
+Template = load_model("config", "Template")
+Vpn = load_model("config", "Vpn")
+Device = load_model("config", "Device")
+DeviceGroup = load_model("config", "DeviceGroup")
+Config = load_model("config", "Config")
+Organization = load_model("openwisp_users", "Organization")
 
 
 class BaseMeta:
-    read_only_fields = ['created', 'modified']
+    read_only_fields = ["created", "modified"]
 
 
 class TemplateSerializer(BaseSerializer):
@@ -31,19 +31,19 @@ class TemplateSerializer(BaseSerializer):
     class Meta(BaseMeta):
         model = Template
         fields = [
-            'id',
-            'name',
-            'organization',
-            'type',
-            'backend',
-            'vpn',
-            'tags',
-            'default',
-            'required',
-            'default_values',
-            'config',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "organization",
+            "type",
+            "backend",
+            "vpn",
+            "tags",
+            "default",
+            "required",
+            "default_values",
+            "config",
+            "created",
+            "modified",
         ]
 
     def validate_vpn(self, value):
@@ -51,7 +51,7 @@ class TemplateSerializer(BaseSerializer):
         Ensure that VPN can't be added when
         template `Type` is set to `Generic`.
         """
-        if self.initial_data.get('type') == 'generic' and value is not None:
+        if self.initial_data.get("type") == "generic" and value is not None:
             raise serializers.ValidationError(
                 _("To select a VPN, set the template type to 'VPN-client'")
             )
@@ -61,9 +61,9 @@ class TemplateSerializer(BaseSerializer):
         """
         Display appropriate field name.
         """
-        if self.initial_data.get('type') == 'generic' and value == {}:
+        if self.initial_data.get("type") == "generic" and value == {}:
             raise serializers.ValidationError(
-                _('The configuration field cannot be empty.')
+                _("The configuration field cannot be empty.")
             )
         return value
 
@@ -75,25 +75,25 @@ class VpnSerializer(BaseSerializer):
     class Meta(BaseMeta):
         model = Vpn
         fields = [
-            'id',
-            'name',
-            'host',
-            'organization',
-            'key',
-            'ca',
-            'cert',
-            'backend',
-            'notes',
-            'dh',
-            'config',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "host",
+            "organization",
+            "key",
+            "ca",
+            "cert",
+            "backend",
+            "notes",
+            "dh",
+            "config",
+            "created",
+            "modified",
         ]
 
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
-        user = self.context['request'].user
+        user = self.context["request"].user
         if user.is_superuser:
             queryset = Template.objects.all()
         else:
@@ -108,14 +108,14 @@ class BaseConfigSerializer(ValidatedModelSerializer):
     # The device object is excluded from validation
     # because this serializer focuses on validating
     # config objects.
-    exclude_validation = ['device']
+    exclude_validation = ["device"]
 
     class Meta:
         model = Config
-        fields = ['status', 'error_reason', 'backend', 'templates', 'context', 'config']
+        fields = ["status", "error_reason", "backend", "templates", "context", "config"]
         extra_kwargs = {
-            'status': {'read_only': True},
-            'error_reason': {'read_only': True},
+            "status": {"read_only": True},
+            "error_reason": {"read_only": True},
         }
 
     def validate(self, data):
@@ -129,7 +129,7 @@ class BaseConfigSerializer(ValidatedModelSerializer):
         the validation will fail because a config object
         for this device already exists (due to one-to-one relationship).
         """
-        device = self.context.get('device')
+        device = self.context.get("device")
         if not self.instance and device:
             # Existing device with existing config
             if device._has_config():
@@ -139,7 +139,7 @@ class BaseConfigSerializer(ValidatedModelSerializer):
 
 class DeviceConfigSerializer(BaseSerializer):
     def _get_config_templates(self, config_data):
-        return [template.pk for template in config_data.pop('templates', [])]
+        return [template.pk for template in config_data.pop("templates", [])]
 
     def _prepare_config(self, device, config_data):
         config = device.config
@@ -154,10 +154,10 @@ class DeviceConfigSerializer(BaseSerializer):
         the default values and hence the config is useful.
         """
         return not (
-            config_data.get('backend') == app_settings.DEFAULT_BACKEND
-            and not config_data.get('templates')
-            and not config_data.get('context')
-            and not config_data.get('config')
+            config_data.get("backend") == app_settings.DEFAULT_BACKEND
+            and not config_data.get("templates")
+            and not config_data.get("context")
+            and not config_data.get("config")
         )
 
     @transaction.atomic
@@ -183,7 +183,7 @@ class DeviceConfigSerializer(BaseSerializer):
                 config.save()
             config.templates.add(*config_templates)
         except ValidationError as error:
-            raise serializers.ValidationError({'config': error.messages})
+            raise serializers.ValidationError({"config": error.messages})
 
     def _update_config(self, device, config_data):
         # Do not create Config object if config_data only
@@ -196,25 +196,25 @@ class DeviceConfigSerializer(BaseSerializer):
         config_templates = self._get_config_templates(config_data)
         try:
             config = self._prepare_config(device, config_data)
-            old_templates = list(config.templates.values_list('id', flat=True))
+            old_templates = list(config.templates.values_list("id", flat=True))
             if config_templates != old_templates:
                 with transaction.atomic():
-                    vpn_list = config.templates.filter(type='vpn').values_list('vpn')
+                    vpn_list = config.templates.filter(type="vpn").values_list("vpn")
                     if vpn_list:
                         config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
                     config.templates.set(config_templates, clear=True)
             config.save()
         except ValidationError as error:
-            raise serializers.ValidationError({'config': error.messages})
+            raise serializers.ValidationError({"config": error.messages})
 
 
 class DeviceListConfigSerializer(BaseConfigSerializer):
     config = serializers.JSONField(
-        initial={}, help_text=_('Configuration in NetJSON format'), write_only=True
+        initial={}, help_text=_("Configuration in NetJSON format"), write_only=True
     )
     context = serializers.JSONField(
         initial={},
-        help_text=_('Configuration variables in JSON format'),
+        help_text=_("Configuration variables in JSON format"),
         write_only=True,
     )
     templates = FilterTemplatesByOrganization(many=True, write_only=True)
@@ -226,37 +226,37 @@ class DeviceListSerializer(DeviceConfigSerializer):
     class Meta(BaseMeta):
         model = Device
         fields = [
-            'id',
-            'name',
-            'organization',
-            'group',
-            'mac_address',
-            'key',
-            'last_ip',
-            'management_ip',
-            'model',
-            'os',
-            'system',
-            'notes',
-            'config',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "organization",
+            "group",
+            "mac_address",
+            "key",
+            "last_ip",
+            "management_ip",
+            "model",
+            "os",
+            "system",
+            "notes",
+            "config",
+            "created",
+            "modified",
         ]
         extra_kwargs = {
-            'last_ip': {'allow_blank': True},
-            'management_ip': {'allow_blank': True},
+            "last_ip": {"allow_blank": True},
+            "management_ip": {"allow_blank": True},
         }
 
     def validate(self, data):
         # Validation of "config" is performed after
         # device object is created in the "create" method.
-        config_data = data.pop('config', None)
+        config_data = data.pop("config", None)
         data = super().validate(data)
-        data['config'] = config_data
+        data["config"] = config_data
         return data
 
     def create(self, validated_data):
-        config_data = validated_data.pop('config', None)
+        config_data = validated_data.pop("config", None)
         with transaction.atomic():
             device = Device.objects.create(**validated_data)
             if config_data:
@@ -266,10 +266,10 @@ class DeviceListSerializer(DeviceConfigSerializer):
 
 class DeviceDetailConfigSerializer(BaseConfigSerializer):
     config = serializers.JSONField(
-        initial={}, help_text=_('Configuration in NetJSON format')
+        initial={}, help_text=_("Configuration in NetJSON format")
     )
     context = serializers.JSONField(
-        initial={}, help_text=_('Configuration variables in JSON format')
+        initial={}, help_text=_("Configuration variables in JSON format")
     )
     templates = FilterTemplatesByOrganization(many=True)
 
@@ -281,44 +281,44 @@ class DeviceDetailSerializer(DeviceConfigSerializer):
     class Meta(BaseMeta):
         model = Device
         fields = [
-            'id',
-            'name',
-            'organization',
-            'group',
-            'mac_address',
-            'key',
-            'last_ip',
-            'management_ip',
-            'is_deactivated',
-            'model',
-            'os',
-            'system',
-            'notes',
-            'config',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "organization",
+            "group",
+            "mac_address",
+            "key",
+            "last_ip",
+            "management_ip",
+            "is_deactivated",
+            "model",
+            "os",
+            "system",
+            "notes",
+            "config",
+            "created",
+            "modified",
         ]
 
     def update(self, instance, validated_data):
-        config_data = validated_data.pop('config', {})
+        config_data = validated_data.pop("config", {})
         raw_data_for_signal_handlers = {
-            'organization': validated_data.get('organization', instance.organization)
+            "organization": validated_data.get("organization", instance.organization)
         }
         if config_data:
             self._update_config(instance, config_data)
 
-        elif instance._has_config() and validated_data.get('organization'):
-            if instance.organization != validated_data.get('organization'):
+        elif instance._has_config() and validated_data.get("organization"):
+            if instance.organization != validated_data.get("organization"):
                 # config.device.organization is used for validating
                 # the organization of templates. It is also used for adding
                 # default and required templates configured for an organization.
                 # The value of the organization field is set here to
                 # prevent access of the old value stored in the database
                 # while performing above operations.
-                instance.config.device.organization = validated_data.get('organization')
+                instance.config.device.organization = validated_data.get("organization")
                 instance.config.templates.clear()
                 Config.enforce_required_templates(
-                    action='post_clear',
+                    action="post_clear",
                     instance=instance.config,
                     sender=instance.config.templates,
                     pk_set=None,
@@ -341,23 +341,23 @@ class DeviceGroupSerializer(BaseSerializer):
     class Meta(BaseMeta):
         model = DeviceGroup
         fields = [
-            'id',
-            'name',
-            'organization',
-            'description',
-            'templates',
-            'context',
-            'meta_data',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "organization",
+            "description",
+            "templates",
+            "context",
+            "meta_data",
+            "created",
+            "modified",
         ]
 
     def validate(self, data):
-        self._templates = [template.id for template in data.pop('templates', [])]
+        self._templates = [template.id for template in data.pop("templates", [])]
         return super().validate(data)
 
     def _save_m2m_templates(self, instance, created=False):
-        old_templates = list(instance.templates.values_list('pk', flat=True))
+        old_templates = list(instance.templates.values_list("pk", flat=True))
         if old_templates != self._templates:
             instance.templates.set(self._templates)
             if not created:

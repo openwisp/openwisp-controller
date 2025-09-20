@@ -1,17 +1,14 @@
-from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import pagination
-from rest_framework.exceptions import NotFound
 from rest_framework.generics import (
-    GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
 from swapper import load_model
-
-from openwisp_users.api.mixins import FilterByParentManaged
-from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 
 from ...mixins import (
     ProtectedAPIMixin,
@@ -24,24 +21,23 @@ from .serializers import (
     DeviceConnectionSerializer,
 )
 
-Command = load_model('connection', 'Command')
-Device = load_model('config', 'Device')
-Credentials = load_model('connection', 'Credentials')
-DeviceConnection = load_model('connection', 'DeviceConnection')
+Command = load_model("connection", "Command")
+Device = load_model("config", "Device")
+Credentials = load_model("connection", "Credentials")
+DeviceConnection = load_model("connection", "DeviceConnection")
 
 
 class ListViewPagination(pagination.PageNumberPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
-class BaseCommandView(
-    BaseProtectedAPIMixin,
-    FilterByParentManaged,
-):
+class BaseCommandView(RelatedDeviceProtectedAPIMixin):
+    organization_field = "device__organization"
+    organization_lookup = "organization__in"
     model = Command
-    queryset = Command.objects.prefetch_related('device')
+    queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
 
     def get_permissions(self):
@@ -49,15 +45,20 @@ class BaseCommandView(
 
     def get_parent_queryset(self):
         return Device.objects.filter(
-            pk=self.kwargs['device_id'],
+            pk=self.kwargs["device_id"],
         )
 
     def get_queryset(self):
-        return super().get_queryset().filter(device_id=self.kwargs['device_id'])
+        return (
+            super()
+            .get_queryset()
+            .filter(device_id=self.kwargs["device_id"])
+            .order_by("-created")
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['device_id']
+        context["device_id"] = self.kwargs["device_id"]
         return context
 
 
@@ -68,12 +69,28 @@ class CommandListCreateView(BaseCommandView, ListCreateAPIView):
         self.assert_parent_exists()
         return super().create(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        operation_description=_("Execute a command on a device"),
+        operation_summary=_("Execute device command"),
+        request_body=CommandSerializer,
+        responses={
+            201: openapi.Response(
+                description=_("Command created successfully"),
+                schema=CommandSerializer,
+            ),
+            400: openapi.Response(description=_("Invalid request data")),
+            404: openapi.Response(description=_("Device not found")),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
 
 class CommandDetailsView(BaseCommandView, RetrieveAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['pk'],
+            "id": self.kwargs["pk"],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         # May raise a permission denied
@@ -82,7 +99,7 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
 
 
 class CredentialListCreateView(ProtectedAPIMixin, ListCreateAPIView):
-    queryset = Credentials.objects.order_by('-created')
+    queryset = Credentials.objects.order_by("-created")
     serializer_class = CredentialSerializer
     pagination_class = ListViewPagination
 
@@ -92,50 +109,41 @@ class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CredentialSerializer
 
 
-class BaseDeviceConnection(RelatedDeviceProtectedAPIMixin, GenericAPIView):
+class BaseDeviceConnection(
+    RelatedDeviceProtectedAPIMixin,
+):
+    organization_field = "device__organization"
+    organization_lookup = "organization__in"
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
-
-    def get_queryset(self):
-        return DeviceConnection.objects.prefetch_related('device')
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['device_id'] = self.kwargs['device_id']
-        return context
-
-    def initial(self, *args, **kwargs):
-        super().initial(*args, **kwargs)
-        self.assert_parent_exists()
-
-    def assert_parent_exists(self):
-        try:
-            assert self.get_parent_queryset().exists()
-        except (AssertionError, ValidationError):
-            device_id = self.kwargs['device_id']
-            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
-
-    def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs['device_id'])
-
-
-class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
-    pagination_class = ListViewPagination
+    queryset = DeviceConnection.objects.prefetch_related("device")
 
     def get_queryset(self):
         return (
             super()
             .get_queryset()
-            .filter(device_id=self.kwargs['device_id'])
-            .order_by('-created')
+            .filter(device_id=self.kwargs["device_id"])
+            .order_by("-created")
         )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["device_id"] = self.kwargs["device_id"]
+        return context
+
+    def get_parent_queryset(self):
+        return Device.objects.filter(pk=self.kwargs["device_id"])
+
+
+class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
+    pagination_class = ListViewPagination
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
-            'id': self.kwargs['pk'],
+            "id": self.kwargs["pk"],
         }
         obj = get_object_or_404(queryset, **filter_kwargs)
         self.check_object_permissions(self.request, obj)

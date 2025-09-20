@@ -14,7 +14,7 @@ button[disabled] {
 #command_set-group .add-row,
 #command_set-group .advanced_editor,
 #command_set-group .form-row.field-type,
-li.commands {
+li.commands:not(.recent) {
   display: none !important;
 }
 
@@ -106,8 +106,8 @@ li.commands {
 #ow-command-confirm-text {
   color: #666;
   font-family:
-    "Roboto", "Lucida Grande", "DejaVu Sans", "Bitstream Vera Sans", Verdana,
-    Arial, sans-serif;
+    "Roboto", "Lucida Grande", "DejaVu Sans", "Bitstream Vera Sans", Verdana, Arial,
+    sans-serif;
   font-size: 14px;
   font-weight: normal;
   margin: 20px;
@@ -200,10 +200,7 @@ li.commands {
     right: 20%;
   }
 
-  #command_set-0
-    .inline-group[data-inline-type="stacked"]
-    .inline-related
-    .module {
+  #command_set-0 .inline-group[data-inline-type="stacked"] .inline-related .module {
     padding: 0px !important;
   }
 

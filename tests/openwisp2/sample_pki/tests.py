@@ -3,7 +3,7 @@ from openwisp_controller.pki.tests.test_models import TestModels as BaseTestMode
 
 
 class TestAdmin(BaseTestAdmin):
-    app_label = 'sample_pki'
+    app_label = "sample_pki"
 
 
 class TestModels(BaseTestModels):

@@ -48,17 +48,17 @@ from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
-prefix = 'config/'
-Config = load_model('config', 'Config')
-Device = load_model('config', 'Device')
-DeviceGroup = load_model('config', 'DeviceGroup')
-Template = load_model('config', 'Template')
-Vpn = load_model('config', 'Vpn')
-Organization = load_model('openwisp_users', 'Organization')
-OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
-OrganizationLimits = load_model('config', 'OrganizationLimits')
+prefix = "config/"
+Config = load_model("config", "Config")
+Device = load_model("config", "Device")
+DeviceGroup = load_model("config", "DeviceGroup")
+Template = load_model("config", "Template")
+Vpn = load_model("config", "Vpn")
+Organization = load_model("openwisp_users", "Organization")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+OrganizationLimits = load_model("config", "OrganizationLimits")
 
-if 'reversion' in settings.INSTALLED_APPS:
+if "reversion" in settings.INSTALLED_APPS:
     from reversion.admin import VersionAdmin as ModelAdmin
 else:  # pragma: nocover
     from django.contrib.admin import ModelAdmin
@@ -67,11 +67,11 @@ else:  # pragma: nocover
 class SystemDefinedVariableMixin(object):
     def system_context(self, obj):
         system_context = obj.get_system_context()
-        template = get_template('admin/config/system_context.html')
-        output = template.render({'system_context': system_context, 'new_line': '\n'})
+        template = get_template("admin/config/system_context.html")
+        output = template.render({"system_context": system_context, "new_line": "\n"})
         return output
 
-    system_context.short_description = _('System Defined Variables')
+    system_context.short_description = _("System Defined Variables")
 
 
 class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
@@ -80,7 +80,7 @@ class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
 
 class DeactivatedDeviceReadOnlyMixin(object):
     def _has_permission(self, request, obj, perm):
-        if not obj or getattr(request, '_recover_view', False):
+        if not obj or getattr(request, "_recover_view", False):
             return perm
         return perm and not obj.is_deactivated()
 
@@ -103,90 +103,90 @@ class DeactivatedDeviceReadOnlyMixin(object):
 
 
 class BaseConfigAdmin(BaseAdmin):
-    change_form_template = 'admin/config/change_form.html'
+    change_form_template = "admin/config/change_form.html"
     preview_template = None
     actions_on_bottom = True
     save_on_top = True
-    ordering = ['name']
+    ordering = ["name"]
 
     class Media:
-        css = {'all': (f'{prefix}css/admin.css',)}
+        css = {"all": (f"{prefix}css/admin.css",)}
         js = list(UUIDAdmin.Media.js) + [
-            f'{prefix}js/{file_}'
-            for file_ in ('preview.js', 'unsaved_changes.js', 'switcher.js')
+            f"{prefix}js/{file_}"
+            for file_ in ("preview.js", "unsaved_changes.js", "switcher.js")
         ]
 
     def get_extra_context(self, pk=None):
-        prefix = 'admin:{0}_{1}'.format(
+        prefix = "admin:{0}_{1}".format(
             self.opts.app_label, self.model.__name__.lower()
         )
-        text = _('Preview configuration')
+        text = _("Preview configuration")
         ctx = {
-            'additional_buttons': [
+            "additional_buttons": [
                 {
-                    'type': 'button',
-                    'url': reverse('{0}_preview'.format(prefix)),
-                    'class': 'previewlink',
-                    'value': text,
-                    'title': '{0} (ALT+P)'.format(text),
+                    "type": "button",
+                    "url": reverse("{0}_preview".format(prefix)),
+                    "class": "previewlink",
+                    "value": text,
+                    "title": "{0} (ALT+P)".format(text),
                 }
             ]
         }
         # do not pass CONFIG_BACKEND_FIELD_SHOWN in VpnAdmin
         # since we don't need to hide the VPN backend there
         if not issubclass(self.model, AbstractVpn):
-            ctx['CONFIG_BACKEND_FIELD_SHOWN'] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
+            ctx["CONFIG_BACKEND_FIELD_SHOWN"] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
         if pk:
-            ctx['download_url'] = reverse('{0}_download'.format(prefix), args=[pk])
+            ctx["download_url"] = reverse("{0}_download".format(prefix), args=[pk])
             try:
                 has_config = True
-                if self.model.__name__ == 'Device':
+                if self.model.__name__ == "Device":
                     has_config = self.model.objects.get(pk=pk)._has_config()
             except (ObjectDoesNotExist, ValidationError):
                 raise Http404()
             else:
                 if not has_config:
-                    ctx['download_url'] = None
+                    ctx["download_url"] = None
         return ctx
 
-    def add_view(self, request, form_url='', extra_context=None):
+    def add_view(self, request, form_url="", extra_context=None):
         extra_context = extra_context or {}
         extra_context.update(self.get_extra_context())
         instance = self.model()
-        if hasattr(instance, 'get_default_templates'):
+        if hasattr(instance, "get_default_templates"):
             templates = instance.get_default_templates()
             templates = [str(t.id) for t in templates]
-            extra_context.update({'default_templates': templates})
+            extra_context.update({"default_templates": templates})
         return super().add_view(request, form_url, extra_context)
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
+    def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = self.get_extra_context(object_id)
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_urls(self):
-        options = getattr(self.model, '_meta')
-        url_prefix = '{0}_{1}'.format(options.app_label, options.model_name)
+        options = getattr(self.model, "_meta")
+        url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
         return [
             re_path(
-                r'^download/(?P<pk>[^/]+)/$',
+                r"^download/(?P<pk>[^/]+)/$",
                 self.admin_site.admin_view(self.download_view),
-                name='{0}_download'.format(url_prefix),
+                name="{0}_download".format(url_prefix),
             ),
             path(
-                'preview/',
+                "preview/",
                 self.admin_site.admin_view(self.preview_view),
-                name='{0}_preview'.format(url_prefix),
+                name="{0}_preview".format(url_prefix),
             ),
             re_path(
-                r'^(?P<pk>[^/]+)/context\.json$',
+                r"^(?P<pk>[^/]+)/context\.json$",
                 self.admin_site.admin_view(self.context_view),
-                name='{0}_context'.format(url_prefix),
+                name="{0}_context".format(url_prefix),
             ),
         ] + super().get_urls()
 
     def _get_config_model(self):
         model = self.model
-        if hasattr(model, 'get_backend_instance'):
+        if hasattr(model, "get_backend_instance"):
             return model
         return model.get_config_model()
 
@@ -212,17 +212,17 @@ class BaseConfigAdmin(BaseAdmin):
             # adapt attribute names to the fact that we only
             # have pk of relations, therefore use {relation}_id
             elif field.is_relation:
-                key = '{relation}_id'.format(relation=key)
+                key = "{relation}_id".format(relation=key)
                 # pass non-empty string or None
                 kwargs[key] = value or None
             # put regular field values in kwargs dict
             else:
                 kwargs[key] = value
         # default context to None to avoid exception
-        if 'context' in kwargs:
-            kwargs['context'] = kwargs['context'] or None
+        if "context" in kwargs:
+            kwargs["context"] = kwargs["context"] or None
         try:
-            instance = config_model.objects.get(pk=request.POST['id'])
+            instance = config_model.objects.get(pk=request.POST["id"])
             for key, value in kwargs.items():
                 setattr(instance, key, value)
         except (KeyError, ValidationError, config_model.DoesNotExist):
@@ -232,34 +232,34 @@ class BaseConfigAdmin(BaseAdmin):
         # turn off special name validation
         # (see ``ShareableOrgMixinUniqueName``)
         instance._validate_name = False
-        instance.full_clean(exclude=['device'], validate_unique=False)
+        instance.full_clean(exclude=["device"], validate_unique=False)
         return instance
 
-    preview_error_msg = _('Preview for {0} with name {1} failed')
+    preview_error_msg = _("Preview for {0} with name {1} failed")
 
     def preview_view(self, request):
-        if request.method != 'POST':
-            msg = _('Preview: request method {0} is not allowed').format(request.method)
-            logger.warning(msg, extra={'request': request, 'stack': True})
+        if request.method != "POST":
+            msg = _("Preview: request method {0} is not allowed").format(request.method)
+            logger.warning(msg, extra={"request": request, "stack": True})
             return HttpResponse(status=405)
         config_model = self._get_config_model()
         error = None
         output = None
         # error message for eventual exceptions
         error_msg = self.preview_error_msg.format(
-            config_model.__name__, request.POST.get('name')
+            config_model.__name__, request.POST.get("name")
         )
         try:
             instance = self._get_preview_instance(request)
         except Exception as e:
-            logger.exception(error_msg, extra={'request': request})
+            logger.exception(error_msg, extra={"request": request})
             # return 400 for validation errors, otherwise 500
             status = 400 if e.__class__ is ValidationError else 500
             return HttpResponse(str(e), status=status)
-        template_ids = request.POST.get('templates')
+        template_ids = request.POST.get("templates")
         if template_ids:
             template_model = config_model.get_template_model()
-            template_ids = template_ids.split(',')
+            template_ids = template_ids.split(",")
             try:
                 templates = template_model.objects.filter(pk__in=template_ids)
                 templates = list(templates)  # evaluating queryset performs query
@@ -268,7 +268,7 @@ class BaseConfigAdmin(BaseAdmin):
                     key=lambda template: template_ids.index(str(template.id))
                 )
             except ValidationError as e:
-                logger.exception(error_msg, extra={'request': request})
+                logger.exception(error_msg, extra={"request": request})
                 return HttpResponse(str(e), status=400)
         else:
             templates = None
@@ -286,42 +286,43 @@ class BaseConfigAdmin(BaseAdmin):
         opts = self.model._meta
         context.update(
             {
-                'is_popup': True,
-                'opts': opts,
-                'change': False,
-                'output': output,
-                'media': self.media,
-                'error': error,
+                "is_popup": True,
+                "opts": opts,
+                "change": False,
+                "output": output,
+                "media": self.media,
+                "error": error,
             }
         )
         return TemplateResponse(
             request,
             self.preview_template
             or [
-                'admin/config/%s/preview.html' % (opts.model_name),
-                'admin/config/preview.html',
+                "admin/config/%s/preview.html" % (opts.model_name),
+                "admin/config/preview.html",
             ],
             context,
         )
 
     def download_view(self, request, pk):
         instance = get_object_or_404(self.model, pk=pk)
-        if hasattr(instance, 'generate'):
+        if hasattr(instance, "generate"):
             config = instance
-        elif hasattr(instance, 'config'):
+        elif hasattr(instance, "config"):
             config = instance.config
         else:
             raise Http404()
-        config_archive = config.generate()
+        get_configuration = getattr(config, "get_cached_configuration", config.generate)
+        config_archive = get_configuration()
         return send_file(
-            filename='{0}.tar.gz'.format(config.name),
+            filename="{0}.tar.gz".format(config.name),
             contents=config_archive.getvalue(),
         )
 
     def context_view(self, request, pk):
         instance = get_object_or_404(self.model, pk=pk)
         context = json.dumps(instance.get_context())
-        return HttpResponse(context, content_type='application/json')
+        return HttpResponse(context, content_type="application/json")
 
 
 class BaseForm(forms.ModelForm):
@@ -334,14 +335,14 @@ class BaseForm(forms.ModelForm):
         def __init__(self, *args, **kwargs):
             # set initial backend value to use the default
             # backend but only for new instances
-            if 'instance' not in kwargs:
-                kwargs.setdefault('initial', {})
-                kwargs['initial'].update({'backend': app_settings.DEFAULT_BACKEND})
+            if "instance" not in kwargs:
+                kwargs.setdefault("initial", {})
+                kwargs["initial"].update({"backend": app_settings.DEFAULT_BACKEND})
             super().__init__(*args, **kwargs)
 
     class Meta:
         exclude = []
-        widgets = {'config': JsonSchemaWidget}
+        widgets = {"config": JsonSchemaWidget}
 
 
 class ConfigForm(AlwaysHasChangedMixin, BaseForm):
@@ -351,10 +352,10 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         config_model = self.Meta.model
         instance = config_model(**options)
         device_model = config_model.device.field.related_model
-        org = Organization.objects.get(pk=self.data['organization'])
+        org = Organization.objects.get(pk=self.data["organization"])
         instance.device = device_model(
-            name=self.data['name'],
-            mac_address=self.data['mac_address'],
+            name=self.data["name"],
+            mac_address=self.data["mac_address"],
             organization=org,
         )
         return instance
@@ -363,7 +364,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         config_model = self.Meta.model
         # copy cleaned_data to avoid tampering with it
         data = self.cleaned_data.copy()
-        templates = data.pop('templates', [])
+        templates = data.pop("templates", [])
         if self.instance._state.adding:
             # when adding self.instance is empty, we need to create a
             # temporary instance that we'll use just for validation
@@ -372,7 +373,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
             config = self.instance
         if config.backend and templates:
             config_model.clean_templates(
-                action='pre_add',
+                action="pre_add",
                 instance=config,
                 sender=config.templates,
                 reverse=False,
@@ -391,7 +392,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         return templates
 
     def save(self, *args, **kwargs):
-        templates = self.cleaned_data.get('templates', [])
+        templates = self.cleaned_data.get("templates", [])
         instance = super().save(*args, **kwargs)
         # as group templates are not forced so if user remove any selected
         # group template, we need to remove it from the config instance
@@ -407,10 +408,10 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
 
     class Meta(BaseForm.Meta):
         model = Config
-        widgets = {'config': JsonSchemaWidget, 'context': FlatJsonWidget}
-        labels = {'context': _('Configuration Variables')}
+        widgets = {"config": JsonSchemaWidget, "context": FlatJsonWidget}
+        labels = {"context": _("Configuration Variables")}
         help_texts = {
-            'context': _(
+            "context": _(
                 "In this section it's possible to override the default values of "
                 "variables defined in templates. If you're not using configuration "
                 "variables you can safely ignore this section."
@@ -427,32 +428,32 @@ class ConfigInline(
 ):
     model = Config
     form = ConfigForm
-    verbose_name_plural = _('Device configuration details')
-    readonly_fields = ['status', 'system_context']
+    verbose_name_plural = _("Device configuration details")
+    readonly_fields = ["status", "system_context"]
     fields = [
-        'backend',
-        'status',
-        'templates',
-        'system_context',
-        'context',
-        'config',
-        'created',
-        'modified',
+        "backend",
+        "status",
+        "templates",
+        "system_context",
+        "context",
+        "config",
+        "created",
+        "modified",
     ]
-    change_select_related = ('device',)
+    change_select_related = ("device",)
     extra = 0
-    verbose_name = _('Configuration')
+    verbose_name = _("Configuration")
     verbose_name_plural = verbose_name
-    multitenant_shared_relations = ('templates',)
+    multitenant_shared_relations = ("templates",)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related(*self.change_select_related)
 
     def _error_reason_field_conditional(self, obj, fields):
-        if obj and obj.status == 'error' and 'error_reason' not in fields:
+        if obj and obj.status == "error" and "error_reason" not in fields:
             fields = fields.copy()
-            fields.insert(fields.index('status') + 1, 'error_reason')
+            fields.insert(fields.index("status") + 1, "error_reason")
         return fields
 
     def get_readonly_fields(self, request, obj):
@@ -463,6 +464,13 @@ class ConfigInline(
         fields = super().get_fields(request, obj)
         return self._error_reason_field_conditional(obj, fields)
 
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # setting queryset none for all requests except POST as queryset
+        # is required for the form to be valid
+        if db_field.name == "templates" and request.method != "POST":
+            kwargs["queryset"] = Template.objects.none()
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
 
 class ChangeDeviceGroupForm(forms.Form):
     device_group = forms.ModelChoiceField(
@@ -470,98 +478,98 @@ class ChangeDeviceGroupForm(forms.Form):
         # after filtering the groups according the
         # device's organization
         queryset=DeviceGroup.objects.none(),
-        label=_('Group'),
+        label=_("Group"),
         required=False,
     )
 
     def __init__(self, org_id, **kwargs):
         super().__init__(**kwargs)
-        self.fields['device_group'].queryset = DeviceGroup.objects.filter(
+        self.fields["device_group"].queryset = DeviceGroup.objects.filter(
             organization_id=org_id
         )
 
 
 class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
-    change_form_template = 'admin/config/device/change_form.html'
+    change_form_template = "admin/config/device/change_form.html"
     delete_selected_confirmation_template = (
-        'admin/config/device/delete_selected_confirmation.html'
+        "admin/config/device/delete_selected_confirmation.html"
     )
     list_display = [
-        'name',
-        'backend',
-        'group',
-        'config_status',
-        'mac_address',
-        'ip',
-        'created',
-        'modified',
+        "name",
+        "backend",
+        "group",
+        "config_status",
+        "mac_address",
+        "ip",
+        "created",
+        "modified",
     ]
     list_filter = [
-        'config__status',
+        "config__status",
         MultitenantOrgFilter,
         TemplatesFilter,
         GroupFilter,
-        'created',
+        "created",
     ]
     search_fields = [
-        'id',
-        'name',
-        'mac_address',
-        'key',
-        'model',
-        'os',
-        'system',
-        'devicelocation__location__address',
+        "id",
+        "name",
+        "mac_address",
+        "key",
+        "model",
+        "os",
+        "system",
+        "devicelocation__location__address",
     ]
-    readonly_fields = ['last_ip', 'uuid']
-    autocomplete_fields = ['group']
+    readonly_fields = ["last_ip", "uuid"]
+    autocomplete_fields = ["group"]
     fields = [
-        'name',
-        'organization',
-        'mac_address',
-        'uuid',
-        'key',
-        'group',
-        'last_ip',
-        'management_ip',
-        'model',
-        'os',
-        'system',
-        'notes',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "mac_address",
+        "uuid",
+        "key",
+        "group",
+        "last_ip",
+        "management_ip",
+        "model",
+        "os",
+        "system",
+        "notes",
+        "created",
+        "modified",
     ]
     inlines = [ConfigInline]
     conditional_inlines = []
     actions = [
-        'change_group',
-        'deactivate_device',
-        'activate_device',
-        'delete_selected',
+        "change_group",
+        "deactivate_device",
+        "activate_device",
+        "delete_selected",
     ]
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
-    list_display.insert(org_position, 'organization')
+    list_display.insert(org_position, "organization")
     _state_adding = False
     _config_formset = None
 
     if app_settings.CONFIG_BACKEND_FIELD_SHOWN:
-        list_filter.insert(1, 'config__backend')
+        list_filter.insert(1, "config__backend")
     if app_settings.HARDWARE_ID_ENABLED:
-        list_display.insert(1, 'hardware_id')
-        search_fields.insert(1, 'hardware_id')
-        fields.insert(0, 'hardware_id')
-    list_select_related = ('config', 'organization')
+        list_display.insert(1, "hardware_id")
+        search_fields.insert(1, "hardware_id")
+        fields.insert(0, "hardware_id")
+    list_select_related = ("config", "organization")
 
     class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + [
-            f'{prefix}js/tabs.js',
-            f'{prefix}js/management_ip.js',
-            f'{prefix}js/relevant_templates.js',
+            f"{prefix}js/tabs.js",
+            f"{prefix}js/management_ip.js",
+            f"{prefix}js/relevant_templates.js",
         ]
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
-        if not obj or getattr(request, '_recover_view', False):
+        if not obj or getattr(request, "_recover_view", False):
             return perm
         return perm and not obj.is_deactivated()
 
@@ -587,18 +595,18 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         if (
             self._state_adding
             and formset.model == Config
-            and hasattr(form.instance, 'config')
+            and hasattr(form.instance, "config")
             and form.instance.group
             and form.instance.group.templates.exists()
         ):
-            formset.data['config-0-id'] = str(form.instance.config.id)
-            formset.data['config-0-device'] = str(form.instance.id)
-            formset.data['config-INITIAL_FORMS'] = '1'
+            formset.data["config-0-id"] = str(form.instance.config.id)
+            formset.data["config-0-device"] = str(form.instance.id)
+            formset.data["config-INITIAL_FORMS"] = "1"
             templates = form.instance.config.templates.all().values_list(
-                'pk', flat=True
+                "pk", flat=True
             )
             templates = [str(template) for template in templates]
-            formset.data['config-0-templates'] = ','.join(templates)
+            formset.data["config-0-templates"] = ",".join(templates)
             formset_new = formset.__class__(
                 data=formset.data, instance=formset.instance
             )
@@ -616,7 +624,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return super().construct_change_message(request, form, formsets, add)
 
     @admin.action(
-        description=_('Change group of selected Devices'), permissions=['change']
+        description=_("Change group of selected Devices"), permissions=["change"]
     )
     def change_group(self, request, queryset):
         # Validate all selected devices belong to the same organization
@@ -630,15 +638,15 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         if len(queryset) != queryset.filter(organization_id=org_id).count():
             self.message_user(
                 request,
-                _('Select devices from one organization'),
+                _("Select devices from one organization"),
                 messages.ERROR,
             )
             return HttpResponseRedirect(request.get_full_path())
 
-        if 'apply' in request.POST:
+        if "apply" in request.POST:
             form = ChangeDeviceGroupForm(data=request.POST, org_id=org_id)
             if form.is_valid():
-                group = form.cleaned_data['device_group']
+                group = form.cleaned_data["device_group"]
                 # Evaluate queryset to store old group id
                 old_group_qs = list(queryset)
                 queryset.update(group=group or None)
@@ -653,26 +661,26 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                     )
             self.message_user(
                 request,
-                _('Successfully changed group of selected devices.'),
+                _("Successfully changed group of selected devices."),
                 messages.SUCCESS,
             )
             return HttpResponseRedirect(request.get_full_path())
 
         form = ChangeDeviceGroupForm(org_id=org_id)
         context = {
-            'title': _('Change group'),
-            'queryset': queryset,
-            'form': form,
-            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-            'opts': self.model._meta,
-            'changelist_url': (
-                f'{request.resolver_match.app_name}:'
-                f'{request.resolver_match.url_name}'
+            "title": _("Change group"),
+            "queryset": queryset,
+            "form": form,
+            "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
+            "opts": self.model._meta,
+            "changelist_url": (
+                f"{request.resolver_match.app_name}:"
+                f"{request.resolver_match.url_name}"
             ),
         }
 
         return TemplateResponse(
-            request, 'admin/config/change_device_group.html', context
+            request, "admin/config/change_device_group.html", context
         )
 
     def _get_device_path(self, device):
@@ -681,44 +689,44 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         return format_html(
             '<a href="{}">{}</a>',
             reverse(
-                f'admin:{app_label}_{model_name}_change',
+                f"admin:{app_label}_{model_name}_change",
                 args=[device.id],
             ),
             device,
         )
 
     _device_status_messages = {
-        'deactivate': {
+        "deactivate": {
             messages.SUCCESS: ngettext_lazy(
-                'The device %(devices_html)s was deactivated successfully.',
+                "The device %(devices_html)s was deactivated successfully.",
                 (
-                    'The following devices were deactivated successfully:'
-                    ' %(devices_html)s.'
+                    "The following devices were deactivated successfully:"
+                    " %(devices_html)s."
                 ),
-                'devices',
+                "devices",
             ),
             messages.ERROR: ngettext_lazy(
-                'An error occurred while deactivating the device %(devices_html)s.',
+                "An error occurred while deactivating the device %(devices_html)s.",
                 (
-                    'An error occurred while deactivating the following devices:'
-                    ' %(devices_html)s.'
+                    "An error occurred while deactivating the following devices:"
+                    " %(devices_html)s."
                 ),
-                'devices',
+                "devices",
             ),
         },
-        'activate': {
+        "activate": {
             messages.SUCCESS: ngettext_lazy(
-                'The device %(devices_html)s was activated successfully.',
-                'The following devices were activated successfully: %(devices_html)s.',
-                'devices',
+                "The device %(devices_html)s was activated successfully.",
+                "The following devices were activated successfully: %(devices_html)s.",
+                "devices",
             ),
             messages.ERROR: ngettext_lazy(
-                'An error occurred while activating the device %(devices_html)s.',
+                "An error occurred while activating the device %(devices_html)s.",
                 (
-                    'An error occurred while activating the following devices:'
-                    ' %(devices_html)s.'
+                    "An error occurred while activating the following devices:"
+                    " %(devices_html)s."
                 ),
-                'devices',
+                "devices",
             ),
         },
     }
@@ -729,12 +737,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         if len(devices) == 1:
             devices_html = devices[0]
         else:
-            devices_html = ', '.join(devices[:-1]) + ' and ' + devices[-1]
+            devices_html = ", ".join(devices[:-1]) + " and " + devices[-1]
         message = self._device_status_messages[method][message_level]
         self.message_user(
             request,
             mark_safe(
-                message % {'devices_html': devices_html, 'devices': len(devices)}
+                message % {"devices_html": devices_html, "devices": len(devices)}
             ),
             message_level,
         )
@@ -758,20 +766,20 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         )
         self._message_user_device_status(request, error_devices, method, messages.ERROR)
 
-    @admin.action(description=_('Deactivate selected devices'), permissions=['change'])
+    @admin.action(description=_("Deactivate selected devices"), permissions=["change"])
     def deactivate_device(self, request, queryset):
-        self._change_device_status(request, queryset, 'deactivate')
+        self._change_device_status(request, queryset, "deactivate")
 
-    @admin.action(description=_('Activate selected devices'), permissions=['change'])
+    @admin.action(description=_("Activate selected devices"), permissions=["change"])
     def activate_device(self, request, queryset):
-        self._change_device_status(request, queryset, 'activate')
+        self._change_device_status(request, queryset, "activate")
 
-    @admin.action(description=delete_selected.short_description, permissions=['delete'])
+    @admin.action(description=delete_selected.short_description, permissions=["delete"])
     def delete_selected(self, request, queryset):
         response = delete_selected(self, request, queryset)
         if not response:
             return response
-        if 'active_devices' in response.context_data.get('perms_lacking', {}):
+        if "active_devices" in response.context_data.get("perms_lacking", {}):
             active_devices = []
             for device in queryset.iterator():
                 if not device.is_deactivated() or (
@@ -780,9 +788,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                     active_devices.append(self._get_device_path(device))
             response.context_data.update(
                 {
-                    'active_devices': active_devices,
-                    'perms_lacking': set(),
-                    'title': _('Are you sure?'),
+                    "active_devices": active_devices,
+                    "perms_lacking": set(),
+                    "title": _("Are you sure?"),
                 }
             )
         return response
@@ -800,7 +808,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             if request.POST.get("post"):
                 perms_needed = set()
             else:
-                perms_needed = {'active_devices'}
+                perms_needed = {"active_devices"}
         return to_delete, model_count, perms_needed, protected
 
     def get_fields(self, request, obj=None):
@@ -818,21 +826,21 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         mngmt_ip = obj.management_ip if app_settings.MANAGEMENT_IP_DEVICE_LIST else None
         return mngmt_ip or obj.last_ip
 
-    ip.short_description = _('IP address')
+    ip.short_description = _("IP address")
 
     def config_status(self, obj):
         if obj._has_config():
             return obj.config.status
         # The device does not have a related config object
         if obj.is_deactivated():
-            return _('deactivated')
-        return _('unknown')
+            return _("deactivated")
+        return _("unknown")
 
-    config_status.short_description = _('config status')
+    config_status.short_description = _("config status")
 
     def _get_preview_instance(self, request):
         c = super()._get_preview_instance(request)
-        id_ = request.POST.get('id')
+        id_ = request.POST.get("id")
         # instantiate new device if it's a new config
         try:
             c.device
@@ -840,26 +848,26 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             c.device = self.model()
         # fill attributes with up to date data
         c.device.id = id_
-        c.device.name = request.POST.get('name')
-        c.device.mac_address = request.POST.get('mac_address')
-        c.device.key = request.POST.get('key')
-        c.device.group_id = request.POST.get('group') or None
-        c.device.organization_id = request.POST.get('organization_id') or None
-        if 'hardware_id' in request.POST:
-            c.device.hardware_id = request.POST.get('hardware_id')
+        c.device.name = request.POST.get("name")
+        c.device.mac_address = request.POST.get("mac_address")
+        c.device.key = request.POST.get("key")
+        c.device.group_id = request.POST.get("group") or None
+        c.device.organization_id = request.POST.get("organization_id") or None
+        if "hardware_id" in request.POST:
+            c.device.hardware_id = request.POST.get("hardware_id")
         return c
 
     def get_urls(self):
         urls = [
             path(
-                'config/get-relevant-templates/<str:organization_id>/',
+                "config/get-relevant-templates/<str:organization_id>/",
                 self.admin_site.admin_view(get_relevant_templates),
-                name='get_relevant_templates',
+                name="get_relevant_templates",
             ),
             path(
-                'get-default-values/',
+                "get-default-values/",
                 self.admin_site.admin_view(get_default_values),
-                name='get_default_values',
+                name="get_default_values",
             ),
         ] + super().get_urls()
         for inline in self.inlines + self.conditional_inlines:
@@ -872,48 +880,48 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     def get_extra_context(self, pk=None):
         ctx = super().get_extra_context(pk)
         if pk:
-            device = self.model.objects.select_related('config').get(id=pk)
+            device = self.model.objects.select_related("config").get(id=pk)
             ctx.update(
                 {
-                    'show_deactivate': not device.is_deactivated(),
-                    'show_activate': device.is_deactivated(),
-                    'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                    "show_deactivate": not device.is_deactivated(),
+                    "show_activate": device.is_deactivated(),
+                    "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
                 }
             )
             if device.is_deactivated():
-                ctx['additional_buttons'].append(
+                ctx["additional_buttons"].append(
                     {
-                        'raw_html': mark_safe(
+                        "raw_html": mark_safe(
                             '<input class="default" type="submit"'
                             f' value="{_("Activate")}" form="act_deact_device_form">'
                         )
                     }
                 )
             else:
-                ctx['additional_buttons'].append(
+                ctx["additional_buttons"].append(
                     {
-                        'raw_html': mark_safe(
+                        "raw_html": mark_safe(
                             '<p class="deletelink-box">'
                             '<input class="deletelink" type="submit"'
                             f' value="{_("Deactivate")}" form="act_deact_device_form">'
-                            '</p>'
+                            "</p>"
                         )
                     }
                 )
         ctx.update(
             {
-                'relevant_template_url': reverse(
-                    'admin:get_relevant_templates', args=['org_id']
+                "relevant_template_url": reverse(
+                    "admin:get_relevant_templates", args=["org_id"]
                 ),
-                'commands_api_endpoint': reverse(
-                    'connection_api:device_command_list',
-                    args=['00000000-0000-0000-0000-000000000000'],
+                "commands_api_endpoint": reverse(
+                    "connection_api:device_command_list",
+                    args=["00000000-0000-0000-0000-000000000000"],
                 ),
             }
         )
         return ctx
 
-    def add_view(self, request, form_url='', extra_context=None):
+    def add_view(self, request, form_url="", extra_context=None):
         extra_context = self.get_extra_context()
         return super().add_view(request, form_url, extra_context)
 
@@ -925,11 +933,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj and obj._has_config() and not obj.config.is_deactivated():
-            extra_context['deactivating_warning'] = True
+            extra_context["deactivating_warning"] = True
         return super().delete_view(request, object_id, extra_context)
 
     def delete_model(self, request, obj):
-        force_delete = request.POST.get('force_delete') == 'true'
+        force_delete = request.POST.get("force_delete") == "true"
         obj.delete(check_deactivated=not force_delete)
 
     def get_inlines(self, request, obj):
@@ -975,21 +983,21 @@ class DeviceAdminExportable(ImportExportMixin, DeviceAdmin):
     export_form_class = ExportForm
     resource_class = DeviceResource
     # needed to support both reversion and import-export
-    change_list_template = 'admin/config/change_list_device.html'
+    change_list_template = "admin/config/change_list_device.html"
 
 
 class CloneOrganizationForm(forms.Form):
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.none(),
         required=False,
-        empty_label=_('Shared systemwide (no organization)'),
+        empty_label=_("Shared systemwide (no organization)"),
     )
 
     def __init__(self, *args, **kwargs):
-        queryset = kwargs.pop('queryset')
-        user = kwargs.pop('user')
+        queryset = kwargs.pop("queryset")
+        user = kwargs.pop("user")
         super().__init__(*args, **kwargs)
-        org_field = self.fields.get('organization')
+        org_field = self.fields.get("organization")
         org_field.queryset = queryset
         if not user.is_superuser:
             org_field.empty_label = None
@@ -998,10 +1006,10 @@ class CloneOrganizationForm(forms.Form):
 class TemplateForm(BaseForm):
     class Meta(BaseForm.Meta):
         model = Template
-        widgets = {'config': JsonSchemaWidget, 'default_values': FlatJsonWidget}
-        labels = {'default_values': _('Configuration variables')}
+        widgets = {"config": JsonSchemaWidget, "default_values": FlatJsonWidget}
+        labels = {"default_values": _("Configuration variables")}
         help_texts = {
-            'default_values': _(
+            "default_values": _(
                 "If you want to use configuration variables in this template, "
                 "define them here along with their default values. The content "
                 "of each variable can be overridden in each device."
@@ -1012,51 +1020,51 @@ class TemplateForm(BaseForm):
 class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariableMixin):
     form = TemplateForm
     list_display = [
-        'name',
-        'organization',
-        'type',
-        'backend',
-        'default',
-        'required',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "type",
+        "backend",
+        "default",
+        "required",
+        "created",
+        "modified",
     ]
     list_filter = [
         MultitenantOrgFilter,
-        'backend',
-        'type',
-        'default',
-        'required',
-        'created',
+        "backend",
+        "type",
+        "default",
+        "required",
+        "created",
     ]
-    search_fields = ['name']
-    multitenant_shared_relations = ('vpn',)
+    search_fields = ["name"]
+    multitenant_shared_relations = ("vpn",)
     fields = [
-        'name',
-        'organization',
-        'type',
-        'backend',
-        'vpn',
-        'auto_cert',
-        'tags',
-        'default',
-        'required',
-        'system_context',
-        'default_values',
-        'config',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "type",
+        "backend",
+        "vpn",
+        "auto_cert",
+        "tags",
+        "default",
+        "required",
+        "system_context",
+        "default_values",
+        "config",
+        "created",
+        "modified",
     ]
-    readonly_fields = ['system_context']
-    autocomplete_fields = ['vpn']
+    readonly_fields = ["system_context"]
+    autocomplete_fields = ["vpn"]
 
-    @admin.action(permissions=['add'])
+    @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
         user = request.user
 
         def create_log_entry(user, clone):
-            ct = ContentType.objects.get(model='template')
+            ct = ContentType.objects.get(model="template")
             LogEntry.objects.log_action(
                 user_id=user.id,
                 content_type_id=ct.pk,
@@ -1072,24 +1080,24 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     validated_org = Organization.objects.get(pk=organization)
                 except (ValidationError, Organization.DoesNotExist) as e:
                     logger.warning(
-                        'Detected tampering in clone template '
-                        f'form by user {user}: {e}'
+                        "Detected tampering in clone template "
+                        f"form by user {user}: {e}"
                     )
                     return
                 if not user.is_superuser and not user.is_manager(organization):
                     logger.warning(
-                        'Detected tampering in clone template '
-                        f'form by user {user}: not authorized '
-                        f'to operate on {validated_org}.'
+                        "Detected tampering in clone template "
+                        f"form by user {user}: not authorized "
+                        f"to operate on {validated_org}."
                     )
                     return
-            elif organization == '':
+            elif organization == "":
                 validated_org = None
                 if not user.is_superuser:
                     logger.warning(
-                        'Detected tampering in clone template '
-                        f'form by user {user}: not authorized to '
-                        f'clone a template and set it to shared.'
+                        "Detected tampering in clone template "
+                        f"form by user {user}: not authorized to "
+                        f"clone a template and set it to shared."
                     )
                     return
 
@@ -1110,20 +1118,20 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     errors = True
                     msg = f'"{template.name}", '
                     for attr, reasons in dict(e).items():
-                        reasons = ', '.join(reasons)
-                        info = f'{attr}: {reasons}'
-                    msg += f'{info} - '
+                        reasons = ", ".join(reasons)
+                        info = f"{attr}: {reasons}"
+                    msg += f"{info} - "
                     msg = msg[0:-3]  # remove trailing separator
                     view.message_user(
                         request,
-                        _('Errors detected while cloning %s') % msg,
+                        _("Errors detected while cloning %s") % msg,
                         messages.ERROR,
                     )
 
             if not errors:
                 view.message_user(
                     request,
-                    _('Successfully cloned selected templates.'),
+                    _("Successfully cloned selected templates."),
                     messages.SUCCESS,
                 )
 
@@ -1136,34 +1144,34 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 pk__in=user.organizations_managed
             )
         if selectable_orgs:
-            organization = request.POST.get('organization')
-            if organization or organization == '':
+            organization = request.POST.get("organization")
+            if organization or organization == "":
                 save_clones(self, user, queryset, organization)
                 return None
             context = {
-                'title': _('Clone templates'),
-                'queryset': queryset,
-                'opts': self.model._meta,
-                'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-                'form': CloneOrganizationForm(queryset=selectable_orgs, user=user),
-                'changelist_url': (
-                    f'{request.resolver_match.app_name}:'
-                    f'{request.resolver_match.url_name}'
+                "title": _("Clone templates"),
+                "queryset": queryset,
+                "opts": self.model._meta,
+                "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
+                "form": CloneOrganizationForm(queryset=selectable_orgs, user=user),
+                "changelist_url": (
+                    f"{request.resolver_match.app_name}:"
+                    f"{request.resolver_match.url_name}"
                 ),
             }
             return TemplateResponse(
-                request, 'admin/config/clone_template_form.html', context
+                request, "admin/config/clone_template_form.html", context
             )
         else:
             save_clones(self, user, queryset)
 
-    actions = ['clone_selected_templates']
+    actions = ["clone_selected_templates"]
 
 
 if not app_settings.CONFIG_BACKEND_FIELD_SHOWN:  # pragma: nocover
-    DeviceAdmin.list_display.remove('backend')
-    TemplateAdmin.list_display.remove('backend')
-    TemplateAdmin.list_filter.remove('backend')
+    DeviceAdmin.list_display.remove("backend")
+    TemplateAdmin.list_display.remove("backend")
+    TemplateAdmin.list_filter.remove("backend")
 
 
 class VpnForm(forms.ModelForm):
@@ -1174,13 +1182,13 @@ class VpnForm(forms.ModelForm):
     if app_settings.DEFAULT_VPN_BACKEND:
 
         def __init__(self, *args, **kwargs):
-            if 'initial' in kwargs:
-                kwargs['initial'].update({'backend': app_settings.DEFAULT_VPN_BACKEND})
+            if "initial" in kwargs:
+                kwargs["initial"].update({"backend": app_settings.DEFAULT_VPN_BACKEND})
             super().__init__(*args, **kwargs)
 
     class Meta:
         model = Vpn
-        widgets = {'config': JsonSchemaWidget, 'dh': forms.widgets.HiddenInput}
+        widgets = {"config": JsonSchemaWidget, "dh": forms.widgets.HiddenInput}
         exclude = []
 
 
@@ -1189,61 +1197,61 @@ class VpnAdmin(
 ):
     form = VpnForm
     list_display = [
-        'name',
-        'organization',
-        'backend',
-        'subnet',
-        'ip',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "backend",
+        "subnet",
+        "ip",
+        "created",
+        "modified",
     ]
-    list_select_related = ['subnet', 'ip']
+    list_select_related = ["subnet", "ip"]
     list_filter = [
         MultitenantOrgFilter,
-        'backend',
+        "backend",
         SubnetFilter,
-        'created',
+        "created",
     ]
-    search_fields = ['id', 'name', 'host', 'key']
-    readonly_fields = ['id', 'uuid', 'system_context']
-    multitenant_shared_relations = ('ca', 'cert', 'subnet')
-    autocomplete_fields = ['ip', 'subnet']
+    search_fields = ["id", "name", "host", "key"]
+    readonly_fields = ["id", "uuid", "system_context"]
+    multitenant_shared_relations = ("ca", "cert", "subnet")
+    autocomplete_fields = ["ip", "subnet"]
     fields = [
-        'organization',
-        'name',
-        'host',
-        'uuid',
-        'key',
-        'backend',
-        'ca',
-        'cert',
-        'subnet',
-        'ip',
-        'webhook_endpoint',
-        'auth_token',
-        'notes',
-        'dh',
-        'system_context',
-        'config',
-        'created',
-        'modified',
+        "organization",
+        "name",
+        "host",
+        "uuid",
+        "key",
+        "backend",
+        "ca",
+        "cert",
+        "subnet",
+        "ip",
+        "webhook_endpoint",
+        "auth_token",
+        "notes",
+        "dh",
+        "system_context",
+        "config",
+        "created",
+        "modified",
     ]
 
     class Media(BaseConfigAdmin):
-        js = list(BaseConfigAdmin.Media.js) + [f'{prefix}js/vpn.js']
+        js = list(BaseConfigAdmin.Media.js) + [f"{prefix}js/vpn.js"]
 
 
 class DeviceGroupForm(BaseForm):
     _templates = None
 
     def clean_templates(self):
-        templates = self.cleaned_data.get('templates')
+        templates = self.cleaned_data.get("templates")
         self._templates = [template.id for template in templates]
         return templates
 
     def save(self, *args, **kwargs):
         instance = super().save(*args, **kwargs)
-        old_templates = list(self.instance.templates.values_list('pk', flat=True))
+        old_templates = list(self.instance.templates.values_list("pk", flat=True))
         if not self.instance._state.adding and old_templates != self._templates:
             DeviceGroup.templates_changed(
                 instance=instance,
@@ -1254,47 +1262,47 @@ class DeviceGroupForm(BaseForm):
 
     class Meta(BaseForm.Meta):
         model = DeviceGroup
-        widgets = {'meta_data': DeviceGroupJsonSchemaWidget, 'context': FlatJsonWidget}
+        widgets = {"meta_data": DeviceGroupJsonSchemaWidget, "context": FlatJsonWidget}
 
 
 class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
-    change_form_template = 'admin/device_group/change_form.html'
+    change_form_template = "admin/device_group/change_form.html"
     form = DeviceGroupForm
     list_display = [
-        'name',
-        'organization',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "created",
+        "modified",
     ]
     fields = [
-        'name',
-        'organization',
-        'description',
-        'templates',
-        'context',
-        'meta_data',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "description",
+        "templates",
+        "context",
+        "meta_data",
+        "created",
+        "modified",
     ]
-    search_fields = ['name', 'description', 'meta_data']
+    search_fields = ["name", "description", "meta_data"]
     list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
-    multitenant_shared_relations = ('templates',)
+    multitenant_shared_relations = ("templates",)
 
     class Media:
         js = list(UUIDAdmin.Media.js) + [
-            f'{prefix}js/relevant_templates.js',
+            f"{prefix}js/relevant_templates.js",
         ]
-        css = {'all': (f'{prefix}css/admin.css',)}
+        css = {"all": (f"{prefix}css/admin.css",)}
 
     def get_urls(self):
         options = self.model._meta
-        url_prefix = f'{options.app_label}_{options.model_name}'
+        url_prefix = f"{options.app_label}_{options.model_name}"
         urls = super().get_urls()
         urls += [
             path(
-                f'{options.app_label}/{options.model_name}/ui/schema.json',
+                f"{options.app_label}/{options.model_name}/ui/schema.json",
                 self.admin_site.admin_view(self.schema_view),
-                name=f'{url_prefix}_schema',
+                name=f"{url_prefix}_schema",
             ),
         ]
         return urls
@@ -1302,22 +1310,29 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     def schema_view(self, request):
         return JsonResponse(app_settings.DEVICE_GROUP_SCHEMA)
 
-    def add_view(self, request, form_url='', extra_context=None):
+    def add_view(self, request, form_url="", extra_context=None):
         extra_context = extra_context or {}
         extra_context.update(self.get_extra_context())
         return super().add_view(request, form_url, extra_context)
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
+    def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = self.get_extra_context(object_id)
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_extra_context(self, pk=None):
         ctx = {
-            'relevant_template_url': reverse(
-                'admin:get_relevant_templates', args=['org_id']
+            "relevant_template_url": reverse(
+                "admin:get_relevant_templates", args=["org_id"]
             ),
         }
         return ctx
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # setting queryset none for all requests except POST as queryset
+        # is required for the form to be valid
+        if db_field.name == "templates" and request.method != "POST":
+            kwargs["queryset"] = Template.objects.none()
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 admin.site.register(Device, DeviceAdminExportable)
@@ -1338,11 +1353,11 @@ class OrganizationLimitsInline(admin.StackedInline):
 
 
 limits_inline_position = 0
-if getattr(app_settings, 'REGISTRATION_ENABLED', True):
+if getattr(app_settings, "REGISTRATION_ENABLED", True):
 
     class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         class Meta:
-            widgets = {'context': FlatJsonWidget}
+            widgets = {"context": FlatJsonWidget}
 
     class ConfigSettingsInline(admin.StackedInline):
         model = OrganizationConfigSettings

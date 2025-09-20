@@ -10,13 +10,13 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.CONFIG_CONFIG_MODEL),
         migrations.swappable_dependency(settings.OPENWISP_IPAM_IPADDRESS_MODEL),
         migrations.swappable_dependency(settings.OPENWISP_IPAM_SUBNET_MODEL),
-        ('subnet_division', '0002_default_group_migration'),
+        ("subnet_division", "0002_default_group_migration"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='subnetdivisionindex',
-            name='config',
+            model_name="subnetdivisionindex",
+            name="config",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
@@ -25,8 +25,8 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name='subnetdivisionindex',
-            name='ip',
+            model_name="subnetdivisionindex",
+            name="ip",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
@@ -35,8 +35,8 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name='subnetdivisionindex',
-            name='subnet',
+            model_name="subnetdivisionindex",
+            name="subnet",
             field=models.ForeignKey(
                 blank=True,
                 null=True,

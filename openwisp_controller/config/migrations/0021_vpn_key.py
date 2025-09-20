@@ -10,12 +10,12 @@ import openwisp_utils.utils
 
 
 class Migration(migrations.Migration):
-    dependencies = [('config', '0020_remove_config_organization')]
+    dependencies = [("config", "0020_remove_config_organization")]
 
     operations = [
         migrations.AddField(
-            model_name='vpn',
-            name='key',
+            model_name="vpn",
+            name="key",
             field=openwisp_utils.base.KeyField(
                 db_index=True,
                 default=openwisp_utils.utils.get_random_key,
@@ -23,9 +23,9 @@ class Migration(migrations.Migration):
                 max_length=64,
                 validators=[
                     django.core.validators.RegexValidator(
-                        re.compile('^[^\\s/\\.]+$'),
-                        code='invalid',
-                        message='This value must not contain spaces, dots or slashes.',
+                        re.compile("^[^\\s/\\.]+$"),
+                        code="invalid",
+                        message="This value must not contain spaces, dots or slashes.",
                     )
                 ],
             ),

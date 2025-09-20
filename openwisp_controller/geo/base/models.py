@@ -15,16 +15,16 @@ class BaseLocation(OrgMixin, AbstractLocation):
 
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):
-    location = models.ForeignKey(get_model_name('geo', 'Location'), models.CASCADE)
+    location = models.ForeignKey(get_model_name("geo", "Location"), models.CASCADE)
 
     class Meta(AbstractFloorPlan.Meta):
         abstract = True
 
     def clean(self):
-        if not hasattr(self, 'location'):
+        if not hasattr(self, "location"):
             return
         self.organization = self.location.organization
-        self._validate_org_relation('location')
+        self._validate_org_relation("location")
         super().clean()
 
 
@@ -36,14 +36,14 @@ class BaseDeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
 
     # reuse the same generic attribute name used in django-loci
     content_object = models.OneToOneField(
-        get_model_name('config', 'Device'), models.CASCADE
+        get_model_name("config", "Device"), models.CASCADE
     )
     # override parent foreign key targets
     location = models.ForeignKey(
-        get_model_name('geo', 'Location'), models.CASCADE, blank=True, null=True
+        get_model_name("geo", "Location"), models.CASCADE, blank=True, null=True
     )
     floorplan = models.ForeignKey(
-        get_model_name('geo', 'FloorPlan'), models.CASCADE, blank=True, null=True
+        get_model_name("geo", "FloorPlan"), models.CASCADE, blank=True, null=True
     )
 
     class Meta(AbstractObjectLocation.Meta):
@@ -52,8 +52,8 @@ class BaseDeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
         unique_together = None
 
     def clean(self):
-        self._validate_org_relation('location', field_error='location')
-        self._validate_org_relation('floorplan', field_error='floorplan')
+        self._validate_org_relation("location", field_error="location")
+        self._validate_org_relation("floorplan", field_error="floorplan")
         super().clean()
 
     @property

@@ -12,23 +12,23 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 
-Device = load_model('config', 'Device')
-Location = load_model('geo', 'Location')
-DeviceLocation = load_model('geo', 'DeviceLocation')
-FloorPlan = load_model('geo', 'FloorPlan')
+Device = load_model("config", "Device")
+Location = load_model("geo", "Location")
+DeviceLocation = load_model("geo", "DeviceLocation")
+FloorPlan = load_model("geo", "FloorPlan")
 
 
 class LocationDeviceSerializer(ValidatedModelSerializer):
-    admin_edit_url = SerializerMethodField('get_admin_edit_url')
+    admin_edit_url = SerializerMethodField("get_admin_edit_url")
 
     def get_admin_edit_url(self, obj):
-        return self.context['request'].build_absolute_uri(
-            reverse(f'admin:{obj._meta.app_label}_device_change', args=(obj.id,))
+        return self.context["request"].build_absolute_uri(
+            reverse(f"admin:{obj._meta.app_label}_device_change", args=(obj.id,))
         )
 
     class Meta:
         model = Device
-        fields = '__all__'
+        fields = "__all__"
 
 
 class GeoJsonLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
@@ -36,8 +36,8 @@ class GeoJsonLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
 
     class Meta:
         model = Location
-        geo_field = 'geometry'
-        fields = '__all__'
+        geo_field = "geometry"
+        fields = "__all__"
 
 
 class BaseFloorPlanSerializer(BaseSerializer):
@@ -46,35 +46,35 @@ class BaseFloorPlanSerializer(BaseSerializer):
     class Meta:
         model = FloorPlan
         fields = [
-            'id',
-            'name',
-            'floor',
-            'image',
-            'created',
-            'modified',
+            "id",
+            "name",
+            "floor",
+            "image",
+            "created",
+            "modified",
         ]
         read_only_fields = [
-            'id',
-            'created',
-            'modified',
+            "id",
+            "created",
+            "modified",
         ]
 
     def get_name(self, obj):
-        name = '{0} {1} Floor'.format(obj.location.name, ordinal(obj.floor))
+        name = "{0} {1} Floor".format(obj.location.name, ordinal(obj.floor))
         return name
 
 
 class FloorPlanSerializer(BaseFloorPlanSerializer, ValidatedModelSerializer):
     class Meta(BaseFloorPlanSerializer.Meta):
         fields = BaseFloorPlanSerializer.Meta.fields + [
-            'location',
-            'organization',
+            "location",
+            "organization",
         ]
-        extra_kwargs = {'organization': {'required': False}}
+        extra_kwargs = {"organization": {"required": False}}
 
     def validate(self, data):
-        if data.get('location'):
-            data['organization'] = data.get('location').organization
+        if data.get("location"):
+            data["organization"] = data.get("location").organization
         return super().validate(data)
 
 
@@ -97,8 +97,8 @@ class NestedFloorplanSerializer(BaseFloorPlanSerializer):
             except (ValidationError, FloorPlan.DoesNotExist):
                 raise serializers.ValidationError(
                     detail={
-                        'floorplan': _(
-                            'FloorPlan object with entered ID does not exists.'
+                        "floorplan": _(
+                            "FloorPlan object with entered ID does not exists."
                         )
                     }
                 )
@@ -112,18 +112,18 @@ class FloorPlanLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = FloorPlan
         fields = (
-            'floor',
-            'image',
+            "floor",
+            "image",
         )
-        extra_kwargs = {'floor': {'required': False}, 'image': {'required': False}}
+        extra_kwargs = {"floor": {"required": False}, "image": {"required": False}}
 
 
 class DeviceCoordinatesSerializer(gis_serializers.GeoFeatureModelSerializer):
     class Meta:
         model = Location
-        geo_field = 'geometry'
-        fields = ('name', 'geometry')
-        read_only_fields = ('name',)
+        geo_field = "geometry"
+        fields = ("name", "geometry")
+        read_only_fields = ("name",)
 
 
 class LocationSerializer(BaseSerializer):
@@ -132,24 +132,24 @@ class LocationSerializer(BaseSerializer):
     class Meta:
         model = Location
         fields = (
-            'id',
-            'organization',
-            'name',
-            'type',
-            'is_mobile',
-            'address',
-            'geometry',
-            'created',
-            'modified',
-            'floorplan',
+            "id",
+            "organization",
+            "name",
+            "type",
+            "is_mobile",
+            "address",
+            "geometry",
+            "created",
+            "modified",
+            "floorplan",
         )
-        read_only_fields = ('id', 'created', 'modified')
+        read_only_fields = ("id", "created", "modified")
 
     def validate(self, data):
-        if data.get('type') == 'outdoor' and data.get('floorplan'):
+        if data.get("type") == "outdoor" and data.get("floorplan"):
             raise serializers.ValidationError(
                 {
-                    'type': _(
+                    "type": _(
                         "Floorplan can only be added with location of "
                         "the type indoor"
                     )
@@ -158,24 +158,24 @@ class LocationSerializer(BaseSerializer):
         return data
 
     def to_representation(self, instance):
-        request = self.context['request']
+        request = self.context["request"]
         data = super().to_representation(instance)
-        floorplans = instance.floorplan_set.all().order_by('-modified')
+        floorplans = instance.floorplan_set.all().order_by("-modified")
         floorplan_list = []
         for floorplan in floorplans:
             dict_ = {
-                'floor': floorplan.floor,
-                'image': request.build_absolute_uri(floorplan.image.url),
+                "floor": floorplan.floor,
+                "image": request.build_absolute_uri(floorplan.image.url),
             }
             floorplan_list.append(dict_)
-        data['floorplan'] = floorplan_list
+        data["floorplan"] = floorplan_list
         return data
 
     def create(self, validated_data):
         floorplan_data = None
 
-        if validated_data.get('floorplan'):
-            floorplan_data = validated_data.pop('floorplan')
+        if validated_data.get("floorplan"):
+            floorplan_data = validated_data.pop("floorplan")
 
         instance = self.instance or self.Meta.model(**validated_data)
         with transaction.atomic():
@@ -183,8 +183,8 @@ class LocationSerializer(BaseSerializer):
             instance.save()
 
         if floorplan_data:
-            floorplan_data['location'] = instance
-            floorplan_data['organization'] = instance.organization
+            floorplan_data["location"] = instance
+            floorplan_data["organization"] = instance.organization
             with transaction.atomic():
                 fl = FloorPlan.objects.create(**floorplan_data)
                 fl.full_clean()
@@ -194,30 +194,30 @@ class LocationSerializer(BaseSerializer):
 
     def update(self, instance, validated_data):
         floorplan_data = None
-        if validated_data.get('floorplan'):
-            floorplan_data = validated_data.pop('floorplan')
+        if validated_data.get("floorplan"):
+            floorplan_data = validated_data.pop("floorplan")
 
         if floorplan_data:
-            floorplan_obj = instance.floorplan_set.order_by('-created').first()
+            floorplan_obj = instance.floorplan_set.order_by("-created").first()
             if floorplan_obj:
                 # Update the first floorplan object
-                floorplan_obj.floor = floorplan_data.get('floor', floorplan_obj.floor)
-                floorplan_obj.image = floorplan_data.get('image', floorplan_obj.image)
+                floorplan_obj.floor = floorplan_data.get("floor", floorplan_obj.floor)
+                floorplan_obj.image = floorplan_data.get("image", floorplan_obj.image)
                 with transaction.atomic():
                     floorplan_obj.full_clean()
                     floorplan_obj.save()
             else:
-                if validated_data.get('type') == 'indoor':
-                    instance.type = 'indoor'
+                if validated_data.get("type") == "indoor":
+                    instance.type = "indoor"
                     instance.save()
-                floorplan_data['location'] = instance
-                floorplan_data['organization'] = instance.organization
+                floorplan_data["location"] = instance
+                floorplan_data["organization"] = instance.organization
                 fl = FloorPlan.objects.create(**floorplan_data)
                 with transaction.atomic():
                     fl.full_clean()
                     fl.save()
 
-        if instance.type == 'indoor' and validated_data.get('type') == 'outdoor':
+        if instance.type == "indoor" and validated_data.get("type") == "outdoor":
             floorplans = instance.floorplan_set.all()
             for floorplan in floorplans:
                 floorplan.delete()
@@ -228,19 +228,19 @@ class LocationSerializer(BaseSerializer):
 class NestedtLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
     class Meta:
         model = Location
-        geo_field = 'geometry'
+        geo_field = "geometry"
         fields = (
-            'id',
-            'type',
-            'is_mobile',
-            'name',
-            'address',
-            'geometry',
+            "id",
+            "type",
+            "is_mobile",
+            "name",
+            "address",
+            "geometry",
         )
-        read_only_fields = ('id',)
+        read_only_fields = ("id",)
 
     def get_value(self, dictionary):
-        if isinstance(dictionary.get('location'), str):
+        if isinstance(dictionary.get("location"), str):
             return dictionary.get(self.field_name)
         return super().get_value(dictionary)
 
@@ -251,8 +251,8 @@ class NestedtLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
             except (ValidationError, Location.DoesNotExist):
                 raise serializers.ValidationError(
                     detail={
-                        'location': _(
-                            'Location object with entered ID does not exists.'
+                        "location": _(
+                            "Location object with entered ID does not exists."
                         )
                     }
                 )
@@ -269,26 +269,26 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeviceLocation
         fields = (
-            'location',
-            'floorplan',
-            'indoor',
+            "location",
+            "floorplan",
+            "indoor",
         )
 
     @property
     def device_organization_id(self):
         return (
-            Device.objects.only('organization_id')
-            .get(id=self.context.get('device_id'))
+            Device.objects.only("organization_id")
+            .get(id=self.context.get("device_id"))
             .organization_id
         )
 
     def get_or_create_location_object(self, validated_data, location_instance=None):
-        location_data = validated_data.pop('location', None)
+        location_data = validated_data.pop("location", None)
         if not location_data:
             return
         if isinstance(location_data, dict):
-            if 'organization' not in location_data:
-                location_data['organization'] = self.device_organization_id
+            if "organization" not in location_data:
+                location_data["organization"] = self.device_organization_id
             location_serializer = LocationSerializer(
                 data=location_data, instance=location_instance
             )
@@ -297,15 +297,15 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         return location_data
 
     def get_or_create_floorplan_object(self, validated_data, floorplan_instance=None):
-        floorplan_data = validated_data.pop('floorplan', None)
+        floorplan_data = validated_data.pop("floorplan", None)
         if not floorplan_data:
             return
         if isinstance(floorplan_data, dict):
-            if 'organization' not in floorplan_data:
-                floorplan_data['organization'] = self.device_organization_id
-            if 'location' not in floorplan_data:
-                floorplan_data['location'] = getattr(
-                    validated_data['location'], 'id', validated_data['location']
+            if "organization" not in floorplan_data:
+                floorplan_data["organization"] = self.device_organization_id
+            if "location" not in floorplan_data:
+                floorplan_data["location"] = getattr(
+                    validated_data["location"], "id", validated_data["location"]
                 )
             floorplan_serializer = FloorPlanSerializer(
                 data=floorplan_data, instance=floorplan_instance
@@ -313,7 +313,7 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
             try:
                 floorplan_serializer.is_valid(raise_exception=True)
             except serializers.ValidationError as error:
-                raise serializers.ValidationError(detail={'floorplan': error.detail})
+                raise serializers.ValidationError(detail={"floorplan": error.detail})
             else:
                 return floorplan_serializer.save()
         return floorplan_data
@@ -327,23 +327,23 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        validated_data['location'] = self.get_or_create_location_object(validated_data)
-        validated_data['floorplan'] = self.get_or_create_floorplan_object(
+        validated_data["location"] = self.get_or_create_location_object(validated_data)
+        validated_data["floorplan"] = self.get_or_create_floorplan_object(
             validated_data
         )
         validated_data.update(
             {
-                'content_object_id': self.context.get('device_id'),
+                "content_object_id": self.context.get("device_id"),
             }
         )
         validated_data = self._validate(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        validated_data['location'] = self.get_or_create_location_object(
+        validated_data["location"] = self.get_or_create_location_object(
             validated_data, instance.location
         )
-        validated_data['floorplan'] = self.get_or_create_floorplan_object(
+        validated_data["floorplan"] = self.get_or_create_floorplan_object(
             validated_data, instance.floorplan
         )
         validated_data = self._validate(validated_data)

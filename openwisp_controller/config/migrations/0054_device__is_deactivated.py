@@ -5,13 +5,13 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0053_vpnclient_secret'),
+        ("config", "0053_vpnclient_secret"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='device',
-            name='_is_deactivated',
+            model_name="device",
+            name="_is_deactivated",
             field=models.BooleanField(default=False),
         ),
     ]

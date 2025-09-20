@@ -1,8 +1,10 @@
 import collections
 import hashlib
 import json
+import logging
 from copy import deepcopy
 
+from cache_memoize import cache_memoize
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.functional import cached_property
@@ -14,6 +16,82 @@ from netjsonconfig.exceptions import ValidationError as SchemaError
 from openwisp_utils.base import TimeStampedEditableModel
 
 from .. import settings as app_settings
+
+logger = logging.getLogger(__name__)
+
+
+def get_cached_args_rewrite(instance):
+    """
+    Use only the PK parameter for calculating the cache key
+    """
+    return instance.pk.hex
+
+
+class ChecksumCacheMixin:
+    """
+    Mixin that provides caching for checksum.
+    """
+
+    _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 30 days
+
+    @cache_memoize(
+        timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_args_rewrite
+    )
+    def get_cached_checksum(self):
+        """
+        Handles caching,
+        timeout=None means value is cached indefinitely
+        (invalidation handled on post_save/post_delete signal)
+        """
+        logger.debug(f"calculating checksum for {self.__class__.__name__} ID {self.pk}")
+        return self.checksum
+
+    @classmethod
+    def bulk_invalidate_get_cached_checksum(cls, query_params):
+        """
+        Bulk invalidate checksum cache for multiple instances
+        """
+        for instance in cls.objects.only("id").filter(**query_params).iterator():
+            instance.get_cached_checksum.invalidate(instance)
+
+    def invalidate_checksum_cache(self):
+        """
+        Invalidate the checksum cache for this instance
+        """
+        self.get_cached_checksum.invalidate(self)
+        logger.debug(
+            f"invalidated checksum cache for {self.__class__.__name__} ID {self.pk}"
+        )
+
+
+class ConfigChecksumCacheMixin(ChecksumCacheMixin):
+    """
+    Mixin that provides caching for both checksum and configuration.
+    """
+
+    @cache_memoize(
+        timeout=ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT,
+        args_rewrite=get_cached_args_rewrite,
+    )
+    def get_cached_configuration(self):
+        """
+        Returns cached configuration
+        """
+        return self.generate()
+
+    def invalidate_configuration_cache(self):
+        """
+        Invalidate the configuration cache for this instance
+        """
+        self.get_cached_configuration.invalidate(self)
+        logger.debug(
+            f"invalidated configuration cache for {self.__class__.__name__}"
+            f" ID {self.pk}"
+        )
+
+    def invalidate_checksum_cache(self):
+        super().invalidate_checksum_cache()
+        self.invalidate_configuration_cache()
 
 
 class BaseModel(TimeStampedEditableModel):
@@ -36,7 +114,7 @@ class BaseConfig(BaseModel):
     """
 
     backend = models.CharField(
-        _('backend'),
+        _("backend"),
         choices=app_settings.BACKENDS,
         max_length=128,
         help_text=_(
@@ -45,11 +123,11 @@ class BaseConfig(BaseModel):
         ),
     )
     config = JSONField(
-        _('configuration'),
+        _("configuration"),
         default=dict,
-        help_text=_('configuration in NetJSON DeviceConfiguration format'),
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        help_text=_("configuration in NetJSON DeviceConfiguration format"),
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
     )
 
     __template__ = False
@@ -66,7 +144,7 @@ class BaseConfig(BaseModel):
         if self.config is None:
             self.config = {}
         if not isinstance(self.config, dict):
-            raise ValidationError({'config': _('Unexpected configuration format.')})
+            raise ValidationError({"config": _("Unexpected configuration format.")})
         # perform validation only if backend is defined, otherwise
         # django will take care of notifying blank field error
         if not self.backend:
@@ -75,7 +153,7 @@ class BaseConfig(BaseModel):
             backend = self.backend_instance
         except ImportError as e:
             message = 'Error while importing "{0}": {1}'.format(self.backend, e)
-            raise ValidationError({'backend': message})
+            raise ValidationError({"backend": message})
         else:
             self.clean_netjsonconfig_backend(backend)
 
@@ -89,9 +167,9 @@ class BaseConfig(BaseModel):
             return config
         c = deepcopy(config)
         is_config = not any([self.__template__, self.__vpn__])
-        if all(('hostname' not in c.get('general', {}), is_config, self.name)):
-            c.setdefault('general', {})
-            c['general']['hostname'] = self.name.replace(':', '-')
+        if all(("hostname" not in c.get("general", {}), is_config, self.name)):
+            c.setdefault("general", {})
+            c["general"]["hostname"] = self.name.replace(":", "-")
         return c
 
     def get_context(self):
@@ -119,11 +197,11 @@ class BaseConfig(BaseModel):
             cls.validate_netjsonconfig_backend(backend)
         except SchemaError as e:
             path = [str(el) for el in e.details.path]
-            trigger = '/'.join(path)
+            trigger = "/".join(path)
             error = e.details.message
             message = (
                 'Invalid configuration triggered by "#/{0}", '
-                'validator says:\n\n{1}'.format(trigger, error)
+                "validator says:\n\n{1}".format(trigger, error)
             )
             raise ValidationError(message)
 
@@ -147,22 +225,22 @@ class BaseConfig(BaseModel):
         needed for pre validation of m2m
         """
         backend = self.backend_class
-        kwargs.update({'config': self.get_config()})
+        kwargs.update({"config": self.get_config()})
         context = context or {}
         # determine if we can pass templates
         # expecting a many2many relationship
-        if hasattr(self, 'templates'):
+        if hasattr(self, "templates"):
             if template_instances is None:
                 template_instances = self.templates.all()
             templates_list = list()
             for t in template_instances:
                 templates_list.append(t.config)
                 context.update(t.get_context())
-            kwargs['templates'] = templates_list
+            kwargs["templates"] = templates_list
         # pass context to backend if get_context method is defined
-        if hasattr(self, 'get_context'):
+        if hasattr(self, "get_context"):
             context.update(self.get_context())
-            kwargs['context'] = context
+            kwargs["context"] = context
         backend_instance = backend(**kwargs)
         # remove accidentally duplicated files when combining config and templates
         # this may happen if a device uses multiple VPN client templates
@@ -174,13 +252,13 @@ class BaseConfig(BaseModel):
 
     @classmethod
     def _remove_duplicated_files(cls, backend_instance):
-        if 'files' not in backend_instance.config:
+        if "files" not in backend_instance.config:
             return
         unique_files = []
-        for file in backend_instance.config['files']:
+        for file in backend_instance.config["files"]:
             if file not in unique_files:
                 unique_files.append(file)
-        backend_instance.config['files'] = unique_files
+        backend_instance.config["files"] = unique_files
 
     def generate(self):
         """

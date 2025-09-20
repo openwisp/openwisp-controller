@@ -6,7 +6,7 @@ from openwisp_users.utils import (
 )
 
 additional_fields = [
-    [2, 'social_security_number'],
+    [2, "social_security_number"],
 ]
 
 usermodel_add_form(admin.UserAdmin, additional_fields)

@@ -18,54 +18,54 @@ from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
-Credentials = swapper.load_model('connection', 'Credentials')
-DeviceConnection = swapper.load_model('connection', 'DeviceConnection')
-Command = swapper.load_model('connection', 'Command')
+Credentials = swapper.load_model("connection", "Credentials")
+DeviceConnection = swapper.load_model("connection", "DeviceConnection")
+Command = swapper.load_model("connection", "Command")
 
 
 class CredentialsForm(forms.ModelForm):
     class Meta:
         exclude = []
-        widgets = {'params': CredentialsSchemaWidget}
+        widgets = {"params": CredentialsSchemaWidget}
 
 
 class CommandForm(forms.ModelForm):
     class Meta:
         exclude = []
-        widgets = {'input': CommandSchemaWidget}
+        widgets = {"input": CommandSchemaWidget}
 
 
 @admin.register(Credentials)
 class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin):
     list_display = (
-        'name',
-        'organization',
-        'connector',
-        'auto_add',
-        'created',
-        'modified',
+        "name",
+        "organization",
+        "connector",
+        "auto_add",
+        "created",
+        "modified",
     )
-    list_filter = [MultitenantOrgFilter, 'connector']
-    list_select_related = ('organization',)
+    list_filter = [MultitenantOrgFilter, "connector"]
+    list_select_related = ("organization",)
     form = CredentialsForm
     fields = [
-        'connector',
-        'name',
-        'organization',
-        'auto_add',
-        'params',
-        'created',
-        'modified',
+        "connector",
+        "name",
+        "organization",
+        "auto_add",
+        "params",
+        "created",
+        "modified",
     ]
 
     def get_urls(self):
-        options = getattr(self.model, '_meta')
-        url_prefix = f'{options.app_label}_{options.model_name}'
+        options = getattr(self.model, "_meta")
+        url_prefix = f"{options.app_label}_{options.model_name}"
         return [
             path(
-                'ui/schema.json',
+                "ui/schema.json",
                 self.admin_site.admin_view(self.schema_view),
-                name=f'{url_prefix}_schema',
+                name=f"{url_prefix}_schema",
             )
         ] + super().get_urls()
 
@@ -77,13 +77,13 @@ class DeviceConnectionInline(
     MultitenantAdminMixin, DeactivatedDeviceReadOnlyMixin, admin.StackedInline
 ):
     model = DeviceConnection
-    verbose_name = _('Credentials')
+    verbose_name = _("Credentials")
     verbose_name_plural = verbose_name
-    exclude = ['params', 'created', 'modified']
-    readonly_fields = ['is_working', 'failure_reason', 'last_attempt']
+    exclude = ["params", "created", "modified"]
+    readonly_fields = ["is_working", "failure_reason", "last_attempt"]
     extra = 0
 
-    multitenant_shared_relations = ('credentials',)
+    multitenant_shared_relations = ("credentials",)
 
     def get_queryset(self, request):
         """
@@ -101,10 +101,10 @@ class LimitedCommandResults(forms.models.BaseInlineFormSet):
 
 class CommandInline(admin.StackedInline):
     model = Command
-    verbose_name = _('Recent Commands')
+    verbose_name = _("Recent Commands")
     verbose_name_plural = verbose_name
-    fields = ['status', 'type', 'input_data', 'output_data', 'created', 'modified']
-    readonly_fields = ['input_data', 'output_data']
+    fields = ["status", "type", "input_data", "output_data", "created", "modified"]
+    readonly_fields = ["input_data", "output_data"]
     formset = LimitedCommandResults
 
     def get_queryset(self, request, select_related=True):
@@ -114,11 +114,11 @@ class CommandInline(admin.StackedInline):
         """
         qs = super().get_queryset(request)
         resolved = resolve(request.path_info)
-        if 'object_id' in resolved.kwargs:
+        if "object_id" in resolved.kwargs:
             seven_days = localtime() - timedelta(days=7)
             qs = qs.filter(
-                device_id=resolved.kwargs['object_id'], created__gte=seven_days
-            ).order_by('-created')
+                device_id=resolved.kwargs["object_id"], created__gte=seven_days
+            ).order_by("-created")
         if select_related:
             qs = qs.select_related()
         return qs
@@ -127,14 +127,14 @@ class CommandInline(admin.StackedInline):
         return obj.input_data
 
     def output_data(self, obj):
-        if obj.status == 'in-progress':
+        if obj.status == "in-progress":
             return format_html(
                 '<div class="loader recent-commands-loader"></div>',
             )
         return obj.output
 
-    input_data.short_description = _('input')
-    output_data.short_description = _('output')
+    input_data.short_description = _("input")
+    output_data.short_description = _("output")
 
     def _get_conditional_queryset(self, request, obj, select_related=False):
         return self.get_queryset(request, select_related=select_related).exists()
@@ -153,7 +153,7 @@ class CommandWritableInline(DeactivatedDeviceReadOnlyMixin, admin.StackedInline)
     model = Command
     extra = 1
     form = CommandForm
-    fields = ['type', 'input']
+    fields = ["type", "input"]
 
     def get_queryset(self, request, select_related=True):
         return self.model.objects.none()
@@ -163,17 +163,17 @@ class CommandWritableInline(DeactivatedDeviceReadOnlyMixin, admin.StackedInline)
 
     def get_urls(self):
         options = self.model._meta
-        url_prefix = f'{options.app_label}_{options.model_name}'
+        url_prefix = f"{options.app_label}_{options.model_name}"
         return [
             path(
-                f'{options.app_label}/{options.model_name}/ui/schema.json',
+                f"{options.app_label}/{options.model_name}/ui/schema.json",
                 self.admin_site.admin_view(self.schema_view),
-                name=f'{url_prefix}_schema',
+                name=f"{url_prefix}_schema",
             ),
         ]
 
     def schema_view(self, request):
-        organization_id = request.GET.get('organization_id')
+        organization_id = request.GET.get("organization_id")
         if not request.user.is_superuser and (
             not organization_id or not request.user.is_manager(organization_id)
         ):
@@ -183,11 +183,11 @@ class CommandWritableInline(DeactivatedDeviceReadOnlyMixin, admin.StackedInline)
 
 
 DeviceAdmin.inlines += [DeviceConnectionInline]
-reversion.register(model=DeviceConnection, follow=['device'])
+reversion.register(model=DeviceConnection, follow=["device"])
 DeviceAdmin.conditional_inlines += [
     CommandWritableInline,
     # this inline must come after CommandWritableInline
     # or the JS logic will not work
     CommandInline,
 ]
-DeviceAdmin.add_reversion_following(follow=['deviceconnection_set'])
+DeviceAdmin.add_reversion_following(follow=["deviceconnection_set"])

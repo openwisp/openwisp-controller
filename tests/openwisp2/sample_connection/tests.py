@@ -24,20 +24,20 @@ from openwisp_controller.connection.tests.test_tasks import TestTasks as BaseTes
 
 
 class TestConnectionAdmin(BaseTestConnectionAdmin):
-    config_app_label = 'sample_config'
-    app_label = 'sample_connection'
+    config_app_label = "sample_config"
+    app_label = "sample_connection"
 
 
 class TestCommandInlines(BaseTestCommandInlines):
-    config_app_label = 'sample_config'
+    config_app_label = "sample_config"
 
 
 class TestModels(BaseTestModels):
-    app_label = 'sample_connection'
+    app_label = "sample_connection"
 
 
 class TestModelsTransaction(BaseTestModelsTransaction):
-    app_label = 'sample_connection'
+    app_label = "sample_connection"
 
 
 class TestTasks(BaseTestTasks):
@@ -49,11 +49,11 @@ class TestSsh(BaseTestSsh):
 
 
 class TestNotifications(BaseTestNotifications):
-    app_label = 'sample_connection'
+    app_label = "sample_connection"
 
 
 class TestNotificationTransaction(BaseTestNotificationTransaction):
-    app_label = 'sample_connection'
+    app_label = "sample_connection"
 
 
 class TestConnectionApi(BaseTestConnectionApi):

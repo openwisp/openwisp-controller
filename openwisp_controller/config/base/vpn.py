@@ -33,7 +33,7 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
 )
-from .base import BaseConfig
+from .base import BaseConfig, ConfigChecksumCacheMixin
 
 logger = logging.getLogger(__name__)
 
@@ -43,66 +43,66 @@ def _peer_cache_key(vpn):
     return str(vpn.pk)
 
 
-class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
+class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
     """
     Abstract VPN model
     """
 
     host = models.CharField(
-        max_length=64, help_text=_('VPN server hostname or ip address')
+        max_length=64, help_text=_("VPN server hostname or ip address")
     )
     ca = models.ForeignKey(
-        get_model_name('django_x509', 'Ca'),
-        verbose_name=_('Certification Authority'),
+        get_model_name("django_x509", "Ca"),
+        verbose_name=_("Certification Authority"),
         on_delete=models.CASCADE,
         blank=True,
         null=True,
     )
     cert = models.ForeignKey(
-        get_model_name('django_x509', 'Cert'),
-        verbose_name=_('x509 Certificate'),
-        help_text=_('leave blank to create automatically'),
+        get_model_name("django_x509", "Cert"),
+        verbose_name=_("x509 Certificate"),
+        help_text=_("leave blank to create automatically"),
         blank=True,
         null=True,
         on_delete=models.CASCADE,
     )
     key = KeyField(db_index=True)
     backend = models.CharField(
-        _('VPN backend'),
+        _("VPN backend"),
         choices=app_settings.VPN_BACKENDS,
         max_length=128,
-        help_text=_('Select VPN configuration backend'),
+        help_text=_("Select VPN configuration backend"),
     )
     notes = models.TextField(blank=True)
     # optional, needed for VPNs which do not support automatic IP allocation
     subnet = models.ForeignKey(
-        get_model_name('openwisp_ipam', 'Subnet'),
-        verbose_name=_('Subnet'),
-        help_text=_('Subnet IP addresses used by VPN clients, if applicable'),
+        get_model_name("openwisp_ipam", "Subnet"),
+        verbose_name=_("Subnet"),
+        help_text=_("Subnet IP addresses used by VPN clients, if applicable"),
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
     )
     ip = models.ForeignKey(
-        get_model_name('openwisp_ipam', 'IpAddress'),
-        verbose_name=_('Internal IP'),
-        help_text=_('Internal IP address of the VPN server interface, if applicable'),
+        get_model_name("openwisp_ipam", "IpAddress"),
+        verbose_name=_("Internal IP"),
+        help_text=_("Internal IP address of the VPN server interface, if applicable"),
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
     )
     # optional, helpful for updating WireGuard and VXLAN server configuration
     webhook_endpoint = models.URLField(
-        verbose_name=_('Webhook Endpoint'),
+        verbose_name=_("Webhook Endpoint"),
         help_text=_(
-            'Webhook to trigger for updating server configuration '
-            '(e.g. https://openwisp2.mydomain.com:8081/trigger-update)'
+            "Webhook to trigger for updating server configuration "
+            "(e.g. https://openwisp2.mydomain.com:8081/trigger-update)"
         ),
         blank=True,
         null=True,
     )
     auth_token = models.CharField(
-        verbose_name=_('Webhook AuthToken'),
+        verbose_name=_("Webhook AuthToken"),
         help_text=_(
             'Authentication token used for triggering "Webhook Endpoint" '
             'or for calling "ZerotierService" API'
@@ -118,14 +118,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     # (a new one is generated in the background
     # because it can take some time)
     _placeholder_dh = (
-        '-----BEGIN DH PARAMETERS-----\n'
-        'MIIBCAKCAQEA1eYGbpFmXaXNhkoWbx+hrGKh8XMaiGSH45QsnMx/AOPtVfRQTTs0\n'
-        '0rXgllizgqGP7Ug04+ULK5mxY1xGcm/Sh8s21I4t/HFJzElMmhRVy4B1r3bETzHi\n'
-        '7DCUsK2EPi0csofnD5upwu5T6RbBAq0/HTWR/AoW2em5JS1ZhX4JV32nH33EWkl1\n'
-        'PzhjVKENl9RQ/DKd+T2edUJU0r1miBqw0Xulf/LVYvwOimcp0WmYtkBJOgf9xEEP\n'
-        '3Hd2KG4Ib/vR7v2Z1fdyUgB8dMAElZ2+tK5PM9E9lJmll0fsfrKtcYpgL2mk24vO\n'
-        'BbOcwKkB+eBE/B9jqmbG5YYhDo9fQGmNEwIBAg==\n'
-        '-----END DH PARAMETERS-----\n'
+        "-----BEGIN DH PARAMETERS-----\n"
+        "MIIBCAKCAQEA1eYGbpFmXaXNhkoWbx+hrGKh8XMaiGSH45QsnMx/AOPtVfRQTTs0\n"
+        "0rXgllizgqGP7Ug04+ULK5mxY1xGcm/Sh8s21I4t/HFJzElMmhRVy4B1r3bETzHi\n"
+        "7DCUsK2EPi0csofnD5upwu5T6RbBAq0/HTWR/AoW2em5JS1ZhX4JV32nH33EWkl1\n"
+        "PzhjVKENl9RQ/DKd+T2edUJU0r1miBqw0Xulf/LVYvwOimcp0WmYtkBJOgf9xEEP\n"
+        "3Hd2KG4Ib/vR7v2Z1fdyUgB8dMAElZ2+tK5PM9E9lJmll0fsfrKtcYpgL2mk24vO\n"
+        "BbOcwKkB+eBE/B9jqmbG5YYhDo9fQGmNEwIBAg==\n"
+        "-----END DH PARAMETERS-----\n"
     )
     # needed for wireguard
     public_key = models.CharField(blank=True, max_length=44)
@@ -140,9 +140,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
     _PEER_CACHE_TIMEOUT = 60 * 60 * 24 * 7
 
     class Meta:
-        verbose_name = _('VPN server')
-        verbose_name_plural = _('VPN servers')
-        unique_together = ('organization', 'name')
+        verbose_name = _("VPN server")
+        verbose_name_plural = _("VPN servers")
+        unique_together = ("organization", "name")
         abstract = True
 
     def __init__(self, *args, **kwargs):
@@ -155,9 +155,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         self._validate_backend()
         self._validate_certs()
         self._validate_keys()
-        self._validate_org_relation('ca')
-        self._validate_org_relation('cert')
-        self._validate_org_relation('subnet')
+        self._validate_org_relation("ca")
+        self._validate_org_relation("cert")
+        self._validate_org_relation("subnet")
         self._validate_subnet_ip()
         self._validate_authtoken()
         self._validate_host()
@@ -166,64 +166,64 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if self._state.adding:
             return
         if (
-            'backend' not in self.get_deferred_fields()
-            and self._meta.model.objects.only('backend').get(id=self.id).backend
+            "backend" not in self.get_deferred_fields()
+            and self._meta.model.objects.only("backend").get(id=self.id).backend
             != self.backend
             and self.vpnclient_set.exists()
         ):
             raise ValidationError(
                 {
-                    'backend': _(
-                        'Backend cannot be changed because the VPN is currently in use.'
+                    "backend": _(
+                        "Backend cannot be changed because the VPN is currently in use."
                     )
                 }
             )
 
     def _validate_certs(self):
-        if not self._is_backend_type('openvpn'):
+        if not self._is_backend_type("openvpn"):
             self.ca = None
             self.cert = None
             return
 
         if not self.ca:
-            raise ValidationError({'ca': _('CA is required with this VPN backend')})
+            raise ValidationError({"ca": _("CA is required with this VPN backend")})
         # certificate must be related to CA
         if self.cert and self.cert.ca.pk != self.ca.pk:
-            msg = _('The selected certificate must match the selected CA.')
-            raise ValidationError({'cert': msg})
+            msg = _("The selected certificate must match the selected CA.")
+            raise ValidationError({"cert": msg})
 
     def _validate_keys(self):
-        if not self._is_backend_type('wireguard'):
-            self.public_key = ''
-            self.private_key = ''
+        if not self._is_backend_type("wireguard"):
+            self.public_key = ""
+            self.private_key = ""
 
     def _validate_subnet_ip(self):
-        if self._is_backend_type('wireguard') or self._is_backend_type('zerotier'):
+        if self._is_backend_type("wireguard") or self._is_backend_type("zerotier"):
             if not self.subnet:
                 raise ValidationError(
-                    {'subnet': _('Subnet is required for this VPN backend.')}
+                    {"subnet": _("Subnet is required for this VPN backend.")}
                 )
             if self.ip and self.ip.subnet != self.subnet:
                 raise ValidationError(
-                    {'ip': _('VPN IP address must be within the VPN subnet')}
+                    {"ip": _("VPN IP address must be within the VPN subnet")}
                 )
 
     def _validate_authtoken(self):
-        if self._is_backend_type('zerotier') and not self.auth_token:
+        if self._is_backend_type("zerotier") and not self.auth_token:
             raise ValidationError(
-                {'auth_token': _('Auth token is required for this VPN backend')}
+                {"auth_token": _("Auth token is required for this VPN backend")}
             )
 
     def _validate_host(self):
-        if not (self._is_backend_type('zerotier') and self.host):
+        if not (self._is_backend_type("zerotier") and self.host):
             return
         response = ZerotierService(self.host, self.auth_token).get_node_status()
         if response.status_code == 401:
             raise ValidationError(
                 {
-                    'auth_token': _(
-                        'Authorization failed for ZeroTier controller, '
-                        'ensure you are using the correct authorization token'
+                    "auth_token": _(
+                        "Authorization failed for ZeroTier controller, "
+                        "ensure you are using the correct authorization token"
                     )
                 }
             )
@@ -231,15 +231,15 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if response.status_code != 200:
             raise ValidationError(
                 {
-                    'host': _(
-                        'Failed to connect to the ZeroTier controller, '
-                        'ensure you are using the correct hostname '
-                        '(error: {0}, status code: {1})'
+                    "host": _(
+                        "Failed to connect to the ZeroTier controller, "
+                        "ensure you are using the correct hostname "
+                        "(error: {0}, status code: {1})"
                     ).format(response.reason, response.status_code)
                 }
             )
         else:
-            self.node_id = response.json()['address']
+            self.node_id = response.json()["address"]
 
     def save(self, *args, **kwargs):
         """
@@ -252,16 +252,16 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         create_dh = False
         if not self.cert and self.ca:
             self.cert = self._auto_create_cert()
-        if self._is_backend_type('openvpn') and not self.dh:
+        if self._is_backend_type("openvpn") and not self.dh:
             self.dh = self._placeholder_dh
             create_dh = True
-        if self._is_backend_type('wireguard'):
+        if self._is_backend_type("wireguard"):
             self._generate_wireguard_keys()
         if self.subnet and not self.ip:
             self.ip = self._auto_create_ip()
-        if self._is_backend_type('zerotier'):
-            config = deepcopy(self.config['zerotier'][0])
-            config['name'] = self.name
+        if self._is_backend_type("zerotier"):
+            config = deepcopy(self.config["zerotier"][0])
+            config["name"] = self.name
             if created:
                 self._create_zt_server(config)
         try:
@@ -270,7 +270,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             # If the db transaction for zt vpn server creation fails
             # for any reason, we should delete the recently
             # created zt network to prevent duplicate networks
-            if created and self._is_backend_type('zerotier'):
+            if created and self._is_backend_type("zerotier"):
                 trigger_zerotier_server_delete.delay(
                     host=self.host,
                     auth_token=self.auth_token,
@@ -281,6 +281,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         if create_dh:
             transaction.on_commit(lambda: create_vpn_dh.delay(self.id))
         if not created and self._send_vpn_modified_after_save:
+            self.invalidate_checksum_cache()
             self._send_vpn_modified_signal()
             self._send_vpn_modified_after_save = False
         # For ZeroTier VPN server, if the
@@ -293,25 +294,24 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
     def _check_changes(self):
         attrs = [
-            'config',
-            'host',
-            'ca',
-            'cert',
-            'key',
-            'backend',
-            'subnet',
-            'ip',
-            'dh',
-            'public_key',
-            'private_key',
-            'network_id',
+            "config",
+            "host",
+            "ca",
+            "cert",
+            "key",
+            "backend",
+            "subnet",
+            "ip",
+            "dh",
+            "public_key",
+            "private_key",
+            "network_id",
         ]
         current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
         for attr in attrs:
-            if getattr(self, attr) == getattr(current, attr):
-                continue
-            self._send_vpn_modified_after_save = True
-            break
+            if getattr(self, attr) != getattr(current, attr):
+                self._send_vpn_modified_after_save = True
+                break
 
     def _send_vpn_modified_signal(self):
         vpn_server_modified.send(sender=self.__class__, instance=self)
@@ -322,8 +322,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         Returns an automatically generated set of DH parameters in PEM
         """
         return subprocess.check_output(  # pragma: nocover
-            'openssl dhparam {0} 2> /dev/null'.format(length), shell=True
-        ).decode('utf-8')
+            "openssl dhparam {0} 2> /dev/null".format(length), shell=True
+        ).decode("utf-8")
 
     @classmethod
     def post_delete(cls, instance, **kwargs):
@@ -331,7 +331,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
         Manages automatic deletion of vpn servers.
         """
-        if not instance._is_backend_type('zerotier'):
+        if not instance._is_backend_type("zerotier"):
             return
         transaction.on_commit(
             lambda: trigger_zerotier_server_delete.delay(
@@ -342,14 +342,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
             )
         )
         # Delete ZT API tasks notification cache keys
-        cache.delete_many(cache.keys(f'*{instance.pk.hex}_last_operation'))
+        cache.delete_many(cache.keys(f"*{instance.pk.hex}_last_operation"))
 
     def _create_zt_server(self, config):
         server_config = ZerotierService(
             self.host, self.auth_token, self.subnet.subnet
         ).create_network(self.node_id, config)
-        self.network_id = server_config.pop('id', None)
-        self.config = {**self.config, 'zerotier': [server_config]}
+        self.network_id = server_config.pop("id", None)
+        self.config = {**self.config, "zerotier": [server_config]}
 
     def _update_zt_server(self, config):
         config = config or {}
@@ -388,12 +388,12 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         )
 
     def update_vpn_server_configuration(instance, **kwargs):
-        if instance._is_backend_type('zerotier'):
-            if kwargs.get('created'):
+        if instance._is_backend_type("zerotier"):
+            if kwargs.get("created"):
                 instance._add_controller_to_zt_server()
             else:
-                instance._update_zt_server(kwargs.get('config'))
-        if instance._is_backend_type('wireguard'):
+                instance._update_zt_server(kwargs.get("config"))
+        if instance._is_backend_type("wireguard"):
             if instance.webhook_endpoint and instance.auth_token:
                 transaction.on_commit(
                     lambda: trigger_vpn_server_endpoint.delay(
@@ -404,8 +404,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 )
             else:
                 logger.info(
-                    f'Cannot update configuration of {instance.name} VPN server, '
-                    'webhook endpoint and authentication token are empty.'
+                    f"Cannot update configuration of {instance.name} VPN server, "
+                    "webhook endpoint and authentication token are empty."
                 )
 
     def _auto_create_cert(self):
@@ -414,7 +414,7 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         common_name = slugify(self.name)
         server_extensions = [
-            {'name': 'nsCertType', 'value': 'server', 'critical': False}
+            {"name": "nsCertType", "value": "server", "critical": False}
         ]
         cert_model = self.__class__.cert.field.related_model
         cert = cert_model(
@@ -447,27 +447,27 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         c = collections.OrderedDict()
         if self.ca:
             try:
-                c['ca'] = self.ca.certificate
+                c["ca"] = self.ca.certificate
             except ObjectDoesNotExist:
                 pass
         if self.cert:
-            c['cert'] = self.cert.certificate
-            c['key'] = self.cert.private_key
+            c["cert"] = self.cert.certificate
+            c["key"] = self.cert.private_key
         if self.dh:
-            c['dh'] = self.dh
+            c["dh"] = self.dh
         if self.private_key:
-            c['private_key'] = self.private_key
+            c["private_key"] = self.private_key
         if self.public_key:
-            c['public_key'] = self.public_key
+            c["public_key"] = self.public_key
         if self.subnet:
-            c['subnet'] = str(self.subnet.subnet)
-            c['subnet_prefixlen'] = str(self.subnet.subnet.prefixlen)
+            c["subnet"] = str(self.subnet.subnet)
+            c["subnet_prefixlen"] = str(self.subnet.subnet.prefixlen)
         if self.ip:
-            c['ip_address'] = self.ip.ip_address
+            c["ip_address"] = self.ip.ip_address
         if self.node_id:
-            c['node_id'] = self.node_id
+            c["node_id"] = self.node_id
         if self.network_id:
-            c['network_id'] = self.network_id
+            c["network_id"] = self.network_id
         c.update(sorted(super().get_context().items()))
         return c
 
@@ -475,34 +475,34 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         context = {}
         context_keys = self._get_auto_context_keys()
         if self.host:
-            context[context_keys['vpn_host']] = self.host
-        if self._is_backend_type('wireguard'):
-            context[context_keys['vpn_port']] = self.config['wireguard'][0]['port']
+            context[context_keys["vpn_host"]] = self.host
+        if self._is_backend_type("wireguard"):
+            context[context_keys["vpn_port"]] = self.config["wireguard"][0]["port"]
         if self.ca:
             ca = self.ca
             # CA
-            ca_filename = 'ca-{0}-{1}.pem'.format(
-                ca.pk, ca.common_name.replace(' ', '_')
+            ca_filename = "ca-{0}-{1}.pem".format(
+                ca.pk, ca.common_name.replace(" ", "_")
             )
-            ca_path = '{0}/{1}'.format(app_settings.CERT_PATH, ca_filename)
+            ca_path = "{0}/{1}".format(app_settings.CERT_PATH, ca_filename)
             context.update(
                 {
-                    context_keys['ca_path']: ca_path,
-                    context_keys['ca_contents']: ca.certificate,
+                    context_keys["ca_path"]: ca_path,
+                    context_keys["ca_contents"]: ca.certificate,
                 }
             )
         if self.public_key:
-            context[context_keys['public_key']] = self.public_key
+            context[context_keys["public_key"]] = self.public_key
         if self.ip:
-            context[context_keys['server_ip_address']] = self.ip.ip_address
-            context[
-                context_keys['server_ip_network']
-            ] = f'{self.ip.ip_address}/{self.subnet.subnet.max_prefixlen}'
-            context[context_keys['vpn_subnet']] = str(self.subnet.subnet)
-        if self._is_backend_type('zerotier') and self.network_id:
-            context[context_keys['network_name']] = self.name
-            context[context_keys['node_id']] = self.node_id
-            context[context_keys['network_id']] = self.network_id
+            context[context_keys["server_ip_address"]] = self.ip.ip_address
+            context[context_keys["server_ip_network"]] = (
+                f"{self.ip.ip_address}/{self.subnet.subnet.max_prefixlen}"
+            )
+            context[context_keys["vpn_subnet"]] = str(self.subnet.subnet)
+        if self._is_backend_type("zerotier") and self.network_id:
+            context[context_keys["network_name"]] = self.name
+            context[context_keys["node_id"]] = self.node_id
+            context[context_keys["network_id"]] = self.network_id
         return context
 
     def get_system_context(self):
@@ -549,46 +549,46 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         pk = self.pk.hex
         context_keys = {
-            'vpn_host': 'vpn_host_{}'.format(pk),
-            'vpn_port': 'vpn_port_{}'.format(pk),
+            "vpn_host": "vpn_host_{}".format(pk),
+            "vpn_port": "vpn_port_{}".format(pk),
         }
-        if self._is_backend_type('openvpn'):
+        if self._is_backend_type("openvpn"):
             context_keys.update(
                 {
-                    'ca_path': 'ca_path_{0}'.format(pk),
-                    'ca_contents': 'ca_contents_{0}'.format(pk),
-                    'cert_path': 'cert_path_{0}'.format(pk),
-                    'cert_contents': 'cert_contents_{0}'.format(pk),
-                    'key_path': 'key_path_{0}'.format(pk),
-                    'key_contents': 'key_contents_{0}'.format(pk),
+                    "ca_path": "ca_path_{0}".format(pk),
+                    "ca_contents": "ca_contents_{0}".format(pk),
+                    "cert_path": "cert_path_{0}".format(pk),
+                    "cert_contents": "cert_contents_{0}".format(pk),
+                    "key_path": "key_path_{0}".format(pk),
+                    "key_contents": "key_contents_{0}".format(pk),
                 }
             )
-        if self._is_backend_type('wireguard'):
+        if self._is_backend_type("wireguard"):
             context_keys.update(
                 {
-                    'public_key': 'public_key_{}'.format(pk),
-                    'private_key': 'pvt_key_{}'.format(pk),
+                    "public_key": "public_key_{}".format(pk),
+                    "private_key": "pvt_key_{}".format(pk),
                 }
             )
-        if self._is_backend_type('vxlan'):
-            context_keys.update({'vni': 'vni_{}'.format(pk)})
+        if self._is_backend_type("vxlan"):
+            context_keys.update({"vni": "vni_{}".format(pk)})
         if self.ip:
             context_keys.update(
                 {
-                    'ip_address': 'ip_address_{}'.format(pk),
-                    'vpn_subnet': 'vpn_subnet_{}'.format(pk),
-                    'server_ip_address': 'server_ip_address_{}'.format(pk),
-                    'server_ip_network': 'server_ip_network_{}'.format(pk),
+                    "ip_address": "ip_address_{}".format(pk),
+                    "vpn_subnet": "vpn_subnet_{}".format(pk),
+                    "server_ip_address": "server_ip_address_{}".format(pk),
+                    "server_ip_network": "server_ip_network_{}".format(pk),
                 }
             )
-        if self._is_backend_type('zerotier'):
+        if self._is_backend_type("zerotier"):
             context_keys.update(
                 {
-                    'node_id': 'node_id_{}'.format(pk),
-                    'network_id': 'network_id_{}'.format(pk),
-                    'network_name': 'network_name_{}'.format(pk),
-                    'zerotier_member_id': 'zerotier_member_id',
-                    'secret': 'secret',
+                    "node_id": "node_id_{}".format(pk),
+                    "network_id": "network_id_{}".format(pk),
+                    "network_name": "network_name_{}".format(pk),
+                    "zerotier_member_id": "zerotier_member_id",
+                    "secret": "secret",
                 }
             )
         return context_keys
@@ -603,14 +603,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         config = {}
         backend = self.backend_class
-        if hasattr(backend, 'auto_client'):
+        if hasattr(backend, "auto_client"):
             context_keys = self._get_auto_context_keys()
             # add curly brackets for netjsonconfig context evaluation
             for key in context_keys.keys():
-                context_keys[key] = '{{%s}}' % context_keys[key]
+                context_keys[key] = "{{%s}}" % context_keys[key]
             # do not include cert and key if auto_cert is False
             if not auto_cert:
-                for key in ['cert_path', 'cert_contents', 'key_path', 'key_contents']:
+                for key in ["cert_path", "cert_contents", "key_path", "key_contents"]:
                     try:
                         del context_keys[key]
                     # In case of zerotier backend
@@ -618,35 +618,35 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                     except KeyError:
                         pass
             config_dict_key = self.backend_class.__name__.lower()
-            vpn_host = context_keys.pop('vpn_host', self.host)
-            if self._is_backend_type('wireguard') and template_backend_class:
-                vpn_auto_client = '{}wireguard_auto_client'.format(
-                    'vxlan_' if self._is_backend_type('vxlan') else ''
+            vpn_host = context_keys.pop("vpn_host", self.host)
+            if self._is_backend_type("wireguard") and template_backend_class:
+                vpn_auto_client = "{}wireguard_auto_client".format(
+                    "vxlan_" if self._is_backend_type("vxlan") else ""
                 )
                 auto = getattr(template_backend_class, vpn_auto_client)(
                     host=vpn_host,
-                    server=self.config['wireguard'][0],
-                    vxlan=self.config.get('vxlan', [{}])[0],
+                    server=self.config["wireguard"][0],
+                    vxlan=self.config.get("vxlan", [{}])[0],
                     **context_keys,
                 )
             # If the backend is 'zerotier' then
             # call auto_client and update the config
-            elif self._is_backend_type('zerotier') and template_backend_class:
-                auto = getattr(template_backend_class, 'zerotier_auto_client')(
-                    name='global',
+            elif self._is_backend_type("zerotier") and template_backend_class:
+                auto = getattr(template_backend_class, "zerotier_auto_client")(
+                    name="global",
                     networks=[
-                        {'id': self.network_id, 'ifname': f'owzt{self.network_id[-6:]}'}
+                        {"id": self.network_id, "ifname": f"owzt{self.network_id[-6:]}"}
                     ],
-                    identity_secret=context_keys['secret'],
+                    identity_secret=context_keys["secret"],
                 )
             else:
                 # The OpenVPN backend does not support these kwargs,
                 # hence, they are removed before creating configuration
-                del context_keys['vpn_port']
-                context_keys.pop('server_ip_address', None)
-                context_keys.pop('server_ip_network', None)
-                context_keys.pop('ip_address', None)
-                context_keys.pop('vpn_subnet', None)
+                del context_keys["vpn_port"]
+                context_keys.pop("server_ip_address", None)
+                context_keys.pop("server_ip_network", None)
+                context_keys.pop("ip_address", None)
+                context_keys.pop("vpn_subnet", None)
                 auto = backend.auto_client(
                     host=self.host,
                     server=self.config[config_dict_key][0],
@@ -672,9 +672,9 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
 
     def get_config(self):
         config = super().get_config()
-        if self._is_backend_type('wireguard'):
+        if self._is_backend_type("wireguard"):
             self._add_wireguard(config)
-        if self._is_backend_type('vxlan'):
+        if self._is_backend_type("vxlan"):
             self._add_vxlan(config)
         return config
 
@@ -684,11 +684,13 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         If update=True is passed,
         the peer cache will be regenerated.
         """
-        for backend in ['wireguard', 'vxlan']:
+        for backend in ["wireguard", "vxlan"]:
             if self._is_backend_type(backend):
-                getattr(self, f'_get_{backend}_peers').invalidate(self)
+                getattr(self, f"_get_{backend}_peers").invalidate(self)
+                self.invalidate_checksum_cache()
                 if update:
-                    getattr(self, f'_get_{backend}_peers')()
+                    getattr(self, f"_get_{backend}_peers")()
+                    self.get_cached_configuration()
                 # Send signal for peers changed
                 vpn_peers_changed.send(sender=self.__class__, instance=self)
 
@@ -699,16 +701,16 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         used to generate the list of peers of a tunnel (WireGuard/VXLAN).
         """
         return (
-            self.vpnclient_set.select_related('config', 'ip')
+            self.vpnclient_set.select_related("config", "ip")
             .filter(auto_cert=True)
             .only(
-                'id',
-                'vpn_id',
-                'vni',
-                'public_key',
-                'config__device_id',
-                'config__status',
-                'ip__ip_address',
+                "id",
+                "vpn_id",
+                "vni",
+                "public_key",
+                "config__device_id",
+                "config__status",
+                "ip__ip_address",
             )
             .iterator()
         )
@@ -720,17 +722,17 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         Modifies the config data structure as a side effect.
         """
         try:
-            config['wireguard'][0].setdefault('peers', [])
+            config["wireguard"][0].setdefault("peers", [])
         except (KeyError, IndexError):
             # this error will be handled by
             # schema validation in subsequent steps
             return config
         # private key is added to the config automatically
-        config['wireguard'][0]['private_key'] = self.private_key
+        config["wireguard"][0]["private_key"] = self.private_key
         # peers are also added automatically (and cached)
-        config['wireguard'][0]['peers'] = self._get_wireguard_peers()
+        config["wireguard"][0]["peers"] = self._get_wireguard_peers()
         # internal IP address of wireguard interface
-        config['wireguard'][0]['address'] = '{{ ip_address }}/{{ subnet_prefixlen }}'
+        config["wireguard"][0]["address"] = "{{ ip_address }}/{{ subnet_prefixlen }}"
 
     @cache_memoize(_PEER_CACHE_TIMEOUT, args_rewrite=_peer_cache_key)
     def _get_wireguard_peers(self):
@@ -741,8 +743,8 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
                 ip_address = ipaddress.ip_address(vpnclient.ip.ip_address)
                 peers.append(
                     {
-                        'public_key': vpnclient.public_key,
-                        'allowed_ips': f'{ip_address}/{ip_address.max_prefixlen}',
+                        "public_key": vpnclient.public_key,
+                        "allowed_ips": f"{ip_address}/{ip_address.max_prefixlen}",
                     }
                 )
         return peers
@@ -755,19 +757,19 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         """
         peers = self._get_vxlan_peers()
         # add peer list to conifg as a JSON file
-        config.setdefault('files', [])
-        config['files'].append(
+        config.setdefault("files", [])
+        config["files"].append(
             {
-                'mode': '0644',
-                'path': 'vxlan.json',
-                'contents': json.dumps(peers, indent=4, sort_keys=True),
+                "mode": "0644",
+                "path": "vxlan.json",
+                "contents": json.dumps(peers, indent=4, sort_keys=True),
             }
         )
 
     @property
     def _vxlan_vni(self):
-        if self._is_backend_type('vxlan'):
-            return self.config.get('vxlan', [{}])[0].get('vni')
+        if self._is_backend_type("vxlan"):
+            return self.config.get("vxlan", [{}])[0].get("vni")
 
     @cache_memoize(_PEER_CACHE_TIMEOUT, args_rewrite=_peer_cache_key)
     def _get_vxlan_peers(self):
@@ -775,14 +777,14 @@ class AbstractVpn(ShareableOrgMixinUniqueName, BaseConfig):
         Returns list of vxlan peers, the result is cached.
         """
         peers = []
-        vxlan_interface = self.config.get('vxlan', [{}])[0].get('name')
+        vxlan_interface = self.config.get("vxlan", [{}])[0].get("name")
         vni = self._vxlan_vni
         for vpnclient in self._get_peer_queryset():
             if not vpnclient.ip:
                 continue
-            peer = {'vni': vpnclient.vni or vni, 'remote': vpnclient.ip.ip_address}
+            peer = {"vni": vpnclient.vni or vni, "remote": vpnclient.ip.ip_address}
             if vxlan_interface:
-                peer['interface'] = vxlan_interface
+                peer["interface"] = vxlan_interface
             peers.append(peer)
         return peers
 
@@ -793,15 +795,15 @@ class AbstractVpnClient(models.Model):
     """
 
     config = models.ForeignKey(
-        get_model_name('config', 'Config'), on_delete=models.CASCADE
+        get_model_name("config", "Config"), on_delete=models.CASCADE
     )
     template = models.ForeignKey(
-        get_model_name('config', 'Template'),
+        get_model_name("config", "Template"),
         on_delete=models.CASCADE,
     )
-    vpn = models.ForeignKey(get_model_name('config', 'Vpn'), on_delete=models.CASCADE)
+    vpn = models.ForeignKey(get_model_name("config", "Vpn"), on_delete=models.CASCADE)
     cert = models.OneToOneField(
-        get_model_name('django_x509', 'Cert'),
+        get_model_name("django_x509", "Cert"),
         on_delete=models.CASCADE,
         blank=True,
         null=True,
@@ -811,7 +813,7 @@ class AbstractVpnClient(models.Model):
     auto_cert = models.BooleanField(default=False)
     # optional, needed for VPNs which require setting a specific known IP (wireguard)
     ip = models.ForeignKey(
-        get_model_name('openwisp_ipam', 'IpAddress'),
+        get_model_name("openwisp_ipam", "IpAddress"),
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
@@ -832,9 +834,9 @@ class AbstractVpnClient(models.Model):
 
     class Meta:
         abstract = True
-        unique_together = (('config', 'vpn'),)
-        verbose_name = _('VPN client')
-        verbose_name_plural = _('VPN clients')
+        unique_together = (("config", "vpn"),)
+        verbose_name = _("VPN client")
+        verbose_name_plural = _("VPN clients")
 
     @cached_property
     def zerotier_member_id(self):
@@ -862,7 +864,7 @@ class AbstractVpnClient(models.Model):
         if not self.vpn._vxlan_vni:
             # If VNI is not specified in VXLAN tunnel configuration,
             # then each VXLAN tunnel should have different VNI.
-            unique_checks.append((self.__class__, ('vpn', 'vni')))
+            unique_checks.append((self.__class__, ("vpn", "vni")))
         return unique_checks, date_checks
 
     def save(self, *args, **kwargs):
@@ -879,7 +881,7 @@ class AbstractVpnClient(models.Model):
         """
         Automatically creates an x509 certificate.
         """
-        if not self.vpn._is_backend_type('openvpn') or self.cert:
+        if not self.vpn._is_backend_type("openvpn") or self.cert:
             return
         cn = self._get_common_name()
         self._auto_create_cert(name=self.config.device.name, common_name=cn)
@@ -893,21 +895,21 @@ class AbstractVpnClient(models.Model):
         d.name = d.name[:end]
         unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == '{mac_address}-{name}' and d.name == d.mac_address:
-            cn_format = '{mac_address}'
+        if cn_format == "{mac_address}-{name}" and d.name == d.mac_address:
+            cn_format = "{mac_address}"
         common_name = cn_format.format(**d.__dict__)[:55]
-        common_name = f'{common_name}-{unique_slug}'
+        common_name = f"{common_name}-{unique_slug}"
         return common_name
 
     @classmethod
     def post_save(cls, instance, **kwargs):
         def _post_save():
-            instance.vpn._invalidate_peer_cache(update=True)
+            instance.vpn._invalidate_peer_cache()
 
         transaction.on_commit(_post_save)
         # ZT network member should be authorized and assigned
         # an IP after the creation of the VPN client object
-        if instance.vpn._is_backend_type('zerotier'):
+        if instance.vpn._is_backend_type("zerotier"):
             if instance.zerotier_member_id and instance.ip:
                 instance.vpn._add_zt_network_member(
                     instance.zerotier_member_id, instance.ip.ip_address
@@ -925,7 +927,7 @@ class AbstractVpnClient(models.Model):
         instance.vpn._invalidate_peer_cache()
         # Zt network member should leave the
         # network after deletion of vpn client object
-        if instance.vpn._is_backend_type('zerotier'):
+        if instance.vpn._is_backend_type("zerotier"):
             instance.vpn._remove_zt_network_member(instance.zerotier_member_id)
         try:
             # For OpenVPN, the related certificates are revoked, not deleted.
@@ -956,7 +958,7 @@ class AbstractVpnClient(models.Model):
         Automatically creates and assigns a client x509 certificate
         """
         server_extensions = [
-            {'name': 'nsCertType', 'value': 'client', 'critical': False}
+            {"name": "nsCertType", "value": "client", "critical": False}
         ]
         ca = self.vpn.ca
         cert_model = self.__class__.cert.field.related_model
@@ -983,7 +985,7 @@ class AbstractVpnClient(models.Model):
         """
         Automatically generates private and public key for wireguard
         """
-        if not self.vpn._is_backend_type('wireguard') or (
+        if not self.vpn._is_backend_type("wireguard") or (
             self.private_key and self.public_key
         ):
             return
@@ -993,12 +995,12 @@ class AbstractVpnClient(models.Model):
         """
         Automatically generates VNI for VXLAN
         """
-        if not self.vpn._is_backend_type('vxlan') or self.vni:
+        if not self.vpn._is_backend_type("vxlan") or self.vni:
             return
         if self.vpn._vxlan_vni:
             return
         last_tunnel = (
-            self._meta.model.objects.filter(vpn=self.vpn).order_by('vni').last()
+            self._meta.model.objects.filter(vpn=self.vpn).order_by("vni").last()
         )
         if last_tunnel:
             self.vni = last_tunnel.vni + 1
@@ -1014,12 +1016,12 @@ class AbstractVpnClient(models.Model):
         self.ip = self.vpn.subnet.request_ip()
 
     def _auto_secret(self):
-        if not self.vpn._is_backend_type('zerotier') or self.secret:
+        if not self.vpn._is_backend_type("zerotier") or self.secret:
             return
         # If there's an existing ZeroTier VpnClient
         # for the device, then re-use that secret
         existing_zt_client = (
-            self.__class__.objects.only('secret')
+            self.__class__.objects.only("secret")
             .exclude(id=self.id)
             .filter(config_id=self.config_id, vpn__backend=self.vpn.backend)
             .first()
@@ -1032,7 +1034,7 @@ class AbstractVpnClient(models.Model):
     def _generate_zt_identity(self):
         try:
             result = subprocess.run(
-                'zerotier-idtool generate',
+                "zerotier-idtool generate",
                 shell=True,
                 check=True,
                 # in seconds
@@ -1040,13 +1042,13 @@ class AbstractVpnClient(models.Model):
                 capture_output=True,
             )
         except (CalledProcessError, TimeoutExpired) as exc:
-            err = getattr(exc, 'stderr', None)
+            err = getattr(exc, "stderr", None)
             # In case of timeout
             if err is None:
                 err = exc
-            err_msg = f'Unable to generate zerotier identity secret, Error: {err}'
+            err_msg = f"Unable to generate zerotier identity secret, Error: {err}"
             raise ZeroTierIdentityGenerationError(err_msg)
-        return result.stdout.decode('utf-8')
+        return result.stdout.decode("utf-8")
 
     @classmethod
     def invalidate_clients_cache(cls, vpn):
@@ -1056,5 +1058,5 @@ class AbstractVpnClient(models.Model):
         for client in vpn.vpnclient_set.iterator():
             # invalidate cache for device
             client.config._send_config_modified_signal(
-                action='related_template_changed'
+                action="related_template_changed"
             )

@@ -22,9 +22,9 @@ from openwisp_controller.config.controller.views import (
     VpnDownloadConfigView as BaseVpnDownloadConfigView,
 )
 
-Device = load_model('config', 'Device')
-OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
-Vpn = load_model('config', 'Vpn')
+Device = load_model("config", "Device")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+Vpn = load_model("config", "Vpn")
 
 
 class DeviceChecksumView(BaseDeviceChecksumView):

@@ -5,18 +5,18 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0043_devicegroup_templates'),
+        ("config", "0043_devicegroup_templates"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='config',
-            name='error_reason',
+            model_name="config",
+            name="error_reason",
             field=models.CharField(
                 blank=True,
-                help_text='Error reason reported by the device',
+                help_text="Error reason reported by the device",
                 max_length=1024,
-                verbose_name='error reason',
+                verbose_name="error reason",
             ),
         ),
     ]

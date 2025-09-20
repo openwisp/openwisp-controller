@@ -27,24 +27,24 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 
     type = models.CharField(max_length=200, choices=app_settings.SUBNET_DIVISION_TYPES)
     master_subnet = models.ForeignKey(
-        swapper.get_model_name('openwisp_ipam', 'Subnet'), on_delete=models.CASCADE
+        swapper.get_model_name("openwisp_ipam", "Subnet"), on_delete=models.CASCADE
     )
     label = models.CharField(
         max_length=30,
-        help_text=_('Label used to calculate the configuration variables'),
+        help_text=_("Label used to calculate the configuration variables"),
     )
     number_of_subnets = models.PositiveSmallIntegerField(
-        verbose_name=_('Number of Subnets'),
-        help_text=_('Indicates how many subnets will be created'),
+        verbose_name=_("Number of Subnets"),
+        help_text=_("Indicates how many subnets will be created"),
         validators=[MinValueValidator(1)],
     )
     size = models.PositiveSmallIntegerField(
-        verbose_name=_('Size of subnets'),
-        help_text=_('Indicates the size of each created subnet'),
+        verbose_name=_("Size of subnets"),
+        help_text=_("Indicates the size of each created subnet"),
     )
     number_of_ips = models.PositiveSmallIntegerField(
-        verbose_name=_('Number of IPs'),
-        help_text=_('Indicates how many IP addresses will be created for each subnet'),
+        verbose_name=_("Number of IPs"),
+        help_text=_("Indicates how many IP addresses will be created for each subnet"),
         validators=[MinValueValidator(1)],
     )
 
@@ -52,17 +52,17 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         abstract = True
         constraints = [
             models.UniqueConstraint(
-                fields=['organization', 'label'],
-                name='unique_subnet_division_rule_label',
+                fields=["organization", "label"],
+                name="unique_subnet_division_rule_label",
             ),
             models.UniqueConstraint(
-                fields=['organization', 'label', 'type', 'master_subnet'],
-                name='unique_subnet_division_rule',
+                fields=["organization", "label", "type", "master_subnet"],
+                name="unique_subnet_division_rule",
             ),
         ]
 
     def __str__(self):
-        return f'{self.label}'
+        return f"{self.label}"
 
     @property
     def rule_class(self):
@@ -81,30 +81,30 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         if not self.label.isidentifier():
             raise ValidationError(
                 {
-                    'label': _(
-                        'Only alphanumeric characters and underscores are allowed.'
+                    "label": _(
+                        "Only alphanumeric characters and underscores are allowed."
                     )
                 }
             )
 
     def _validate_master_subnet_validity(self):
         if not self.master_subnet.subnet:
-            raise ValidationError({'master_subnet': _('Invalid master subnet.')})
+            raise ValidationError({"master_subnet": _("Invalid master subnet.")})
 
     def _validate_existing_fields(self):
         db_instance = self._meta.model.objects.get(id=self.id)
         # The size field should not be changed
         if self.size != db_instance.size:
-            raise ValidationError({'size': _('Subnet size cannot be changed')})
+            raise ValidationError({"size": _("Subnet size cannot be changed")})
         # Number of IPs should not decreased
         if self.number_of_ips < db_instance.number_of_ips:
             raise ValidationError(
-                {'number_of_ips': _('Number of IPs cannot be decreased')}
+                {"number_of_ips": _("Number of IPs cannot be decreased")}
             )
         # Number of subnets should not be changed
         if self.number_of_subnets != db_instance.number_of_subnets:
             raise ValidationError(
-                {'number_of_subnets': _('Number of Subnets cannot be changed')}
+                {"number_of_subnets": _("Number of Subnets cannot be changed")}
             )
 
     def _validate_master_subnet_consistency(self):
@@ -116,8 +116,8 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         except ValueError:
             raise ValidationError(
                 {
-                    'size': _(
-                        'Master subnet cannot accommodate subnets of size /{0}'.format(
+                    "size": _(
+                        "Master subnet cannot accommodate subnets of size /{0}".format(
                             self.size
                         )
                     )
@@ -131,10 +131,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         if self.number_of_subnets >= available:
             raise ValidationError(
                 {
-                    'number_of_subnets': _(
-                        'The master subnet is too small to acommodate the '
+                    "number_of_subnets": _(
+                        "The master subnet is too small to acommodate the "
                         'requested "number of subnets" plus the reserved '
-                        'subnet, please increase the size of the master '
+                        "subnet, please increase the size of the master "
                         'subnet or decrease the "size of subnets" field.'
                     )
                 }
@@ -145,7 +145,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             and self.master_subnet.organization != self.organization
         ):
             raise ValidationError(
-                {'organization': _('Organization should be same as the subnet')}
+                {"organization": _("Organization should be same as the subnet")}
             )
 
     def _validate_ip_address_consistency(self):
@@ -156,9 +156,9 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         except IndexError:
             raise ValidationError(
                 {
-                    'number_of_ips': _(
-                        f'Generated subnets of size /{self.size} cannot accommodate '
-                        f'{self.number_of_ips} IP Addresses.'
+                    "number_of_ips": _(
+                        f"Generated subnets of size /{self.size} cannot accommodate "
+                        f"{self.number_of_ips} IP Addresses."
                     )
                 }
             )
@@ -194,13 +194,13 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         except KeyError:
             return
         else:
-            if 'label' in modified_fields:
+            if "label" in modified_fields:
                 tasks.update_subnet_division_index.delay(rule_id=str(self.id))
                 tasks.update_subnet_name_description(rule_id=str(self.id))
-            if 'number_of_ips' in modified_fields:
+            if "number_of_ips" in modified_fields:
                 tasks.provision_extra_ips.delay(
                     rule_id=str(self.id),
-                    old_number_of_ips=modified_fields['number_of_ips'],
+                    old_number_of_ips=modified_fields["number_of_ips"],
                 )
 
     def delete_provisioned_subnets(self):
@@ -209,13 +209,13 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         # These indexes are used delete subnets that were provisioned by the
         # deleted rule. Deleting a Subnet object will automatically delete
         # related IpAddress objects.
-        Subnet = swapper.load_model('openwisp_ipam', 'Subnet')
+        Subnet = swapper.load_model("openwisp_ipam", "Subnet")
         SubnetDivisionIndex = swapper.load_model(
-            'subnet_division', 'SubnetDivisionIndex'
+            "subnet_division", "SubnetDivisionIndex"
         )
 
         Subnet.objects.filter(
-            id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values('subnet_id')
+            id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
         ).delete()
 
     @classmethod
@@ -243,24 +243,24 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
 class AbstractSubnetDivisionIndex(models.Model):
     keyword = models.CharField(max_length=30)
     subnet = models.ForeignKey(
-        swapper.get_model_name('openwisp_ipam', 'Subnet'),
+        swapper.get_model_name("openwisp_ipam", "Subnet"),
         on_delete=models.CASCADE,
         null=True,
         blank=True,
     )
     ip = models.ForeignKey(
-        swapper.get_model_name('openwisp_ipam', 'IpAddress'),
+        swapper.get_model_name("openwisp_ipam", "IpAddress"),
         on_delete=models.CASCADE,
         null=True,
         blank=True,
     )
     rule = models.ForeignKey(
-        swapper.get_model_name('subnet_division', 'SubnetDivisionRule'),
+        swapper.get_model_name("subnet_division", "SubnetDivisionRule"),
         null=True,
         on_delete=models.SET_NULL,
     )
     config = models.ForeignKey(
-        swapper.get_model_name('config', 'Config'),
+        swapper.get_model_name("config", "Config"),
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -269,11 +269,11 @@ class AbstractSubnetDivisionIndex(models.Model):
     class Meta:
         abstract = True
         indexes = [
-            models.Index(fields=['keyword']),
+            models.Index(fields=["keyword"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['keyword', 'subnet', 'ip', 'config'],
-                name='unique_subnet_division_index',
+                fields=["keyword", "subnet", "ip", "config"],
+                name="unique_subnet_division_index",
             ),
         ]

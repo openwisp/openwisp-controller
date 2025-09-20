@@ -8,7 +8,7 @@ from openwisp_controller.config.migrations import populate_organization_allowed_
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('sample_config', '0004_devicegroup_templates'),
+        ("sample_config", "0004_devicegroup_templates"),
     ]
 
     operations = [

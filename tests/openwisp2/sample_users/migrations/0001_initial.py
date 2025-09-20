@@ -20,83 +20,83 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('auth', '0011_update_proxy_permissions'),
+        ("auth", "0011_update_proxy_permissions"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='User',
+            name="User",
             fields=[
-                ('password', models.CharField(max_length=128, verbose_name='password')),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
                 (
-                    'last_login',
+                    "last_login",
                     models.DateTimeField(
-                        blank=True, null=True, verbose_name='last login'
+                        blank=True, null=True, verbose_name="last login"
                     ),
                 ),
                 (
-                    'is_superuser',
+                    "is_superuser",
                     models.BooleanField(
                         default=False,
-                        help_text='Designates that this user has all permissions '
-                        'without explicitly assigning them.',
-                        verbose_name='superuser status',
+                        help_text="Designates that this user has all permissions "
+                        "without explicitly assigning them.",
+                        verbose_name="superuser status",
                     ),
                 ),
                 (
-                    'username',
+                    "username",
                     models.CharField(
                         error_messages={
-                            'unique': 'A user with that username already exists.'
+                            "unique": "A user with that username already exists."
                         },
-                        help_text='Required. 150 characters or fewer. '
-                        'Letters, digits and @/./+/-/_ only.',
+                        help_text="Required. 150 characters or fewer. "
+                        "Letters, digits and @/./+/-/_ only.",
                         max_length=150,
                         unique=True,
                         validators=[
                             django.contrib.auth.validators.UnicodeUsernameValidator()
                         ],
-                        verbose_name='username',
+                        verbose_name="username",
                     ),
                 ),
                 (
-                    'first_name',
+                    "first_name",
                     models.CharField(
-                        blank=True, max_length=150, verbose_name='first name'
+                        blank=True, max_length=150, verbose_name="first name"
                     ),
                 ),
                 (
-                    'last_name',
+                    "last_name",
                     models.CharField(
-                        blank=True, max_length=150, verbose_name='last name'
+                        blank=True, max_length=150, verbose_name="last name"
                     ),
                 ),
                 (
-                    'is_staff',
+                    "is_staff",
                     models.BooleanField(
                         default=False,
-                        help_text='Designates whether the user can'
-                        ' log into this admin site.',
-                        verbose_name='staff status',
+                        help_text="Designates whether the user can"
+                        " log into this admin site.",
+                        verbose_name="staff status",
                     ),
                 ),
                 (
-                    'is_active',
+                    "is_active",
                     models.BooleanField(
                         default=True,
-                        help_text='Designates whether this user should be treated as'
-                        ' active. Unselect this instead of deleting accounts.',
-                        verbose_name='active',
+                        help_text="Designates whether this user should be treated as"
+                        " active. Unselect this instead of deleting accounts.",
+                        verbose_name="active",
                     ),
                 ),
                 (
-                    'date_joined',
+                    "date_joined",
                     models.DateTimeField(
-                        default=django.utils.timezone.now, verbose_name='date joined'
+                        default=django.utils.timezone.now, verbose_name="date joined"
                     ),
                 ),
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -105,88 +105,88 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'email',
+                    "email",
                     models.EmailField(
                         blank=True,
                         max_length=254,
                         null=True,
                         unique=True,
-                        verbose_name='email address',
+                        verbose_name="email address",
                     ),
                 ),
-                ('bio', models.TextField(blank=True, verbose_name='bio')),
-                ('url', models.URLField(blank=True, verbose_name='URL')),
+                ("bio", models.TextField(blank=True, verbose_name="bio")),
+                ("url", models.URLField(blank=True, verbose_name="URL")),
                 (
-                    'company',
-                    models.CharField(blank=True, max_length=30, verbose_name='company'),
+                    "company",
+                    models.CharField(blank=True, max_length=30, verbose_name="company"),
                 ),
                 (
-                    'location',
+                    "location",
                     models.CharField(
-                        blank=True, max_length=256, verbose_name='location'
+                        blank=True, max_length=256, verbose_name="location"
                     ),
                 ),
                 (
-                    'phone_number',
+                    "phone_number",
                     phonenumber_field.modelfields.PhoneNumberField(
                         blank=True,
                         max_length=128,
                         null=True,
                         region=None,
                         unique=True,
-                        verbose_name='phone number',
+                        verbose_name="phone number",
                     ),
                 ),
                 (
-                    'birth_date',
-                    models.DateField(blank=True, null=True, verbose_name='birth date'),
+                    "birth_date",
+                    models.DateField(blank=True, null=True, verbose_name="birth date"),
                 ),
                 (
-                    'notes',
+                    "notes",
                     models.TextField(
                         blank=True,
-                        help_text='notes for internal usage',
-                        verbose_name='notes',
+                        help_text="notes for internal usage",
+                        verbose_name="notes",
                     ),
                 ),
                 (
-                    'social_security_number',
+                    "social_security_number",
                     models.CharField(
                         blank=True,
                         max_length=11,
                         null=True,
                         validators=[
                             django.core.validators.RegexValidator(
-                                '^\\d\\d\\d-\\d\\d-\\d\\d\\d\\d$'
+                                "^\\d\\d\\d-\\d\\d-\\d\\d\\d\\d$"
                             )
                         ],
                     ),
                 ),
                 (
-                    'groups',
+                    "groups",
                     models.ManyToManyField(
                         blank=True,
-                        help_text='The groups this user belongs to. A user'
-                        ' will get all permissions granted to each of their groups.',
-                        related_name='user_set',
-                        related_query_name='user',
-                        to='auth.Group',
-                        verbose_name='groups',
+                        help_text="The groups this user belongs to. A user"
+                        " will get all permissions granted to each of their groups.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.Group",
+                        verbose_name="groups",
                     ),
                 ),
                 (
-                    'user_permissions',
+                    "user_permissions",
                     models.ManyToManyField(
                         blank=True,
-                        help_text='Specific permissions for this user.',
-                        related_name='user_set',
-                        related_query_name='user',
-                        to='auth.Permission',
-                        verbose_name='user permissions',
+                        help_text="Specific permissions for this user.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.Permission",
+                        verbose_name="user permissions",
                     ),
                 ),
                 (
-                    'language',
+                    "language",
                     models.CharField(
                         choices=settings.LANGUAGES,
                         default=settings.LANGUAGE_CODE,
@@ -194,61 +194,61 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'password_updated',
+                    "password_updated",
                     models.DateField(
                         blank=True, null=True, verbose_name="password updated"
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'user',
-                'verbose_name_plural': 'users',
-                'abstract': False,
-                'indexes': [
+                "verbose_name": "user",
+                "verbose_name_plural": "users",
+                "abstract": False,
+                "indexes": [
                     models.Index(
-                        fields=['id', 'email'],
-                        name='user_id_email_idx',
+                        fields=["id", "email"],
+                        name="user_id_email_idx",
                     )
                 ],
             },
-            managers=[('objects', openwisp_users.base.models.UserManager())],
+            managers=[("objects", openwisp_users.base.models.UserManager())],
         ),
         migrations.CreateModel(
-            name='Organization',
+            name="Organization",
             fields=[
                 (
-                    'name',
+                    "name",
                     models.CharField(
-                        help_text='The name of the organization', max_length=200
+                        help_text="The name of the organization", max_length=200
                     ),
                 ),
-                ('is_active', models.BooleanField(default=True)),
+                ("is_active", models.BooleanField(default=True)),
                 (
-                    'created',
+                    "created",
                     organizations.fields.AutoCreatedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     organizations.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'slug',
+                    "slug",
                     organizations.fields.SlugField(
                         blank=True,
                         editable=False,
-                        help_text='The name in all lowercase, '
-                        'suitable for URL identification',
+                        help_text="The name in all lowercase, "
+                        "suitable for URL identification",
                         max_length=200,
-                        populate_from='name',
+                        populate_from="name",
                         unique=True,
                     ),
                 ),
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -257,48 +257,48 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'description',
-                    models.TextField(blank=True, verbose_name='description'),
+                    "description",
+                    models.TextField(blank=True, verbose_name="description"),
                 ),
                 (
-                    'email',
-                    models.EmailField(blank=True, max_length=254, verbose_name='email'),
+                    "email",
+                    models.EmailField(blank=True, max_length=254, verbose_name="email"),
                 ),
-                ('url', models.URLField(blank=True, verbose_name='URL')),
+                ("url", models.URLField(blank=True, verbose_name="URL")),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
         ),
         migrations.CreateModel(
-            name='Group',
+            name="Group",
             fields=[],
             options={
-                'verbose_name': 'group',
-                'verbose_name_plural': 'groups',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "group",
+                "verbose_name_plural": "groups",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=(openwisp_users.base.models.BaseGroup, 'auth.group'),
-            managers=[('objects', django.contrib.auth.models.GroupManager())],
+            bases=(openwisp_users.base.models.BaseGroup, "auth.group"),
+            managers=[("objects", django.contrib.auth.models.GroupManager())],
         ),
         migrations.CreateModel(
-            name='OrganizationUser',
+            name="OrganizationUser",
             fields=[
                 (
-                    'created',
+                    "created",
                     organizations.fields.AutoCreatedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     organizations.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
-                ('is_admin', models.BooleanField(default=False)),
+                ("is_admin", models.BooleanField(default=False)),
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -307,41 +307,41 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='organization_users',
-                        to='sample_users.organization',
+                        related_name="organization_users",
+                        to="sample_users.organization",
                     ),
                 ),
                 (
-                    'user',
+                    "user",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='%(app_label)s_%(class)s',
+                        related_name="%(app_label)s_%(class)s",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
         ),
         migrations.CreateModel(
-            name='OrganizationOwner',
+            name="OrganizationOwner",
             fields=[
                 (
-                    'created',
+                    "created",
                     organizations.fields.AutoCreatedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     organizations.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -350,95 +350,95 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='owner',
-                        to='sample_users.organization',
+                        related_name="owner",
+                        to="sample_users.organization",
                     ),
                 ),
                 (
-                    'organization_user',
+                    "organization_user",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to='sample_users.organizationuser',
+                        to="sample_users.organizationuser",
                     ),
                 ),
             ],
-            options={'abstract': False},
+            options={"abstract": False},
         ),
         migrations.CreateModel(
-            name='OrganizationInvitation',
+            name="OrganizationInvitation",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.AutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
-                ('guid', models.UUIDField(editable=False)),
+                ("guid", models.UUIDField(editable=False)),
                 (
-                    'invitee_identifier',
+                    "invitee_identifier",
                     models.CharField(
                         help_text=(
-                            'The contact identifier for the invitee, email, '
-                            'phone number, social media handle, etc.'
+                            "The contact identifier for the invitee, email, "
+                            "phone number, social media handle, etc."
                         ),
                         max_length=1000,
                     ),
                 ),
                 (
-                    'created',
+                    "created",
                     organizations.fields.AutoCreatedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     organizations.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now, editable=False
                     ),
                 ),
                 (
-                    'invited_by',
+                    "invited_by",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name=('%(app_label)s_%(class)s_sent_invitations'),
+                        related_name=("%(app_label)s_%(class)s_sent_invitations"),
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
                 (
-                    'invitee',
+                    "invitee",
                     models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='%(app_label)s_%(class)s_invitations',
+                        related_name="%(app_label)s_%(class)s_invitations",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='organization_invites',
-                        to='sample_users.organization',
+                        related_name="organization_invites",
+                        to="sample_users.organization",
                     ),
                 ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.AddField(
-            model_name='organization',
-            name='users',
+            model_name="organization",
+            name="users",
             field=models.ManyToManyField(
-                related_name='%(app_label)s_%(class)s',
-                through='sample_users.OrganizationUser',
+                related_name="%(app_label)s_%(class)s",
+                through="sample_users.OrganizationUser",
                 to=settings.AUTH_USER_MODEL,
             ),
         ),

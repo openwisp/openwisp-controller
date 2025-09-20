@@ -5,6 +5,7 @@ from time import sleep
 from celery import shared_task
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import gettext as _
 from openwisp_notifications.signals import notify
 from requests.exceptions import RequestException
 from swapper import load_model
@@ -27,20 +28,45 @@ class OpenwispApiTask(OpenwispCeleryTask):
     ]
 
     def _send_api_task_notification(self, type, **kwargs):
-        vpn = kwargs.get('instance')
-        action = kwargs.get('action').replace('_', ' ')
-        status_code = kwargs.get('status_code')
+        vpn = kwargs.get("instance")
+        action = kwargs.get("action").replace("_", " ")
+        status_code = kwargs.get("status_code")
         # Adding some delay here to prevent overlapping
         # of the django success message container
         # with the ow-notification container
         # https://github.com/openwisp/openwisp-notifications/issues/264
         sleep(2)
+        message_map = {
+            "error": {
+                "verb": _("encountered an unrecoverable error"),
+                "message": _(
+                    "Unable to perform {action} operation on the "
+                    "{target} VPN server due to an "
+                    "unrecoverable error "
+                    "(status code: {status_code})"
+                ),
+                "level": "error",
+            },
+            "recovery": {
+                "verb": _("has been completed successfully"),
+                "message": _("The {action} operation on {target} {verb}."),
+                "level": "info",
+            },
+        }
+        meta = message_map[type]
         notify.send(
-            type=f'api_task_{type}',
+            type="generic_message",
             sender=vpn,
             target=vpn,
             action=action,
-            status_code=status_code,
+            verb=meta["verb"],
+            message=meta["message"].format(
+                action=action,
+                target=str(vpn),
+                status_code=status_code,
+                verb=meta["verb"],
+            ),
+            level=meta["level"],
         )
 
     def handle_api_call(self, fn, *args, send_notification=True, **kwargs):
@@ -66,11 +92,11 @@ class OpenwispApiTask(OpenwispCeleryTask):
             **kwargs: Arguments used by the _send_api_task_notification method
         """
         updated_config = None
-        err_msg = kwargs.get('err')
-        info_msg = kwargs.get('info')
-        vpn = kwargs.get('instance')
+        err_msg = kwargs.get("err")
+        info_msg = kwargs.get("info")
+        vpn = kwargs.get("instance")
         if send_notification:
-            task_key = f'{self.name}_{vpn.pk.hex}_last_operation'
+            task_key = f"{self.name}_{vpn.pk.hex}_last_operation"
         # Execute API call and get response
         response = fn(*args)
         if isinstance(response, tuple):
@@ -80,9 +106,9 @@ class OpenwispApiTask(OpenwispCeleryTask):
             logger.info(info_msg)
             if send_notification:
                 task_result = cache.get(task_key)
-                if task_result == 'error':
-                    self._send_api_task_notification('recovery', **kwargs)
-                    cache.set(task_key, 'success', None)
+                if task_result == "error":
+                    self._send_api_task_notification("recovery", **kwargs)
+                    cache.set(task_key, "success", None)
         except RequestException as e:
             if response.status_code in self._RECOVERABLE_API_CODES:
                 retry_logger = logger.warn
@@ -90,17 +116,17 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 if self.request.retries == self.max_retries:
                     retry_logger = logger.error
                 retry_logger(
-                    f'Try [{self.request.retries}/{self.max_retries}] '
-                    f'{err_msg}, Error: {e}'
+                    f"Try [{self.request.retries}/{self.max_retries}] "
+                    f"{err_msg}, Error: {e}"
                 )
                 raise e
-            logger.error(f'{err_msg}, Error: {e}')
+            logger.error(f"{err_msg}, Error: {e}")
             if send_notification:
                 task_result = cache.get(task_key)
-                if task_result in (None, 'success'):
-                    cache.set(task_key, 'error', None)
+                if task_result in (None, "success"):
+                    cache.set(task_key, "error", None)
                     self._send_api_task_notification(
-                        'error', status_code=response.status_code, **kwargs
+                        "error", status_code=response.status_code, **kwargs
                     )
         return (response, updated_config) if updated_config else response
 
@@ -112,7 +138,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
     **API_TASK_RETRY_OPTIONS,
 )
 def trigger_zerotier_server_update(self, config, vpn_id):
-    Vpn = load_model('config', 'Vpn')
+    Vpn = load_model("config", "Vpn")
     vpn = Vpn.objects.get(pk=vpn_id)
     network_id = vpn.network_id
     service_method = ZerotierService(
@@ -123,19 +149,19 @@ def trigger_zerotier_server_update(self, config, vpn_id):
         config,
         network_id,
         instance=vpn,
-        action='update',
+        action="update",
         info=(
-            f'Successfully updated the configuration of '
-            f'ZeroTier VPN Server with UUID: {vpn_id}'
+            f"Successfully updated the configuration of "
+            f"ZeroTier VPN Server with UUID: {vpn_id}"
         ),
         err=(
-            f'Failed to update ZeroTier VPN Server configuration, '
-            f'VPN Server UUID: {vpn_id}'
+            f"Failed to update ZeroTier VPN Server configuration, "
+            f"VPN Server UUID: {vpn_id}"
         ),
     )
     if response.status_code == 200:
-        vpn.network_id = updated_config.pop('id', None)
-        vpn.config = {**vpn.config, 'zerotier': [updated_config]}
+        vpn.network_id = updated_config.pop("id", None)
+        vpn.config = {**vpn.config, "zerotier": [updated_config]}
         # Update zerotier network controller
         trigger_zerotier_server_update_member.delay(vpn_id)
 
@@ -147,7 +173,7 @@ def trigger_zerotier_server_update(self, config, vpn_id):
     **API_TASK_RETRY_OPTIONS,
 )
 def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
-    Vpn = load_model('config', 'Vpn')
+    Vpn = load_model("config", "Vpn")
     vpn = Vpn.objects.get(pk=vpn_id)
     network_id = vpn.network_id
     node_id = node_id or vpn.node_id
@@ -162,16 +188,16 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
         network_id,
         member_ip,
         instance=vpn,
-        action='update_member',
+        action="update_member",
         info=(
-            f'Successfully updated ZeroTier network member: {node_id}, '
-            f'ZeroTier network: {network_id}, '
-            f'ZeroTier VPN server UUID: {vpn_id}'
+            f"Successfully updated ZeroTier network member: {node_id}, "
+            f"ZeroTier network: {network_id}, "
+            f"ZeroTier VPN server UUID: {vpn_id}"
         ),
         err=(
-            f'Failed to update ZeroTier network member: {node_id}, '
-            f'ZeroTier network: {network_id}, '
-            f'ZeroTier VPN server UUID: {vpn_id}'
+            f"Failed to update ZeroTier network member: {node_id}, "
+            f"ZeroTier network: {network_id}, "
+            f"ZeroTier VPN server UUID: {vpn_id}"
         ),
     )
 
@@ -183,14 +209,14 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     **API_TASK_RETRY_OPTIONS,
 )
 def trigger_zerotier_server_remove_member(self, node_id=None, **vpn_kwargs):
-    Vpn = load_model('config', 'Vpn')
-    vpn_id = vpn_kwargs.get('id')
-    host = vpn_kwargs.get('host')
-    auth_token = vpn_kwargs.get('auth_token')
-    network_id = vpn_kwargs.get('network_id')
+    Vpn = load_model("config", "Vpn")
+    vpn_id = vpn_kwargs.get("id")
+    host = vpn_kwargs.get("host")
+    auth_token = vpn_kwargs.get("auth_token")
+    network_id = vpn_kwargs.get("network_id")
     try:
         vpn = Vpn.objects.get(pk=vpn_id)
-        notification_kwargs = dict(instance=vpn, action='remove_member')
+        notification_kwargs = dict(instance=vpn, action="remove_member")
     # When a ZeroTier VPN server is deleted
     # and this is followed by the deletion of ZeroTier VPN clients
     # we won't have access to the VPN server instance. Therefore, we should
@@ -207,14 +233,14 @@ def trigger_zerotier_server_remove_member(self, node_id=None, **vpn_kwargs):
         network_id,
         **notification_kwargs,
         info=(
-            f'Successfully left ZeroTier Network with ID: {network_id}, '
-            f'ZeroTier Member ID: {node_id}, '
-            f'ZeroTier VPN server UUID: {vpn_id}'
+            f"Successfully left ZeroTier Network with ID: {network_id}, "
+            f"ZeroTier Member ID: {node_id}, "
+            f"ZeroTier VPN server UUID: {vpn_id}"
         ),
         err=(
-            f'Failed to leave ZeroTier Network with ID: {network_id}, '
-            f'ZeroTier Member ID: {node_id}, '
-            f'ZeroTier VPN server UUID: {vpn_id}'
+            f"Failed to leave ZeroTier Network with ID: {network_id}, "
+            f"ZeroTier Member ID: {node_id}, "
+            f"ZeroTier VPN server UUID: {vpn_id}"
         ),
     )
 
@@ -226,7 +252,7 @@ def trigger_zerotier_server_remove_member(self, node_id=None, **vpn_kwargs):
     **API_TASK_RETRY_OPTIONS,
 )
 def trigger_zerotier_server_join(self, vpn_id):
-    Vpn = load_model('config', 'Vpn')
+    Vpn = load_model("config", "Vpn")
     vpn = Vpn.objects.get(pk=vpn_id)
     network_id = vpn.network_id
     service_method = ZerotierService(
@@ -237,14 +263,14 @@ def trigger_zerotier_server_join(self, vpn_id):
         service_method,
         network_id,
         instance=vpn,
-        action='network_join',
+        action="network_join",
         info=(
-            f'Successfully joined the ZeroTier network: {network_id}, '
-            f'ZeroTier VPN Server UUID: {vpn_id}'
+            f"Successfully joined the ZeroTier network: {network_id}, "
+            f"ZeroTier VPN Server UUID: {vpn_id}"
         ),
         err=(
-            f'Failed to join ZeroTier network: {network_id}, '
-            f'VPN Server UUID: {vpn_id}'
+            f"Failed to join ZeroTier network: {network_id}, "
+            f"VPN Server UUID: {vpn_id}"
         ),
     )
     if response.ok:
@@ -264,13 +290,13 @@ def trigger_zerotier_server_delete(self, host, auth_token, network_id, vpn_id):
         service_method,
         network_id,
         info=(
-            f'Successfully deleted the ZeroTier VPN Server '
-            f'with UUID: {vpn_id}, Network ID: {network_id}'
+            f"Successfully deleted the ZeroTier VPN Server "
+            f"with UUID: {vpn_id}, Network ID: {network_id}"
         ),
         err=(
-            'Failed to delete ZeroTier VPN Server '
-            f'with UUID: {vpn_id}, Network ID: {network_id}, '
-            'as it does not exist on the ZeroTier Controller Networks'
+            "Failed to delete ZeroTier VPN Server "
+            f"with UUID: {vpn_id}, Network ID: {network_id}, "
+            "as it does not exist on the ZeroTier Controller Networks"
         ),
         send_notification=False,
     )
@@ -291,7 +317,7 @@ def trigger_zerotier_server_leave(self, host, auth_token, network_id):
     self.handle_api_call(
         service_method,
         network_id,
-        info=f'Successfully left the ZeroTier Network with ID: {network_id}',
-        err=f'Failed to leave ZeroTier Network with ID: {network_id}',
+        info=f"Successfully left the ZeroTier Network with ID: {network_id}",
+        err=f"Failed to leave ZeroTier Network with ID: {network_id}",
         send_notification=False,
     )

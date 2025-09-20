@@ -6,36 +6,36 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('subnet_division', '0004_index_rule_on_delete'),
+        ("subnet_division", "0004_index_rule_on_delete"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='subnetdivisionrule',
-            name='number_of_ips',
+            model_name="subnetdivisionrule",
+            name="number_of_ips",
             field=models.PositiveSmallIntegerField(
                 help_text=(
-                    'Indicates how many IP addresses will be created for each subnet'
+                    "Indicates how many IP addresses will be created for each subnet"
                 ),
-                verbose_name='Number of IPs',
+                verbose_name="Number of IPs",
                 validators=[django.core.validators.MinValueValidator(1)],
             ),
         ),
         migrations.AlterField(
-            model_name='subnetdivisionrule',
-            name='number_of_subnets',
+            model_name="subnetdivisionrule",
+            name="number_of_subnets",
             field=models.PositiveSmallIntegerField(
-                help_text='Indicates how many subnets will be created',
+                help_text="Indicates how many subnets will be created",
                 validators=[django.core.validators.MinValueValidator(1)],
-                verbose_name='Number of Subnets',
+                verbose_name="Number of Subnets",
             ),
         ),
         migrations.AlterField(
-            model_name='subnetdivisionrule',
-            name='size',
+            model_name="subnetdivisionrule",
+            name="size",
             field=models.PositiveSmallIntegerField(
-                help_text='Indicates the size of each created subnet',
-                verbose_name='Size of subnets',
+                help_text="Indicates the size of each created subnet",
+                verbose_name="Size of subnets",
             ),
         ),
     ]

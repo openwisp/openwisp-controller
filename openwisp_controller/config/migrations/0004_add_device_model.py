@@ -18,15 +18,15 @@ from .. import settings as app_settings
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0003_template_tags'),
+        ("config", "0003_template_tags"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Device',
+            name="Device",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -34,101 +34,101 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ('name', models.CharField(max_length=64, unique=True)),
+                ("name", models.CharField(max_length=64, unique=True)),
                 (
-                    'mac_address',
+                    "mac_address",
                     models.CharField(
-                        help_text='primary mac address',
+                        help_text="primary mac address",
                         max_length=17,
                         unique=True,
                         validators=[
                             django.core.validators.RegexValidator(
                                 re.compile(
-                                    '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', 32
+                                    "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})", 32
                                 ),
-                                code='invalid',
-                                message='Must be a valid mac address.',
+                                code="invalid",
+                                message="Must be a valid mac address.",
                             )
                         ],
                     ),
                 ),
                 (
-                    'key',
+                    "key",
                     openwisp_utils.base.KeyField(
                         db_index=True,
                         default=openwisp_utils.utils.get_random_key,
-                        help_text='unique device key',
+                        help_text="unique device key",
                         max_length=64,
                         unique=True,
                         validators=[
                             django.core.validators.RegexValidator(
-                                re.compile('^[^\\s/\\.]+$'),
-                                code='invalid',
+                                re.compile("^[^\\s/\\.]+$"),
+                                code="invalid",
                                 message=(
-                                    'This value must not contain spaces, dots or '
-                                    'slashes.'
+                                    "This value must not contain spaces, dots or "
+                                    "slashes."
                                 ),
                             )
                         ],
                     ),
                 ),
                 (
-                    'model',
+                    "model",
                     models.CharField(
                         blank=True,
-                        help_text='device model and manufacturer',
+                        help_text="device model and manufacturer",
                         max_length=64,
                     ),
                 ),
                 (
-                    'os',
+                    "os",
                     models.CharField(
                         blank=True,
-                        help_text='operating system identifier',
+                        help_text="operating system identifier",
                         max_length=128,
-                        verbose_name='operating system',
+                        verbose_name="operating system",
                     ),
                 ),
-                ('notes', models.TextField(blank=True)),
+                ("notes", models.TextField(blank=True)),
                 (
-                    'created',
+                    "created",
                     model_utils.fields.AutoCreatedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='created',
+                        verbose_name="created",
                     ),
                 ),
                 (
-                    'modified',
+                    "modified",
                     model_utils.fields.AutoLastModifiedField(
                         default=django.utils.timezone.now,
                         editable=False,
-                        verbose_name='modified',
+                        verbose_name="modified",
                     ),
                 ),
                 (
-                    'organization',
+                    "organization",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to=get_model_name('openwisp_users', 'Organization'),
-                        verbose_name='organization',
+                        to=get_model_name("openwisp_users", "Organization"),
+                        verbose_name="organization",
                     ),
                 ),
             ],
             options={
-                'abstract': False,
-                'verbose_name': app_settings.DEVICE_VERBOSE_NAME[0],
-                'verbose_name_plural': app_settings.DEVICE_VERBOSE_NAME[1],
+                "abstract": False,
+                "verbose_name": app_settings.DEVICE_VERBOSE_NAME[0],
+                "verbose_name_plural": app_settings.DEVICE_VERBOSE_NAME[1],
             },
         ),
         migrations.AddField(
-            model_name='config',
-            name='device',
+            model_name="config",
+            name="device",
             field=models.OneToOneField(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to='config.Device',
+                to="config.Device",
             ),
         ),
     ]

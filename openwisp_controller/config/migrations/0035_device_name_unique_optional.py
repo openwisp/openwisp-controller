@@ -5,15 +5,15 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('config', '0034_template_required'),
+        ("config", "0034_template_required"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='device',
+            name="device",
             unique_together={
-                ('mac_address', 'organization'),
-                ('hardware_id', 'organization'),
+                ("mac_address", "organization"),
+                ("hardware_id", "organization"),
             },
         ),
     ]

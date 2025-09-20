@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectorMixin(object):
-    _connector_field = 'connector'
+    _connector_field = "connector"
 
     def clean(self):
         # Validate the connector field here to avoid ImportError in case that
@@ -51,7 +51,7 @@ class ConnectorMixin(object):
     def _get_connector(self):
         try:
             if not getattr(
-                import_string(self.credentials.connector), 'has_update_strategy'
+                import_string(self.credentials.connector), "has_update_strategy"
             ):
                 return self.credentials.connector
         except AttributeError:
@@ -62,7 +62,7 @@ class ConnectorMixin(object):
         try:
             self.connector_class.validate(self.get_params())
         except SchemaError as e:
-            raise ValidationError({'params': e.message})
+            raise ValidationError({"params": e.message})
 
     def get_params(self):
         return self.params
@@ -92,37 +92,37 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
     chunk_size = 1000
 
     connector = models.CharField(
-        _('connection type'),
+        _("connection type"),
         choices=app_settings.CONNECTORS,
         max_length=128,
         db_index=True,
     )
     params = JSONField(
-        _('parameters'),
+        _("parameters"),
         default=dict,
-        help_text=_('global connection parameters'),
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        help_text=_("global connection parameters"),
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
     )
     auto_add = models.BooleanField(
-        _('auto add'),
+        _("auto add"),
         default=False,
         help_text=_(
-            'automatically add these credentials '
-            'to the devices of this organization; '
-            'if no organization is specified will '
-            'be added to all the new devices'
+            "automatically add these credentials "
+            "to the devices of this organization; "
+            "if no organization is specified will "
+            "be added to all the new devices"
         ),
     )
 
     class Meta:
-        verbose_name = _('Access credentials')
+        verbose_name = _("Access credentials")
         verbose_name_plural = verbose_name
-        unique_together = ('name', 'organization')
+        unique_together = ("name", "organization")
         abstract = True
 
     def __str__(self):
-        return '{0} ({1})'.format(self.name, self.get_connector_display())
+        return "{0} ({1})".format(self.name, self.get_connector_display())
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -139,8 +139,8 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         When ``auto_add`` is ``True``, adds the credentials
         to each relevant ``Device`` and ``DeviceConnection`` objects
         """
-        DeviceConnection = load_model('connection', 'DeviceConnection')
-        Device = load_model('config', 'Device')
+        DeviceConnection = load_model("connection", "DeviceConnection")
+        Device = load_model("config", "Device")
 
         devices = Device.objects.exclude(config=None)
         if organization_id:
@@ -175,7 +175,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         from django.contrib.contenttypes.models import ContentType
         from reversion.models import Version
 
-        DeviceConnection = load_model('connection', 'DeviceConnection')
+        DeviceConnection = load_model("connection", "DeviceConnection")
 
         if not created:
             return
@@ -192,7 +192,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         # exists for the device. This condition is required when a
         # deleted device is recovered through django-reversions.
         not_where = models.Q(
-            id__in=device.deviceconnection_set.values_list('credentials_id', flat=True)
+            id__in=device.deviceconnection_set.values_list("credentials_id", flat=True)
         )
         # A race condition might occur while recovering a deleted device.
         # The code for creating new DeviceConnection might be executed
@@ -209,11 +209,11 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         )
         versioned_credentials = []
         for version in device_connection_versions:
-            versioned_credentials.append(version.field_dict['credentials_id'])
+            versioned_credentials.append(version.field_dict["credentials_id"])
         not_where |= models.Q(id__in=versioned_credentials)
         credentials = cls.objects.filter(where).exclude(not_where)
         for cred in credentials:
-            DeviceConnection = load_model('connection', 'DeviceConnection')
+            DeviceConnection = load_model("connection", "DeviceConnection")
             conn = DeviceConnection(device=device, credentials=cred, enabled=True)
             conn.set_connector(cred.connector_instance)
             conn.full_clean()
@@ -221,16 +221,16 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
 
 
 class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
-    _connector_field = 'update_strategy'
+    _connector_field = "update_strategy"
     device = models.ForeignKey(
-        get_model_name('config', 'Device'), on_delete=models.CASCADE
+        get_model_name("config", "Device"), on_delete=models.CASCADE
     )
     credentials = models.ForeignKey(
-        get_model_name('connection', 'Credentials'), on_delete=models.CASCADE
+        get_model_name("connection", "Credentials"), on_delete=models.CASCADE
     )
     update_strategy = models.CharField(
-        _('update strategy'),
-        help_text=_('leave blank to determine automatically'),
+        _("update strategy"),
+        help_text=_("leave blank to determine automatically"),
         choices=app_settings.UPDATE_STRATEGIES,
         max_length=128,
         blank=True,
@@ -238,25 +238,25 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     )
     enabled = models.BooleanField(default=True, db_index=True)
     params = JSONField(
-        _('parameters'),
+        _("parameters"),
         default=dict,
         blank=True,
         help_text=_(
-            'local connection parameters (will override '
-            'the global parameters if specified)'
+            "local connection parameters (will override "
+            "the global parameters if specified)"
         ),
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
     )
     # usability improvements
     is_working = models.BooleanField(null=True, blank=True, default=None)
-    failure_reason = models.TextField(_('reason of failure'), blank=True)
+    failure_reason = models.TextField(_("reason of failure"), blank=True)
     last_attempt = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        verbose_name = _('Device connection')
-        verbose_name_plural = _('Device connections')
-        unique_together = (('device', 'credentials'),)
+        verbose_name = _("Device connection")
+        verbose_name_plural = _("Device connections")
+        unique_together = (("device", "credentials"),)
         abstract = True
 
     def __init__(self, *args, **kwargs):
@@ -266,13 +266,13 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
 
     @classmethod
     def get_working_connection(
-        cls, device, connector='openwisp_controller.connection.connectors.ssh.Ssh'
+        cls, device, connector="openwisp_controller.connection.connectors.ssh.Ssh"
     ):
         qs = cls.objects.filter(
             device=device,
             enabled=True,
             credentials__connector=connector,
-        ).order_by('-is_working')
+        ).order_by("-is_working")
         # NoWorkingDeviceConnectionError.connection will be
         # equal to None if the device has no DeviceConnection.
         device_conn = None
@@ -288,9 +288,9 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         if cred_org and cred_org != self.device.organization:
             raise ValidationError(
                 {
-                    'credentials': _(
-                        'The organization of these credentials doesn\'t '
-                        'match the organization of the device'
+                    "credentials": _(
+                        "The organization of these credentials doesn't "
+                        "match the organization of the device"
                     )
                 }
             )
@@ -302,20 +302,20 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             except KeyError as e:
                 raise ValidationError(
                     {
-                        'update_stragy': _(
-                            'could not determine update strategy '
-                            ' automatically, exception: {0}'.format(e)
+                        "update_stragy": _(
+                            "could not determine update strategy "
+                            " automatically, exception: {0}".format(e)
                         )
                     }
                 )
         elif not self.update_strategy:
             raise ValidationError(
                 {
-                    'update_strategy': _(
-                        'the update strategy can be determined automatically '
-                        'only if the device has a configuration specified, '
-                        'because it is inferred from the configuration backend. '
-                        'Please select the update strategy manually.'
+                    "update_strategy": _(
+                        "the update strategy can be determined automatically "
+                        "only if the device has a configuration specified, "
+                        "because it is inferred from the configuration backend. "
+                        "Please select the update strategy manually."
                     )
                 }
             )
@@ -353,7 +353,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = str(e)
         else:
             self.is_working = True
-            self.failure_reason = ''
+            self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
             self.save()
@@ -392,17 +392,17 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
 
 class AbstractCommand(TimeStampedEditableModel):
     STATUS_CHOICES = (
-        ('in-progress', _('in progress')),
-        ('success', _('success')),
-        ('failed', _('failed')),
+        ("in-progress", _("in progress")),
+        ("success", _("success")),
+        ("failed", _("failed")),
     )
     device = models.ForeignKey(
-        get_model_name('config', 'Device'), on_delete=models.CASCADE
+        get_model_name("config", "Device"), on_delete=models.CASCADE
     )
     # if the related DeviceConnection is deleted,
     # set this to NULL to avoid losing history
     connection = models.ForeignKey(
-        get_model_name('connection', 'DeviceConnection'),
+        get_model_name("connection", "DeviceConnection"),
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -425,60 +425,74 @@ class AbstractCommand(TimeStampedEditableModel):
     input = JSONField(
         blank=True,
         null=True,
-        load_kwargs={'object_pairs_hook': collections.OrderedDict},
-        dump_kwargs={'indent': 4},
+        load_kwargs={"object_pairs_hook": collections.OrderedDict},
+        dump_kwargs={"indent": 4},
     )
     output = models.TextField(blank=True)
 
     class Meta:
-        verbose_name = _('Command')
-        verbose_name_plural = _('Commands')
+        verbose_name = _("Command")
+        verbose_name_plural = _("Commands")
         abstract = True
-        ordering = ('created',)
+        ordering = ("created",)
 
     @classmethod
-    def get_org_choices(self, organization_id=None):
-        return ORGANIZATION_ENABLED_COMMANDS.get(
-            str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get('__all__')
+    def get_org_allowed_commands(self, organization_id=None):
+        """
+        Returns a list of allowed commands for the given organization
+        """
+        allowed_commands = ORGANIZATION_ENABLED_COMMANDS.get(
+            str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get("__all__")
         )
+        commands_map = dict(COMMAND_CHOICES)
+        return [
+            (cmd, commands_map[cmd]) for cmd in allowed_commands if cmd in commands_map
+        ]
 
     @classmethod
     def get_org_schema(self, organization_id=None):
         return ORGANIZATION_COMMAND_SCHEMA.get(
-            organization_id, ORGANIZATION_COMMAND_SCHEMA.get('__all__')
+            organization_id, ORGANIZATION_COMMAND_SCHEMA.get("__all__")
         )
 
     def __str__(self):
-        command = self.input['command'] if self.is_custom else self.get_type_display()
+        command = self.input["command"] if self.is_custom else self.get_type_display()
         limit = 32
         if len(command) > limit:
-            command = f'{command[:limit]}…'
-        sent = _('sent on')
+            command = f"{command[:limit]}…"
+        sent = _("sent on")
         created = timezone.localtime(self.created)
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
         self._verify_command_type_allowed()
+        self._verify_connection()
         try:
             jsonschema.Draft4Validator(self._schema).validate(self.input)
         except SchemaError as e:
-            raise ValidationError({'input': e.message})
+            raise ValidationError({"input": e.message})
+
+    def _verify_connection(self):
+        """Raises validation error if device has no connection and credentials."""
+        if self.device and not self.device.deviceconnection_set.exists():
+            raise ValidationError({"device": _("Device has no credentials assigned.")})
 
     def _verify_command_type_allowed(self):
         """Raises validation error if command type is not allowed."""
         # if device is not set, skip to avoid uncaught exception
         # (standard model validation will kick in)
-        if not hasattr(self, 'device'):
+        if not hasattr(self, "device"):
             return
-        if self.type not in self.get_org_choices(
-            organization_id=self.device.organization_id
+
+        if self.type not in dict(
+            self.get_org_allowed_commands(organization_id=self.device.organization_id)
         ):
             raise ValidationError(
                 {
-                    'input': _(
+                    "input": _(
                         (
                             '"{command}" command is not available '
-                            'for this organization'
+                            "for this organization"
                         ).format(command=self.type)
                     )
                 }
@@ -486,7 +500,7 @@ class AbstractCommand(TimeStampedEditableModel):
 
     @property
     def is_custom(self):
-        return self.type == 'custom'
+        return self.type == "custom"
 
     @property
     def is_default_command(self):
@@ -518,22 +532,22 @@ class AbstractCommand(TimeStampedEditableModel):
         on the connection status or exit codes
         it determines if the commands succeeded or not
         """
-        if self.status in ['failed', 'success']:
+        if self.status in ["failed", "success"]:
             raise RuntimeError(
-                'This command has already been executed, ' 'please create a new one.'
+                "This command has already been executed, " "please create a new one."
             )
         exit_code = self._exec_command()
         # if output is None, the commands couldn't execute
         # because the system couldn't connect to the device
         if exit_code is None:
-            self.status = 'failed'
+            self.status = "failed"
             self.output = self.connection.failure_reason
         # one command failed
         elif exit_code != 0:
-            self.status = 'failed'
+            self.status = "failed"
         # all commands succeeded
         else:
-            self.status = 'success'
+            self.status = "success"
         self._clean_sensitive_info()
         self.save()
 
@@ -542,7 +556,7 @@ class AbstractCommand(TimeStampedEditableModel):
         Executes commands, stores output, returns exit_code
         """
         if not self.connection:
-            DeviceConnection = load_model('connection', 'DeviceConnection')
+            DeviceConnection = load_model("connection", "DeviceConnection")
             try:
                 self.connection = DeviceConnection.get_working_connection(
                     device=self.device
@@ -590,25 +604,25 @@ class AbstractCommand(TimeStampedEditableModel):
         adds trailing new line if output doesn't have it
         """
         output = str(output)  # convert __proxy__ strings
-        if not output.endswith('\n'):
-            output += '\n'
+        if not output.endswith("\n"):
+            output += "\n"
         self.output += output
 
     def _clean_sensitive_info(self):
         """
         Removes sensitive information from input field if necessary
         """
-        if self.type == 'change_password':
-            self.input = {'password': '********'}
+        if self.type == "change_password":
+            self.input = {"password": "********"}
 
     @property
     def custom_command(self):
         if not self.is_custom:
             raise TypeError(
-                f'custom_commands property is not applicable in '
+                f"custom_commands property is not applicable in "
                 f'command instance of type "{self.type}"'
             )
-        return self.input['command']
+        return self.input["command"]
 
     @property
     def arguments(self):
@@ -625,7 +639,7 @@ class AbstractCommand(TimeStampedEditableModel):
         if self.is_custom:
             return self.custom_command
         else:
-            return ', '.join(self.arguments)
+            return ", ".join(self.arguments)
 
     @property
     def _schema(self):
@@ -644,6 +658,6 @@ class AbstractCommand(TimeStampedEditableModel):
     def _enforce_not_custom(self):
         if self.is_custom:
             raise TypeError(
-                f'arguments property is not applicable in '
+                f"arguments property is not applicable in "
                 f'command instance of type "{self.type}"'
             )

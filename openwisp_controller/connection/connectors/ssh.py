@@ -17,37 +17,37 @@ logger = logging.getLogger(__name__)
 
 class Ssh(object):
     schema = {
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'type': 'object',
-        'title': 'Credentials type',
-        'oneOf': [
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "title": "Credentials type",
+        "oneOf": [
             {
-                'title': 'SSH (password)',
-                'required': ['username', 'password'],
-                'additionalProperties': False,
-                'properties': {
-                    'username': {'type': 'string', 'minLength': 2},
-                    'password': {'type': 'string', 'minLength': 4},
-                    'port': {
-                        'type': 'integer',
-                        'default': 22,
-                        'minimum': 1,
-                        'maximum': 65535,
+                "title": "SSH (password)",
+                "required": ["username", "password"],
+                "additionalProperties": False,
+                "properties": {
+                    "username": {"type": "string", "minLength": 2},
+                    "password": {"type": "string", "minLength": 4},
+                    "port": {
+                        "type": "integer",
+                        "default": 22,
+                        "minimum": 1,
+                        "maximum": 65535,
                     },
                 },
             },
             {
-                'title': 'SSH (private key)',
-                'required': ['username', 'key'],
-                'additionalProperties': False,
-                'properties': {
-                    'username': {'type': 'string'},
-                    'key': {'type': 'string', 'format': 'textarea', 'minLength': 64},
-                    'port': {
-                        'type': 'number',
-                        'default': 22,
-                        'minimum': 1,
-                        'maximum': 65535,
+                "title": "SSH (private key)",
+                "required": ["username", "key"],
+                "additionalProperties": False,
+                "properties": {
+                    "username": {"type": "string"},
+                    "key": {"type": "string", "format": "textarea", "minLength": 64},
+                    "port": {
+                        "type": "number",
+                        "default": 22,
+                        "minimum": 1,
+                        "maximum": 65535,
                     },
                 },
             },
@@ -67,18 +67,18 @@ class Ssh(object):
         validate(params, cls.schema)
         cls.custom_validation(params)
         # trigger SSH key algorithm check
-        cls(params, ['127.0.0.1']).params
+        cls(params, ["127.0.0.1"]).params
 
     @classmethod
     def custom_validation(cls, params):
-        if 'password' not in params and 'key' not in params:
-            raise SchemaError('Missing password or key')
+        if "password" not in params and "key" not in params:
+            raise SchemaError("Missing password or key")
 
     @cached_property
     def params(self):
         params = self._params.copy()
-        if 'key' in params:
-            params['pkey'] = self._get_ssh_key(params.pop('key'))
+        if "key" in params:
+            params["pkey"] = self._get_ssh_key(params.pop("key"))
         return params
 
     @property
@@ -99,15 +99,15 @@ class Ssh(object):
         ]
         for key_algo in key_algorithms:
             try:
-                return getattr(key_algo, 'from_private_key')(key_fileobj)
+                return getattr(key_algo, "from_private_key")(key_fileobj)
             except (paramiko.ssh_exception.SSHException, ValueError):
                 key_fileobj.seek(0)
                 continue
         else:
             raise SchemaError(
                 _(
-                    'Unrecognized or unsupported SSH key algorithm, '
-                    'only RSA and ED25519 are currently supported.'
+                    "Unrecognized or unsupported SSH key algorithm, "
+                    "only RSA and ED25519 are currently supported."
                 )
             )
 
@@ -116,7 +116,7 @@ class Ssh(object):
         exception = None
         addresses = self.addresses
         if not addresses:
-            raise ValueError('No valid IP addresses to initiate connections found')
+            raise ValueError("No valid IP addresses to initiate connections found")
         if self.is_connected:
             # Do not establish a new connection if
             # a connection was already established.
@@ -155,9 +155,9 @@ class Ssh(object):
                 # described at https://github.com/paramiko/paramiko/issues/1961
                 # let's retry by disabling the new default HostKeyAlgorithms,
                 # which can work on older systems.
-                if e.args == ('Authentication failed.',) and attempt == 1:
-                    params['disabled_algorithms'] = {
-                        'pubkeys': ['rsa-sha2-512', 'rsa-sha2-256']
+                if e.args == ("Authentication failed.",) and attempt == 1:
+                    params["disabled_algorithms"] = {
+                        "pubkeys": ["rsa-sha2-512", "rsa-sha2-256"]
                     }
                     self.shell.close()
                     continue
@@ -183,7 +183,7 @@ class Ssh(object):
         - aborts on exceptions
         - raises socket.timeout exceptions
         """
-        logger.info('Executing command: {0}'.format(command))
+        logger.info("Executing command: {0}".format(command))
         # execute commmand
         try:
             stdin, stdout, stderr = self.shell.exec_command(command, timeout=timeout)
@@ -200,19 +200,19 @@ class Ssh(object):
         # log standard output
         # try to decode to UTF-8, ignoring unconvertible characters
         # https://docs.python.org/3/howto/unicode.html#the-string-type
-        output = stdout.read().decode('utf-8', 'ignore')
+        output = stdout.read().decode("utf-8", "ignore")
         if output:
             logger.info(output)
         # log standard error
-        error = stderr.read().decode('utf-8', 'ignore')
+        error = stderr.read().decode("utf-8", "ignore")
         if error:
-            if not output.endswith('\n'):
-                output += '\n'
+            if not output.endswith("\n"):
+                output += "\n"
             output += error
         # abort the operation if any of the command
         # returned with a non-zero exit status
         if exit_status not in exit_codes and raise_unexpected_exit:
-            log_message = 'Unexpected exit code: {0}'.format(exit_status)
+            log_message = "Unexpected exit code: {0}".format(exit_status)
             logger.info(log_message)
             message = error if error else output
             # if message is empty, use log_message
@@ -224,7 +224,7 @@ class Ssh(object):
 
     def upload(self, fl, remote_path):
         scp = SCPClient(self.shell.get_transport())
-        if not hasattr(fl, 'getvalue'):
+        if not hasattr(fl, "getvalue"):
             fl_memory = BytesIO(fl.read())
             fl.seek(0)
             fl = fl_memory

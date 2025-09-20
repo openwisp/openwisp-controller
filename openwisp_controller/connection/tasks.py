@@ -12,7 +12,7 @@ from . import settings as app_settings
 from .exceptions import NoWorkingDeviceConnectionError
 
 logger = logging.getLogger(__name__)
-_TASK_NAME = 'openwisp_controller.connection.tasks.update_config'
+_TASK_NAME = "openwisp_controller.connection.tasks.update_config"
 
 
 def _is_update_in_progress(device_id):
@@ -22,7 +22,7 @@ def _is_update_in_progress(device_id):
     # check if there's any other running task before adding it
     for task_list in active.values():
         for task in task_list:
-            if task['name'] == _TASK_NAME and str(device_id) in task['args']:
+            if task["name"] == _TASK_NAME and str(device_id) in task["args"]:
                 return True
     return False
 
@@ -34,15 +34,15 @@ def update_config(device_id):
     of a specific device in the background
     """
     Device = swapper.load_model(*swapper.split(app_settings.UPDATE_CONFIG_MODEL))
-    DeviceConnection = swapper.load_model('connection', 'DeviceConnection')
+    DeviceConnection = swapper.load_model("connection", "DeviceConnection")
     # wait for the saving operations of this device to complete
     # (there may be multiple ones happening at the same time)
     time.sleep(2)
     try:
-        device = Device.objects.select_related('config').get(pk=device_id)
+        device = Device.objects.select_related("config").get(pk=device_id)
         # abort operation if device shouldn't be updated
         if not device.can_be_updated():
-            logger.info(f'{device} (pk: {device_id}) is not going to be updated')
+            logger.info(f"{device} (pk: {device_id}) is not going to be updated")
             return
     except ObjectDoesNotExist as e:
         logger.warning(f'update_config("{device_id}") failed: {e}')
@@ -54,7 +54,7 @@ def update_config(device_id):
     except NoWorkingDeviceConnectionError:
         return
     else:
-        logger.info(f'Updating {device} (pk: {device_id})')
+        logger.info(f"Updating {device} (pk: {device_id})")
         device_conn.update_config()
 
 
@@ -64,7 +64,7 @@ def launch_command(command_id):
     """
     Launches execution of commands in the background
     """
-    Command = load_model('connection', 'Command')
+    Command = load_model("connection", "Command")
     try:
         command = Command.objects.get(pk=command_id)
     except Command.DoesNotExist as e:
@@ -73,19 +73,19 @@ def launch_command(command_id):
     try:
         command.execute()
     except SoftTimeLimitExceeded:
-        command.status = 'failed'
-        command._add_output(_('Background task time limit exceeded.'))
+        command.status = "failed"
+        command._add_output(_("Background task time limit exceeded."))
         command.save()
     except Exception as e:
         logger.exception(
-            f'An exception was raised while executing command {command_id}'
+            f"An exception was raised while executing command {command_id}"
         )
-        command.status = 'failed'
-        command._add_output(_(f'Internal system error: {e}'))
+        command.status = "failed"
+        command._add_output(_(f"Internal system error: {e}"))
         command.save()
 
 
 @shared_task(soft_time_limit=3600)
 def auto_add_credentials_to_devices(credential_id, organization_id):
-    Credentials = load_model('connection', 'Credentials')
+    Credentials = load_model("connection", "Credentials")
     Credentials.auto_add_to_devices(credential_id, organization_id)

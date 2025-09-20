@@ -13,7 +13,7 @@ from .consumers import LocationBroadcast
 def get_routes():
     return [
         path(
-            location_broadcast_path, LocationBroadcast.as_asgi(), name='LocationChannel'
+            location_broadcast_path, LocationBroadcast.as_asgi(), name="LocationChannel"
         )
     ]
 
@@ -23,7 +23,7 @@ geo_routes = get_routes()
 
 channel_routing = ProtocolTypeRouter(
     {
-        'websocket': AllowedHostsOriginValidator(
+        "websocket": AllowedHostsOriginValidator(
             AuthMiddlewareStack(URLRouter(get_notification_routes() + geo_routes))
         )
     }

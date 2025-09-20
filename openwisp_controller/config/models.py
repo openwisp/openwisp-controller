@@ -19,7 +19,7 @@ class Device(AbstractDevice):
 
     class Meta(AbstractDevice.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'Device')
+        swappable = swapper.swappable_setting("config", "Device")
 
 
 class DeviceGroup(AbstractDeviceGroup):
@@ -29,7 +29,7 @@ class DeviceGroup(AbstractDeviceGroup):
 
     class Meta(AbstractDeviceGroup.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'DeviceGroup')
+        swappable = swapper.swappable_setting("config", "DeviceGroup")
 
 
 class Config(AbstractConfig):
@@ -39,7 +39,7 @@ class Config(AbstractConfig):
 
     class Meta(AbstractConfig.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'Config')
+        swappable = swapper.swappable_setting("config", "Config")
 
 
 class TemplateTag(AbstractTemplateTag):
@@ -49,7 +49,7 @@ class TemplateTag(AbstractTemplateTag):
 
     class Meta(AbstractTemplateTag.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'TemplateTag')
+        swappable = swapper.swappable_setting("config", "TemplateTag")
 
 
 class TaggedTemplate(AbstractTaggedTemplate):
@@ -59,7 +59,7 @@ class TaggedTemplate(AbstractTaggedTemplate):
 
     class Meta(AbstractTaggedTemplate.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'TaggedTemplate')
+        swappable = swapper.swappable_setting("config", "TaggedTemplate")
 
 
 class Template(AbstractTemplate):
@@ -69,7 +69,7 @@ class Template(AbstractTemplate):
 
     class Meta(AbstractTemplate.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'Template')
+        swappable = swapper.swappable_setting("config", "Template")
 
 
 class Vpn(AbstractVpn):
@@ -79,7 +79,7 @@ class Vpn(AbstractVpn):
 
     class Meta(AbstractVpn.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'Vpn')
+        swappable = swapper.swappable_setting("config", "Vpn")
 
 
 class VpnClient(AbstractVpnClient):
@@ -89,7 +89,7 @@ class VpnClient(AbstractVpnClient):
 
     class Meta(AbstractVpnClient.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'VpnClient')
+        swappable = swapper.swappable_setting("config", "VpnClient")
 
 
 class OrganizationConfigSettings(AbstractOrganizationConfigSettings):
@@ -100,7 +100,7 @@ class OrganizationConfigSettings(AbstractOrganizationConfigSettings):
 
     class Meta(AbstractOrganizationConfigSettings.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'OrganizationConfigSettings')
+        swappable = swapper.swappable_setting("config", "OrganizationConfigSettings")
 
 
 class OrganizationLimits(AbstractOrganizationLimits):
@@ -110,4 +110,4 @@ class OrganizationLimits(AbstractOrganizationLimits):
 
     class Meta(AbstractOrganizationLimits.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('config', 'OrganizationLimits')
+        swappable = swapper.swappable_setting("config", "OrganizationLimits")

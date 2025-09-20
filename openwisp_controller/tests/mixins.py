@@ -7,13 +7,18 @@ class GetEditFormInlineMixin(object):
         params.update(
             {
                 # config inline
-                'config_settings-TOTAL_FORMS': 0,
-                'config_settings-INITIAL_FORMS': 0,
-                'config_settings-MIN_NUM_FORMS': 0,
-                'config_settings-MAX_NUM_FORMS': 0,
+                "config_settings-TOTAL_FORMS": 0,
+                "config_settings-INITIAL_FORMS": 0,
+                "config_settings-MIN_NUM_FORMS": 0,
+                "config_settings-MAX_NUM_FORMS": 0,
                 # device limit inline
-                'config_limits-TOTAL_FORMS': 0,
-                'config_limits-INITIAL_FORMS': 0,
+                "config_limits-TOTAL_FORMS": 0,
+                "config_limits-INITIAL_FORMS": 0,
+                # notification settings inline
+                "notification_settings-TOTAL_FORMS": 1,
+                "notification_settings-INITIAL_FORMS": 1,
+                "notification_settings-MIN_NUM_FORMS": 0,
+                "notification_settings-MAX_NUM_FORMS": 1,
             }
         )
         return params
@@ -22,10 +27,10 @@ class GetEditFormInlineMixin(object):
         params = super()._get_user_edit_form_inline_params(user, organization)
         params.update(
             {
-                'notificationsetting_set-TOTAL_FORMS': 0,
-                'notificationsetting_set-INITIAL_FORMS': 0,
-                'notificationsetting_set-MIN_NUM_FORMS': 0,
-                'notificationsetting_set-MAX_NUM_FORMS': 0,
+                "notificationsetting_set-TOTAL_FORMS": 0,
+                "notificationsetting_set-INITIAL_FORMS": 0,
+                "notificationsetting_set-MIN_NUM_FORMS": 0,
+                "notificationsetting_set-MAX_NUM_FORMS": 0,
             }
         )
         return params

@@ -1,7 +1,7 @@
 import swapper
 from django_loci.channels.base import BaseLocationBroadcast
 
-Location = swapper.load_model('geo', 'Location')
+Location = swapper.load_model("geo", "Location")
 
 
 class LocationBroadcast(BaseLocationBroadcast):

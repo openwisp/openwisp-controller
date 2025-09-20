@@ -1,4 +1,5 @@
 import json
+import uuid
 from subprocess import CalledProcessError, TimeoutExpired
 from unittest import mock
 
@@ -19,7 +20,7 @@ from .. import settings as app_settings
 from ..exceptions import ZeroTierIdentityGenerationError
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
-from ..tasks import create_vpn_dh
+from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
 from .utils import (
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
@@ -28,15 +29,15 @@ from .utils import (
     TestZeroTierVpnMixin,
 )
 
-Config = load_model('config', 'Config')
-Device = load_model('config', 'Device')
-Template = load_model('config', 'Template')
-Vpn = load_model('config', 'Vpn')
-VpnClient = load_model('config', 'VpnClient')
-Ca = load_model('django_x509', 'Ca')
-Cert = load_model('django_x509', 'Cert')
-Subnet = load_model('openwisp_ipam', 'Subnet')
-IpAddress = load_model('openwisp_ipam', 'IpAddress')
+Config = load_model("config", "Config")
+Device = load_model("config", "Device")
+Template = load_model("config", "Template")
+Vpn = load_model("config", "Vpn")
+VpnClient = load_model("config", "VpnClient")
+Ca = load_model("django_x509", "Ca")
+Cert = load_model("django_x509", "Cert")
+Subnet = load_model("openwisp_ipam", "Subnet")
+IpAddress = load_model("openwisp_ipam", "IpAddress")
 
 
 class BaseTestVpn(TestVpnX509Mixin, CreateConfigTemplateMixin):
@@ -50,10 +51,10 @@ class TestVpn(BaseTestVpn, TestCase):
 
     def test_config_not_none(self):
         v = Vpn(
-            name='test',
-            host='vpn1.test.com',
+            name="test",
+            host="vpn1.test.com",
             ca=self._create_ca(),
-            backend=self._BACKENDS['openvpn'],
+            backend=self._BACKENDS["openvpn"],
             config=None,
             dh=self._dh,
         )
@@ -65,39 +66,39 @@ class TestVpn(BaseTestVpn, TestCase):
 
     def test_backend_class(self):
         v = Vpn(
-            name='test',
-            host='vpn1.test.com',
+            name="test",
+            host="vpn1.test.com",
             ca=self._create_ca(),
-            backend=self._BACKENDS['openvpn'],
+            backend=self._BACKENDS["openvpn"],
         )
         self.assertIs(v.backend_class, OpenVpn)
 
     def test_backend_instance(self):
         v = Vpn(
-            name='test',
-            host='vpn1.test.com',
+            name="test",
+            host="vpn1.test.com",
             ca=self._create_ca(),
-            backend=self._BACKENDS['openvpn'],
+            backend=self._BACKENDS["openvpn"],
             config={},
         )
         self.assertIsInstance(v.backend_instance, OpenVpn)
 
     def test_validation(self):
-        config = {'openvpn': {'invalid': True}}
+        config = {"openvpn": {"invalid": True}}
         v = Vpn(
-            name='test',
-            host='vpn1.test.com',
+            name="test",
+            host="vpn1.test.com",
             ca=self._create_ca(),
-            backend=self._BACKENDS['openvpn'],
+            backend=self._BACKENDS["openvpn"],
             config=config,
         )
-        with self.subTest('test invalid openvpn key'):
+        with self.subTest("test invalid openvpn key"):
             with self.assertRaises(ValidationError):
                 v.full_clean()
 
-        with self.subTest('test missing openvpn key'):
+        with self.subTest("test missing openvpn key"):
             del v.backend_instance
-            v.config = {'files': []}
+            v.config = {"files": []}
             with self.assertRaises(ValidationError):
                 v.full_clean()
 
@@ -109,14 +110,14 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn()
         self.assertIsNotNone(vpn.cert)
         server_extensions = [
-            {'name': 'nsCertType', 'value': 'server', 'critical': False}
+            {"name": "nsCertType", "value": "server", "critical": False}
         ]
         self.assertEqual(vpn.cert.extensions, server_extensions)
 
     def test_vpn_client_unique_together(self):
         org = self._get_org()
         vpn = self._create_vpn()
-        t = self._create_template(name='vpn-test', type='vpn', vpn=vpn)
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn)
         c = self._create_config(organization=org)
         c.templates.add(t)
         # one VpnClient instance has been automatically created
@@ -126,15 +127,15 @@ class TestVpn(BaseTestVpn, TestCase):
             client.full_clean()
         except ValidationError as e:
             self.assertIn(
-                'with this Config and Vpn already exists', e.message_dict['__all__'][0]
+                "with this Config and Vpn already exists", e.message_dict["__all__"][0]
             )
         else:
-            self.fail('unique_together clause not triggered')
+            self.fail("unique_together clause not triggered")
 
     def test_vpn_client_auto_cert_revokes_cert(self):
         org = self._get_org()
         vpn = self._create_vpn()
-        t = self._create_template(name='vpn-test', type='vpn', vpn=vpn, auto_cert=True)
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
         c = self._create_config(organization=org)
         c.templates.add(t)
         vpnclient = c.vpnclient_set.first()
@@ -147,7 +148,7 @@ class TestVpn(BaseTestVpn, TestCase):
     def test_vpn_client_cert_post_deletes_cert(self):
         org = self._get_org()
         vpn = self._create_vpn()
-        t = self._create_template(name='vpn-test', type='vpn', vpn=vpn, auto_cert=True)
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
         c = self._create_config(organization=org)
         c.templates.add(t)
         vpnclient = c.vpnclient_set.first()
@@ -159,62 +160,62 @@ class TestVpn(BaseTestVpn, TestCase):
 
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
-        different_ca = self._create_ca(common_name='different-ca')
+        different_ca = self._create_ca(common_name="different-ca")
         cert = Cert(
-            name='test-cert-vpn',
+            name="test-cert-vpn",
             ca=ca,
-            key_length='2048',
-            digest='sha256',
-            country_code='IT',
-            state='RM',
-            city='Rome',
-            organization_name='OpenWISP',
-            email='test@test.com',
-            common_name='openwisp.org',
+            key_length="2048",
+            digest="sha256",
+            country_code="IT",
+            state="RM",
+            city="Rome",
+            organization_name="OpenWISP",
+            email="test@test.com",
+            common_name="openwisp.org",
         )
         cert.full_clean()
         cert.save()
         vpn = Vpn(
-            name='test',
-            host='vpn1.test.com',
+            name="test",
+            host="vpn1.test.com",
             ca=different_ca,
             cert=cert,
-            backend=self._BACKENDS['openvpn'],
+            backend=self._BACKENDS["openvpn"],
             config=self._vpn_config,
         )
         try:
             vpn.full_clean()
         except ValidationError as e:
-            self.assertIn('cert', e.message_dict)
+            self.assertIn("cert", e.message_dict)
         else:
-            self.fail('Mismatch between ca and cert but ValidationError not raised')
+            self.fail("Mismatch between ca and cert but ValidationError not raised")
 
     def test_auto_client(self):
         vpn = self._create_vpn()
         auto = vpn.auto_client()
         context_keys = vpn._get_auto_context_keys()
-        del context_keys['vpn_host']
-        del context_keys['vpn_port']
+        del context_keys["vpn_host"]
+        del context_keys["vpn_port"]
         for key in context_keys.keys():
-            context_keys[key] = '{{%s}}' % context_keys[key]
+            context_keys[key] = "{{%s}}" % context_keys[key]
         control = vpn.backend_class.auto_client(
-            host=vpn.host, server=self._vpn_config['openvpn'][0], **context_keys
+            host=vpn.host, server=self._vpn_config["openvpn"][0], **context_keys
         )
-        control['files'] = [
+        control["files"] = [
             {
-                'path': context_keys['ca_path'],
-                'mode': '0600',
-                'contents': context_keys['ca_contents'],
+                "path": context_keys["ca_path"],
+                "mode": "0600",
+                "contents": context_keys["ca_contents"],
             },
             {
-                'path': context_keys['cert_path'],
-                'mode': '0600',
-                'contents': context_keys['cert_contents'],
+                "path": context_keys["cert_path"],
+                "mode": "0600",
+                "contents": context_keys["cert_contents"],
             },
             {
-                'path': context_keys['key_path'],
-                'mode': '0600',
-                'contents': context_keys['key_contents'],
+                "path": context_keys["key_path"],
+                "mode": "0600",
+                "contents": context_keys["key_contents"],
             },
         ]
         self.assertDictEqual(auto, control)
@@ -223,20 +224,20 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn()
         auto = vpn.auto_client(auto_cert=False)
         context_keys = vpn._get_auto_context_keys()
-        del context_keys['vpn_host']
-        del context_keys['vpn_port']
+        del context_keys["vpn_host"]
+        del context_keys["vpn_port"]
         for key in context_keys.keys():
-            context_keys[key] = '{{%s}}' % context_keys[key]
-        for key in ['cert_path', 'cert_contents', 'key_path', 'key_contents']:
+            context_keys[key] = "{{%s}}" % context_keys[key]
+        for key in ["cert_path", "cert_contents", "key_path", "key_contents"]:
             del context_keys[key]
         control = vpn.backend_class.auto_client(
-            host=vpn.host, server=self._vpn_config['openvpn'][0], **context_keys
+            host=vpn.host, server=self._vpn_config["openvpn"][0], **context_keys
         )
-        control['files'] = [
+        control["files"] = [
             {
-                'path': context_keys['ca_path'],
-                'mode': '0600',
-                'contents': context_keys['ca_contents'],
+                "path": context_keys["ca_path"],
+                "mode": "0600",
+                "contents": context_keys["ca_contents"],
             }
         ]
         self.assertDictEqual(auto, control)
@@ -249,7 +250,7 @@ class TestVpn(BaseTestVpn, TestCase):
         def _assert_vpn_client_cert(cert, vpn_client, cert_ct, vpn_client_ct):
             self.assertEqual(Cert.objects.filter(pk=cert.pk).count(), 1)
             self.assertEqual(VpnClient.objects.filter(pk=vpn_client.pk).count(), 1)
-            vpnclient.delete()
+            c.templates.remove(t)
             self.assertEqual(
                 Cert.objects.filter(pk=cert.pk, revoked=False).count(), cert_ct
             )
@@ -261,7 +262,7 @@ class TestVpn(BaseTestVpn, TestCase):
             'Test VpnClient post_delete handler when "auto_cert" field is set to "True"'
         ):
             t = self._create_template(
-                name='vpn-test-1', type='vpn', vpn=vpn, auto_cert=True
+                name="vpn-test-1", type="vpn", vpn=vpn, auto_cert=True
             )
             c.templates.add(t)
             vpnclient = c.vpnclient_set.first()
@@ -272,7 +273,7 @@ class TestVpn(BaseTestVpn, TestCase):
             'Test VpnClient post_delete handler when "auto_cert" field is set to "False"'  # noqa
         ):
             t = self._create_template(
-                name='vpn-test-2', type='vpn', vpn=vpn, auto_cert=True
+                name="vpn-test-2", type="vpn", vpn=vpn, auto_cert=True
             )
             c.templates.add(t)
             vpnclient = c.vpnclient_set.first()
@@ -289,7 +290,7 @@ class TestVpn(BaseTestVpn, TestCase):
         c = self._create_config(device=d)
         client = VpnClient(vpn=vpn, config=c, auto_cert=True)
         self.assertIn(
-            '{mac_address}-{name}'.format(**d.__dict__),
+            "{mac_address}-{name}".format(**d.__dict__),
             client._get_common_name(),
         )
         d.name = d.mac_address
@@ -300,55 +301,55 @@ class TestVpn(BaseTestVpn, TestCase):
         keys = vpn._get_auto_context_keys()
         pk = vpn.pk.hex
         control = {
-            'ca_path': 'ca_path_{0}'.format(pk),
-            'ca_contents': 'ca_contents_{0}'.format(pk),
-            'cert_path': 'cert_path_{0}'.format(pk),
-            'cert_contents': 'cert_contents_{0}'.format(pk),
-            'key_path': 'key_path_{0}'.format(pk),
-            'key_contents': 'key_contents_{0}'.format(pk),
-            'vpn_host': 'vpn_host_{0}'.format(pk),
-            'vpn_port': 'vpn_port_{0}'.format(pk),
+            "ca_path": "ca_path_{0}".format(pk),
+            "ca_contents": "ca_contents_{0}".format(pk),
+            "cert_path": "cert_path_{0}".format(pk),
+            "cert_contents": "cert_contents_{0}".format(pk),
+            "key_path": "key_path_{0}".format(pk),
+            "key_contents": "key_contents_{0}".format(pk),
+            "vpn_host": "vpn_host_{0}".format(pk),
+            "vpn_port": "vpn_port_{0}".format(pk),
         }
         self.assertEqual(keys, control)
 
-    @mock.patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
+    @mock.patch.dict(app_settings.CONTEXT, {"vpnserver1": "vpn.testdomain.com"})
     def test_get_context(self):
         v = self._create_vpn()
         expected = {
-            'ca': v.ca.certificate,
-            'cert': v.cert.certificate,
-            'key': v.cert.private_key,
-            'dh': v.dh,
+            "ca": v.ca.certificate,
+            "cert": v.cert.certificate,
+            "key": v.cert.private_key,
+            "dh": v.dh,
         }
         expected.update(app_settings.CONTEXT)
         self.assertEqual(v.get_context(), expected)
         self.assertNotEqual(v.get_context(), app_settings.CONTEXT)
 
-    @mock.patch('openwisp_controller.config.base.vpn.AbstractVpn.dhparam')
+    @mock.patch("openwisp_controller.config.base.vpn.AbstractVpn.dhparam")
     def test_dh(self, mocked_dhparam):
         mocked_dhparam.return_value = self._dh
         v = self._create_vpn()
         v.dh = None
         v.save()
         self.assertIsNotNone(v.dh)
-        self.assertNotEqual(v.dh, '')
-        self.assertTrue(v.dh.startswith('-----BEGIN DH PARAMETERS-----'))
-        self.assertTrue(v.dh.endswith('-----END DH PARAMETERS-----\n'))
+        self.assertNotEqual(v.dh, "")
+        self.assertTrue(v.dh.startswith("-----BEGIN DH PARAMETERS-----"))
+        self.assertTrue(v.dh.endswith("-----END DH PARAMETERS-----\n"))
 
-    @mock.patch.dict(app_settings.CONTEXT, {'vpnserver1': 'vpn.testdomain.com'})
+    @mock.patch.dict(app_settings.CONTEXT, {"vpnserver1": "vpn.testdomain.com"})
     def test_get_context_empty_vpn(self):
         v = Vpn()
         self.assertEqual(v.get_context(), app_settings.CONTEXT)
 
     def test_key_validator(self):
         v = self._create_vpn()
-        v.key = 'key/key'
+        v.key = "key/key"
         with self.assertRaises(ValidationError):
             v.full_clean()
-        v.key = 'key.key'
+        v.key = "key.key"
         with self.assertRaises(ValidationError):
             v.full_clean()
-        v.key = 'key key'
+        v.key = "key key"
         with self.assertRaises(ValidationError):
             v.full_clean()
         v.key = self.TEST_KEY
@@ -373,14 +374,14 @@ class TestVpn(BaseTestVpn, TestCase):
     def test_vpn_and_ca_different_organization(self):
         org1 = self._get_org()
         ca = self._create_ca(organization=org1)
-        org2 = self._create_org(name='test org2', slug='test-org2')
+        org2 = self._create_org(name="test org2", slug="test-org2")
         try:
             self._create_vpn(ca=ca, organization=org2)
         except ValidationError as e:
-            self.assertIn('organization', e.message_dict)
-            self.assertIn('related CA match', e.message_dict['organization'][0])
+            self.assertIn("organization", e.message_dict)
+            self.assertIn("related CA match", e.message_dict["organization"][0])
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_vpn_and_cert_different_organization(self):
         org1 = self._get_org()
@@ -388,20 +389,20 @@ class TestVpn(BaseTestVpn, TestCase):
         ca = self._create_ca()
         # org1 specific cert
         cert = self._create_cert(ca=ca, organization=org1)
-        org2 = self._create_org(name='test org2', slug='test-org2')
+        org2 = self._create_org(name="test org2", slug="test-org2")
         try:
             self._create_vpn(ca=ca, cert=cert, organization=org2)
         except ValidationError as e:
-            self.assertIn('organization', e.message_dict)
+            self.assertIn("organization", e.message_dict)
             self.assertIn(
-                'related certificate match', e.message_dict['organization'][0]
+                "related certificate match", e.message_dict["organization"][0]
             )
         else:
-            self.fail('ValidationError not raised')
+            self.fail("ValidationError not raised")
 
     def test_auto_create_cert_with_long_device_name(self):
-        device_name = 'abcdifghijklmnopqrstuvwxyz12345678901234567890'
-        org = self._create_org(name='org1')
+        device_name = "abcdifghijklmnopqrstuvwxyz12345678901234567890"
+        org = self._create_org(name="org1")
         vpn = self._create_vpn(organization=org)
         d = self._create_device(organization=org, name=device_name)
         c = self._create_config(device=d)
@@ -412,17 +413,17 @@ class TestVpn(BaseTestVpn, TestCase):
         client.save()
         # The last 9 characters gets truncated and replaced with unique id
         self.assertIn(
-            '{mac_address}-{name}'.format(**d.__dict__)[:-9], client._get_common_name()
+            "{mac_address}-{name}".format(**d.__dict__)[:-9], client._get_common_name()
         )
         self.assertEqual(len(client._get_common_name()), 64)
         cert = Cert.objects.filter(organization=org, name=device_name)
         self.assertEqual(cert.count(), 1)
         self.assertEqual(cert.first().common_name[:-9], client._get_common_name()[:-9])
 
-    @mock.patch.object(Vpn, 'dhparam', side_effect=SoftTimeLimitExceeded)
+    @mock.patch.object(Vpn, "dhparam", side_effect=SoftTimeLimitExceeded)
     def test_update_vpn_dh_timeout(self, dhparam):
-        vpn = self._create_vpn(dh='')
-        with mock.patch('logging.Logger.error') as mocked_logger:
+        vpn = self._create_vpn(dh="")
+        with mock.patch("logging.Logger.error") as mocked_logger:
             create_vpn_dh.delay(vpn.pk)
             mocked_logger.assert_called_once()
         dhparam.assert_called_once()
@@ -433,82 +434,82 @@ class TestVpn(BaseTestVpn, TestCase):
 
     def test_vpn_name_unique_validation(self):
         org = self._get_org()
-        vpn1 = self._create_vpn(name='test', organization=org)
-        self.assertEqual(vpn1.name, 'test')
-        org2 = self._create_org(name='test org2', slug='test-org2')
+        vpn1 = self._create_vpn(name="test", organization=org)
+        self.assertEqual(vpn1.name, "test")
+        org2 = self._create_org(name="test org2", slug="test-org2")
 
-        with self.subTest('vpn of other org can have the same name'):
+        with self.subTest("vpn of other org can have the same name"):
             try:
-                vpn2 = self._create_vpn(name='test', organization=org2)
+                vpn2 = self._create_vpn(name="test", organization=org2)
             except Exception as e:
-                self.fail(f'Unexpected exception: {e}')
-            self.assertEqual(vpn2.name, 'test')
+                self.fail(f"Unexpected exception: {e}")
+            self.assertEqual(vpn2.name, "test")
 
-        with self.subTest('vpn of shared org cannot have the same name'):
+        with self.subTest("vpn of shared org cannot have the same name"):
             with self.assertRaises(ValidationError) as context_manager:
-                self._create_vpn(name='test', organization=None)
+                self._create_vpn(name="test", organization=None)
             message_dict = context_manager.exception.message_dict
-            self.assertIn('name', message_dict)
+            self.assertIn("name", message_dict)
             self.assertIn(
-                'There is already a vpn of another organization',
-                message_dict['name'][0],
+                "There is already a vpn of another organization",
+                message_dict["name"][0],
             )
 
-        with self.subTest('new vpn of org cannot have the same name as shared vpn'):
-            shared = self._create_vpn(name='new', organization=None)
+        with self.subTest("new vpn of org cannot have the same name as shared vpn"):
+            shared = self._create_vpn(name="new", organization=None)
             with self.assertRaises(ValidationError) as context_manager:
-                self._create_vpn(name='new', organization=org2)
+                self._create_vpn(name="new", organization=org2)
             message_dict = context_manager.exception.message_dict
-            self.assertIn('name', message_dict)
+            self.assertIn("name", message_dict)
             self.assertIn(
-                'There is already another shared vpn', message_dict['name'][0]
+                "There is already another shared vpn", message_dict["name"][0]
             )
 
-        with self.subTest('ensure object itself is excluded'):
+        with self.subTest("ensure object itself is excluded"):
             try:
                 shared.full_clean()
             except Exception as e:
-                self.fail(f'Unexpected exception {e}')
+                self.fail(f"Unexpected exception {e}")
 
-        with self.subTest('cannot have two shared vpns with same name'):
+        with self.subTest("cannot have two shared vpns with same name"):
             with self.assertRaises(ValidationError) as context_manager:
-                self._create_vpn(name='new', organization=None)
+                self._create_vpn(name="new", organization=None)
             message_dict = context_manager.exception.message_dict
-            self.assertIn('name', message_dict)
+            self.assertIn("name", message_dict)
 
     def test_is_backend_type(self):
-        vpn = Vpn(backend=self._BACKENDS['openvpn'])
-        self.assertTrue(vpn._is_backend_type('openvpn'))
-        vpn.backend = self._BACKENDS['wireguard']
-        self.assertTrue(vpn._is_backend_type('wireguard'))
-        self.assertFalse(vpn._is_backend_type('openvpn'))
+        vpn = Vpn(backend=self._BACKENDS["openvpn"])
+        self.assertTrue(vpn._is_backend_type("openvpn"))
+        vpn.backend = self._BACKENDS["wireguard"]
+        self.assertTrue(vpn._is_backend_type("wireguard"))
+        self.assertFalse(vpn._is_backend_type("openvpn"))
 
     def test_cert_validation(self):
-        with self.subTest('test certs required case'):
+        with self.subTest("test certs required case"):
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_vpn(ca=None)
             message_dict = context_manager.exception.message_dict
-            self.assertIn('ca', message_dict)
-            self.assertIn('CA is required with this VPN backend', message_dict['ca'])
+            self.assertIn("ca", message_dict)
+            self.assertIn("CA is required with this VPN backend", message_dict["ca"])
 
 
 class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
-    @mock.patch.object(create_vpn_dh, 'delay')
+    @mock.patch.object(create_vpn_dh, "delay")
     def test_create_vpn_dh_with_vpn_create(self, delay):
-        vpn = self._create_vpn(dh='')
+        vpn = self._create_vpn(dh="")
         delay.assert_called_once_with(vpn.pk)
 
-    @mock.patch.object(create_vpn_dh, 'delay')
+    @mock.patch.object(create_vpn_dh, "delay")
     def test_placeholder_dh_set(self, delay):
-        self._create_vpn(dh='', host='localhost')
-        vpn = Vpn.objects.get(host='localhost')
+        self._create_vpn(dh="", host="localhost")
+        vpn = Vpn.objects.get(host="localhost")
         self.assertEqual(vpn.dh, Vpn._placeholder_dh)
         delay.assert_called_once_with(vpn.pk)
 
-    @mock.patch.object(Vpn, 'dhparam')
+    @mock.patch.object(Vpn, "dhparam")
     def test_update_vpn_dh(self, dhparam):
         dhparam.return_value = self._dh
-        vpn = self._create_vpn(dh='')
+        vpn = self._create_vpn(dh="")
         vpn.refresh_from_db()
         self.assertNotEqual(vpn.dh, Vpn._placeholder_dh)
         dhparam.assert_called_once()
@@ -520,8 +521,8 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         ) as mocked_vpn_server_modified, catch_signal(
             config_modified
         ) as mocked_config_modified:
-            vpn.host = 'localhost'
-            vpn.save(update_fields=['host'])
+            vpn.host = "localhost"
+            vpn.save(update_fields=["host"])
         mocked_vpn_server_modified.assert_called_once_with(
             signal=vpn_server_modified, sender=Vpn, instance=vpn
         )
@@ -529,8 +530,8 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
             signal=config_modified,
             sender=Config,
             instance=device.config,
-            previous_status='modified',
-            action='related_template_changed',
+            previous_status="modified",
+            action="related_template_changed",
             config=device.config,
             device=device,
         )
@@ -540,28 +541,28 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
     def test_wireguard_config_creation(self):
         vpn = self._create_wireguard_vpn()
 
-        with self.subTest('test key generation'):
+        with self.subTest("test key generation"):
             self.assertIsNotNone(vpn.public_key)
             self.assertEqual(len(vpn.public_key), 44)
             self.assertIsNotNone(vpn.private_key)
             self.assertEqual(len(vpn.private_key), 44)
 
-        with self.subTest('test context'):
+        with self.subTest("test context"):
             context = vpn.get_context()
-            self.assertEqual(context['public_key'], vpn.public_key)
-            self.assertEqual(context['private_key'], vpn.private_key)
-            self.assertEqual(context['subnet'], str(vpn.subnet.subnet))
+            self.assertEqual(context["public_key"], vpn.public_key)
+            self.assertEqual(context["private_key"], vpn.private_key)
+            self.assertEqual(context["subnet"], str(vpn.subnet.subnet))
             self.assertEqual(
-                context['subnet_prefixlen'], str(vpn.subnet.subnet.prefixlen)
+                context["subnet_prefixlen"], str(vpn.subnet.subnet.prefixlen)
             )
-            self.assertEqual(context['ip_address'], vpn.ip.ip_address)
+            self.assertEqual(context["ip_address"], vpn.ip.ip_address)
 
-        with self.subTest('test context keys'):
+        with self.subTest("test context keys"):
             context_keys = vpn._get_auto_context_keys()
-            self.assertIn('public_key', context_keys)
-            self.assertIn('ip_address', context_keys)
-            self.assertIn('server_ip_address', context_keys)
-            self.assertIn('server_ip_network', context_keys)
+            self.assertIn("public_key", context_keys)
+            self.assertIn("ip_address", context_keys)
+            self.assertIn("server_ip_address", context_keys)
+            self.assertIn("server_ip_network", context_keys)
 
     def test_auto_cert_false(self):
         device, vpn, template = self._create_wireguard_vpn_template(auto_cert=False)
@@ -569,8 +570,8 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 1)
         vpnclient = vpnclient_qs.first()
-        self.assertEqual(vpnclient.private_key, '')
-        self.assertEqual(vpnclient.public_key, '')
+        self.assertEqual(vpnclient.private_key, "")
+        self.assertEqual(vpnclient.public_key, "")
 
     def test_ip_deleted_when_vpnclient_deleted(self):
         device, vpn, template = self._create_wireguard_vpn_template()
@@ -596,21 +597,21 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
 
     def test_ip_within_subnet(self):
         org = self._get_org()
-        subnet1 = self._create_subnet(subnet='10.0.1.0/24', organization=org)
-        subnet2 = self._create_subnet(subnet='10.0.2.0/24', organization=org)
+        subnet1 = self._create_subnet(subnet="10.0.1.0/24", organization=org)
+        subnet2 = self._create_subnet(subnet="10.0.2.0/24", organization=org)
         ip_subnet2 = subnet2.request_ip()
         with self.assertRaises(ValidationError) as context_manager:
             self._create_wireguard_vpn(organization=org, subnet=subnet1, ip=ip_subnet2)
         message_dict = context_manager.exception.message_dict
-        self.assertIn('ip', message_dict)
+        self.assertIn("ip", message_dict)
         self.assertIn(
-            'VPN IP address must be within the VPN subnet', message_dict['ip']
+            "VPN IP address must be within the VPN subnet", message_dict["ip"]
         )
 
     def test_wireguard_schema(self):
-        with self.subTest('wireguard schema shall be valid'):
+        with self.subTest("wireguard schema shall be valid"):
             with self.assertRaises(ValidationError) as context_manager:
-                self._create_wireguard_vpn(config={'wireguard': []})
+                self._create_wireguard_vpn(config={"wireguard": []})
             self.assertIn(
                 'Invalid configuration triggered by "#/wireguard"',
                 str(context_manager.exception),
@@ -618,33 +619,33 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
             # delete subnet created for previous assertion
             Subnet.objects.all().delete()
 
-        with self.subTest('wireguard property shall be present'):
+        with self.subTest("wireguard property shall be present"):
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_wireguard_vpn(config={})
-            self.assertIn('wireguard', str(context_manager.exception))
-            self.assertIn('is a required property', str(context_manager.exception))
+            self.assertIn("wireguard", str(context_manager.exception))
+            self.assertIn("is a required property", str(context_manager.exception))
 
     def test_auto_client(self):
         device, vpn, template = self._create_wireguard_vpn_template()
         auto = vpn.auto_client(template_backend_class=template.backend_class)
         context_keys = vpn._get_auto_context_keys()
         for key in context_keys.keys():
-            context_keys[key] = '{{%s}}' % context_keys[key]
+            context_keys[key] = "{{%s}}" % context_keys[key]
         expected = template.backend_class.wireguard_auto_client(
-            host=context_keys['vpn_host'],
-            server=self._vpn_config['wireguard'][0],
+            host=context_keys["vpn_host"],
+            server=self._vpn_config["wireguard"][0],
             **context_keys,
         )
         self.assertEqual(auto, expected)
 
     def test_change_vpn_backend(self):
-        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        vpn = self._create_vpn(name="new", backend=self._BACKENDS["openvpn"])
         subnet = self._create_subnet(
-            name='wireguard', subnet='10.0.0.0/16', organization=vpn.organization
+            name="wireguard", subnet="10.0.0.0/16", organization=vpn.organization
         )
         ca = vpn.ca
 
-        vpn.backend = self._BACKENDS['wireguard']
+        vpn.backend = self._BACKENDS["wireguard"]
         vpn.subnet = subnet
         vpn.full_clean()
         vpn.save()
@@ -653,165 +654,213 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         self.assertEqual(vpn.subnet, subnet)
         self.assertNotEqual(vpn.ip, None)
 
-        vpn.backend = self._BACKENDS['openvpn']
+        vpn.backend = self._BACKENDS["openvpn"]
         vpn.ca = ca
         vpn.full_clean()
         vpn.save()
-        self.assertEqual(vpn.public_key, '')
-        self.assertEqual(vpn.private_key, '')
+        self.assertEqual(vpn.public_key, "")
+        self.assertEqual(vpn.private_key, "")
         self.assertEqual(vpn.subnet, subnet)
         self.assertNotEqual(vpn.ip, None)
 
     def test_wireguard_vpn_without_subnet(self):
         with self.assertRaises(ValidationError) as context_manager:
             self._create_wireguard_vpn(subnet=None)
-        expected_error_dict = {'subnet': ['Subnet is required for this VPN backend.']}
+        expected_error_dict = {"subnet": ["Subnet is required for this VPN backend."]}
         self.assertEqual(expected_error_dict, context_manager.exception.message_dict)
 
     def test_change_vpn_backend_with_vpnclient(self):
-        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        vpn = self._create_vpn(name="new", backend=self._BACKENDS["openvpn"])
         subnet = self._create_subnet(
-            name='wireguard', subnet='10.0.0.0/16', organization=vpn.organization
+            name="wireguard", subnet="10.0.0.0/16", organization=vpn.organization
         )
-        template = self._create_template(name='VPN', type='vpn', vpn=vpn)
+        template = self._create_template(name="VPN", type="vpn", vpn=vpn)
         config = self._create_config(organization=self._get_org())
         config.templates.add(template)
         self.assertEqual(VpnClient.objects.count(), 1)
 
         with self.subTest(
-            'Test validation error is not raised when backend is unchanged'
+            "Test validation error is not raised when backend is unchanged"
         ):
             try:
                 vpn.full_clean()
             except ValidationError as error:
-                self.fail(f'Unexpected ValidationError: {error}')
+                self.fail(f"Unexpected ValidationError: {error}")
 
-        with self.subTest('Test validation error is raised when backend is changed'):
+        with self.subTest("Test validation error is raised when backend is changed"):
             with self.assertRaises(ValidationError) as context_manager:
-                vpn.backend = self._BACKENDS['wireguard']
+                vpn.backend = self._BACKENDS["wireguard"]
                 vpn.subnet = subnet
                 vpn.full_clean()
             expected_error_dict = {
-                'backend': [
-                    'Backend cannot be changed because the VPN is currently in use.'
+                "backend": [
+                    "Backend cannot be changed because the VPN is currently in use."
                 ]
             }
             self.assertDictEqual(
                 context_manager.exception.message_dict, expected_error_dict
             )
 
+    def test_cache_invalidation_on_vpn_changes(self):
+        vpn = self._create_wireguard_vpn()
+        initial_checksum = vpn.get_cached_checksum()
+        initial_config = vpn.get_cached_configuration().getvalue()
+
+        # Modify VPN configuration
+        vpn.config["wireguard"][0]["port"] = 51822
+        vpn.full_clean()
+        vpn.save()
+        del vpn.backend_instance
+
+        # Verify cache is invalidated
+        self.assertNotEqual(initial_checksum, vpn.get_cached_checksum())
+        self.assertNotEqual(initial_config, vpn.get_cached_configuration())
+
+    def test_trigger_vpn_server_endpoint_invalid_vpn_id(self):
+        with mock.patch("logging.Logger.error") as mocked_logger:
+            vpn_id = uuid.uuid4().hex
+            trigger_vpn_server_endpoint(
+                endpoint="https://vpn_updater", auth_token="secret", vpn_id=vpn_id
+            )
+            mocked_logger.assert_called_once_with(
+                f"VPN Server UUID: {vpn_id} does not exist."
+            )
+
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
-    def test_auto_peer_configuration(self):
+    @mock.patch(
+        "openwisp_controller.config.tasks.requests.post",
+        return_value=HttpResponse(status=200),
+    )
+    def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
-        device, vpn, template = self._create_wireguard_vpn_template()
+        device, vpn, template = self._create_wireguard_vpn_template(
+            vpn_options={
+                "webhook_endpoint": "https://example.com:8080/trigger-update",
+                "auth_token": "openwisp",
+            }
+        )
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
 
-        with self.subTest('caching'):
+        with self.subTest("caching"):
             with self.assertNumQueries(0):
-                vpn_config = vpn.get_config()['wireguard'][0]
+                vpn_config = vpn.get_config()["wireguard"][0]
 
-        self.assertEqual(len(vpn_config.get('peers', [])), 1)
+        self.assertEqual(len(vpn_config.get("peers", [])), 1)
         self.assertEqual(
-            vpn_config['peers'][0],
+            vpn_config["peers"][0],
             {
-                'public_key': vpnclient_qs.first().public_key,
-                'allowed_ips': '10.0.0.2/32',
+                "public_key": vpnclient_qs.first().public_key,
+                "allowed_ips": "10.0.0.2/32",
             },
         )
 
-        with self.subTest('test VPN related device context'):
+        with self.subTest("test VPN related device context"):
             context = device.get_context()
             pk = vpn.pk.hex
-            self.assertEqual(context[f'vpn_host_{pk}'], vpn.host)
-            self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
-            self.assertEqual(context[f'server_ip_address_{pk}'], '10.0.0.1')
-            self.assertEqual(context[f'server_ip_network_{pk}'], '10.0.0.1/32')
-            self.assertEqual(context[f'vpn_subnet_{pk}'], '10.0.0.0/16')
-            self.assertEqual(context[f'public_key_{pk}'], vpn.public_key)
+            self.assertEqual(context[f"vpn_host_{pk}"], vpn.host)
+            self.assertEqual(context[f"ip_address_{pk}"], "10.0.0.2")
+            self.assertEqual(context[f"server_ip_address_{pk}"], "10.0.0.1")
+            self.assertEqual(context[f"server_ip_network_{pk}"], "10.0.0.1/32")
+            self.assertEqual(context[f"vpn_subnet_{pk}"], "10.0.0.0/16")
+            self.assertEqual(context[f"public_key_{pk}"], vpn.public_key)
 
-        with self.subTest('cache update when a new peer is added'):
+        with self.subTest("cache update when a new peer is added"):
             device2 = self._create_device_config(
                 device_opts={
-                    'name': 'test2',
-                    'mac_address': '11:11:22:33:44:55',
-                    'organization': device.organization,
+                    "name": "test2",
+                    "mac_address": "11:11:22:33:44:55",
+                    "organization": device.organization,
                 }
             )
-            device2.config.templates.add(template)
-            # cache is invalidated and updated, hence no queries expected
+            with mock.patch.object(
+                Vpn,
+                "invalidate_checksum_cache",
+                return_value=vpn.invalidate_checksum_cache(),
+            ) as mocked_invalidate_checksum_cache:
+                device2.config.templates.add(template)
+                # The Vpn configuration cache is invalidated and re-populated
+                mocked_invalidate_checksum_cache.assert_called_once()
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task),
+            # hence no queries expected
             with self.assertNumQueries(0):
-                vpn_config = vpn.get_config()['wireguard'][0]
-            self.assertEqual(len(vpn_config.get('peers', [])), 2)
+                vpn_config = vpn.get_config()["wireguard"][0]
+            self.assertEqual(len(vpn_config.get("peers", [])), 2)
 
-        with self.subTest('cache updated when a new peer is deleted'):
-            device2.delete(check_deactivated=False)
-            # cache is invalidated but not updated
-            # hence we expect queries to be generated
-            with self.assertNumQueries(1):
-                vpn_config = vpn.get_config()['wireguard'][0]
-            self.assertEqual(len(vpn_config.get('peers', [])), 1)
+        with self.subTest("cache updated when a peer is deleted"):
+            with mock.patch.object(
+                Vpn,
+                "invalidate_checksum_cache",
+                return_value=vpn.invalidate_checksum_cache(),
+            ) as mocked_invalidate_checksum_cache:
+                device2.delete(check_deactivated=False)
+                mocked_invalidate_checksum_cache.assert_called_once()
+            # cache is invalidated and is updated by the
+            # trigger_vpn_server_endpoint task
+            with self.assertNumQueries(0):
+                vpn_config = vpn.get_config()["wireguard"][0]
+            self.assertEqual(len(vpn_config.get("peers", [])), 1)
 
-        with self.subTest('other config options not affected by cache'):
-            vpn.config['wireguard'][0]['name'] = 'wg2'
-            vpn.config['wireguard'][0]['port'] = 51821
+        with self.subTest("other config options not affected by cache"):
+            vpn.config["wireguard"][0]["name"] = "wg2"
+            vpn.config["wireguard"][0]["port"] = 51821
             with self.assertNumQueries(0):
                 config = vpn.get_config()
-            self.assertEqual(config['wireguard'][0]['name'], 'wg2')
-            self.assertEqual(config['wireguard'][0]['port'], 51821)
+            self.assertEqual(config["wireguard"][0]["name"], "wg2")
+            self.assertEqual(config["wireguard"][0]["port"], 51821)
 
     def test_update_vpn_server_configuration(self):
         device, vpn, template = self._create_wireguard_vpn_template()
         vpn_client = device.config.vpnclient_set.first()
         vpn.save()
-        with self.subTest('Webhook endpoint and authentication endpoint is absent'):
-            with mock.patch('logging.Logger.info') as mocked_logger:
+        with self.subTest("Webhook endpoint and authentication endpoint is absent"):
+            with mock.patch("logging.Logger.info") as mocked_logger:
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
                 mocked_logger.assert_called_once_with(
-                    f'Cannot update configuration of {vpn.name} VPN server, '
-                    'webhook endpoint and authentication token are empty.'
+                    f"Cannot update configuration of {vpn.name} VPN server, "
+                    "webhook endpoint and authentication token are empty."
                 )
 
-        with self.subTest('Webhook endpoint and authentication endpoint is present'):
-            vpn.webhook_endpoint = 'https://example.com'
-            vpn.auth_token = 'super-secret-token'
+        with self.subTest("Webhook endpoint and authentication endpoint is present"):
+            vpn.webhook_endpoint = "https://example.com"
+            vpn.auth_token = "super-secret-token"
             vpn.save()
             vpn_client.refresh_from_db()
 
             with mock.patch(
-                'openwisp_controller.config.tasks.logger.info'
+                "openwisp_controller.config.tasks.logger.info"
             ) as mocked_logger, mock.patch(
-                'requests.post', return_value=HttpResponse()
+                "requests.post", return_value=HttpResponse()
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
                 mocked_logger.assert_called_once_with(
-                    f'Triggered update webhook of VPN Server UUID: {vpn.pk}'
+                    f"Triggered update webhook of VPN Server UUID: {vpn.pk}"
                 )
 
-            with mock.patch('logging.Logger.error') as mocked_logger, mock.patch(
-                'requests.post', return_value=HttpResponseNotFound()
+            with mock.patch("logging.Logger.error") as mocked_logger, mock.patch(
+                "requests.post", return_value=HttpResponseNotFound()
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
                 mocked_logger.assert_called_once_with(
-                    'Failed to update VPN Server configuration. '
-                    f'Response status code: 404, VPN Server UUID: {vpn.pk}'
+                    "Failed to update VPN Server configuration. "
+                    f"Response status code: 404, VPN Server UUID: {vpn.pk}"
                 )
 
     def test_vpn_peers_changed(self):
-        with self.subTest('VpnClient created'):
+        with self.subTest("VpnClient created"):
             with catch_signal(vpn_peers_changed) as handler:
                 device, vpn, template = self._create_wireguard_vpn_template()
                 handler.assert_called_once()
 
-        with self.subTest('VpnClient deleted'):
+        with self.subTest("VpnClient deleted"):
             with catch_signal(vpn_peers_changed) as handler:
                 device.config.templates.remove(template)
                 handler.assert_called_once()
@@ -821,13 +870,13 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
     def test_vxlan_config_creation(self):
         tunnel, subnet = self._create_vxlan_tunnel()
         template = self._create_template(
-            name='vxlan-wireguard',
-            type='vpn',
+            name="vxlan-wireguard",
+            type="vpn",
             vpn=tunnel,
             organization=tunnel.organization,
             auto_cert=True,
         )
-        with self.subTest('vni 1'):
+        with self.subTest("vni 1"):
             d1 = self._create_device()
             c1 = self._create_config(device=d1)
             client = VpnClient(vpn=tunnel, config=c1, auto_cert=True, template=template)
@@ -836,8 +885,8 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
             client.refresh_from_db()
             self.assertEqual(client.vni, 1)
 
-        with self.subTest('vni 2'):
-            d2 = self._create_device(name='d2', mac_address='16:DB:7F:E8:50:01')
+        with self.subTest("vni 2"):
+            d2 = self._create_device(name="d2", mac_address="16:DB:7F:E8:50:01")
             c2 = self._create_config(device=d2)
             client = VpnClient(vpn=tunnel, config=c2, auto_cert=True, template=template)
             client.full_clean()
@@ -845,22 +894,22 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
             client.refresh_from_db()
             self.assertEqual(client.vni, 2)
 
-        with self.subTest('test context keys'):
+        with self.subTest("test context keys"):
             context_keys = tunnel._get_auto_context_keys()
-            self.assertIn('vni', context_keys)
+            self.assertIn("vni", context_keys)
 
-        with self.subTest('test VPN related device context'):
+        with self.subTest("test VPN related device context"):
             context = d1.get_context()
             pk = tunnel.pk.hex
-            self.assertEqual(context[f'vpn_host_{pk}'], tunnel.host)
-            self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
-            self.assertEqual(context[f'server_ip_address_{pk}'], '10.0.0.1')
-            self.assertEqual(context[f'server_ip_network_{pk}'], '10.0.0.1/32')
-            self.assertEqual(context[f'vpn_subnet_{pk}'], '10.0.0.0/16')
-            self.assertEqual(context[f'vni_{pk}'], '1')
+            self.assertEqual(context[f"vpn_host_{pk}"], tunnel.host)
+            self.assertEqual(context[f"ip_address_{pk}"], "10.0.0.2")
+            self.assertEqual(context[f"server_ip_address_{pk}"], "10.0.0.1")
+            self.assertEqual(context[f"server_ip_network_{pk}"], "10.0.0.1/32")
+            self.assertEqual(context[f"vpn_subnet_{pk}"], "10.0.0.0/16")
+            self.assertEqual(context[f"vni_{pk}"], "1")
 
-        with self.subTest('auto_cert=False'):
-            d3 = self._create_device(name='d3', mac_address='16:DB:7F:E8:50:03')
+        with self.subTest("auto_cert=False"):
+            d3 = self._create_device(name="d3", mac_address="16:DB:7F:E8:50:03")
             c3 = self._create_config(device=d3)
             client = VpnClient(
                 vpn=tunnel, config=c3, auto_cert=False, template=template
@@ -873,8 +922,8 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
     def test_duplicate_vxlan_tunnels_same_vni(self):
         tunnel, subnet = self._create_vxlan_tunnel()
         template = self._create_template(
-            name='vxlan-wireguard',
-            type='vpn',
+            name="vxlan-wireguard",
+            type="vpn",
             vpn=tunnel,
             organization=tunnel.organization,
             auto_cert=True,
@@ -884,21 +933,21 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
         client = VpnClient(vpn=tunnel, config=c1, vni=1, template=template)
         client.full_clean()
         client.save()
-        with self.subTest('Test server configuration does not define VNI'):
-            d2 = self._create_device(name='d2', mac_address='16:DB:7F:E8:50:01')
+        with self.subTest("Test server configuration does not define VNI"):
+            d2 = self._create_device(name="d2", mac_address="16:DB:7F:E8:50:01")
             c2 = self._create_config(device=d2)
             client = VpnClient(vpn=tunnel, config=c2, vni=1, template=template)
             with self.assertRaises(ValidationError) as context_manager:
                 client.full_clean()
             message_dict = context_manager.exception.message_dict
-            self.assertIn('__all__', message_dict)
+            self.assertIn("__all__", message_dict)
             self.assertEqual(
-                message_dict['__all__'],
-                ['VPN client with this Vpn and Vni already exists.'],
+                message_dict["__all__"],
+                ["VPN client with this Vpn and Vni already exists."],
             )
 
-        with self.subTest('Test server configuration defines VNI'):
-            tunnel.config['vxlan'] = [{'interface': 'vxlan1', 'vni': 1}]
+        with self.subTest("Test server configuration defines VNI"):
+            tunnel.config["vxlan"] = [{"interface": "vxlan1", "vni": 1}]
             tunnel.full_clean()
             tunnel.save()
             client = VpnClient(vpn=tunnel, config=c2, vni=1, template=template)
@@ -907,7 +956,7 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 
     def test_vxlan_schema(self):
         with self.assertRaises(ValidationError) as context_manager:
-            self._create_vxlan_tunnel(config={'wireguard': []})
+            self._create_vxlan_tunnel(config={"wireguard": []})
             self.assertIn(
                 'Invalid configuration triggered by "#/wireguard"',
                 str(context_manager.exception),
@@ -924,10 +973,10 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
         auto = vpn.auto_client(template_backend_class=template.backend_class)
         context_keys = vpn._get_auto_context_keys()
         for key in context_keys.keys():
-            context_keys[key] = '{{%s}}' % context_keys[key]
+            context_keys[key] = "{{%s}}" % context_keys[key]
         expected = template.backend_class.vxlan_wireguard_auto_client(
-            host=context_keys['vpn_host'],
-            server=self._vpn_config['wireguard'][0],
+            host=context_keys["vpn_host"],
+            server=self._vpn_config["wireguard"][0],
             **context_keys,
         )
         self.assertEqual(auto, expected)
@@ -936,78 +985,87 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 class TestVxlanTransaction(
     BaseTestVpn, TestVxlanWireguardVpnMixin, TransactionTestCase
 ):
-    def test_auto_peer_configuration(self):
+    @mock.patch(
+        "openwisp_controller.config.tasks.requests.post",
+        return_value=HttpResponse(status=200),
+    )
+    def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
-        device, vpn, template = self._create_vxlan_vpn_template()
+        device, vpn, template = self._create_vxlan_vpn_template(
+            vpn_options={
+                "webhook_endpoint": "https://example.com:8080/trigger-update",
+                "auth_token": "openwisp",
+            }
+        )
         vpnclient_qs = device.config.vpnclient_set
         self.assertEqual(vpnclient_qs.count(), 1)
         self.assertEqual(IpAddress.objects.count(), 2)
 
-        with self.subTest('caching'):
+        with self.subTest("caching"):
             with self.assertNumQueries(0):
                 config = vpn.get_config()
 
-        self.assertEqual(len(config['files']), 1)
-        peers = json.loads(config['files'][0]['contents'])
+        self.assertEqual(len(config["files"]), 1)
+        peers = json.loads(config["files"][0]["contents"])
         self.assertIsInstance(peers, list)
         self.assertEqual(len(peers), 1)
         self.assertEqual(
             peers[0],
-            {'vni': vpnclient_qs.first().vni, 'remote': '10.0.0.2'},
+            {"vni": vpnclient_qs.first().vni, "remote": "10.0.0.2"},
         )
 
-        with self.subTest('cache update when a new peer is added'):
+        with self.subTest("cache update when a new peer is added"):
             device2 = self._create_device_config(
                 device_opts={
-                    'name': 'test2',
-                    'mac_address': '11:11:22:33:44:55',
-                    'organization': device.organization,
+                    "name": "test2",
+                    "mac_address": "11:11:22:33:44:55",
+                    "organization": device.organization,
                 }
             )
             device2.config.templates.add(template)
-            # cache is invalidated and updated, hence no queries expected
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task),
+            # hence no queries expected
             with self.assertNumQueries(0):
                 config = vpn.get_config()
-            peers = json.loads(config['files'][0]['contents'])
+            peers = json.loads(config["files"][0]["contents"])
             self.assertEqual(len(peers), 2)
 
-        with self.subTest('cache updated when a new peer is deleted'):
+        with self.subTest("cache updated when a new peer is deleted"):
             device2.delete(check_deactivated=False)
-            # cache is invalidated but not updated
-            # hence we expect queries to be generated
-            with self.assertNumQueries(2):
-                config = vpn.get_config()
-            peers = json.loads(config['files'][0]['contents'])
-            self.assertEqual(len(peers), 1)
-
-        with self.subTest('other config options not affected by cache'):
-            vpn.config['wireguard'][0]['name'] = 'wg2'
-            vpn.config['wireguard'][0]['port'] = 51821
+            # cache is invalidated and updated (by trigger_vpn_server_endpoint task)
             with self.assertNumQueries(0):
                 config = vpn.get_config()
-            self.assertEqual(config['wireguard'][0]['name'], 'wg2')
-            self.assertEqual(config['wireguard'][0]['port'], 51821)
+            peers = json.loads(config["files"][0]["contents"])
+            self.assertEqual(len(peers), 1)
+
+        with self.subTest("other config options not affected by cache"):
+            vpn.config["wireguard"][0]["name"] = "wg2"
+            vpn.config["wireguard"][0]["port"] = 51821
+            with self.assertNumQueries(0):
+                config = vpn.get_config()
+            self.assertEqual(config["wireguard"][0]["name"], "wg2")
+            self.assertEqual(config["wireguard"][0]["port"], 51821)
 
     def test_unicast_vxlan_tunnels(self):
         tunnel, _ = self._create_vxlan_tunnel(
             config={
-                'wireguard': [{'name': 'wg0', 'port': 51820}],
-                'vxlan': [{'name': 'vxlan1', 'vni': 1}],
+                "wireguard": [{"name": "wg0", "port": 51820}],
+                "vxlan": [{"name": "vxlan1", "vni": 1}],
             }
         )
         device1 = self._create_device_config(
-            device_opts={'organization': tunnel.organization}
+            device_opts={"organization": tunnel.organization}
         )
         device2 = self._create_device_config(
             device_opts={
-                'organization': tunnel.organization,
-                'name': 'device2',
-                'mac_address': '16:DB:7F:E8:50:01',
+                "organization": tunnel.organization,
+                "name": "device2",
+                "mac_address": "16:DB:7F:E8:50:01",
             }
         )
         vpn_template = self._create_template(
-            name='vxlan-wireguard',
-            type='vpn',
+            name="vxlan-wireguard",
+            type="vpn",
             vpn=tunnel,
             organization=tunnel.organization,
             auto_cert=True,
@@ -1018,19 +1076,19 @@ class TestVxlanTransaction(
         self.assertListEqual(
             tunnel._get_vxlan_peers(),
             [
-                {'interface': 'vxlan1', 'remote': '10.0.0.2', 'vni': 1},
-                {'interface': 'vxlan1', 'remote': '10.0.0.3', 'vni': 1},
+                {"interface": "vxlan1", "remote": "10.0.0.2", "vni": 1},
+                {"interface": "vxlan1", "remote": "10.0.0.3", "vni": 1},
             ],
         )
 
 
 class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
-    _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
-    _ZT_GENERATE_IDENTITY_SUBPROCESS = 'openwisp_controller.config.base.vpn.subprocess'
+    _ZT_SERVICE_REQUESTS = "openwisp_controller.config.api.zerotier_service.requests"
+    _ZT_GENERATE_IDENTITY_SUBPROCESS = "openwisp_controller.config.base.vpn.subprocess"
 
     def _set_subprocess_mock(self, mock_sub):
         mock_stdout = mock.MagicMock()
-        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG['identity']
+        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG["identity"]
         mock_sub.run.return_value = mock_stdout
 
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1045,28 +1103,28 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         ]
         vpn = self._create_zerotier_vpn()
 
-        with self.subTest('test context'):
+        with self.subTest("test context"):
             context = vpn.get_context()
-            self.assertEqual(context['subnet'], str(vpn.subnet.subnet))
+            self.assertEqual(context["subnet"], str(vpn.subnet.subnet))
             self.assertEqual(
-                context['subnet_prefixlen'], str(vpn.subnet.subnet.prefixlen)
+                context["subnet_prefixlen"], str(vpn.subnet.subnet.prefixlen)
             )
-            self.assertEqual(context['ip_address'], vpn.ip.ip_address)
+            self.assertEqual(context["ip_address"], vpn.ip.ip_address)
             # Make sure zerotier network related context keys are present
-            self.assertEqual(context['node_id'], vpn.node_id)
-            self.assertEqual(context['network_id'], vpn.network_id)
+            self.assertEqual(context["node_id"], vpn.node_id)
+            self.assertEqual(context["network_id"], vpn.network_id)
 
-        with self.subTest('test context keys'):
+        with self.subTest("test context keys"):
             context_keys = vpn._get_auto_context_keys()
-            self.assertIn('vpn_host', context_keys)
-            self.assertIn('vpn_port', context_keys)
-            self.assertIn('ip_address', context_keys)
-            self.assertIn('server_ip_address', context_keys)
-            self.assertIn('server_ip_network', context_keys)
+            self.assertIn("vpn_host", context_keys)
+            self.assertIn("vpn_port", context_keys)
+            self.assertIn("ip_address", context_keys)
+            self.assertIn("server_ip_address", context_keys)
+            self.assertIn("server_ip_network", context_keys)
             # Make sure zerotier network related context keys are present
-            self.assertIn('node_id', context_keys)
-            self.assertIn('network_id', context_keys)
-            self.assertIn('network_name', context_keys)
+            self.assertIn("node_id", context_keys)
+            self.assertIn("network_id", context_keys)
+            self.assertIn("network_name", context_keys)
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1087,10 +1145,10 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         # When auto_cert is 'False', make sure subprocess.run is not called
         self.assertEqual(mock_subprocess.run.call_count, 0)
         vpnclient = vpnclient_qs.first()
-        self.assertEqual(vpnclient.zerotier_member_id, '')
-        self.assertEqual(vpnclient.secret, '')
-        self.assertEqual(vpnclient.private_key, '')
-        self.assertEqual(vpnclient.public_key, '')
+        self.assertEqual(vpnclient.zerotier_member_id, "")
+        self.assertEqual(vpnclient.secret, "")
+        self.assertEqual(vpnclient.private_key, "")
+        self.assertEqual(vpnclient.public_key, "")
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1163,15 +1221,15 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             self._get_mock_response(200)
         ]
         org = self._get_org()
-        subnet1 = self._create_subnet(subnet='10.0.1.0/24', organization=org)
-        subnet2 = self._create_subnet(subnet='10.150.0.0/24', organization=org)
+        subnet1 = self._create_subnet(subnet="10.0.1.0/24", organization=org)
+        subnet2 = self._create_subnet(subnet="10.150.0.0/24", organization=org)
         ip_subnet2 = subnet2.request_ip()
         with self.assertRaises(ValidationError) as context_manager:
             self._create_zerotier_vpn(organization=org, subnet=subnet1, ip=ip_subnet2)
         message_dict = context_manager.exception.message_dict
-        self.assertIn('ip', message_dict)
+        self.assertIn("ip", message_dict)
         self.assertIn(
-            'VPN IP address must be within the VPN subnet', message_dict['ip']
+            "VPN IP address must be within the VPN subnet", message_dict["ip"]
         )
 
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1185,7 +1243,7 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             # (internal server error)
             self._get_mock_response(500, response={}, exc=RequestException)
         ]
-        expected_error = 'Failed to create ZeroTier network, Error: '
+        expected_error = "Failed to create ZeroTier network, Error: "
         with self.assertRaises(ValidationError) as context_manager:
             self._create_zerotier_vpn()
         # Make sure zt vpn server is not created
@@ -1193,9 +1251,9 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         self.assertIn(expected_error, str(context_manager.exception))
 
     def test_zerotier_schema(self):
-        with self.subTest('zerotier schema shall be valid'):
+        with self.subTest("zerotier schema shall be valid"):
             with self.assertRaises(ValidationError) as context_manager:
-                self._create_zerotier_vpn(config={'zerotier': []})
+                self._create_zerotier_vpn(config={"zerotier": []})
             self.assertIn(
                 'Invalid configuration triggered by "#/zerotier"',
                 str(context_manager.exception),
@@ -1203,11 +1261,11 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         # Delete subnet created for previous assertion
         Subnet.objects.all().delete()
 
-        with self.subTest('zerotier property shall be present'):
+        with self.subTest("zerotier property shall be present"):
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_zerotier_vpn(config={})
-            self.assertIn('zerotier', str(context_manager.exception))
-            self.assertIn('is a required property', str(context_manager.exception))
+            self.assertIn("zerotier", str(context_manager.exception))
+            self.assertIn("is a required property", str(context_manager.exception))
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1226,11 +1284,11 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         auto = vpn.auto_client(template_backend_class=template.backend_class)
         context_keys = vpn._get_auto_context_keys()
         for key in context_keys.keys():
-            context_keys[key] = '{{%s}}' % context_keys[key]
+            context_keys[key] = "{{%s}}" % context_keys[key]
         expected = template.backend_class.zerotier_auto_client(
-            name='global',
-            networks=[{'id': vpn.network_id, 'ifname': f'owzt{vpn.network_id[-6:]}'}],
-            identity_secret=context_keys['secret'],
+            name="global",
+            networks=[{"id": vpn.network_id, "ifname": f"owzt{vpn.network_id[-6:]}"}],
+            identity_secret=context_keys["secret"],
         )
         self.assertEqual(auto, expected)
 
@@ -1244,27 +1302,27 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             # For create network
             self._get_mock_response(200)
         ]
-        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        vpn = self._create_vpn(name="new", backend=self._BACKENDS["openvpn"])
         subnet = self._create_subnet(
-            name='test-zerotier-subnet',
-            subnet='10.0.0.0/16',
+            name="test-zerotier-subnet",
+            subnet="10.0.0.0/16",
             organization=vpn.organization,
         )
         ca = vpn.ca
 
-        vpn.backend = self._BACKENDS['zerotier']
+        vpn.backend = self._BACKENDS["zerotier"]
         vpn.subnet = subnet
         vpn.config = {
-            'zerotier': [
+            "zerotier": [
                 {
-                    'private': True,
-                    'enableBroadcast': True,
-                    'mtu': 2800,
-                    'multicastLimit': 32,
+                    "private": True,
+                    "enableBroadcast": True,
+                    "mtu": 2800,
+                    "multicastLimit": 32,
                 }
             ]
         }
-        vpn.auth_token = 'test_auth_token'
+        vpn.auth_token = "test_auth_token"
         vpn.full_clean()
         vpn.save()
         self.assertEqual(vpn.ca, None)
@@ -1272,38 +1330,38 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         self.assertEqual(vpn.subnet, subnet)
         self.assertNotEqual(vpn.ip, None)
 
-        vpn.backend = self._BACKENDS['openvpn']
+        vpn.backend = self._BACKENDS["openvpn"]
         vpn.ca = ca
         vpn.full_clean()
         vpn.save()
-        self.assertEqual(vpn.public_key, '')
-        self.assertEqual(vpn.private_key, '')
+        self.assertEqual(vpn.public_key, "")
+        self.assertEqual(vpn.private_key, "")
         self.assertEqual(vpn.subnet, subnet)
         self.assertNotEqual(vpn.ip, None)
 
     def test_zerotier_vpn_without_subnet(self):
         with self.assertRaises(ValidationError) as context_manager:
             self._create_zerotier_vpn(subnet=None)
-        expected_error_dict = {'subnet': ['Subnet is required for this VPN backend.']}
+        expected_error_dict = {"subnet": ["Subnet is required for this VPN backend."]}
         self.assertEqual(expected_error_dict, context_manager.exception.message_dict)
 
     def test_zerotier_vpn_without_auth_token(self):
         with self.assertRaises(ValidationError) as context_manager:
             self._create_zerotier_vpn(auth_token=None)
         expected_error_dict = {
-            'auth_token': ['Auth token is required for this VPN backend']
+            "auth_token": ["Auth token is required for this VPN backend"]
         }
         self.assertEqual(expected_error_dict, context_manager.exception.message_dict)
 
     @mock.patch(_ZT_SERVICE_REQUESTS)
     def test_zerotier_vpn_host_validation(self, mock_requests):
-        with self.subTest('Test host connection error'):
+        with self.subTest("Test host connection error"):
             # node status (connection error)
             mock_requests.get.side_effect = ConnectionError()
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_zerotier_vpn()
             expected_error_dict = {
-                'host': ['Failed to connect to the ZeroTier controller, Error: ']
+                "host": ["Failed to connect to the ZeroTier controller, Error: "]
             }
             self.assertEqual(
                 expected_error_dict, context_manager.exception.message_dict
@@ -1312,13 +1370,13 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         # Delete subnet created for previous assertion
         Subnet.objects.all().delete()
 
-        with self.subTest('Test host timeout error'):
+        with self.subTest("Test host timeout error"):
             # node status (timeout error)
             mock_requests.get.side_effect = Timeout()
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_zerotier_vpn()
             expected_error_dict = {
-                'host': ['Failed to connect to the ZeroTier controller, Error: ']
+                "host": ["Failed to connect to the ZeroTier controller, Error: "]
             }
             self.assertEqual(
                 expected_error_dict, context_manager.exception.message_dict
@@ -1326,15 +1384,15 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         mock_requests.reset_mock()
         Subnet.objects.all().delete()
 
-        with self.subTest('Test auth token unauthorized error'):
+        with self.subTest("Test auth token unauthorized error"):
             mock_requests.get.side_effect = [self._get_mock_response(401, response={})]
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_zerotier_vpn()
             expected_error_dict = {
-                'auth_token': [
+                "auth_token": [
                     (
-                        'Authorization failed for ZeroTier controller, '
-                        'ensure you are using the correct authorization token'
+                        "Authorization failed for ZeroTier controller, "
+                        "ensure you are using the correct authorization token"
                     )
                 ]
             }
@@ -1344,19 +1402,19 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         mock_requests.reset_mock()
         Subnet.objects.all().delete()
 
-        with self.subTest('Test for any other request errors'):
+        with self.subTest("Test for any other request errors"):
             # node status (internal server error)
             mock_requests.get.side_effect = [
-                self._get_mock_response(500, response={}, err='Internal Server Error')
+                self._get_mock_response(500, response={}, err="Internal Server Error")
             ]
             with self.assertRaises(ValidationError) as context_manager:
                 self._create_zerotier_vpn()
             expected_error_dict = {
-                'host': [
+                "host": [
                     (
-                        'Failed to connect to the ZeroTier controller, '
-                        'ensure you are using the correct hostname '
-                        '(error: Internal Server Error, status code: 500)'
+                        "Failed to connect to the ZeroTier controller, "
+                        "ensure you are using the correct hostname "
+                        "(error: Internal Server Error, status code: 500)"
                     )
                 ]
             }
@@ -1365,31 +1423,31 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             )
 
     def test_zerotier_change_vpn_backend_with_vpnclient(self):
-        vpn = self._create_vpn(name='new', backend=self._BACKENDS['openvpn'])
+        vpn = self._create_vpn(name="new", backend=self._BACKENDS["openvpn"])
         subnet = self._create_subnet(
-            name='zerotier', subnet='10.0.0.0/16', organization=vpn.organization
+            name="zerotier", subnet="10.0.0.0/16", organization=vpn.organization
         )
-        template = self._create_template(name='VPN', type='vpn', vpn=vpn)
+        template = self._create_template(name="VPN", type="vpn", vpn=vpn)
         config = self._create_config(organization=self._get_org())
         config.templates.add(template)
         self.assertEqual(VpnClient.objects.count(), 1)
 
         with self.subTest(
-            'Test validation error is not raised when backend is unchanged'
+            "Test validation error is not raised when backend is unchanged"
         ):
             try:
                 vpn.full_clean()
             except ValidationError as error:
-                self.fail(f'Unexpected ValidationError: {error}')
+                self.fail(f"Unexpected ValidationError: {error}")
 
-        with self.subTest('Test validation error is raised when backend is changed'):
+        with self.subTest("Test validation error is raised when backend is changed"):
             with self.assertRaises(ValidationError) as context_manager:
-                vpn.backend = self._BACKENDS['zerotier']
+                vpn.backend = self._BACKENDS["zerotier"]
                 vpn.subnet = subnet
                 vpn.full_clean()
             expected_error_dict = {
-                'backend': [
-                    'Backend cannot be changed because the VPN is currently in use.'
+                "backend": [
+                    "Backend cannot be changed because the VPN is currently in use."
                 ]
             }
             self.assertDictEqual(
@@ -1400,13 +1458,13 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
 class TestZeroTierTransaction(
     BaseTestVpn, TestZeroTierVpnMixin, TestWireguardVpnMixin, TransactionTestCase
 ):
-    _ZT_SERVICE_REQUESTS = 'openwisp_controller.config.api.zerotier_service.requests'
-    _ZT_API_TASKS_INFO_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.info'
-    _ZT_API_TASKS_WARN_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.warn'
-    _ZT_API_TASKS_ERR_LOGGER = 'openwisp_controller.config.tasks_zerotier.logger.error'
+    _ZT_SERVICE_REQUESTS = "openwisp_controller.config.api.zerotier_service.requests"
+    _ZT_API_TASKS_INFO_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.info"
+    _ZT_API_TASKS_WARN_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.warn"
+    _ZT_API_TASKS_ERR_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.error"
     # As the locmem cache does not support the redis backend cache.keys() method
     _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
-    _ZT_GENERATE_IDENTITY_SUBPROCESS = 'openwisp_controller.config.base.vpn.subprocess'
+    _ZT_GENERATE_IDENTITY_SUBPROCESS = "openwisp_controller.config.base.vpn.subprocess"
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1431,7 +1489,7 @@ class TestZeroTierTransaction(
             self._get_mock_response(200),
         ]
         mock_stdout = mock.MagicMock()
-        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG['identity']
+        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG["identity"]
         mock_subprocess.run.return_value = mock_stdout
         self.assertEqual(IpAddress.objects.count(), 0)
         device, vpn, template = self._create_zerotier_vpn_template()
@@ -1441,28 +1499,28 @@ class TestZeroTierTransaction(
         self.assertEqual(mock_subprocess.run.call_count, 1)
         context = device.get_context()
 
-        with self.subTest('Test zerotier vpn related device context'):
+        with self.subTest("Test zerotier vpn related device context"):
             pk = vpn.pk.hex
-            self.assertEqual(context[f'vpn_host_{pk}'], vpn.host)
-            self.assertEqual(context[f'ip_address_{pk}'], '10.0.0.2')
-            self.assertEqual(context[f'server_ip_address_{pk}'], '10.0.0.1')
-            self.assertEqual(context[f'server_ip_network_{pk}'], '10.0.0.1/32')
-            self.assertEqual(context[f'vpn_subnet_{pk}'], '10.0.0.0/16')
+            self.assertEqual(context[f"vpn_host_{pk}"], vpn.host)
+            self.assertEqual(context[f"ip_address_{pk}"], "10.0.0.2")
+            self.assertEqual(context[f"server_ip_address_{pk}"], "10.0.0.1")
+            self.assertEqual(context[f"server_ip_network_{pk}"], "10.0.0.1/32")
+            self.assertEqual(context[f"vpn_subnet_{pk}"], "10.0.0.0/16")
             self.assertEqual(
-                context[f'node_id_{pk}'], self._TEST_ZT_NODE_CONFIG['address']
+                context[f"node_id_{pk}"], self._TEST_ZT_NODE_CONFIG["address"]
             )
             self.assertEqual(
-                context[f'network_id_{pk}'], self._TEST_ZT_NETWORK_CONFIG['id']
+                context[f"network_id_{pk}"], self._TEST_ZT_NETWORK_CONFIG["id"]
             )
             self.assertEqual(
-                context[f'network_name_{pk}'], self._TEST_ZT_NETWORK_CONFIG['name']
+                context[f"network_name_{pk}"], self._TEST_ZT_NETWORK_CONFIG["name"]
             )
 
-        with self.subTest('Test zerotier vpn client device context'):
+        with self.subTest("Test zerotier vpn client device context"):
             self.assertEqual(
-                context['zerotier_member_id'], self._TEST_ZT_MEMBER_CONFIG['address']
+                context["zerotier_member_id"], self._TEST_ZT_MEMBER_CONFIG["address"]
             )
-            self.assertEqual(context['secret'], self._TEST_ZT_MEMBER_CONFIG['identity'])
+            self.assertEqual(context["secret"], self._TEST_ZT_MEMBER_CONFIG["identity"])
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)
@@ -1482,7 +1540,7 @@ class TestZeroTierTransaction(
             self._get_mock_response(200),
         ]
         self.assertEqual(IpAddress.objects.count(), 0)
-        zt_cmd = ['zerotier-idtool generate']
+        zt_cmd = ["zerotier-idtool generate"]
         # command not found, timeout error
         mock_subprocess.run.side_effect = [
             CalledProcessError(returncode=127, cmd=zt_cmd),
@@ -1493,8 +1551,8 @@ class TestZeroTierTransaction(
         vpn = self._create_zerotier_vpn()
         self.assertEqual(IpAddress.objects.count(), 1)
         template = self._create_template(
-            name='test-zerotier-template',
-            type='vpn',
+            name="test-zerotier-template",
+            type="vpn",
             vpn=vpn,
             organization=vpn.organization,
             auto_cert=True,
@@ -1502,10 +1560,10 @@ class TestZeroTierTransaction(
         device = self._create_device_config()
 
         with self.subTest(
-            'Test zt identity error due to CalledProcessError (zt is not installed)'
+            "Test zt identity error due to CalledProcessError (zt is not installed)"
         ):
             expected_err = (
-                'Unable to generate zerotier identity secret, '
+                "Unable to generate zerotier identity secret, "
                 f"Error: Command '{zt_cmd}' returned non-zero exit status 127."
             )
             with self.assertRaises(ZeroTierIdentityGenerationError) as exc:
@@ -1516,9 +1574,9 @@ class TestZeroTierTransaction(
         # Delete subnet created for previous assertion
         Subnet.objects.all().delete()
 
-        with self.subTest('Test zt identity error due to TimeoutExpired'):
+        with self.subTest("Test zt identity error due to TimeoutExpired"):
             expected_err = (
-                'Unable to generate zerotier identity secret, '
+                "Unable to generate zerotier identity secret, "
                 f"Error: Command '{zt_cmd}' timed out after 5 seconds"
             )
 
@@ -1570,38 +1628,38 @@ class TestZeroTierTransaction(
             self._get_mock_response(200),
         ]
         mock_stdout = mock.MagicMock()
-        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG['identity']
+        mock_stdout.stdout.decode.return_value = self._TEST_ZT_MEMBER_CONFIG["identity"]
         mock_subprocess.run.return_value = mock_stdout
         self.assertEqual(IpAddress.objects.count(), 0)
 
         subnet1 = self._create_subnet(
-            name='test-zerotier-subnet-1', subnet='10.150.0.0/24', organization=None
+            name="test-zerotier-subnet-1", subnet="10.150.0.0/24", organization=None
         )
         subnet2 = self._create_subnet(
-            name='test-zerotier-subnet-2', subnet='10.250.0.0/24', organization=None
+            name="test-zerotier-subnet-2", subnet="10.250.0.0/24", organization=None
         )
         zt_vpn1 = self._create_zerotier_vpn(subnet=subnet1)
-        zt_vpn2 = self._create_zerotier_vpn(name='test-zerotier-vpn-2', subnet=subnet2)
+        zt_vpn2 = self._create_zerotier_vpn(name="test-zerotier-vpn-2", subnet=subnet2)
         device = self._create_device_config()
         vpnclient_qs = device.config.vpnclient_set
         zt1 = self._create_template(
-            name='test-zt-template-1',
-            type='vpn',
+            name="test-zt-template-1",
+            type="vpn",
             vpn=zt_vpn1,
             organization=zt_vpn1.organization,
             auto_cert=True,
         )
         zt2 = self._create_template(
-            name='test-zt-template-2',
-            type='vpn',
+            name="test-zt-template-2",
+            type="vpn",
             vpn=zt_vpn2,
             organization=zt_vpn2.organization,
             auto_cert=True,
         )
         wg_vpn = self._create_wireguard_vpn()
         wg_template = self._create_template(
-            name='wireguard',
-            type='vpn',
+            name="wireguard",
+            type="vpn",
             vpn=wg_vpn,
             organization=wg_vpn.organization,
             auto_cert=True,
@@ -1623,8 +1681,8 @@ class TestZeroTierTransaction(
 
         with self.subTest(
             (
-                'Test zt identity generation when different vpn client '
-                '(wireguard) template is already applied to the device'
+                "Test zt identity generation when different vpn client "
+                "(wireguard) template is already applied to the device"
             )
         ):
             device.config.templates.add(zt1)
@@ -1649,8 +1707,8 @@ class TestZeroTierTransaction(
 
         with self.subTest(
             (
-                'Test zt identity generation when only zt '
-                'vpn client template is applied to the device'
+                "Test zt identity generation when only zt "
+                "vpn client template is applied to the device"
             )
         ):
             device.config.templates.add(zt1)
@@ -1668,8 +1726,8 @@ class TestZeroTierTransaction(
 
         with self.subTest(
             (
-                'Test zt no identity generation when different '
-                'zt vpn server vpn client template is applied to the device'
+                "Test zt no identity generation when different "
+                "zt vpn server vpn client template is applied to the device"
             )
         ):
             device.config.templates.add(zt2)
@@ -1708,11 +1766,11 @@ class TestZeroTierTransaction(
         # Now create zerotier network
         vpn = self._create_zerotier_vpn()
         self.assertEqual(Vpn.objects.count(), 1)
-        self.assertEqual(vpn.name, self._TEST_ZT_NETWORK_CONFIG['name'])
+        self.assertEqual(vpn.name, self._TEST_ZT_NETWORK_CONFIG["name"])
         mock_info.reset_mock()
         mock_requests.reset_mock()
 
-        with self.subTest('Test zerotier successful configuration update'):
+        with self.subTest("Test zerotier successful configuration update"):
             mock_requests.get.side_effect = [
                 # For node status
                 self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
@@ -1726,20 +1784,20 @@ class TestZeroTierTransaction(
             _EXPECTED_INFO_CALLS = [
                 mock.call(
                     (
-                        f'Successfully updated the configuration of '
-                        f'ZeroTier VPN Server with UUID: {vpn.id}'
+                        f"Successfully updated the configuration of "
+                        f"ZeroTier VPN Server with UUID: {vpn.id}"
                     )
                 ),
                 mock.call(
                     (
-                        f'Successfully updated ZeroTier network member: {vpn.node_id}, '
-                        f'ZeroTier network: {vpn.network_id}, '
-                        f'ZeroTier VPN server UUID: {vpn.id}'
+                        f"Successfully updated ZeroTier network member: {vpn.node_id}, "
+                        f"ZeroTier network: {vpn.network_id}, "
+                        f"ZeroTier VPN server UUID: {vpn.id}"
                     )
                 ),
             ]
-            config = vpn.get_config()['zerotier'][0]
-            config.update({'private': True})
+            config = vpn.get_config()["zerotier"][0]
+            config.update({"private": True})
             vpn.full_clean()
             vpn.save()
             self.assertEqual(mock_info.call_count, 2)
@@ -1749,7 +1807,7 @@ class TestZeroTierTransaction(
         mock_info.reset_mock()
         mock_requests.reset_mock()
 
-        with self.subTest('Test zerotier configuration update (unrecoverable errors)'):
+        with self.subTest("Test zerotier configuration update (unrecoverable errors)"):
             mock_requests.get.side_effect = [
                 # For node status
                 self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
@@ -1767,22 +1825,22 @@ class TestZeroTierTransaction(
             _EXPECTED_INFO_CALLS = [
                 mock.call(
                     (
-                        f'Successfully updated the configuration of '
-                        f'ZeroTier VPN Server with UUID: {vpn.id}'
+                        f"Successfully updated the configuration of "
+                        f"ZeroTier VPN Server with UUID: {vpn.id}"
                     )
                 ),
             ]
             _EXPECTED_ERROR_CALLS = [
                 mock.call(
                     (
-                        f'Failed to update ZeroTier network member: {vpn.node_id}, '
-                        f'ZeroTier network: {vpn.network_id}, '
-                        f'ZeroTier VPN server UUID: {vpn.id}, Error: '
+                        f"Failed to update ZeroTier network member: {vpn.node_id}, "
+                        f"ZeroTier network: {vpn.network_id}, "
+                        f"ZeroTier VPN server UUID: {vpn.id}, Error: "
                     )
                 ),
             ]
-            config = vpn.get_config()['zerotier'][0]
-            config.update({'private': True})
+            config = vpn.get_config()["zerotier"][0]
+            config.update({"private": True})
             vpn.full_clean()
             vpn.save()
             self.assertEqual(mock_info.call_count, 1)
@@ -1796,16 +1854,16 @@ class TestZeroTierTransaction(
         mock_requests.reset_mock()
 
         with self.subTest(
-            'Test zerotier configuration update '
-            'with retry mechanism (recoverable errors)'
-        ), mock.patch('celery.app.task.Task.request') as mock_task_request:
-            max_retries = API_TASK_RETRY_OPTIONS.get('max_retries')
+            "Test zerotier configuration update "
+            "with retry mechanism (recoverable errors)"
+        ), mock.patch("celery.app.task.Task.request") as mock_task_request:
+            max_retries = API_TASK_RETRY_OPTIONS.get("max_retries")
             mock_task_request.called_directly = False
-            config = vpn.get_config()['zerotier'][0]
-            config.update({'private': True})
+            config = vpn.get_config()["zerotier"][0]
+            config.update({"private": True})
 
             with self.subTest(
-                'Test update when max retry limit is not reached'
+                "Test update when max retry limit is not reached"
             ), self.assertRaises(Retry):
                 mock_requests.get.side_effect = [
                     # For node status
@@ -1825,18 +1883,18 @@ class TestZeroTierTransaction(
                 _EXPECTED_INFO_CALLS = [
                     mock.call(
                         (
-                            f'Successfully updated the configuration of '
-                            f'ZeroTier VPN Server with UUID: {vpn.id}'
+                            f"Successfully updated the configuration of "
+                            f"ZeroTier VPN Server with UUID: {vpn.id}"
                         )
                     ),
                 ]
                 _EXPECTED_WARN_CALLS = [
                     mock.call(
                         (
-                            f'Try [{max_retries - 1}/{max_retries}] Failed to update '
-                            f'ZeroTier network member: {vpn.node_id}, '
-                            f'ZeroTier network: {vpn.network_id}, '
-                            f'ZeroTier VPN server UUID: {vpn.id}, Error: '
+                            f"Try [{max_retries - 1}/{max_retries}] Failed to update "
+                            f"ZeroTier network member: {vpn.node_id}, "
+                            f"ZeroTier network: {vpn.network_id}, "
+                            f"ZeroTier VPN server UUID: {vpn.id}, Error: "
                         )
                     ),
                 ]
@@ -1858,7 +1916,7 @@ class TestZeroTierTransaction(
             # retrying and raise a 'RequestException',
             # which will be handled and logged as an error
             with self.subTest(
-                'Test update when max retry limit is reached'
+                "Test update when max retry limit is reached"
             ), self.assertRaises(RequestException):
                 mock_requests.get.side_effect = [
                     # For node status
@@ -1878,18 +1936,18 @@ class TestZeroTierTransaction(
                 _EXPECTED_INFO_CALLS = [
                     mock.call(
                         (
-                            f'Successfully updated the configuration of '
-                            f'ZeroTier VPN Server with UUID: {vpn.id}'
+                            f"Successfully updated the configuration of "
+                            f"ZeroTier VPN Server with UUID: {vpn.id}"
                         )
                     ),
                 ]
                 _EXPECTED_ERROR_CALLS = [
                     mock.call(
                         (
-                            f'Try [{max_retries}/{max_retries}] Failed to update '
-                            f'ZeroTier network member: {vpn.node_id}, '
-                            f'ZeroTier network: {vpn.network_id}, '
-                            f'ZeroTier VPN server UUID: {vpn.id}, Error: '
+                            f"Try [{max_retries}/{max_retries}] Failed to update "
+                            f"ZeroTier network member: {vpn.node_id}, "
+                            f"ZeroTier network: {vpn.network_id}, "
+                            f"ZeroTier VPN server UUID: {vpn.id}, Error: "
                         )
                     ),
                 ]
@@ -1925,7 +1983,7 @@ class TestZeroTierTransaction(
                 # For controller auth and ip assignment
                 self._get_mock_response(200),
             ]
-            mock_locmem_cache_keys.return_value = ['test_zt_api_tasks_notification_key']
+            mock_locmem_cache_keys.return_value = ["test_zt_api_tasks_notification_key"]
 
         def _reset_requests_mocks():
             mock_requests.reset_mock()
@@ -1934,9 +1992,9 @@ class TestZeroTierTransaction(
             Subnet.objects.all().delete()
 
         with self.subTest(
-            'Test db transaction fails on vpn.save(), it should delete the zt network'
+            "Test db transaction fails on vpn.save(), it should delete the zt network"
         ):
-            invalid_response = {'test-key': 'raise integrity error on save'}
+            invalid_response = {"test-key": "raise integrity error on save"}
             mock_requests.get.side_effect = [
                 # For node status
                 self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
@@ -1955,8 +2013,8 @@ class TestZeroTierTransaction(
                 vpn = self._create_zerotier_vpn()
             self.assertEqual(Vpn.objects.count(), 0)
             _EXPECTED_INFO_MSG = (
-                'Successfully deleted the ZeroTier VPN Server with UUID:',
-                'Successfully left the ZeroTier Network with ID:',
+                "Successfully deleted the ZeroTier VPN Server with UUID:",
+                "Successfully left the ZeroTier Network with ID:",
             )
             self.assertEqual(mock_info.call_count, 2)
             self.assertEqual(mock_warn.call_count, 0)
@@ -1967,7 +2025,7 @@ class TestZeroTierTransaction(
         _reset_requests_mocks()
         _setup_requests_mocks()
 
-        with self.subTest('Test post_delete signal triggers deletion of vpn server'):
+        with self.subTest("Test post_delete signal triggers deletion of vpn server"):
             vpn = self._create_zerotier_vpn()
             self.assertEqual(Vpn.objects.count(), 1)
             vpn_id = vpn.id
@@ -1985,12 +2043,12 @@ class TestZeroTierTransaction(
             _EXPECTED_INFO_CALLS = [
                 mock.call(
                     (
-                        f'Successfully deleted the ZeroTier VPN Server '
-                        f'with UUID: {vpn_id}, Network ID: {network_id}'
+                        f"Successfully deleted the ZeroTier VPN Server "
+                        f"with UUID: {vpn_id}, Network ID: {network_id}"
                     )
                 ),
                 mock.call(
-                    f'Successfully left the ZeroTier Network with ID: {network_id}'
+                    f"Successfully left the ZeroTier Network with ID: {network_id}"
                 ),
             ]
             self.assertEqual(mock_info.call_count, 2)
@@ -2001,7 +2059,7 @@ class TestZeroTierTransaction(
         _reset_requests_mocks()
         _setup_requests_mocks()
 
-        with self.subTest('Test for zerotier vpn server deletion encountered an error'):
+        with self.subTest("Test for zerotier vpn server deletion encountered an error"):
             vpn = self._create_zerotier_vpn()
             vpn_id = vpn.id
             network_id = vpn.network_id
@@ -2017,9 +2075,9 @@ class TestZeroTierTransaction(
             _EXPECTED_ERROR_CALLS = [
                 mock.call(
                     (
-                        'Failed to delete ZeroTier VPN Server with '
-                        f'UUID: {vpn_id}, Network ID: {network_id}, as it '
-                        'does not exist on the ZeroTier Controller Networks, Error: '
+                        "Failed to delete ZeroTier VPN Server with "
+                        f"UUID: {vpn_id}, Network ID: {network_id}, as it "
+                        "does not exist on the ZeroTier Controller Networks, Error: "
                     )
                 ),
             ]

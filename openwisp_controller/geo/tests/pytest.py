@@ -15,16 +15,16 @@ from swapper import load_model
 
 from .utils import TestGeoMixin
 
-Device = load_model('config', 'Device')
-Location = load_model('geo', 'Location')
-DeviceLocation = load_model('geo', 'DeviceLocation')
+Device = load_model("config", "Device")
+Location = load_model("geo", "Location")
+DeviceLocation = load_model("geo", "DeviceLocation")
 User = get_user_model()
-OrganizationUser = load_model('openwisp_users', 'OrganizationUser')
+OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
 
-@skipIf(os.environ.get('SAMPLE_APP', False), 'Running tests on SAMPLE_APP')
+@skipIf(os.environ.get("SAMPLE_APP", False), "Running tests on SAMPLE_APP")
 class TestChannels(TestGeoMixin):
-    application = import_string(getattr(settings, 'ASGI_APPLICATION'))
+    application = import_string(getattr(settings, "ASGI_APPLICATION"))
     object_model = Device
     location_model = Location
     object_location_model = DeviceLocation
@@ -47,20 +47,20 @@ class TestChannels(TestGeoMixin):
                 location=location
             )
             pk = location.pk
-        path = '/ws/loci/location/{0}/'.format(pk)
+        path = "/ws/loci/location/{0}/".format(pk)
         session = None
         if user:
             session = await database_sync_to_async(self._force_login)(user)
-        return {'pk': pk, 'path': path, 'session': session}
+        return {"pk": pk, "path": path, "session": session}
 
     def _get_communicator(self, request_vars, user=None):
-        communicator = WebsocketCommunicator(self.application, request_vars['path'])
+        communicator = WebsocketCommunicator(self.application, request_vars["path"])
         if user:
             communicator.scope.update(
                 {
-                    'user': user,
-                    'session': request_vars['session'],
-                    'url_route': {'kwargs': {'pk': request_vars['pk']}},
+                    "user": user,
+                    "session": request_vars["session"],
+                    "url_route": {"kwargs": {"pk": request_vars["pk"]}},
                 }
             )
         return communicator
@@ -69,7 +69,7 @@ class TestChannels(TestGeoMixin):
     @pytest.mark.django_db(transaction=True)
     async def test_consumer_staff_but_no_change_permission(self):
         user = await database_sync_to_async(User.objects.create_user)(
-            username='user', password='password', email='test@test.org', is_staff=True
+            username="user", password="password", email="test@test.org", is_staff=True
         )
         location = await database_sync_to_async(self._create_location)(is_mobile=True)
         await database_sync_to_async(self._create_object_location)(location=location)
@@ -83,7 +83,7 @@ class TestChannels(TestGeoMixin):
         perm = await database_sync_to_async(
             (
                 await database_sync_to_async(Permission.objects.filter)(
-                    name='Can change location'
+                    name="Can change location"
                 )
             ).first
         )()
