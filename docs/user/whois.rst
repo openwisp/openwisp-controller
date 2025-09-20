@@ -28,6 +28,7 @@ associated with the device's public IP address and includes:
 - CIDR block assigned to the ASN
 - Physical address registered to the ASN
 - Timezone of the ASN's registered location
+- Coordinates (Latitude and Longitude)
 
 Trigger Conditions
 ------------------
@@ -40,25 +41,23 @@ A WHOIS lookup is triggered automatically when:
 However, the lookup will only run if **all** the following conditions are
 met:
 
+- The device is either **newly created** or has a **changed last IP**.
 - The device's last IP address is **public**.
 - There is **no existing WHOIS record** for that IP.
 - WHOIS lookup is **enabled** for the device's organization.
 
-Behavior with Shared IP Addresses
----------------------------------
+Managing WHOIS Records
+----------------------
 
-If multiple devices share the same public IP address and one of them
-switches to a different IP, the following occurs:
-
-- A lookup is triggered for the **new IP**.
-- The WHOIS record for the **old IP** is deleted.
-- The next time a device still using the old IP fetches its checksum, a
-  new lookup is triggered, ensuring up-to-date data.
+If a device updates its last IP address, lookup is triggered for the **new
+IP** and the **WHOIS record for the old IP** is deleted if no active
+devices are associated with that IP address.
 
 .. note::
 
     When a device with an associated WHOIS record is deleted, its WHOIS
-    record is automatically removed.
+    record is automatically removed only if no active devices are
+    associated with that IP address.
 
 .. _controller_setup_whois_lookup:
 
@@ -78,6 +77,26 @@ Setup Instructions
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_ENABLED` to ``True``.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT` to **Account ID**.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY` to **License Key**.
+
+6. Restart the application/containers if using ansible-openwisp2 or
+   docker.
+7. Run the ``clear_last_ip`` management command to clear the last IP
+   address of **all active devices across organizations**.
+
+   - If using ansible-openwisp2 (default directory is /opt/openwisp2,
+     unless changed in Ansible playbook configuration):
+
+     .. code-block:: bash
+
+         source /opt/openwisp2/env/bin/activate
+         python /opt/openwisp2/src/manage.py clear_last_ip
+
+   - If using docker:
+
+     .. code-block:: bash
+
+         docker exec -it <openwisp_container_name> sh
+         python manage.py clear_last_ip
 
 Viewing WHOIS Lookup Data
 -------------------------

@@ -1,10 +1,12 @@
 from ipaddress import ip_address, ip_network
 
+from django.contrib.gis.db.models import PointField
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
+from swapper import load_model
 
 from openwisp_utils.base import TimeStampedEditableModel
 
@@ -51,6 +53,12 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         blank=True,
         help_text=_("CIDR"),
     )
+    coordinates = PointField(
+        null=True,
+        blank=True,
+        help_text=_("Coordinates"),
+        srid=4326,
+    )
 
     class Meta:
         abstract = True
@@ -74,6 +82,20 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
                 raise ValidationError(
                     {"cidr": _("Invalid CIDR format: %(error)s") % {"error": str(e)}}
                 )
+
+        if self.coordinates:
+            if not (-90 <= self.coordinates.y <= 90):
+                raise ValidationError(
+                    {"coordinates": _("Latitude must be between -90 and 90 degrees.")}
+                )
+            if not (-180 <= self.coordinates.x <= 180):
+                raise ValidationError(
+                    {
+                        "coordinates": _(
+                            "Longitude must be between -180 and 180 degrees."
+                        )
+                    }
+                )
         return super().clean()
 
     @staticmethod
@@ -82,8 +104,18 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         Delete WHOIS information for a device when the last IP address is removed or
         when device is deleted.
         """
-        if instance._get_organization__config_settings().whois_enabled:
-            transaction.on_commit(lambda: delete_whois_record.delay(instance.last_ip))
+        Device = load_model("config", "Device")
+
+        last_ip = instance.last_ip
+        existing_devices = Device.objects.filter(_is_deactivated=False).filter(
+            last_ip=last_ip
+        )
+        if (
+            last_ip
+            and instance._get_organization__config_settings().whois_enabled
+            and not existing_devices.exists()
+        ):
+            transaction.on_commit(lambda: delete_whois_record.delay(last_ip))
 
     # this method is kept here instead of in OrganizationConfigSettings because
     # currently the caching is used only for WHOIS feature
@@ -113,3 +145,28 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
                 ],
             )
         )
+
+    @property
+    def _location_name(self):
+        """
+        Used to get location name based on the address and IP.
+        """
+        address = self.formatted_address
+        if address:
+            parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
+            location = ", ".join(parts)
+            return _(f"{location} (Estimated Location: {self.ip_address})")
+        return _(f"Estimated Location: {self.ip_address}")
+
+    def _get_defaults_for_estimated_location(self):
+        """
+        Used to get default values for creating or updating
+        an estimated location based on the WHOIS information.
+        """
+        return {
+            "name": self._location_name,
+            "type": "outdoor",
+            "is_mobile": False,
+            "geometry": self.coordinates,
+            "address": self.formatted_address,
+        }
