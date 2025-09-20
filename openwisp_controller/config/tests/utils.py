@@ -164,8 +164,11 @@ class TestWireguardVpnMixin(CreateIpamModelsMixin):
         vpn.save()
         return vpn
 
-    def _create_wireguard_vpn_template(self, auto_cert=True, **kwargs):
-        vpn = self._create_wireguard_vpn()
+    def _create_wireguard_vpn_template(
+        self, auto_cert=True, vpn_options=None, **kwargs
+    ):
+        vpn_options = vpn_options or {}
+        vpn = self._create_wireguard_vpn(**vpn_options)
         org1 = kwargs.get("organization", vpn.organization)
         template = self._create_template(
             name="wireguard",
@@ -180,7 +183,7 @@ class TestWireguardVpnMixin(CreateIpamModelsMixin):
 
 
 class TestVxlanWireguardVpnMixin(CreateIpamModelsMixin):
-    def _create_vxlan_tunnel(self, config=None):
+    def _create_vxlan_tunnel(self, config=None, **kwargs):
         if config is None:
             config = {"wireguard": [{"name": "wg0", "port": 51820}]}
         org = self._get_org()
@@ -193,11 +196,13 @@ class TestVxlanWireguardVpnMixin(CreateIpamModelsMixin):
             config=config,
             subnet=subnet,
             ca=None,
+            **kwargs,
         )
         return tunnel, subnet
 
-    def _create_vxlan_vpn_template(self):
-        vpn, subnet = self._create_vxlan_tunnel()
+    def _create_vxlan_vpn_template(self, vpn_options=None):
+        vpn_options = vpn_options or {}
+        vpn, subnet = self._create_vxlan_tunnel(**vpn_options)
         org1 = vpn.organization
         template = self._create_template(
             name="vxlan-wireguard",

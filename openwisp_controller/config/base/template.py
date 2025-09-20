@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import OrderedDict
 from copy import copy
 
@@ -7,13 +8,18 @@ from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
-from swapper import get_model_name
+from swapper import get_model_name, load_model
 from taggit.managers import TaggableManager
 
 from ...base import ShareableOrgMixinUniqueName
 from ..settings import DEFAULT_AUTO_CERT
-from ..tasks import update_template_related_config_status
+from ..tasks import (
+    auto_add_template_to_existing_configs,
+    update_template_related_config_status,
+)
 from .base import BaseConfig
+
+logger = logging.getLogger(__name__)
 
 TYPE_CHOICES = (("generic", _("Generic")), ("vpn", _("VPN-client")))
 
@@ -61,7 +67,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         default=False,
         db_index=True,
         help_text=_(
-            "whether new configurations will have this template enabled by default"
+            "whether this template is applied to all current and future devices"
+            " by default (can be unassigned manually)"
         ),
     )
     required = models.BooleanField(
@@ -124,13 +131,30 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             # the old configuration may become invalid, raising an exception.
             # Setting the checksum to None forces related configurations to update.
             current_checksum = None
-        instance._update_related_config_status = instance.checksum != current_checksum
+        instance._should_update_related_config_status = (
+            instance.checksum != current_checksum
+        )
+
+        # Check if template is becoming default or required
+        if (instance.default and not current.default) or (
+            instance.required and not current.required
+        ):
+            instance._should_add_to_existing_configs = True
 
     @classmethod
     def post_save_handler(cls, instance, created, *args, **kwargs):
-        if not created and getattr(instance, "_update_related_config_status", False):
+        if not created and getattr(
+            instance, "_should_update_related_config_status", False
+        ):
             transaction.on_commit(
                 lambda: update_template_related_config_status.delay(instance.pk)
+            )
+        # Auto-add template to existing configs if it's new or became default/required
+        if getattr(instance, "_should_add_to_existing_configs", False) or (
+            created and (instance.default or instance.required)
+        ):
+            transaction.on_commit(
+                lambda: auto_add_template_to_existing_configs.delay(str(instance.pk))
             )
 
     def _update_related_config_status(self):
@@ -152,6 +176,44 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 # config status changed signal sent only if status changed
                 if config.pk in changing_status:
                     config._send_config_status_changed_signal()
+
+    def _auto_add_to_existing_configs(self):
+        """
+        When a template is ``default`` or ``required``, adds the template
+        to each relevant ``Config`` object
+        """
+        Config = load_model("config", "Config")
+
+        # Only proceed if template is default or required
+        if not (self.default or self.required):
+            return
+
+        # use atomic to ensure any code bound to
+        # be executed via transaction.on_commit
+        # is executed after the whole block
+        with transaction.atomic():
+            # Exclude deactivating or deactivated configs
+            configs = (
+                Config.objects.select_related("device")
+                .filter(
+                    backend=self.backend,
+                )
+                .exclude(
+                    models.Q(status__in=["deactivating", "deactivated"])
+                    | models.Q(templates__id=self.pk)
+                )
+            )
+            if self.organization_id:
+                configs = configs.filter(device__organization_id=self.organization_id)
+            for config in configs.iterator():
+                try:
+                    config.templates.add(self)
+                except Exception as e:
+                    # Log error but continue with other configs
+                    logger.exception(
+                        f"Failed to add template {self.pk} to "
+                        f"config {config.pk}: {e}"
+                    )
 
     def clean(self, *args, **kwargs):
         """
