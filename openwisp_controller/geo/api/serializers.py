@@ -11,6 +11,10 @@ from swapper import load_model
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
+from ..estimated_location.mixins import (
+    EstimatedLocationGeoJsonSerializer,
+    EstimatedLocationMixin,
+)
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
@@ -31,7 +35,9 @@ class LocationDeviceSerializer(ValidatedModelSerializer):
         fields = "__all__"
 
 
-class GeoJsonLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
+class GeoJsonLocationSerializer(
+    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
+):
     device_count = IntegerField()
 
     class Meta:
@@ -126,7 +132,7 @@ class DeviceCoordinatesSerializer(gis_serializers.GeoFeatureModelSerializer):
         read_only_fields = ("name",)
 
 
-class LocationSerializer(BaseSerializer):
+class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
     floorplan = FloorPlanLocationSerializer(required=False, allow_null=True)
 
     class Meta:
@@ -225,7 +231,9 @@ class LocationSerializer(BaseSerializer):
         return super().update(instance, validated_data)
 
 
-class NestedtLocationSerializer(gis_serializers.GeoFeatureModelSerializer):
+class NestedtLocationSerializer(
+    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
+):
     class Meta:
         model = Location
         geo_field = "geometry"

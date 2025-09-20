@@ -287,7 +287,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         state_adding = self._state.adding
         super().save(*args, **kwargs)
         if app_settings.WHOIS_CONFIGURED:
-            self._check_last_ip()
+            self._check_last_ip(creating=state_adding)
         if state_adding and self.group and self.group.templates.exists():
             self.create_default_config()
         # The value of "self._state.adding" will always be "False"
@@ -529,9 +529,13 @@ class AbstractDevice(OrgMixin, BaseModel):
         """
         return WHOISService(self)
 
-    def _check_last_ip(self):
-        """Trigger WHOIS lookup if last_ip is not deferred."""
+    def _check_last_ip(self, creating=False):
+        """
+        Process details and location related to last_ip if last_ip has
+        changed or is being set for the first time.
+        """
         if self._initial_last_ip == models.DEFERRED:
             return
-        self.whois_service.trigger_whois_lookup()
+        if creating or self.last_ip != self._initial_last_ip:
+            self.whois_service.process_ip_data_and_location()
         self._initial_last_ip = self.last_ip
