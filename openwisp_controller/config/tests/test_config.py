@@ -250,7 +250,7 @@ class TestConfig(
                 del c.backend_instance
                 self.assertNotEqual(c.checksum, old_checksum)
                 self.assertEqual(c.get_cached_checksum(), c.checksum)
-                mocked_debug.assert_not_called()
+                mocked_debug.assert_called_once()
 
         with self.subTest("test cache invalidation when config templates are changed"):
             with patch.object(base_config_logger, "debug") as mocked_debug:
@@ -260,7 +260,16 @@ class TestConfig(
                 del c.backend_instance
                 self.assertNotEqual(c.checksum, old_checksum)
                 self.assertEqual(c.get_cached_checksum(), c.checksum)
-                mocked_debug.assert_not_called()
+                mocked_debug.assert_called_once()
+
+        with self.subTest('cache invalidation works when config is deactivated'):
+            with patch.object(base_config_logger, "debug") as mocked_debug:
+                old_checksum = c.checksum
+                c.deactivate()
+                del c.backend_instance
+                self.assertNotEqual(c.checksum, old_checksum)
+                self.assertEqual(c.get_cached_checksum(), c.checksum)
+                mocked_debug.assert_called_once()
 
     def test_backend_import_error(self):
         """
@@ -828,8 +837,15 @@ class TestConfig(
 
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
-        with self.assertNumQueries(10):
-            config._check_changes()
+        with self.subTest('No changes made to the config object'):
+            with self.assertNumQueries(3):
+                config._check_changes()
+
+        with self.subTest('Changes made to the config object'):
+            config.templates.add(self._create_template())
+            config.config = {"general": {"description": "test"}}
+            with self.assertNumQueries(4):
+                config._check_changes()
 
     def test_config_get_system_context(self):
         config = self._create_config(
@@ -962,7 +978,7 @@ class TestTransactionConfig(
             vpnclient_cert.renew()
             # An additional call from cache invalidation of
             # DeviceGroupCommonName View
-            self.assertEqual(mocked_delete.call_count, 2)
+            self.assertEqual(mocked_delete.call_count, 3)
             del config.backend_instance
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()

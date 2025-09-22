@@ -240,7 +240,7 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
                 del d.config.backend_instance
                 self.assertNotEqual(d.config.checksum, old_checksum)
                 self.assertEqual(d.config.get_cached_checksum(), d.config.checksum)
-                mocked_debug.assert_not_called()
+                mocked_debug.assert_called_once()
 
     def test_device_checksum_requested_signal_is_emitted(self):
         d = self._create_device_config()

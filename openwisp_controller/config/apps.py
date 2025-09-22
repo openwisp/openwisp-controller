@@ -285,14 +285,6 @@ class ConfigConfig(AppConfig):
             DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated,
             dispatch_uid="config_deactivated_invalidate_get_device_cache",
         )
-        config_deactivating.connect(
-            DeviceChecksumView.invalidate_checksum_cache,
-            dispatch_uid="config_deactivated_invalidate_get_device_cache",
-        )
-        config_modified.connect(
-            DeviceChecksumView.invalidate_checksum_cache,
-            dispatch_uid="invalidate_checksum_cache",
-        )
         # VPN cache invalidation
         post_save.connect(
             GetVpnView.invalidate_get_vpn_cache,

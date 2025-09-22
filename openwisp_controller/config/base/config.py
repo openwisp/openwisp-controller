@@ -183,7 +183,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         for instance in cls.objects.only("id").filter(**query_params).iterator():
             has_changed = instance.update_status_if_checksum_changed()
             if has_changed:
-                instance.get_cached_checksum.invalidate(instance)
+                instance.invalidate_checksum_cache()
 
     @classmethod
     def get_template_model(cls):
@@ -573,10 +573,10 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     def save(self, *args, **kwargs):
         created = self._state.adding
         # check if config has been modified (so we can emit signals)
-        if not created:
+        if created:
+            self.checksum_db = self.checksum
+        else:
             self._check_changes()
-        self._invalidate_backend_instance_cache()
-        self.checksum_db = self.checksum
         self._just_created = created
         result = super().save(*args, **kwargs)
         # add default templates if config has just been created
@@ -620,17 +620,12 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if self.backend != current.backend:
             # storing old backend to send backend change signal after save
             self._old_backend = current.backend
-        self._invalidate_backend_instance_cache()
-        if self.checksum != current.checksum:
-            if self.status != "modified":
-                self.set_status_modified(save=False)
-            else:
-                # config modified signal is always sent
-                # regardless of the current status
-                self._send_config_modified_after_save = True
+        self.update_status_if_checksum_changed(
+            save=False,
+        )
 
     def update_status_if_checksum_changed(
-        self, save=True, send_config_modified_signal=True
+        self, save=True, update_checksum_db=True, send_config_modified_signal=True
     ):
         """
         Updates the instance status if its checksum has changed.
@@ -649,7 +644,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     extra_update_fields=["checksum_db"],
                 )
             else:
-                self._update_checksum_db(new_checksum=self.checksum_db)
+                if update_checksum_db:
+                    self._update_checksum_db(new_checksum=self.checksum_db)
+                if send_config_modified_signal:
+                    self._send_config_modified_after_save = True
+            self.invalidate_checksum_cache()
         return checksum_changed
 
     def _has_configuration_checksum_changed(self):
@@ -758,7 +757,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     ):
         if send_config_modified_signal:
             self._send_config_modified_after_save = True
-        self._set_status("modified", save, extra_update_fields)
+        self._set_status("modified", save, extra_update_fields=extra_update_fields)
 
     def set_status_applied(self, save=True):
         self._set_status("applied", save)
@@ -790,12 +789,14 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         # otherwise, the "enforce_required_templates" and "add_default_templates"
         # methods would re-add required/default templates.
         # The "templates_changed" receiver skips post_clear action. Thus,
-        # we need to update the checksum_db field manually.
+        # we need to update the checksum_db field manually and invalidate
+        # the cache.
         self.config = {}
         self.set_status_deactivating(save=False)
         self.templates.clear()
         self._invalidate_backend_instance_cache()
         self.checksum_db = self.checksum
+        self.invalidate_checksum_cache()
         self.save()
         if old_checksum == self.checksum_db:
             # Accelerate deactivation if the configuration remains
