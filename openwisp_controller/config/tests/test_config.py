@@ -262,7 +262,7 @@ class TestConfig(
                 self.assertEqual(c.get_cached_checksum(), c.checksum)
                 mocked_debug.assert_called_once()
 
-        with self.subTest('cache invalidation works when config is deactivated'):
+        with self.subTest("cache invalidation works when config is deactivated"):
             with patch.object(base_config_logger, "debug") as mocked_debug:
                 old_checksum = c.checksum
                 c.deactivate()
@@ -837,11 +837,11 @@ class TestConfig(
 
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
-        with self.subTest('No changes made to the config object'):
+        with self.subTest("No changes made to the config object"):
             with self.assertNumQueries(3):
                 config._check_changes()
 
-        with self.subTest('Changes made to the config object'):
+        with self.subTest("Changes made to the config object"):
             config.templates.add(self._create_template())
             config.config = {"general": {"description": "test"}}
             with self.assertNumQueries(4):

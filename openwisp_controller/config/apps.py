@@ -23,8 +23,6 @@ from . import settings as app_settings
 from .signals import (
     config_backend_changed,
     config_deactivated,
-    config_deactivating,
-    config_modified,
     device_group_changed,
     device_name_changed,
     group_templates_changed,
