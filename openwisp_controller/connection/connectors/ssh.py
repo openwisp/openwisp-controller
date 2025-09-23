@@ -198,13 +198,17 @@ class Ssh(object):
             logger.exception(e)
             raise e
         # store command exit status
+        exit_status = None
         # workaround https://github.com/paramiko/paramiko/issues/1815
         # workaround https://github.com/paramiko/paramiko/issues/1787
         # Ref. https://docs.paramiko.org/en/stable/api/channel.html#paramiko.channel.Channel.recv_exit_status  # noqa
-        stdout.channel.status_event.wait(
+        if not stdout.channel.status_event.wait(
             timeout=timeout - int(time.perf_counter() - start_cmd)
-        )
-        assert stdout.channel.status_event.is_set()
+        ):
+            output = "Command timeout exceeded."
+            logger.info(output)
+            return output, -1
+
         exit_status = stdout.channel.exit_status
         # log standard output
         # try to decode to UTF-8, ignoring unconvertible characters

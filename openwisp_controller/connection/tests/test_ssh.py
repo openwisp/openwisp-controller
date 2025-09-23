@@ -72,6 +72,19 @@ class TestSsh(CreateConnectionsMixin, TestCase):
 
     @mock.patch.object(ssh_logger, "info")
     @mock.patch.object(ssh_logger, "debug")
+    def test_connection_command_timeout(self, mocked_debug, mocked_info):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        dc.connector_instance.connect()
+        dc.connector_instance.exec_command("sleep 1", timeout=0)
+        mocked_info.assert_has_calls(
+            [
+                mock.call("Command timeout exceeded."),
+            ]
+        )
+
+    @mock.patch.object(ssh_logger, "info")
+    @mock.patch.object(ssh_logger, "debug")
     def test_connection_failed_command_suppressed_output(
         self, mocked_debug, mocked_info
     ):
