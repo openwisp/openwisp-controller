@@ -97,7 +97,7 @@ Run tests with (make sure you have the :ref:`selenium dependencies
 
 .. code-block:: shell
 
-    ./runtests.py --parallel
+    ./runtests
 
 Some tests, such as the Selenium UI tests, require a PostgreSQL database
 to run. If you don't have a PostgreSQL database running on your system,
