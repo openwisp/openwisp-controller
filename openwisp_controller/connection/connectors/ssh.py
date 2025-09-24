@@ -11,7 +11,7 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from scp import SCPClient
 
 from .. import settings as app_settings
-from .exceptions import CommandFailedException
+from .exceptions import CommandFailedException, CommandTimeoutException
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,9 @@ class Ssh(object):
         - aborts on exceptions
         - raises socket.timeout exceptions
         """
+        # paramiko expects timeout as a float
+        timeout = float(timeout)
+
         logger.info("Executing command: {0}".format(command))
         # execute commmand
         try:
@@ -197,17 +200,16 @@ class Ssh(object):
         except Exception as e:
             logger.exception(e)
             raise e
-        # store command exit status
-        exit_status = None
+
         # workaround https://github.com/paramiko/paramiko/issues/1815
         # workaround https://github.com/paramiko/paramiko/issues/1787
         # Ref. https://docs.paramiko.org/en/stable/api/channel.html#paramiko.channel.Channel.recv_exit_status  # noqa
         if not stdout.channel.status_event.wait(
-            timeout=timeout - int(time.perf_counter() - start_cmd)
+            timeout=timeout - (time.perf_counter() - start_cmd)
         ):
-            output = "Command timeout exceeded."
-            logger.info(output)
-            return output, -1
+            log_message = "Command timeout exceeded."
+            logger.info(log_message)
+            raise CommandTimeoutException(log_message)
 
         exit_status = stdout.channel.exit_status
         # log standard output
