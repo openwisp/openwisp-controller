@@ -4,3 +4,11 @@ class CommandFailedException(Exception):
     """
 
     pass
+
+
+class CommandTimeoutException(Exception):
+    """
+    raised when a command times out
+    """
+
+    pass

@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
 from . import settings as app_settings
+from .connectors.exceptions import CommandTimeoutException
 from .exceptions import NoWorkingDeviceConnectionError
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,10 @@ def launch_command(command_id):
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
+        command.save()
+    except CommandTimeoutException as e:
+        command.status = "failed"
+        command._add_output(_(f"The command took longer than expected: {e}"))
         command.save()
     except Exception as e:
         logger.exception(
