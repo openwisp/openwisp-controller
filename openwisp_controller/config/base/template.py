@@ -162,20 +162,18 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         # be executed via transaction.on_commit
         # is executed after the whole block
         with transaction.atomic():
-            changing_status = list(
-                self.config_relations.exclude(status="modified").values_list(
-                    "pk", flat=True
+            for config in (
+                self.config_relations.prefetch_related(
+                    "vpnclient_set",
+                    "templates",
                 )
-            )
-            # flag all related configs as modified with 1 update query
-            self.config_relations.exclude(status="modified").update(status="modified")
-            # the following loop should not take too long
-            for config in self.config_relations.select_related("device").iterator():
-                # config modified signal sent regardless
+                .select_related("device", "device__organization__config_settings")
+                .iterator(chunk_size=1000)
+            ):
+                config.update_status_if_checksum_changed(
+                    send_config_modified_signal=False
+                )
                 config._send_config_modified_signal(action="related_template_changed")
-                # config status changed signal sent only if status changed
-                if config.pk in changing_status:
-                    config._send_config_status_changed_signal()
 
     def _auto_add_to_existing_configs(self):
         """
