@@ -149,7 +149,7 @@ class Ssh(object):
                     auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
                     banner_timeout=app_settings.SSH_BANNER_TIMEOUT,
                     timeout=app_settings.SSH_CONNECTION_TIMEOUT,
-                    **params
+                    **params,
                 )
             except paramiko.ssh_exception.AuthenticationException as e:
                 # the authentication failure may be caused by the issue
@@ -207,7 +207,7 @@ class Ssh(object):
         if not stdout.channel.status_event.wait(
             timeout=timeout - (time.perf_counter() - start_cmd)
         ):
-            log_message = "Command timeout exceeded."
+            log_message = f"Command timed out after {timeout} seconds."
             logger.info(log_message)
             raise CommandTimeoutException(log_message)
 

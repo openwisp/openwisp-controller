@@ -79,7 +79,7 @@ def launch_command(command_id):
         command.save()
     except CommandTimeoutException as e:
         command.status = "failed"
-        command._add_output(_(f"{e}"))
+        command._add_output(_(f"The command took longer than expected: {e}"))
         command.save()
     except Exception as e:
         logger.exception(

@@ -79,7 +79,7 @@ class TestSsh(CreateConnectionsMixin, TestCase):
         with self.assertRaises(Exception) as ctx:
             # timeout of 0.0 is a special case in paramiko -> we check for 0.01 instead
             dc.connector_instance.exec_command("sleep 1", timeout=0.01)
-        log_message = "Command timeout exceeded."
+        log_message = "Command timed out after 0.01 seconds."
         mocked_info.assert_has_calls([mock.call(log_message)])
         self.assertEqual(str(ctx.exception), log_message)
 
