@@ -232,7 +232,7 @@ class TestConfig(
             with patch.object(base_config_logger, "debug") as mocked_debug:
                 c.get_cached_checksum.invalidate(c)
                 self.assertEqual(len(c.get_cached_checksum()), 32)
-                mocked_debug.assert_called_once()
+                mocked_debug.assert_not_called()
 
         with self.subTest(
             "ensure fresh checksum is NOT calculated when cache is present"
@@ -257,6 +257,15 @@ class TestConfig(
                 old_checksum = c.checksum
                 template = self._create_template()
                 c.templates.add(template)
+                del c.backend_instance
+                self.assertNotEqual(c.checksum, old_checksum)
+                self.assertEqual(c.get_cached_checksum(), c.checksum)
+                mocked_debug.assert_called_once()
+
+        with self.subTest("cache invalidation works when config is deactivated"):
+            with patch.object(base_config_logger, "debug") as mocked_debug:
+                old_checksum = c.checksum
+                c.deactivate()
                 del c.backend_instance
                 self.assertNotEqual(c.checksum, old_checksum)
                 self.assertEqual(c.get_cached_checksum(), c.checksum)
@@ -828,8 +837,15 @@ class TestConfig(
 
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
-        with self.assertNumQueries(10):
-            config._check_changes()
+        with self.subTest("No changes made to the config object"):
+            with self.assertNumQueries(3):
+                config._check_changes()
+
+        with self.subTest("Changes made to the config object"):
+            config.templates.add(self._create_template())
+            config.config = {"general": {"description": "test"}}
+            with self.assertNumQueries(4):
+                config._check_changes()
 
     def test_config_get_system_context(self):
         config = self._create_config(

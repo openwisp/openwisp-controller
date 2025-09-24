@@ -586,7 +586,7 @@ class TestTemplateTransaction(
             with catch_signal(config_status_changed) as handler:
                 t.config["interfaces"][0]["name"] = "eth2"
                 t.full_clean()
-                with self.assertNumQueries(10):
+                with self.assertNumQueries(13):
                     t.save()
                 c.refresh_from_db()
                 handler.assert_not_called()
@@ -594,9 +594,13 @@ class TestTemplateTransaction(
 
     def test_config_modified_signal(self):
         conf = self._create_config(device=self._create_device(name="test-status"))
+        # The templates should have different configurations, otherwise the checksum
+        # will not changed while removing only one of the templates.
         template1 = self._create_template(name="t1")
         template2 = self._create_template(
-            name="t2", organization=conf.device.organization
+            name="t2",
+            organization=conf.device.organization,
+            config={"interfaces": [{"name": "eth1", "type": "ethernet"}]},
         )
         self.assertEqual(conf.status, "modified")
         # refresh instance to reset _just_created attribute
@@ -643,6 +647,13 @@ class TestTemplateTransaction(
                 handler.assert_not_called()
             conf.refresh_from_db()
             self.assertEqual(conf.status, "applied")
+
+        # Since post_clear is ignored, we need manually update the
+        # checksum_db field.
+        conf._invalidate_backend_instance_cache()
+        conf.checksum_db = conf.checksum
+        conf.save()
+        conf.refresh_from_db()
 
         with self.subTest("post_add and previous_status=applied"):
             with catch_signal(config_modified) as handler:
@@ -709,6 +720,31 @@ class TestTemplateTransaction(
                     action="related_template_changed",
                 )
                 self.assertEqual(conf.status, "modified")
+
+    def test_config_status_after_template_variables_change(self):
+        template = self._create_template(
+            default_values={"type": "ethernet"},
+            config={"interfaces": [{"name": "eth0", "type": "{{ type }}"}]},
+            default=True,
+        )
+        config = self._create_config(
+            device=self._create_device(name="test-status"), context={"type": "virtual"}
+        )
+        config.set_status_applied()
+        config.refresh_from_db()
+        self.assertEqual(config.status, "applied")
+
+        config._invalidate_backend_instance_cache()
+
+        template.default_values["type"] = "virtual"
+        template.full_clean()
+        template.save()
+
+        # The configuration status should not change because the device
+        # is overriding Template.default_value
+        config.refresh_from_db()
+        config._invalidate_backend_instance_cache()
+        self.assertEqual(config.status, "applied")
 
     @mock.patch.object(update_template_related_config_status, "delay")
     def test_task_called(self, mocked_task):
