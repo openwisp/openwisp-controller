@@ -3,6 +3,7 @@ import logging
 import re
 from collections import defaultdict
 
+from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
@@ -100,8 +101,15 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},
     )
+    checksum_db = models.CharField(
+        _("configuration checksum"),
+        max_length=32,
+        blank=True,
+        null=True,
+        help_text=_("Checksum of the generated configuration."),
+    )
 
-    _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 10 days
+    _CHECKSUM_CACHE_TIMEOUT = ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT
     _config_context_functions = list()
     _old_backend = None
 
@@ -150,6 +158,32 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         (kept for backward compatibility with pre 0.6 versions)
         """
         return self.device.key
+
+    @cache_memoize(
+        timeout=ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT,
+        args_rewrite=get_cached_args_rewrite,
+    )
+    def get_cached_checksum(self):
+        """
+        Returns the cached configuration checksum.
+
+        Unlike `ChecksumCacheMixin.get_cached_checksum`, this returns the
+        value from the `checksum_db` field instead of recalculating it.
+        """
+        self.refresh_from_db(fields=["checksum_db"])
+        return self.checksum_db
+
+    @classmethod
+    def bulk_invalidate_get_cached_checksum(cls, query_params):
+        """
+        Bulk invalidates cached configuration checksums for matching instances
+
+        Sets status to modified if the configuration of the instance has changed.
+        """
+        for instance in cls.objects.only("id").filter(**query_params).iterator():
+            has_changed = instance.update_status_if_checksum_changed()
+            if has_changed:
+                instance.invalidate_checksum_cache()
 
     @classmethod
     def get_template_model(cls):
@@ -276,9 +310,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             if not instance._just_created:
                 # sends only config modified signal
                 instance._send_config_modified_signal(action="m2m_templates_changed")
-            if instance.status != "modified":
-                # sends both status modified and config modified signals
-                instance.set_status_modified(send_config_modified_signal=False)
+            instance.update_status_if_checksum_changed(
+                send_config_modified_signal=False
+            )
 
     @classmethod
     def manage_vpn_clients(cls, action, instance, pk_set, **kwargs):
@@ -443,7 +477,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         except ObjectDoesNotExist:
             return
         else:
-            transaction.on_commit(config.set_status_modified)
+            transaction.on_commit(config.update_status_if_checksum_changed)
 
     @classmethod
     def register_context_function(cls, func):
@@ -539,7 +573,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     def save(self, *args, **kwargs):
         created = self._state.adding
         # check if config has been modified (so we can emit signals)
-        if not created:
+        if created:
+            self.checksum_db = self.checksum
+        else:
             self._check_changes()
         self._just_created = created
         result = super().save(*args, **kwargs)
@@ -584,15 +620,63 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if self.backend != current.backend:
             # storing old backend to send backend change signal after save
             self._old_backend = current.backend
-        if hasattr(self, "backend_instance"):
-            del self.backend_instance
-        if self.checksum != current.checksum:
+        self.update_status_if_checksum_changed(
+            save=False,
+        )
+
+    def update_status_if_checksum_changed(
+        self, save=True, update_checksum_db=True, send_config_modified_signal=True
+    ):
+        """
+        Updates the instance status if its checksum has changed.
+
+        Returns:
+            bool: True if the checksum changed and an update was applied,
+            False otherwise.
+        """
+        checksum_changed = self._has_configuration_checksum_changed()
+        if checksum_changed:
+            self.checksum_db = self.checksum
             if self.status != "modified":
-                self.set_status_modified(save=False)
+                self.set_status_modified(
+                    save=save,
+                    send_config_modified_signal=send_config_modified_signal,
+                    extra_update_fields=["checksum_db"],
+                )
             else:
-                # config modified signal is always sent
-                # regardless of the current status
-                self._send_config_modified_after_save = True
+                if update_checksum_db:
+                    self._update_checksum_db(new_checksum=self.checksum_db)
+                if send_config_modified_signal:
+                    self._send_config_modified_after_save = True
+            self.invalidate_checksum_cache()
+        return checksum_changed
+
+    def _has_configuration_checksum_changed(self):
+        """
+        Determines whether the config checksum has changed
+
+        Returns True if:
+        - No checksum_db exists (first time)
+        - Current checksum differs from checksum_db
+
+        Returns False if:
+        - Current checksum is the same as checksum_db
+        """
+        if self.checksum_db is None:
+            # First time or no database checksum, should update
+            return True
+        self._invalidate_backend_instance_cache()
+        return self.checksum_db != self.checksum
+
+    def _update_checksum_db(self, new_checksum=None):
+        """
+        Updates checksum_db field in the database
+
+        It does not call save() to avoid sending signals
+        and updating other fields.
+        """
+        new_checksum = new_checksum or self.checksum
+        self._meta.model.objects.filter(pk=self.pk).update(checksum_db=new_checksum)
 
     def _send_config_modified_signal(self, action):
         """
@@ -668,10 +752,12 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if save:
             self.save(update_fields=update_fields)
 
-    def set_status_modified(self, save=True, send_config_modified_signal=True):
+    def set_status_modified(
+        self, save=True, send_config_modified_signal=True, extra_update_fields=None
+    ):
         if send_config_modified_signal:
             self._send_config_modified_after_save = True
-        self._set_status("modified", save)
+        self._set_status("modified", save, extra_update_fields=extra_update_fields)
 
     def set_status_applied(self, save=True):
         self._set_status("applied", save)
@@ -697,12 +783,22 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         # Invalidate cached property before checking checksum.
         self._invalidate_backend_instance_cache()
-        old_checksum = self.checksum
+        old_checksum = self.checksum_db
+        # Don't alter the order of the following steps.
+        # We need to set the status to deactivating before clearing the templates
+        # otherwise, the "enforce_required_templates" and "add_default_templates"
+        # methods would re-add required/default templates.
+        # The "templates_changed" receiver skips post_clear action. Thus,
+        # we need to update the checksum_db field manually and invalidate
+        # the cache.
         self.config = {}
-        self.set_status_deactivating()
+        self.set_status_deactivating(save=False)
         self.templates.clear()
-        del self.backend_instance
-        if old_checksum == self.checksum:
+        self._invalidate_backend_instance_cache()
+        self.checksum_db = self.checksum
+        self.invalidate_checksum_cache()
+        self.save()
+        if old_checksum == self.checksum_db:
             # Accelerate deactivation if the configuration remains
             # unchanged (i.e. empty configuration)
             self.set_status_deactivated()
