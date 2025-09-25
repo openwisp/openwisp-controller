@@ -82,6 +82,6 @@ endpoints and in the :ref:`Device List <device_list_estimated_filters>`.
 Managing Older Estimated Locations
 ----------------------------------
 
-Whenever location related fields in WHOIS record are updated as per
+Whenever location related fields in WHOIS records are updated as per
 :ref:`Managing WHOIS Older Records <whois_older_records>`; the location
 will also be updated automatically.

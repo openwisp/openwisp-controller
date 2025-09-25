@@ -14,6 +14,7 @@ from swapper import load_model
 from openwisp_controller.config import settings as app_settings
 
 from .tasks import fetch_whois_details, manage_estimated_locations
+from .utils import send_whois_task_notification
 
 EXCEPTION_MESSAGES = {
     errors.AddressNotFoundError: _(
@@ -42,7 +43,7 @@ class WHOISService:
         self.device = device
 
     @staticmethod
-    def geoip_client():
+    def get_geoip_client():
         """
         Used to get a GeoIP2 web service client instance.
         Host is based on the db that is used to fetch the details.
@@ -157,11 +158,9 @@ class WHOISService:
         Fetch WHOIS details for a given IP address and return only
         the relevant information.
         """
-        ip_client = self.geoip_client()
-
+        ip_client = self.get_geoip_client()
         try:
             data = ip_client.city(ip_address=ip_address)
-
         # Catching all possible exceptions raised by the geoip2 client
         # and raising them with appropriate messages to be handled by the task
         # retry mechanism.
@@ -178,7 +177,6 @@ class WHOISService:
             raise exc_type(message)
         except requests.RequestException as e:
             raise e
-
         else:
             # The attributes are always present in the response,
             # but they can be None, so added fallbacks.
@@ -216,11 +214,9 @@ class WHOISService:
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
             return False
-
         whois_obj = self._get_whois_info_from_db(ip_address=new_ip).first()
         if whois_obj and not self.is_older(whois_obj.modified):
             return False
-
         return self.is_whois_enabled
 
     def _need_estimated_location_management(self, new_ip):
@@ -230,10 +226,8 @@ class WHOISService:
         """
         if not self.is_valid_public_ip_address(new_ip):
             return False
-
         if not self.is_whois_enabled:
             return False
-
         return self.is_estimated_location_enabled
 
     def get_device_whois_info(self):
@@ -279,9 +273,58 @@ class WHOISService:
         ip_address = self.device.last_ip
         if not self.is_valid_public_ip_address(ip_address):
             return
-
         if not self.is_whois_enabled:
             return
         whois_obj = WHOISService._get_whois_info_from_db(ip_address=ip_address).first()
         if whois_obj and self.is_older(whois_obj.modified):
             fetch_whois_details.delay(device_pk=self.device.pk, initial_ip_address=None)
+
+    def _create_or_update_estimated_location(
+        self, location_defaults, attached_devices_exists
+    ):
+        """
+        Create or update estimated location for the device based on the
+        given location defaults.
+        """
+        Location = load_model("geo", "Location")
+        DeviceLocation = load_model("geo", "DeviceLocation")
+
+        if not (device_location := getattr(self.device, "devicelocation", None)):
+            device_location = DeviceLocation(content_object=self.device)
+
+        current_location = device_location.location
+
+        if not current_location or (
+            attached_devices_exists and current_location.is_estimated
+        ):
+            with transaction.atomic():
+                current_location = Location(**location_defaults, is_estimated=True)
+                current_location.full_clean()
+                current_location.save(_set_estimated=True)
+                device_location.location = current_location
+                device_location.full_clean()
+                device_location.save()
+                send_whois_task_notification(
+                    device_pk=self.device.pk,
+                    notify_type="estimated_location_created",
+                    actor=current_location,
+                )
+        elif current_location.is_estimated:
+            update_fields = []
+            for attr, value in location_defaults.items():
+                if getattr(current_location, attr) != value:
+                    setattr(current_location, attr, value)
+                    update_fields.append(attr)
+            if update_fields:
+                with transaction.atomic():
+                    current_location.save(
+                        update_fields=update_fields, _set_estimated=True
+                    )
+
+                send_whois_task_notification(
+                    device_pk=self.device.pk,
+                    notify_type="estimated_location_updated",
+                    actor=current_location,
+                )
+
+        return current_location
