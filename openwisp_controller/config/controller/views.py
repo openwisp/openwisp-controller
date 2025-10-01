@@ -190,14 +190,6 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         """
         cls.invalidate_get_device_cache(instance=instance.device, **kwargs)
 
-    @classmethod
-    def invalidate_checksum_cache(cls, instance, device, **kwargs):
-        """
-        Called from signal receiver which performs cache invalidation
-        """
-        instance.get_cached_checksum.invalidate(instance)
-        logger.debug(f"invalidated checksum cache for device ID {device.pk}")
-
 
 class DeviceDownloadConfigView(GetDeviceView):
     """

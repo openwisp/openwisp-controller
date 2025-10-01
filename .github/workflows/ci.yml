@@ -88,13 +88,7 @@ jobs:
 
       - name: Tests
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
-        run: |
-          coverage run runtests.py --parallel || coverage run ./runtests.py
-          # tests the extension capability
-          SAMPLE_APP=1 coverage run ./runtests.py --parallel --keepdb --exclude-tag=selenium_tests \
-            || SAMPLE_APP=1 coverage run ./runtests.py --keepdb --exclude-tag=selenium_tests
-          coverage combine
-          coverage xml
+        run: ./runtests
         env:
           SELENIUM_HEADLESS: 1
           GECKO_LOG: 1

@@ -23,8 +23,6 @@ from . import settings as app_settings
 from .signals import (
     config_backend_changed,
     config_deactivated,
-    config_deactivating,
-    config_modified,
     device_group_changed,
     device_name_changed,
     group_templates_changed,
@@ -286,14 +284,6 @@ class ConfigConfig(AppConfig):
         config_deactivated.connect(
             DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated,
             dispatch_uid="config_deactivated_invalidate_get_device_cache",
-        )
-        config_deactivating.connect(
-            DeviceChecksumView.invalidate_checksum_cache,
-            dispatch_uid="config_deactivated_invalidate_get_device_cache",
-        )
-        config_modified.connect(
-            DeviceChecksumView.invalidate_checksum_cache,
-            dispatch_uid="invalidate_checksum_cache",
         )
         # VPN cache invalidation
         post_save.connect(
