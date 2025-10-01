@@ -8,16 +8,29 @@ def populate_checksum_db(apps, schema_editor):
     """
     Populate checksum_db field with current checksum values
     for existing Config objects.
+
+    We don't want to change the Config.status when populating this field,
+    hence we use Config.objects.bulk_update() instead of
+    Config.update_status_if_checksum_changed().
     """
     Config = load_model("config", "Config")
+    chunk_size = 100
+    updated_configs = []
     qs = (
         Config.objects.prefetch_related("vpnclient_set", "templates")
         .select_related("device", "device__organization__config_settings")
         .filter(checksum_db__isnull=True)
-        .iterator(chunk_size=100)
+        .iterator(chunk_size=chunk_size)
     )
     for config in qs:
-        config.update_status_if_checksum_changed()
+        config.checksum_db = config.checksum
+        updated_configs.append(config)
+        if len(updated_configs) >= chunk_size:
+            Config.objects.bulk_update(updated_configs, ["checksum_db"])
+            updated_configs = []
+
+    if updated_configs:
+        Config.objects.bulk_update(updated_configs, ["checksum_db"])
 
 
 class Migration(migrations.Migration):
