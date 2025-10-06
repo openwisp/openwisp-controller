@@ -32,8 +32,6 @@ def _handle_attach_existing_location(
         existing_location = existing_device_location.location
         # We need to remove existing estimated location of the device
         # if it is not shared
-        if attached_devices_exists is False:
-            current_location.delete()
         device_location.location = existing_location
         device_location.full_clean()
         device_location.save()
@@ -41,8 +39,10 @@ def _handle_attach_existing_location(
             f"Estimated location saved successfully for {device.pk}"
             f" for IP: {ip_address}"
         )
+        if attached_devices_exists is False:
+            current_location.delete()
         send_whois_task_notification(
-            device_pk=device.pk,
+            device=device,
             notify_type="estimated_location_updated",
             actor=existing_location,
         )
@@ -94,23 +94,19 @@ def manage_estimated_locations(device_pk, ip_address):
     Device = load_model("config", "Device")
     DeviceLocation = load_model("geo", "DeviceLocation")
 
-    device = (
-        Device.objects.select_related("devicelocation__location", "organization")
-        .only("organization_id", "devicelocation")
-        .get(pk=device_pk)
-    )
+    device = Device.objects.select_related("devicelocation__location").get(pk=device_pk)
 
     devices_with_location = (
-        Device.objects.select_related("devicelocation")
+        Device.objects.only("devicelocation")
+        .select_related("devicelocation__location")
         .filter(organization_id=device.organization_id)
         .filter(last_ip=ip_address, devicelocation__location__isnull=False)
         .exclude(pk=device.pk)
     )
-    # If there are multiple devices with same last_ip then we need to inform
-    # the user to resolve the conflict manually.
+
     if devices_with_location.count() > 1:
         send_whois_task_notification(
-            device_pk=device.pk, notify_type="estimated_location_error"
+            device=device, notify_type="estimated_location_error"
         )
         logger.error(
             "Multiple devices with locations found with same "

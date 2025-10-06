@@ -305,7 +305,7 @@ class WHOISService:
                 device_location.full_clean()
                 device_location.save()
                 send_whois_task_notification(
-                    device_pk=self.device.pk,
+                    device=self.device,
                     notify_type="estimated_location_created",
                     actor=current_location,
                 )
@@ -322,7 +322,7 @@ class WHOISService:
                     )
 
                 send_whois_task_notification(
-                    device_pk=self.device.pk,
+                    device=self.device,
                     notify_type="estimated_location_updated",
                     actor=current_location,
                 )
