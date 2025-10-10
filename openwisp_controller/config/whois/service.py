@@ -279,6 +279,27 @@ class WHOISService:
         if whois_obj and self.is_older(whois_obj.modified):
             fetch_whois_details.delay(device_pk=self.device.pk, initial_ip_address=None)
 
+    def _create_or_update_whois(self, whois_details, whois_instance=None):
+        """
+        Used to update an existing WHOIS instance; else, creates a new one.
+        Returns the updated or created WHOIS instance along with update fields.
+        """
+        WHOISInfo = load_model("config", "WHOISInfo")
+
+        update_fields = []
+        if whois_instance:
+            for attr, value in whois_details.items():
+                if getattr(whois_instance, attr) != value:
+                    update_fields.append(attr)
+                    setattr(whois_instance, attr, value)
+            if update_fields:
+                whois_instance.save(update_fields=update_fields)
+        else:
+            whois_instance = WHOISInfo(**whois_details)
+            whois_instance.full_clean()
+            whois_instance.save(force_insert=True)
+        return whois_instance, update_fields
+
     def _create_or_update_estimated_location(
         self, location_defaults, attached_devices_exists
     ):

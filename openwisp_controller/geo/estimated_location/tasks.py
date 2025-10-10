@@ -30,8 +30,6 @@ def _handle_attach_existing_location(
         )
     if existing_device_location:
         existing_location = existing_device_location.location
-        # We need to remove existing estimated location of the device
-        # if it is not shared
         device_location.location = existing_location
         device_location.full_clean()
         device_location.save()
@@ -39,6 +37,8 @@ def _handle_attach_existing_location(
             f"Estimated location saved successfully for {device.pk}"
             f" for IP: {ip_address}"
         )
+        # We need to remove existing estimated location of the device
+        # if it is not shared
         if attached_devices_exists is False:
             current_location.delete()
         send_whois_task_notification(

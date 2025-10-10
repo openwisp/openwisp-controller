@@ -31,28 +31,6 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
-def _manage_whois_record(whois_details, whois_instance=None):
-    """
-    Used to update an existing WHOIS instance; else, creates a new one.
-    Returns the updated or created WHOIS instance along with update fields.
-    """
-    WHOISInfo = load_model("config", "WHOISInfo")
-
-    update_fields = []
-    if whois_instance:
-        for attr, value in whois_details.items():
-            if getattr(whois_instance, attr) != value:
-                update_fields.append(attr)
-                setattr(whois_instance, attr, value)
-        if update_fields:
-            whois_instance.save(update_fields=update_fields)
-    else:
-        whois_instance = WHOISInfo(**whois_details)
-        whois_instance.full_clean()
-        whois_instance.save(force_insert=True)
-    return whois_instance, update_fields
-
-
 # device_pk is used when task fails to report for which device failure occurred
 @shared_task(
     bind=True,
@@ -78,7 +56,9 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             return
 
         fetched_details = WHOISService.process_whois_details(new_ip_address)
-        whois_obj, update_fields = _manage_whois_record(fetched_details, whois_obj)
+        whois_obj, update_fields = WHOISService._create_or_update_whois(
+            fetched_details, whois_obj
+        )
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
 
         if device._get_organization__config_settings().estimated_location_enabled:
