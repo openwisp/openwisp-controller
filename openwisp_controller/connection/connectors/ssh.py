@@ -186,7 +186,6 @@ class Ssh(object):
         """
         # paramiko expects timeout as a float
         timeout = float(timeout)
-
         logger.info("Executing command: {0}".format(command))
         # execute commmand
         try:
@@ -200,7 +199,6 @@ class Ssh(object):
         except Exception as e:
             logger.exception(e)
             raise e
-
         # workaround https://github.com/paramiko/paramiko/issues/1815
         # workaround https://github.com/paramiko/paramiko/issues/1787
         # Ref. https://docs.paramiko.org/en/stable/api/channel.html#paramiko.channel.Channel.recv_exit_status  # noqa
@@ -210,7 +208,6 @@ class Ssh(object):
             log_message = f"Command timed out after {timeout} seconds."
             logger.info(log_message)
             raise CommandTimeoutException(log_message)
-
         exit_status = stdout.channel.exit_status
         # log standard output
         # try to decode to UTF-8, ignoring unconvertible characters
