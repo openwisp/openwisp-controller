@@ -16,14 +16,14 @@ Estimated Location
 Overview
 --------
 
-The Estimated Location feature automatically creates or updates a device’s
-location based on latitude and longitude information retrieved from the
-WHOIS Lookup feature.
+This feature automatically creates or updates a device’s location based on
+latitude and longitude information retrieved from the WHOIS Lookup
+feature.
 
 Trigger Conditions
 ------------------
 
-Estimated Location is triggered when:
+This feature is triggered when:
 
 - A **fresh WHOIS lookup** is performed for a device.
 - Or when a WHOIS record already exists for the device’s IP **and**:
@@ -78,3 +78,10 @@ In REST API, the field will be visible in the :ref:`Device Location
 <location_geojson_estimated>` if the feature is **enabled**. The field can
 also be used for filtering in the location list (including geojson)
 endpoints and in the :ref:`Device List <device_list_estimated_filters>`.
+
+Managing Older Estimated Locations
+----------------------------------
+
+Whenever location related fields in WHOIS records are updated as per
+:ref:`Managing WHOIS Older Records <whois_older_records>`; the location
+will also be updated automatically.
