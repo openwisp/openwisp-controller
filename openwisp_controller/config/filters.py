@@ -18,6 +18,8 @@ class GroupFilter(MultitenantRelatedOrgFilter):
     title = _("group")
     field_name = "group"
     parameter_name = "group_id"
+    widget_attrs = MultitenantRelatedOrgFilter.widget_attrs.copy()
+    widget_attrs.update({"data-empty-label": "-"})
 
 
 class DeviceGroupFilter(admin.SimpleListFilter):
