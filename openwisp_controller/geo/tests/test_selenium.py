@@ -1,6 +1,6 @@
+from channels.testing import ChannelsLiveServerTestCase
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
 from django_loci.tests import TestAdminMixin
@@ -22,7 +22,10 @@ DeviceLocation = load_model("geo", "DeviceLocation")
 # these tests are for geo elements on device admin
 @tag("selenium_tests")
 class TestDeviceAdminGeoSelenium(
-    BaseTestDeviceAdminSelenium, TestOrganizationMixin, StaticLiveServerTestCase
+    TestGeoMixin,
+    BaseTestDeviceAdminSelenium,
+    TestOrganizationMixin,
+    ChannelsLiveServerTestCase,
 ):
     app_label = "geo"
     object_model = Device
@@ -66,7 +69,7 @@ class TestDeviceAdminReadonly(
     TestGeoMixin,
     TestAdminMixin,
     SeleniumTestMixin,
-    StaticLiveServerTestCase,
+    ChannelsLiveServerTestCase,
 ):
     browser = "chrome"
     app_label = "geo"
