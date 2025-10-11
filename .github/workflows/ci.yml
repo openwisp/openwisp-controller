@@ -79,9 +79,9 @@ jobs:
           pip install -U -e .
           pip install ${{ matrix.django-version }}
 
-      - name: Start postgres and redis
+      - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
-        run: docker compose up -d postgres redis
+        run: docker compose up -d redis
 
       - name: QA checks
         run: ./run-qa-checks
