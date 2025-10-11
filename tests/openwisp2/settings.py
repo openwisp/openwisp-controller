@@ -142,6 +142,8 @@ TEMPLATES = [
     }
 ]
 
+LEAFLET_CONFIG = {"RESET_VIEW": False}
+
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 EMAIL_PORT = "1025"  # for testing purposes
