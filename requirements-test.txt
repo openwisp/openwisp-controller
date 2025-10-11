@@ -3,4 +3,3 @@ openwisp-utils[qa,selenium,channels-test] @ https://github.com/openwisp/openwisp
 django_redis~=6.0.0
 mock-ssh-server~=0.9.1
 responses~=0.25.8
-psycopg2-binary~=2.9.10
