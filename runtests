@@ -1,13 +1,18 @@
 #!/bin/bash
 set -e
 
-# standard tests
-coverage run runtests.py --parallel \
+echo "Starting standard tests"
+coverage run runtests.py --parallel --exclude-tag=selenium_tests \
   || coverage run ./runtests.py
-# tests the extension capability
+
+echo "Starting standard tests"
+coverage run runtests.py --tag=selenium_tests --no-input --exclude-pytest
+
+echo "Starting tests for extensibility"
 SAMPLE_APP=1 coverage run ./runtests.py \
   --parallel --exclude-tag=selenium_tests \
   || SAMPLE_APP=1 coverage run ./runtests.py \
   --exclude-tag=selenium_tests
+
 coverage combine
 coverage xml

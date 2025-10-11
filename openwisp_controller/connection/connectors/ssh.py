@@ -1,5 +1,6 @@
 import logging
 import socket
+import time
 from io import BytesIO, StringIO
 
 import paramiko
@@ -10,7 +11,7 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from scp import SCPClient
 
 from .. import settings as app_settings
-from .exceptions import CommandFailedException
+from .exceptions import CommandFailedException, CommandTimeoutException
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +149,7 @@ class Ssh(object):
                     auth_timeout=app_settings.SSH_AUTH_TIMEOUT,
                     banner_timeout=app_settings.SSH_BANNER_TIMEOUT,
                     timeout=app_settings.SSH_CONNECTION_TIMEOUT,
-                    **params
+                    **params,
                 )
             except paramiko.ssh_exception.AuthenticationException as e:
                 # the authentication failure may be caused by the issue
@@ -183,9 +184,12 @@ class Ssh(object):
         - aborts on exceptions
         - raises socket.timeout exceptions
         """
+        # paramiko expects timeout as a float
+        timeout = float(timeout)
         logger.info("Executing command: {0}".format(command))
         # execute commmand
         try:
+            start_cmd = time.perf_counter()
             stdin, stdout, stderr = self.shell.exec_command(command, timeout=timeout)
         # re-raise socket.timeout to avoid being catched
         # by the subsequent `except Exception as e` block
@@ -195,8 +199,16 @@ class Ssh(object):
         except Exception as e:
             logger.exception(e)
             raise e
-        # store command exit status
-        exit_status = stdout.channel.recv_exit_status()
+        # workaround https://github.com/paramiko/paramiko/issues/1815
+        # workaround https://github.com/paramiko/paramiko/issues/1787
+        # Ref. https://docs.paramiko.org/en/stable/api/channel.html#paramiko.channel.Channel.recv_exit_status  # noqa
+        if not stdout.channel.status_event.wait(
+            timeout=timeout - (time.perf_counter() - start_cmd)
+        ):
+            log_message = f"Command timed out after {timeout} seconds."
+            logger.info(log_message)
+            raise CommandTimeoutException(log_message)
+        exit_status = stdout.channel.exit_status
         # log standard output
         # try to decode to UTF-8, ignoring unconvertible characters
         # https://docs.python.org/3/howto/unicode.html#the-string-type

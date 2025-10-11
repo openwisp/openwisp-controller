@@ -37,11 +37,11 @@ Navigate into the cloned repository:
 
     cd openwisp-controller/
 
-Launch Redis and PostgreSQL:
+Launch Redis:
 
 .. code-block:: shell
 
-    docker compose up -d redis postgres
+    docker compose up -d redis
 
 Setup and activate a virtual-environment (we'll be using `virtualenv
 <https://pypi.org/project/virtualenv/>`_):
@@ -98,18 +98,6 @@ Run tests with (make sure you have the :ref:`selenium dependencies
 .. code-block:: shell
 
     ./runtests
-
-Some tests, such as the Selenium UI tests, require a PostgreSQL database
-to run. If you don't have a PostgreSQL database running on your system,
-you can use :ref:`the Docker Compose configuration provided in this
-repository <controller_dev_docker>`. Once set up, you can run these
-specific tests as follows:
-
-.. code-block:: shell
-
-    # Run only specific selenium tests classes
-    cd tests/
-    DJANGO_SETTINGS_MODULE=openwisp2.postgresql_settings ./manage.py test openwisp_controller.config.tests.test_selenium.TestDeviceAdmin
 
 Run quality assurance tests with:
 
