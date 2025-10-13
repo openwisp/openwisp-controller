@@ -124,6 +124,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         self._just_created = False
         self._initial_status = self.status
         self._send_config_modified_after_save = False
+        self._config_modified_action = "config_changed"
         self._send_config_deactivated = False
         self._send_config_deactivating = False
         self._send_config_status_changed = False
@@ -308,10 +309,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             # do not send config modified signal if
             # config instance has just been created
             if not instance._just_created:
-                # sends only config modified signal
-                instance._send_config_modified_signal(action="m2m_templates_changed")
+                instance._config_modified_action = "m2m_templates_changed"
             instance.update_status_if_checksum_changed(
-                send_config_modified_signal=False
+                send_config_modified_signal=not instance._just_created
             )
 
     @classmethod
@@ -587,8 +587,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             self._old_backend = None
         # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
-            self._send_config_modified_signal(action="config_changed")
+            self._send_config_modified_signal(action=self._config_modified_action)
             self._send_config_modified_after_save = False
+            self._config_modified_action = "config_changed"
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
             self._send_config_status_changed = False
