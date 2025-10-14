@@ -281,7 +281,8 @@ configuration variables.
 
     .. code-block:: bash
 
-        ./manage.py clear_cache
+        cd /opt/openwisp2
+        python manage.py clear_cache
 
     System-defined variables can be referenced in VPN, Template, and
     Config objects. When these variables are updated, existing cached
