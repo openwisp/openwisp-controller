@@ -589,9 +589,8 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             self._old_backend = None
         # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
-            self._send_config_modified_signal(action=self._config_modified_action)
+            self._send_config_modified_signal()
             self._send_config_modified_after_save = False
-            self._config_modified_action = "config_changed"
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
             self._send_config_status_changed = False
@@ -651,6 +650,14 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     self._update_checksum_db(new_checksum=self.checksum_db)
                 if send_config_modified_signal:
                     self._send_config_modified_after_save = True
+                    if save:
+                        # When this method is triggered by changes to Config.templates,
+                        # those changes are applied through the related manager rather
+                        # than via Config.save(). As a result, the model's save()
+                        # method (and thus the automatic "config modified" signal)
+                        # is never invoked. To ensure the signal is still emitted,
+                        # we send it explicitly here.
+                        self._send_config_modified_signal()
             self.invalidate_checksum_cache()
         return checksum_changed
 
@@ -695,13 +702,24 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     def _delete_config_modified_timeout_cache(self):
         cache.delete(self._config_modified_timeout_cache_key)
 
-    def _send_config_modified_signal(self, action):
+    def _send_config_modified_signal(self, action=None):
         """
         Emits ``config_modified`` signal.
-        Called also by Template when templates of a device are modified
+
+        A short-lived cache key (``_CONFIG_MODIFIED_TIMEOUT``)
+        prevents emitting duplicate signals inside the same logical window;
+        if that key exists the method returns early without emitting.
+
+        Side effects
+        ------------
+        - Emits the ``config_modified`` Django signal with contextual data.
+        - Resets ``_config_modified_action`` back to ``"config_changed"`` so
+            subsequent calls without an explicit action revert to the default.
+        - Sets the debouncing cache key to avoid duplicate emissions.
         """
-        if cache.get(self._config_modified_timeout_cache_key) is not None:
+        if cache.get(self._config_modified_timeout_cache_key):
             return
+        action = action or self._config_modified_action
         assert action in [
             "config_changed",
             "related_template_changed",
@@ -721,6 +739,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             True,
             timeout=self._CONFIG_MODIFIED_TIMEOUT,
         )
+        self._config_modified_action = "config_changed"
 
     def _send_config_deactivating_signal(self):
         """
