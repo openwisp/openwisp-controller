@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 
 from cache_memoize import cache_memoize
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
@@ -110,6 +111,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     )
 
     _CHECKSUM_CACHE_TIMEOUT = ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT
+    _CONFIG_MODIFIED_TIMEOUT = 3
     _config_context_functions = list()
     _old_backend = None
 
@@ -679,11 +681,27 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         new_checksum = new_checksum or self.checksum
         self._meta.model.objects.filter(pk=self.pk).update(checksum_db=new_checksum)
 
+    @property
+    def _config_modified_timeout_cache_key(self):
+        return f"config_modified_timeout_{self.pk}"
+
+    def _set_config_modified_timeout_cache(self):
+        cache.set(
+            self._config_modified_timeout_cache_key,
+            True,
+            timeout=self._CONFIG_MODIFIED_TIMEOUT,
+        )
+
+    def _delete_config_modified_timeout_cache(self):
+        cache.delete(self._config_modified_timeout_cache_key)
+
     def _send_config_modified_signal(self, action):
         """
         Emits ``config_modified`` signal.
         Called also by Template when templates of a device are modified
         """
+        if cache.get(self._config_modified_timeout_cache_key) is not None:
+            return
         assert action in [
             "config_changed",
             "related_template_changed",
@@ -697,6 +715,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             # kept for backward compatibility
             config=self,
             device=self.device,
+        )
+        cache.set(
+            self._config_modified_timeout_cache_key,
+            True,
+            timeout=self._CONFIG_MODIFIED_TIMEOUT,
         )
 
     def _send_config_deactivating_signal(self):

@@ -54,6 +54,47 @@ DeviceLocation = load_model("geo", "DeviceLocation")
 Group = load_model("openwisp_users", "Group")
 
 
+class TestDeviceAdminMixin:
+    _device_params = {
+        "name": "test-device",
+        "hardware_id": "1234",
+        "mac_address": CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
+        "key": CreateConfigTemplateMixin.TEST_KEY,
+        "model": "",
+        "os": "",
+        "notes": "",
+        "config-0-id": "",
+        "config-0-device": "",
+        "config-0-backend": "netjsonconfig.OpenWrt",
+        "config-0-templates": "",
+        "config-0-config": json.dumps({}),
+        "config-0-context": "",
+        "config-TOTAL_FORMS": 1,
+        "config-INITIAL_FORMS": 0,
+        "config-MIN_NUM_FORMS": 0,
+        "config-MAX_NUM_FORMS": 1,
+        # openwisp_controller.connection
+        "deviceconnection_set-TOTAL_FORMS": 0,
+        "deviceconnection_set-INITIAL_FORMS": 0,
+        "deviceconnection_set-MIN_NUM_FORMS": 0,
+        "deviceconnection_set-MAX_NUM_FORMS": 1000,
+        "command_set-TOTAL_FORMS": 0,
+        "command_set-INITIAL_FORMS": 0,
+        "command_set-MIN_NUM_FORMS": 0,
+        "command_set-MAX_NUM_FORMS": 1000,
+    }
+    # WARNING - WATCHOUT
+    # this class attribute is changed dynamically
+    # by other apps which add inlines to DeviceAdmin
+    _additional_params = {}
+
+    def _get_device_params(self, org):
+        p = self._device_params.copy()
+        p.update(self._additional_params)
+        p["organization"] = org.pk
+        return p
+
+
 class TestImportExportMixin:
     """
     Reused in OpenWISP Monitoring
@@ -237,6 +278,7 @@ class TestAdmin(
     CreateDeviceGroupMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
+    TestDeviceAdminMixin,
     TestAdminMixin,
     TestCase,
 ):
@@ -278,10 +320,6 @@ class TestAdmin(
         "command_set-MIN_NUM_FORMS": 0,
         "command_set-MAX_NUM_FORMS": 1000,
     }
-    # WARNING - WATCHOUT
-    # this class attribute is changed dynamically
-    # by other apps which add inlines to DeviceAdmin
-    _additional_params = {}
 
     def setUp(self):
         self.client.force_login(self._get_admin())
@@ -290,12 +328,6 @@ class TestAdmin(
     def tearDownClass(cls):
         super().tearDownClass()
         devnull.close()
-
-    def _get_device_params(self, org):
-        p = self._device_params.copy()
-        p.update(self._additional_params)
-        p["organization"] = org.pk
-        return p
 
     def test_device_and_template_different_organization(self):
         org1 = self._get_org()
@@ -2251,6 +2283,7 @@ class TestAdmin(
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,
     TestAdminMixin,
+    TestDeviceAdminMixin,
     TransactionTestCase,
 ):
     app_label = "config"
@@ -2568,6 +2601,136 @@ class TestTransactionAdmin(
         # Verify config status is changed to modified.
         self.assertEqual(config.status, "modified")
         self.assertNotEqual(config.checksum, config_checksum)
+
+    def test_config_modified_signal(self):
+        """
+        Verifies multiple config_modified signal is not send for
+        a single change
+        """
+        template1 = self._create_template(
+            default_values={"ssid": "OpenWISP"}, default=True
+        )
+        template2 = self._create_template(
+            name="template2",
+            config={"interfaces": [{"name": "{{ ifname }}", "type": "ethernet"}]},
+            default_values={"ifname": "eth1"},
+            default=True,
+        )
+        path = reverse(f"admin:{self.app_label}_device_add")
+        params = self._get_device_params(org=self._get_org())
+        params.update({"config-0-templates": f"{template1.pk},{template2.pk}"})
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        config = Device.objects.get(name=params["name"]).config
+        self.assertEqual(config.templates.count(), 2)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[config.device_id])
+        params.update(
+            {
+                "config-0-id": str(config.pk),
+                "config-0-device": str(config.device_id),
+                "config-INITIAL_FORMS": 1,
+                "_continue": True,
+            }
+        )
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest(
+            "Updating the unused context variable does not send config_modified signal"
+        ):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                params.update(
+                    {
+                        "config-0-context": json.dumps(
+                            {"ssid": "Updated", "ifname": "eth1"}
+                        )
+                    }
+                )
+                response = self.client.post(path, data=params, follow=True)
+                self.assertEqual(response.status_code, 200)
+                mocked_signal.assert_not_called()
+                config.refresh_from_db()
+                self.assertEqual(config.context["ssid"], "Updated")
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest(
+            "Changing used context variable sends config_modified signal"
+        ):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                params.update(
+                    {
+                        "config-0-context": json.dumps(
+                            {"ssid": "Updated", "ifname": "eth2"}
+                        )
+                    }
+                )
+                response = self.client.post(path, data=params, follow=True)
+                self.assertEqual(response.status_code, 200)
+
+                config.refresh_from_db()
+                self.assertEqual(
+                    config.context["ssid"],
+                    "Updated",
+                )
+                self.assertEqual(config.status, "modified")
+                mocked_signal.assert_called_once()
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest("Changing device configuration sends config_modified signal"):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                params.update(
+                    {
+                        "config-0-config": json.dumps(
+                            {"interfaces": [{"name": "eth5", "type": "ethernet"}]}
+                        )
+                    }
+                )
+                response = self.client.post(path, data=params, follow=True)
+                self.assertEqual(response.status_code, 200)
+                config.refresh_from_db()
+                self.assertEqual(
+                    config.config["interfaces"][0]["name"],
+                    "eth5",
+                )
+                self.assertEqual(config.status, "modified")
+                mocked_signal.assert_called_once()
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest("Changing applied template sends config_modified signal"):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                response = self.client.post(
+                    reverse(
+                        f"admin:{self.app_label}_template_change", args=[template2.pk]
+                    ),
+                    data={
+                        "name": template2.name,
+                        "organization": "",
+                        "type": template2.type,
+                        "backend": template2.backend,
+                        "config": json.dumps(template2.config),
+                        "default_values": json.dumps(
+                            {
+                                "ifname": "eth3",
+                            }
+                        ),
+                        "required": False,
+                        "default": True,
+                        "_continue": True,
+                    },
+                    follow=True,
+                )
+                self.assertEqual(response.status_code, 200)
+                template2.refresh_from_db()
+                self.assertEqual(template2.default_values["ifname"], "eth3")
+                mocked_signal.assert_called_once()
 
 
 class TestDeviceGroupAdmin(

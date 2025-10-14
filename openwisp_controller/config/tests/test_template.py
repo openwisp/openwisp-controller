@@ -606,6 +606,7 @@ class TestTemplateTransaction(
         # refresh instance to reset _just_created attribute
         conf = Config.objects.get(pk=conf.pk)
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("signal sent if config status is already modified"):
             with catch_signal(config_modified) as handler:
                 conf.templates.add(template1, template2)
@@ -623,6 +624,7 @@ class TestTemplateTransaction(
         # reset status
         conf.set_status_applied()
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("signal sent after assigning template to config"):
             with catch_signal(config_modified) as handler:
                 conf.templates.remove(template2)
@@ -641,6 +643,7 @@ class TestTemplateTransaction(
         # reset status
         conf.set_status_applied()
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("post_clear m2m ignored"):
             with catch_signal(config_modified) as handler:
                 conf.templates.clear()
@@ -655,6 +658,7 @@ class TestTemplateTransaction(
         conf.save()
         conf.refresh_from_db()
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("post_add and previous_status=applied"):
             with catch_signal(config_modified) as handler:
                 conf.templates.add(template1, template2)
@@ -674,6 +678,7 @@ class TestTemplateTransaction(
         # reset status
         conf.set_status_applied()
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("test remove/add"):
             with catch_signal(config_modified) as handler:
                 conf.templates.remove(template1, template2)
@@ -686,6 +691,7 @@ class TestTemplateTransaction(
         # reset status
         conf.set_status_applied()
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("signal sent after changing a template"):
             with catch_signal(config_modified) as handler:
                 template1.config["interfaces"][0]["name"] = "eth1"
@@ -703,6 +709,7 @@ class TestTemplateTransaction(
                 conf.refresh_from_db()
                 self.assertEqual(conf.status, "modified")
 
+        conf._delete_config_modified_timeout_cache()
         with self.subTest("signal sent also if config is already in modified status"):
             # status has already changed to modified
             # signal should be triggered anyway
