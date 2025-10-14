@@ -130,6 +130,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         self._send_config_deactivated = False
         self._send_config_deactivating = False
         self._send_config_status_changed = False
+        self._is_enforcing_required_templates = False
 
     def __str__(self):
         if self._has_device():
@@ -304,6 +305,16 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         # execute only after a config has been saved or deleted
         if action not in ["post_add", "post_remove"] or instance._state.adding:
             return
+        if instance._is_enforcing_required_templates:
+            # The required templates are enforced on "post_clear" action and
+            # they are added back using Config.templates.add(). This sends a
+            # m2m_changed signal with the "post_add" action.
+            # At this stage, all templates have not yet been re-added,
+            # so the checksum cannot be accurately evaluated.
+            # Defer checksum validation until a subsequent post_add or
+            # post_remove signal is received.
+            instance._is_enforcing_required_templates = False
+            return
         # use atomic to ensure any code bound to
         # be executed via transaction.on_commit
         # is executed after the whole block
@@ -466,6 +477,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                 )
             )
             if required_templates.exists():
+                instance._is_enforcing_required_templates = True
                 instance.templates.add(
                     *required_templates.order_by("name").values_list("pk", flat=True)
                 )
