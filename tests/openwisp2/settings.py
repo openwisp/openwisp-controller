@@ -14,6 +14,7 @@ DATABASES = {
     "default": {
         "ENGINE": "openwisp_utils.db.backends.spatialite",
         "NAME": os.path.join(BASE_DIR, "openwisp-controller.db"),
+        "OPTIONS": {"timeout": 10},
     }
 }
 if TESTING and "--exclude-tag=selenium_tests" not in sys.argv:
