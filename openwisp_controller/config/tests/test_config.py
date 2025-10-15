@@ -818,7 +818,6 @@ class TestConfig(
             )
             self.assertEqual(c.status, "modified")
 
-        c._delete_config_modified_timeout_cache()
         with catch_signal(config_modified) as handler:
             c.config = {"general": {"description": "changed again"}}
             c.full_clean()

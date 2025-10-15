@@ -2602,9 +2602,10 @@ class TestTransactionAdmin(
         self.assertEqual(config.status, "modified")
         self.assertNotEqual(config.checksum, config_checksum)
 
+    @patch.object(Config, "_CONFIG_MODIFIED_TIMEOUT", 3)
     def test_config_modified_signal(self):
         """
-        Verifies multiple config_modified signal is not send for
+        Verifies multiple config_modified signal are not sent for
         a single change
         """
         required = self._create_template(

@@ -1669,6 +1669,7 @@ class TestConfigApiTransaction(
         self.assertEqual(d1.config.templates.count(), 2)
         self.assertEqual(r.data["config"]["templates"], [t1.id, t2.id])
 
+    @patch.object(Config, "_CONFIG_MODIFIED_TIMEOUT", 3)
     def test_config_modified_signal(self):
         """
         Verifies that config_modified signal is sent only once.
@@ -1694,7 +1695,6 @@ class TestConfigApiTransaction(
         self.assertEqual(config.templates.count(), 2)
         device_detail = reverse("config_api:device_detail", args=[config.device_id])
 
-        config._delete_config_modified_timeout_cache()
         with self.subTest(
             "Updating the unused context variable does not send config_modified signal"
         ):

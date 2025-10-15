@@ -718,9 +718,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         Emits ``config_modified`` signal.
 
-        A short-lived cache key (``_CONFIG_MODIFIED_TIMEOUT``)
-        prevents emitting duplicate signals inside the same logical window;
-        if that key exists the method returns early without emitting.
+        A short-lived cache key prevents emitting duplicate signals inside the
+        same change window; if that key exists the method returns early without
+        emitting the signal again.
 
         Side effects
         ------------

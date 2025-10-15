@@ -959,7 +959,6 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
 
         conf = self._prepare_conf_object()
 
-        conf._delete_config_modified_timeout_cache()
         with self.subTest("Unable to get openwisp-config version"):
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -971,7 +970,6 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.refresh_from_db()
             self.assertEqual(conf.status, "modified")
 
-        conf._delete_config_modified_timeout_cache()
         with self.subTest("openwisp_config >= 0.6.0a"):
             conf.config = '{"dns_servers": []}'
             conf.full_clean()
@@ -987,7 +985,6 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.refresh_from_db()
             self.assertEqual(conf.status, "modified")
 
-        conf._delete_config_modified_timeout_cache()
         with self.subTest("openwisp_config < 0.6.0a: exit_code 0"):
             conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
             conf.full_clean()
@@ -1002,7 +999,6 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.refresh_from_db()
             self.assertEqual(conf.status, "modified")
 
-        conf._delete_config_modified_timeout_cache()
         with self.subTest("openwisp_config < 0.6.0a: exit_code 1"):
             conf.config = '{"radios": []}'
             conf.full_clean()
