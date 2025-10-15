@@ -35,25 +35,22 @@ if __name__ == "__main__":
     # Configure Django settings for test execution
     # (sets Celery to eager mode, configures in-memory channels layer, etc.)
     os.environ.setdefault("TESTING", "1")
-    base_args = sys.argv.copy()[1:]
+    args = sys.argv.copy()[1:]
+    exclude_pytest = "--exclude-pytest" in args
+    if exclude_pytest:
+        args.pop(args.index("--exclude-pytest"))
+    # normal tests vs SAMPLE_APP
     if not os.environ.get("SAMPLE_APP", False):
         test_app = "openwisp_controller"
         app_dir = "openwisp_controller/"
     else:
         test_app = "openwisp2"
         app_dir = "tests/openwisp2/"
-    # Run all tests except Selenium tests using SQLite
-    sqlite_args = ["--exclude-tag", "selenium_tests"] + base_args
-    run_tests(sqlite_args, "openwisp2.settings", test_app)
-
-    # Run Selenium tests using PostgreSQL
-    psql_args = [
-        "--tag",
-        "db_tests",
-        "--tag",
-        "selenium_tests",
-    ] + base_args
-    run_tests(psql_args, "openwisp2.postgresql_settings", test_app)
-
+    # Run Django tests
+    django_tests = run_tests(args, "openwisp2.settings", test_app)
     # Run pytest tests
-    sys.exit(pytest.main([app_dir]))
+    if not exclude_pytest:
+        # Used to test django-channels
+        sys.exit(pytest.main([app_dir]))
+    else:
+        sys.exit(django_tests)

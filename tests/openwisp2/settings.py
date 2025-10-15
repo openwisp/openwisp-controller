@@ -14,8 +14,13 @@ DATABASES = {
     "default": {
         "ENGINE": "openwisp_utils.db.backends.spatialite",
         "NAME": os.path.join(BASE_DIR, "openwisp-controller.db"),
+        "OPTIONS": {"timeout": 10},
     }
 }
+if TESTING and "--exclude-tag=selenium_tests" not in sys.argv:
+    DATABASES["default"]["TEST"] = {
+        "NAME": os.path.join(BASE_DIR, "openwisp-controller-test.db"),
+    }
 
 SPATIALITE_LIBRARY_PATH = "mod_spatialite.so"
 
@@ -138,11 +143,16 @@ TEMPLATES = [
     }
 ]
 
+LEAFLET_CONFIG = {"RESET_VIEW": False}
+
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 EMAIL_PORT = "1025"  # for testing purposes
 LOGIN_REDIRECT_URL = "admin:index"
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
+# disable allauth ratelimiting during automated tests
+if TESTING:
+    ACCOUNT_RATE_LIMITS = False
 OPENWISP_ORGANIZATION_USER_ADMIN = True  # tests will fail without this setting
 OPENWISP_ADMIN_DASHBOARD_ENABLED = True
 OPENWISP_CONTROLLER_GROUP_PIE_CHART = True
