@@ -55,6 +55,7 @@ class CreateDeviceMixin(TestOrganizationMixin):
 
 class CreateConfigMixin(CreateDeviceMixin):
     TEST_KEY = "w1gwJxKaHcamUw62TQIPgYchwLKn3AA0"
+    Config._CONFIG_MODIFIED_TIMEOUT = 0
 
     def _create_config(self, **kwargs):
         options = dict(backend="netjsonconfig.OpenWrt", config={"general": {}})
