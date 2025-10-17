@@ -1,10 +1,14 @@
 import logging
+from time import sleep
 
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404 as base_get_object_or_404
 from django.urls import path, re_path
+from django.utils.translation import gettext as _
+from openwisp_notifications.signals import notify
 from openwisp_notifications.utils import _get_object_link
 
 logger = logging.getLogger(__name__)
@@ -206,3 +210,60 @@ def get_default_templates_queryset(
 def get_config_error_notification_target_url(obj, field, absolute_url=True):
     url = _get_object_link(obj._related_object(field), absolute_url)
     return f"{url}#config-group"
+
+def send_api_task_notification(type, **kwargs):
+    vpn = kwargs.get('instance')
+    action = kwargs.get('action').replace('_', ' ')
+    exception = kwargs.get('exception')
+    # Adding some delay here to prevent overlapping
+    # of the django success message container
+    # with the ow-notification container
+    # https://github.com/openwisp/openwisp-notifications/issues/264 
+    message_map = {
+        'error': {
+            'verb': _('encountered an unrecoverable error'),
+            'message': _(
+                'Unable to perform {action} operation on the '
+                '{target} VPN server due to an '
+                'unrecoverable error '
+                '({error_type})'
+            ),
+            'level': 'error',
+        },
+        'success': {  # renamed from 'recovery' for clarity
+            'verb': _('has been completed successfully'),
+            'message': _('The {action} operation on {target} {verb}.'),
+            'level': 'info',
+        },
+    }
+    meta = message_map[type]
+    notify.send(
+        sender=vpn,
+        target=vpn,
+        type='generic_message',
+        action_object=vpn,
+        verb=meta['verb'],
+        message=meta['message'].format(
+            action=action,
+            target=str(vpn),
+            error_type=exception.__class__.__name__ if exception else '',
+            verb=meta['verb'],
+        ),
+        description=str(exception) if exception else '',
+        level=meta['level'],
+    )
+
+
+def handle_recovery_notification(task_key, **kwargs):
+    task_result = cache.get(task_key)
+    if task_result == 'error':
+        send_api_task_notification('success', **kwargs)
+    # always set the state to success on a successful run
+    cache.set(task_key, 'success', timeout=None)
+
+
+def handle_error_notification(task_key, **kwargs):
+    # only send notification if the previous state was not 'error'
+    if cache.get(task_key) != 'error':
+        cache.set(task_key, 'error', timeout=None)
+        send_api_task_notification('error', **kwargs)
