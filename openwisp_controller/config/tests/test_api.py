@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
 from django.test import TestCase
@@ -1667,3 +1668,104 @@ class TestConfigApiTransaction(
         self.assertEqual(r.status_code, 200)
         self.assertEqual(d1.config.templates.count(), 2)
         self.assertEqual(r.data["config"]["templates"], [t1.id, t2.id])
+
+    @patch.object(Config, "_CONFIG_MODIFIED_TIMEOUT", 3)
+    def test_config_modified_signal(self):
+        """
+        Verifies that config_modified signal is sent only once.
+        """
+        template1 = self._create_template(
+            default_values={"ssid": "OpenWISP"},
+        )
+        template2 = self._create_template(
+            name="template2",
+            config={"interfaces": [{"name": "{{ ifname }}", "type": "ethernet"}]},
+            default_values={"ifname": "eth1"},
+        )
+        data = self._device_data
+        org = self._get_org()
+        data["organization"] = org.pk
+        data["config"]["templates"] = [str(template1.pk), str(template2.pk)]
+        response = self.client.post(
+            reverse("config_api:device_list"), data, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Device.objects.count(), 1)
+        config = Device.objects.first().config
+        self.assertEqual(config.templates.count(), 2)
+        device_detail = reverse("config_api:device_detail", args=[config.device_id])
+
+        with self.subTest(
+            "Updating the unused context variable does not send config_modified signal"
+        ):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                data["config"]["context"]["ssid"] = "Updated"
+                response = self.client.patch(
+                    device_detail,
+                    {"config": data["config"]},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 200)
+                config.refresh_from_db()
+                self.assertEqual(config.context["ssid"], "Updated")
+                mocked_signal.assert_not_called()
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest(
+            "Changing used context variable sends config_modified signal"
+        ):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                data["config"]["context"] = {"ssid": "Updated", "ifname": "eth2"}
+                response = self.client.patch(
+                    device_detail,
+                    {"config": data["config"]},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 200)
+                config.refresh_from_db()
+                self.assertEqual(
+                    config.context["ssid"],
+                    "Updated",
+                )
+                self.assertEqual(config.status, "modified")
+                mocked_signal.assert_called_once()
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest("Changing device configuration sends config_modified signal"):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                data["config"]["config"]["interfaces"] = [
+                    {"name": "eth5", "type": "ethernet"}
+                ]
+                response = self.client.patch(
+                    device_detail, data, content_type="application/json"
+                )
+                self.assertEqual(response.status_code, 200)
+                config.refresh_from_db()
+                self.assertEqual(
+                    config.config["interfaces"][0]["name"],
+                    "eth5",
+                )
+                self.assertEqual(config.status, "modified")
+                mocked_signal.assert_called_once()
+
+        config._delete_config_modified_timeout_cache()
+        with self.subTest("Changing applied template sends config_modified signal"):
+            with patch(
+                "openwisp_controller.config.signals.config_modified.send"
+            ) as mocked_signal:
+                data = {"default_values": {"ifname": "eth3"}}
+                response = self.client.patch(
+                    reverse("config_api:template_detail", args=[template2.pk]),
+                    data,
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 200)
+                template2.refresh_from_db()
+                self.assertEqual(template2.default_values["ifname"], "eth3")
+                mocked_signal.assert_called_once()

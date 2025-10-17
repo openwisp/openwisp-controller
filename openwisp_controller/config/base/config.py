@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 
 from cache_memoize import cache_memoize
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
@@ -110,6 +111,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
     )
 
     _CHECKSUM_CACHE_TIMEOUT = ChecksumCacheMixin._CHECKSUM_CACHE_TIMEOUT
+    _CONFIG_MODIFIED_TIMEOUT = 3
     _config_context_functions = list()
     _old_backend = None
 
@@ -124,9 +126,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         self._just_created = False
         self._initial_status = self.status
         self._send_config_modified_after_save = False
+        self._config_modified_action = "config_changed"
         self._send_config_deactivated = False
         self._send_config_deactivating = False
         self._send_config_status_changed = False
+        self._is_enforcing_required_templates = False
 
     def __str__(self):
         if self._has_device():
@@ -301,6 +305,16 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         # execute only after a config has been saved or deleted
         if action not in ["post_add", "post_remove"] or instance._state.adding:
             return
+        if instance._is_enforcing_required_templates:
+            # The required templates are enforced on "post_clear" action and
+            # they are added back using Config.templates.add(). This sends a
+            # m2m_changed signal with the "post_add" action.
+            # At this stage, all templates have not yet been re-added,
+            # so the checksum cannot be accurately evaluated.
+            # Defer checksum validation until a subsequent post_add or
+            # post_remove signal is received.
+            instance._is_enforcing_required_templates = False
+            return
         # use atomic to ensure any code bound to
         # be executed via transaction.on_commit
         # is executed after the whole block
@@ -308,10 +322,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             # do not send config modified signal if
             # config instance has just been created
             if not instance._just_created:
-                # sends only config modified signal
-                instance._send_config_modified_signal(action="m2m_templates_changed")
+                instance._config_modified_action = "m2m_templates_changed"
             instance.update_status_if_checksum_changed(
-                send_config_modified_signal=False
+                send_config_modified_signal=not instance._just_created
             )
 
     @classmethod
@@ -464,6 +477,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                 )
             )
             if required_templates.exists():
+                instance._is_enforcing_required_templates = True
                 instance.templates.add(
                     *required_templates.order_by("name").values_list("pk", flat=True)
                 )
@@ -587,7 +601,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             self._old_backend = None
         # emit signals if config is modified and/or if status is changing
         if not created and self._send_config_modified_after_save:
-            self._send_config_modified_signal(action="config_changed")
+            self._send_config_modified_signal()
             self._send_config_modified_after_save = False
         if self._send_config_status_changed:
             self._send_config_status_changed_signal()
@@ -648,6 +662,14 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     self._update_checksum_db(new_checksum=self.checksum_db)
                 if send_config_modified_signal:
                     self._send_config_modified_after_save = True
+                    if save:
+                        # When this method is triggered by changes to Config.templates,
+                        # those changes are applied through the related manager rather
+                        # than via Config.save(). As a result, the model's save()
+                        # method (and thus the automatic "config modified" signal)
+                        # is never invoked. To ensure the signal is still emitted,
+                        # we send it explicitly here.
+                        self._send_config_modified_signal()
             self.invalidate_checksum_cache()
         return checksum_changed
 
@@ -678,11 +700,38 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         new_checksum = new_checksum or self.checksum
         self._meta.model.objects.filter(pk=self.pk).update(checksum_db=new_checksum)
 
-    def _send_config_modified_signal(self, action):
+    @property
+    def _config_modified_timeout_cache_key(self):
+        return f"config_modified_timeout_{self.pk}"
+
+    def _set_config_modified_timeout_cache(self):
+        cache.set(
+            self._config_modified_timeout_cache_key,
+            True,
+            timeout=self._CONFIG_MODIFIED_TIMEOUT,
+        )
+
+    def _delete_config_modified_timeout_cache(self):
+        cache.delete(self._config_modified_timeout_cache_key)
+
+    def _send_config_modified_signal(self, action=None):
         """
         Emits ``config_modified`` signal.
-        Called also by Template when templates of a device are modified
+
+        A short-lived cache key prevents emitting duplicate signals inside the
+        same change window; if that key exists the method returns early without
+        emitting the signal again.
+
+        Side effects
+        ------------
+        - Emits the ``config_modified`` Django signal with contextual data.
+        - Resets ``_config_modified_action`` back to ``"config_changed"`` so
+            subsequent calls without an explicit action revert to the default.
+        - Sets the debouncing cache key to avoid duplicate emissions.
         """
+        if cache.get(self._config_modified_timeout_cache_key):
+            return
+        action = action or self._config_modified_action
         assert action in [
             "config_changed",
             "related_template_changed",
@@ -697,6 +746,12 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             config=self,
             device=self.device,
         )
+        cache.set(
+            self._config_modified_timeout_cache_key,
+            True,
+            timeout=self._CONFIG_MODIFIED_TIMEOUT,
+        )
+        self._config_modified_action = "config_changed"
 
     def _send_config_deactivating_signal(self):
         """

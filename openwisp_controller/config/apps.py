@@ -78,15 +78,18 @@ class ConfigConfig(AppConfig):
             sender=self.config_model.templates.through,
             dispatch_uid="config.clean_templates",
         )
-        m2m_changed.connect(
-            self.config_model.templates_changed,
-            sender=self.config_model.templates.through,
-            dispatch_uid="config.templates_changed",
-        )
+        # VPN clients must be created or removed **before**
+        # self.config_model.templates_changed is evaluated, because
+        # the VpnClient context can influence the configuration checksum.
         m2m_changed.connect(
             self.config_model.manage_vpn_clients,
             sender=self.config_model.templates.through,
             dispatch_uid="config.manage_vpn_clients",
+        )
+        m2m_changed.connect(
+            self.config_model.templates_changed,
+            sender=self.config_model.templates.through,
+            dispatch_uid="config.templates_changed",
         )
         # the order of the following connect() call must be maintained
         m2m_changed.connect(

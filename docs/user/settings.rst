@@ -273,6 +273,23 @@ object.
 ``OPENWISP_CONTROLLER_CONTEXT`` can be used to define system-wide
 configuration variables.
 
+.. important::
+
+    After modifying the system-defined variables in
+    ``OPENWISP_CONTROLLER_CONTEXT``, clear the cache to ensure that
+    devices, templates, and VPN receive the updated configuration values:
+
+    .. code-block:: bash
+
+        cd /opt/openwisp2
+        python manage.py clear_cache
+
+    System-defined variables can be referenced in VPN, Template, and
+    Config objects. When these variables are updated, existing cached
+    configurations that depend on them do not automatically reflect the
+    new values. Consequently, devices may continue using outdated
+    configurations unless the cache is cleared.
+
 For more information regarding how to use configuration variables in
 OpenWISP, refer to :doc:`variables`.
 

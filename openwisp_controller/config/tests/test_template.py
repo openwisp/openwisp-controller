@@ -677,6 +677,7 @@ class TestTemplateTransaction(
         with self.subTest("test remove/add"):
             with catch_signal(config_modified) as handler:
                 conf.templates.remove(template1, template2)
+                self.assertEqual(handler.call_count, 1)
                 conf.templates.add(template1, template2)
                 self.assertEqual(handler.call_count, 2)
             conf.refresh_from_db()

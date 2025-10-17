@@ -13,7 +13,12 @@ from openwisp_utils.tests import catch_signal
 from .. import settings as app_settings
 from ..base.base import logger as base_config_logger
 from ..signals import config_backend_changed, config_modified, config_status_changed
-from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestVpnX509Mixin
+from .utils import (
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestVpnX509Mixin,
+    TestWireguardVpnMixin,
+)
 
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
@@ -906,6 +911,7 @@ class TestConfig(
 class TestTransactionConfig(
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
+    TestWireguardVpnMixin,
     TransactionTestCase,
 ):
     def test_multiple_vpn_client_templates_same_vpn(self):
@@ -983,3 +989,14 @@ class TestTransactionConfig(
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()
             self.assertEqual(config.status, "modified")
+
+    def test_checksum_db_accounts_for_vpnclient(self):
+        vpn = self._create_wireguard_vpn()
+        vpn_template = self._create_template(
+            name="vpn1-template", type="vpn", vpn=vpn, config={}
+        )
+        config = self._create_config(organization=self._get_org())
+        config.templates.add(vpn_template)
+        config.refresh_from_db()
+        config._invalidate_backend_instance_cache()
+        self.assertEqual(config.checksum, config.checksum_db)
