@@ -41,10 +41,10 @@ MESSAGE_MAP = {
 }
 
 
-def send_whois_task_notification(device_pk, notify_type, actor=None):
+def send_whois_task_notification(device, notify_type, actor=None):
     Device = load_model("config", "Device")
-
-    device = Device.objects.get(pk=device_pk)
+    if not isinstance(device, Device):
+        device = Device.objects.get(pk=device)
     notify_details = MESSAGE_MAP[notify_type]
     notify.send(
         sender=actor or device,
