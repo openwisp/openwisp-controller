@@ -177,8 +177,8 @@ input.readonly {
 }
 .field-templates .add-related {
   position: relative;
-  bottom: -7px;
-  left: -3px;
+  bottom: -2px;
+  left: -12px;
 }
 #template_form #id_tags {
   width: 261px;
@@ -191,7 +191,7 @@ input.readonly {
 #device_form #id_notes {
   height: 42px;
 }
-#config-group .field-status .help {
+#config-group .field-status .help div {
   white-space: pre;
   color: #777;
 }
@@ -212,7 +212,6 @@ div.change-form #device_form > div > div.inline-group {
   > fieldset.module
   > div.inline-related
   > h3 {
-  border-top: 0 none;
   padding: 1em;
 }
 .change-form
@@ -227,7 +226,11 @@ div.change-form #device_form > div > div.inline-group {
   margin-top: -1em;
 }
 #main .tab-content .inline-related > h3 {
-  background: transparent;
+  background: var(--ow-color-fg-ghost);
+  word-spacing: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  font-weight: normal;
 }
 ul.tabs {
   margin: 0;
@@ -237,19 +240,20 @@ ul.tabs {
 }
 ul.tabs li {
   display: inline-block;
-  margin-right: 4px;
+  margin-right: 3px;
 }
 ul.tabs a,
 ul.tabs a:hover,
 ul.tabs a:focus {
   display: inline-block;
-  padding: 13px 16px;
+  padding: 12px 14px;
   color: #333;
   background: rgba(0, 0, 0, 0.06);
   border-radius: 3px;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
   font-size: 15px;
+  word-spacing: -0.1px;
 }
 ul.tabs a:hover,
 ul.tabs a:focus {
@@ -259,16 +263,19 @@ ul.tabs a:focus {
 ul.tabs a.current,
 ul.tabs a.current:hover,
 ul.tabs a.current:focus {
-  background: #fff;
+  background: var(--ow-color-fg-ghost);
   color: #000;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-bottom: 0 none;
   border-color: rgba(0, 0, 0, 0.25);
   cursor: default;
+  position: relative;
+  z-index: 9;
+  font-weight: bold;
 }
 div.tabs-divider {
   margin-top: -4px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid var(--hairline-color);
 }
 .tab-content {
   display: none;
@@ -282,12 +289,15 @@ div.tabs-divider {
   padding: 17em 0;
   font-size: 16px;
 }
+ul.tabs li:first-child .button.current {
+  background-color: var(--body-bg);
+}
 
 /*
 Prevents the overflow of large text in system
 defined variables such as `secret`
 */
-.form-row.field-system_context {
+.form-row.field-system_context div {
   max-width: 51.25em;
   word-wrap: break-word;
 }

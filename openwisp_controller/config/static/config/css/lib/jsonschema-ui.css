@@ -241,6 +241,7 @@ div[data-schematype="object"]
   > .grid-row
   > .inline-group {
   border-bottom: 1px solid #eee;
+  border-top: 0 none;
 }
 .grid-row > .inline-group > div > .inline-group > div.form-row {
   border: 0 none;
@@ -363,7 +364,7 @@ div[data-schematype="object"]
 .jsoneditor-wrapper div.jsoneditor .grid-column > select {
   position: absolute;
   left: 0;
-  top: 12px;
+  top: 16px;
   z-index: 1;
   font-weight: bold;
 }
@@ -371,6 +372,7 @@ div[data-schematype="object"]
 .jsoneditor-wrapper div.jsoneditor .grid-column > select {
   margin-left: 188px;
   background-color: #fff;
+  top: 12px;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row .grid-column {
   position: relative;
