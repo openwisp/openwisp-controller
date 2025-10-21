@@ -3,6 +3,7 @@ import uuid
 from subprocess import CalledProcessError, TimeoutExpired
 from unittest import mock
 
+import requests
 from celery.exceptions import Retry, SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -728,9 +729,12 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
+    mock_response = mock.Mock(spec=requests.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status = mock.Mock()
+
     @mock.patch(
-        "openwisp_controller.config.tasks.requests.post",
-        return_value=HttpResponse(status=200),
+        "openwisp_controller.config.tasks.requests.post", return_value=mock_response
     )
     def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
@@ -985,9 +989,12 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 class TestVxlanTransaction(
     BaseTestVpn, TestVxlanWireguardVpnMixin, TransactionTestCase
 ):
+    mock_response = mock.Mock(spec=requests.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status = mock.Mock()
+
     @mock.patch(
-        "openwisp_controller.config.tasks.requests.post",
-        return_value=HttpResponse(status=200),
+        "openwisp_controller.config.tasks.requests.post", return_value=mock_response
     )
     def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
