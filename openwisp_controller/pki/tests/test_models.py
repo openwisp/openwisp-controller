@@ -1,7 +1,8 @@
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
-from OpenSSL import crypto
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
@@ -51,9 +52,9 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         ca = self._create_ca()
         response = self.client.get(reverse("admin:crl", args=[ca.pk]))
         self.assertEqual(response.status_code, 200)
-        crl = crypto.load_crl(crypto.FILETYPE_PEM, response.content)
-        revoked_list = crl.get_revoked()
-        self.assertIsNone(revoked_list)
+        crl = x509.load_pem_x509_crl(response.content, default_backend())
+        revoked_list = [cert for cert in crl]
+        self.assertEqual(revoked_list, [])
 
     def test_unique_together_org_none(self):
         ca = self._create_ca(organization=None, common_name="common_name")
