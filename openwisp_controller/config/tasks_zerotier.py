@@ -1,12 +1,8 @@
 import logging
 from http import HTTPStatus
-from time import sleep
 
 from celery import shared_task
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import gettext as _
-from openwisp_notifications.signals import notify
 from requests.exceptions import RequestException
 from swapper import load_model
 

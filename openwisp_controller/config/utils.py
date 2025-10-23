@@ -7,8 +7,6 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404 as base_get_object_or_404
 from django.urls import path, re_path
 from django.utils.translation import gettext_lazy as _
-
-# from time import sleep
 from openwisp_notifications.signals import notify
 from openwisp_notifications.utils import _get_object_link
 
