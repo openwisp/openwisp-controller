@@ -1,10 +1,84 @@
 Changelog
 =========
 
-Version 1.2.0 [Unreleased]
+Version 1.2.0 [2025-10-24]
 --------------------------
 
-Work in progress.
+Changes
+~~~~~~~
+
+Other changes
++++++++++++++
+
+- Stored configuration checksum in the database to fix the perennial
+  *modified* status issue. The configuration status now changes to
+  *modified* only when the checksum actually changes `#1113
+  <https://github.com/openwisp/openwisp-controller/issues/1113>`_.
+- Templates marked as default or required are now automatically assigned
+  to all eligible devices in a background task. `#480
+  <https://github.com/openwisp/openwisp-controller/issues/480>`_.
+- Changed ZeroTier background notifications to use the *Generic Message*
+  notification type `#1048
+  <https://github.com/openwisp/openwisp-controller/issues/1048>`_.
+- Improved management of relevant templates: facilitated changing
+  organizations and optimized performance `#204
+  <https://github.com/openwisp/openwisp-controller/issues/204>`_ `#1050
+  <https://github.com/openwisp/openwisp-controller/issues/1050>`_.
+- Added relation from ``VpnClient`` objects to their associated
+  ``Template``. ``VpnClient`` objects are now automatically deleted when
+  their template is deleted `#831
+  <https://github.com/openwisp/openwisp-controller/issues/831>`_.
+- Improved consistency across the REST API by renaming ``serializer``
+  modules to ``serializers``, centralizing base serializer logic, fixing
+  configuration creation when organization templates differ, and
+  standardizing primary key parameter types and URL converters.
+
+Dependencies
+~~~~~~~~~~~~
+
+- Bumped ``netjsonconfig~=1.2.0``.
+- Bumped ``openwisp-notifications~=1.2.0``.
+- Bumped ``openwisp-ipam~=1.2.0``.
+- Bumped ``openwisp-users~=1.2.0``.
+- Bumped ``openwisp-utils[celery,channels]~=1.2.0``.
+- Bumped ``django-x509~=1.3.0``.
+- Bumped ``django-loci~=1.2.0``.
+- Bumped ``django-flat-json-widget~=0.4.0``.
+- Bumped ``djangorestframework-gis~=1.2.0``.
+- Bumped ``paramiko~=4.0.0``.
+- Bumped ``django-cache-memoize~=0.2.1``.
+- Bumped ``django-import-export~=4.3.10``.
+- Bumped ``django-reversion~=6.0.0``.
+- Bumped ``django-taggit~=6.1.0``.
+- Added support for Django ``5.x``.
+- Added support for Python ``3.11``, ``3.12``, and ``3.13``.
+- Dropped support for Django ``3.2`` and ``4.1``.
+- Dropped support for Python ``3.8``.
+
+Bugfixes
+~~~~~~~~
+
+- Fixed issue where the ``update_config`` background task could launch
+  multiple times concurrently `#1128
+  <https://github.com/openwisp/openwisp-controller/issues/1128>`_.
+- Enforced SSH command timeout in Paramiko. Previously, Paramiko ignored
+  the configured command timeout.
+- Fixed incorrect label for device group filter in the device list `#1071
+  <https://github.com/openwisp/openwisp-controller/issues/1071>`_.
+- Added ``default`` kwarg support for unique nullable fields.
+- Fixed REST API access for non-superusers in ``DeviceConnection`` and
+  ``Command`` endpoints. Previously, organization admins encountered a 500
+  server error when retrieving command details.
+- Avoided re-populating the VPN peers cache in ``post_save``. Previously,
+  ``VpnClient.post_save`` repopulated the peer cache immediately, causing
+  slow or timed-out uWSGI requests for large peer sets. Now, it only
+  invalidates the cache, which is later repopulated by the background
+  task.
+- Fixed ordering of credentials in the REST API list view `#1040
+  <https://github.com/openwisp/openwisp-controller/issues/1040>`_.
+- Fixed handling of non-existent devices in ``DeviceLocationView`` API.
+- Fixed unsaved changes alert showing for read-only maps `#560
+  <https://github.com/openwisp/openwisp-controller/issues/560>`_.
 
 Version 1.1.2 [2025-08-01]
 --------------------------
