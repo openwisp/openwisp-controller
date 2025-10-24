@@ -1,12 +1,8 @@
 import logging
 from http import HTTPStatus
-from time import sleep
 
 from celery import shared_task
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import gettext as _
-from openwisp_notifications.signals import notify
 from requests.exceptions import RequestException
 from swapper import load_model
 
@@ -14,6 +10,7 @@ from openwisp_controller.config.api.zerotier_service import ZerotierService
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .settings import API_TASK_RETRY_OPTIONS
+from .utils import handle_error_notification, handle_recovery_notification
 
 logger = logging.getLogger(__name__)
 
@@ -26,48 +23,6 @@ class OpenwispApiTask(OpenwispCeleryTask):
         HTTPStatus.SERVICE_UNAVAILABLE,  # 503
         HTTPStatus.GATEWAY_TIMEOUT,  # 504
     ]
-
-    def _send_api_task_notification(self, type, **kwargs):
-        vpn = kwargs.get("instance")
-        action = kwargs.get("action").replace("_", " ")
-        status_code = kwargs.get("status_code")
-        # Adding some delay here to prevent overlapping
-        # of the django success message container
-        # with the ow-notification container
-        # https://github.com/openwisp/openwisp-notifications/issues/264
-        sleep(2)
-        message_map = {
-            "error": {
-                "verb": _("encountered an unrecoverable error"),
-                "message": _(
-                    "Unable to perform {action} operation on the "
-                    "{target} VPN server due to an "
-                    "unrecoverable error "
-                    "(status code: {status_code})"
-                ),
-                "level": "error",
-            },
-            "recovery": {
-                "verb": _("has been completed successfully"),
-                "message": _("The {action} operation on {target} {verb}."),
-                "level": "info",
-            },
-        }
-        meta = message_map[type]
-        notify.send(
-            type="generic_message",
-            sender=vpn,
-            target=vpn,
-            action=action,
-            verb=meta["verb"],
-            message=meta["message"].format(
-                action=action,
-                target=str(vpn),
-                status_code=status_code,
-                verb=meta["verb"],
-            ),
-            level=meta["level"],
-        )
 
     def handle_api_call(self, fn, *args, send_notification=True, **kwargs):
         """
@@ -105,13 +60,10 @@ class OpenwispApiTask(OpenwispCeleryTask):
             response.raise_for_status()
             logger.info(info_msg)
             if send_notification:
-                task_result = cache.get(task_key)
-                if task_result == "error":
-                    self._send_api_task_notification("recovery", **kwargs)
-                    cache.set(task_key, "success", None)
+                handle_recovery_notification(task_key, **kwargs)
         except RequestException as e:
             if response.status_code in self._RECOVERABLE_API_CODES:
-                retry_logger = logger.warn
+                retry_logger = logger.warning
                 # When retry limit is reached, use error logging
                 if self.request.retries == self.max_retries:
                     retry_logger = logger.error
@@ -122,12 +74,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 raise e
             logger.error(f"{err_msg}, Error: {e}")
             if send_notification:
-                task_result = cache.get(task_key)
-                if task_result in (None, "success"):
-                    cache.set(task_key, "error", None)
-                    self._send_api_task_notification(
-                        "error", status_code=response.status_code, **kwargs
-                    )
+                handle_error_notification(task_key, exception=e, **kwargs)
         return (response, updated_config) if updated_config else response
 
 

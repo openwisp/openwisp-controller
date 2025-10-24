@@ -3,12 +3,12 @@ import uuid
 from subprocess import CalledProcessError, TimeoutExpired
 from unittest import mock
 
+import requests
 from celery.exceptions import Retry, SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.db.utils import IntegrityError
-from django.http.response import HttpResponse, HttpResponseNotFound
 from django.test import TestCase, TransactionTestCase
 from requests.exceptions import ConnectionError, RequestException, Timeout
 from swapper import load_model
@@ -728,9 +728,12 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
+    mock_response = mock.Mock(spec=requests.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status = mock.Mock()
+
     @mock.patch(
-        "openwisp_controller.config.tasks.requests.post",
-        return_value=HttpResponse(status=200),
+        "openwisp_controller.config.tasks.requests.post", return_value=mock_response
     )
     def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
@@ -824,6 +827,9 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                     f"Cannot update configuration of {vpn.name} VPN server, "
                     "webhook endpoint and authentication token are empty."
                 )
+        success_response = mock.Mock(spec=requests.Response)
+        success_response.status_code = 200
+        success_response.raise_for_status = mock.Mock()
 
         with self.subTest("Webhook endpoint and authentication endpoint is present"):
             vpn.webhook_endpoint = "https://example.com"
@@ -834,7 +840,7 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             with mock.patch(
                 "openwisp_controller.config.tasks.logger.info"
             ) as mocked_logger, mock.patch(
-                "requests.post", return_value=HttpResponse()
+                "requests.post", return_value=success_response
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
@@ -842,16 +848,21 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 mocked_logger.assert_called_once_with(
                     f"Triggered update webhook of VPN Server UUID: {vpn.pk}"
                 )
+            fail_response = mock.Mock(spec=requests.Response)
+            fail_response.status_code = 404
+            fail_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+                "Not Found"
+            )
 
-            with mock.patch("logging.Logger.error") as mocked_logger, mock.patch(
-                "requests.post", return_value=HttpResponseNotFound()
+            with mock.patch("logging.Logger.warning") as mocked_logger, mock.patch(
+                "requests.post", return_value=fail_response
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
                 mocked_logger.assert_called_once_with(
                     "Failed to update VPN Server configuration. "
-                    f"Response status code: 404, VPN Server UUID: {vpn.pk}"
+                    f"Error: Not Found, VPN Server UUID: {vpn.pk}"
                 )
 
     def test_vpn_peers_changed(self):
@@ -985,9 +996,12 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
 class TestVxlanTransaction(
     BaseTestVpn, TestVxlanWireguardVpnMixin, TransactionTestCase
 ):
+    mock_response = mock.Mock(spec=requests.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status = mock.Mock()
+
     @mock.patch(
-        "openwisp_controller.config.tasks.requests.post",
-        return_value=HttpResponse(status=200),
+        "openwisp_controller.config.tasks.requests.post", return_value=mock_response
     )
     def test_auto_peer_configuration(self, *args):
         self.assertEqual(IpAddress.objects.count(), 0)
@@ -1460,7 +1474,9 @@ class TestZeroTierTransaction(
 ):
     _ZT_SERVICE_REQUESTS = "openwisp_controller.config.api.zerotier_service.requests"
     _ZT_API_TASKS_INFO_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.info"
-    _ZT_API_TASKS_WARN_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.warn"
+    _ZT_API_TASKS_WARN_LOGGER = (
+        "openwisp_controller.config.tasks_zerotier.logger.warning"
+    )
     _ZT_API_TASKS_ERR_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.error"
     # As the locmem cache does not support the redis backend cache.keys() method
     _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
