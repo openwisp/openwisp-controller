@@ -13,6 +13,10 @@ from .utils import CreateDeviceMixin
 
 Device = load_model("config", "Device")
 
+uuid_regex = (
+    r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
+)
+
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
@@ -25,7 +29,7 @@ class TestDeviceConsumer(CreateDeviceMixin):
                     URLRouter(
                         [
                             re_path(
-                                r"^ws/controller/device/(?P<pk>[^/]+)/$",
+                                rf"^ws/controller/device/(?P<pk>{uuid_regex})/$",
                                 BaseDeviceConsumer.as_asgi(),
                             )
                         ]

@@ -8,6 +8,9 @@ from django.urls import path, re_path
 from openwisp_notifications.utils import _get_object_link
 
 logger = logging.getLogger(__name__)
+uuid_regex = (
+    r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
+)
 
 
 def get_object_or_404(model, **kwargs):
@@ -117,22 +120,22 @@ def get_controller_urls(views_module):
     """
     urls = [
         re_path(
-            "controller/device/checksum/(?P<pk>[^/]+)/$",
+            rf"controller/device/checksum/(?P<pk>{uuid_regex})/$",
             views_module.device_checksum,
             name="device_checksum",
         ),
         re_path(
-            "controller/device/download-config/(?P<pk>[^/]+)/$",
+            rf"controller/device/download-config/(?P<pk>{uuid_regex})/$",
             views_module.device_download_config,
             name="device_download_config",
         ),
         re_path(
-            "controller/device/update-info/(?P<pk>[^/]+)/$",
+            rf"controller/device/update-info/(?P<pk>{uuid_regex})/$",
             views_module.device_update_info,
             name="device_update_info",
         ),
         re_path(
-            "controller/device/report-status/(?P<pk>[^/]+)/$",
+            rf"controller/device/report-status/(?P<pk>{uuid_regex})/$",
             views_module.device_report_status,
             name="device_report_status",
         ),
@@ -142,33 +145,33 @@ def get_controller_urls(views_module):
             name="device_register",
         ),
         re_path(
-            "controller/vpn/checksum/(?P<pk>[^/]+)/$",
+            rf"controller/vpn/checksum/(?P<pk>{uuid_regex})/$",
             views_module.vpn_checksum,
             name="vpn_checksum",
         ),
         re_path(
-            "controller/vpn/download-config/(?P<pk>[^/]+)/$",
+            rf"controller/vpn/download-config/(?P<pk>{uuid_regex})/$",
             views_module.vpn_download_config,
             name="vpn_download_config",
         ),
         # legacy URLs
         re_path(
-            "controller/checksum/(?P<pk>[^/]+)/$",
+            rf"controller/checksum/(?P<pk>{uuid_regex})/$",
             views_module.device_checksum,
             name="checksum_legacy",
         ),
         re_path(
-            "controller/download-config/(?P<pk>[^/]+)/$",
+            rf"controller/download-config/(?P<pk>{uuid_regex})/$",
             views_module.device_download_config,
             name="download_config_legacy",
         ),
         re_path(
-            "controller/update-info/(?P<pk>[^/]+)/$",
+            rf"controller/update-info/(?P<pk>{uuid_regex})/$",
             views_module.device_update_info,
             name="update_info_legacy",
         ),
         re_path(
-            "controller/report-status/(?P<pk>[^/]+)/$",
+            rf"controller/report-status/(?P<pk>{uuid_regex})/$",
             views_module.device_report_status,
             name="report_status_legacy",
         ),
