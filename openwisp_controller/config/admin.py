@@ -49,6 +49,9 @@ from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
+uuid_regex = (
+    r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
+)
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -166,9 +169,19 @@ class BaseConfigAdmin(BaseAdmin):
     def get_urls(self):
         options = getattr(self.model, "_meta")
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
-        return [
+        default_urls = super().get_urls()
+        safe_urls = []
+        for url in default_urls:
+            if url.name and not (
+                url.name.endswith("_change")
+                or url.name.endswith("_history")
+                or url.name.endswith("_delete")
+            ):
+                safe_urls.append(url)
+        strict_urls = [
+            # custom app URLs
             re_path(
-                r"^download/(?P<pk>[^/]+)/$",
+                rf"^download/(?P<pk>{uuid_regex})/$",
                 self.admin_site.admin_view(self.download_view),
                 name="{0}_download".format(url_prefix),
             ),
@@ -178,11 +191,28 @@ class BaseConfigAdmin(BaseAdmin):
                 name="{0}_preview".format(url_prefix),
             ),
             re_path(
-                r"^(?P<pk>[^/]+)/context\.json$",
+                rf"^(?P<pk>{uuid_regex})/context\.json$",
                 self.admin_site.admin_view(self.context_view),
                 name="{0}_context".format(url_prefix),
             ),
-        ] + super().get_urls()
+            # strict overrides for the default admin views
+            re_path(
+                rf"^(?P<object_id>({uuid_regex}|__fk__))/history/$",
+                self.admin_site.admin_view(self.history_view),
+                name=f"{url_prefix}_history",
+            ),
+            re_path(
+                rf"^(?P<object_id>({uuid_regex}|__fk__))/delete/$",
+                self.admin_site.admin_view(self.delete_view),
+                name=f"{url_prefix}_delete",
+            ),
+            re_path(
+                rf"^(?P<object_id>({uuid_regex}|__fk__))/change/$",
+                self.admin_site.admin_view(self.change_view),
+                name=f"{url_prefix}_change",
+            ),
+        ]
+        return strict_urls + safe_urls
 
     def _get_config_model(self):
         model = self.model
