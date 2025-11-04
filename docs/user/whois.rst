@@ -30,8 +30,6 @@ associated with the device's public IP address and includes:
 - Timezone of the ASN's registered location
 - Coordinates (Latitude and Longitude)
 
-.. _whois_trigger_conditions:
-
 Trigger Conditions
 ------------------
 

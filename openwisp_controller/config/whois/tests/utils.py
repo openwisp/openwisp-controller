@@ -61,10 +61,9 @@ class WHOISTransactionMixin:
         org = self._get_org()
 
         with self.subTest(f"{task_name} task called when last_ip is public"):
-            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
-                "django.core.cache.cache.set"
-            ) as mocked_set:
-                mocked_get.side_effect = [None, org.config_settings]
+            with mock.patch(
+                "django.core.cache.cache.get", side_effect=[None, org.config_settings]
+            ) as mocked_get, mock.patch("django.core.cache.cache.set") as mocked_set:
                 device = self._create_device(last_ip="172.217.22.14")
                 mocked_task.assert_called()
                 mocked_set.assert_called_once()
