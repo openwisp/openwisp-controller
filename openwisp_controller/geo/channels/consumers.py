@@ -1,5 +1,5 @@
 import swapper
-from django_loci.channels.base import BaseLocationBroadcast
+from django_loci.channels.base import BaseAllLocationBroadcast, BaseLocationBroadcast
 
 Location = swapper.load_model("geo", "Location")
 
@@ -10,6 +10,20 @@ class LocationBroadcast(BaseLocationBroadcast):
     def is_authorized(self, user, location):
         result = super().is_authorized(user, location)
         # non superusers must also be members of the org
+        if (
+            result
+            and not user.is_superuser
+            and not user.is_manager(location.organization)
+        ):
+            return False
+        return result
+
+
+class AllLocationBroadcast(BaseAllLocationBroadcast):
+    model = Location
+
+    def is_autherized(self, user, location):
+        result = super().is_authorized(user, location)
         if (
             result
             and not user.is_superuser
