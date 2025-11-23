@@ -104,6 +104,7 @@ def manage_estimated_locations(device_pk, ip_address):
         .exclude(pk=device.pk)
     )
 
+    # multiple devices can have same last_ip in cases like usage of proxy
     if devices_with_location.count() > 1:
         send_whois_task_notification(
             device=device, notify_type="estimated_location_error"
