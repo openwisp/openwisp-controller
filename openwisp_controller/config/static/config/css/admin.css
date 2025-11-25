@@ -9,17 +9,17 @@ a.jsoneditor-exit:focus {
   font-family:
     "Bitstream Vera Sans Mono", "Monaco", "Droid Sans Mono", "DejaVu Sans Mono",
     "Ubuntu Mono", "Courier New", Courier, monospace;
-  color: #f9f9f9;
+  color: var(--ow-color-fg-lightest);
   overflow: auto;
-  background-color: #222;
+  background-color: var(--ow-color-fg-darker);
   white-space: pre-wrap;
   word-wrap: break-word;
   padding: 20px;
   line-height: 25px;
 }
 .jsoneditor .vLargeTextField {
-  color: #333;
-  background-color: #fff;
+  color: var(--ow-color-fg-darker);
+  background-color: var(--ow-color-white);
   padding: 15px;
 }
 .vLargeTextField.jsoneditor-raw {
@@ -28,8 +28,8 @@ a.jsoneditor-exit:focus {
   box-sizing: border-box;
 }
 input.readonly {
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
-  background-color: rgba(0, 0, 0, 0.07);
+  border: 1px solid var(--ow-overlay-5) !important;
+  background-color: var(--ow-overlay-7);
 }
 .djnjc-overlay {
   display: none;
@@ -39,7 +39,7 @@ input.readonly {
   z-index: 10000;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.91);
+  background: var(--ow-overlay-90);
 }
 .djnjc-overlay .inner {
   width: 100%;
@@ -49,13 +49,13 @@ input.readonly {
 }
 .djnjc-overlay.loading {
   display: flex;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--ow-overlay-light-75);
   align-items: center;
 }
 .spinner {
   width: 40px;
   height: 40px;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: var(--ow-overlay-90);
   margin: 0 auto;
   border-radius: 100%;
   -webkit-animation: sk-scaleout 1s infinite ease-in-out;
@@ -102,11 +102,11 @@ input.readonly {
   margin: 0;
   padding: 40px 60px 20px;
   background-color: transparent;
-  color: #adffa6;
+  color: var(--ow-color-success);
   line-height: 1.5em;
 }
 .djnjc-preformatted.error {
-  color: #ff7277;
+  color: var(--ow-btn-danger-bg);
 }
 .djnjc-overlay .close,
 .djnjc-overlay .close:focus,
@@ -116,14 +116,14 @@ input.readonly {
   top: 1.5%;
   font-weight: bold;
   font-size: 15px;
-  background-color: #772299;
-  color: #fff;
+  background-color: var(--ow-color-primary);
+  color: var(--ow-color-white);
   padding: 5px 8px;
   border-radius: 5px;
   text-decoration: none;
 }
 .djnjc-overlay .close:hover {
-  background-color: #9e47c1;
+  background-color: var(--ow-color-primary);
 }
 .errors.field-templates li,
 .errorlist.nonfield li {
@@ -131,11 +131,11 @@ input.readonly {
   word-break: break-all;
 }
 .form-row select {
-  background-color: #fff;
+  background-color: var(--ow-color-white);
 }
 .form-row input[disabled],
 .form-row select[disabled] {
-  background-color: #f4f4f4;
+  background-color: var(--ow-color-fg-light);
 }
 
 /* hide vpn specific fields by default */
@@ -166,7 +166,7 @@ input.readonly {
 }
 #container .sortedm2m-container .help {
   margin-bottom: 20px;
-  color: #333;
+  color: var(--ow-color-fg-darker);
   font-weight: bold;
 }
 #main ul.sortedm2m li {
@@ -193,9 +193,13 @@ input.readonly {
 }
 #config-group .field-status .help div {
   white-space: pre;
-  color: #777;
+  color: var(--ow-color-fg-dark);
 }
-div.change-form #device_form div.inline-group.tab-content > fieldset.module > h2,
+div.change-form
+  #device_form
+  div.inline-group.tab-content
+  > fieldset.module
+  > h2,
 div.change-form
   #device_form
   div.inline-group.tab-content
@@ -247,8 +251,8 @@ ul.tabs a:hover,
 ul.tabs a:focus {
   display: inline-block;
   padding: 12px 14px;
-  color: #333;
-  background: rgba(0, 0, 0, 0.06);
+  color: var(--ow-color-fg-darker);
+  background: var(--ow-overlay-5);
   border-radius: 3px;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
@@ -257,17 +261,17 @@ ul.tabs a:focus {
 }
 ul.tabs a:hover,
 ul.tabs a:focus {
-  color: #000;
-  background: rgba(0, 0, 0, 0.15);
+  color: var(--ow-color-black);
+  background: var(--ow-overlay-10);
 }
 ul.tabs a.current,
 ul.tabs a.current:hover,
 ul.tabs a.current:focus {
   background: var(--ow-color-fg-ghost);
-  color: #000;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--ow-color-black);
+  border: 1px solid var(--ow-overlay-10);
   border-bottom: 0 none;
-  border-color: rgba(0, 0, 0, 0.25);
+  border-color: var(--ow-overlay-25);
   cursor: default;
   position: relative;
   z-index: 9;
@@ -315,11 +319,11 @@ defined variables such as `secret`
   margin-top: 0;
 }
 .submit-row .previewlink {
-  background: #778898;
+  background: var(--ow-color-fg-medium);
 }
 .submit-row .previewlink:hover,
 .submit-row .previewlink:focus {
-  background: #576a7c;
+  background: var(--ow-color-fg-dark);
 }
 #system-context {
   overflow: hidden;
@@ -365,7 +369,7 @@ button.show-sc {
   max-height: 10em;
   padding: 0.5em;
   overflow: auto;
-  background-color: #ffe5e582;
+  background-color: var(--ow-btn-danger-bg);
 }
 
 @media (max-width: 767px) {
@@ -380,7 +384,7 @@ button.show-sc {
     width: 100%;
     padding-left: 0;
     padding-right: 0;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid var(--ow-overlay-10) !important;
     border-radius: 0;
     text-align: center;
   }
