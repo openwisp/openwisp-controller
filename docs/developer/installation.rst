@@ -132,6 +132,76 @@ Alternatively you can use the git protocol:
 
     pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
 
+.. _vagrant_troubleshooting:
+
+Vagrant and VirtualBox Troubleshooting (FAQ)
+--------------------------------------------
+
+.. important::
+
+    These issues are common when running the OpenWISP development VM using Vagrant + VirtualBox.
+
+If you encounter issues when running Vagrant, please check these common solutions:
+
+VT-x / AMD-V Virtualization Technology is Disabled
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem:** ``vagrant up`` fails with errors mentioning that **VT-x (Intel)** or **AMD-V** is required but disabled.
+
+**Solution:**
+
+* **Enable Virtualization in BIOS:** You must reboot your computer and enter your **BIOS/UEFI settings** to manually enable the virtualization feature (usually found under CPU or Security settings).
+* **Check Conflicts:** Ensure that other hypervisors (like **VMware**) are disabled or uninstalled. **Windows Users:** Check and disable **Hyper-V** via: Control Panel → Programs → Turn Windows features on/off.
+
+Driver Mismatch Error (VERR_VM_DRIVER_VERSION_MISMATCH)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem:** A ``VERR_VM_DRIVER_VERSION_MISMATCH (-1912)`` error appears, often after a recent kernel update on Linux.
+
+**Solution:** This means the VirtualBox kernel modules no longer match your running kernel.
+* **Debian/Ubuntu:** Try reconfiguring the kernel modules:
+
+    .. code-block:: shell
+
+        sudo dpkg-reconfigure virtualbox-dkms
+
+* **Other Linux:** Consult your distribution's documentation for rebuilding or reinstalling VirtualBox kernel drivers.
+
+Nested Virtualization Failure (Including WSL2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem:** ``vagrant up`` fails when run inside another Virtual Machine (VM) or inside **WSL2**.
+
+**Solution:** VirtualBox/Vagrant generally **cannot run inside another VM or inside WSL2**.
+* **WSL2 Note:** You must run the Vagrant commands in **Windows PowerShell** or **Git Bash** on your host Windows machine, not within the WSL2 terminal.
+* **General:** Run the commands directly on your **Host Operating System** (the main OS running on your physical hardware).
+
+Shared Folder Sync Failure
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem:** Local changes to the source code are not appearing inside the Vagrant VM, or vice versa.
+
+**Solution:** This is usually an issue with VirtualBox Guest Additions or Windows conflicts.
+* **Rebuild:** If the issue persists, destroy and rebuild the VM to ensure the latest Guest Additions are installed:
+
+    .. code-block:: shell
+
+        vagrant destroy
+        vagrant up
+
+* **Windows/Hyper-V:** Ensure Hyper-V is completely disabled, as it commonly interferes with VirtualBox's file system drivers.
+
+Installation on Non-Ubuntu Linux Distributions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem:** Issues installing VirtualBox or Vagrant on non-Debian/Ubuntu systems (e.g., Arch, Fedora, Manjaro).
+
+**Solution:** The best documentation for driver and package installation is provided by your specific distribution.
+* **General Advice:** Consult your distribution's official wiki or package manager guide (e.g., the `Manjaro Wiki for VirtualBox <https://wiki.manjaro.org/index.php?title=VirtualBox>`_).
+
+
+If these steps don't solve your issue, please open a discussion on GitHub with your host OS details for further assistance.
+
 .. _controller_dev_docker:
 
 Install and Run on Docker
