@@ -231,3 +231,19 @@ li.commands:not(.recent) {
   width: 3.125em;
   margin: 0.2em 0;
 }
+
+/* Command status highlighting */
+.command-status-success {
+  color: #417927;
+  font-weight: bold;
+}
+
+.command-status-failed {
+  color: #ba2121;
+  font-weight: bold;
+}
+
+.command-status-in-progress {
+  color: #666;
+  font-weight: bold;
+}
