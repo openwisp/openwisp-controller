@@ -1028,14 +1028,22 @@ class TestGeoApi(
         device_2 = self._create_device(
             name="device-2", mac_address="00:11:22:33:44:66", organization=org
         )
-        location = self._create_location(name="location", type="indoor", organization=org)
+        location = self._create_location(
+            name="location", type="indoor", organization=org
+        )
         floorplan_1 = self._create_floorplan(location=location, floor=1)
         floorplan_2 = self._create_floorplan(location=location, floor=2)
         self._create_device_location(
-            content_object=device_1, location=location, floorplan=floorplan_1
+            content_object=device_1,
+            location=location,
+            floorplan=floorplan_1,
+            indoor="-1,-2",
         )
         self._create_device_location(
-            content_object=device_2, location=location, floorplan=floorplan_2
+            content_object=device_2,
+            location=location,
+            floorplan=floorplan_2,
+            indoor="-3,-4",
         )
         path = reverse("config_api:device_list")
         response = self.client.get(f"{path}?floorplan={floorplan_1.pk}")
