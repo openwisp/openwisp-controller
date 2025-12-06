@@ -5,6 +5,7 @@ from collections.abc import Iterable
 import reversion
 from django import forms
 from django.conf import settings
+from django.db import models
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.actions import delete_selected
@@ -215,6 +216,15 @@ class BaseConfigAdmin(BaseAdmin):
                 key = "{relation}_id".format(relation=key)
                 # pass non-empty string or None
                 kwargs[key] = value or None
+            # parse JSON string for JSONField
+            elif isinstance(field, models.JSONField):
+                if value:
+                    try:
+                        kwargs[key] = json.loads(value)
+                    except (json.JSONDecodeError, TypeError):
+                        kwargs[key] = value
+                else:
+                    kwargs[key] = None
             # put regular field values in kwargs dict
             else:
                 kwargs[key] = value

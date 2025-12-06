@@ -1,10 +1,9 @@
-import collections
 from copy import deepcopy
 
 import swapper
 from django.db import models
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
 
@@ -34,8 +33,6 @@ class AbstractOrganizationConfigSettings(UUIDModel):
     context = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
         help_text=_(
             'This field can be used to add "Configuration Variables"' " to the devices."
         ),
