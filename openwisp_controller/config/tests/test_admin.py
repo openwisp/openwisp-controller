@@ -2279,6 +2279,43 @@ class TestAdmin(
         config = self._create_config(organization=self._get_org())
         self._verify_template_queries(config, 10)
 
+    def test_empty_device_form_with_config_inline(self):
+        """
+        Test for issue #1057: MultiValueDictKeyError when submitting
+        empty device form with configuration inline added
+        """
+        org = self._get_org()
+        path = reverse(f"admin:{self.app_label}_device_add")
+        # Submit empty form with config inline
+        params = {
+            "name": "",
+            "mac_address": "",
+            "organization": "",
+            "config-0-backend": "netjsonconfig.OpenWrt",
+            "config-0-templates": "",
+            "config-0-config": json.dumps({}),
+            "config-0-context": "",
+            "config-TOTAL_FORMS": 1,
+            "config-INITIAL_FORMS": 0,
+            "config-MIN_NUM_FORMS": 0,
+            "config-MAX_NUM_FORMS": 1,
+            "deviceconnection_set-TOTAL_FORMS": 0,
+            "deviceconnection_set-INITIAL_FORMS": 0,
+            "deviceconnection_set-MIN_NUM_FORMS": 0,
+            "deviceconnection_set-MAX_NUM_FORMS": 1000,
+            "command_set-TOTAL_FORMS": 0,
+            "command_set-INITIAL_FORMS": 0,
+            "command_set-MIN_NUM_FORMS": 0,
+            "command_set-MAX_NUM_FORMS": 1000,
+        }
+        # Should not raise MultiValueDictKeyError
+        response = self.client.post(path, params)
+        # Should show validation errors instead
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "errorlist")
+        # Verify no device was created
+        self.assertEqual(Device.objects.count(), 0)
+
 
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,

@@ -352,10 +352,11 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         config_model = self.Meta.model
         instance = config_model(**options)
         device_model = config_model.device.field.related_model
-        org = Organization.objects.get(pk=self.data["organization"])
+        org_id = self.data.get("organization")
+        org = Organization.objects.get(pk=org_id) if org_id else None
         instance.device = device_model(
-            name=self.data["name"],
-            mac_address=self.data["mac_address"],
+            name=self.data.get("name", ""),
+            mac_address=self.data.get("mac_address", ""),
             organization=org,
         )
         return instance
