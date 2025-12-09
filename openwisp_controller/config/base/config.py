@@ -415,7 +415,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             pk_list = [template.pk for template in templates]
             templates = template_model.objects.filter(pk__in=pk_list)
         # looking for invalid templates
-        organization = raw_data.get("organization", instance.device.organization)
+        organization = raw_data.get("organization") or getattr(
+            instance.device, "organization", None
+        )
         invalids = (
             templates.exclude(organization=organization)
             .exclude(organization=None)

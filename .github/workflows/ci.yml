@@ -88,8 +88,13 @@ jobs:
           GECKO_LOG: 1
 
       - name: Show gecko web driver log on failures
-        if: ${{ failure() }}
-        run: cat geckodriver.log
+        if: ${{ failure() && steps.deps.conclusion == 'success' }}
+        run: |
+          if [ -f geckodriver.log ]; then
+            cat geckodriver.log
+          else
+            echo "geckodriver.log not found"
+          fi
 
       - name: Upload Coverage
         if: ${{ success() }}

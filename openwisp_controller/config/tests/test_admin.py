@@ -2281,18 +2281,20 @@ class TestAdmin(
 
     def test_empty_device_form_with_config_inline(self):
         """
-        Test for issue #1057: MultiValueDictKeyError when submitting
-        empty device form with configuration inline added
+        Ensures submitting device form with missing required fields
+        and configuration inline shows validation errors instead of
+        raising an exception
         """
         org = self._get_org()
+        template = self._create_template(organization=org)
         path = reverse(f"admin:{self.app_label}_device_add")
-        # Submit empty form with config inline
+        # Submit form without required device fields but with config inline
+        # This reproduces the scenario where user clicks "Add another Configuration"
+        # and submits without filling device details
         params = {
-            "name": "",
-            "mac_address": "",
-            "organization": "",
+            "organization": str(org.pk),
             "config-0-backend": "netjsonconfig.OpenWrt",
-            "config-0-templates": "",
+            "config-0-templates": str(template.pk),
             "config-0-config": json.dumps({}),
             "config-0-context": "",
             "config-TOTAL_FORMS": 1,
