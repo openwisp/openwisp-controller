@@ -6,23 +6,36 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('connection', '0009_alter_deviceconnection_unique_together'),
+        ("connection", "0009_alter_deviceconnection_unique_together"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='command',
-            name='input',
+            model_name="command",
+            name="input",
             field=models.JSONField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='credentials',
-            name='params',
-            field=models.JSONField(default=dict, help_text='global connection parameters', verbose_name='parameters'),
+            model_name="credentials",
+            name="params",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="global connection parameters",
+                verbose_name="parameters",
+            ),
         ),
         migrations.AlterField(
-            model_name='deviceconnection',
-            name='params',
-            field=models.JSONField(blank=True, default=dict, help_text='local connection parameters (will override the global parameters if specified)', verbose_name='parameters'),
+            model_name="deviceconnection",
+            name="params",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text=(
+                    "local connection parameters (will override the global "
+                    "parameters if specified)"
+                ),
+                verbose_name="parameters",
+            ),
         ),
     ]

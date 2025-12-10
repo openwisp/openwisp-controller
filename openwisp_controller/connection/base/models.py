@@ -99,6 +99,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
     params = JSONField(
         _("parameters"),
         default=dict,
+        blank=True,
         help_text=_("global connection parameters"),
     )
     auto_add = models.BooleanField(

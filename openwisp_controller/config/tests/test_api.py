@@ -126,7 +126,7 @@ class TestConfigApi(
             "backend": "netjsonconfig.OpenWrt",
             "templates": [],
             "context": '["test_validation"]',
-            "config": "{}",
+            "config": {},
         }
         device = self._create_device()
         ctx = {"device_id": str(device.pk)}
@@ -420,13 +420,11 @@ class TestConfigApi(
             "name": "change-test-device",
             "organization": org.pk,
             "mac_address": d1.mac_address,
-            "config": {
-                "backend": "netjsonconfig.OpenWisp",
-                "status": "modified",
-                "templates": [],
-                "context": "{}",
-                "config": "{}",
-            },
+            "backend": "netjsonconfig.OpenWisp",
+            "status": "modified",
+            "templates": [],
+            "context": {},
+            "config": {"general": {"hostname": "test-device"}},
         }
         r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)

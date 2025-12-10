@@ -5,7 +5,6 @@ from collections.abc import Iterable
 import reversion
 from django import forms
 from django.conf import settings
-from django.db import models
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.actions import delete_selected
@@ -16,6 +15,7 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
+from django.db import models
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404

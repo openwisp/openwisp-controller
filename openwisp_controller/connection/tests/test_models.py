@@ -501,14 +501,17 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("test extra arg on reboot"):
             command.type = "reboot"
-            command.input = '["test"]'
+            command.input = ["test"]
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
             self.assertIn("input", e.message_dict)
             self.assertIn(
                 e.message_dict["input"][0],
-                ["['test'] is not of type 'null'", "'[\"test\"]' is not of type 'null'"],
+                [
+                    "['test'] is not of type 'null'",
+                    "'[\"test\"]' is not of type 'null'",
+                ],
             )
 
         with self.subTest("test extra arg on password"):
@@ -538,15 +541,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("JSON check on arguments"):
             command.type = "change_password"
-            command.input = "[]"
+            command.input = []
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
             self.assertIn("input", e.message_dict)
-            self.assertIn(
-                e.message_dict["input"][0],
-                ["[] is not of type 'object'", "'[]' is not of type 'object'"],
-            )
+            self.assertIn("is not of type 'object'", str(e.message_dict["input"]))
 
         with self.subTest("Test executing command not available for org"):
             org_id = dc.device.organization_id
@@ -601,7 +601,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(list(command.arguments), ["newpwd", "newpwd"])
 
         with self.subTest("value error"):
-            command = Command(input='["echo test"]', type="custom")
+            command = Command(input=["echo test"], type="custom")
             with self.assertRaises(TypeError) as context_manager:
                 command.arguments
             self.assertEqual(
