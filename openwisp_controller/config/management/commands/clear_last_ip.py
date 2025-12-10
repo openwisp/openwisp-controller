@@ -4,7 +4,10 @@ from swapper import load_model
 
 
 class Command(BaseCommand):
-    help = "Clear the last IP address, if set, of active devices of all organizations."
+    help = (
+        "Clears the last IP address (if set) for every active device"
+        " across all organizations."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -29,11 +32,11 @@ class Command(BaseCommand):
                 "Are you sure you want to do this?\n\n"
                 "Type 'yes' to continue, or 'no' to cancel: "
             )
-            if input("".join(message)) != "yes":
+            if input("".join(message)).lower() != "yes":
                 raise CommandError("Operation cancelled by user.")
 
         devices = Device.objects.filter(_is_deactivated=False).only("last_ip")
-        # Filter devices that have no WHOIS information for their last IP
+        # Filter out devices that have WHOIS information for their last IP
         devices = devices.exclude(last_ip=None).exclude(
             last_ip__in=Subquery(
                 WHOISInfo.objects.filter(ip_address=OuterRef("last_ip")).values(

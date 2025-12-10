@@ -538,4 +538,6 @@ class AbstractDevice(OrgMixin, BaseModel):
             return
         if creating or self.last_ip != self._initial_last_ip:
             self.whois_service.process_ip_data_and_location()
+        else:
+            self.whois_service.update_whois_info()
         self._initial_last_ip = self.last_ip

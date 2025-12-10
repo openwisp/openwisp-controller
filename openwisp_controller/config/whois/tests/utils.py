@@ -61,10 +61,13 @@ class WHOISTransactionMixin:
         org = self._get_org()
 
         with self.subTest(f"{task_name} task called when last_ip is public"):
-            with mock.patch("django.core.cache.cache.set") as mocked_set:
+            with mock.patch(
+                "django.core.cache.cache.get", side_effect=[None, org.config_settings]
+            ) as mocked_get, mock.patch("django.core.cache.cache.set") as mocked_set:
                 device = self._create_device(last_ip="172.217.22.14")
                 mocked_task.assert_called()
                 mocked_set.assert_called_once()
+                mocked_get.assert_called()
         mocked_task.reset_mock()
 
         with self.subTest(
@@ -77,7 +80,7 @@ class WHOISTransactionMixin:
                 device.save()
                 mocked_task.assert_called()
                 mocked_set.assert_not_called()
-                mocked_get.assert_called_once()
+                mocked_get.assert_called()
         mocked_task.reset_mock()
 
         with self.subTest(f"{task_name} task not called when last_ip not updated"):
@@ -122,7 +125,7 @@ class WHOISTransactionMixin:
         mocked_task.reset_mock()
 
         with self.subTest(
-            f"{task_name} task called via DeviceChecksumView for no WHOIS record"
+            f"{task_name} task not called via DeviceChecksumView for no WHOIS record"
         ):
             WHOISInfo.objects.all().delete()
             device.refresh_from_db()

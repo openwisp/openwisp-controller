@@ -10,7 +10,7 @@ import openwisp_utils.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("config", "0060_cleanup_api_task_notification_types"),
+        ("config", "0061_config_checksum_db"),
     ]
 
     operations = [

@@ -9,7 +9,7 @@ import openwisp_utils.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("config", "0061_whoisinfo"),
+        ("config", "0062_whoisinfo"),
     ]
 
     operations = [
