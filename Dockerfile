@@ -1,6 +1,6 @@
 # NOTE: This Docker image is for development purposes only.
 
-FROM python:3.9-slim-buster
+FROM python:3.10-slim-buster
 
 RUN apt update && \
     apt install --yes zlib1g-dev libjpeg-dev gdal-bin libproj-dev \

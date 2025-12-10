@@ -4,10 +4,7 @@ Changelog
 Version 1.3.0 [unreleased]
 --------------------------
 
-Changes
-~~~~~~~
-
-- Dropped support for Python 3.9
+Work in progress.
 
 Version 1.2.0 [2025-10-24]
 --------------------------
