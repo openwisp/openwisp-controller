@@ -1,11 +1,13 @@
 import contextlib
 import importlib
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
@@ -16,6 +18,7 @@ from openwisp_controller.config.whois.tests.utils import WHOISTransactionMixin
 from ....tests.utils import TestAdminMixin
 from ...tests.utils import TestGeoMixin
 from ..handlers import register_estimated_location_notification_types
+from ..tasks import manage_estimated_locations
 from .utils import TestEstimatedLocationMixin
 
 Device = load_model("config", "Device")
@@ -147,7 +150,7 @@ class TestEstimatedLocationTransaction(
     TestEstimatedLocationMixin, WHOISTransactionMixin, TransactionTestCase
 ):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+        "openwisp_controller.config.whois.service.geoip2_webservice.Client"
     )
     _ESTIMATED_LOCATION_INFO_LOGGER = (
         "openwisp_controller.geo.estimated_location.tasks.logger.info"
@@ -174,7 +177,9 @@ class TestEstimatedLocationTransaction(
         self, mocked_client, mocked_estimated_location_task
     ):
         connect_whois_handlers()
-        mocked_client.return_value.city.return_value = self._mocked_client_response()
+        mocked_response = self._mocked_client_response()
+        mocked_client.return_value.city.return_value = mocked_response
+        threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
 
         self._task_called(
             mocked_estimated_location_task, task_name="Estimated location"
@@ -182,6 +187,8 @@ class TestEstimatedLocationTransaction(
 
         Device.objects.all().delete()
         device = self._create_device()
+        self._create_config(device=device)
+
         with self.subTest(
             "Estimated location task called when last_ip has related WhoIsInfo"
         ):
@@ -207,7 +214,6 @@ class TestEstimatedLocationTransaction(
         ):
             WHOISInfo.objects.all().delete()
             self._create_whois_info(ip_address=device.last_ip)
-            self._create_config(device=device)
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device.pk]),
                 {"key": device.key},
@@ -217,10 +223,80 @@ class TestEstimatedLocationTransaction(
             mocked_estimated_location_task.assert_not_called()
         mocked_estimated_location_task.reset_mock()
 
+        with self.subTest(
+            "Estimate location task not called when address/coordinates not updated"
+        ):
+            WHOISInfo.objects.all().delete()
+            whois_obj = self._create_whois_info(ip_address=device.last_ip)
+            WHOISInfo.objects.filter(pk=whois_obj.pk).update(
+                modified=timezone.now() - timedelta(days=threshold)
+            )
+            device.save()
+            mocked_estimated_location_task.assert_not_called()
+            mocked_estimated_location_task.reset_mock()
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_estimated_location_task.assert_not_called()
+        mocked_estimated_location_task.reset_mock()
+
+        with self.subTest(
+            "Estimate location task called when address/coordinates updated"
+        ):
+            WHOISInfo.objects.all().delete()
+            whois_obj = self._create_whois_info(ip_address=device.last_ip)
+            WHOISInfo.objects.filter(pk=whois_obj.pk).update(
+                modified=timezone.now() - timedelta(days=threshold)
+            )
+            mocked_response.city.name = "New city"
+            mocked_client.return_value.city.return_value = mocked_response
+            device.save()
+            mocked_estimated_location_task.assert_called()
+            mocked_estimated_location_task.reset_mock()
+            mocked_response.city.name = "New city 2"
+            mocked_client.return_value.city.return_value = mocked_response
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_estimated_location_task.assert_called()
+
+            mocked_response.location.latitude = 60
+            mocked_client.return_value.city.return_value = mocked_response
+            device.save()
+            mocked_estimated_location_task.assert_called()
+            mocked_estimated_location_task.reset_mock()
+            mocked_response.location.longitude = 160
+            mocked_client.return_value.city.return_value = mocked_response
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_estimated_location_task.assert_called()
+        mocked_estimated_location_task.reset_mock()
+
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.config.whois.service.send_whois_task_notification"  # noqa
+    )
+    @mock.patch(
+        "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"  # noqa
+    )
+    @mock.patch(
+        "openwisp_controller.geo.estimated_location.tasks.manage_estimated_locations.delay"  # noqa
+    )
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_creation_and_update(self, mock_client, mock_info):
+    def test_estimated_location_creation_and_update(
+        self, mock_client, mock_info, _mocked_task, _mocked_notify, _mocked_notify2
+    ):
         connect_whois_handlers()
 
         def _verify_location_details(device, mocked_response):
@@ -254,6 +330,8 @@ class TestEstimatedLocationTransaction(
 
         with self.subTest("Test Estimated location created when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
+            with self.assertNumQueries(14):
+                manage_estimated_locations(device.pk, device.last_ip)
 
             location = device.devicelocation.location
             mocked_response.ip_address = device.last_ip
@@ -274,6 +352,8 @@ class TestEstimatedLocationTransaction(
             mocked_response.city.name = "New City"
             mock_client.return_value.city.return_value = mocked_response
             device.save()
+            with self.assertNumQueries(8):
+                manage_estimated_locations(device.pk, device.last_ip)
             device.refresh_from_db()
 
             location = device.devicelocation.location
@@ -297,6 +377,8 @@ class TestEstimatedLocationTransaction(
             mock_client.return_value.city.return_value = self._mocked_client_response()
             device.devicelocation.location.save(_set_estimated=True)
             device.save()
+            with self.assertNumQueries(2):
+                manage_estimated_locations(device.pk, device.last_ip)
             device.refresh_from_db()
 
             location = device.devicelocation.location
@@ -315,12 +397,15 @@ class TestEstimatedLocationTransaction(
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
+            manage_estimated_locations(device1.pk, device1.last_ip)
             mock_info.reset_mock()
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
+            with self.assertNumQueries(8):
+                manage_estimated_locations(device2.pk, device2.last_ip)
 
             self.assertEqual(
                 device1.devicelocation.location.pk, device2.devicelocation.location.pk
@@ -336,15 +421,20 @@ class TestEstimatedLocationTransaction(
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
+            manage_estimated_locations(device1.pk, device1.last_ip)
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.11",
             )
+            manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.reset_mock()
             old_location = device2.devicelocation.location
             device2.last_ip = "172.217.22.10"
             device2.save()
+            # 3 queries related to notifications cleanup
+            with self.assertNumQueries(16):
+                manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
                 f" for IP: {device2.last_ip}"
@@ -363,17 +453,21 @@ class TestEstimatedLocationTransaction(
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
+            manage_estimated_locations(device1.pk, device1.last_ip)
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.11",
             )
+            manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.reset_mock()
             old_location = device2.devicelocation.location
             old_location.is_estimated = False
             old_location.save()
             device2.last_ip = "172.217.22.10"
             device2.save()
+            with self.assertNumQueries(2):
+                manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Non Estimated location already set for {device2.pk}. Update"
                 f" location manually as per IP: {device2.last_ip}"
@@ -392,17 +486,21 @@ class TestEstimatedLocationTransaction(
         ):
             Device.objects.all().delete()
             device1 = self._create_device(last_ip="172.217.22.10")
+            manage_estimated_locations(device1.pk, device1.last_ip)
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
+            manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.reset_mock()
             self.assertEqual(
                 device1.devicelocation.location.pk, device2.devicelocation.location.pk
             )
             device2.last_ip = "172.217.22.11"
             device2.save()
+            with self.assertNumQueries(14):
+                manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
                 f" for IP: {device2.last_ip}"
@@ -480,6 +578,7 @@ class TestEstimatedLocationTransaction(
         location = device.devicelocation.location
         self.assertTrue(location.is_estimated)
         org = self._get_org()
+        connect_whois_handlers()
 
         with self.subTest(
             "Test Estimated Status unchanged if Estimated feature is disabled"
