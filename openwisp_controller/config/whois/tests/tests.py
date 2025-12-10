@@ -1,4 +1,5 @@
 import importlib
+from datetime import timedelta
 from io import StringIO
 from unittest import mock
 
@@ -9,6 +10,7 @@ from django.core.management import call_command
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
+from django.utils import timezone
 from geoip2 import errors
 from selenium.webdriver.common.by import By
 from swapper import load_model
@@ -341,7 +343,7 @@ class TestWHOISTransaction(
     CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
 ):
     _WHOIS_GEOIP_CLIENT = (
-        "openwisp_controller.config.whois.tasks.geoip2_webservice.Client"
+        "openwisp_controller.config.whois.service.geoip2_webservice.Client"
     )
     _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
     _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"
@@ -583,6 +585,56 @@ class TestWHOISTransaction(
 
             # WHOIS related to the device's last_ip should be deleted
             self.assertEqual(WHOISInfo.objects.filter(ip_address=ip_address).count(), 0)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_whois_update(self, mock_client):
+        connect_whois_handlers()
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+        threshold = app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
+        new_time = timezone.now() - timedelta(days=threshold)
+
+        whois_obj = self._create_whois_info()
+        WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
+
+        with self.subTest("Test WHOIS update when older than X days for new device"):
+            mocked_response.traits.autonomous_system_number = 11111
+            mock_client.return_value.city.return_value = mocked_response
+            device = self._create_device(last_ip=whois_obj.ip_address)
+            whois_obj = device.whois_service.get_device_whois_info()
+            self.assertEqual(whois_obj.asn, str(11111))
+
+        with self.subTest(
+            "Test WHOIS update when older than X days for existing device"
+        ):
+            Device.objects.all().delete()
+            WHOISInfo.objects.all().delete()
+            device = self._create_device(last_ip="172.217.22.11")
+            whois_obj = device.whois_service.get_device_whois_info()
+            self.assertEqual(whois_obj.asn, str(11111))
+            WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
+            mocked_response.traits.autonomous_system_number = 22222
+            mock_client.return_value.city.return_value = mocked_response
+            device.save()
+            whois_obj = device.whois_service.get_device_whois_info()
+            self.assertEqual(whois_obj.asn, str(22222))
+
+        with self.subTest(
+            "Test WHOIS update when older than X days for existing device "
+            "from DeviceChecksum View"
+        ):
+            Device.objects.all().delete()
+            WHOISInfo.objects.all().delete()
+            device = self._create_device(last_ip="172.217.22.11")
+            whois_obj = device.whois_service.get_device_whois_info()
+            self.assertEqual(whois_obj.asn, str(22222))
+            WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
+            mocked_response.traits.autonomous_system_number = 33333
+            mock_client.return_value.city.return_value = mocked_response
+            device.save()
+            whois_obj = device.whois_service.get_device_whois_info()
+            self.assertEqual(whois_obj.asn, str(33333))
 
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed

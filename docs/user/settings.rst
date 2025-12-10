@@ -829,3 +829,16 @@ Allows enabling the optional :doc:`Estimated Location feature
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-location-setting.png
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-location-setting.png
     :alt: Estimated Location setting
+
+.. _openwisp_controller_whois_refresh_threshold_days:
+
+``OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS``
+----------------------------------------------------
+
+============ =======
+**type**:    ``int``
+**default**: ``14``
+============ =======
+
+Specifies the number of days after which the WHOIS information for a
+device is considered stale and eligible for refresh.
