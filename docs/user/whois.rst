@@ -15,10 +15,10 @@ WHOIS Lookup
 Overview
 --------
 
-The WHOIS Lookup feature displays information about the public IP address
-used by devices to communicate with OpenWISP (via the ``last_ip`` field).
-It helps identify the geographic location and ISP associated with the IP
-address, which can be useful for troubleshooting network issues.
+This feature displays information about the public IP address used by
+devices to communicate with OpenWISP (via the ``last_ip`` field). It helps
+identify the geographic location and ISP associated with the IP address,
+which can be useful for troubleshooting network issues.
 
 The retrieved information pertains to the Autonomous System (ASN)
 associated with the device's public IP address and includes:
@@ -36,6 +36,7 @@ Trigger Conditions
 A WHOIS lookup is triggered automatically when:
 
 - A new device is registered.
+- An existing device's last IP address is changed.
 - A device fetches its checksum.
 
 However, the lookup will only run if **all** the following conditions are
@@ -114,3 +115,15 @@ retrieved details can be viewed in the following locations:
 - **Device REST API**: See WHOIS details in the :ref:`Device List
   <device_list_whois>` and :ref:`Device Detail <device_detail_whois>`
   responses.
+
+.. _whois_older_records:
+
+Managing Older WHOIS Records
+----------------------------
+
+If a record is older than :ref:`Threshold
+<openwisp_controller_whois_refresh_threshold_days>`, it will be refreshed
+automatically.
+
+The update mechanism will be triggered whenever a device is registered or
+its last IP changes or fetches its checksum.
