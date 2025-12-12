@@ -2292,7 +2292,6 @@ class TestAdmin(
         # This reproduces the scenario where user clicks "Add another Configuration"
         # and submits without filling device details
         params = {
-            "organization": str(org.pk),
             "config-0-backend": "netjsonconfig.OpenWrt",
             "config-0-templates": str(template.pk),
             "config-0-config": json.dumps({}),
