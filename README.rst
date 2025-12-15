@@ -108,3 +108,23 @@ Support
 -------
 
 See `OpenWISP Support Channels <http://openwisp.org/support.html>`_.
+
+
+Getting Started (Beginner Friendly)
+==================================
+
+This project is built using Django and follows a modular architecture
+composed of multiple Django apps.
+
+If you are new to Django or coming from other backend frameworks:
+
+- ``manage.py`` is the main entry point for management commands
+- ``urls.py`` defines request routing
+- ``views.py`` handles request logic
+- Django models define database structure using the ORM
+
+Before contributing, it is recommended to:
+
+- Get familiar with basic Django concepts (models, views, urls)
+- Explore the project folder structure to understand how apps are organized
+- Start with documentation or small issues before working on core logic
