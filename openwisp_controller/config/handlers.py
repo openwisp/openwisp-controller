@@ -152,3 +152,20 @@ def organization_disabled_handler(instance, **kwargs):
         # No change in is_active
         return
     tasks.invalidate_controller_views_cache.delay(str(instance.id))
+
+
+def organization_config_settings_change_handler(instance, **kwargs):
+    """
+    Invalidates VPN cache when OrganizationConfigSettings context changes.
+    """
+    if instance._state.adding:
+        return
+
+    try:
+        db_instance = instance.__class__.objects.only("context").get(id=instance.id)
+        if db_instance.context != instance.context:
+            transaction.on_commit(
+                lambda: tasks.invalidate_organization_vpn_cache.delay(str(instance.organization_id))
+            )
+    except instance.__class__.DoesNotExist:
+        pass
