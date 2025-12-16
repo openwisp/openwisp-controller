@@ -820,6 +820,87 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertEqual(d.system, params["system"])
         self.assertEqual(d.model, params["model"])
 
+    def test_device_registration_update_hostname(self):
+        """
+        Test that hostname is updated when the name in payload
+        is not the MAC address stored in OpenWISP
+        """
+        device = self._create_device_config(
+            device_opts={
+                "name": "old-hostname",
+                "mac_address": TEST_MACADDR,
+                "key": TEST_CONSISTENT_KEY,
+            }
+        )
+        params = {
+            "secret": TEST_ORG_SHARED_SECRET,
+            "name": "new-custom-hostname",
+            "mac_address": TEST_MACADDR,
+            "key": TEST_CONSISTENT_KEY,
+            "backend": "netjsonconfig.OpenWrt",
+            "model": "TP-Link TL-WDR4300 v2",
+            "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
+            "system": "Atheros AR9344 rev 3",
+        }
+        self.assertNotEqual(device.name, params["name"])
+        response = self.client.post(self.register_url, params)
+        self.assertEqual(response.status_code, 201)
+        device.refresh_from_db()
+        self.assertEqual(device.name, "new-custom-hostname")
+
+    def test_device_registration_hostname_not_updated_when_mac_address(self):
+        """
+        Test that hostname is not updated when the name in payload
+        equals the MAC address (agents send MAC address as hostname
+        when hostname is OpenWrt or if default_hostname is set to *)
+        """
+        device = self._create_device_config(
+            device_opts={
+                "name": "meaningful-hostname",
+                "key": TEST_CONSISTENT_KEY,
+            }
+        )
+        params = {
+            "secret": TEST_ORG_SHARED_SECRET,
+            "name": TEST_MACADDR,
+            "mac_address": TEST_MACADDR,
+            "key": TEST_CONSISTENT_KEY,
+            "backend": "netjsonconfig.OpenWrt",
+            "model": "TP-Link TL-WDR4300 v2",
+            "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
+            "system": "Atheros AR9344 rev 3",
+        }
+        response = self.client.post(self.register_url, params)
+        self.assertEqual(response.status_code, 201)
+        device.refresh_from_db()
+        self.assertEqual(device.name, "meaningful-hostname")
+
+    def test_device_registration_hostname_comparison_case_insensitive(self):
+        """
+        Test that MAC address comparison is case-insensitive and works
+        with different formats (colons, dashes, no separators)
+        """
+        mac_address = "00:11:22:33:aa:BB"
+        d = self._create_device_config(
+            device_opts={
+                "mac_address": mac_address,
+                "name": "configured-hostname",
+                "key": TEST_CONSISTENT_KEY,
+            }
+        )
+        params = {
+            "secret": TEST_ORG_SHARED_SECRET,
+            "name": "00-11-22-33-AA-bb",
+            "mac_address": mac_address,
+            "key": TEST_CONSISTENT_KEY,
+            "backend": "netjsonconfig.OpenWrt",
+        }
+        response = self.client.post(self.register_url, params)
+        self.assertEqual(response.status_code, 201)
+        d.refresh_from_db()
+        # Hostname should not be changed
+        self.assertEqual(d.name, "configured-hostname")
+
     def test_device_report_status_running(self):
         """
         maintained for backward compatibility

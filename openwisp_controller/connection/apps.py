@@ -64,7 +64,7 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def config_modified_receiver(cls, **kwargs):
-        transaction.on_commit(lambda: cls._launch_update_config(kwargs["device"].pk))
+        transaction.on_commit(lambda: cls._launch_update_config(kwargs["device"]))
 
     @classmethod
     def command_save_receiver(cls, sender, created, instance, **kwargs):
@@ -81,14 +81,18 @@ class ConnectionConfig(AppConfig):
         )
 
     @classmethod
-    def _launch_update_config(cls, device_id):
+    def _launch_update_config(cls, device):
         """
         Calls the background task update_config only if
         no other tasks are running for the same device
         """
         from .tasks import update_config
 
-        update_config.delay(device_id)
+        # Check if push update should be skipped
+        if device.should_skip_push_update():
+            device.clear_skip_push_update()
+            return
+        update_config.delay(str(device.pk))
 
     @classmethod
     def is_working_changed_receiver(

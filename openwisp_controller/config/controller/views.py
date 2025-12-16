@@ -406,6 +406,10 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:
                     setattr(device, attr, request.POST.get(attr))
+            # update hostname if it's not a default/generic value
+            if self._should_update_hostname(request, device):
+                device.name = request.POST.get("name")
+                device.skip_push_update_on_save()
             config = device.config
         # if get queryset fails, instantiate a new Device and Config
         except self.model.DoesNotExist:
@@ -456,6 +460,34 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         return ControllerResponse(
             s.format(**attributes), content_type="text/plain", status=201
         )
+
+    def _should_update_hostname(self, request, device):
+        """
+        Determines whether the hostname should be updated during re-registration.
+
+        Returns False if the hostname equals the MAC address (agents send MAC address
+        as hostname when hostname is OpenWrt or if default_hostname is set to *).
+
+        This prevents overwriting user configured hostnames with default/generic values.
+        """
+        if "name" not in request.POST:
+            return False
+
+        name = request.POST.get("name")
+        mac_address = device.mac_address
+        # normalize MAC address format (strip colons/dashes and lowercase)
+        normalized_mac = (
+            mac_address.replace(":", "").replace("-", "").lower()
+            if mac_address
+            else None
+        )
+        # normalize hostname for comparison
+        normalized_name = name.replace(":", "").replace("-", "").lower()
+        # don't update if hostname equals the MAC address
+        if normalized_name == normalized_mac:
+            return False
+
+        return True
 
 
 class GetVpnView(SingleObjectMixin, View):
