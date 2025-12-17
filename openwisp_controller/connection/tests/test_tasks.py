@@ -5,9 +5,9 @@ from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.test import TestCase, TransactionTestCase
-from django.urls import reverse
 from swapper import load_model
 
+from ...config.tests.test_controller import TestControllerMixin
 from .. import tasks
 from .utils import CreateConnectionsMixin
 
@@ -89,28 +89,20 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         self.assertEqual(command.output, "Internal system error: test error\n")
 
 
-class TestTransactionTasks(CreateConnectionsMixin, TransactionTestCase):
+class TestTransactionTasks(
+    TestControllerMixin, CreateConnectionsMixin, TransactionTestCase
+):
     @mock.patch.object(tasks.update_config, "delay")
     def test_update_config_hostname_changed_on_reregister(self, mocked_update_config):
-        org = self._get_org()
-        config_settings = OrganizationConfigSettings.objects.create(
-            organization=org, context={}, shared_secret="secret"
-        )
-        device = self._create_device(
-            name="AA-BB-CC-DD-EE-FF", organization=org, key="test-key"
-        )
-        self._create_config(device=device)
+        device = self._create_device_config()
         self._create_device_connection(device=device)
         # Trigger re-registration with new hostname
         response = self.client.post(
-            reverse("controller:device_register"),
-            {
-                "name": "new-hostname",
-                "secret": str(config_settings.shared_secret),
-                "key": str(device.key),
-                "mac_address": device.mac_address,
-                "backend": "netjsonconfig.OpenWrt",
-            },
+            self.register_url,
+            self._get_reregistration_payload(
+                device,
+                name="new-hostname",
+            ),
         )
         self.assertEqual(response.status_code, 201)
         mocked_update_config.assert_not_called()

@@ -90,7 +90,6 @@ class ConnectionConfig(AppConfig):
 
         # Check if push update should be skipped
         if device.should_skip_push_update():
-            device.clear_skip_push_update()
             return
         update_config.delay(str(device.pk))
 

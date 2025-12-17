@@ -289,7 +289,7 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
     model = Device
     org_config_settings_model = OrganizationConfigSettings
 
-    UPDATABLE_FIELDS = ["os", "model", "system"]
+    UPDATABLE_FIELDS = ["name", "os", "model", "system"]
 
     def init_object(self, **kwargs):
         """
@@ -405,11 +405,13 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             # update hw info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:
+                    if attr == "name":
+                        if self._should_update_hostname(request, device):
+                            device.skip_push_update_on_save()
+                        else:
+                            # Don't update Device.name
+                            continue
                     setattr(device, attr, request.POST.get(attr))
-            # update hostname if it's not a default/generic value
-            if self._should_update_hostname(request, device):
-                device.name = request.POST.get("name")
-                device.skip_push_update_on_save()
             config = device.config
         # if get queryset fails, instantiate a new Device and Config
         except self.model.DoesNotExist:
@@ -470,24 +472,15 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
 
         This prevents overwriting user configured hostnames with default/generic values.
         """
-        if "name" not in request.POST:
-            return False
-
         name = request.POST.get("name")
         mac_address = device.mac_address
-        # normalize MAC address format (strip colons/dashes and lowercase)
         normalized_mac = (
             mac_address.replace(":", "").replace("-", "").lower()
             if mac_address
             else None
         )
-        # normalize hostname for comparison
         normalized_name = name.replace(":", "").replace("-", "").lower()
-        # don't update if hostname equals the MAC address
-        if normalized_name == normalized_mac:
-            return False
-
-        return True
+        return normalized_name != normalized_mac
 
 
 class GetVpnView(SingleObjectMixin, View):
