@@ -836,7 +836,7 @@ class TestController(
         self.assertEqual(d.system, params["system"])
         self.assertEqual(d.model, params["model"])
 
-    @patch.object(Device, 'skip_push_update_on_save')
+    @patch.object(Device, "skip_push_update_on_save")
     def test_device_registration_update_hostname(self, mocked_method):
         """
         Test that hostname is updated when the name in payload
@@ -860,7 +860,10 @@ class TestController(
         self.assertEqual(device.name, "new-custom-hostname")
         mocked_method.assert_called_once()
 
-    def test_device_registration_hostname_not_updated_when_mac_address(self):
+    @patch.object(Device, "skip_push_update_on_save")
+    def test_device_registration_hostname_not_updated_when_mac_address(
+        self, mocked_method
+    ):
         """
         Test that hostname is not updated when the name in payload
         equals the MAC address (agents send MAC address as hostname
@@ -880,17 +883,22 @@ class TestController(
         self.assertEqual(response.status_code, 201)
         device.refresh_from_db()
         self.assertEqual(device.name, "meaningful-hostname")
+        mocked_method.assert_not_called()
 
-    def test_device_registration_hostname_comparison_case_insensitive(self):
+    @patch.object(Device, "skip_push_update_on_save")
+    def test_device_registration_hostname_comparison_case_insensitive(
+        self, mocked_method
+    ):
         """
         Test that MAC address comparison is case-insensitive and works
         with different formats (colons, dashes, no separators)
         """
         mac_address = "00:11:22:33:aa:BB"
+        name = mac_address.replace(":", "-")
         device = self._create_device_config(
             device_opts={
                 "mac_address": mac_address,
-                "name": "configured-hostname",
+                "name": name,
                 "key": TEST_CONSISTENT_KEY,
             }
         )
@@ -902,7 +910,8 @@ class TestController(
         self.assertEqual(response.status_code, 201)
         device.refresh_from_db()
         # Hostname should not be changed
-        self.assertEqual(device.name, "configured-hostname")
+        self.assertEqual(device.name, name)
+        mocked_method.assert_not_called()
 
     def test_device_report_status_running(self):
         """
