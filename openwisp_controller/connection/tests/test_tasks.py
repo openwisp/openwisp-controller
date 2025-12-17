@@ -7,7 +7,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
-from ...config.tests.test_controller import TestControllerMixin
+from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
 from .utils import CreateConnectionsMixin
 
@@ -90,7 +90,7 @@ class TestTasks(CreateConnectionsMixin, TestCase):
 
 
 class TestTransactionTasks(
-    TestControllerMixin, CreateConnectionsMixin, TransactionTestCase
+    TestRegistrationMixin, CreateConnectionsMixin, TransactionTestCase
 ):
     @mock.patch.object(tasks.update_config, "delay")
     def test_update_config_hostname_changed_on_reregister(self, mocked_update_config):

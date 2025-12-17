@@ -38,7 +38,7 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Organization = load_model("openwisp_users", "Organization")
 
 
-class TestControllerMixin:
+class TestRegistrationMixin:
     register_url = reverse_lazy("controller:device_register")
 
     def _create_org(self, shared_secret=TEST_ORG_SHARED_SECRET, **kwargs):
@@ -63,7 +63,7 @@ class TestControllerMixin:
 
 
 class TestController(
-    TestControllerMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
+    TestRegistrationMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
 ):
     """
     tests for config.controller

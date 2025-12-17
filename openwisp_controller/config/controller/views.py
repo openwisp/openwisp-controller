@@ -402,16 +402,13 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         new = False
         try:
             device = self.model.objects.get(key=key)
-            # update hw info
+            # update device info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:
                     if attr == "name":
-                        if self._should_update_hostname(request, device):
-                            device.skip_push_update_on_save()
-                        else:
-                            # Don't update Device.name
-                            continue
-                    setattr(device, attr, request.POST.get(attr))
+                        self._update_device_name(request, device)
+                    else:
+                        setattr(device, attr, request.POST.get(attr))
             config = device.config
         # if get queryset fails, instantiate a new Device and Config
         except self.model.DoesNotExist:
@@ -463,14 +460,14 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             s.format(**attributes), content_type="text/plain", status=201
         )
 
-    def _should_update_hostname(self, request, device):
+    def _update_device_name(self, request, device):
         """
-        Determines whether the hostname should be updated during re-registration.
+        Updates the device name during re-registration if the name in the
+        payload is not equal to the device's MAC address.
 
-        Returns False if the hostname equals the MAC address (agents send MAC address
-        as hostname when hostname is OpenWrt or if default_hostname is set to *).
-
-        This prevents overwriting user configured hostnames with default/generic values.
+        Agents send the MAC address as hostname when the hostname is "OpenWrt"
+        or if default_hostname is set to *. This method prevents overwriting
+        user-configured hostnames with default/generic MAC address values.
         """
         name = request.POST.get("name")
         mac_address = device.mac_address
@@ -480,7 +477,9 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             else None
         )
         normalized_name = name.replace(":", "").replace("-", "").lower()
-        return normalized_name != normalized_mac
+        if normalized_name != normalized_mac:
+            device.name = name
+            device.skip_push_update_on_save()
 
 
 class GetVpnView(SingleObjectMixin, View):
