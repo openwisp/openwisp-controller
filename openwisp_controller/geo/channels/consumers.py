@@ -1,5 +1,5 @@
 import swapper
-from django_loci.channels.base import BaseAllLocationBroadcast, BaseLocationBroadcast
+from django_loci.channels.base import BaseCommonLocationBroadcast, BaseLocationBroadcast
 
 Location = swapper.load_model("geo", "Location")
 
@@ -19,7 +19,7 @@ class LocationBroadcast(BaseLocationBroadcast):
         return result
 
 
-class AllLocationBroadcast(BaseAllLocationBroadcast):
+class CommonLocationBroadcast(BaseCommonLocationBroadcast):
     model = Location
 
     def is_autherized(self, user, location):
