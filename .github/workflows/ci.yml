@@ -72,6 +72,9 @@ jobs:
           pip install -U -r requirements-test.txt
           pip install -U -e .
           pip install ${{ matrix.django-version }}
+          # Todo: Remove before merge
+          pip install --no-cache-dir --force-reinstall \
+            "django-loci @ https://github.com/openwisp/django-loci/tarball/feature/191-new-ws-endpoint-for-all-location"
 
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
