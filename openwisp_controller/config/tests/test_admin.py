@@ -2280,11 +2280,6 @@ class TestAdmin(
         self._verify_template_queries(config, 10)
 
     def test_empty_device_form_with_config_inline(self):
-        """
-        Ensures submitting device form with missing required fields
-        and configuration inline shows validation errors instead of
-        raising an exception
-        """
         org = self._get_org()
         template = self._create_template(organization=org)
         path = reverse(f"admin:{self.app_label}_device_add")
@@ -2309,12 +2304,9 @@ class TestAdmin(
             "command_set-MIN_NUM_FORMS": 0,
             "command_set-MAX_NUM_FORMS": 1000,
         }
-        # Should not raise MultiValueDictKeyError
         response = self.client.post(path, params)
-        # Should show validation errors instead
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "errorlist")
-        # Verify no device was created
         self.assertEqual(Device.objects.count(), 0)
 
 
