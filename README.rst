@@ -86,6 +86,31 @@ Documentation
 - `Developer documentation
   <https://openwisp.io/docs/stable/controller/developer/>`_
 
+Quick Start for Developers
+--------------------------
+
+If you are a developer looking to set up OpenWISP Controller locally,
+please refer to the developer documentation:
+
+- https://openwisp.io/docs/stable/controller/developer/
+
+In particular, make sure to review:
+
+- Python and system requirements
+- Database configuration (PostgreSQL or MySQL)
+- Environment variables
+- Initial migrations and development server setup
+
+A minimal development setup typically involves:
+
+- configuring database credentials
+- installing Python dependencies
+- running database migrations
+- starting the Django development server
+
+The developer documentation provides detailed, step-by-step instructions
+for each of these steps.
+
 Contributing
 ------------
 
