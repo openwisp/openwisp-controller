@@ -5,10 +5,9 @@ from unittest import skipIf
 
 import pytest
 from channels.db import database_sync_to_async
-from channels.layers import get_channel_layer
 from channels.routing import ProtocolTypeRouter
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_permission_codename, get_user_model
 from django.contrib.auth.models import Permission
 from django.utils.module_loading import import_string
 from django_loci.tests import TestChannelsMixin
@@ -18,6 +17,7 @@ from openwisp_controller.geo.channels.consumers import (
     CommonLocationBroadcast,
     LocationBroadcast,
 )
+from openwisp_users.tests.utils import TestOrganizationMixin
 
 from .utils import TestGeoMixin
 
@@ -26,10 +26,11 @@ Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 User = get_user_model()
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
+Group = load_model("openwisp_users", "Group")
 
 
 @skipIf(os.environ.get("SAMPLE_APP", False), "Running tests on SAMPLE_APP")
-class TestChannels(TestGeoMixin, TestChannelsMixin):
+class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
     location_consumer = LocationBroadcast
     common_location_consumer = CommonLocationBroadcast
     application = import_string(getattr(settings, "ASGI_APPLICATION"))
@@ -110,59 +111,92 @@ class TestChannels(TestGeoMixin, TestChannelsMixin):
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_common_location_org_isolation(self):
-        org1 = await database_sync_to_async(self._create_organization)(name="test1")
-        org2 = await database_sync_to_async(self._create_organization)(name="test2")
-        location1 = await database_sync_to_async(self._create_location)(
+        administrator = await Group.objects.acreate(name="Administrator")
+        perm = await Permission.objects.filter(
+            codename=get_permission_codename("change", self.location_model._meta),
+        ).afirst()
+        await administrator.permissions.aadd(perm)
+        org1 = await database_sync_to_async(self._get_org)(org_name="test1")
+        org2 = await database_sync_to_async(self._get_org)(org_name="test2")
+        org1_location = await database_sync_to_async(self._create_location)(
             is_mobile=True, organization=org1
         )
-        location2 = await database_sync_to_async(self._create_location)(
+        org2_location = await database_sync_to_async(self._create_location)(
             is_mobile=True, organization=org2
         )
-        user1 = await database_sync_to_async(User.objects.create_user)(
-            username="user1", password="password", email="user1@test.org", is_staff=True
+        org1_user = await database_sync_to_async(self._create_administrator)(
+            organizations=[org1],
+            username="user1",
+            password="password",
+            email="user1@test.org",
         )
-        user2 = await database_sync_to_async(User.objects.create_user)(
-            username="user2", password="password", email="user2@test.org", is_staff=True
+        org2_user = await database_sync_to_async(self._create_administrator)(
+            organizations=[org2],
+            username="user2",
+            password="password",
+            email="user2@test.org",
         )
-        perm = await Permission.objects.filter(
-            codename=f"change_{self.location_model._meta.model_name}",
-            content_type__app_label=self.location_model._meta.app_label,
-        ).afirst()
-        await database_sync_to_async(user1.user_permissions.add)(perm)
-        await database_sync_to_async(user2.user_permissions.add)(perm)
-        await database_sync_to_async(OrganizationUser.objects.create)(
-            organization=org1, user=user1, is_admin=True
+        admin = await database_sync_to_async(self._get_admin)()
+        org1_communicator = self._get_common_location_communicator(
+            await self._get_common_location_request_dict(
+                pk=org1_location.pk, user=org1_user
+            ),
+            org1_user,
         )
-        await database_sync_to_async(OrganizationUser.objects.create)(
-            organization=org2, user=user2, is_admin=True
+        org2_communicator = self._get_common_location_communicator(
+            await self._get_common_location_request_dict(
+                pk=org2_location.pk, user=org2_user
+            ),
+            org2_user,
         )
-        user1 = await database_sync_to_async(User.objects.get)(pk=user1.pk)
-        user2 = await database_sync_to_async(User.objects.get)(pk=user2.pk)
-        channel_layer = get_channel_layer()
-        communicator1 = self._get_common_location_communicator(
-            await self._get_common_location_request_dict(pk=location1.pk, user=user1),
-            user1,
+        admin_communicator = self._get_common_location_communicator(
+            await self._get_common_location_request_dict(
+                pk=org1_location.pk, user=admin
+            ),
+            admin,
         )
-        communicator2 = self._get_common_location_communicator(
-            await self._get_common_location_request_dict(pk=location2.pk, user=user2),
-            user2,
-        )
-        connected, _ = await communicator1.connect()
+        connected, _ = await org1_communicator.connect()
         assert connected
-        connected, _ = await communicator2.connect()
+        connected, _ = await org2_communicator.connect()
         assert connected
-        await channel_layer.group_send(
-            f"loci.mobile-location.organization.{org1.pk}",
-            {"type": "send.message", "message": {"id": str(location1.pk)}},
-        )
-        response = await communicator1.receive_json_from(timeout=1)
-        assert response["id"] == str(location1.pk)
+        connected, _ = await admin_communicator.connect()
+        assert connected
+
+        # Updating co-ordinates for org1_location should notify org1_user and admin,
+        await self._save_location(str(org1_location.pk))
+        org1_response = await org1_communicator.receive_json_from(timeout=1)
+        assert org1_response["id"] == str(org1_location.pk)
+        admin_response = await admin_communicator.receive_json_from(timeout=1)
+        assert admin_response["id"] == str(org1_location.pk)
         with pytest.raises(asyncio.TimeoutError):
-            await communicator2.receive_json_from(timeout=1)
-        # The task is been cancelled if not completed in the given timeout
-        await communicator1.disconnect()
+            await org2_communicator.receive_json_from(timeout=1)
+
         with suppress(asyncio.CancelledError):
-            await communicator2.disconnect()
+            await org2_communicator.disconnect()
+
+        org2_communicator = self._get_common_location_communicator(
+            await self._get_common_location_request_dict(
+                pk=org2_location.pk, user=org2_user
+            ),
+            org2_user,
+        )
+        connected, _ = await org2_communicator.connect()
+        assert connected
+
+        # Updating co-ordinates for org2_location should notify org2_user and admin,
+        await self._save_location(str(org2_location.pk))
+        org2_response = await org2_communicator.receive_json_from(timeout=1)
+        assert org2_response["id"] == str(org2_location.pk)
+        admin_response = await admin_communicator.receive_json_from(timeout=1)
+        assert admin_response["id"] == str(org2_location.pk)
+        with pytest.raises(asyncio.TimeoutError):
+            await org1_communicator.receive_json_from(timeout=1)
+
+        # The task is been cancelled if not completed in the given timeout
+        with suppress(asyncio.CancelledError):
+            await org1_communicator.disconnect()
+            await org2_communicator.disconnect()
+        await admin_communicator.disconnect()
 
     def test_asgi_application_router(self):
         assert isinstance(self.application, ProtocolTypeRouter)
