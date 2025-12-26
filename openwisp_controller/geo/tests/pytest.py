@@ -82,9 +82,7 @@ class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_common_location_consumer_staff_but_no_change_permission(self):
-        user = await database_sync_to_async(User.objects.create_user)(
-            username="user", password="password", email="test@test.org", is_staff=True
-        )
+        user = await database_sync_to_async(self._create_user)(is_staff=True)
         location = await database_sync_to_async(self._create_location)(is_mobile=True)
         await database_sync_to_async(self._create_object_location)(location=location)
         pk = location.pk
