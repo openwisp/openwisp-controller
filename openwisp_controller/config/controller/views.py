@@ -289,7 +289,7 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
     model = Device
     org_config_settings_model = OrganizationConfigSettings
 
-    UPDATABLE_FIELDS = ["os", "model", "system"]
+    UPDATABLE_FIELDS = ["name", "os", "model", "system"]
 
     def init_object(self, **kwargs):
         """
@@ -402,10 +402,13 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         new = False
         try:
             device = self.model.objects.get(key=key)
-            # update hw info
+            # update device info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:
-                    setattr(device, attr, request.POST.get(attr))
+                    if attr == "name":
+                        self._update_device_name(request, device)
+                    else:
+                        setattr(device, attr, request.POST.get(attr))
             config = device.config
         # if get queryset fails, instantiate a new Device and Config
         except self.model.DoesNotExist:
@@ -456,6 +459,27 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         return ControllerResponse(
             s.format(**attributes), content_type="text/plain", status=201
         )
+
+    def _update_device_name(self, request, device):
+        """
+        Updates the device name during re-registration if the name in the
+        payload is not equal to the device's MAC address.
+
+        Agents send the MAC address as hostname when the hostname is "OpenWrt"
+        or if default_hostname is set to *. This method prevents overwriting
+        user-configured hostnames with default/generic MAC address values.
+        """
+        name = request.POST.get("name")
+        mac_address = device.mac_address
+        normalized_mac = (
+            mac_address.replace(":", "").replace("-", "").lower()
+            if mac_address
+            else None
+        )
+        normalized_name = name.replace(":", "").replace("-", "").lower()
+        if normalized_name != normalized_mac:
+            device.name = name
+            device.skip_push_update_on_save()
 
 
 class GetVpnView(SingleObjectMixin, View):
