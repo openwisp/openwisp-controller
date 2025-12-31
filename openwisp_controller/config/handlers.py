@@ -161,11 +161,14 @@ def organization_config_settings_change_handler(instance, **kwargs):
     if instance._state.adding:
         return
 
+    # Check if context actually changed
     try:
         db_instance = instance.__class__.objects.only("context").get(id=instance.id)
         if db_instance.context != instance.context:
             transaction.on_commit(
-                lambda: tasks.invalidate_organization_vpn_cache.delay(str(instance.organization_id))
+                lambda: tasks.invalidate_organization_vpn_cache.delay(
+                    str(instance.organization_id)
+                )
             )
     except instance.__class__.DoesNotExist:
         pass

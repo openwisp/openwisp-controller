@@ -107,10 +107,9 @@ def invalidate_organization_vpn_cache(organization_id):
     organization configuration variables change.
     """
     Vpn = load_model("config", "Vpn")
-
+    from .controller.views import GetVpnView
+    
     for vpn in Vpn.objects.filter(organization_id=organization_id).iterator():
-        from .controller.views import GetVpnView
-
         GetVpnView.invalidate_get_vpn_cache(vpn)
         vpn.invalidate_checksum_cache()
 
