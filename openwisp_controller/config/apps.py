@@ -273,7 +273,8 @@ class ConfigConfig(AppConfig):
             device_cache_invalidation_handler,
             devicegroup_change_handler,
             devicegroup_delete_handler,
-            organization_config_settings_change_handler,
+            organization_config_settings_post_save_handler,
+            organization_config_settings_pre_save_handler,
             vpn_server_change_handler,
         )
 
@@ -340,8 +341,13 @@ class ConfigConfig(AppConfig):
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
         )
+        pre_save.connect(
+            organization_config_settings_pre_save_handler,
+            sender=self.organization_config_settings_model,
+            dispatch_uid="organization_config_settings.store_original_context",
+        )
         post_save.connect(
-            organization_config_settings_change_handler,
+            organization_config_settings_post_save_handler,
             sender=self.organization_config_settings_model,
             dispatch_uid="organization_config_settings.invalidate_vpn_cache",
         )

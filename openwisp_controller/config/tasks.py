@@ -108,10 +108,18 @@ def invalidate_organization_vpn_cache(organization_id):
     """
     Vpn = load_model("config", "Vpn")
     from .controller.views import GetVpnView
-    
-    for vpn in Vpn.objects.filter(organization_id=organization_id).iterator():
-        GetVpnView.invalidate_get_vpn_cache(vpn)
-        vpn.invalidate_checksum_cache()
+
+    try:
+        for vpn in (
+            Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
+        ):
+            GetVpnView.invalidate_get_vpn_cache(vpn)
+            vpn.invalidate_checksum_cache()
+    except SoftTimeLimitExceeded:
+        logger.exception(
+            "soft time limit hit while executing "
+            f"invalidate_organization_vpn_cache for organization {organization_id}"
+        )
 
 
 @shared_task(soft_time_limit=7200)

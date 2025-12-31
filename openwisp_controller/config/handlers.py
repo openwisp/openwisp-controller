@@ -154,21 +154,27 @@ def organization_disabled_handler(instance, **kwargs):
     tasks.invalidate_controller_views_cache.delay(str(instance.id))
 
 
-def organization_config_settings_change_handler(instance, **kwargs):
+def organization_config_settings_pre_save_handler(instance, **kwargs):
     """
-    Invalidates VPN cache when OrganizationConfigSettings context changes.
+    Stores original context before save to detect changes.
     """
     if instance._state.adding:
         return
-
-    # Check if context actually changed
     try:
         db_instance = instance.__class__.objects.only("context").get(id=instance.id)
-        if db_instance.context != instance.context:
-            transaction.on_commit(
-                lambda: tasks.invalidate_organization_vpn_cache.delay(
-                    str(instance.organization_id)
-                )
-            )
+        instance._original_context = db_instance.context
     except instance.__class__.DoesNotExist:
-        pass
+        instance._original_context = None
+
+
+def organization_config_settings_post_save_handler(instance, **kwargs):
+    """
+    Invalidates VPN cache when OrganizationConfigSettings context changes.
+    """
+    original_context = getattr(instance, "_original_context", None)
+    if original_context is not None and original_context != instance.context:
+        transaction.on_commit(
+            lambda: tasks.invalidate_organization_vpn_cache.delay(
+                str(instance.organization_id)
+            )
+        )
