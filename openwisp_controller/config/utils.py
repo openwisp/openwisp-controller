@@ -213,7 +213,7 @@ def get_config_error_notification_target_url(obj, field, absolute_url=True):
 
 def send_api_task_notification(type, **kwargs):
     vpn = kwargs.get("instance")
-    action = kwargs.get("action").replace("_", " ")
+    action = kwargs.get("action", "").replace("_", " ")
     exception = kwargs.get("exception")
     # Adding some delay here to prevent overlapping
     # of the django success message container

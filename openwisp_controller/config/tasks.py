@@ -137,7 +137,8 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
         response = requests.post(
             endpoint,
             params={"key": auth_token},
-            verify=False if getattr(settings, "DEBUG") else True,
+            verify=not settings.DEBUG,
+            timeout=30,
         )
         response.raise_for_status()
     except requests.RequestException as e:
