@@ -44,8 +44,15 @@ class Command(BaseCommand):
                 )
             ),
         )
-
-        updated_devices = devices.update(last_ip=None)
+        # We cannot use a queryset-level update here because it bypasses model save()
+        # and signals, which are required to properly invalidate related caches
+        # (e.g. DeviceChecksumView.get_device). To ensure correct behavior and
+        # future compatibility, each device is saved individually.
+        updated_devices = 0
+        for device in devices.iterator():
+            device.last_ip = None
+            device.save()
+            updated_devices += 1
         if updated_devices:
             self.stdout.write(
                 f"Cleared last IP addresses for {updated_devices} active device(s)."

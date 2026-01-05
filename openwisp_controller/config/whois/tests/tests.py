@@ -15,6 +15,7 @@ from geoip2 import errors
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
+from openwisp_controller.config.controller.views import DeviceChecksumView
 from openwisp_utils.tests import SeleniumTestMixin
 
 from ....tests.utils import TestAdminMixin
@@ -271,6 +272,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     def test_last_ip_management_command(self):
         out = StringIO()
         device = self._create_device(last_ip="172.217.22.11")
+        self._create_config(device=device)
         args = ["--noinput"]
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn(
@@ -281,6 +283,33 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
 
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
+
+        response = self.client.get(
+            reverse("controller:device_checksum", args=[device.pk]),
+            {"key": device.key},
+            REMOTE_ADDR="172.217.22.11",
+        )
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertEqual(device.last_ip, "172.217.22.11")
+
+    def test_last_ip_management_command_invalidates_cache(self):
+        device = self._create_device(last_ip="172.217.22.11")
+        self._create_config(device=device)
+        call_command("clear_last_ip", "--noinput", stdout=StringIO())
+        device.refresh_from_db()
+        self.assertEqual(device.last_ip, None)
+        # We will use the DeviceChecksumView to set the last_ip again to
+        # the same value to verify that the command invalidates the cache
+        # and the view is able to send the same IP again.
+        response = self.client.get(
+            reverse("controller:device_checksum", args=[device.pk]),
+            {"key": device.key},
+            REMOTE_ADDR="172.217.22.11",
+        )
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertEqual(device.last_ip, "172.217.22.11")
 
 
 class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
