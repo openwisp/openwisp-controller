@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
                         blank=True, help_text="Organization for ASN", max_length=100
                     ),
                 ),
-                ("asn", models.CharField(blank=True, help_text="ASN", max_length=6)),
+                ("asn", models.CharField(blank=True, help_text="ASN", max_length=10)),
                 (
                     "timezone",
                     models.CharField(blank=True, help_text="Time zone", max_length=35),
@@ -62,6 +62,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 "abstract": False,
+                "swappable": "CONFIG_WHOISINFO_MODEL",
             },
         ),
         migrations.AddField(

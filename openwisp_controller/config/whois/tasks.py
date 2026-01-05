@@ -1,6 +1,7 @@
 import logging
 
 from celery import shared_task
+from django.core.cache import cache
 from django.db import transaction
 from geoip2 import errors
 from swapper import load_model
@@ -23,10 +24,28 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     # that should trigger a retry of the task.
     autoretry_for = (errors.HTTPError,)
 
+    def on_success(self, retval, task_id, args, kwargs):
+        """Mark the task as successfully completed."""
+        task_key = f"{self.name}_last_operation"
+        cache.set(task_key, "success", None)
+        return super().on_success(retval, task_id, args, kwargs)
+
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        """Notify the user about the failure of the WHOIS task."""
+        """
+        Notify the user about the failure of the WHOIS task.
+
+        Notifications are sent only once when task fails for the first time.
+        Subsequent failures do not trigger notifications until a successful run occurs.
+        """
         device_pk = kwargs.get("device_pk")
-        send_whois_task_notification(device=device_pk, notify_type="whois_device_error")
+        # All exceptions are treated globally to prevent notification spam
+        task_key = f"{self.name}_last_operation"
+        last_operation = cache.get(task_key)
+        if last_operation != "errored":
+            cache.set(task_key, "errored", None)
+            send_whois_task_notification(
+                device=device_pk, notify_type="whois_device_error"
+            )
         logger.error(f"WHOIS lookup failed. Details: {exc}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 
@@ -54,7 +73,6 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         whois_obj = WHOISInfo.objects.filter(ip_address=new_ip_address).first()
         if whois_obj and not WHOISService.is_older(whois_obj.modified):
             return
-
         fetched_details = WHOISService.process_whois_details(new_ip_address)
         whois_obj, update_fields = WHOISService._create_or_update_whois(
             fetched_details, whois_obj
@@ -64,14 +82,17 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         if device._get_organization__config_settings().estimated_location_enabled:
             # the estimated location task should not run if old record is updated
             # and location related fields are not updated
-            if update_fields and not any(
-                i in update_fields for i in ["address", "coordinates"]
+            device_location = getattr(device, "devicelocation", None)
+            if (
+                device_location
+                and device_location.location
+                and update_fields
+                and not any(i in update_fields for i in ["address", "coordinates"])
             ):
                 return
             manage_estimated_locations.delay(
                 device_pk=device_pk, ip_address=new_ip_address
             )
-
         # delete WHOIS record for initial IP if no devices are linked to it
         if (
             not Device.objects.filter(_is_deactivated=False)
@@ -88,7 +109,6 @@ def delete_whois_record(ip_address):
     This is used when the device is deleted or its last IP address is changed.
     """
     WHOISInfo = load_model("config", "WHOISInfo")
-
     queryset = WHOISInfo.objects.filter(ip_address=ip_address)
     if queryset.exists():
         queryset.delete()

@@ -77,9 +77,6 @@
   font-weight: 600;
   cursor: pointer;
 }
-details.whois[open] summary {
-  padding-bottom: 0 !important;
-}
 .whois summary > div {
   display: flex;
   width: 100%;

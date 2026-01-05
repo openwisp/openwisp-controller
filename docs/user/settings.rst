@@ -813,10 +813,10 @@ Maxmind Account ID required for the :doc:`WHOIS Lookup feature <whois>`.
 
 Maxmind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
 
-.. _openwisp_controller_whois_estimated_location_enabled:
+.. _openwisp_controller_estimated_location_enabled:
 
-``OPENWISP_CONTROLLER_WHOIS_ESTIMATED_LOCATION_ENABLED``
---------------------------------------------------------
+``OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED``
+--------------------------------------------------
 
 ============ =========
 **type**:    ``bool``

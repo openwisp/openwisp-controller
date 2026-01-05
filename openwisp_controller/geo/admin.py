@@ -121,7 +121,8 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
         obj = self.get_object(request, object_id)
         org_id = obj.organization_id if obj else None
         estimated_configured = WHOISService.check_estimate_location_configured(org_id)
-        extra_context = {"estimated_configured": estimated_configured}
+        extra_context = extra_context or {}
+        extra_context["estimated_configured"] = estimated_configured
         return super().change_view(request, object_id, form_url, extra_context)
 
 

@@ -6,7 +6,6 @@ from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
-from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
@@ -14,24 +13,7 @@ from swapper import load_model
 from openwisp_controller.config import settings as app_settings
 
 from .tasks import fetch_whois_details, manage_estimated_locations
-from .utils import send_whois_task_notification
-
-EXCEPTION_MESSAGES = {
-    errors.AddressNotFoundError: _(
-        "No WHOIS information found for IP address {ip_address}"
-    ),
-    errors.AuthenticationError: _(
-        "Authentication failed for GeoIP2 service. "
-        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
-        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
-    ),
-    errors.OutOfQueriesError: _(
-        "Your account has run out of queries for the GeoIP2 service."
-    ),
-    errors.PermissionRequiredError: _(
-        "Your account does not have permission to access this service."
-    ),
-}
+from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
 
 
 class WHOISService:
@@ -71,6 +53,7 @@ class WHOISService:
         try:
             return ip and ip_addr(ip).is_global
         except ValueError:
+            # ip_address() from the stdlib raises ValueError for malformed strings
             return False
 
     @staticmethod
@@ -83,11 +66,14 @@ class WHOISService:
         return WHOISInfo.objects.filter(ip_address=ip_address)
 
     @staticmethod
-    def is_older(datetime):
+    def is_older(dt):
         """
         Check if given datetime is older than the refresh threshold.
+        Raises TypeError if datetime is naive (not timezone-aware).
         """
-        return (timezone.now() - datetime) >= timedelta(
+        if not timezone.is_aware(dt):
+            raise TypeError("datetime must be timezone-aware")
+        return (timezone.now() - dt) >= timedelta(
             days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS
         )
 
@@ -174,9 +160,9 @@ class WHOISService:
             message = EXCEPTION_MESSAGES.get(exc_type)
             if exc_type is errors.AddressNotFoundError:
                 message = message.format(ip_address=ip_address)
-            raise exc_type(message)
-        except requests.RequestException as e:
-            raise e
+            raise exc_type(message) from e
+        except requests.RequestException:
+            raise
         else:
             # The attributes are always present in the response,
             # but they can be None, so added fallbacks.
@@ -186,13 +172,21 @@ class WHOISService:
                 "continent": data.continent.name or "",
                 "postal": str(data.postal.code or ""),
             }
-            coordinates = Point(
-                data.location.longitude, data.location.latitude, srid=4326
-            )
+            # Coordinates may be None in WHOIS response
+            # WHOISInfo.timezone is a non-nullable CharField, so store empty
+            # string when missing to avoid IntegrityError on save.
+            timezone, coordinates = "", None
+            if location := data.location:
+                if location.latitude is not None and location.longitude is not None:
+                    coordinates = Point(
+                        location.longitude, location.latitude, srid=4326
+                    )
+                timezone = location.time_zone or ""
+
             return {
                 "isp": data.traits.autonomous_system_organization,
                 "asn": data.traits.autonomous_system_number,
-                "timezone": data.location.time_zone,
+                "timezone": timezone,
                 "address": address,
                 "coordinates": coordinates,
                 "cidr": data.traits.network,
@@ -210,7 +204,6 @@ class WHOISService:
               X days (defined by "WHOIS_REFRESH_THRESHOLD_DAYS").
             - WHOIS is disabled in the organization settings. (query from db)
         """
-
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
             return False
@@ -285,15 +278,15 @@ class WHOISService:
         Returns the updated or created WHOIS instance along with update fields.
         """
         WHOISInfo = load_model("config", "WHOISInfo")
-
         update_fields = []
         if whois_instance:
             for attr, value in whois_details.items():
                 if getattr(whois_instance, attr) != value:
                     update_fields.append(attr)
                     setattr(whois_instance, attr, value)
-            if update_fields:
-                whois_instance.save(update_fields=update_fields)
+            update_fields.append("modified")
+            whois_instance.modified = timezone.now()
+            whois_instance.save(update_fields=update_fields)
         else:
             whois_instance = WHOISInfo(**whois_details)
             whois_instance.full_clean()
@@ -325,11 +318,11 @@ class WHOISService:
                 device_location.location = current_location
                 device_location.full_clean()
                 device_location.save()
-                send_whois_task_notification(
-                    device=self.device,
-                    notify_type="estimated_location_created",
-                    actor=current_location,
-                )
+            send_whois_task_notification(
+                device=self.device,
+                notify_type="estimated_location_created",
+                actor=current_location,
+            )
         elif current_location.is_estimated:
             update_fields = []
             for attr, value in location_defaults.items():
@@ -341,11 +334,9 @@ class WHOISService:
                     current_location.save(
                         update_fields=update_fields, _set_estimated=True
                     )
-
                 send_whois_task_notification(
                     device=self.device,
                     notify_type="estimated_location_updated",
                     actor=current_location,
                 )
-
         return current_location

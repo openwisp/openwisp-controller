@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "asn",
-                    models.CharField(blank=True, help_text="ASN", max_length=6),
+                    models.CharField(blank=True, help_text="ASN", max_length=10),
                 ),
                 (
                     "timezone",

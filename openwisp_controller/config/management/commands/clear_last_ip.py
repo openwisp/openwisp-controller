@@ -5,7 +5,7 @@ from swapper import load_model
 
 class Command(BaseCommand):
     help = (
-        "Clears the last IP address (if set) for every active device"
+        "Clears the last IP address (if set) for active devices without WHOIS records"
         " across all organizations."
     )
 
@@ -19,7 +19,7 @@ class Command(BaseCommand):
         )
         return super().add_arguments(parser)
 
-    def handle(self, *args, **options):
+    def handle(self, *_args, **options):
         Device = load_model("config", "Device")
         WHOISInfo = load_model("config", "WHOISInfo")
 
@@ -35,7 +35,14 @@ class Command(BaseCommand):
             if input("".join(message)).lower() != "yes":
                 raise CommandError("Operation cancelled by user.")
 
-        devices = Device.objects.filter(_is_deactivated=False).only("last_ip")
+        devices = (
+            Device.objects.filter(_is_deactivated=False).select_related(
+                "organization__config_settings"
+            )
+            # include the FK field 'organization' in .only() so the related
+            # `organization__config_settings` traversal is not deferred
+            .only("last_ip", "organization", "key")
+        )
         # Filter out devices that have WHOIS information for their last IP
         devices = devices.exclude(last_ip=None).exclude(
             last_ip__in=Subquery(
@@ -44,8 +51,15 @@ class Command(BaseCommand):
                 )
             ),
         )
-
-        updated_devices = devices.update(last_ip=None)
+        # We cannot use a queryset-level update here because it bypasses model save()
+        # and signals, which are required to properly invalidate related caches
+        # (e.g. DeviceChecksumView.get_device). To ensure correct behavior and
+        # future compatibility, each device is saved individually.
+        updated_devices = 0
+        for device in devices.iterator():
+            device.last_ip = None
+            device.save(update_fields=["last_ip"])
+            updated_devices += 1
         if updated_devices:
             self.stdout.write(
                 f"Cleared last IP addresses for {updated_devices} active device(s)."

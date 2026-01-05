@@ -153,9 +153,6 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         # updates cache if ip addresses changed
         if updated:
             self.update_device_cache(device)
-        # check if WHOIS Info of device requires update
-        else:
-            device.whois_service.update_whois_info()
         checksum_requested.send(
             sender=device.__class__, instance=device, request=request
         )

@@ -16,13 +16,14 @@ class EstimatedLocationMixin:
         return data
 
 
-class EstimatedLocationGeoJsonSerializer(EstimatedLocationMixin):
+class EstimatedLocationGeoJsonMixin:
     """
-    Extension of EstimatedLocationMixin for GeoJSON serialization.
+    Serializer mixin to add estimated location field to the serialized GeoJSON data
+    if the estimated location feature is configured and enabled for the organization.
     """
 
     def to_representation(self, obj):
-        data = super(EstimatedLocationMixin, self).to_representation(obj)
+        data = super().to_representation(obj)
         if WHOISService.check_estimate_location_configured(obj.organization_id):
             data["properties"]["is_estimated"] = obj.is_estimated
         else:
