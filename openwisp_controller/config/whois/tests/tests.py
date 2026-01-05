@@ -15,7 +15,6 @@ from geoip2 import errors
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
-from openwisp_controller.config.controller.views import DeviceChecksumView
 from openwisp_utils.tests import SeleniumTestMixin
 
 from ....tests.utils import TestAdminMixin
