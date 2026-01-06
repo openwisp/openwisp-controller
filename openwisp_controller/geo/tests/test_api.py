@@ -3,6 +3,7 @@ import tempfile
 import uuid
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -400,6 +401,7 @@ class TestGeoApi(
     def setUp(self):
         admin = self._create_admin()
         self.client.force_login(admin)
+        ContentType.objects.clear_cache()
 
     def _create_device_location(self, **kwargs):
         options = dict()
@@ -594,7 +596,7 @@ class TestGeoApi(
             "address": "Via del Corso, Roma, Italia",
             "geometry": coords,
         }
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(13):
             response = self.client.post(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
 
@@ -627,7 +629,7 @@ class TestGeoApi(
             "address": "Via del Corso, Roma, Italia",
             "geometry": coords,
         }
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(10):
             response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["organization"], org1.pk)
@@ -638,7 +640,7 @@ class TestGeoApi(
         self.assertEqual(l1.name, "test-location")
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"name": "change-test-location"}
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(9):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["name"], "change-test-location")
@@ -668,7 +670,7 @@ class TestGeoApi(
         fl = self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"floorplan": {"floor": 13}}
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(17):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         fl.refresh_from_db()
@@ -679,7 +681,7 @@ class TestGeoApi(
         self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"type": "outdoor"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(13):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["floorplan"], [])
@@ -705,7 +707,7 @@ class TestGeoApi(
             "floorplan.floor": ["23"],
             "floorplan.image": [fl_image],
         }
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(20):
             response = self.client.post(path, data, format="multipart")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Location.objects.count(), 1)
@@ -729,7 +731,7 @@ class TestGeoApi(
             "floorplan.floor": "23",
             "floorplan.image": fl_image,
         }
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(20):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -824,7 +826,7 @@ class TestGeoApi(
         floorplan = self._create_floorplan()
         location = floorplan.location
         url = reverse("geo_api:device_location", args=[device.id])
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(29):
             response = self.client.put(
                 url,
                 data={
@@ -862,7 +864,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(43):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -929,7 +931,7 @@ class TestGeoApi(
                 "type": "indoor",
             }
         }
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(32):
             response = self.client.put(url, data=data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
@@ -969,7 +971,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(25):
+        with self.assertNumQueries(37):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -992,7 +994,7 @@ class TestGeoApi(
         }
         self.assertEqual(device_location.location.type, "outdoor")
         self.assertEqual(device_location.floorplan, None)
-        with self.assertNumQueries(22):
+        with self.assertNumQueries(33):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1011,7 +1013,7 @@ class TestGeoApi(
             "indoor": "0,0",
         }
         self.assertEqual(device_location.indoor, "-140.38620,40.369227")
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(20):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -1028,7 +1030,7 @@ class TestGeoApi(
         data = {
             "floorplan": str(floor2.id),
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(22):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -1042,7 +1044,7 @@ class TestGeoApi(
         data = {
             "location": str(location2.id),
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(21):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()

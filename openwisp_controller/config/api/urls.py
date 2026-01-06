@@ -14,6 +14,21 @@ def get_api_urls(api_views):
     if getattr(settings, "OPENWISP_CONTROLLER_API", True):
         return [
             path(
+                "controller/<str:model>/revision/",
+                api_views.revision_list,
+                name="revision_list",
+            ),
+            path(
+                "controller/<str:model>/revision/<str:pk>/",
+                api_views.version_detail,
+                name="version_detail",
+            ),
+            path(
+                "controller/<str:model>/revision/<str:pk>/restore/",
+                api_views.revision_restore,
+                name="revision_restore",
+            ),
+            path(
                 "controller/template/",
                 api_views.template_list,
                 name="template_list",
@@ -82,21 +97,6 @@ def get_api_urls(api_views):
                 "controller/device/<uuid:pk>/configuration/",
                 api_download_views.download_device_config,
                 name="download_device_config",
-            ),
-            path(
-                'controller/reversion/',
-                api_views.reversion_list,
-                name='reversion_list',
-            ),
-            path(
-                'controller/reversion/<str:pk>/',
-                api_views.reversion_detail,
-                name='reversion_detail',
-            ),
-            path(
-                'controller/reversion/<str:pk>/restore/',
-                api_views.reversion_restore,
-                name='reversion_restore',
             ),
         ]
     else:
