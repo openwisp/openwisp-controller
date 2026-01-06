@@ -14,7 +14,11 @@ from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
-from ...mixins import ProtectedAPIMixin, RelatedDeviceProtectedAPIMixin
+from ...mixins import (
+    AutoRevisionMixin,
+    ProtectedAPIMixin,
+    RelatedDeviceProtectedAPIMixin,
+)
 from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
@@ -57,7 +61,9 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
+class DeviceCoordinatesView(
+    ProtectedAPIMixin, AutoRevisionMixin, generics.RetrieveUpdateAPIView
+):
     serializer_class = DeviceCoordinatesSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
@@ -105,6 +111,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
 class DeviceLocationView(
     RelatedDeviceProtectedAPIMixin,
+    AutoRevisionMixin,
     FilterByParentManaged,
     generics.RetrieveUpdateDestroyAPIView,
 ):
@@ -203,7 +210,9 @@ class LocationDeviceList(
         return qs
 
 
-class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
+class FloorPlanListCreateView(
+    ProtectedAPIMixin, AutoRevisionMixin, generics.ListCreateAPIView
+):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related().order_by("-created")
     pagination_class = ListViewPagination
@@ -213,13 +222,16 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
 
 class FloorPlanDetailView(
     ProtectedAPIMixin,
+    AutoRevisionMixin,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related()
 
 
-class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
+class LocationListCreateView(
+    ProtectedAPIMixin, AutoRevisionMixin, generics.ListCreateAPIView
+):
     serializer_class = LocationSerializer
     queryset = Location.objects.order_by("-created")
     pagination_class = ListViewPagination
@@ -229,6 +241,7 @@ class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
 
 class LocationDetailView(
     ProtectedAPIMixin,
+    AutoRevisionMixin,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = LocationSerializer

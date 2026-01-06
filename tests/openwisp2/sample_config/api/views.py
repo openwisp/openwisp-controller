@@ -29,19 +29,19 @@ from openwisp_controller.config.api.views import (
     DeviceListCreateView as BaseDeviceListCreateView,
 )
 from openwisp_controller.config.api.views import (
-    ReversionDetailView as BaseReversionDetailView,
+    RevisionListView as BaseRevisionListView,
 )
 from openwisp_controller.config.api.views import (
-    ReversionListView as BaseReversionListView,
-)
-from openwisp_controller.config.api.views import (
-    ReversionRestoreView as BaseReversionRestoreView,
+    RevisionRestoreView as BaseRevisionRestoreView,
 )
 from openwisp_controller.config.api.views import (
     TemplateDetailView as BaseTemplateDetailView,
 )
 from openwisp_controller.config.api.views import (
     TemplateListCreateView as BaseTemplateListCreateView,
+)
+from openwisp_controller.config.api.views import (
+    VersionDetailView as BaseVersionDetailView,
 )
 from openwisp_controller.config.api.views import VpnDetailView as BaseVpnDetailView
 from openwisp_controller.config.api.views import (
@@ -105,15 +105,15 @@ class DownloadDeviceView(BaseDownloadDeviceView):
     pass
 
 
-class ReversionListView(BaseReversionListView):
+class RevisionListView(BaseRevisionListView):
     pass
 
 
-class ReversionDetailView(BaseReversionDetailView):
+class VersionDetailView(BaseVersionDetailView):
     pass
 
 
-class ReversionRestoreView(BaseReversionRestoreView):
+class RevisionRestoreView(BaseRevisionRestoreView):
     pass
 
 
@@ -131,6 +131,6 @@ download_device_config = DownloadDeviceView().as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
-reversion_list = ReversionListView.as_view()
-reversion_detail = ReversionDetailView.as_view()
-reversion_restore = ReversionRestoreView.as_view()
+revision_list = RevisionListView.as_view()
+version_detail = VersionDetailView.as_view()
+revision_restore = RevisionRestoreView.as_view()
