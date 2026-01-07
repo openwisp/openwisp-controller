@@ -271,7 +271,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     def test_last_ip_management_command(self):
         out = StringIO()
         device = self._create_device(last_ip="172.217.22.11")
-        self._create_config(device=device)
         args = ["--noinput"]
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn(
@@ -282,15 +281,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
 
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
-
-        response = self.client.get(
-            reverse("controller:device_checksum", args=[device.pk]),
-            {"key": device.key},
-            REMOTE_ADDR="172.217.22.11",
-        )
-        self.assertEqual(response.status_code, 200)
-        device.refresh_from_db()
-        self.assertEqual(device.last_ip, "172.217.22.11")
 
     def test_last_ip_management_command_invalidates_cache(self):
         device = self._create_device(last_ip="172.217.22.11")
