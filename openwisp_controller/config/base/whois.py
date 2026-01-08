@@ -155,7 +155,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         if address:
             parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
             location = ", ".join(parts)
-            return _(f"{location} (Estimated Location: {self.ip_address})")
+            return _(f"{location} ~Estimated Location: {self.ip_address}~")
         return _(f"Estimated Location: {self.ip_address}")
 
     def _get_defaults_for_estimated_location(self):

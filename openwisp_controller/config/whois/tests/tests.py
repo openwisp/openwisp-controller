@@ -12,6 +12,7 @@ from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
 from django.utils import timezone
 from geoip2 import errors
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
@@ -430,6 +431,7 @@ class TestWHOISTransaction(
             mocked_task.assert_called()
             mocked_task.reset_mock()
             device2.last_ip = "172.217.22.13"
+            device2.save()
             mocked_task.assert_not_called()
             mocked_task.reset_mock()
 
@@ -769,3 +771,40 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
             _assert_no_js_errors()
+
+        with self.subTest("Check XSS protection in WHOIS details admin view"):
+            whois_data = {
+                "ip_address": device.last_ip,
+                "isp": "<img src=x onerror=alert('XSS')>",
+                "timezone": "<script>alert('XSS')</script>",
+                "address": {
+                    "city": "Mountain View",
+                    "country": "<script>alert('XSS')</script>",
+                    "continent": "North America",
+                    "postal": "94043",
+                },
+            }
+            WHOISInfo.objects.all().delete()
+            self._create_whois_info(**whois_data)
+            try:
+                self.open(reverse("admin:config_device_change", args=[device.pk]))
+                table = self.find_element(By.CSS_SELECTOR, "table.whois-table")
+                rows = table.find_elements(By.TAG_NAME, "tr")
+                for row in rows:
+                    if cells := row.find_elements(By.TAG_NAME, "td"):
+                        self.assertIn("onerror", cells[0].text)
+                        self.assertIn("script", cells[1].text)
+
+                details = self.find_element(By.CSS_SELECTOR, "details.whois")
+                self.web_driver.execute_script(
+                    "arguments[0].setAttribute('open','')", details
+                )
+                additional_text = details.find_elements(
+                    By.CSS_SELECTOR, ".additional-text"
+                )
+                self.assertIn("script", additional_text[1].text)
+                self.assertIn("script", additional_text[2].text)
+                _assert_no_js_errors()
+
+            except UnexpectedAlertPresentException:
+                self.fail("XSS vulnerability detected in WHOIS details admin view.")

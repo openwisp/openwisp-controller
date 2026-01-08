@@ -90,7 +90,7 @@ Setup Instructions
      .. code-block:: bash
 
          source /opt/openwisp2/env/bin/activate
-         python /opt/openwisp2/src/manage.py clear_last_ip
+         python /opt/openwisp2/manage.py clear_last_ip
 
    - If using docker:
 

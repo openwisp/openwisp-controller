@@ -313,7 +313,7 @@ class TestEstimatedLocationTransaction(
             ip_address = mocked_response.ip_address or device.last_ip
             location_name = (
                 ",".join(address.split(",")[:2])
-                + f" (Estimated Location: {ip_address})"
+                + f" ~Estimated Location: {ip_address}~"
             )
             self.assertEqual(location.name, location_name)
             self.assertEqual(location.address, address)
@@ -588,7 +588,7 @@ class TestEstimatedLocationTransaction(
             location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
             location.save()
             self.assertTrue(location.is_estimated)
-            self.assertIn(f"(Estimated Location: {device.last_ip})", location.name)
+            self.assertIn(f"~Estimated Location: {device.last_ip}~", location.name)
 
         with self.subTest(
             "Test Estimated Status unchanged if Estimated feature is enabled"
@@ -609,7 +609,7 @@ class TestEstimatedLocationTransaction(
             location.geometry = GEOSGeometry("POINT(15.512124 45.898903)", srid=4326)
             location.save()
             self.assertFalse(location.is_estimated)
-            self.assertNotIn(f"(Estimated Location: {device.last_ip})", location.name)
+            self.assertNotIn(f"~Estimated Location: {device.last_ip}~", location.name)
 
 
 class TestEstimatedLocationFieldFilters(

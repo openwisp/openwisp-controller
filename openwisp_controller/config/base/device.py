@@ -119,12 +119,11 @@ class AbstractDevice(OrgMixin, BaseModel):
         verbose_name_plural = app_settings.DEVICE_VERBOSE_NAME[1]
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Initial value for last_ip is required in WHOIS
-        # to remove WHOIS info related to that ip address.
         if app_settings.WHOIS_CONFIGURED:
-            self._changed_checked_fields.append("last_ip")
-
+            # Initial value for last_ip is required in WHOIS
+            # to remove WHOIS info related to that ip address.
+            self._changed_checked_fields = self._changed_checked_fields + ["last_ip"]
+        super().__init__(*args, **kwargs)
         self._set_initial_values_for_changed_checked_fields()
 
     def _set_initial_values_for_changed_checked_fields(self):

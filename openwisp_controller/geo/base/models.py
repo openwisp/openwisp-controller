@@ -2,7 +2,6 @@ import re
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.models import (
     AbstractFloorPlan,
@@ -76,12 +75,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
                 or self._initial_geometry != self.geometry
             ):
                 self.is_estimated = False
-                estimated_string = gettext("Estimated Location")
-                if self.name and estimated_string in self.name:
-                    # remove string starting with "(Estimated Location"
-                    self.name = re.sub(
-                        rf"\s\({estimated_string}.*", "", self.name, flags=re.IGNORECASE
-                    )
+                if self.name:
+                    # remove estimated status between '~'
+                    self.name = re.sub(r"~[^~]*~", "", self.name)
         else:
             self.is_estimated = self._initial_is_estimated
         return super().save(*args, **kwargs)
