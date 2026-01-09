@@ -251,16 +251,12 @@ class DeviceReportStatusView(CsrfExtemptMixin, GetDeviceView):
         config = device.config
         # ensure request is well formed and authorized
         allowed_status = [choices[0] for choices in config.STATUS]
-        # (Deleted the 'running' append line here)
         required_params = [("key", device.key), ("status", allowed_status)]
         for key, value in required_params:
             bad_response = forbid_unallowed(request, "POST", key, value)
             if bad_response:
                 return bad_response
         status = request.POST.get("status")
-        # mantain backward compatibility with old agents
-        # ("running" was changed to "applied")
-        # (Deleted the 'if status != running' block here)
         # If the Config.status is "deactivating", then set the
         # status to "deactivated". This will stop the device
         # from receiving new configurations.
