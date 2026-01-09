@@ -34,7 +34,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         help_text=_("Organization for ASN"),
     )
     asn = models.CharField(
-        max_length=6,
+        max_length=10,
         blank=True,
         help_text=_("ASN"),
     )
@@ -155,8 +155,8 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         if address:
             parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
             location = ", ".join(parts)
-            return _(f"{location} ~Estimated Location: {self.ip_address}~")
-        return _(f"Estimated Location: {self.ip_address}")
+            return _("{} ~Estimated Location: {}~".format(location, self.ip_address))
+        return _("Estimated Location: {}".format(self.ip_address))
 
     def _get_defaults_for_estimated_location(self):
         """

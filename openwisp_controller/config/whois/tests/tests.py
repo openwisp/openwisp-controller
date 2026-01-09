@@ -336,7 +336,7 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
             self.fail("ValidationError message not equal to expected message.")
 
         with self.assertRaises(ValidationError):
-            self._create_whois_info(asn="InvalidASN")
+            self._create_whois_info(asn="InvalidASNNumber")
 
         # Common validation checks for longitude and latitude
         coordinates_cases = [

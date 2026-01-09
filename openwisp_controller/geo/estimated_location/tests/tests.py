@@ -657,10 +657,9 @@ class TestEstimatedLocationFieldFilters(
             self.assertEqual(response.data["count"], 2)
             self.assertContains(response, org1_location.id)
             self.assertContains(response, org2_location.id)
-            location1 = response.data["results"][1]
-            location2 = response.data["results"][0]
-            self.assertIn("is_estimated", location1)
-            self.assertNotIn("is_estimated", location2)
+            results_by_id = {item["id"]: item for item in response.data["results"]}
+            self.assertIn("is_estimated", results_by_id[str(org1_location.id)])
+            self.assertNotIn("is_estimated", results_by_id[str(org2_location.id)])
 
         with self.subTest("Test Estimated Location in Device Locations List"):
             path = reverse("geo_api:device_location", args=[org1_device.pk])
@@ -681,13 +680,12 @@ class TestEstimatedLocationFieldFilters(
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
-            for i in response.data["features"]:
-                if i["id"] == org1_location.id:
-                    self.assertIn("is_estimated", i["properties"])
-                    self.assertTrue(i["properties"]["is_estimated"])
-                elif i["id"] == org2_location.id:
-                    self.assertNotIn("is_estimated", i["properties"])
-                    self.assertFalse(i["properties"]["is_estimated"])
+            results_by_id = {item["id"]: item for item in response.data["features"]}
+            location1_result = results_by_id[str(org1_location.id)]
+            location2_result = results_by_id[str(org2_location.id)]
+            self.assertIn("is_estimated", location1_result["properties"])
+            self.assertTrue(location1_result["properties"]["is_estimated"])
+            self.assertNotIn("is_estimated", location2_result["properties"])
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_estimated_location_api_status_not_configured(self):
@@ -842,7 +840,7 @@ class TestEstimatedLocationFieldFilters(
             self.assertNotContains(response, outdoor_device.id)
             self.assertNotContains(response, estimated_device.id)
 
-        with self.subTest("Test Indoor Location Filter"):
+        with self.subTest("Test No Location Filter"):
             response = self.client.get(path, {"with_geo": "false"})
             self.assertNotContains(response, indoor_device.id)
             self.assertNotContains(response, outdoor_device.id)

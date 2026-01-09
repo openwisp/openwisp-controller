@@ -40,8 +40,12 @@ class BaseLocation(OrgMixin, AbstractLocation):
     def clean(self):
         # Raise validation error if `is_estimated` is True but estimated feature is
         # disabled.
+        estimated_status_changed = (
+            self._initial_is_estimated is not models.DEFERRED
+            and self._initial_is_estimated != self.is_estimated
+        )
         if (
-            (self._state.adding or self._initial_is_estimated != self.is_estimated)
+            (self._state.adding or estimated_status_changed)
             and self.is_estimated
             and not WHOISService.check_estimate_location_configured(
                 self.organization_id
@@ -63,22 +67,28 @@ class BaseLocation(OrgMixin, AbstractLocation):
         Parameters:
             _set_estimated: Boolean flag to indicate if this save is being performed
             by the estimated location system. When False (default),
-            manual edits will clear the estimated status.
+            manual edits will clear the estimated status (only if estimated location
+            feature is enabled).
             *args, **kwargs: Arguments passed to the parent save method.
 
         Returns:
             The result of the parent save method.
         """
         if WHOISService.check_estimate_location_configured(self.organization_id):
-            if not _set_estimated and (
-                self._initial_address != self.address
-                or self._initial_geometry != self.geometry
-            ):
+            address_changed = (
+                self._initial_address is not models.DEFERRED
+                and self._initial_address != self.address
+            )
+            geometry_changed = (
+                self._initial_geometry is not models.DEFERRED
+                and self._initial_geometry != self.geometry
+            )
+            if not _set_estimated and (address_changed or geometry_changed):
                 self.is_estimated = False
                 if self.name:
                     # remove estimated status between '~'
                     self.name = re.sub(r"~[^~]*~", "", self.name)
-        else:
+        elif self._initial_is_estimated is not models.DEFERRED:
             self.is_estimated = self._initial_is_estimated
         return super().save(*args, **kwargs)
 
