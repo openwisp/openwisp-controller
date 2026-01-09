@@ -913,20 +913,6 @@ class TestController(
         self.assertEqual(device.name, name)
         mocked_method.assert_not_called()
 
-    def test_device_report_status_running(self):
-        """
-        maintained for backward compatibility
-        # TODO: remove in stable version 1.0
-        """
-        d = self._create_device_config()
-        response = self.client.post(
-            reverse("controller:device_report_status", args=[d.pk]),
-            {"key": d.key, "status": "running"},
-        )
-        self._check_header(response)
-        d.config.refresh_from_db()
-        self.assertEqual(d.config.status, "applied")
-
     def test_device_report_status_applied(self):
         d = self._create_device_config()
         with catch_signal(config_status_changed) as handler:
