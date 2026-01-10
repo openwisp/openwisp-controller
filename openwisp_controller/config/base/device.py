@@ -435,6 +435,25 @@ class AbstractDevice(OrgMixin, BaseModel):
         config.device = self
         return config
 
+    def should_skip_push_update(self):
+        """
+        Check if push update should be skipped for this device.
+
+        Clears the skip flag after reading it.
+        """
+        result = getattr(self, "_skip_push_update", False)
+        if result:
+            delattr(self, "_skip_push_update")
+        return result
+
+    def skip_push_update_on_save(self):
+        """
+        Marks the device to skip push update on the next save.
+        This is useful when updating device properties during re-registration
+        to avoid triggering unnecessary push operations.
+        """
+        self._skip_push_update = True
+
     def can_be_updated(self):
         """
         returns True if the device can and should be updated
