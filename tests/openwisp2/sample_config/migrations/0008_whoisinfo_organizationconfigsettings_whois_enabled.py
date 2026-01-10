@@ -58,6 +58,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("cidr", models.CharField(blank=True, help_text="CIDR", max_length=20)),
+                ("details", models.CharField(blank=True, max_length=64, null=True)),
             ],
             options={
                 "abstract": False,
