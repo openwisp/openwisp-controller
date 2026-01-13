@@ -166,7 +166,7 @@ Unable to Load SpatiaLite library Extension?
 
 If you are incurring in the following exception:
 
-.. code-block::
+.. code-block:: text
 
     django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
 
