@@ -3,8 +3,7 @@ django-reversion~=6.0.0
 django-taggit~=6.1.0
 netjsonconfig @ https://github.com/openwisp/netjsonconfig/archive/refs/heads/1.3.tar.gz
 django-x509 @ https://github.com/openwisp/django-x509/archive/refs/heads/1.4.tar.gz
-# Todo: Make path https://github.com/openwisp/django-loci/archive/refs/heads/1.3.tar.gz before merge
-django-loci @ https://github.com/openwisp/django-loci/tarball/feature/191-new-ws-endpoint-for-all-location
+django-loci @ https://github.com/openwisp/django-loci/archive/refs/heads/1.3.tar.gz
 django-flat-json-widget @ https://github.com/openwisp/django-flat-json-widget/archive/refs/heads/0.5.tar.gz
 openwisp-users @ https://github.com/openwisp/openwisp-users/archive/refs/heads/1.3.tar.gz
 openwisp-utils[celery,channels] @ https://github.com/openwisp/openwisp-utils/archive/refs/heads/1.3.tar.gz
