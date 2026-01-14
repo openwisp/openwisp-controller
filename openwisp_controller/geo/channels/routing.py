@@ -21,7 +21,7 @@ def get_routes():
         path(
             common_location_broadcast_path,
             CommonLocationBroadcast.as_asgi(),
-            name="AllLocationChannel",
+            name="CommonLocationChannel",
         ),
     ]
 
