@@ -5,7 +5,7 @@ from swapper import load_model
 
 class Command(BaseCommand):
     help = (
-        "Clears the last IP address (if set) for every active device"
+        "Clears the last IP address (if set) for active devices without WHOIS records"
         " across all organizations."
     )
 
@@ -19,7 +19,7 @@ class Command(BaseCommand):
         )
         return super().add_arguments(parser)
 
-    def handle(self, *args, **options):
+    def handle(self, *_args, **options):
         Device = load_model("config", "Device")
         WHOISInfo = load_model("config", "WHOISInfo")
 

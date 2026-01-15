@@ -59,16 +59,11 @@ class TestEstimatedLocation(TestAdminMixin, TestCase):
                 org_settings_obj.whois_enabled = False
                 org_settings_obj.estimated_location_enabled = True
                 org_settings_obj.full_clean()
-            try:
-                self.assertEqual(
-                    context_manager.exception.message_dict[
-                        "estimated_location_enabled"
-                    ][0],
-                    "Estimated Location feature requires "
-                    + "WHOIS Lookup feature to be enabled.",
-                )
-            except AssertionError:
-                self.fail("ValidationError message not equal to expected message.")
+            self.assertEqual(
+                context_manager.exception.message_dict["estimated_location_enabled"][0],
+                "Estimated Location feature requires "
+                + "WHOIS Lookup feature to be enabled.",
+            )
 
         with self.subTest(
             "Test Estimated Location field visible on admin when "
@@ -116,13 +111,10 @@ class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestC
         org.refresh_from_db()
         with self.assertRaises(ValidationError) as context_manager:
             self._create_location(organization=org, is_estimated=True)
-        try:
-            self.assertEqual(
-                context_manager.exception.message_dict["is_estimated"][0],
-                "Estimated Location feature required to be configured.",
-            )
-        except AssertionError:
-            self.fail("ValidationError message not equal to expected message.")
+        self.assertEqual(
+            context_manager.exception.message_dict["is_estimated"][0],
+            "Estimated Location feature required to be configured.",
+        )
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_estimated_location_admin(self):
@@ -865,7 +857,8 @@ class TestEstimatedLocationFieldFilters(
                 " when WHOIS not configured"
             ):
                 for i in ["estimated", "outdoor", "indoor"]:
-                    response = self.client.get(path, {"with_geo": i})
-                    self.assertContains(response, estimated_device.id)
-                    self.assertContains(response, outdoor_device.id)
-                    self.assertContains(response, indoor_device.id)
+                    with self.subTest(filter_value=i):
+                        response = self.client.get(path, {"with_geo": i})
+                        self.assertContains(response, estimated_device.id)
+                        self.assertContains(response, outdoor_device.id)
+                        self.assertContains(response, indoor_device.id)

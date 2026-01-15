@@ -82,7 +82,6 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
                 raise ValidationError(
                     {"cidr": _("Invalid CIDR format: %(error)s") % {"error": str(e)}}
                 )
-
         if self.coordinates:
             if not (-90 <= self.coordinates.y <= 90):
                 raise ValidationError(
@@ -105,7 +104,6 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         when device is deleted.
         """
         Device = load_model("config", "Device")
-
         last_ip = instance.last_ip
         existing_devices = Device.objects.filter(_is_deactivated=False).filter(
             last_ip=last_ip

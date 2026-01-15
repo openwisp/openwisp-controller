@@ -130,7 +130,8 @@ class WHOISTransactionMixin:
         mocked_task.reset_mock()
 
         with self.subTest(
-            f"{task_name} task not called via DeviceChecksumView for no WHOIS record"
+            f"{task_name} task not called via DeviceChecksumView "
+            "if no WHOIS record and IP unchanged"
         ):
             WHOISInfo.objects.all().delete()
             device.refresh_from_db()

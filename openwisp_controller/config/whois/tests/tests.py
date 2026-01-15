@@ -155,14 +155,11 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 app_settings, "WHOIS_CONFIGURED", False
             ), self.assertRaises(ValidationError) as context_manager:
                 org_settings_obj.full_clean()
-            try:
-                self.assertEqual(
-                    context_manager.exception.message_dict["whois_enabled"][0],
-                    "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
-                    + "before enabling WHOIS feature.",
-                )
-            except AssertionError:
-                self.fail("ValidationError message not equal to expected message.")
+            self.assertEqual(
+                context_manager.exception.message_dict["whois_enabled"][0],
+                "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
+                + "before enabling WHOIS feature.",
+            )
 
         with mock.patch.object(app_settings, "WHOIS_CONFIGURED", True):
             org_settings_obj.full_clean()
@@ -173,13 +170,13 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             org_settings_obj.whois_enabled = True
             org_settings_obj.save(update_fields=["whois_enabled"])
             org_settings_obj.refresh_from_db(fields=["whois_enabled"])
-            self.assertEqual(getattr(org_settings_obj, "whois_enabled"), True)
+            self.assertTrue(org_settings_obj.whois_enabled)
 
         with self.subTest("Test setting WHOIS enabled to False"):
             org_settings_obj.whois_enabled = False
             org_settings_obj.save(update_fields=["whois_enabled"])
             org_settings_obj.refresh_from_db(fields=["whois_enabled"])
-            self.assertEqual(getattr(org_settings_obj, "whois_enabled"), False)
+            self.assertFalse(org_settings_obj.whois_enabled)
 
         with self.subTest(
             "Test setting WHOIS enabled to None fallbacks to global setting"
@@ -190,7 +187,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             org_settings_obj.save(update_fields=["whois_enabled"])
             org_settings_obj.refresh_from_db(fields=["whois_enabled"])
             self.assertEqual(
-                getattr(org_settings_obj, "whois_enabled"),
+                org_settings_obj.whois_enabled,
                 app_settings.WHOIS_ENABLED,
             )
 
@@ -335,28 +332,22 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
 
         with self.assertRaises(ValidationError) as context_manager:
             self._create_whois_info(ip_address="127.0.0.1")
-        try:
-            self.assertEqual(
-                context_manager.exception.message_dict["ip_address"][0],
-                "WHOIS information cannot be created for private IP addresses.",
-            )
-        except AssertionError:
-            self.fail("ValidationError message not equal to expected message.")
+        self.assertEqual(
+            context_manager.exception.message_dict["ip_address"][0],
+            "WHOIS information cannot be created for private IP addresses.",
+        )
 
         with self.assertRaises(ValidationError):
             self._create_whois_info(timezone="a" * 36)
 
         with self.assertRaises(ValidationError) as context_manager:
             self._create_whois_info(cidr="InvalidCIDR")
-        try:
-            # Not using assertEqual here because we are adding error message raised by
-            # ipaddress module to the ValidationError message.
-            self.assertIn(
-                "Invalid CIDR format: 'InvalidCIDR'",
-                context_manager.exception.message_dict["cidr"][0],
-            )
-        except AssertionError:
-            self.fail("ValidationError message not equal to expected message.")
+        # Not using assertEqual here because we are adding error message raised by
+        # ipaddress module to the ValidationError message.
+        self.assertIn(
+            "Invalid CIDR format: 'InvalidCIDR'",
+            context_manager.exception.message_dict["cidr"][0],
+        )
 
         with self.assertRaises(ValidationError):
             self._create_whois_info(asn="InvalidASNNumber")
@@ -372,13 +363,10 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
             with self.assertRaises(ValidationError) as context_manager:
                 point = Point(longitude, latitude, srid=4326)
                 self._create_whois_info(coordinates=point)
-            try:
-                self.assertEqual(
-                    context_manager.exception.message_dict["coordinates"][0],
-                    expected_msg,
-                )
-            except AssertionError:
-                self.fail("ValidationError message not equal to expected message.")
+            self.assertEqual(
+                context_manager.exception.message_dict["coordinates"][0],
+                expected_msg,
+            )
 
 
 class TestWHOISTransaction(

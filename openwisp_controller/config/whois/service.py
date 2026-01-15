@@ -174,9 +174,9 @@ class WHOISService:
             message = EXCEPTION_MESSAGES.get(exc_type)
             if exc_type is errors.AddressNotFoundError:
                 message = message.format(ip_address=ip_address)
-            raise exc_type(message)
-        except requests.RequestException as e:
-            raise e
+            raise exc_type(message) from e
+        except requests.RequestException:
+            raise
         else:
             # The attributes are always present in the response,
             # but they can be None, so added fallbacks.
@@ -284,7 +284,6 @@ class WHOISService:
         Returns the updated or created WHOIS instance along with update fields.
         """
         WHOISInfo = load_model("config", "WHOISInfo")
-
         update_fields = []
         if whois_instance:
             for attr, value in whois_details.items():

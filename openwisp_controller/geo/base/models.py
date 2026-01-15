@@ -96,7 +96,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
             changed_fields = {"is_estimated"}
         if update_fields := kwargs.get("update_fields"):
             kwargs["update_fields"] = set(update_fields) | changed_fields
-        return super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
+        self._set_initial_values_for_changed_checked_fields()
+        return result
 
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):
