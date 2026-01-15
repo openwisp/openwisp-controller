@@ -12,7 +12,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from ..estimated_location.mixins import (
-    EstimatedLocationGeoJsonSerializer,
+    EstimatedLocationGeoJsonMixin,
     EstimatedLocationMixin,
 )
 
@@ -36,7 +36,7 @@ class LocationDeviceSerializer(ValidatedModelSerializer):
 
 
 class GeoJsonLocationSerializer(
-    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
+    EstimatedLocationGeoJsonMixin, gis_serializers.GeoFeatureModelSerializer
 ):
     device_count = IntegerField()
 
@@ -232,7 +232,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
 
 
 class NestedtLocationSerializer(
-    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
+    EstimatedLocationGeoJsonMixin, gis_serializers.GeoFeatureModelSerializer
 ):
     class Meta:
         model = Location

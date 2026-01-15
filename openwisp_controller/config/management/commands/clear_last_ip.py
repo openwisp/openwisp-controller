@@ -35,7 +35,11 @@ class Command(BaseCommand):
             if input("".join(message)).lower() != "yes":
                 raise CommandError("Operation cancelled by user.")
 
-        devices = Device.objects.filter(_is_deactivated=False).only("last_ip")
+        devices = (
+            Device.objects.filter(_is_deactivated=False)
+            .select_related("organization__config_settings")
+            .only("last_ip", "organization__config_settings", "key")
+        )
         # Filter out devices that have WHOIS information for their last IP
         devices = devices.exclude(last_ip=None).exclude(
             last_ip__in=Subquery(
@@ -51,7 +55,7 @@ class Command(BaseCommand):
         updated_devices = 0
         for device in devices.iterator():
             device.last_ip = None
-            device.save()
+            device.save(update_fields=["last_ip"])
             updated_devices += 1
         if updated_devices:
             self.stdout.write(

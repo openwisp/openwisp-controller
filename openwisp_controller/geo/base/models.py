@@ -74,6 +74,7 @@ class BaseLocation(OrgMixin, AbstractLocation):
         Returns:
             The result of the parent save method.
         """
+        changed_fields = set()
         if WHOISService.check_estimate_location_configured(self.organization_id):
             address_changed = (
                 self._initial_address is not models.DEFERRED
@@ -88,8 +89,13 @@ class BaseLocation(OrgMixin, AbstractLocation):
                 if self.name:
                     # remove estimated status between '~'
                     self.name = re.sub(r"~[^~]*~", "", self.name)
+                changed_fields = {"is_estimated", "name"}
+        # Manual changes to is_estimated discarded if feature not enabled
         elif self._initial_is_estimated is not models.DEFERRED:
             self.is_estimated = self._initial_is_estimated
+            changed_fields = {"is_estimated"}
+        if update_fields := kwargs.get("update_fields"):
+            kwargs["update_fields"] = set(update_fields) | changed_fields
         return super().save(*args, **kwargs)
 
 

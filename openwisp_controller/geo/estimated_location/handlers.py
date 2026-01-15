@@ -22,9 +22,7 @@ def register_estimated_location_notification_types():
             "verbose_name": _("Estimated Location INFO"),
             "verb": _("created"),
             "level": "info",
-            "email_subject": _(
-                "Estimated Location: Created for device {notification.target}"
-            ),
+            "email_subject": _("Estimated location created for {notification.target}"),
             "message": _(
                 "Estimated location [{notification.actor}]({notification.actor_link})"
                 " for device"

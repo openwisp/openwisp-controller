@@ -78,6 +78,7 @@ class WHOISTransactionMixin:
             ) as mocked_set:
                 device.last_ip = "172.217.22.10"
                 device.save()
+                device.refresh_from_db()
                 mocked_task.assert_called()
                 mocked_set.assert_not_called()
                 mocked_get.assert_called()
@@ -86,12 +87,14 @@ class WHOISTransactionMixin:
         with self.subTest(f"{task_name} task not called when last_ip not updated"):
             device.name = "default.test.Device2"
             device.save()
+            device.refresh_from_db()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
         with self.subTest(f"{task_name} task not called when last_ip is private"):
             device.last_ip = "10.0.0.1"
             device.save()
+            device.refresh_from_db()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
@@ -100,6 +103,7 @@ class WHOISTransactionMixin:
             org.config_settings.whois_enabled = False
             # Invalidates old org config settings cache
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             device = self._create_device(last_ip="172.217.22.14")
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
@@ -110,6 +114,7 @@ class WHOISTransactionMixin:
             org.config_settings.whois_enabled = True
             # Invalidates old org config settings cache
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             # config is required for checksum view to work
             device.refresh_from_db()
             self._create_config(device=device)
@@ -145,6 +150,7 @@ class WHOISTransactionMixin:
             device.refresh_from_db()
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device.pk]),
                 {"key": device.key},

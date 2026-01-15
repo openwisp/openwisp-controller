@@ -167,6 +167,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         with mock.patch.object(app_settings, "WHOIS_CONFIGURED", True):
             org_settings_obj.full_clean()
             org_settings_obj.save()
+            org_settings_obj.refresh_from_db()
 
         with self.subTest("Test setting WHOIS enabled to True"):
             org_settings_obj.whois_enabled = True
@@ -237,6 +238,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         ):
             device.last_ip = "172.217.22.24"
             device.save()
+            device.refresh_from_db()
             response = self.client.get(reverse("config_api:device_list"))
             self.assertEqual(response.status_code, 200)
             self.assertIn("whois_info", response.data["results"][0])
@@ -282,6 +284,27 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
 
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
+
+    def test_last_ip_management_command_queries(self):
+        out = StringIO()
+        self._create_device(last_ip="172.217.22.11")
+        self._create_device(
+            name="default.test.device2",
+            last_ip="172.217.22.12",
+            mac_address="11:22:33:44:55:66",
+        )
+        self._create_device(
+            name="default.test.device3",
+            last_ip="172.217.22.13",
+            mac_address="22:33:44:55:66:77",
+        )
+        self._create_device(
+            name="default.test.device4", mac_address="66:33:44:55:66:77"
+        )
+        args = ["--noinput"]
+        # 4 queries (3 for each device's last_ip update) and 1 for fetching devices
+        with self.assertNumQueries(4):
+            call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
 
     def test_last_ip_management_command_invalidates_cache(self):
         device = self._create_device(last_ip="172.217.22.11")
@@ -388,6 +411,8 @@ class TestWHOISTransaction(
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
+            device.refresh_from_db()
+            device.organization.config_settings.refresh_from_db()
             mocked_lookup_task.assert_not_called()
         mocked_lookup_task.reset_mock()
 
@@ -428,10 +453,12 @@ class TestWHOISTransaction(
         with self.subTest("Test task calls when last_ip is changed and is public"):
             device1.last_ip = "172.217.22.12"
             device1.save()
+            device1.refresh_from_db()
             mocked_task.assert_called()
             mocked_task.reset_mock()
             device2.last_ip = "172.217.22.13"
             device2.save()
+            device2.refresh_from_db()
             mocked_task.assert_not_called()
             mocked_task.reset_mock()
 
@@ -535,6 +562,7 @@ class TestWHOISTransaction(
             old_ip_address = device.last_ip
             device.last_ip = "172.217.22.10"
             device.save()
+            device.refresh_from_db()
             self.assertEqual(mock_info.call_count, 1)
             mock_info.reset_mock()
             device.refresh_from_db()
@@ -560,6 +588,7 @@ class TestWHOISTransaction(
             )
             device.last_ip = "172.217.22.11"
             device.save()
+            device.refresh_from_db()
             self.assertEqual(mock_info.call_count, 1)
             mock_info.reset_mock()
             device.refresh_from_db()
@@ -637,6 +666,7 @@ class TestWHOISTransaction(
             mocked_response.traits.autonomous_system_number = 22222
             mock_client.return_value.city.return_value = mocked_response
             device.save()
+            device.refresh_from_db()
             whois_obj = device.whois_service.get_device_whois_info()
             self.assertEqual(whois_obj.asn, str(22222))
 
@@ -653,6 +683,7 @@ class TestWHOISTransaction(
             mocked_response.traits.autonomous_system_number = 33333
             mock_client.return_value.city.return_value = mocked_response
             device.save()
+            device.refresh_from_db()
             whois_obj = device.whois_service.get_device_whois_info()
             self.assertEqual(whois_obj.asn, str(33333))
 
@@ -755,6 +786,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             org = self._get_org()
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
@@ -766,6 +798,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             org = self._get_org()
             org.config_settings.whois_enabled = True
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             WHOISInfo.objects.all().delete()
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")

@@ -210,7 +210,6 @@ class WHOISService:
               X days (defined by "WHOIS_REFRESH_THRESHOLD_DAYS").
             - WHOIS is disabled in the organization settings. (query from db)
         """
-
         # Check cheap conditions first before hitting the database
         if not self.is_valid_public_ip_address(new_ip):
             return False
@@ -325,11 +324,11 @@ class WHOISService:
                 device_location.location = current_location
                 device_location.full_clean()
                 device_location.save()
-                send_whois_task_notification(
-                    device=self.device,
-                    notify_type="estimated_location_created",
-                    actor=current_location,
-                )
+            send_whois_task_notification(
+                device=self.device,
+                notify_type="estimated_location_created",
+                actor=current_location,
+            )
         elif current_location.is_estimated:
             update_fields = []
             for attr, value in location_defaults.items():
@@ -341,11 +340,9 @@ class WHOISService:
                     current_location.save(
                         update_fields=update_fields, _set_estimated=True
                     )
-
                 send_whois_task_notification(
                     device=self.device,
                     notify_type="estimated_location_updated",
                     actor=current_location,
                 )
-
         return current_location

@@ -7,6 +7,7 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 class TestEstimatedLocationMixin(CreateWHOISMixin):
     def setUp(self):
+        # skip the org config settings creation from the parent mixin
         super(CreateWHOISMixin, self).setUp()
         OrganizationConfigSettings.objects.create(
             organization=self._get_org(),
