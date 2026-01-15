@@ -9,6 +9,7 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from PIL import Image
+from rest_framework import status
 from rest_framework.authtoken.models import Token
 from swapper import load_model
 
@@ -1036,3 +1037,20 @@ class TestGeoApi(
         with self.subTest("Test deleting DeviceLocation"):
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 403)
+
+    def test_device_location_view_parent_permission(self):
+        org1 = self._create_org(name="Org One")
+        device1 = self._create_device(organization=org1)
+        org2 = self._create_org(name="Org Two")
+        manager_org2 = self._create_administrator(
+            organizations=[org2],
+            username="manager_org2",
+            password="test_password",
+            is_superuser=False,
+            is_staff=True,
+        )
+        self.client.force_login(manager_org2)
+        url = reverse("geo_api:device_location", args=[device1.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.client.logout()
