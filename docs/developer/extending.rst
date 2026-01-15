@@ -37,7 +37,7 @@ a field ``social_security_number`` in the `sample_users/models.py
 
 Firstly, to get started you need to create a django project:
 
-.. code-block::
+.. code-block:: bash
 
     django-admin startproject mycontroller
 
@@ -55,7 +55,7 @@ of python scripts), in the following examples we'll call these django app
 ``sample_config``, ``sample_pki``, ``sample_connection``, ``sample_geo`` &
 ``sample_subnet_division``. but you can name it how you want:
 
-.. code-block::
+.. code-block:: bash
 
     django-admin startapp sample_config
     django-admin startapp sample_pki
@@ -77,7 +77,7 @@ apps, please refer to the `django documentation
 
 Install (and add to the requirement of your project) openwisp-controller:
 
-.. code-block::
+.. code-block:: bash
 
     pip install openwisp-controller
 
@@ -364,7 +364,7 @@ step 1.
 
 Create database migrations:
 
-.. code-block::
+.. code-block:: bash
 
     ./manage.py makemigrations
 
@@ -385,7 +385,7 @@ make a migrations file which would look like:
 
 Create database migrations:
 
-.. code-block::
+.. code-block:: bash
 
     ./manage.py migrate
 
@@ -723,7 +723,7 @@ For running the tests, you need to copy fixtures as well:
 
 You can then run tests with:
 
-.. code-block::
+.. code-block:: bash
 
     # the --parallel flag is optional
     ./manage.py test --parallel mycontroller

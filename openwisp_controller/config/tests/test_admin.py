@@ -2279,6 +2279,36 @@ class TestAdmin(
         config = self._create_config(organization=self._get_org())
         self._verify_template_queries(config, 10)
 
+    def test_empty_device_form_with_config_inline(self):
+        org = self._get_org()
+        template = self._create_template(organization=org)
+        path = reverse(f"admin:{self.app_label}_device_add")
+        # Submit form without required device fields but with config inline
+        # This reproduces the scenario where user clicks "Add another Configuration"
+        # and submits without filling device details
+        params = {
+            "config-0-backend": "netjsonconfig.OpenWrt",
+            "config-0-templates": str(template.pk),
+            "config-0-config": json.dumps({}),
+            "config-0-context": "",
+            "config-TOTAL_FORMS": 1,
+            "config-INITIAL_FORMS": 0,
+            "config-MIN_NUM_FORMS": 0,
+            "config-MAX_NUM_FORMS": 1,
+            "deviceconnection_set-TOTAL_FORMS": 0,
+            "deviceconnection_set-INITIAL_FORMS": 0,
+            "deviceconnection_set-MIN_NUM_FORMS": 0,
+            "deviceconnection_set-MAX_NUM_FORMS": 1000,
+            "command_set-TOTAL_FORMS": 0,
+            "command_set-INITIAL_FORMS": 0,
+            "command_set-MIN_NUM_FORMS": 0,
+            "command_set-MAX_NUM_FORMS": 1000,
+        }
+        response = self.client.post(path, params)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "errorlist")
+        self.assertEqual(Device.objects.count(), 0)
+
 
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,

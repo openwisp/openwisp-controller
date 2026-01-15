@@ -626,11 +626,11 @@ class TestConfigApi(
             self.assertEqual(Device.objects.count(), 0)
 
     def test_template_create_no_org_api(self):
-        self.assertEqual(Template.objects.count(), 0)
+        initial_count = Template.objects.count()
         path = reverse("config_api:template_list")
         data = self._template_data
         r = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(Template.objects.count(), initial_count + 1)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["organization"], None)
 
@@ -649,14 +649,14 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
 
     def test_template_create_api(self):
-        self.assertEqual(Template.objects.count(), 0)
+        initial_count = Template.objects.count()
         org = self._get_org()
         path = reverse("config_api:template_list")
         data = self._template_data
         data["organization"] = org.pk
         data["required"] = True
         r = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(Template.objects.count(), initial_count + 1)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["organization"], org.pk)
 
@@ -668,8 +668,9 @@ class TestConfigApi(
         data["type"] = "vpn"
         data["vpn"] = vpn1.id
         data["organization"] = org.pk
+        initial_count = Template.objects.count()
         r = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(Template.objects.count(), initial_count + 1)
         self.assertEqual(r.status_code, 201)
 
     def test_template_create_with_shared_vpn(self):
@@ -682,9 +683,10 @@ class TestConfigApi(
         data["type"] = "vpn"
         data["vpn"] = vpn1.id
         data["organization"] = org1.pk
+        initial_count = Template.objects.count()
         r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(Template.objects.count(), initial_count + 1)
         self.assertEqual(r.data["vpn"], vpn1.id)
 
     def test_template_creation_with_no_org_by_operator(self):
@@ -707,12 +709,13 @@ class TestConfigApi(
 
     def test_template_list_api(self):
         org1 = self._get_org()
+        initial_count = Template.objects.count()
         self._create_template(name="t1", organization=org1)
         path = reverse("config_api:template_list")
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(Template.objects.count(), 1)
+        self.assertEqual(Template.objects.count(), initial_count + 1)
 
     def test_template_list_api_filter(self):
         org1 = self._create_org()
@@ -840,11 +843,12 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 200)
 
     def test_template_delete_api(self):
+        initial_count = Template.objects.count()
         t1 = self._create_template(name="t1")
         path = reverse("config_api:template_detail", args=[t1.pk])
         r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
-        self.assertEqual(Template.objects.count(), 0)
+        self.assertEqual(Template.objects.count(), initial_count)
 
     def test_vpn_create_api(self):
         self.assertEqual(Vpn.objects.count(), 0)
