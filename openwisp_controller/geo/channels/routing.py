@@ -2,19 +2,27 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from django.urls import path
-from django_loci.channels.base import location_broadcast_path
+from django_loci.channels.base import (
+    common_location_broadcast_path,
+    location_broadcast_path,
+)
 from openwisp_notifications.websockets.routing import (
     get_routes as get_notification_routes,
 )
 
-from .consumers import LocationBroadcast
+from .consumers import CommonLocationBroadcast, LocationBroadcast
 
 
 def get_routes():
     return [
         path(
             location_broadcast_path, LocationBroadcast.as_asgi(), name="LocationChannel"
-        )
+        ),
+        path(
+            common_location_broadcast_path,
+            CommonLocationBroadcast.as_asgi(),
+            name="CommonLocationChannel",
+        ),
     ]
 
 
