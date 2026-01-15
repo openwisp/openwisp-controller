@@ -21,6 +21,7 @@ from openwisp_utils.tests import SeleniumTestMixin
 from ....tests.utils import TestAdminMixin
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
+from ..service import WHOISService
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Device = load_model("config", "Device")
@@ -60,7 +61,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     )
     def test_whois_configuration_setting(self):
         self._disconnect_signals()
-        org = self._get_org()
         # reload app_settings to apply the overridden settings
         importlib.reload(app_settings)
 
@@ -79,6 +79,15 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 "invalidate_org_config_cache_on_org_config_delete" in str(r[0])
                 for r in post_delete.receivers
             )
+
+    def test_is_older_requires_timezone_aware(self):
+        """Verify is_older raises TypeError for naive datetimes."""
+        naive_dt = timezone.now().replace(tzinfo=None)
+        with self.assertRaises(TypeError):
+            WHOISService.is_older(naive_dt)
+
+        # ensure organization exists for admin page checks
+        org = self._get_org()
 
         with self.subTest(
             "Test WHOIS field hidden on admin when WHOIS_CONFIGURED is False"
@@ -382,6 +391,19 @@ class TestWHOISTransaction(
     def setUp(self):
         super().setUp()
         self.admin = self._get_admin()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_process_whois_details_handles_missing_coordinates(self, mock_client):
+        """Ensure WHOIS processing tolerates missing coordinates in response."""
+        connect_whois_handlers()
+        mocked_response = self._mocked_client_response()
+        # simulate missing coordinates
+        mocked_response.location = None
+        mock_client.return_value.city.return_value = mocked_response
+        device = self._create_device(last_ip="172.217.22.14")
+        whois_details = device.whois_service.process_whois_details(device.last_ip)
+        self.assertIsNone(whois_details.get("coordinates"))
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
@@ -694,17 +716,22 @@ class TestWHOISTransaction(
                 self.assertEqual(mock_info.call_count, info_calls)
                 self.assertEqual(mock_warn.call_count, warn_calls)
                 self.assertEqual(mock_error.call_count, error_calls)
-                self.assertEqual(notification_qs.count(), 1)
-                notification = notification_qs.first()
-                self.assertEqual(notification.actor, device)
-                self.assertEqual(notification.target, device)
-                self.assertEqual(notification.level, "error")
-                self.assertEqual(notification.type, "generic_message")
-                self.assertIn(
-                    "Failed to fetch WHOIS details for device",
-                    notification.message,
+                # Notify only on OutOfQueriesError (permanent quota exhaustion)
+                expected_notifications = (
+                    1 if exception is errors.OutOfQueriesError else 0
                 )
-                self.assertIn(device.last_ip, notification.rendered_description)
+                self.assertEqual(notification_qs.count(), expected_notifications)
+                if expected_notifications == 1:
+                    notification = notification_qs.first()
+                    self.assertEqual(notification.actor, device)
+                    self.assertEqual(notification.target, device)
+                    self.assertEqual(notification.level, "error")
+                    self.assertEqual(notification.type, "generic_message")
+                    self.assertIn(
+                        "Failed to fetch WHOIS details for device",
+                        notification.message,
+                    )
+                    self.assertIn(device.last_ip, notification.rendered_description)
 
             mock_info.reset_mock()
             mock_warn.reset_mock()

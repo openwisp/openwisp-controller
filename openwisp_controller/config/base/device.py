@@ -122,7 +122,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         if app_settings.WHOIS_CONFIGURED:
             # Initial value for last_ip is required in WHOIS
             # to remove WHOIS info related to that ip address.
-            self._changed_checked_fields = self._changed_checked_fields + ["last_ip"]
+            # Ensure we don't add duplicates if __init__ is called multiple times
+            self._changed_checked_fields = list(
+                dict.fromkeys(self._changed_checked_fields + ["last_ip"])
+            )
         super().__init__(*args, **kwargs)
         self._set_initial_values_for_changed_checked_fields()
 

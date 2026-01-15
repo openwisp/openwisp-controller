@@ -24,9 +24,34 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     autoretry_for = (errors.HTTPError,)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        """Notify the user about the failure of the WHOIS task."""
+        """Notify the user about the failure of the WHOIS task.
+
+        Notifications are sent only when the exception is permanent (e.g.
+        OutOfQueriesError) or when retries are exhausted to avoid spamming users.
+        """
         device_pk = kwargs.get("device_pk")
-        send_whois_task_notification(device=device_pk, notify_type="whois_device_error")
+        # Determine max retries configured for this task
+        max_retries = getattr(
+            self,
+            "max_retries",
+            app_settings.API_TASK_RETRY_OPTIONS.get("max_retries", 5),
+        )
+        current_retries = getattr(self.request, "retries", None)
+        should_notify = False
+        # Notify immediately on permanent quota exhaustion
+        if isinstance(exc, errors.OutOfQueriesError):
+            should_notify = True
+        # If retry info is not available (e.g., tasks executed eagerly),
+        # treat as a final failure and notify to preserve prior behavior in tests
+        elif current_retries is None:
+            should_notify = True
+        # Notify on final failure after retries exhausted
+        elif current_retries >= (max_retries - 1):
+            should_notify = True
+        if should_notify:
+            send_whois_task_notification(
+                device=device_pk, notify_type="whois_device_error"
+            )
         logger.error(f"WHOIS lookup failed. Details: {exc}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 

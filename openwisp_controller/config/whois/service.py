@@ -84,11 +84,17 @@ class WHOISService:
         return WHOISInfo.objects.filter(ip_address=ip_address)
 
     @staticmethod
-    def is_older(datetime):
+    def is_older(dt):
         """
         Check if given datetime is older than the refresh threshold.
+        Raises TypeError if datetime is naive (not timezone-aware).
         """
-        return (timezone.now() - datetime) >= timedelta(
+        if dt.tzinfo is None:
+            raise TypeError(
+                "datetime must be timezone-aware. "
+                "Ensure datetime objects are created with timezone support."
+            )
+        return (timezone.now() - dt) >= timedelta(
             days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS
         )
 
@@ -187,13 +193,32 @@ class WHOISService:
                 "continent": data.continent.name or "",
                 "postal": str(data.postal.code or ""),
             }
-            coordinates = Point(
-                data.location.longitude, data.location.latitude, srid=4326
-            )
+            # Coordinates may be None in WHOIS response
+            coordinates = None
+            if (
+                data.location
+                and data.location.latitude is not None
+                and data.location.longitude is not None
+            ):
+                coordinates = Point(
+                    data.location.longitude,
+                    data.location.latitude,
+                    srid=4326,
+                )
             return {
                 "isp": data.traits.autonomous_system_organization,
                 "asn": data.traits.autonomous_system_number,
-                "timezone": data.location.time_zone,
+                # timezone may be missing when location is None
+                # WHOISInfo.timezone is a non-nullable CharField, so store empty
+                # string when missing to avoid IntegrityError on save.
+                "timezone": (
+                    data.location.time_zone
+                    if (
+                        getattr(data, "location", None)
+                        and getattr(data.location, "time_zone", None)
+                    )
+                    else ""
+                ),
                 "address": address,
                 "coordinates": coordinates,
                 "cidr": data.traits.network,
