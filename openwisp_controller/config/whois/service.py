@@ -89,7 +89,7 @@ class WHOISService:
         Check if given datetime is older than the refresh threshold.
         Raises TypeError if datetime is naive (not timezone-aware).
         """
-        if dt.tzinfo is None:
+        if not timezone.is_aware(dt):
             raise TypeError(
                 "datetime must be timezone-aware. "
                 "Ensure datetime objects are created with timezone support."
