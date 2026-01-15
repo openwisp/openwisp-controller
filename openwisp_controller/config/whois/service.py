@@ -71,6 +71,7 @@ class WHOISService:
         try:
             return ip and ip_addr(ip).is_global
         except ValueError:
+            # ip_address() from the stdlib raises ValueError for malformed strings
             return False
 
     @staticmethod

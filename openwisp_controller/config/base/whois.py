@@ -81,7 +81,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             except ValueError as e:
                 raise ValidationError(
                     {"cidr": _("Invalid CIDR format: %(error)s") % {"error": str(e)}}
-                )
+                ) from e
         if self.coordinates:
             if not (-90 <= self.coordinates.y <= 90):
                 raise ValidationError(
@@ -153,8 +153,13 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         if address:
             parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
             location = ", ".join(parts)
-            return _("{} ~Estimated Location: {}~".format(location, self.ip_address))
-        return _("Estimated Location: {}".format(self.ip_address))
+            # Use named placeholders so translators receive the template
+            return _("%(location)s ~Estimated Location: %(ip)s~") % {
+                "location": location,
+                "ip": self.ip_address,
+            }
+        # Use named placeholder for consistency
+        return _("Estimated Location: %(ip)s") % {"ip": self.ip_address}
 
     def _get_defaults_for_estimated_location(self):
         """

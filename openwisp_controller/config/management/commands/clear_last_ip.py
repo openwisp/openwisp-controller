@@ -36,9 +36,12 @@ class Command(BaseCommand):
                 raise CommandError("Operation cancelled by user.")
 
         devices = (
-            Device.objects.filter(_is_deactivated=False)
-            .select_related("organization__config_settings")
-            .only("last_ip", "organization__config_settings", "key")
+            Device.objects.filter(_is_deactivated=False).select_related(
+                "organization__config_settings"
+            )
+            # include the FK field 'organization' in .only() so the related
+            # `organization__config_settings` traversal is not deferred
+            .only("last_ip", "organization", "key")
         )
         # Filter out devices that have WHOIS information for their last IP
         devices = devices.exclude(last_ip=None).exclude(

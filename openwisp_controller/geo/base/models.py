@@ -1,4 +1,5 @@
 import re
+from typing import ClassVar
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
@@ -15,7 +16,11 @@ from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
-    _changed_checked_fields = ["is_estimated", "address", "geometry"]
+    _changed_checked_fields: ClassVar[list[str]] = [
+        "is_estimated",
+        "address",
+        "geometry",
+    ]
 
     is_estimated = models.BooleanField(
         default=False,
@@ -87,8 +92,8 @@ class BaseLocation(OrgMixin, AbstractLocation):
             if not _set_estimated and (address_changed or geometry_changed):
                 self.is_estimated = False
                 if self.name:
-                    # remove estimated status between '~'
-                    self.name = re.sub(r"~[^~]*~", "", self.name)
+                    # remove estimated status between '~' and trim extra spaces
+                    self.name = re.sub(r"~[^~]*~", "", self.name).strip()
                 changed_fields = {"is_estimated", "name"}
         # Manual changes to is_estimated discarded if feature not enabled
         elif self._initial_is_estimated is not models.DEFERRED:
