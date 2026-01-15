@@ -195,11 +195,7 @@ input.readonly {
   white-space: pre;
   color: var(--ow-color-fg-dark);
 }
-div.change-form
-  #device_form
-  div.inline-group.tab-content
-  > fieldset.module
-  > h2,
+div.change-form #device_form div.inline-group.tab-content > fieldset.module > h2,
 div.change-form
   #device_form
   div.inline-group.tab-content
