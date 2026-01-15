@@ -383,7 +383,7 @@ div[data-schematype="object"]
 .jsoneditor-wrapper div.jsoneditor .modal {
   position: absolute;
   z-index: 10;
-  background-color: white;
+  background-color: var(--ow-color-white);
   border: 1px solid var(--ow-color-fg-light);
   padding-bottom: 10px;
   width: 340px;
