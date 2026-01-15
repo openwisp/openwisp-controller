@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http.response import Http404
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from swapper import load_model
 
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -38,13 +38,8 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Organization = load_model("openwisp_users", "Organization")
 
 
-class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
-    """
-    tests for config.controller
-    """
-
-    def setUp(self):
-        self.register_url = reverse("controller:device_register")
+class TestRegistrationMixin:
+    register_url = reverse_lazy("controller:device_register")
 
     def _create_org(self, shared_secret=TEST_ORG_SHARED_SECRET, **kwargs):
         org = super()._create_org(**kwargs)
@@ -52,6 +47,27 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
             organization=org, shared_secret=shared_secret
         )
         return org
+
+    def _get_reregistration_payload(self, device, **kwargs):
+        data = {
+            "secret": str(device.organization.config_settings.shared_secret),
+            "key": TEST_CONSISTENT_KEY,
+            "mac_address": device.mac_address,
+            "backend": "netjsonconfig.OpenWrt",
+            "model": "TP-Link TL-WDR4300 v2",
+            "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
+            "system": "Atheros AR9344 rev 3",
+        }
+        data.update(**kwargs)
+        return data
+
+
+class TestController(
+    TestRegistrationMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
+):
+    """
+    tests for config.controller
+    """
 
     def _check_header(self, response):
         self.assertEqual(response["X-Openwisp-Controller"], "true")
@@ -820,19 +836,82 @@ class TestController(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertEqual(d.system, params["system"])
         self.assertEqual(d.model, params["model"])
 
-    def test_device_report_status_running(self):
+    @patch.object(Device, "skip_push_update_on_save")
+    def test_device_registration_update_hostname(self, mocked_method):
         """
-        maintained for backward compatibility
-        # TODO: remove in stable version 1.0
+        Test that hostname is updated when the name in payload
+        is not the MAC address stored in OpenWISP
         """
-        d = self._create_device_config()
-        response = self.client.post(
-            reverse("controller:device_report_status", args=[d.pk]),
-            {"key": d.key, "status": "running"},
+        device = self._create_device_config(
+            device_opts={
+                "name": "old-hostname",
+                "mac_address": TEST_MACADDR,
+                "key": TEST_CONSISTENT_KEY,
+            }
         )
-        self._check_header(response)
-        d.config.refresh_from_db()
-        self.assertEqual(d.config.status, "applied")
+        params = self._get_reregistration_payload(
+            device=device,
+            name="new-custom-hostname",
+        )
+        self.assertNotEqual(device.name, params["name"])
+        response = self.client.post(self.register_url, params)
+        self.assertEqual(response.status_code, 201)
+        device.refresh_from_db()
+        self.assertEqual(device.name, "new-custom-hostname")
+        mocked_method.assert_called_once()
+
+    @patch.object(Device, "skip_push_update_on_save")
+    def test_device_registration_hostname_not_updated_when_mac_address(
+        self, mocked_method
+    ):
+        """
+        Test that hostname is not updated when the name in payload
+        equals the MAC address (agents send MAC address as hostname
+        when hostname is OpenWrt or if default_hostname is set to *)
+        """
+        device = self._create_device_config(
+            device_opts={
+                "name": "meaningful-hostname",
+                "key": TEST_CONSISTENT_KEY,
+            }
+        )
+        params = self._get_reregistration_payload(
+            device=device,
+            name=TEST_MACADDR,
+        )
+        response = self.client.post(self.register_url, params)
+        self.assertEqual(response.status_code, 201)
+        device.refresh_from_db()
+        self.assertEqual(device.name, "meaningful-hostname")
+        mocked_method.assert_not_called()
+
+    @patch.object(Device, "skip_push_update_on_save")
+    def test_device_registration_hostname_comparison_case_insensitive(
+        self, mocked_method
+    ):
+        """
+        Test that MAC address comparison is case-insensitive and works
+        with different formats (colons, dashes, no separators)
+        """
+        mac_address = "00:11:22:33:aa:BB"
+        name = mac_address.replace(":", "-")
+        device = self._create_device_config(
+            device_opts={
+                "mac_address": mac_address,
+                "name": name,
+                "key": TEST_CONSISTENT_KEY,
+            }
+        )
+        params = self._get_reregistration_payload(
+            device=device,
+            name="00-11-22-33-aa-bb",
+        )
+        response = self.client.post(self.register_url, params)
+        self.assertEqual(response.status_code, 201)
+        device.refresh_from_db()
+        # Hostname should not be changed
+        self.assertEqual(device.name, name)
+        mocked_method.assert_not_called()
 
     def test_device_report_status_applied(self):
         d = self._create_device_config()
