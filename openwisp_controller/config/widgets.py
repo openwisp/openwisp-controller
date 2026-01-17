@@ -20,19 +20,18 @@ class JsonSchemaWidget(AdminTextareaWidget):
     @property
     def media(self):
         js = [
-            "config/js/lib/advanced-mode.js",
-            "config/js/lib/tomorrow_night_bright.js",
             "config/js/lib/jsonschema-ui.js",
             "admin/js/jquery.init.js",
             "config/js/widget.js",
             "config/js/utils.js",
         ]
         css = {
-            "all": [
-                f"config/css/{path}"
-                for path in ("lib/jsonschema-ui.css", "lib/advanced-mode.css")
-            ]
+            "all": ["config/css/lib/jsonschema-ui.css"]
         }
+        if self.advanced_mode:
+            js.insert(0, "config/js/lib/advanced-mode.js")
+            js.insert(1, "config/js/lib/tomorrow_night_bright.js")
+            css["all"].append("config/css/lib/advanced-mode.css")
         return forms.Media(js=js, css=css)
 
     def render(self, name, value, attrs=None, renderer=None):
