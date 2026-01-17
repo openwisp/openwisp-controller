@@ -25,9 +25,7 @@ class JsonSchemaWidget(AdminTextareaWidget):
             "config/js/widget.js",
             "config/js/utils.js",
         ]
-        css = {
-            "all": ["config/css/lib/jsonschema-ui.css"]
-        }
+        css = {"all": ["config/css/lib/jsonschema-ui.css"]}
         if self.advanced_mode:
             js.insert(0, "config/js/lib/advanced-mode.js")
             js.insert(1, "config/js/lib/tomorrow_night_bright.js")
