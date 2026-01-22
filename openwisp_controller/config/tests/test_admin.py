@@ -1436,7 +1436,7 @@ class TestAdmin(
                 )
 
                 # HISTORY URL (kept as existing explicit admin name)
-                history_url_name = f"admin:{model_admin_name}_history"
+                history_url_name = admin_urlname(model_map[model_name]._meta, "history")
                 valid_history_url = reverse(history_url_name, args=[valid_pk])
                 malformed_history_url = f"{valid_history_url}{junk_path}"
 
