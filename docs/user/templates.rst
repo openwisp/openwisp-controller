@@ -165,7 +165,7 @@ device registers in the system.
 
 Here's the sample ``/etc/config/openwisp`` configuration for mesh devices:
 
-.. code-block::
+.. code-block:: ini
 
     config controller 'http'
         option url 'https://openwisp2.mynetwork.com'
@@ -184,7 +184,7 @@ assigned to them.
 The sample ``/etc/config/openwisp`` configuration for dumb access points
 is the following:
 
-.. code-block::
+.. code-block:: ini
 
     config controller 'http'
         option url 'https://openwisp2.mynetwork.com'
