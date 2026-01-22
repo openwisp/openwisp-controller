@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import django
 from django.contrib.admin.models import LogEntry
+from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -1409,39 +1410,46 @@ class TestAdmin(
         device = self._create_device()
         template = self._create_template()
         vpn = self._create_vpn()
+
+        model_map = {"device": Device, "template": Template, "vpn": Vpn}
         test_cases = [
             ("device", device.pk, "config_device"),
             ("template", template.pk, "config_template"),
             ("vpn", vpn.pk, "config_vpn"),
         ]
+
         junk_path = "some/junk/path/here/"
         original_bug_junk = "history/1564/undefinedadmin/img/icon-deletelink.svg"
 
         for model_name, valid_pk, model_admin_name in test_cases:
             with self.subTest(model=model_name):
-                change_url_name = f"admin:{model_admin_name}_change"
+                # CHANGE URL (robust across admin namespaces)
+                change_url_name = admin_urlname(model_map[model_name]._meta, "change")
                 valid_change_url = reverse(change_url_name, args=[valid_pk])
                 malformed_change_url = f"{valid_change_url}{junk_path}"
-                response_change = self.client.get(malformed_change_url, follow=False)
 
+                response_change = self.client.get(malformed_change_url, follow=False)
                 self.assertEqual(
                     response_change.status_code,
                     404,
-                    (f'Malformed "change" URL for {model_name} did not return 404. '),
+                    f'Malformed "change" URL for {model_name} did not return 404.',
                 )
+
+                # HISTORY URL (kept as existing explicit admin name)
                 history_url_name = f"admin:{model_admin_name}_history"
                 valid_history_url = reverse(history_url_name, args=[valid_pk])
                 malformed_history_url = f"{valid_history_url}{junk_path}"
-                response_history = self.client.get(malformed_history_url, follow=False)
 
+                response_history = self.client.get(malformed_history_url, follow=False)
                 self.assertEqual(
                     response_history.status_code,
                     404,
-                    (f'Malformed "history" URL for {model_name} did not return 404. '),
+                    f'Malformed "history" URL for {model_name} did not return 404.',
                 )
+
+                # ORIGINAL BUG URL regression check (#682)
                 original_bug_url = f"{valid_history_url}{original_bug_junk}"
                 response_original_bug = self.client.get(original_bug_url, follow=False)
-
                 self.assertEqual(
                     response_original_bug.status_code,
                     404,
