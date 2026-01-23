@@ -1,0 +1,113 @@
+:root {
+  --whois-bg-light: #f9fafb;
+  --whois-text-muted: rgba(0, 0, 0, 0.45);
+  --whois-border-radius: 5px;
+  --whois-padding: 15px;
+}
+
+.whois-table,
+.whois {
+  margin-top: 1.25em;
+  max-width: 500px;
+  width: 100%;
+  border-radius: var(--whois-border-radius);
+}
+.whois-table {
+  border-spacing: 0;
+  box-shadow: 0 0 0 1px #ccc;
+  border-style: none;
+}
+.whois-table th,
+.whois-table td {
+  padding: var(--whois-padding) !important;
+  border: none;
+}
+.whois-table tr:first-child {
+  background-color: var(--whois-bg-light);
+}
+.whois-table tr:not(:first-child) {
+  background-color: white;
+}
+.whois-table th:first-of-type > div {
+  display: flex;
+  align-items: center;
+}
+/* For rounding the individual corners */
+.whois-table th:first-of-type {
+  border-top-left-radius: var(--whois-border-radius);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.whois-table th:last-of-type {
+  border-top-right-radius: var(--whois-border-radius);
+  border-bottom: 1px solid var(--border-color);
+}
+.whois-table tr:last-child td:first-child {
+  border-bottom-left-radius: var(--whois-border-radius);
+  border-right: 1px solid var(--border-color);
+}
+.whois-table tr:last-child td:last-child {
+  border-bottom-right-radius: var(--whois-border-radius);
+}
+.whois-table .ow-info-icon {
+  width: 1rem;
+  height: 1rem;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  display: inline-block;
+  flex-shrink: 0;
+  background: #777;
+  margin-left: 1em;
+}
+.whois-table .ow-info-icon:hover {
+  background: #007cba;
+}
+
+.whois {
+  background: var(--whois-bg-light);
+}
+.whois summary {
+  background: white;
+  border-radius: var(--whois-border-radius);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  color: var(--whois-text-muted) !important;
+  font-weight: 600;
+  cursor: pointer;
+}
+details.whois[open] summary {
+  padding-bottom: 0 !important;
+}
+.whois summary > div {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  margin-left: 1.4em;
+}
+.whois summary::-webkit-details-marker {
+  display: none;
+}
+.whois summary .mg-arrow {
+  transform: scale(1.75);
+  display: inline;
+}
+.whois > div {
+  padding: var(--whois-padding);
+  font-size: 1em;
+}
+.whois .additional-text {
+  display: block;
+}
+.whois .additional-text + .additional-text {
+  margin-top: 5px;
+}
+.whois-globe {
+  flex-shrink: 0;
+  mask: url(../images/whois_globe.svg) no-repeat center;
+  -webkit-mask: url(../images/whois_globe.svg) no-repeat center;
+  width: 1.1rem;
+  height: 1.1rem;
+  background-color: var(--whois-text-muted);
+}
