@@ -684,3 +684,130 @@ class TestTransactionDevice(
         device.refresh_from_db()
         self.assertEqual(device._has_config(), False)
         self.assertEqual(device.is_deactivated(), False)
+
+
+class TestOrganizationConfigUpdates(
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TransactionTestCase,
+):
+    def test_changing_org_variable_updates_device_status(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={"ssid": "OldValue"}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        template = self._create_template(
+            name="wireless-template",
+            organization=org,
+            config={
+                "interfaces": [
+                    {
+                        "type": "wireless",
+                        "name": "wlan0",
+                        "wireless": {
+                            "mode": "access_point",
+                            "radio": "radio0",
+                            "ssid": "{{ ssid }}",
+                        },
+                    }
+                ]
+            },
+        )
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        self.assertEqual(config.status, "applied")
+
+        config_settings.context = {"ssid": "NewValue"}
+        config_settings.full_clean()
+        config_settings.save()
+
+        config.refresh_from_db()
+        self.assertEqual(config.status, "modified")
+
+    def test_unaffected_devices_stay_applied(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={"ssid": "OldValue"}
+        )
+
+        device_a = self._create_device(organization=org, name="device-a")
+        config_a = self._create_config(device=device_a)
+        template_a = self._create_template(
+            name="wireless-template-a",
+            organization=org,
+            config={
+                "interfaces": [
+                    {
+                        "type": "wireless",
+                        "name": "wlan0",
+                        "wireless": {
+                            "mode": "access_point",
+                            "radio": "radio0",
+                            "ssid": "{{ ssid }}",
+                        },
+                    }
+                ]
+            },
+        )
+        config_a.templates.add(template_a)
+        config_a.set_status_applied()
+        config_a.refresh_from_db()
+        self.assertEqual(config_a.status, "applied")
+
+        device_b = self._create_device(
+            organization=org, name="device-b", mac_address="00:11:22:33:44:BB"
+        )
+        config_b = self._create_config(device=device_b)
+        template_b = self._create_template(
+            name="static-template-b",
+            organization=org,
+            config={
+                "interfaces": [
+                    {"type": "ethernet", "name": "eth0", "network": "lan"}
+                ]
+            },
+        )
+        config_b.templates.add(template_b)
+        config_b.set_status_applied()
+        config_b.refresh_from_db()
+        self.assertEqual(config_b.status, "applied")
+
+        config_settings.context = {"ssid": "NewValue"}
+        config_settings.full_clean()
+        config_settings.save()
+
+        config_a.refresh_from_db()
+        config_b.refresh_from_db()
+        self.assertEqual(config_a.status, "modified")
+        self.assertEqual(config_b.status, "applied")
+
+    def test_no_status_change_if_variables_change_but_checksum_does_not(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={"unused_var": "value1"}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        template = self._create_template(
+            name="static-template",
+            organization=org,
+            config={
+                "interfaces": [
+                    {"type": "ethernet", "name": "eth0", "network": "lan"}
+                ]
+            },
+        )
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        self.assertEqual(config.status, "applied")
+
+        config_settings.context = {"unused_var": "value2"}
+        config_settings.full_clean()
+        config_settings.save()
+
+        config.refresh_from_db()
+        self.assertEqual(config.status, "applied")
