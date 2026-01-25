@@ -5,6 +5,7 @@ from unittest import mock
 
 from django.contrib.gis.geos import Point
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.management import call_command
 from django.db.models.signals import post_delete, post_save
@@ -61,6 +62,8 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     )
     def test_whois_configuration_setting(self):
         self._disconnect_signals()
+        # ensure organization exists for admin page checks
+        org = self._get_org()
         # reload app_settings to apply the overridden settings
         importlib.reload(app_settings)
 
@@ -79,15 +82,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 "invalidate_org_config_cache_on_org_config_delete" in str(r[0])
                 for r in post_delete.receivers
             )
-
-    def test_is_older_requires_timezone_aware(self):
-        """Verify is_older raises TypeError for naive datetimes."""
-        naive_dt = timezone.now().replace(tzinfo=None)
-        with self.assertRaises(TypeError):
-            WHOISService.is_older(naive_dt)
-
-        # ensure organization exists for admin page checks
-        org = self._get_org()
 
         with self.subTest(
             "Test WHOIS field hidden on admin when WHOIS_CONFIGURED is False"
@@ -144,6 +138,12 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 )
                 response = self.client.get(url)
                 self.assertContains(response, 'name="config_settings-0-whois_enabled"')
+
+    def test_is_older_requires_timezone_aware(self):
+        """Verify is_older raises TypeError for naive datetimes."""
+        naive_dt = timezone.now().replace(tzinfo=None)
+        with self.assertRaises(TypeError):
+            WHOISService.is_older(naive_dt)
 
     def test_whois_enabled(self):
         OrganizationConfigSettings.objects.all().delete()
@@ -387,6 +387,7 @@ class TestWHOISTransaction(
     _WHOIS_TASKS_INFO_LOGGER = "openwisp_controller.config.whois.tasks.logger.info"
     _WHOIS_TASKS_WARN_LOGGER = "openwisp_controller.config.whois.tasks.logger.warning"
     _WHOIS_TASKS_ERR_LOGGER = "openwisp_controller.config.whois.tasks.logger.error"
+    _WHOIS_TASK_NAME = "openwisp_controller.config.whois.tasks.fetch_whois_details"
 
     def setUp(self):
         super().setUp()
@@ -706,22 +707,18 @@ class TestWHOISTransaction(
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     def test_whois_task_failure_notification(self, mock_info, mock_warn, mock_error):
         def assert_logging_on_exception(
-            exception, info_calls=0, warn_calls=0, error_calls=1
+            exception, info_calls=0, warn_calls=0, error_calls=1, notification_count=1
         ):
             with self.subTest(
-                f"Test notifications and logging when {exception.__name__} is raised"
+                f"Test notification and logging when {exception.__name__} is raised"
             ), mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exception("test")):
                 Device.objects.all().delete()  # Clear existing devices
                 device = self._create_device(last_ip="172.217.22.14")
                 self.assertEqual(mock_info.call_count, info_calls)
                 self.assertEqual(mock_warn.call_count, warn_calls)
                 self.assertEqual(mock_error.call_count, error_calls)
-                # Notify only on OutOfQueriesError (permanent quota exhaustion)
-                expected_notifications = (
-                    1 if exception is errors.OutOfQueriesError else 0
-                )
-                self.assertEqual(notification_qs.count(), expected_notifications)
-                if expected_notifications == 1:
+                if notification_count > 0:
+                    self.assertEqual(notification_qs.count(), notification_count)
                     notification = notification_qs.first()
                     self.assertEqual(notification.actor, device)
                     self.assertEqual(notification.target, device)
@@ -739,10 +736,112 @@ class TestWHOISTransaction(
             notification_qs.delete()
 
         # Test for all possible exceptions that can be raised by the geoip2 client
+        # Notification are sent only one time when any of the following exceptions
+        # are raised first time.
         assert_logging_on_exception(errors.OutOfQueriesError)
-        assert_logging_on_exception(errors.AddressNotFoundError)
-        assert_logging_on_exception(errors.AuthenticationError)
-        assert_logging_on_exception(errors.PermissionRequiredError)
+        assert_logging_on_exception(errors.AddressNotFoundError, notification_count=0)
+        assert_logging_on_exception(errors.AuthenticationError, notification_count=0)
+        assert_logging_on_exception(
+            errors.PermissionRequiredError, notification_count=0
+        )
+        cache.clear()
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_whois_task_failure_cache(self):
+        permanent_errors = [
+            errors.AddressNotFoundError,
+            errors.OutOfQueriesError,
+            errors.AuthenticationError,
+            errors.PermissionRequiredError,
+        ]
+
+        def trigger_error_and_assert_cached(
+            exc, device_level=False, notification_count=0
+        ):
+            with mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exc("test")):
+                Device.objects.all().delete()
+                device = self._create_device(last_ip="172.217.22.14")
+                if device_level:
+                    cache_key = f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation"
+                    error_status = "error"
+                else:
+                    cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
+                    error_status = "non_recoverable"
+                self.assertEqual(cache.get(cache_key), error_status)
+                self.assertEqual(notification_qs.count(), notification_count)
+                notification_qs.delete()
+                return device
+
+        # simulate that no matter which permanent error is raised first,
+        # the rest of the permanent errors should use the cache
+        for first_error in permanent_errors:
+            with self.subTest(f"Cache populated by {first_error.__name__}"):
+                cache.clear()
+                trigger_error_and_assert_cached(first_error, False, 1)
+
+            for subsequent_error in permanent_errors:
+                if subsequent_error is first_error:
+                    continue
+
+                with self.subTest(
+                    f"Cache reused when {subsequent_error.__name__} occurs "
+                    f"after {first_error.__name__}"
+                ):
+                    trigger_error_and_assert_cached(subsequent_error, False, 0)
+
+        # cache key overwritten when success
+        with self.subTest("Test Status Cached per device for other exceptions"):
+            cache.clear()
+            device = trigger_error_and_assert_cached(Exception, True, 1)
+            with self.subTest(f"Cache reused by {Exception.__name__}"), mock.patch(
+                self._WHOIS_GEOIP_CLIENT, side_effect=Exception("test")
+            ):
+                device.last_ip = "172.217.22.15"
+                device.save()
+                cache_key = f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation"
+                self.assertEqual(cache.get(cache_key), "error")
+                self.assertEqual(notification_qs.count(), 0)
+
+        with self.subTest("Test cache updated on success"), mock.patch(
+            self._WHOIS_GEOIP_CLIENT
+        ) as mock_client:
+            Device.objects.all().delete()
+            mocked_response = self._mocked_client_response()
+            mocked_response.location = None
+            mock_client.return_value.city.return_value = mocked_response
+            device = self._create_device(last_ip="172.217.22.14")
+            cache_key = f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation"
+            self.assertEqual(cache.get(cache_key), "success")
+            cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
+            self.assertEqual(cache.get(cache_key), "success")
+            self.assertEqual(notification_qs.count(), 0)
+        cache.clear()
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True)
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.retry")
+    def test_whois_task_retry_mechanism(self, mock_retry):
+        def assert_retry_on_exception(exception, should_retry):
+            with self.subTest(
+                f"Test retry mechanism when {exception.__name__} is raised"
+            ), mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exception("test")):
+                Device.objects.all().delete()
+                mock_retry.reset_mock()
+                mock_retry.side_effect = exception("test")
+                with self.assertRaises(exception):
+                    self._create_device(last_ip="172.217.22.14")
+                if should_retry:
+                    self.assertEqual(mock_retry.call_count, 1)
+                    assert isinstance(mock_retry.call_args.kwargs["exc"], exception)
+                else:
+                    self.assertEqual(mock_retry.call_count, 0)
+
+        assert_retry_on_exception(errors.HTTPError, should_retry=True)
+        assert_retry_on_exception(errors.OutOfQueriesError, should_retry=False)
+        assert_retry_on_exception(errors.AddressNotFoundError, should_retry=False)
+        assert_retry_on_exception(errors.AuthenticationError, should_retry=False)
+        assert_retry_on_exception(errors.PermissionRequiredError, should_retry=False)
 
 
 @tag("selenium_tests")

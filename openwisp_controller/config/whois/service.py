@@ -6,7 +6,6 @@ from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
-from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
@@ -14,24 +13,7 @@ from swapper import load_model
 from openwisp_controller.config import settings as app_settings
 
 from .tasks import fetch_whois_details, manage_estimated_locations
-from .utils import send_whois_task_notification
-
-EXCEPTION_MESSAGES = {
-    errors.AddressNotFoundError: _(
-        "No WHOIS information found for IP address {ip_address}"
-    ),
-    errors.AuthenticationError: _(
-        "Authentication failed for GeoIP2 service. "
-        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
-        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
-    ),
-    errors.OutOfQueriesError: _(
-        "Your account has run out of queries for the GeoIP2 service."
-    ),
-    errors.PermissionRequiredError: _(
-        "Your account does not have permission to access this service."
-    ),
-}
+from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
 
 
 class WHOISService:
@@ -194,31 +176,20 @@ class WHOISService:
                 "postal": str(data.postal.code or ""),
             }
             # Coordinates may be None in WHOIS response
-            coordinates = None
-            if (
-                data.location
-                and data.location.latitude is not None
-                and data.location.longitude is not None
-            ):
-                coordinates = Point(
-                    data.location.longitude,
-                    data.location.latitude,
-                    srid=4326,
-                )
+            # WHOISInfo.timezone is a non-nullable CharField, so store empty
+            # string when missing to avoid IntegrityError on save.
+            timezone, coordinates = "", None
+            if location := data.location:
+                if location.latitude is not None and location.longitude is not None:
+                    coordinates = Point(
+                        location.longitude, location.latitude, srid=4326
+                    )
+                timezone = location.time_zone or ""
+
             return {
                 "isp": data.traits.autonomous_system_organization,
                 "asn": data.traits.autonomous_system_number,
-                # timezone may be missing when location is None
-                # WHOISInfo.timezone is a non-nullable CharField, so store empty
-                # string when missing to avoid IntegrityError on save.
-                "timezone": (
-                    data.location.time_zone
-                    if (
-                        getattr(data, "location", None)
-                        and getattr(data.location, "time_zone", None)
-                    )
-                    else ""
-                ),
+                "timezone": timezone,
                 "address": address,
                 "coordinates": coordinates,
                 "cidr": data.traits.network,

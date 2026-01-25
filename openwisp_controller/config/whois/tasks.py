@@ -1,6 +1,7 @@
 import logging
 
 from celery import shared_task
+from django.core.cache import cache
 from django.db import transaction
 from geoip2 import errors
 from swapper import load_model
@@ -9,7 +10,7 @@ from openwisp_controller.geo.estimated_location.tasks import manage_estimated_lo
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
-from .utils import send_whois_task_notification
+from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
 
 logger = logging.getLogger(__name__)
 
@@ -26,32 +27,27 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Notify the user about the failure of the WHOIS task.
 
-        Notifications are sent only when the exception is permanent (e.g.
-        OutOfQueriesError) or when retries are exhausted to avoid spamming users.
+        Notifications are sent only once when task fails (e.g.
+        OutOfQueriesError) to avoid spamming users.
         """
         device_pk = kwargs.get("device_pk")
-        # Determine max retries configured for this task
-        max_retries = getattr(
-            self,
-            "max_retries",
-            app_settings.API_TASK_RETRY_OPTIONS.get("max_retries", 5),
-        )
-        current_retries = getattr(self.request, "retries", None)
-        should_notify = False
-        # Notify immediately on permanent quota exhaustion
-        if isinstance(exc, errors.OutOfQueriesError):
-            should_notify = True
-        # If retry info is not available (e.g., tasks executed eagerly),
-        # treat as a final failure and notify to preserve prior behavior in tests
-        elif current_retries is None:
-            should_notify = True
-        # Notify on final failure after retries exhausted
-        elif current_retries >= (max_retries - 1):
-            should_notify = True
-        if should_notify:
-            send_whois_task_notification(
-                device=device_pk, notify_type="whois_device_error"
-            )
+        # Raise only once for permanent exceptions
+        if exc.__class__ in EXCEPTION_MESSAGES:
+            task_key = f"{self.name}_last_operation"
+            last_operation = cache.get(task_key)
+            if last_operation != "non_recoverable":
+                cache.set(task_key, "non_recoverable", None)
+                send_whois_task_notification(
+                    device=device_pk, notify_type="whois_device_error"
+                )
+        else:
+            task_key = f"{self.name}_{device_pk}_last_operation"
+            last_operation = cache.get(task_key)
+            if last_operation != "error":
+                cache.set(task_key, "error", None)
+                send_whois_task_notification(
+                    device=device_pk, notify_type="whois_device_error"
+                )
         logger.error(f"WHOIS lookup failed. Details: {exc}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 
@@ -81,6 +77,10 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             return
 
         fetched_details = WHOISService.process_whois_details(new_ip_address)
+        general_status_key = f"{self.name}_last_operation"
+        device_status_key = f"{self.name}_{device_pk}_last_operation"
+        cache.set(general_status_key, "success", None)
+        cache.set(device_status_key, "success", None)
         whois_obj, update_fields = WHOISService._create_or_update_whois(
             fetched_details, whois_obj
         )
