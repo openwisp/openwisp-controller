@@ -28,7 +28,10 @@ def _handle_attach_existing_location(
             .exclude(pk=device.pk)
             .exists()
         )
-    if existing_device_location:
+    if (
+        existing_device_location
+        and existing_device_location.location != device_location.location
+    ):
         existing_location = existing_device_location.location
         device_location.location = existing_location
         device_location.full_clean()
@@ -63,13 +66,17 @@ def _handle_attach_existing_location(
     }
 
     # Create new location only if location is changed.
-    if current_location and attached_devices_exists:
-        if current_location.geometry == location_defaults.get("geometry"):
-            logger.info(
-                f"Estimated location unchanged for {device.pk}"
-                f" for IP: {ip_address}, keeping existing location"
-            )
-            return
+    if (
+        attached_devices_exists
+        and current_location
+        and current_location.geometry == location_defaults.get("geometry")
+        and current_location.name == location_defaults.get("name")
+    ):
+        logger.info(
+            f"Estimated location unchanged for {device.pk}"
+            f" for IP: {ip_address}, keeping existing location"
+        )
+        return
 
     # create new location if no location exists for device or the estimated location
     # of device is shared.
