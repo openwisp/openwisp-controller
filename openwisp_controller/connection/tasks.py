@@ -20,7 +20,7 @@ def _is_update_in_progress(device_id):
     active = current_app.control.inspect().active()
     if not active:
         return False
-    current_task_id = getattr(current_task, 'request', None)
+    current_task_id = getattr(current_task, "request", None)
     if current_task_id:
         current_task_id = current_task_id.id
     else:
