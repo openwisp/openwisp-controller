@@ -61,6 +61,16 @@ def _handle_attach_existing_location(
         **whois_obj._get_defaults_for_estimated_location(),
         "organization_id": device.organization_id,
     }
+
+    # Create new location only if location is changed.
+    if current_location and attached_devices_exists:
+        if current_location.geometry == location_defaults.get("geometry"):
+            logger.info(
+                f"Estimated location unchanged for {device.pk}"
+                f" for IP: {ip_address}, keeping existing location"
+            )
+            return
+
     # create new location if no location exists for device or the estimated location
     # of device is shared.
     whois_service = device.whois_service

@@ -562,6 +562,59 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_unchanged_whois_data_no_location_recreation(
+        self,
+        mock_client,
+        mock_info,
+    ):
+        """Ensure identical WHOIS results do not recreate a shared Location when
+        devices reuse the same IP."""
+        connect_whois_handlers()
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+        shared_ip = "20.49.19.19"
+        device1 = self._create_device(
+            name="device-a",
+            mac_address="00:11:22:33:44:55",
+            last_ip=shared_ip,
+        )
+        device2 = self._create_device(
+            name="device-b",
+            mac_address="00:11:22:33:44:66",
+            last_ip=shared_ip,
+        )
+        original_location = device1.devicelocation.location
+        self.assertEqual(original_location.pk, device2.devicelocation.location.pk)
+        location_count = Location.objects.count()
+        notification_count = notification_qs.count()
+
+        # Clear the last ip for both devices, so setting them again
+        # will trigger the WHOIS lookup flow.
+        for device in (device1, device2):
+            device.last_ip = ""
+            device.save(update_fields=["last_ip"])
+            device.refresh_from_db()
+
+        # We set the same shared IP again. This simulates device fetching checksum.
+        for device in (device1, device2):
+            device.last_ip = shared_ip
+            device.save(update_fields=["last_ip"])
+            device.refresh_from_db()
+
+        # The location object should remain unchanged since the WHOIS data is the same.
+        self.assertEqual(original_location.pk, device1.devicelocation.location.pk)
+        self.assertEqual(
+            device1.devicelocation.location.pk, device2.devicelocation.location.pk
+        )
+        self.assertEqual(Location.objects.count(), location_count)
+        self.assertTrue(Location.objects.filter(pk=original_location.pk).exists())
+        for noti in notification_qs:
+            print(noti.message)
+        self.assertEqual(notification_qs.count(), notification_count)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
