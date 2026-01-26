@@ -20,9 +20,13 @@ def _is_update_in_progress(device_id):
     active = current_app.control.inspect().active()
     if not active:
         return False
-    current_task_id = current_task.request.id if current_task and current_task.request else None
+    current_task_id = (
+        current_task.request.id if current_task and current_task.request else None
+    )
     return any(
-        task["name"] == _TASK_NAME and str(device_id) in task["args"] and task.get("id") != current_task_id
+        task["name"] == _TASK_NAME
+        and str(device_id) in task["args"]
+        and task.get("id") != current_task_id
         for task_list in active.values()
         for task in task_list
     )
