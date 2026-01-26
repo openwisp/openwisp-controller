@@ -21,6 +21,7 @@ from ..handlers import register_estimated_location_notification_types
 from ..tasks import manage_estimated_locations
 from .utils import TestEstimatedLocationMixin
 
+Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
@@ -151,6 +152,7 @@ class TestEstimatedLocationTransaction(
     _ESTIMATED_LOCATION_ERROR_LOGGER = (
         "openwisp_controller.geo.estimated_location.tasks.logger.error"
     )
+    _WHOIS_TASK_NAME = "openwisp_controller.config.whois.tasks.fetch_whois_details"
 
     def setUp(self):
         super().setUp()
@@ -179,8 +181,59 @@ class TestEstimatedLocationTransaction(
         )
 
         Device.objects.all().delete()
-        device = self._create_device()
-        self._create_config(device=device)
+        org = self._get_org()
+        org.config_settings.whois_enabled = True
+        org.config_settings.estimated_location_enabled = True
+        org.config_settings.save()
+
+        with self.subTest("Estimated location task called when last_ip is public"):
+            with mock.patch(
+                "django.core.cache.cache.get", side_effect=[None, None, None]
+            ) as mocked_get, mock.patch("django.core.cache.cache.set") as mocked_set:
+                device = self._create_device(last_ip="172.217.22.14")
+                mocked_estimated_location_task.assert_called()
+                expected_cache_set_calls = [
+                    mock.call(
+                        f"organization_config_{org.pk}",
+                        org.config_settings,
+                        timeout=Config._CHECKSUM_CACHE_TIMEOUT,
+                    ),
+                    mock.call(
+                        f"{self._WHOIS_TASK_NAME}_last_operation", "success", None
+                    ),
+                    mock.call(
+                        f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation",
+                        "success",
+                        None,
+                    ),
+                ]
+                mocked_set.assert_has_calls(expected_cache_set_calls)
+                mocked_get.assert_called()
+        mocked_estimated_location_task.reset_mock()
+
+        with self.subTest(
+            "Estimated location task called when last_ip is changed and is public"
+        ):
+            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
+                "django.core.cache.cache.set"
+            ) as mocked_set:
+                device.last_ip = "172.217.22.10"
+                device.save()
+                device.refresh_from_db()
+                mocked_estimated_location_task.assert_called()
+                expected_cache_set_calls = [
+                    mock.call(
+                        f"{self._WHOIS_TASK_NAME}_last_operation", "success", None
+                    ),
+                    mock.call(
+                        f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation",
+                        "success",
+                        None,
+                    ),
+                ]
+                mocked_set.assert_has_calls(expected_cache_set_calls)
+                mocked_get.assert_called()
+        mocked_estimated_location_task.reset_mock()
 
         with self.subTest(
             "Estimated location task called when last_ip has related WhoIsInfo"
@@ -188,9 +241,7 @@ class TestEstimatedLocationTransaction(
             with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
                 "django.core.cache.cache.set"
             ) as mocked_set:
-                device.organization.config_settings.whois_enabled = True
-                device.organization.config_settings.estimated_location_enabled = True
-                device.organization.config_settings.save()
+                self._create_config(device=device)
                 device.last_ip = "172.217.22.14"
                 self._create_whois_info(ip_address=device.last_ip)
                 device.save()

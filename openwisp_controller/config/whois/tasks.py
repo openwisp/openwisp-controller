@@ -79,8 +79,10 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         fetched_details = WHOISService.process_whois_details(new_ip_address)
         general_status_key = f"{self.name}_last_operation"
         device_status_key = f"{self.name}_{device_pk}_last_operation"
-        cache.set(general_status_key, "success", None)
-        cache.set(device_status_key, "success", None)
+        if cache.get(general_status_key) != "success":
+            cache.set(general_status_key, "success", None)
+        if cache.get(device_status_key) != "success":
+            cache.set(device_status_key, "success", None)
         whois_obj, update_fields = WHOISService._create_or_update_whois(
             fetched_details, whois_obj
         )

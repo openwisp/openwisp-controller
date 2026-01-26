@@ -25,6 +25,7 @@ from ..handlers import connect_whois_handlers
 from ..service import WHOISService
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
+Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
@@ -412,13 +413,42 @@ class TestWHOISTransaction(
         connect_whois_handlers()
         self._task_called(mocked_lookup_task)
 
-        Device.objects.all().delete()  # Clear existing devices
-        device = self._create_device()
+        Device.objects.all().delete()
+        org = self._get_org()
+        org.config_settings.whois_enabled = True
+        org.config_settings.save()
+
+        with self.subTest("WHOIS lookup task called when last_ip is public"):
+            with mock.patch(
+                "django.core.cache.cache.get", side_effect=[None]
+            ) as mocked_get, mock.patch("django.core.cache.cache.set") as mocked_set:
+                device = self._create_device(last_ip="172.217.22.14")
+                mocked_lookup_task.assert_called()
+                mocked_set.assert_called_once_with(
+                    f"organization_config_{org.pk}",
+                    org.config_settings,
+                    timeout=Config._CHECKSUM_CACHE_TIMEOUT,
+                )
+                mocked_get.assert_called()
+        mocked_lookup_task.reset_mock()
+
+        with self.subTest(
+            "WHOIS lookup task called when last_ip is changed and is public"
+        ):
+            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
+                "django.core.cache.cache.set"
+            ) as mocked_set:
+                device.last_ip = "172.217.22.10"
+                device.save()
+                device.refresh_from_db()
+                mocked_lookup_task.assert_called()
+                mocked_set.assert_not_called()
+                mocked_get.assert_called()
+        mocked_lookup_task.reset_mock()
+
         with self.subTest(
             "WHOIS lookup task not called when last_ip has related WhoIsInfo"
         ):
-            device.organization.config_settings.whois_enabled = True
-            device.organization.config_settings.save()
             device.last_ip = "172.217.22.14"
             self._create_whois_info(ip_address=device.last_ip)
             device.save()
