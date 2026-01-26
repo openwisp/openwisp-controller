@@ -609,8 +609,6 @@ class TestEstimatedLocationTransaction(
         )
         self.assertEqual(Location.objects.count(), location_count)
         self.assertTrue(Location.objects.filter(pk=original_location.pk).exists())
-        for noti in notification_qs:
-            print(noti.message)
         self.assertEqual(notification_qs.count(), notification_count)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
