@@ -100,12 +100,6 @@ class DeviceListFilter(BaseConfigAPIFilter):
         field_name="created",
         lookup_expr="lt",
     )
-    location = filters.UUIDFilter(
-        field_name="devicelocation__location", label=_("Location UUID")
-    )
-    floorplan = filters.UUIDFilter(
-        field_name="devicelocation__floorplan", label=_("Floor plan UUID")
-    )
 
     def _set_valid_filterform_lables(self):
         self.filters["group"].label = _("Device group")
@@ -125,8 +119,6 @@ class DeviceListFilter(BaseConfigAPIFilter):
             "config__status",
             "config__backend",
             "config__templates",
-            "location",
-            "floorplan",
             "group",
             "created",
         ]
