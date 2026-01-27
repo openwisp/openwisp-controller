@@ -237,7 +237,6 @@ li.commands:not(.recent) {
   color: #417927;
   font-weight: bold;
 }
-
 .command-status-failed {
   color: #ba2121;
   font-weight: bold;
