@@ -103,8 +103,22 @@ class CommandInline(admin.StackedInline):
     model = Command
     verbose_name = _("Recent Commands")
     verbose_name_plural = verbose_name
-    fields = ["status_display", "type", "input_data", "output_data", "created", "modified"]
-    readonly_fields = ["status_display", "type", "input_data", "output_data", "created", "modified"]
+    fields = [
+        "status_display",
+        "type",
+        "input_data",
+        "output_data",
+        "created",
+        "modified",
+    ]
+    readonly_fields = [
+        "status_display",
+        "type",
+        "input_data",
+        "output_data",
+        "created",
+        "modified",
+    ]
     formset = LimitedCommandResults
 
     def get_queryset(self, request, select_related=True):
@@ -139,7 +153,7 @@ class CommandInline(admin.StackedInline):
         return format_html(
             '<span class="{0}">{1}</span>',
             css_class,
-            obj.get_status_display()
+            obj.get_status_display(),
         )
 
     input_data.short_description = _("input")

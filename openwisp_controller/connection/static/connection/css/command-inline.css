@@ -242,7 +242,6 @@ li.commands:not(.recent) {
   color: #ba2121;
   font-weight: bold;
 }
-
 .command-status-in-progress {
   color: #666;
   font-weight: bold;
