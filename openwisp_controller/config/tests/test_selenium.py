@@ -21,6 +21,8 @@ Cert = load_model("django_x509", "Cert")
 
 
 class SeleniumTestMixin(BaseSeleniumTestMixin):
+    config_app_label = "config"
+
     def _select_organization(self, org):
         self.find_element(
             by=By.CSS_SELECTOR, value="#select2-id_organization-container"
@@ -55,7 +57,8 @@ class TestDeviceAdmin(
     # helper function for adding/removing templates
     def _update_template(self, device_id, templates, is_enabled=False):
         self.open(
-            reverse("admin:config_device_change", args=[device_id]) + "#config-group"
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device_id])
+            + "#config-group"
         )
         self.wait_for_presence(By.CSS_SELECTOR, 'input[name="config-0-templates"]')
 
@@ -84,7 +87,7 @@ class TestDeviceAdmin(
         default_template = self._create_template(name="Default", default=True)
         org = self._get_org()
         self.login()
-        self.open(reverse("admin:config_device_add"))
+        self.open(reverse(f"admin:{self.config_app_label}_device_add"))
         self.find_element(by=By.NAME, value="name").send_keys("11:22:33:44:55:66")
         self.find_element(
             by=By.CSS_SELECTOR, value="#select2-id_organization-container"
@@ -149,9 +152,13 @@ class TestDeviceAdmin(
     def test_device_preview_keyboard_shortcuts(self):
         device = self._create_config(device=self._create_device(name="Test")).device
         self.login()
-        self.open(reverse("admin:config_device_changelist"))
+        self.open(reverse(f"admin:{self.config_app_label}_device_changelist"))
         try:
-            self.open(reverse("admin:config_device_change", args=[device.id]))
+            self.open(
+                reverse(
+                    f"admin:{self.config_app_label}_device_change", args=[device.id]
+                )
+            )
             self.hide_loading_overlay()
         except TimeoutException:
             self.fail("Device detail page did not load in time")
@@ -191,7 +198,8 @@ class TestDeviceAdmin(
 
         self.login()
         self.open(
-            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
         )
         self.hide_loading_overlay()
 
@@ -255,7 +263,8 @@ class TestDeviceAdmin(
 
         self.login()
         self.open(
-            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
         )
         self.hide_loading_overlay()
         self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]')
@@ -274,7 +283,9 @@ class TestDeviceAdmin(
         self.assertEqual(config.status, "modified")
 
         self.login()
-        self.open(reverse("admin:config_device_change", args=[device.id]))
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+        )
         self.hide_loading_overlay()
         # The webpage has two "submit-row" sections, each containing a "Deactivate"
         # button. The first (top) "Deactivate" button is hidden, causing
@@ -291,7 +302,9 @@ class TestDeviceAdmin(
         self.assertEqual(device.is_deactivated(), True)
         self.assertEqual(config.is_deactivating(), True)
 
-        self.open(reverse("admin:config_device_change", args=[device.id]))
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+        )
         self.hide_loading_overlay()
         # Use `presence` instead of `visibility` for `wait_for`,
         # as the same issue described above applies here.
@@ -328,7 +341,7 @@ class TestDeviceAdmin(
         self.assertEqual(config2.status, "modified")
 
         self.login()
-        self.open(reverse("admin:config_device_changelist"))
+        self.open(reverse(f"admin:{self.config_app_label}_device_changelist"))
         self.find_element(by=By.CSS_SELECTOR, value="#action-toggle").click()
         select = Select(self.find_element(by=By.NAME, value="action"))
         select.select_by_value("delete_selected")
@@ -400,7 +413,7 @@ class TestDeviceGroupAdmin(
         )
 
         self.login()
-        self.open(reverse("admin:config_devicegroup_add"))
+        self.open(reverse(f"admin:{self.config_app_label}_devicegroup_add"))
         self.assertEqual(
             self.wait_for_visibility(
                 By.CSS_SELECTOR, ".sortedm2m-container .help"
@@ -509,7 +522,7 @@ class TestDeviceAdminUnsavedChanges(
         self.login()
         self._create_template(default=True, default_values={"ssid": "default"})
         device = self._create_config(organization=self._get_org()).device
-        path = reverse("admin:config_device_change", args=[device.id])
+        path = reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
 
         with self.subTest("Alert should not be displayed without any change"):
             self.open(path)
@@ -551,7 +564,8 @@ class TestDeviceAdminUnsavedChanges(
         device = self._create_config(organization=self._get_org()).device
         self.login()
         self.open(
-            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
         )
         self.hide_loading_overlay()
         try:
@@ -577,7 +591,11 @@ class TestDeviceAdminUnsavedChanges(
                 self.fail("Unsaved changes alert displayed without any change")
 
         with self.subTest("Saving the objects should not save context variables"):
-            self.open(reverse("admin:config_device_change", args=[device.id]))
+            self.open(
+                reverse(
+                    f"admin:{self.config_app_label}_device_change", args=[device.id]
+                )
+            )
             self.web_driver.execute_script(
                 "window.scrollTo(0, document.body.scrollHeight);"
             )
@@ -598,7 +616,7 @@ class TestVpnAdmin(
     def test_vpn_edit(self):
         self.login()
         device, vpn, template = self._create_wireguard_vpn_template()
-        self.open(reverse("admin:config_vpn_change", args=[vpn.id]))
+        self.open(reverse(f"admin:{self.config_app_label}_vpn_change", args=[vpn.id]))
         with self.subTest("Ca and Cert should not be visible"):
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-ca")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-cert")
