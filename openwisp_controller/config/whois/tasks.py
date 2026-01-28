@@ -10,7 +10,7 @@ from openwisp_controller.geo.estimated_location.tasks import manage_estimated_lo
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
-from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
+from .utils import send_whois_task_notification
 
 logger = logging.getLogger(__name__)
 
