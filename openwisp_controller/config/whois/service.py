@@ -287,8 +287,9 @@ class WHOISService:
                 if getattr(whois_instance, attr) != value:
                     update_fields.append(attr)
                     setattr(whois_instance, attr, value)
-            if update_fields:
-                whois_instance.save(update_fields=update_fields)
+            update_fields.append("modified")
+            whois_instance.modified = timezone.now()
+            whois_instance.save(update_fields=update_fields)
         else:
             whois_instance = WHOISInfo(**whois_details)
             whois_instance.full_clean()

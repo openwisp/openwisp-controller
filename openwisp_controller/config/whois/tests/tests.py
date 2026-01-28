@@ -728,6 +728,31 @@ class TestWHOISTransaction(
             whois_obj = device.whois_service.get_device_whois_info()
             self.assertEqual(whois_obj.asn, str(33333))
 
+    def test_create_or_update_whois_updates_modified_unchanged_details(self):
+        """
+        Test that _create_or_update_whois updates the modified field
+        even when the WHOIS details are unchanged.
+        """
+        whois_obj = self._create_whois_info(ip_address="172.217.22.50")
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        old_modified = whois_obj.modified
+        whois_details = {
+            "isp": whois_obj.isp,
+            "asn": whois_obj.asn,
+            "timezone": whois_obj.timezone,
+            "address": whois_obj.address,
+            "cidr": whois_obj.cidr,
+            "coordinates": whois_obj.coordinates,
+        }
+        updated_obj, update_fields = device.whois_service._create_or_update_whois(
+            whois_details, whois_obj
+        )
+        updated_obj.refresh_from_db()
+        self.assertGreater(
+            updated_obj.modified,
+            old_modified,
+        )
+
     # we need to allow the task to propagate exceptions to ensure
     # `on_failure` method is called and notifications are executed
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
