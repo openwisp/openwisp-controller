@@ -786,9 +786,7 @@ class TestWHOISTransaction(
             errors.PermissionRequiredError,
         ]
 
-        def trigger_error_and_assert_cached(
-            exc, notification_count=0
-        ):
+        def trigger_error_and_assert_cached(exc, notification_count=0):
             with mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exc("test")):
                 Device.objects.all().delete()
                 device = self._create_device(last_ip="172.217.22.14")
