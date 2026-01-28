@@ -273,9 +273,8 @@ class TestController(
     def test_device_checksum_bad_uuid(self):
         d = self._create_device_config()
         pk = "{}-wrong".format(d.pk)
-        response = self.client.get(
-            reverse("controller:device_checksum", args=[pk]), {"key": d.key}
-        )
+        bad_path = f"/controller/device/checksum/{pk}/"
+        response = self.client.get(bad_path, {"key": d.key})
         self.assertEqual(response.status_code, 404)
 
     def test_device_config_download_requested_signal_is_emitted(self):
@@ -339,9 +338,8 @@ class TestController(
     def test_device_download_config_bad_uuid(self):
         d = self._create_device_config()
         pk = "{}-wrong".format(d.pk)
-        response = self.client.get(
-            reverse("controller:device_download_config", args=[pk]), {"key": d.key}
-        )
+        bad_path = f"/controller/device/download-config/{pk}/"
+        response = self.client.get(bad_path, {"key": d.key})
         self.assertEqual(response.status_code, 404)
 
     def test_vpn_checksum_requested_signal_is_emitted(self):
@@ -399,9 +397,8 @@ class TestController(
     def test_vpn_checksum_bad_uuid(self):
         v = self._create_vpn()
         pk = "{}-wrong".format(v.pk)
-        response = self.client.get(
-            reverse("controller:vpn_checksum", args=[pk]), {"key": v.key}
-        )
+        bad_path = f"/controller/vpn/checksum/{pk}/"
+        response = self.client.get(bad_path, {"key": v.key})
         self.assertEqual(response.status_code, 404)
 
     @capture_any_output()
@@ -516,9 +513,8 @@ class TestController(
     def test_vpn_download_config_bad_uuid(self):
         v = self._create_vpn()
         pk = "{}-wrong".format(v.pk)
-        response = self.client.get(
-            reverse("controller:vpn_download_config", args=[pk]), {"key": v.key}
-        )
+        bad_path = f"/controller/vpn/download-config/{pk}/"
+        response = self.client.get(bad_path, {"key": v.key})
         self.assertEqual(response.status_code, 404)
 
     @capture_any_output()
@@ -974,9 +970,8 @@ class TestController(
     def test_device_report_status_bad_uuid(self):
         d = self._create_device_config()
         pk = "{}-wrong".format(d.pk)
-        response = self.client.post(
-            reverse("controller:device_report_status", args=[pk]), {"key": d.key}
-        )
+        bad_path = f"/controller/device/report-status/{pk}/"
+        response = self.client.post(bad_path, {"key": d.key})
         self.assertEqual(response.status_code, 404)
 
     @capture_any_output()
@@ -1091,9 +1086,8 @@ class TestController(
             "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
             "system": "Atheros AR9344 rev 3",
         }
-        response = self.client.post(
-            reverse("controller:device_update_info", args=[pk]), params
-        )
+        bad_path = f"/controller/device/update-info/{pk}/"
+        response = self.client.post(bad_path, params)
         self.assertEqual(response.status_code, 404)
 
     def test_device_update_info_400(self):
