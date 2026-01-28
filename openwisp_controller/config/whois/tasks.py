@@ -83,8 +83,12 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         if device._get_organization__config_settings().estimated_location_enabled:
             # the estimated location task should not run if old record is updated
             # and location related fields are not updated
-            if update_fields and not any(
-                i in update_fields for i in ["address", "coordinates"]
+            device_location = getattr(device, "devicelocation", None)
+            if (
+                device_location
+                and device_location.location
+                and update_fields
+                and not any(i in update_fields for i in ["address", "coordinates"])
             ):
                 return
             manage_estimated_locations.delay(

@@ -141,8 +141,11 @@ class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestC
 
 
 class TestEstimatedLocationTransaction(
-    TestEstimatedLocationMixin, WHOISTransactionMixin, TransactionTestCase
+    TestEstimatedLocationMixin, WHOISTransactionMixin, TestGeoMixin, TransactionTestCase
 ):
+    location_model = Location
+    object_location_model = DeviceLocation
+
     _WHOIS_GEOIP_CLIENT = (
         "openwisp_controller.config.whois.service.geoip2_webservice.Client"
     )
@@ -181,6 +184,7 @@ class TestEstimatedLocationTransaction(
         )
 
         Device.objects.all().delete()
+        WHOISInfo.objects.all().delete()
         org = self._get_org()
         org.config_settings.whois_enabled = True
         org.config_settings.estimated_location_enabled = True
@@ -267,6 +271,7 @@ class TestEstimatedLocationTransaction(
             WHOISInfo.objects.filter(pk=whois_obj.pk).update(
                 modified=timezone.now() - timedelta(days=threshold)
             )
+            self._create_object_location(content_object=device)
             device.save()
             device.refresh_from_db()
             mocked_estimated_location_task.assert_not_called()
@@ -292,32 +297,6 @@ class TestEstimatedLocationTransaction(
             mocked_client.return_value.city.return_value = mocked_response
             device.save()
             device.refresh_from_db()
-            mocked_estimated_location_task.assert_called()
-            mocked_estimated_location_task.reset_mock()
-            mocked_response.city.name = "New city 2"
-            mocked_client.return_value.city.return_value = mocked_response
-            response = self.client.get(
-                reverse("controller:device_checksum", args=[device.pk]),
-                {"key": device.key},
-                REMOTE_ADDR=device.last_ip,
-            )
-            self.assertEqual(response.status_code, 200)
-            mocked_estimated_location_task.assert_called()
-
-            mocked_response.location.latitude = 60
-            mocked_client.return_value.city.return_value = mocked_response
-            device.save()
-            device.refresh_from_db()
-            mocked_estimated_location_task.assert_called()
-            mocked_estimated_location_task.reset_mock()
-            mocked_response.location.longitude = 160
-            mocked_client.return_value.city.return_value = mocked_response
-            response = self.client.get(
-                reverse("controller:device_checksum", args=[device.pk]),
-                {"key": device.key},
-                REMOTE_ADDR=device.last_ip,
-            )
-            self.assertEqual(response.status_code, 200)
             mocked_estimated_location_task.assert_called()
         mocked_estimated_location_task.reset_mock()
 
@@ -551,13 +530,32 @@ class TestEstimatedLocationTransaction(
         mock_info.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_unchanged_whois_data_no_location_recreation(
-        self,
-        mock_client,
-        mock_info,
-    ):
+    def test_estimated_location_handling_on_whois_update(self, mock_client):
+        mocked_response = self._mocked_client_response()
+        mock_client.return_value.city.return_value = mocked_response
+        threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
+        new_time = timezone.now() - timedelta(days=threshold)
+        org = self._get_org()
+        org.config_settings.estimated_location_enabled = False
+        org.config_settings.save()
+        device = self._create_device(last_ip="172.217.22.10")
+        with self.assertRaises(Device.devicelocation.RelatedObjectDoesNotExist):
+            device.devicelocation
+
+        org.config_settings.estimated_location_enabled = True
+        org.config_settings.save()
+        whois_obj = device.whois_service.get_device_whois_info()
+        WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
+        device.name = "test.new.name"
+        device.save()
+        device.refresh_from_db()
+        # location created so can safely access devicelocation
+        device.devicelocation
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_unchanged_whois_data_no_location_recreation(self, mock_client):
         """Ensure identical WHOIS results do not recreate a shared Location when
         devices reuse the same IP."""
         connect_whois_handlers()
@@ -719,15 +717,6 @@ class TestEstimatedLocationFieldFilters(
         admin = self._create_admin()
         self.client.force_login(admin)
 
-    def _create_device_location(self, **kwargs):
-        options = dict()
-        options.update(kwargs)
-        device_location = self.object_location_model(**options)
-        device_location.full_clean()
-        device_location.save()
-        device_location.refresh_from_db()
-        return device_location
-
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_estimated_location_api_status_configured(self):
         org1 = self._get_org()
@@ -743,8 +732,8 @@ class TestEstimatedLocationFieldFilters(
         org2_location = self._create_location(name="org2-location", organization=org2)
         org1_device = self._create_device(organization=org1)
         org2_device = self._create_device(organization=org2)
-        self._create_device_location(content_object=org1_device, location=org1_location)
-        self._create_device_location(content_object=org2_device, location=org2_location)
+        self._create_object_location(content_object=org1_device, location=org1_location)
+        self._create_object_location(content_object=org2_device, location=org2_location)
 
         with self.subTest("Test Estimated Location in Locations List"):
             path = reverse("geo_api:list_location")
@@ -789,7 +778,7 @@ class TestEstimatedLocationFieldFilters(
         org = self._get_org()
         location = self._create_location(name="org1-location", organization=org)
         device = self._create_device(organization=org)
-        self._create_device_location(content_object=device, location=location)
+        self._create_object_location(content_object=device, location=location)
 
         with self.subTest("Test Estimated status not in Locations List"):
             path = reverse("geo_api:list_location")
@@ -831,8 +820,8 @@ class TestEstimatedLocationFieldFilters(
         device2 = self._create_device(
             name="11:22:33:44:55:66", mac_address="11:22:33:44:55:66"
         )
-        self._create_device_location(content_object=device1, location=location1)
-        self._create_device_location(content_object=device2, location=location2)
+        self._create_object_location(content_object=device1, location=location1)
+        self._create_object_location(content_object=device2, location=location2)
 
         path = reverse("geo_api:list_location")
 
@@ -902,13 +891,13 @@ class TestEstimatedLocationFieldFilters(
         indoor_device = self._create_device(
             name="11:22:33:44:55:77", mac_address="11:22:33:44:55:77"
         )
-        self._create_device_location(
+        self._create_object_location(
             content_object=estimated_device, location=estimated_location
         )
-        self._create_device_location(
+        self._create_object_location(
             content_object=outdoor_device, location=outdoor_location
         )
-        self._create_device_location(
+        self._create_object_location(
             content_object=indoor_device, location=indoor_location
         )
 

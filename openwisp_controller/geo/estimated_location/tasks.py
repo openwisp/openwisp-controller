@@ -72,7 +72,7 @@ def _handle_attach_existing_location(
         and current_location.geometry == location_defaults.get("geometry")
         and current_location.name == location_defaults.get("name")
     ):
-        logger.info(
+        logger.debug(
             f"Estimated location unchanged for {device.pk}"
             f" for IP: {ip_address}, keeping existing location"
         )

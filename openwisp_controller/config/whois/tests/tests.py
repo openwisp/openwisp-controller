@@ -414,6 +414,7 @@ class TestWHOISTransaction(
         self._task_called(mocked_lookup_task)
 
         Device.objects.all().delete()
+        WHOISInfo.objects.all().delete()
         org = self._get_org()
         org.config_settings.whois_enabled = True
         org.config_settings.save()
@@ -710,23 +711,6 @@ class TestWHOISTransaction(
             device.refresh_from_db()
             whois_obj = device.whois_service.get_device_whois_info()
             self.assertEqual(whois_obj.asn, str(22222))
-
-        with self.subTest(
-            "Test WHOIS update when older than X days for existing device "
-            "from DeviceChecksum View"
-        ):
-            Device.objects.all().delete()
-            WHOISInfo.objects.all().delete()
-            device = self._create_device(last_ip="172.217.22.11")
-            whois_obj = device.whois_service.get_device_whois_info()
-            self.assertEqual(whois_obj.asn, str(22222))
-            WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
-            mocked_response.traits.autonomous_system_number = 33333
-            mock_client.return_value.city.return_value = mocked_response
-            device.save()
-            device.refresh_from_db()
-            whois_obj = device.whois_service.get_device_whois_info()
-            self.assertEqual(whois_obj.asn, str(33333))
 
     def test_create_or_update_whois_updates_modified_unchanged_details(self):
         """

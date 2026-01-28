@@ -138,3 +138,21 @@ class WHOISTransactionMixin:
             self.assertEqual(response.status_code, 200)
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
+
+        with self.subTest(
+            f"{task_name} task not called explicitly via DeviceChecksumView for "
+            "stale records"
+        ), mock.patch(
+            "openwisp_controller.config.whois.service.WHOISService.is_older",
+            return_value=True,
+        ):
+            WHOISInfo.objects.all().delete()
+            self._create_whois_info(ip_address=device.last_ip)
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_not_called()
+        mocked_task.reset_mock()
