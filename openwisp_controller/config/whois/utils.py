@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from geoip2 import errors
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
@@ -38,6 +39,23 @@ MESSAGE_MAP = {
         ),
         "description": _("Estimated Location updated for IP: {ip_address}"),
     },
+}
+
+EXCEPTION_MESSAGES = {
+    errors.AddressNotFoundError: _(
+        "No WHOIS information found for IP address {ip_address}"
+    ),
+    errors.AuthenticationError: _(
+        "Authentication failed for GeoIP2 service. "
+        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
+    ),
+    errors.OutOfQueriesError: _(
+        "Your account has run out of queries for the GeoIP2 service."
+    ),
+    errors.PermissionRequiredError: _(
+        "Your account does not have permission to access this service."
+    ),
 }
 
 
