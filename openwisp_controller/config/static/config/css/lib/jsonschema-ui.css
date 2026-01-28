@@ -12,17 +12,17 @@
 }
 .jsoneditor-wrapper div.jsoneditor-wrapper > fieldset {
   margin-bottom: 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--ow-color-fg-light);
 }
 .jsoneditor-wrapper div.jsoneditor-wrapper h2 {
   padding: 18px;
 }
 input.deletelink {
-  background: #ba2121;
+  background: var(--ow-btn-danger-bg);
 }
 input.deletelink:hover,
 input.deletelink:focus {
-  background: #a41515;
+  background: var(--ow-btn-danger-bg);
 }
 .jsoneditor-wrapper div.jsoneditor input.button,
 .jsoneditor-wrapper div.jsoneditor input.deletelink,
@@ -34,7 +34,7 @@ input.deletelink:focus {
 a.json-editor-btn-edit {
   margin-left: 10px;
   padding: 6px 12px;
-  color: #ffffff;
+  color: var(--ow-color-white);
 }
 
 .form-row .json-editor-btn-edit {
@@ -52,7 +52,7 @@ a.json-editor-btn-edit {
 .jsoneditor-wrapper div.jsoneditor .inline-group {
   clear: both;
   margin: 0;
-  border: 1px solid #eee;
+  border: 1px solid var(--ow-color-fg-light);
 }
 
 /* avoid redundant borders */
@@ -126,7 +126,7 @@ a.json-editor-btn-edit {
   > div
   > div
   > div {
-  border-bottom: 2px dotted #ccc;
+  border-bottom: 2px dotted var(--ow-color-fg-medium);
 }
 
 .jsoneditor-wrapper div.jsoneditor div.control {
@@ -149,7 +149,7 @@ a.json-editor-btn-edit {
 }
 .jsoneditor-wrapper div.jsoneditor .grid-column > h3 {
   border: 0 none;
-  outline: 1px solid #eee;
+  outline: 1px solid var(--ow-color-fg-light);
 }
 
 span.control input {
@@ -165,7 +165,7 @@ span.control input {
   > div
   > div
   > div {
-  border-bottom: 2px dotted #ccc;
+  border-bottom: 2px dotted var(--ow-color-fg-medium);
   padding-bottom: 20px;
   margin-bottom: 22px !important;
 }
@@ -240,7 +240,7 @@ div[data-schematype="object"]
   > div
   > .grid-row
   > .inline-group {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--ow-color-fg-light);
   border-top: 0 none;
 }
 .grid-row > .inline-group > div > .inline-group > div.form-row {
@@ -371,7 +371,7 @@ div[data-schematype="object"]
 .jsoneditor-wrapper div.jsoneditor .inline-related > select,
 .jsoneditor-wrapper div.jsoneditor .grid-column > select {
   margin-left: 188px;
-  background-color: #fff;
+  background-color: var(--ow-color-white);
   top: 12px;
 }
 .jsoneditor-wrapper div.jsoneditor .grid-row .grid-column {
@@ -383,8 +383,8 @@ div[data-schematype="object"]
 .jsoneditor-wrapper div.jsoneditor .modal {
   position: absolute;
   z-index: 10;
-  background-color: white;
-  border: 1px solid #ddd;
+  background-color: var(--ow-color-white);
+  border: 1px solid var(--ow-color-fg-light);
   padding-bottom: 10px;
   width: 340px;
   margin-left: -215px;
@@ -449,13 +449,13 @@ div[data-schematype="object"]
 #content .jsoneditor-wrapper div.jsoneditor div.form-row > .help {
   margin-left: 181px;
   margin-top: 4px;
-  color: #888;
+  color: var(--ow-color-fg-dark);
 }
 #content .jsoneditor-wrapper div.jsoneditor .inline-group > .help,
 #content .jsoneditor-wrapper div.jsoneditor .grid-column > .help {
   padding: 20px 15px 20px 18px;
   margin: 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--ow-color-fg-light);
 }
 
 #content .jsoneditor-wrapper div.jsoneditor .modal label {
@@ -489,10 +489,10 @@ div.jsoneditor > div > h3.controls {
   background: transparent !important;
 }
 #main div.jsoneditor .inline-related h3 {
-  color: #666 !important;
-  background-color: #f8f8f8 !important;
-  border-top: 1px solid #eee !important;
-  border-bottom: 1px solid #eee !important;
+  color: var(--ow-color-fg-dark) !important;
+  background-color: var(--ow-color-fg-lighter) !important;
+  border-top: 1px solid var(--ow-color-fg-light) !important;
+  border-bottom: 1px solid var(--ow-color-fg-light) !important;
   padding-top: 0;
   padding-bottom: 0;
 }

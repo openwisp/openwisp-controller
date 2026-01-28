@@ -1,9 +1,9 @@
 input.readonly {
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
-  background-color: rgba(0, 0, 0, 0.07);
+  border: 1px solid var(--ow-overlay-5) !important;
+  background-color: var(--ow-overlay-7);
 }
 .help-text-warning {
-  background-color: #ffe5e5;
+  background-color: var(--ow-color-primary-light);
   padding: 5px 10px;
   font-size: 15px;
   font-weight: bolder;
