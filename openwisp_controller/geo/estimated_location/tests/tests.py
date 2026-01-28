@@ -201,11 +201,6 @@ class TestEstimatedLocationTransaction(
                     mock.call(
                         f"{self._WHOIS_TASK_NAME}_last_operation", "success", None
                     ),
-                    mock.call(
-                        f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation",
-                        "success",
-                        None,
-                    ),
                 ]
                 mocked_set.assert_has_calls(expected_cache_set_calls)
                 mocked_get.assert_called()
@@ -224,11 +219,6 @@ class TestEstimatedLocationTransaction(
                 expected_cache_set_calls = [
                     mock.call(
                         f"{self._WHOIS_TASK_NAME}_last_operation", "success", None
-                    ),
-                    mock.call(
-                        f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation",
-                        "success",
-                        None,
                     ),
                 ]
                 mocked_set.assert_has_calls(expected_cache_set_calls)

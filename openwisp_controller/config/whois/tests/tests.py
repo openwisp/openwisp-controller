@@ -787,18 +787,13 @@ class TestWHOISTransaction(
         ]
 
         def trigger_error_and_assert_cached(
-            exc, device_level=False, notification_count=0
+            exc, notification_count=0
         ):
             with mock.patch(self._WHOIS_GEOIP_CLIENT, side_effect=exc("test")):
                 Device.objects.all().delete()
                 device = self._create_device(last_ip="172.217.22.14")
-                if device_level:
-                    cache_key = f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation"
-                    error_status = "error"
-                else:
-                    cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
-                    error_status = "non_recoverable"
-                self.assertEqual(cache.get(cache_key), error_status)
+                cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
+                self.assertEqual(cache.get(cache_key), "errored")
                 self.assertEqual(notification_qs.count(), notification_count)
                 notification_qs.delete()
                 return device
@@ -808,7 +803,7 @@ class TestWHOISTransaction(
         for first_error in permanent_errors:
             with self.subTest(f"Cache populated by {first_error.__name__}"):
                 cache.clear()
-                trigger_error_and_assert_cached(first_error, False, 1)
+                trigger_error_and_assert_cached(first_error, 1)
 
             for subsequent_error in permanent_errors:
                 if subsequent_error is first_error:
@@ -818,20 +813,7 @@ class TestWHOISTransaction(
                     f"Cache reused when {subsequent_error.__name__} occurs "
                     f"after {first_error.__name__}"
                 ):
-                    trigger_error_and_assert_cached(subsequent_error, False, 0)
-
-        # cache key overwritten when success
-        with self.subTest("Test Status Cached per device for other exceptions"):
-            cache.clear()
-            device = trigger_error_and_assert_cached(Exception, True, 1)
-            with self.subTest(f"Cache reused by {Exception.__name__}"), mock.patch(
-                self._WHOIS_GEOIP_CLIENT, side_effect=Exception("test")
-            ):
-                device.last_ip = "172.217.22.15"
-                device.save()
-                cache_key = f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation"
-                self.assertEqual(cache.get(cache_key), "error")
-                self.assertEqual(notification_qs.count(), 0)
+                    trigger_error_and_assert_cached(subsequent_error, 0)
 
         with self.subTest("Test cache updated on success"), mock.patch(
             self._WHOIS_GEOIP_CLIENT
@@ -840,9 +822,7 @@ class TestWHOISTransaction(
             mocked_response = self._mocked_client_response()
             mocked_response.location = None
             mock_client.return_value.city.return_value = mocked_response
-            device = self._create_device(last_ip="172.217.22.14")
-            cache_key = f"{self._WHOIS_TASK_NAME}_{device.pk}_last_operation"
-            self.assertEqual(cache.get(cache_key), "success")
+            self._create_device(last_ip="172.217.22.14")
             cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
             self.assertEqual(cache.get(cache_key), "success")
             self.assertEqual(notification_qs.count(), 0)
