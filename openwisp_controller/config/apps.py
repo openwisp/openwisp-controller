@@ -61,6 +61,9 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.organization_config_settings_model = load_model(
+            "config", "OrganizationConfigSettings"
+        )
 
     def connect_signals(self):
         """
@@ -270,6 +273,8 @@ class ConfigConfig(AppConfig):
             device_cache_invalidation_handler,
             devicegroup_change_handler,
             devicegroup_delete_handler,
+            organization_config_settings_post_save_handler,
+            organization_config_settings_pre_save_handler,
             vpn_server_change_handler,
         )
 
@@ -335,6 +340,16 @@ class ConfigConfig(AppConfig):
             vpn_server_change_handler,
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
+        )
+        pre_save.connect(
+            organization_config_settings_pre_save_handler,
+            sender=self.organization_config_settings_model,
+            dispatch_uid="organization_config_settings.store_original_context",
+        )
+        post_save.connect(
+            organization_config_settings_post_save_handler,
+            sender=self.organization_config_settings_model,
+            dispatch_uid="organization_config_settings.invalidate_vpn_cache",
         )
 
     def register_dashboard_charts(self):
