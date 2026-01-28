@@ -151,13 +151,11 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         url = reverse(
             f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
         )
-
         with self.subTest(
             'Test "Recent Commands" not shown for a device without commands'
         ):
             response = self.client.get(url)
             self.assertNotContains(response, "Recent Commands")
-
         with self.subTest('Test "Recent Commands" shown for a device having commands'):
             self._create_custom_command()
             response = self.client.get(url)
@@ -184,7 +182,6 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             device=self.device,
             status="success",
         )
-
         with self.subTest("Test success status"):
             response = self.client.get(url)
             self.assertContains(
@@ -192,7 +189,6 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
                 '<span class="command-status success">success</span>',
                 html=True,
             )
-
         with self.subTest("Test failed status"):
             command.status = "failed"
             command.save()
@@ -202,7 +198,6 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
                 '<span class="command-status failed">failed</span>',
                 html=True,
             )
-
         with self.subTest("Test in-progress status"):
             command.status = "in-progress"
             command.save()
@@ -217,13 +212,11 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         url = reverse(
             f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
         )
-
         with self.subTest(
             "Test add command form is present for a device without commands"
         ):
             response = self.client.get(url)
             self.assertContains(response, "id_command_set")
-
         with self.subTest(
             "Test add command form is present for a device having commands"
         ):
@@ -264,19 +257,16 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
                 self.assertIn("custom", result)
                 self.assertIn("change_password", result)
                 self.assertIn("reboot", result)
-
             with self.subTest("Test superuser request with organization_id"):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
                 result = json.loads(response.content)
                 self.assertIn("reboot", result)
-
             self.client.logout()
             self.client.force_login(org_admin)
             with self.subTest("Test org admin request without organization_id"):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 403)
-
             with self.subTest("Test org admin request with organization_id"):
                 response = self.client.get(url, {"organization_id": str(org.id)})
                 self.assertEqual(response.status_code, 200)
