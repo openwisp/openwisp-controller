@@ -233,15 +233,15 @@ li.commands:not(.recent) {
 }
 
 /* Command status highlighting */
-.command-status-success {
-  color: #417927;
-  font-weight: bold;
+.command-status.success {
+  color: var(--ow-color-success);
 }
-.command-status-failed {
-  color: #ba2121;
-  font-weight: bold;
+.command-status.failed {
+  color: var(--error-fg);
 }
-.command-status-in-progress {
-  color: #666;
+.command-status.in-progress {
+  color: var(--body-quiet-color);
+}
+.command-status {
   font-weight: bold;
 }

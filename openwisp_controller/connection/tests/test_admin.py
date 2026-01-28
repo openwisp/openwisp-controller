@@ -189,7 +189,7 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             response = self.client.get(url)
             self.assertContains(
                 response,
-                '<span class="command-status-success">success</span>',
+                '<span class="command-status success">success</span>',
                 html=True,
             )
 
@@ -199,7 +199,7 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             response = self.client.get(url)
             self.assertContains(
                 response,
-                '<span class="command-status-failed">failed</span>',
+                '<span class="command-status failed">failed</span>',
                 html=True,
             )
 
@@ -209,7 +209,7 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             response = self.client.get(url)
             self.assertContains(
                 response,
-                '<span class="command-status-in-progress">in progress</span>',
+                '<span class="command-status in-progress">in progress</span>',
                 html=True,
             )
 
