@@ -178,40 +178,40 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         url = reverse(
             f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
         )
-
-        # Test success status
-        success_command = Command.objects.create(
+        command = Command.objects.create(
             type="custom",
             input={"command": "echo hello"},
             device=self.device,
             status="success",
         )
-        response = self.client.get(url)
-        self.assertContains(
-            response,
-            '<span class="command-status-success">success</span>',
-            html=True,
-        )
 
-        # Test failed status
-        success_command.status = "failed"
-        success_command.save()
-        response = self.client.get(url)
-        self.assertContains(
-            response,
-            '<span class="command-status-failed">failed</span>',
-            html=True,
-        )
+        with self.subTest("Test success status"):
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                '<span class="command-status-success">success</span>',
+                html=True,
+            )
 
-        # Test in-progress status
-        success_command.status = "in-progress"
-        success_command.save()
-        response = self.client.get(url)
-        self.assertContains(
-            response,
-            '<span class="command-status-in-progress">in progress</span>',
-            html=True,
-        )
+        with self.subTest("Test failed status"):
+            command.status = "failed"
+            command.save()
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                '<span class="command-status-failed">failed</span>',
+                html=True,
+            )
+
+        with self.subTest("Test in-progress status"):
+            command.status = "in-progress"
+            command.save()
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                '<span class="command-status-in-progress">in progress</span>',
+                html=True,
+            )
 
     def test_command_writable_inline(self):
         url = reverse(
