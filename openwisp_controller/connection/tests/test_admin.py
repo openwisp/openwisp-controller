@@ -173,6 +173,46 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             response, '<div class="loader recent-commands-loader"></div>', html=True
         )
 
+    def test_command_status_highlighting(self):
+        """Test that command status is displayed with appropriate CSS classes"""
+        url = reverse(
+            f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
+        )
+        command = Command.objects.create(
+            type="custom",
+            input={"command": "echo hello"},
+            device=self.device,
+            status="success",
+        )
+
+        with self.subTest("Test success status"):
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                '<span class="command-status-success">success</span>',
+                html=True,
+            )
+
+        with self.subTest("Test failed status"):
+            command.status = "failed"
+            command.save()
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                '<span class="command-status-failed">failed</span>',
+                html=True,
+            )
+
+        with self.subTest("Test in-progress status"):
+            command.status = "in-progress"
+            command.save()
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                '<span class="command-status-in-progress">in progress</span>',
+                html=True,
+            )
+
     def test_command_writable_inline(self):
         url = reverse(
             f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
