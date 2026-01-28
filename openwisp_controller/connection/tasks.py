@@ -24,9 +24,11 @@ def _is_update_in_progress(device_id, current_task_id=None):
     for task_list in active.values():
         for task in task_list:
             # skip the current task itself
-            if current_task_id and task["id"] == current_task_id:
+            if current_task_id and task.get("id") == current_task_id:
                 continue
-            if task["name"] == _TASK_NAME and str(device_id) in task["args"]:
+            if task.get("name") == _TASK_NAME and str(device_id) in task.get(
+                "args", ""
+            ):
                 return True
     return False
 

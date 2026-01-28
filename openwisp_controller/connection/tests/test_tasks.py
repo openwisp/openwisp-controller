@@ -116,9 +116,7 @@ class TestIsUpdateInProgress(CreateConnectionsMixin, TestCase):
         # BUG: Without passing current_task_id, the function returns True
         # even though the only active task IS the current task
         result = _is_update_in_progress(device_id)
-        self.assertTrue(
-            result,
-        )
+        self.assertTrue(result)
 
     @mock.patch("openwisp_controller.connection.tasks.current_app")
     def test_is_update_in_progress_with_current_task_id_excluded(self, mock_app):
@@ -132,9 +130,7 @@ class TestIsUpdateInProgress(CreateConnectionsMixin, TestCase):
 
         # FIX: With current_task_id provided, the function correctly returns False
         result = _is_update_in_progress(device_id, current_task_id=current_task_id)
-        self.assertFalse(
-            result,
-        )
+        self.assertFalse(result)
 
     @mock.patch("openwisp_controller.connection.tasks.current_app")
     def test_is_update_in_progress_detects_another_task(self, mock_app):
@@ -161,9 +157,7 @@ class TestIsUpdateInProgress(CreateConnectionsMixin, TestCase):
 
         # Should return True because another task IS running
         result = _is_update_in_progress(device_id, current_task_id=current_task_id)
-        self.assertTrue(
-            result,
-        )
+        self.assertTrue(result)
 
     @mock.patch("openwisp_controller.connection.tasks.current_app")
     def test_is_update_in_progress_no_active_tasks(self, mock_app):
@@ -185,9 +179,7 @@ class TestIsUpdateInProgress(CreateConnectionsMixin, TestCase):
         )
 
         result = _is_update_in_progress(device_id, current_task_id="task-123")
-        self.assertFalse(
-            result,
-        )
+        self.assertFalse(result)
 
 
 class TestTransactionTasks(
