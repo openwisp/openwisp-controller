@@ -2,14 +2,14 @@ import collections
 from copy import deepcopy
 
 import swapper
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
 
 from ..exceptions import OrganizationDeviceLimitExceeded
-from ..tasks import bulk_invalidate_config_get_cached_checksum
+from . import tasks
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
@@ -47,6 +47,10 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         verbose_name_plural = verbose_name
         abstract = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_context = self.context
+
     def __str__(self):
         return self.organization.name
 
@@ -58,13 +62,15 @@ class AbstractOrganizationConfigSettings(UUIDModel):
     ):
         context_changed = False
         if not self._state.adding:
-            db_instance = self.__class__.objects.only("context").get(id=self.id)
-            context_changed = db_instance.context != self.context
+            context_changed = self._initial_context != self.context
         super().save(force_insert, force_update, using, update_fields)
-        if context_changed:
-            bulk_invalidate_config_get_cached_checksum.delay(
-                {"device__organization_id": str(self.organization_id)}
+        if context_changed and self.organization.is_active:
+            transaction.on_commit(
+                lambda: tasks.invalidate_organization_vpn_cache.delay(
+                    str(self.organization_id)
+                )
             )
+        self._initial_context = self.context
 
 
 class AbstractOrganizationLimits(models.Model):
