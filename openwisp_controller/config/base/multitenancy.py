@@ -9,7 +9,7 @@ from jsonfield import JSONField
 from openwisp_utils.base import KeyField, UUIDModel
 
 from ..exceptions import OrganizationDeviceLimitExceeded
-from . import tasks
+from .. import tasks
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
@@ -49,7 +49,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._initial_context = self.context
+        self._initial_context = deepcopy(self.context)
 
     def __str__(self):
         return self.organization.name
@@ -62,7 +62,9 @@ class AbstractOrganizationConfigSettings(UUIDModel):
     ):
         context_changed = False
         if not self._state.adding:
-            context_changed = self._initial_context != self.context
+            initial_context = getattr(self, "_initial_context", None)
+            if initial_context is not None:
+                context_changed = initial_context != self.context
         super().save(force_insert, force_update, using, update_fields)
         if context_changed and self.organization.is_active:
             transaction.on_commit(
@@ -70,7 +72,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
                     str(self.organization_id)
                 )
             )
-        self._initial_context = self.context
+        self._initial_context = deepcopy(self.context)
 
 
 class AbstractOrganizationLimits(models.Model):
