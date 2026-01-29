@@ -71,7 +71,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         with self.subTest("Test Signals not connected when WHOIS_CONFIGURED is False"):
             # should not connect any handlers since WHOIS_CONFIGURED is False
             connect_whois_handlers()
-
             assert not any(
                 "device.delete_whois_info" in str(r[0]) for r in post_delete.receivers
             )
@@ -149,13 +148,13 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     def test_whois_enabled(self):
         OrganizationConfigSettings.objects.all().delete()
         device = self._create_device()
+
         with self.subTest(
             "Test WHOIS fallback when Organization settings do not exist"
         ):
             self.assertEqual(
                 device.whois_service.is_whois_enabled, app_settings.WHOIS_ENABLED
             )
-
         org_settings_obj = OrganizationConfigSettings(
             organization=self._get_org(), whois_enabled=True
         )
@@ -268,7 +267,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 response = self.client.get(reverse("config_api:device_list"))
                 self.assertEqual(response.status_code, 200)
                 self.assertNotIn("whois_info", response.data["results"][0])
-
             with self.subTest(
                 "Device Detail API has no whois_info when WHOIS_CONFIGURED is False"
             ):
@@ -288,7 +286,6 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         )
         device.refresh_from_db()
         self.assertIsNone(device.last_ip)
-
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
 
@@ -339,17 +336,14 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
         """
         with self.assertRaises(ValidationError):
             self._create_whois_info(isp="a" * 101)
-
         with self.assertRaises(ValidationError) as context_manager:
             self._create_whois_info(ip_address="127.0.0.1")
         self.assertEqual(
             context_manager.exception.message_dict["ip_address"][0],
             "WHOIS information cannot be created for private IP addresses.",
         )
-
         with self.assertRaises(ValidationError):
             self._create_whois_info(timezone="a" * 36)
-
         with self.assertRaises(ValidationError) as context_manager:
             self._create_whois_info(cidr="InvalidCIDR")
         # Not using assertEqual here because we are adding error message raised by
@@ -358,10 +352,8 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
             "Invalid CIDR format: 'InvalidCIDR'",
             context_manager.exception.message_dict["cidr"][0],
         )
-
         with self.assertRaises(ValidationError):
             self._create_whois_info(asn="InvalidASNNumber")
-
         # Common validation checks for longitude and latitude
         coordinates_cases = [
             (150.0, 100.0, "Latitude must be between -90 and 90 degrees."),
@@ -412,7 +404,6 @@ class TestWHOISTransaction(
     def test_whois_task_called(self, mocked_lookup_task):
         connect_whois_handlers()
         self._task_called(mocked_lookup_task)
-
         Device.objects.all().delete()
         WHOISInfo.objects.all().delete()
         org = self._get_org()
@@ -612,7 +603,6 @@ class TestWHOISTransaction(
             _verify_whois_details(
                 device.whois_service.get_device_whois_info(), device.last_ip
             )
-
             # details related to old ip address should be deleted
             self.assertEqual(
                 WHOISInfo.objects.filter(ip_address=old_ip_address).count(), 0
@@ -634,11 +624,9 @@ class TestWHOISTransaction(
             self.assertEqual(mock_info.call_count, 1)
             mock_info.reset_mock()
             device.refresh_from_db()
-
             _verify_whois_details(
                 device.whois_service.get_device_whois_info(), device.last_ip
             )
-
             # details related to old ip address should be not be deleted
             self.assertEqual(
                 WHOISInfo.objects.filter(ip_address=old_ip_address).count(), 1
@@ -652,7 +640,6 @@ class TestWHOISTransaction(
             device.delete(check_deactivated=False)
             self.assertEqual(mock_info.call_count, 0)
             mock_info.reset_mock()
-
             # WHOIS related to the device's last_ip should be deleted
             self.assertEqual(WHOISInfo.objects.filter(ip_address=ip_address).count(), 1)
 
@@ -673,7 +660,6 @@ class TestWHOISTransaction(
             device1.delete(check_deactivated=False)
             self.assertEqual(mock_info.call_count, 0)
             mock_info.reset_mock()
-
             # WHOIS related to the device's last_ip should be deleted
             self.assertEqual(WHOISInfo.objects.filter(ip_address=ip_address).count(), 0)
 
@@ -685,7 +671,6 @@ class TestWHOISTransaction(
         mock_client.return_value.city.return_value = mocked_response
         threshold = app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
         new_time = timezone.now() - timedelta(days=threshold)
-
         whois_obj = self._create_whois_info()
         WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
 
@@ -768,7 +753,6 @@ class TestWHOISTransaction(
                         notification.message,
                     )
                     self.assertIn(device.last_ip, notification.rendered_description)
-
             mock_info.reset_mock()
             mock_warn.reset_mock()
             mock_error.reset_mock()
@@ -811,11 +795,9 @@ class TestWHOISTransaction(
             with self.subTest(f"Cache populated by {first_error.__name__}"):
                 cache.clear()
                 trigger_error_and_assert_cached(first_error, 1)
-
             for subsequent_error in permanent_errors:
                 if subsequent_error is first_error:
                     continue
-
                 with self.subTest(
                     f"Cache reused when {subsequent_error.__name__} occurs "
                     f"after {first_error.__name__}"
@@ -889,7 +871,6 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 if cells := row.find_elements(By.TAG_NAME, "td"):
                     self.assertEqual(cells[0].text, whois_obj.isp)
                     self.assertEqual(cells[1].text, whois_obj.address["country"])
-
             details = self.find_element(By.CSS_SELECTOR, "details.whois")
             self.web_driver.execute_script(
                 "arguments[0].setAttribute('open','')", details
@@ -958,7 +939,6 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                     if cells := row.find_elements(By.TAG_NAME, "td"):
                         self.assertIn("onerror", cells[0].text)
                         self.assertIn("script", cells[1].text)
-
                 details = self.find_element(By.CSS_SELECTOR, "details.whois")
                 self.web_driver.execute_script(
                     "arguments[0].setAttribute('open','')", details
@@ -969,6 +949,5 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 self.assertIn("script", additional_text[1].text)
                 self.assertIn("script", additional_text[2].text)
                 _assert_no_js_errors()
-
             except UnexpectedAlertPresentException:
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")

@@ -27,7 +27,6 @@ class CreateWHOISMixin(CreateConfigMixin):
             cidr="172.217.22.0/24",
             coordinates=Point(150, 50, srid=4326),
         )
-
         options.update(kwargs)
         w = WHOISInfo(**options)
         w.full_clean()

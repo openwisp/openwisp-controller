@@ -73,7 +73,6 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         whois_obj = WHOISInfo.objects.filter(ip_address=new_ip_address).first()
         if whois_obj and not WHOISService.is_older(whois_obj.modified):
             return
-
         fetched_details = WHOISService.process_whois_details(new_ip_address)
         whois_obj, update_fields = WHOISService._create_or_update_whois(
             fetched_details, whois_obj
@@ -94,7 +93,6 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             manage_estimated_locations.delay(
                 device_pk=device_pk, ip_address=new_ip_address
             )
-
         # delete WHOIS record for initial IP if no devices are linked to it
         if (
             not Device.objects.filter(_is_deactivated=False)
@@ -111,7 +109,6 @@ def delete_whois_record(ip_address):
     This is used when the device is deleted or its last IP address is changed.
     """
     WHOISInfo = load_model("config", "WHOISInfo")
-
     queryset = WHOISInfo.objects.filter(ip_address=ip_address)
     if queryset.exists():
         queryset.delete()
