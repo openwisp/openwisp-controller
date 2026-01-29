@@ -220,13 +220,3 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
-
-
-@shared_task(base=OpenwispCeleryTask)
-def invalidate_device_checksum_view_cache(organization_id):
-    """
-    DEPRECATED: Use invalidate_controller_views_cache instead.
-
-    TODO: Remove this in 1.2.0 release.
-    """
-    return invalidate_controller_views_cache(organization_id)
