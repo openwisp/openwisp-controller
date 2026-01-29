@@ -8,8 +8,8 @@ from jsonfield import JSONField
 
 from openwisp_utils.base import KeyField, UUIDModel
 
-from ..exceptions import OrganizationDeviceLimitExceeded
 from .. import tasks
+from ..exceptions import OrganizationDeviceLimitExceeded
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
@@ -49,7 +49,10 @@ class AbstractOrganizationConfigSettings(UUIDModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._initial_context = deepcopy(self.context)
+        if "context" in self.get_deferred_fields():
+            self._initial_context = models.DEFERRED
+        else:
+            self._initial_context = deepcopy(self.context)
 
     def __str__(self):
         return self.organization.name
@@ -61,18 +64,32 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
         context_changed = False
-        if not self._state.adding:
+        context_in_update = update_fields is None or "context" in update_fields
+        if not self._state.adding and context_in_update:
             initial_context = getattr(self, "_initial_context", None)
-            if initial_context is not None:
+            if initial_context is not None and initial_context != models.DEFERRED:
                 context_changed = initial_context != self.context
+            elif initial_context == models.DEFERRED and context_in_update:
+                # Conservative: if we don't know initial state and context is
+                # being updated, assume it changed to avoid stale cache
+                context_changed = True
         super().save(force_insert, force_update, using, update_fields)
         if context_changed and self.organization.is_active:
+            organization_id = str(self.organization_id)
             transaction.on_commit(
-                lambda: tasks.invalidate_organization_vpn_cache.delay(
-                    str(self.organization_id)
-                )
+                lambda: (
+                    tasks.bulk_invalidate_config_get_cached_checksum.delay(
+                        {"device__organization_id": organization_id}
+                    ),
+                    tasks.invalidate_organization_vpn_cache.delay(organization_id),
+                ),
+                using=using,
             )
-        self._initial_context = deepcopy(self.context)
+        if context_in_update:
+            if "context" in self.get_deferred_fields():
+                self._initial_context = models.DEFERRED
+            else:
+                self._initial_context = deepcopy(self.context)
 
 
 class AbstractOrganizationLimits(models.Model):
