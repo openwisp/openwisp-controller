@@ -65,7 +65,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     WHOISInfo = load_model("config", "WHOISInfo")
 
     with transaction.atomic():
-        device = Device.objects.get(pk=device_pk)
+        device = Device.objects.select_related("devicelocation").get(pk=device_pk)
         new_ip_address = device.last_ip
         WHOISService = device.whois_service
 
@@ -78,37 +78,39 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             fetched_details, whois_obj
         )
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
+        delete_whois_record(ip_address=initial_ip_address)
 
-        if device._get_organization__config_settings().estimated_location_enabled:
-            # the estimated location task should not run if old record is updated
-            # and location related fields are not updated
-            device_location = getattr(device, "devicelocation", None)
-            if (
-                device_location
-                and device_location.location
-                and update_fields
-                and not any(i in update_fields for i in ["address", "coordinates"])
-            ):
-                return
-            manage_estimated_locations.delay(
-                device_pk=device_pk, ip_address=new_ip_address
-            )
-        # delete WHOIS record for initial IP if no devices are linked to it
+        if not device._get_organization__config_settings().estimated_location_enabled:
+            return
+        # the estimated location task should not run if old record is updated
+        # and location related fields are not updated
+        device_location = getattr(device, "devicelocation", None)
         if (
-            not Device.objects.filter(_is_deactivated=False)
-            .filter(last_ip=initial_ip_address)
-            .exists()
+            device_location
+            and device_location.location
+            and update_fields
+            and not any(i in update_fields for i in ["address", "coordinates"])
         ):
-            delete_whois_record(ip_address=initial_ip_address)
+            return
+        manage_estimated_locations.delay(device_pk=device_pk, ip_address=new_ip_address)
 
 
 @shared_task
-def delete_whois_record(ip_address):
+def delete_whois_record(ip_address, force=False):
     """
     Deletes the WHOIS record for the device's last IP address.
     This is used when the device is deleted or its last IP address is changed.
+    'force' parameter is used to delete the record without checking for linked devices.
     """
+    Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
     queryset = WHOISInfo.objects.filter(ip_address=ip_address)
-    if queryset.exists():
+    if force:
         queryset.delete()
+    else:
+        if (
+            not Device.objects.filter(_is_deactivated=False)
+            .filter(last_ip=ip_address)
+            .exists()
+        ):
+            queryset.delete()
