@@ -29,6 +29,8 @@ from import_export.admin import ImportExportMixin
 from import_export.forms import ExportForm
 from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
+from django.urls import register_converter
+from .converters import UUIDAnyConverter, UUIDAnyOrFKConverter
 
 from openwisp_controller.config.views import get_default_values, get_relevant_templates
 from openwisp_users.admin import OrganizationAdmin
@@ -46,6 +48,8 @@ from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
+register_converter(UUIDAnyConverter, "uuid_any")
+register_converter(UUIDAnyOrFKConverter, "uuid_or_fk")
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
@@ -180,38 +184,41 @@ class BaseConfigAdmin(BaseAdmin):
                 safe_urls.append(url)
         strict_urls = [
             # custom app URLs
-            re_path(
-                rf"^download/(?P<pk>{uuid_regex})/$",
+            path(
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
-                name="{0}_download".format(url_prefix),
+                name=f"{url_prefix}_download",
             ),
             path(
                 "preview/",
                 self.admin_site.admin_view(self.preview_view),
-                name="{0}_preview".format(url_prefix),
+                name=f"{url_prefix}_preview",
             ),
-            re_path(
-                rf"^(?P<pk>{uuid_regex})/context\.json$",
+            path(
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
-                name="{0}_context".format(url_prefix),
+                name=f"{url_prefix}_context",
             ),
-            # strict overrides for the default admin views
-            re_path(
-                rf"^(?P<object_id>({uuid_regex}|__fk__))/history/$",
+
+            # strict overrides for the default admin views (single pattern each)
+            path(
+                "<uuid_or_fk:object_id>/history/",
                 self.admin_site.admin_view(self.history_view),
                 name=f"{url_prefix}_history",
             ),
-            re_path(
-                rf"^(?P<object_id>({uuid_regex}|__fk__))/delete/$",
+            path(
+                "<uuid_or_fk:object_id>/delete/",
                 self.admin_site.admin_view(self.delete_view),
                 name=f"{url_prefix}_delete",
             ),
-            re_path(
-                rf"^(?P<object_id>({uuid_regex}|__fk__))/change/$",
+            path(
+                "<uuid_or_fk:object_id>/change/",
                 self.admin_site.admin_view(self.change_view),
                 name=f"{url_prefix}_change",
             ),
         ]
+
+
         return strict_urls + safe_urls
 
     def _get_config_model(self):

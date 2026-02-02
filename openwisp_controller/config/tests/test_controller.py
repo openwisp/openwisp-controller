@@ -273,9 +273,10 @@ class TestController(
     def test_device_checksum_bad_uuid(self):
         d = self._create_device_config()
         pk = "{}-wrong".format(d.pk)
-        bad_path = f"/controller/device/checksum/{pk}/"
-        response = self.client.get(bad_path, {"key": d.key})
-        self.assertEqual(response.status_code, 404)
+        valid = reverse("controller:device_checksum", args=[pk])
+        bad = valid + "junk/"        
+        resp = self.client.get(bad, {"key": d.key})
+        self.assertEqual(resp.status_code, 404)
 
     def test_device_config_download_requested_signal_is_emitted(self):
         d = self._create_device_config()
