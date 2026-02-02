@@ -9,7 +9,7 @@ MESSAGE_MAP = {
     "whois_device_error": {
         "type": "generic_message",
         "level": "error",
-        "message": _(
+        "message": (
             "Failed to fetch WHOIS details for device"
             " [{notification.target}]({notification.target_link})"
         ),
@@ -18,7 +18,7 @@ MESSAGE_MAP = {
     "estimated_location_error": {
         "level": "error",
         "type": "estimated_location_info",
-        "message": _(
+        "message": (
             "Unable to create estimated location for device "
             "[{notification.target}]({notification.target_link}). "
             "Please assign/create a location manually."
@@ -31,7 +31,7 @@ MESSAGE_MAP = {
     },
     "estimated_location_updated": {
         "type": "estimated_location_info",
-        "message": _(
+        "message": (
             "Estimated location [{notification.actor}]({notification.actor_link})"
             " for device"
             " [{notification.target}]({notification.target_link})"
