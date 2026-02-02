@@ -64,7 +64,6 @@ def _handle_attach_existing_location(
         **whois_obj._get_defaults_for_estimated_location(),
         "organization_id": device.organization_id,
     }
-
     # Create new location only if location is changed.
     if (
         attached_devices_exists
@@ -77,7 +76,6 @@ def _handle_attach_existing_location(
             f" for IP: {ip_address}, keeping existing location"
         )
         return
-
     # create new location if no location exists for device or the estimated location
     # of device is shared.
     whois_service = device.whois_service
@@ -112,7 +110,6 @@ def manage_estimated_locations(device_pk, ip_address):
     DeviceLocation = load_model("geo", "DeviceLocation")
 
     device = Device.objects.select_related("devicelocation__location").get(pk=device_pk)
-
     devices_with_location = (
         Device.objects.only("devicelocation")
         .select_related("devicelocation__location")
@@ -120,7 +117,6 @@ def manage_estimated_locations(device_pk, ip_address):
         .filter(last_ip=ip_address, devicelocation__location__isnull=False)
         .exclude(pk=device.pk)
     )
-
     # multiple devices can have same last_ip in cases like usage of proxy
     if devices_with_location.count() > 1:
         send_whois_task_notification(
@@ -136,7 +132,6 @@ def manage_estimated_locations(device_pk, ip_address):
         device_location = DeviceLocation(content_object=device)
 
     current_location = device_location.location
-
     if not current_location or current_location.is_estimated:
         existing_device_location = getattr(
             devices_with_location.first(), "devicelocation", None
