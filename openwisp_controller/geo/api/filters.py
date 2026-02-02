@@ -10,12 +10,21 @@ class DeviceListFilter(BaseDeviceListFilter):
     # Using filter query param name `with_geo`
     # which is similar to admin filter
     with_geo = filters.BooleanFilter(
-        field_name="devicelocation", method="filter_devicelocation"
+        field_name="devicelocation",
+        method="filter_devicelocation",
+        label=_("Has geographic location set?"),
     )
-
-    def _set_valid_filterform_lables(self):
-        super()._set_valid_filterform_lables()
-        self.filters["with_geo"].label = _("Has geographic location set?")
+    location__name = filters.CharFilter(
+        field_name="devicelocation__location__name",
+        lookup_expr="icontains",
+        label=_("Location name"),
+    )
+    location = filters.UUIDFilter(
+        field_name="devicelocation__location", label=_("Location UUID")
+    )
+    floorplan = filters.UUIDFilter(
+        field_name="devicelocation__floorplan", label=_("Floor plan UUID")
+    )
 
     def filter_devicelocation(self, queryset, name, value):
         # Returns list of device that have devicelocation objects
@@ -23,5 +32,12 @@ class DeviceListFilter(BaseDeviceListFilter):
 
     class Meta:
         model = BaseDeviceListFilter.Meta.model
-        fields = BaseDeviceListFilter.Meta.fields[:]
-        fields.insert(fields.index("created"), "with_geo")
+        geo_fields = [
+            "with_geo",
+            "location__name",
+            "location",
+            "floorplan",
+        ]
+        fields = BaseDeviceListFilter.Meta.fields
+        index_created = fields.index("created")
+        fields[index_created:index_created] = geo_fields
