@@ -110,15 +110,19 @@ def manage_estimated_locations(device_pk, ip_address):
     DeviceLocation = load_model("geo", "DeviceLocation")
 
     device = Device.objects.select_related("devicelocation__location").get(pk=device_pk)
-    devices_with_location = (
-        Device.objects.only("devicelocation")
+    devices_with_location = list(
+        Device.objects.only("id", "name", "last_ip", "devicelocation", "devicelocation__location")
         .select_related("devicelocation__location")
-        .filter(organization_id=device.organization_id)
-        .filter(last_ip=ip_address, devicelocation__location__isnull=False)
-        .exclude(pk=device.pk)
+        .filter(
+            organization_id=device.organization_id,
+            last_ip=ip_address,
+            devicelocation__location__isnull=False,
+        )
+        # evaluated to LIMIT query, we need to know if there's more than 1 result
+        .exclude(pk=device.pk)[:2]
     )
     # multiple devices can have same last_ip in cases like usage of proxy
-    if devices_with_location.count() > 1:
+    if len(devices_with_location) > 1:
         send_whois_task_notification(
             device=device, notify_type="estimated_location_error"
         )
@@ -127,15 +131,19 @@ def manage_estimated_locations(device_pk, ip_address):
             f"last_ip {ip_address}. Please resolve the conflict manually."
         )
         return
-
+    # if device doesn't have a location yet, initialize a draft
     if not (device_location := getattr(device, "devicelocation", None)):
         device_location = DeviceLocation(content_object=device)
-
     current_location = device_location.location
     if not current_location or current_location.is_estimated:
-        existing_device_location = getattr(
-            devices_with_location.first(), "devicelocation", None
-        )
+        # existing device location
+        try:
+            existing_device_location = getattr(
+                devices_with_location[0], "devicelocation", None
+            )
+        # no existing device location
+        except IndexError:
+            existing_device_location = None
         _handle_attach_existing_location(
             device, device_location, ip_address, existing_device_location
         )

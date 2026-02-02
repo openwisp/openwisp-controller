@@ -68,7 +68,6 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         device = Device.objects.select_related("devicelocation").get(pk=device_pk)
         new_ip_address = device.last_ip
         WHOISService = device.whois_service
-
         # If there is existing WHOIS older record then it needs to be updated
         whois_obj = WHOISInfo.objects.filter(ip_address=new_ip_address).first()
         if whois_obj and not WHOISService.is_older(whois_obj.modified):

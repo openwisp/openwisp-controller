@@ -346,7 +346,7 @@ class TestEstimatedLocationTransaction(
 
         with self.subTest("Test Estimated location created when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
-            with self.assertNumQueries(14):
+            with self.assertNumQueries(13):
                 manage_estimated_locations(device.pk, device.last_ip)
             location = device.devicelocation.location
             mocked_response.ip_address = device.last_ip
@@ -368,7 +368,7 @@ class TestEstimatedLocationTransaction(
             mock_client.return_value.city.return_value = mocked_response
             device.save()
             device.refresh_from_db()
-            with self.assertNumQueries(8):
+            with self.assertNumQueries(7):
                 manage_estimated_locations(device.pk, device.last_ip)
 
             location = device.devicelocation.location
@@ -419,7 +419,7 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
-            with self.assertNumQueries(8):
+            with self.assertNumQueries(7):
                 manage_estimated_locations(device2.pk, device2.last_ip)
 
             self.assertEqual(
@@ -449,7 +449,7 @@ class TestEstimatedLocationTransaction(
             device2.save()
             # 3 queries related to notifications cleanup
             device2.refresh_from_db()
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(15):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
@@ -515,7 +515,7 @@ class TestEstimatedLocationTransaction(
             device2.last_ip = "172.217.22.11"
             device2.save()
             device2.refresh_from_db()
-            with self.assertNumQueries(14):
+            with self.assertNumQueries(13):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
