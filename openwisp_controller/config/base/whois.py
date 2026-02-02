@@ -48,7 +48,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         blank=True,
     )
     cidr = models.CharField(
-        max_length=50,
+        max_length=49,
         blank=True,
         help_text=_("CIDR"),
     )

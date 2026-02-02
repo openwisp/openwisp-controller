@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
                         blank=True, default=dict, help_text="Address"
                     ),
                 ),
-                ("cidr", models.CharField(blank=True, help_text="CIDR", max_length=50)),
+                ("cidr", models.CharField(blank=True, help_text="CIDR", max_length=49)),
                 (
                     "isp",
                     models.CharField(
