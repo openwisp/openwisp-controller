@@ -5,13 +5,33 @@ from django_loci.base.models import (
     AbstractObjectLocation,
 )
 from swapper import get_model_name
-
+from django.apps import apps
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
     class Meta(AbstractLocation.Meta):
         abstract = True
+
+    def save(self, *args, **kwargs):
+        org_changed = False
+
+        if self.pk:
+            old_org_id = (
+                self.__class__.objects.filter(pk=self.pk)
+                .values_list("organization_id", flat=True)
+                .first()
+            )
+            org_changed = old_org_id != self.organization_id
+
+        super().save(*args, **kwargs)
+
+        if org_changed:
+            app_label, model_name = get_model_name("geo", "FloorPlan").split(".")
+            FloorPlan = apps.get_model(app_label, model_name)
+            FloorPlan.objects.filter(location=self).update(
+                organization_id=self.organization_id
+            )
 
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):
