@@ -5,7 +5,7 @@ import uuid
 
 import django.db.models.deletion
 import django.utils.timezone
-import jsonfield.fields
+from django.db import models
 import model_utils.fields
 import swapper
 from django.db import migrations, models
@@ -56,11 +56,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "meta_data",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={"ensure_ascii": False, "indent": 4},
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         help_text=(
                             "Group meta data, use this field to store data which is"
                             " related to this group and can be retrieved via the"

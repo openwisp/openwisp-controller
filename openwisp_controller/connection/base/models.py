@@ -1,4 +1,5 @@
 import collections
+import json
 import logging
 
 import django
@@ -10,7 +11,7 @@ from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
+from django.db.models import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
@@ -39,6 +40,12 @@ class ConnectorMixin(object):
     _connector_field = "connector"
 
     def clean(self):
+        # Convert JSON string params to dictionary before validation
+        if hasattr(self, 'params') and isinstance(self.params, str):
+            try:
+                self.params = json.loads(self.params)
+            except ValueError:
+                pass  # Let validators handle invalid JSON
         # Validate the connector field here to avoid ImportError in case that
         # it is not valid (eg. it is an empty string because the user has forgotten
         # to pick up one from the choices). The field value is validated in a later
@@ -101,8 +108,6 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         _("parameters"),
         default=dict,
         help_text=_("global connection parameters"),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     auto_add = models.BooleanField(
         _("auto add"),
@@ -245,8 +250,6 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             "local connection parameters (will override "
             "the global parameters if specified)"
         ),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     # usability improvements
     is_working = models.BooleanField(null=True, blank=True, default=None)
@@ -425,8 +428,6 @@ class AbstractCommand(TimeStampedEditableModel):
     input = JSONField(
         blank=True,
         null=True,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     output = models.TextField(blank=True)
 
@@ -465,12 +466,30 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
+        errors = {}
+        # Convert JSON string input to dictionary before validation
+        if isinstance(self.input, str):
+            try:
+                self.input = json.loads(self.input)
+            except (ValueError, json.JSONDecodeError):
+                # Collect JSON validation error
+                errors["input"] = [_("Enter valid JSON.")]
+        
         self._verify_command_type_allowed()
         self._verify_connection()
+        
+        # Run schema validation and collect any errors
         try:
             jsonschema.Draft4Validator(self._schema).validate(self.input)
         except SchemaError as e:
-            raise ValidationError({"input": e.message})
+            if "input" in errors:
+                errors["input"].append(e.message)
+            else:
+                errors["input"] = [e.message]
+        
+        # Raise collected errors if any
+        if errors:
+            raise ValidationError(errors)
 
     def _verify_connection(self):
         """Raises validation error if device has no connection and credentials."""

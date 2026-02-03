@@ -10,7 +10,7 @@ from django.db import models
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
+from django.db.models import JSONField
 from netjsonconfig.exceptions import ValidationError as SchemaError
 
 from openwisp_utils.base import TimeStampedEditableModel
@@ -126,8 +126,7 @@ class BaseConfig(BaseModel):
         _("configuration"),
         default=dict,
         help_text=_("configuration in NetJSON DeviceConfiguration format"),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+
     )
 
     __template__ = False
@@ -141,6 +140,12 @@ class BaseConfig(BaseModel):
         * ensures config is not ``None``
         * performs netjsonconfig backend validation
         """
+        # Convert JSON string config to dictionary before validation
+        if isinstance(self.config, str):
+            try:
+                self.config = json.loads(self.config)
+            except ValueError:
+                pass  # Let validators handle invalid JSON
         if self.config is None:
             self.config = {}
         if not isinstance(self.config, dict):

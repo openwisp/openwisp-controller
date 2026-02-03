@@ -5,7 +5,7 @@ import uuid
 
 import django.db.models.deletion
 import django.utils.timezone
-import jsonfield.fields
+from django.db import models
 import model_utils.fields
 import swapper
 from django.conf import settings
@@ -67,11 +67,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "params",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         default=dict,
-                        dump_kwargs={"indent": 4},
                         help_text="global connection parameters",
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="parameters",
                     ),
                 ),
@@ -134,15 +132,13 @@ class Migration(migrations.Migration):
                 ("enabled", models.BooleanField(db_index=True, default=True)),
                 (
                     "params",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={"indent": 4},
                         help_text=(
                             "local connection parameters (will override "
                             "the global parameters if specified)"
                         ),
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="parameters",
                     ),
                 ),

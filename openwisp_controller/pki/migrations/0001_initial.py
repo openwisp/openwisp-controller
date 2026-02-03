@@ -6,7 +6,7 @@ import collections
 import django.db.models.deletion
 import django.utils.timezone
 import django_x509.base.models
-import jsonfield.fields
+from django.db import models
 import model_utils.fields
 from django.conf import settings
 from django.db import migrations, models
@@ -111,12 +111,10 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "extensions",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         blank=True,
                         default=list,
-                        dump_kwargs={"indent": 4},
                         help_text="additional x509 certificate extensions",
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="extensions",
                     ),
                 ),
@@ -264,12 +262,10 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "extensions",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         blank=True,
                         default=list,
-                        dump_kwargs={"indent": 4},
                         help_text="additional x509 certificate extensions",
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="extensions",
                     ),
                 ),
