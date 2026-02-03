@@ -765,7 +765,7 @@ class TestWHOISTransaction(
             mock_info.reset_mock()
             mock_warn.reset_mock()
             mock_error.reset_mock()
-            notification_qs.delete()
+            _notification_qs().delete()
 
         # Test for all possible exceptions that can be raised by the geoip2 client
         # Notification are sent only one time when any of the following exceptions
