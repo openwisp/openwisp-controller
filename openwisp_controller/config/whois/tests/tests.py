@@ -34,6 +34,8 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 notification_qs = Notification.objects.all()
 
 
+# SESSION_ENGINE set to DB to avoid conflicts in parallel tests
+@override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db")
 class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     # Signals are connected when apps are loaded,
     # and if WHOIS is Configured all related WHOIS
@@ -371,6 +373,8 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
             )
 
 
+# SESSION_ENGINE set to DB to avoid conflicts in parallel tests
+@override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db")
 class TestWHOISTransaction(
     CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
 ):
