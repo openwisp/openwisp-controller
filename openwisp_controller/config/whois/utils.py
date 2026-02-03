@@ -25,6 +25,8 @@ MESSAGE_MAP = {
         ),
         "description": _("Multiple devices found for IP: {ip_address}"),
     },
+    # using default message (added when registering this notification type)
+    # for 'created' type notifications
     "estimated_location_created": {
         "type": "estimated_location_info",
         "description": _("Estimated Location {notification.verb} for IP: {ip_address}"),

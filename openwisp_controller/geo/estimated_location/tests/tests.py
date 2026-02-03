@@ -650,7 +650,10 @@ class TestEstimatedLocationTransaction(
                 f"Multiple devices with locations found with same "
                 f"last_ip {device3.last_ip}. Please resolve the conflict manually."
             )
-            messages = ["Unable to create estimated location for device"]
+            messages = [
+                "Unable to create estimated location for device",
+                "Please assign/create a location manually.",
+            ]
             _verify_notification(device3, messages, "error")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)

@@ -111,7 +111,9 @@ def manage_estimated_locations(device_pk, ip_address):
 
     device = Device.objects.select_related("devicelocation__location").get(pk=device_pk)
     devices_with_location = list(
-        Device.objects.only("id", "name", "last_ip", "devicelocation", "devicelocation__location")
+        Device.objects.only(
+            "id", "name", "last_ip", "devicelocation", "devicelocation__location"
+        )
         .select_related("devicelocation__location")
         .filter(
             organization_id=device.organization_id,

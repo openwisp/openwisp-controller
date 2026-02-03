@@ -37,7 +37,7 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
         Notifications are sent only once when task fails for the first time.
         Subsequent failures do not trigger notifications until a successful run occurs.
         """
-        device_pk = kwargs.get("device_pk")
+        device_pk = kwargs.get("device_pk") or (args[0] if args else None)
         # All exceptions are treated globally to prevent notification spam
         task_key = f"{self.name}_last_operation"
         last_operation = cache.get(task_key)
@@ -91,7 +91,11 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             and not any(i in update_fields for i in ["address", "coordinates"])
         ):
             return
-        manage_estimated_locations.delay(device_pk=device_pk, ip_address=new_ip_address)
+        transaction.on_commit(
+            lambda: manage_estimated_locations.delay(
+                device_pk=device_pk, ip_address=new_ip_address
+            )
+        )
 
 
 @shared_task

@@ -5,7 +5,6 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 
 from openwisp_utils.base import TimeStampedEditableModel
 
@@ -42,7 +41,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         blank=True,
         help_text=_("Time zone"),
     )
-    address = JSONField(
+    address = models.JSONField(
         default=dict,
         help_text=_("Address"),
         blank=True,
