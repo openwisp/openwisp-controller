@@ -31,7 +31,9 @@ WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
-notification_qs = Notification.objects.all()
+
+def _notification_qs():
+    return Notification.objects.all()
 
 
 # SESSION_ENGINE set to DB to avoid conflicts in parallel tests
@@ -288,6 +290,8 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         )
         device.refresh_from_db()
         self.assertIsNone(device.last_ip)
+        out.seek(0)
+        out.truncate(0)
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
 
@@ -746,6 +750,7 @@ class TestWHOISTransaction(
                 self.assertEqual(mock_warn.call_count, warn_calls)
                 self.assertEqual(mock_error.call_count, error_calls)
                 if notification_count > 0:
+                    notification_qs = _notification_qs()
                     self.assertEqual(notification_qs.count(), notification_count)
                     notification = notification_qs.first()
                     self.assertEqual(notification.actor, device)
@@ -789,8 +794,8 @@ class TestWHOISTransaction(
                 device = self._create_device(last_ip="172.217.22.14")
                 cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
                 self.assertEqual(cache.get(cache_key), "errored")
-                self.assertEqual(notification_qs.count(), notification_count)
-                notification_qs.delete()
+                self.assertEqual(_notification_qs().count(), notification_count)
+                _notification_qs().delete()
                 return device
 
         # simulate that no matter which permanent error is raised first,
@@ -818,7 +823,7 @@ class TestWHOISTransaction(
             self._create_device(last_ip="172.217.22.14")
             cache_key = f"{self._WHOIS_TASK_NAME}_last_operation"
             self.assertEqual(cache.get(cache_key), "success")
-            self.assertEqual(notification_qs.count(), 0)
+            self.assertEqual(_notification_qs().count(), 0)
         cache.clear()
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True)

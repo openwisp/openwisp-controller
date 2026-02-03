@@ -29,7 +29,9 @@ WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
-notification_qs = Notification.objects.all()
+
+def _notification_qs():
+    return Notification.objects.all()
 
 
 class TestEstimatedLocation(TestAdminMixin, TestCase):
@@ -573,7 +575,7 @@ class TestEstimatedLocationTransaction(
         original_location = device1.devicelocation.location
         self.assertEqual(original_location.pk, device2.devicelocation.location.pk)
         location_count = Location.objects.count()
-        notification_count = notification_qs.count()
+        notification_count = _notification_qs().count()
         # Clear the last ip for both devices, so setting them again
         # will trigger the WHOIS lookup flow.
         for device in (device1, device2):
@@ -592,7 +594,7 @@ class TestEstimatedLocationTransaction(
         )
         self.assertEqual(Location.objects.count(), location_count)
         self.assertTrue(Location.objects.filter(pk=original_location.pk).exists())
-        self.assertEqual(notification_qs.count(), notification_count)
+        self.assertEqual(_notification_qs().count(), notification_count)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
@@ -600,6 +602,7 @@ class TestEstimatedLocationTransaction(
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
         def _verify_notification(device, messages, notify_level="info"):
+            notification_qs = _notification_qs()
             self.assertEqual(notification_qs.count(), 1)
             notification = notification_qs.first()
             device_location = getattr(device, "devicelocation", None)
@@ -623,7 +626,7 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device1, messages)
 
         with self.subTest("Test Notification for location update"):
-            notification_qs.delete()
+            _notification_qs().delete()
             # will have same location as first device
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
@@ -637,7 +640,7 @@ class TestEstimatedLocationTransaction(
             device2.last_ip = device1.last_ip
             device2.save()
             device2.refresh_from_db()
-            notification_qs.delete()
+            _notification_qs().delete()
             mock_info.reset_mock()
             mock_error.reset_mock()
             device3 = self._create_device(
