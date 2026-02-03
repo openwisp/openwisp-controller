@@ -274,7 +274,7 @@ class TestController(
         d = self._create_device_config()
         pk = "{}-wrong".format(d.pk)
         valid = reverse("controller:device_checksum", args=[pk])
-        bad = valid + "junk/"        
+        bad = valid + "junk/"
         resp = self.client.get(bad, {"key": d.key})
         self.assertEqual(resp.status_code, 404)
 
