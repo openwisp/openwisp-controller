@@ -219,6 +219,9 @@ OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY = os.getenv(
 TEST_RUNNER = "openwisp_utils.tests.TimeLoggingTestRunner"
 
 if os.environ.get("SAMPLE_APP", False):
+    DATABASES["default"]["NAME"] = os.path.join(
+        BASE_DIR, "openwisp-controller-SAMPLE_APP.db"
+    )
     # Replace Config
     config_index = INSTALLED_APPS.index("openwisp_controller.config")
     INSTALLED_APPS.remove("openwisp_controller.config")
