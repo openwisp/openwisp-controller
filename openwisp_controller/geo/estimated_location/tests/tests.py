@@ -250,7 +250,7 @@ class TestEstimatedLocationTransaction(
 
         with self.subTest(
             "Estimated location task not called via DeviceChecksumView when "
-            "last_ip has no related WhoIsInfo"
+            "last_ip already has related WhoIsInfo"
         ):
             WHOISInfo.objects.all().delete()
             self._create_whois_info(ip_address=device.last_ip)

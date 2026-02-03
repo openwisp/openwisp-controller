@@ -67,13 +67,13 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     with transaction.atomic():
         device = Device.objects.select_related("devicelocation").get(pk=device_pk)
         new_ip_address = device.last_ip
-        WHOISService = device.whois_service
+        whois_service = device.whois_service
         # If there is existing WHOIS older record then it needs to be updated
         whois_obj = WHOISInfo.objects.filter(ip_address=new_ip_address).first()
-        if whois_obj and not WHOISService.is_older(whois_obj.modified):
+        if whois_obj and not whois_service.is_older(whois_obj.modified):
             return
-        fetched_details = WHOISService.process_whois_details(new_ip_address)
-        whois_obj, update_fields = WHOISService._create_or_update_whois(
+        fetched_details = whois_service.process_whois_details(new_ip_address)
+        whois_obj, update_fields = whois_service._create_or_update_whois(
             fetched_details, whois_obj
         )
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
