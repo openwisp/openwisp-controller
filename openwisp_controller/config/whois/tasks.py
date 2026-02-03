@@ -38,15 +38,16 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
         Subsequent failures do not trigger notifications until a successful run occurs.
         """
         device_pk = kwargs.get("device_pk") or (args[0] if args else None)
-        # All exceptions are treated globally to prevent notification spam
-        task_key = f"{self.name}_last_operation"
-        last_operation = cache.get(task_key)
-        if last_operation != "errored":
-            cache.set(task_key, "errored", None)
-            send_whois_task_notification(
-                device=device_pk, notify_type="whois_device_error"
-            )
-        logger.error(f"WHOIS lookup failed. Details: {exc}")
+        if device_pk is not None:
+            # All exceptions are treated globally to prevent notification spam
+            task_key = f"{self.name}_last_operation"
+            last_operation = cache.get(task_key)
+            if last_operation != "errored":
+                cache.set(task_key, "errored", None)
+                send_whois_task_notification(
+                    device=device_pk, notify_type="whois_device_error"
+                )
+            logger.error(f"WHOIS lookup failed. Details: {exc}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
