@@ -1,4 +1,5 @@
 import collections
+import json
 import logging
 import re
 from collections import defaultdict
@@ -8,7 +9,7 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
+from django.db.models import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
 from netjsonconfig import OpenWrt
@@ -90,8 +91,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             'en/stable/general/basics.html#context" target="_blank">'
             "context (configuration variables)</a> in JSON format"
         ),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     checksum_db = models.CharField(
         _("configuration checksum"),
@@ -556,6 +555,18 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             self.error_reason = f"{self.error_reason[:1012]}\n[truncated]"
 
     def full_clean(self, exclude=None, validate_unique=True):
+        # Convert JSON string config to dictionary before validation runs
+        if isinstance(self.config, str):
+            try:
+                self.config = json.loads(self.config)
+            except ValueError:
+                pass
+        # Convert JSON string context to dictionary before validation runs
+        if isinstance(self.context, str):
+            try:
+                self.context = json.loads(self.context)
+            except ValueError:
+                pass
         # Modify the "error_reason" before the field validation
         # is executed by self.full_clean
         self.clean_error_reason()

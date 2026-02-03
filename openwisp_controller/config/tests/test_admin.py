@@ -235,6 +235,12 @@ class TestImportExportMixin:
 
     def test_device_import_config_not_templates(self):
         org = self._get_org(org_name="default")
+        config = '{"general": {}}'
+        context = '{"ssid": "test"}'
+        # Properly escape JSON quotes for CSV
+        config_escaped = config.replace('"', '""')
+        context_escaped = context.replace('"', '""')
+        
         contents = (
             "name,mac_address,organization,group,model,os,system,notes,last_ip,"
             "management_ip,config_status,config_backend,config_data,config_context,"
@@ -248,15 +254,16 @@ class TestImportExportMixin:
         contents = contents.format(
             org_name=org.name,
             org_id=org.id,
-            config='{""general"": {}}',
-            context='{""ssid"": ""test""}',
+            config=config_escaped,
+            context=context_escaped,
         )
         csv = ContentFile(contents)
         response = self.client.post(
             reverse(f"admin:{self.app_label}_device_import"),
             {"format": "0", "import_file": csv, "file_name": "test.csv"},
         )
-        self.assertFalse(response.context["result"].has_errors())
+        result = response.context["result"]
+        self.assertFalse(result.has_errors())
         self.assertIn("confirm_form", response.context)
         confirm_form = response.context["confirm_form"]
         data = confirm_form.initial
@@ -691,6 +698,12 @@ class TestAdmin(
             vpn=vpn,
             auto_cert=True,
         )
+        config = '{"general": {}}'
+        context = '{"ssid": "test"}'
+        # Properly escape JSON quotes for CSV
+        config_escaped = config.replace('"', '""')
+        context_escaped = context.replace('"', '""')
+        
         contents = (
             "name,mac_address,organization,group,model,os,system,notes,last_ip,"
             "management_ip,config_status,config_backend,config_data,config_context,"
@@ -705,8 +718,8 @@ class TestAdmin(
             org_name=org.name,
             org_id=org.id,
             templates=",".join([str(template1.id), str(vpn_template.id)]),
-            config='{""general"": {}}',
-            context='{""ssid"": ""test""}',
+            config=config_escaped,
+            context=context_escaped,
         )
         csv = ContentFile(contents)
         response = self.client.post(

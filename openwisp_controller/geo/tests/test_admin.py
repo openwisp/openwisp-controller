@@ -207,6 +207,12 @@ class TestDeviceAdmin(
             name="location1org", type="indoor", organization=org
         )
         floorplan = self._create_floorplan(location=location, organization=org)
+        config = '{"general": {}}'
+        context = '{"ssid": "test"}'
+        # Properly escape JSON quotes for CSV
+        config_escaped = config.replace('"', '""')
+        context_escaped = context.replace('"', '""')
+        
         contents = (
             "name,mac_address,organization,group,model,os,system,notes,venue,"
             "address,coords,is_mobile,venue_type,floor,floor_position,last_ip,"
@@ -225,8 +231,8 @@ class TestDeviceAdmin(
         contents = contents.format(
             org_name=org.name,
             org_id=org.id,
-            config='{""general"": {}}',
-            context='{""ssid"": ""test""}',
+            config=config_escaped,
+            context=context_escaped,
             location_id=location.id,
             floorplan_id=floorplan.id,
         )
@@ -268,6 +274,12 @@ class TestDeviceAdmin(
         location = self._create_location(
             name="location1org", type="indoor", organization=org
         )
+        config = '{"general": {}}'
+        context = '{"ssid": "test"}'
+        # Properly escape JSON quotes for CSV
+        config_escaped = config.replace('"', '""')
+        context_escaped = context.replace('"', '""')
+        
         contents = (
             "name,mac_address,organization,group,model,os,system,notes,venue,address,"
             "coords,is_mobile,venue_type,floor,floor_position,last_ip,management_ip,"
@@ -283,8 +295,8 @@ class TestDeviceAdmin(
         contents = contents.format(
             org_name=org.name,
             org_id=org.id,
-            config='{""general"": {}}',
-            context='{""ssid"": ""test""}',
+            config=config_escaped,
+            context=context_escaped,
             location_id=location.id,
         )
         csv = ContentFile(contents)

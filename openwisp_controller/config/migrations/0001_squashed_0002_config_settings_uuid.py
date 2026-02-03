@@ -7,7 +7,7 @@ import uuid
 
 import django.core.validators
 import django.utils.timezone
-import jsonfield.fields
+from django.db import models
 import model_utils.fields
 from django.conf import settings
 from django.db import migrations, models
@@ -58,12 +58,10 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "config",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={"ensure_ascii": False, "indent": 4},
                         help_text="configuration in NetJSON DeviceConfiguration format",
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="configuration",
                     ),
                 ),
@@ -250,12 +248,10 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "config",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         blank=True,
                         default=dict,
-                        dump_kwargs={"ensure_ascii": False, "indent": 4},
                         help_text="configuration in NetJSON DeviceConfiguration format",
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="configuration",
                     ),
                 ),
@@ -347,11 +343,9 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(max_length=64, unique=True)),
                 (
                     "config",
-                    jsonfield.fields.JSONField(
+                    models.JSONField(
                         default=dict,
-                        dump_kwargs={"ensure_ascii": False, "indent": 4},
                         help_text="configuration in NetJSON DeviceConfiguration format",
-                        load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="configuration",
                     ),
                 ),

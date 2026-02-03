@@ -1,11 +1,12 @@
 import collections
+import json
 from copy import deepcopy
 
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
+from django.db.models import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
@@ -39,8 +40,6 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
     meta_data = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
         help_text=_(
             "Group meta data, use this field to store data which is related"
             " to this group and can be retrieved via the REST API."
@@ -50,8 +49,6 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
     context = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
         help_text=_(
             "This field can be used to add meta data for the group"
             ' or to add "Configuration Variables" to the devices.'
@@ -69,6 +66,12 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         unique_together = (("organization", "name"),)
 
     def clean(self):
+        # Convert JSON string meta_data to dictionary before validation
+        if isinstance(self.meta_data, str):
+            try:
+                self.meta_data = json.loads(self.meta_data)
+            except ValueError:
+                pass  # Let validators handle invalid JSON
         try:
             jsonschema.Draft4Validator(app_settings.DEVICE_GROUP_SCHEMA).validate(
                 self.meta_data

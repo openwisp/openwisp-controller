@@ -6,7 +6,7 @@ from copy import copy
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
+from django.db.models import JSONField
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import get_model_name, load_model
 from taggit.managers import TaggableManager
@@ -102,8 +102,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "template; these default variables will "
             "be used during schema validation."
         ),
-        load_kwargs={"object_pairs_hook": OrderedDict},
-        dump_kwargs={"indent": 4},
     )
     __template__ = True
 
@@ -223,6 +221,12 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * if flagged as required forces it also to be default
         """
         self._validate_org_relation("vpn")
+        # Convert JSON string default_values to dictionary before validation
+        if isinstance(self.default_values, str):
+            try:
+                self.default_values = json.loads(self.default_values)
+            except ValueError:
+                pass  # Let validators handle invalid JSON
         if not self.default_values:
             self.default_values = {}
         if not isinstance(self.default_values, dict):
