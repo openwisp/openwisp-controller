@@ -170,7 +170,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.geo.estimated_location.tasks.manage_estimated_locations.delay"  # noqa: E501
+        "openwisp_controller.config.whois.service.WHOISService.trigger_estimated_location_task"  # noqa: E501
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_task_called(
@@ -308,7 +308,7 @@ class TestEstimatedLocationTransaction(
         "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"
     )
     @mock.patch(
-        "openwisp_controller.geo.estimated_location.tasks.manage_estimated_locations.delay"  # noqa: E501
+        "openwisp_controller.config.whois.service.WHOISService.trigger_estimated_location_task"  # noqa: E501
     )
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
@@ -528,9 +528,15 @@ class TestEstimatedLocationTransaction(
             )
         mock_info.reset_mock()
 
+    @mock.patch(
+        "openwisp_controller.config.whois.service.current_app.send_task",
+        side_effect=TestEstimatedLocationMixin.run_task,
+    )
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_handling_on_whois_update(self, mock_client):
+    def test_estimated_location_handling_on_whois_update(
+        self, mock_client, mock_send_task
+    ):
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
         threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
@@ -554,8 +560,12 @@ class TestEstimatedLocationTransaction(
         device.devicelocation
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.config.whois.service.current_app.send_task",
+        side_effect=TestEstimatedLocationMixin.run_task,
+    )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_unchanged_whois_data_no_location_recreation(self, mock_client):
+    def test_unchanged_whois_data_no_location_recreation(self, mock_client, _):
         """Ensure identical WHOIS results do not recreate a shared Location when
         devices reuse the same IP."""
         connect_whois_handlers()
@@ -597,10 +607,16 @@ class TestEstimatedLocationTransaction(
         self.assertEqual(_notification_qs().count(), notification_count)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.config.whois.service.current_app.send_task",
+        side_effect=TestEstimatedLocationMixin.run_task,
+    )
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_notification(self, mock_client, mock_error, mock_info):
+    def test_estimated_location_notification(
+        self, mock_client, mock_error, mock_info, _
+    ):
         def _verify_notification(device, messages, notify_level="info"):
             notification_qs = _notification_qs()
             self.assertEqual(notification_qs.count(), 1)
@@ -637,9 +653,6 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device2, messages)
 
         with self.subTest("Test Error Notification for conflicting locations"):
-            device2.last_ip = device1.last_ip
-            device2.save()
-            device2.refresh_from_db()
             _notification_qs().delete()
             mock_info.reset_mock()
             mock_error.reset_mock()
@@ -660,8 +673,12 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device3, messages, "error")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.config.whois.service.current_app.send_task",
+        side_effect=TestEstimatedLocationMixin.run_task,
+    )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimate_location_status_remove(self, mock_client):
+    def test_estimate_location_status_remove(self, mock_client, _):
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
         device = self._create_device(last_ip="172.217.22.10")

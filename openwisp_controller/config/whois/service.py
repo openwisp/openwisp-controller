@@ -2,6 +2,7 @@ from datetime import timedelta
 from ipaddress import ip_address as ip_addr
 
 import requests
+from celery import current_app
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
@@ -12,7 +13,7 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
-from .tasks import fetch_whois_details, manage_estimated_locations
+from .tasks import fetch_whois_details
 from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
 
 
@@ -223,6 +224,13 @@ class WHOISService:
             return False
         return self.is_estimated_location_enabled
 
+    def trigger_estimated_location_task(self, ip_address):
+        """Helper method to trigger the estimated location task."""
+        current_app.send_task(
+            "whois_estimated_location_task",
+            kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
+        )
+
     def get_device_whois_info(self):
         """
         If the WHOIS lookup feature is enabled and the device ``last_ip``
@@ -254,8 +262,8 @@ class WHOISService:
         # manage estimated locations.
         elif self._need_estimated_location_management(new_ip):
             transaction.on_commit(
-                lambda: manage_estimated_locations.delay(
-                    device_pk=self.device.pk, ip_address=new_ip
+                lambda: self.trigger_estimated_location_task(
+                    ip_address=new_ip,
                 )
             )
 

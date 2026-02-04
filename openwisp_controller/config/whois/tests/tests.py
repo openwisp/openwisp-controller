@@ -73,6 +73,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     )
     def test_whois_configuration_setting(self):
         self._disconnect_signals()
+        self.addCleanup(importlib.reload, app_settings)
         # ensure organization exists for admin page checks
         org = self._get_org()
         # reload app_settings to apply the overridden settings

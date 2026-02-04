@@ -88,7 +88,7 @@ def _handle_attach_existing_location(
     )
 
 
-@shared_task
+@shared_task(name="whois_estimated_location_task")
 def manage_estimated_locations(device_pk, ip_address):
     """
     Creates/updates estimated location for a device based on the latitude and

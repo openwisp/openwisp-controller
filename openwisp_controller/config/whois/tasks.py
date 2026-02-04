@@ -6,7 +6,6 @@ from django.db import transaction
 from geoip2 import errors
 from swapper import load_model
 
-from openwisp_controller.geo.estimated_location.tasks import manage_estimated_locations
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
@@ -66,7 +65,11 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     WHOISInfo = load_model("config", "WHOISInfo")
 
     with transaction.atomic():
-        device = Device.objects.select_related("devicelocation").get(pk=device_pk)
+        try:
+            device = Device.objects.select_related("devicelocation").get(pk=device_pk)
+        except Device.DoesNotExist:
+            logger.warning(f"Device {device_pk} not found, skipping WHOIS lookup")
+            return
         new_ip_address = device.last_ip
         whois_service = device.whois_service
         # If there is existing WHOIS older record then it needs to be updated
@@ -93,8 +96,8 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         ):
             return
         transaction.on_commit(
-            lambda: manage_estimated_locations.delay(
-                device_pk=device_pk, ip_address=new_ip_address
+            lambda: whois_service.trigger_estimated_location_task(
+                ip_address=new_ip_address,
             )
         )
 

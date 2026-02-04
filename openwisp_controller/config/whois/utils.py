@@ -3,13 +3,9 @@ from geoip2 import errors
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
-from openwisp_controller.geo.estimated_location.utils import (
-    ESTIMATED_LOCATION_MESSAGE_MAP,
-)
-
 from .. import settings as app_settings
 
-MESSAGE_MAP = ESTIMATED_LOCATION_MESSAGE_MAP | {
+MESSAGE_MAP = {
     "whois_device_error": {
         "type": "generic_message",
         "level": "error",
@@ -42,7 +38,9 @@ EXCEPTION_MESSAGES = {
 def send_whois_task_notification(device, notify_type, actor=None):
     Device = load_model("config", "Device")
     if not isinstance(device, Device):
-        device = Device.objects.get(pk=device)
+        device = Device.objects.filter(pk=device).first()
+        if not device:
+            return
     notify_details = MESSAGE_MAP[notify_type]
     notify.send(
         sender=actor or device,
