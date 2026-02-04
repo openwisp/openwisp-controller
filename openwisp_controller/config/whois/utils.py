@@ -3,9 +3,13 @@ from geoip2 import errors
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
+from openwisp_controller.geo.estimated_location.utils import (
+    ESTIMATED_LOCATION_MESSAGE_MAP,
+)
+
 from .. import settings as app_settings
 
-MESSAGE_MAP = {
+MESSAGE_MAP = ESTIMATED_LOCATION_MESSAGE_MAP | {
     "whois_device_error": {
         "type": "generic_message",
         "level": "error",
@@ -14,32 +18,6 @@ MESSAGE_MAP = {
             " [{notification.target}]({notification.target_link})"
         ),
         "description": _("WHOIS details could not be fetched for ip: {ip_address}."),
-    },
-    "estimated_location_error": {
-        "level": "error",
-        "type": "estimated_location_info",
-        "message": _(
-            "Unable to create estimated location for device "
-            "[{notification.target}]({notification.target_link}). "
-            "Please assign/create a location manually."
-        ),
-        "description": _("Multiple devices found for IP: {ip_address}"),
-    },
-    # using default message (added when registering this notification type)
-    # for 'created' type notifications
-    "estimated_location_created": {
-        "type": "estimated_location_info",
-        "description": _("Estimated Location {notification.verb} for IP: {ip_address}"),
-    },
-    "estimated_location_updated": {
-        "type": "estimated_location_info",
-        "message": _(
-            "Estimated location [{notification.actor}]({notification.actor_link})"
-            " for device"
-            " [{notification.target}]({notification.target_link})"
-            " updated successfully."
-        ),
-        "description": _("Estimated Location updated for IP: {ip_address}"),
     },
 }
 

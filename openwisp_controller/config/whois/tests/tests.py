@@ -1,8 +1,10 @@
+import copy
 import importlib
 from datetime import timedelta
 from io import StringIO
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.cache import cache
@@ -30,6 +32,10 @@ Device = load_model("config", "Device")
 WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+
+MODIFIED_CACHE = copy.deepcopy(settings.CACHES)
+# add key_prefix to avoid conflicts in parallel tests
+MODIFIED_CACHE["default"]["KEY_PREFIX"] = "whois_failure"
 
 
 def _notification_qs():
@@ -778,6 +784,7 @@ class TestWHOISTransaction(
         )
         cache.clear()
 
+    @override_settings(CACHES=MODIFIED_CACHE)
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_whois_task_failure_cache(self):
