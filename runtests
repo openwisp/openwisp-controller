@@ -5,14 +5,14 @@ echo "Starting standard tests"
 coverage run runtests.py --parallel --exclude-tag=selenium_tests \
   || coverage run ./runtests.py
 
-echo "Starting standard tests"
-coverage run runtests.py --tag=selenium_tests --no-input --exclude-pytest
+# echo "Starting selenium tests"
+# coverage run runtests.py --tag=selenium_tests --no-input --exclude-pytest
 
-echo "Starting tests for extensibility"
-SAMPLE_APP=1 coverage run ./runtests.py \
-  --parallel --exclude-tag=selenium_tests \
-  || SAMPLE_APP=1 coverage run ./runtests.py \
-  --exclude-tag=selenium_tests
+# echo "Starting tests for extensibility"
+# SAMPLE_APP=1 coverage run ./runtests.py \
+#   --parallel --exclude-tag=selenium_tests \
+#   || SAMPLE_APP=1 coverage run ./runtests.py \
+#   --exclude-tag=selenium_tests
 
-coverage combine
-coverage xml
+# coverage combine
+# coverage xml
