@@ -72,7 +72,6 @@ jobs:
           pip install -U -r requirements-test.txt
           pip install -U -e .
           pip install ${{ matrix.django-version }}
-          pip install -U "pytest-asyncio<1.3.0"
 
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
