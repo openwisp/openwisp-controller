@@ -71,9 +71,6 @@ class ConnectionConfig(AppConfig):
         from .api.serializers import CommandSerializer
 
         channel_layer = layers.get_channel_layer()
-        if created:
-            # Trigger websocket message only when command status is updated
-            return
         serialized_data = CommandSerializer(instance).data
         async_to_sync(channel_layer.group_send)(
             f"config.device-{instance.device_id}",
