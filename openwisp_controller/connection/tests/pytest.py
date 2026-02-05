@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 
 import pytest
@@ -73,7 +74,7 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
         device_conn = await database_sync_to_async(self._create_device_connection)()
         communicator = await self._get_communicator(admin_client, device_conn.device_id)
         command = await self._create_command(device_conn)
-        response = await communicator.receive_json_from()
+        response = await asyncio.wait_for(communicator.receive_json_from(), timeout=5.0)
         expected_response = self._get_expected_response(command)
         assert response == expected_response
         await communicator.disconnect()
@@ -98,8 +99,12 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
             admin_client, device_conn.device_id
         )
         command = await self._create_command(device_conn)
-        response1 = await communicator1.receive_json_from()
-        response2 = await communicator2.receive_json_from()
+        response1 = await asyncio.wait_for(
+            communicator1.receive_json_from(), timeout=5.0
+        )
+        response2 = await asyncio.wait_for(
+            communicator2.receive_json_from(), timeout=5.0
+        )
         expected_response = self._get_expected_response(command)
         assert response1 == expected_response
         assert response2 == expected_response
