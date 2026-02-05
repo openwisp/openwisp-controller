@@ -91,6 +91,11 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
             },
         }
 
+        # Sanity check Redis channel layer
+        from channels import layers
+        layer = layers.get_channel_layer()
+        await layer.send("test.channel", {"type": "test.message"})
+
         device_conn = await database_sync_to_async(self._create_device_connection)()
         communicator1 = await self._get_communicator(
             admin_client, device_conn.device_id
