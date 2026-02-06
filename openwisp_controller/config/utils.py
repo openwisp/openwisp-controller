@@ -1,4 +1,5 @@
 import logging
+import time
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -211,15 +212,16 @@ def get_config_error_notification_target_url(obj, field, absolute_url=True):
     return f"{url}#config-group"
 
 
-def send_api_task_notification(type, **kwargs):
+def send_api_task_notification(type, sleep_time=False, **kwargs):
+    """
+    The sleep_time argument is needed to avoid triggering the toast
+    notification in the admin while the page is reloading.
+    """
+    if sleep_time:
+        time.sleep(sleep_time)
     vpn = kwargs.get("instance")
     action = kwargs.get("action", "").replace("_", " ")
     exception = kwargs.get("exception")
-    # Adding some delay here to prevent overlapping
-    # of the django success message container
-    # with the ow-notification container
-    # https://github.com/openwisp/openwisp-notifications/issues/264
-    # sleep(2)
     message_map = {
         "error": {
             "verb": _("encountered an unrecoverable error"),
@@ -255,15 +257,15 @@ def send_api_task_notification(type, **kwargs):
     )
 
 
-def handle_recovery_notification(task_key, **kwargs):
+def handle_recovery_notification(task_key, sleep_time=False, **kwargs):
     task_result = cache.get(task_key)
     if task_result == "error":
-        send_api_task_notification("success", **kwargs)
+        send_api_task_notification("success", sleep_time=sleep_time, **kwargs)
     cache.set(task_key, "success", timeout=None)
 
 
-def handle_error_notification(task_key, **kwargs):
+def handle_error_notification(task_key, sleep_time=False, **kwargs):
     cached_value = cache.get(task_key)
     if cached_value != "error":
         cache.set(task_key, "error", timeout=None)
-        send_api_task_notification("error", **kwargs)
+        send_api_task_notification("error", sleep_time=sleep_time, **kwargs)

@@ -149,6 +149,7 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
         )
         handle_error_notification(
             task_key,
+            sleep_time=5,
             exception=e,
             instance=vpn,
             action="update",
@@ -157,6 +158,7 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
         logger.info(f"Triggered update webhook of VPN Server UUID: {vpn_id}")
         handle_recovery_notification(
             task_key,
+            sleep_time=5,
             instance=vpn,
             action="update",
         )
