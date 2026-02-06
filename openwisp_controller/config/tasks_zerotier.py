@@ -68,7 +68,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
         except RequestException as e:
             response_obj = getattr(e, "response", None)
             status_code = response_obj.status_code if response_obj is not None else None
-            if status_code in self._RECOVERABLE_API_CODES:
+            if status_code is None or status_code in self._RECOVERABLE_API_CODES:
                 retry_logger = logger.warning
                 # When retry limit is reached, use error logging
                 if self.request.retries == self.max_retries:
@@ -77,7 +77,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                     f"Try [{self.request.retries}/{self.max_retries}] "
                     f"{err_msg}, Error: {e}"
                 )
-                raise e
+                raise
             logger.error(f"{err_msg}, Error: {e}")
             if send_notification:
                 handle_error_notification(
