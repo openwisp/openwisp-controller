@@ -9,6 +9,7 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from PIL import Image
+from rest_framework import status
 from rest_framework.authtoken.models import Token
 from swapper import load_model
 
@@ -1002,6 +1003,65 @@ class TestGeoApi(
             r2 = self.client.get(f"{path}?with_geo=true")
             _assert_device_list_with_geo_filter(response=r2, device=device_b)
 
+    def test_filter_devices_by_location(self):
+        org = self._create_org()
+        device_1 = self._create_device(
+            name="device-1", mac_address="00:11:22:33:44:55", organization=org
+        )
+        device_2 = self._create_device(
+            name="device-2", mac_address="00:11:22:33:44:66", organization=org
+        )
+        location_1 = self._create_location(name="location-1 findme", organization=org)
+        location_2 = self._create_location(name="location-2", organization=org)
+        self._create_device_location(content_object=device_1, location=location_1)
+        self._create_device_location(content_object=device_2, location=location_2)
+        path = reverse("config_api:device_list")
+        with self.subTest("filter by location UUID"):
+            response = self.client.get(f"{path}?location={location_1.pk}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            self.assertEqual(response.data["results"][0]["id"], str(device_1.pk))
+        with self.subTest("filter by location name"):
+            response = self.client.get(f"{path}?location__name=FIND")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+            self.assertEqual(response.data["results"][0]["id"], str(device_1.pk))
+        with self.subTest("filter by wrong location name, expect zero results"):
+            response = self.client.get(f"{path}?location__name=WRONG")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 0)
+
+    def test_filter_devices_by_floorplan_uuid(self):
+        org = self._create_org()
+        device_1 = self._create_device(
+            name="device-1", mac_address="00:11:22:33:44:55", organization=org
+        )
+        device_2 = self._create_device(
+            name="device-2", mac_address="00:11:22:33:44:66", organization=org
+        )
+        location = self._create_location(
+            name="location", type="indoor", organization=org
+        )
+        floorplan_1 = self._create_floorplan(location=location, floor=1)
+        floorplan_2 = self._create_floorplan(location=location, floor=2)
+        self._create_device_location(
+            content_object=device_1,
+            location=location,
+            floorplan=floorplan_1,
+            indoor="-1,-2",
+        )
+        self._create_device_location(
+            content_object=device_2,
+            location=location,
+            floorplan=floorplan_2,
+            indoor="-3,-4",
+        )
+        path = reverse("config_api:device_list")
+        response = self.client.get(f"{path}?floorplan={floorplan_1.pk}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], str(device_1.pk))
+
     def test_deactivated_device(self):
         floorplan = self._create_floorplan()
         device_location = self._create_object_location(
@@ -1036,3 +1096,20 @@ class TestGeoApi(
         with self.subTest("Test deleting DeviceLocation"):
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 403)
+
+    def test_device_location_view_parent_permission(self):
+        org1 = self._create_org(name="Org One")
+        device1 = self._create_device(organization=org1)
+        org2 = self._create_org(name="Org Two")
+        manager_org2 = self._create_administrator(
+            organizations=[org2],
+            username="manager_org2",
+            password="test_password",
+            is_superuser=False,
+            is_staff=True,
+        )
+        self.client.force_login(manager_org2)
+        url = reverse("geo_api:device_location", args=[device1.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.client.logout()
