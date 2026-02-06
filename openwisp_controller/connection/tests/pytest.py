@@ -48,8 +48,8 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
             mocked_exec_command.return_value = self._exec_command_return_value(
                 stdout="test"
             )
-        await database_sync_to_async(command.save)()
-        await database_sync_to_async(command.refresh_from_db)()
+            await database_sync_to_async(command.save)()
+            await database_sync_to_async(command.refresh_from_db)()
         return command
 
     def _get_expected_response(self, command):
