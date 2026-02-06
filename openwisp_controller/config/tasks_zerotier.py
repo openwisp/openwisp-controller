@@ -79,7 +79,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 handle_error_notification(
                     task_key, sleep_time=sleep_time, exception=e, **kwargs
                 )
-            raise Exception(f"Task failed due to unrecoverable error: {e}")
+            raise None
         return (response, updated_config) if updated_config else response
 
 
