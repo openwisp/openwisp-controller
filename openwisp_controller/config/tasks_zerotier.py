@@ -15,6 +15,10 @@ from .utils import handle_error_notification, handle_recovery_notification
 logger = logging.getLogger(__name__)
 
 
+class NonRetryableApiError(Exception):
+    """API call failed with an unrecoverable status code."""
+
+
 class OpenwispApiTask(OpenwispCeleryTask):
     _RECOVERABLE_API_CODES = [
         HTTPStatus.TOO_MANY_REQUESTS,  # 429
@@ -79,7 +83,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 handle_error_notification(
                     task_key, sleep_time=sleep_time, exception=e, **kwargs
                 )
-            return None
+            raise NonRetryableApiError(f"{err_msg}, Error: {e}") from e
         return (response, updated_config) if updated_config else response
 
 
