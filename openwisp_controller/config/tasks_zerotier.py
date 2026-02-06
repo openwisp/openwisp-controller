@@ -79,7 +79,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 handle_error_notification(
                     task_key, sleep_time=sleep_time, exception=e, **kwargs
                 )
-            raise None
+            return None
         return (response, updated_config) if updated_config else response
 
 
