@@ -73,12 +73,16 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 # When retry limit is reached, use error logging
                 if self.request.retries == self.max_retries:
                     retry_logger = logger.error
+                    if send_notification:
+                        handle_error_notification(
+                            task_key, sleep_time=sleep_time, exception=e, **kwargs
+                        )
                 retry_logger(
                     f"Try [{self.request.retries}/{self.max_retries}] "
                     f"{err_msg}, Error: {e}"
                 )
                 raise
-            logger.error(f"{err_msg}, Error: {e}")
+            logger.exception(f"{err_msg}, Error: {e}")
             if send_notification:
                 handle_error_notification(
                     task_key, sleep_time=sleep_time, exception=e, **kwargs
