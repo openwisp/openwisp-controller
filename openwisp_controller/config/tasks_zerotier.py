@@ -46,7 +46,6 @@ class OpenwispApiTask(OpenwispCeleryTask):
             send_notification: If True, send notifications for API tasks
             **kwargs: Arguments used by the _send_api_task_notification method
         """
-        # checking commit qa failure
         updated_config = None
         err_msg = kwargs.get("err")
         info_msg = kwargs.get("info")
