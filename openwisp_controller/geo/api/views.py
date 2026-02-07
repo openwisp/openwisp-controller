@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
@@ -50,6 +51,13 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = Location
         fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
+
+    def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
+        super().__init__(data, queryset, request=request, prefix=prefix)
+        if config_app_settings.WHOIS_CONFIGURED:
+            self.filters["is_estimated"] = filters.BooleanFilter(
+                field_name="is_estimated"
+            )
 
 
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
