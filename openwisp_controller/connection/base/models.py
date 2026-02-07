@@ -639,7 +639,13 @@ class AbstractCommand(TimeStampedEditableModel):
         if self.is_custom:
             return self.custom_command
         else:
-            return ", ".join(self.arguments)
+            processed = []
+            for arg in self.arguments:
+                if isinstance(arg, (list, tuple)):
+                    processed.append(",".join(str(item) for item in arg))
+                else:
+                    processed.append(str(arg))
+            return ", ".join(processed)
 
     @property
     def _schema(self):
