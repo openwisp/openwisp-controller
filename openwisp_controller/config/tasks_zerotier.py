@@ -15,10 +15,6 @@ from .utils import handle_error_notification, handle_recovery_notification
 logger = logging.getLogger(__name__)
 
 
-class NonRetryableApiError(Exception):
-    """API call failed with an unrecoverable status code."""
-
-
 class OpenwispApiTask(OpenwispCeleryTask):
     _RECOVERABLE_API_CODES = [
         HTTPStatus.TOO_MANY_REQUESTS,  # 429
@@ -57,37 +53,31 @@ class OpenwispApiTask(OpenwispCeleryTask):
         vpn = kwargs.get("instance")
         if send_notification:
             task_key = f"{self.name}_{vpn.pk.hex}_last_operation"
+        # Execute API call and get response
+        response = fn(*args)
+        if isinstance(response, tuple):
+            response, updated_config = response
         try:
-            response = fn(*args)
-            if isinstance(response, tuple):
-                response, updated_config = response
             response.raise_for_status()
             logger.info(info_msg)
             if send_notification:
                 handle_recovery_notification(task_key, sleep_time=sleep_time, **kwargs)
         except RequestException as e:
-            response_obj = getattr(e, "response", None)
-            status_code = response_obj.status_code if response_obj is not None else None
-            if status_code is None or status_code in self._RECOVERABLE_API_CODES:
+            if response.status_code in self._RECOVERABLE_API_CODES:
                 retry_logger = logger.warning
                 # When retry limit is reached, use error logging
                 if self.request.retries == self.max_retries:
                     retry_logger = logger.error
-                    if send_notification:
-                        handle_error_notification(
-                            task_key, sleep_time=sleep_time, exception=e, **kwargs
-                        )
                 retry_logger(
                     f"Try [{self.request.retries}/{self.max_retries}] "
                     f"{err_msg}, Error: {e}"
                 )
-                raise
-            logger.exception(f"{err_msg}, Error: {e}")
+                raise e
+            logger.error(f"{err_msg}, Error: {e}")
             if send_notification:
                 handle_error_notification(
                     task_key, sleep_time=sleep_time, exception=e, **kwargs
                 )
-            raise NonRetryableApiError(f"{err_msg}, Error: {e}") from e
         return (response, updated_config) if updated_config else response
 
 
