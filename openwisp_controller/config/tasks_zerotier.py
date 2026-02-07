@@ -46,7 +46,6 @@ class OpenwispApiTask(OpenwispCeleryTask):
             send_notification: If True, send notifications for API tasks
             **kwargs: Arguments used by the _send_api_task_notification method
         """
-        sleep_time = kwargs.pop("sleep_time", False)
         updated_config = None
         err_msg = kwargs.get("err")
         info_msg = kwargs.get("info")
@@ -61,7 +60,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
             response.raise_for_status()
             logger.info(info_msg)
             if send_notification:
-                handle_recovery_notification(task_key, sleep_time=sleep_time, **kwargs)
+                handle_recovery_notification(task_key, **kwargs)
         except RequestException as e:
             if response.status_code in self._RECOVERABLE_API_CODES:
                 retry_logger = logger.warning
@@ -75,9 +74,7 @@ class OpenwispApiTask(OpenwispCeleryTask):
                 raise e
             logger.error(f"{err_msg}, Error: {e}")
             if send_notification:
-                handle_error_notification(
-                    task_key, sleep_time=sleep_time, exception=e, **kwargs
-                )
+                handle_error_notification(task_key, exception=e, **kwargs)
         return (response, updated_config) if updated_config else response
 
 
