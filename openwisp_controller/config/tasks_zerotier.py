@@ -98,6 +98,7 @@ def trigger_zerotier_server_update(self, config, vpn_id):
         network_id,
         instance=vpn,
         action="update",
+        # notification kwargs
         sleep_time=5,
         info=(
             f"Successfully updated the configuration of "
@@ -138,6 +139,7 @@ def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
         member_ip,
         instance=vpn,
         action="update_member",
+        # notification kwargs
         sleep_time=5,
         info=(
             f"Successfully updated ZeroTier network member: {node_id}, "
