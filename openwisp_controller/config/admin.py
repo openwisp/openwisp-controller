@@ -20,7 +20,7 @@ from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
-from django.urls import path, re_path, reverse
+from django.urls import path, register_converter, reverse
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
@@ -42,13 +42,20 @@ from openwisp_utils.admin import (
 from ..admin import MultitenantAdminMixin
 from . import settings as app_settings
 from .base.vpn import AbstractVpn
+from .converters import UUIDAnyConverter, UUIDAnyOrFKConverter
 from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
+register_converter(UUIDAnyConverter, "uuid_any")
+register_converter(UUIDAnyOrFKConverter, "uuid_or_fk")
+
 logger = logging.getLogger(__name__)
 prefix = "config/"
+uuid_regex = (
+    r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
+)
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -166,23 +173,51 @@ class BaseConfigAdmin(BaseAdmin):
     def get_urls(self):
         options = getattr(self.model, "_meta")
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
-        return [
-            re_path(
-                r"^download/(?P<pk>[^/]+)/$",
+        default_urls = super().get_urls()
+        safe_urls = []
+        for url in default_urls:
+            if url.name and not (
+                url.name.endswith("_change")
+                or url.name.endswith("_history")
+                or url.name.endswith("_delete")
+            ):
+                safe_urls.append(url)
+        strict_urls = [
+            # custom app URLs
+            path(
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
-                name="{0}_download".format(url_prefix),
+                name=f"{url_prefix}_download",
             ),
             path(
                 "preview/",
                 self.admin_site.admin_view(self.preview_view),
-                name="{0}_preview".format(url_prefix),
+                name=f"{url_prefix}_preview",
             ),
-            re_path(
-                r"^(?P<pk>[^/]+)/context\.json$",
+            path(
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
-                name="{0}_context".format(url_prefix),
+                name=f"{url_prefix}_context",
             ),
-        ] + super().get_urls()
+            # strict overrides for the default admin views (single pattern each)
+            path(
+                "<uuid_or_fk:object_id>/history/",
+                self.admin_site.admin_view(self.history_view),
+                name=f"{url_prefix}_history",
+            ),
+            path(
+                "<uuid_or_fk:object_id>/delete/",
+                self.admin_site.admin_view(self.delete_view),
+                name=f"{url_prefix}_delete",
+            ),
+            path(
+                "<uuid_or_fk:object_id>/change/",
+                self.admin_site.admin_view(self.change_view),
+                name=f"{url_prefix}_change",
+            ),
+        ]
+
+        return strict_urls + safe_urls
 
     def _get_config_model(self):
         model = self.model
