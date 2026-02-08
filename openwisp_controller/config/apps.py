@@ -61,6 +61,8 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.subnet_model = load_model("openwisp_ipam", "Subnet")
+        self.ip_model = load_model("openwisp_ipam", "IpAddress")
 
     def connect_signals(self):
         """
@@ -72,6 +74,7 @@ class ConfigConfig(AppConfig):
         * cache invalidation
         """
         from . import handlers  # noqa
+        from .utils import apply_model_clean_patch
 
         m2m_changed.connect(
             self.config_model.clean_templates,
@@ -157,6 +160,18 @@ class ConfigConfig(AppConfig):
             sender=self.org_model,
             dispatch_uid="organization_allowed_devices_post_save_handler",
         )
+        pre_save.connect(
+            handlers.check_ipam_change_handler,
+            sender=self.subnet_model,
+            dispatch_uid="prevent_vpn_subnet_change",
+        )
+        pre_save.connect(
+            handlers.check_ipam_change_handler,
+            sender=self.ip_model,
+            dispatch_uid="prevent_vpn_ip_change",
+        )
+        apply_model_clean_patch(self.subnet_model, handlers.check_ipam_change_handler)
+        apply_model_clean_patch(self.ip_model, handlers.check_ipam_change_handler)
 
     def register_menu_groups(self):
         register_menu_group(

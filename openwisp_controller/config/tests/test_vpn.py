@@ -726,6 +726,41 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
                 f"VPN Server UUID: {vpn_id} does not exist."
             )
 
+    def test_prevent_subnet_change_with_vpn_clients(self):
+        _device, vpn, _template = self._create_wireguard_vpn_template()
+        subnet = vpn.subnet
+        with self.subTest("Test subnet change blocked when clients exist"):
+            subnet.subnet = "10.0.2.0/24"
+            with self.assertRaises(ValidationError) as cm:
+                subnet.full_clean()
+            self.assertIn("Cannot modify this subnet", str(cm.exception))
+
+    def test_prevent_ip_change_with_vpn_clients(self):
+        device, vpn, _template = self._create_wireguard_vpn_template()
+        with self.subTest("Test server IP change blocked when clients exist"):
+            server_ip = vpn.ip
+            server_ip.ip_address = "10.0.1.250"
+            with self.assertRaises(ValidationError) as cm:
+                server_ip.full_clean()
+            self.assertIn("assigned to an active VPN connection", str(cm.exception))
+        with self.subTest("Test client IP change blocked"):
+            vpn_client = device.config.vpnclient_set.first()
+            client_ip = vpn_client.ip
+            client_ip.ip_address = "10.0.1.251"
+            with self.assertRaises(ValidationError) as cm:
+                client_ip.full_clean()
+            self.assertIn("assigned to an active VPN connection", str(cm.exception))
+
+    def test_allow_ip_change_without_vpn_clients(self):
+        vpn = self._create_wireguard_vpn()
+        server_ip = vpn.ip
+        server_ip.ip_address = "10.0.1.252"
+        try:
+            server_ip.full_clean()
+            server_ip.save()
+        except ValidationError:
+            self.fail("ValidationError raised on IP change with no active clients!")
+
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
     mock_response = mock.Mock(spec=requests.Response)
