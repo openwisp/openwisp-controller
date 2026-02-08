@@ -269,3 +269,18 @@ def handle_error_notification(task_key, sleep_time=False, **kwargs):
     if cached_value != "error":
         cache.set(task_key, "error", timeout=None)
         send_api_task_notification("error", sleep_time=sleep_time, **kwargs)
+
+
+def apply_model_clean_patch(model, validation_func):
+    """
+    Injects a validation function into a model's clean() method
+    at runtime to maintain clean ui
+    """
+    original_clean = model.clean
+
+    def patched_clean(instance):
+        if original_clean:
+            original_clean(instance)
+        validation_func(model, instance)
+
+    model.clean = patched_clean
