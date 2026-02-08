@@ -160,8 +160,13 @@ def organization_disabled_handler(instance, **kwargs):
 def check_ipam_change_handler(sender, instance, **kwargs):
     if instance._state.adding:
         return
+    if kwargs.get("raw"):
+        return
     if hasattr(instance, "ip_address"):
-        old_instance = sender.objects.only("ip_address").get(pk=instance.pk)
+        try:
+            old_instance = sender.objects.only("ip_address").get(pk=instance.pk)
+        except sender.DoesNotExist:
+            return
         if old_instance.ip_address == instance.ip_address:
             return
         is_in_use = VpnClient.objects.filter(

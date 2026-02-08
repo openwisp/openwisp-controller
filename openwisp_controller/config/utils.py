@@ -279,8 +279,7 @@ def apply_model_clean_patch(model, validation_func):
     original_clean = model.clean
 
     def patched_clean(instance):
-        if original_clean:
-            original_clean(instance)
+        original_clean(instance)
         validation_func(model, instance)
 
     model.clean = patched_clean
