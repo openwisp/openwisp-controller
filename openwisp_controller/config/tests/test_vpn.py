@@ -727,7 +727,7 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
             )
 
     def test_prevent_subnet_change_with_vpn_clients(self):
-        device, vpn, template = self._create_wireguard_vpn_template()
+        _device, vpn, _template = self._create_wireguard_vpn_template()
         subnet = vpn.subnet
         with self.subTest("Test subnet change blocked when clients exist"):
             subnet.subnet = "10.0.2.0/24"
@@ -736,7 +736,7 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
             self.assertIn("Cannot modify this subnet", str(cm.exception))
 
     def test_prevent_ip_change_with_vpn_clients(self):
-        device, vpn, template = self._create_wireguard_vpn_template()
+        device, vpn, _template = self._create_wireguard_vpn_template()
         with self.subTest("Test server IP change blocked when clients exist"):
             server_ip = vpn.ip
             server_ip.ip_address = "10.0.1.250"
