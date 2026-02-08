@@ -158,32 +158,30 @@ def organization_disabled_handler(instance, **kwargs):
 
 
 def check_ipam_change_handler(sender, instance, **kwargs):
-    if instance._state.adding:
+    if instance._state.adding or kwargs.get("raw"):
         return
-    if kwargs.get("raw"):
-        return
-    if hasattr(instance, "ip_address"):
-        try:
+    try:
+        if hasattr(instance, "ip_address"):
             old_instance = sender.objects.only("ip_address").get(pk=instance.pk)
-        except sender.DoesNotExist:
-            return
-        if old_instance.ip_address == instance.ip_address:
-            return
-        is_in_use = VpnClient.objects.filter(
-            Q(ip=instance) | Q(vpn__ip=instance)
-        ).exists()
-        error_msg = _(
-            "Cannot modify this IP address because it is assigned to an "
-            "active VPN connection. Disconnect the clients first."
-        )
-    else:
-        old_instance = sender.objects.only("subnet").get(pk=instance.pk)
-        if old_instance.subnet == instance.subnet:
-            return
-        is_in_use = VpnClient.objects.filter(vpn__subnet=instance).exists()
-        error_msg = _(
-            "Cannot modify this subnet because it is assigned to a VPN "
-            "server with active clients. Disconnect the clients first."
-        )
+            if old_instance.ip_address == instance.ip_address:
+                return
+            is_in_use = VpnClient.objects.filter(
+                Q(ip=instance) | Q(vpn__ip=instance)
+            ).exists()
+            error_msg = _(
+                "Cannot modify this IP address because it is assigned to an "
+                "active VPN connection. Disconnect the clients first."
+            )
+        else:
+            old_instance = sender.objects.only("subnet").get(pk=instance.pk)
+            if old_instance.subnet == instance.subnet:
+                return
+            is_in_use = VpnClient.objects.filter(vpn__subnet=instance).exists()
+            error_msg = _(
+                "Cannot modify this subnet because it is assigned to a VPN "
+                "server with active clients. Disconnect the clients first."
+            )
+    except sender.DoesNotExist:
+        return
     if is_in_use:
         raise ValidationError(error_msg)
