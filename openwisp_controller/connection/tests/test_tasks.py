@@ -89,6 +89,84 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         self.assertEqual(command.output, "Internal system error: test error\n")
 
 
+class TestIsUpdateInProgress(CreateConnectionsMixin, TestCase):
+    @mock.patch("openwisp_controller.connection.tasks.current_task")
+    @mock.patch("openwisp_controller.connection.tasks.current_app")
+    def test_is_update_in_progress_same_worker(
+        self, mocked_current_app, mocked_current_task
+    ):
+        device_id = 1
+        mocked_current_task.request.id = "task123"
+        mocked_inspect = mock.Mock()
+        mocked_current_app.control.inspect.return_value = mocked_inspect
+        mocked_inspect.active.return_value = {
+            "worker1": [
+                {
+                    "name": "openwisp_controller.connection.tasks.update_config",
+                    "args": ["1"],
+                    "id": "task123",
+                }
+            ]
+        }
+        result = tasks._is_update_in_progress(device_id)
+        self.assertFalse(result)
+
+    @mock.patch("openwisp_controller.connection.tasks.current_task")
+    @mock.patch("openwisp_controller.connection.tasks.current_app")
+    def test_is_update_in_progress_different_worker(
+        self, mocked_current_app, mocked_current_task
+    ):
+        device_id = 1
+        mocked_current_task.request.id = "task123"
+        mocked_inspect = mock.Mock()
+        mocked_current_app.control.inspect.return_value = mocked_inspect
+        mocked_inspect.active.return_value = {
+            "worker2": [
+                {
+                    "name": "openwisp_controller.connection.tasks.update_config",
+                    "args": ["1"],
+                    "id": "task456",
+                }
+            ]
+        }
+        result = tasks._is_update_in_progress(device_id)
+        self.assertTrue(result)
+
+    @mock.patch("openwisp_controller.connection.tasks.current_task")
+    @mock.patch("openwisp_controller.connection.tasks.current_app")
+    def test_is_update_in_progress_no_active_tasks(
+        self, mocked_current_app, mocked_current_task
+    ):
+        device_id = 1
+        mocked_current_task.request.id = "task123"
+        mocked_inspect = mock.Mock()
+        mocked_current_app.control.inspect.return_value = mocked_inspect
+        mocked_inspect.active.return_value = {}
+        result = tasks._is_update_in_progress(device_id)
+        self.assertFalse(result)
+
+    @mock.patch("openwisp_controller.connection.tasks.current_task")
+    @mock.patch("openwisp_controller.connection.tasks.current_app")
+    def test_is_update_in_progress_different_device(
+        self, mocked_current_app, mocked_current_task
+    ):
+        device_id = 1
+        mocked_current_task.request.id = "task123"
+        mocked_inspect = mock.Mock()
+        mocked_current_app.control.inspect.return_value = mocked_inspect
+        mocked_inspect.active.return_value = {
+            "worker1": [
+                {
+                    "name": "openwisp_controller.connection.tasks.update_config",
+                    "args": ["2"],
+                    "id": "task456",
+                }
+            ]
+        }
+        result = tasks._is_update_in_progress(device_id)
+        self.assertFalse(result)
+
+
 class TestTransactionTasks(
     TestRegistrationMixin, CreateConnectionsMixin, TransactionTestCase
 ):
