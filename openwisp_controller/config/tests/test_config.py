@@ -152,7 +152,7 @@ class TestConfig(
         try:
             c.full_clean()
         except ValidationError as e:
-            self.assertIn("Invalid configuration", e.message_dict["__all__"][0])
+            self.assertIn("Invalid configuration", e.message_dict["config"][0])
         else:
             self.fail("ValidationError not raised")
 
