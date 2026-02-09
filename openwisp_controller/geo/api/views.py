@@ -1,6 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count
 from django.http import Http404
+from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination, status
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -14,13 +15,18 @@ from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
-from ...mixins import ProtectedAPIMixin, RelatedDeviceProtectedAPIMixin
+from ...mixins import (
+    BaseProtectedAPIMixin,
+    ProtectedAPIMixin,
+    RelatedDeviceProtectedAPIMixin,
+)
 from .filters import DeviceListFilter
 from .serializers import (
     DeviceCoordinatesSerializer,
     DeviceLocationSerializer,
     FloorPlanSerializer,
     GeoJsonLocationSerializer,
+    IndoorCoordinatesSerializer,
     LocationDeviceSerializer,
     LocationSerializer,
 )
@@ -49,6 +55,37 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = FloorPlan
+
+
+class IndoorCoordinatesFilter(filters.FilterSet):
+    floor = filters.NumberFilter(label=_("Floor"), method="filter_by_floor")
+
+    @property
+    def qs(self):
+        qs = super().qs
+        if "floor" not in self.data:
+            qs = self.filter_by_floor(qs, "floor", None)
+        return qs
+
+    def filter_by_floor(self, queryset, name, value):
+        """
+        If no floor parameter is provided:
+        - Return data for the first available non-negative floor.
+        - If no non-negative floor exists, return data for the maximum negative floor.
+        """
+        if value is not None:
+            return queryset.filter(floorplan__floor=value)
+        # No floor parameter provided
+        floors = list(queryset.values_list("floorplan__floor", flat=True).distinct())
+        if not floors:
+            return queryset.none()
+        non_negative_floors = [f for f in floors if f >= 0]
+        default_floor = min(non_negative_floors) if non_negative_floors else max(floors)
+        return queryset.filter(floorplan__floor=default_floor)
+
+    class Meta(OrganizationManagedFilter.Meta):
+        model = DeviceLocation
+        fields = ["floor"]
 
 
 class ListViewPagination(pagination.PageNumberPagination):
@@ -187,6 +224,47 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
+class IndoorCoordinatesViewPagination(ListViewPagination):
+    page_size = 50
+
+
+class IndoorCoordinatesList(
+    FilterByParentManaged, BaseProtectedAPIMixin, generics.ListAPIView
+):
+    serializer_class = IndoorCoordinatesSerializer
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = IndoorCoordinatesFilter
+    pagination_class = IndoorCoordinatesViewPagination
+    queryset = (
+        DeviceLocation.objects.filter(
+            location__type="indoor",
+            floorplan__isnull=False,
+        )
+        .select_related(
+            "content_object", "location", "floorplan", "location__organization"
+        )
+        .order_by("floorplan__floor")
+    )
+
+    def get_parent_queryset(self):
+        qs = Location.objects.filter(pk=self.kwargs["pk"])
+        return qs
+
+    def get_queryset(self):
+        return super().get_queryset().filter(location_id=self.kwargs["pk"])
+
+    def get_available_floors(self, qs):
+        floors = list(qs.values_list("floorplan__floor", flat=True).distinct())
+        return floors
+
+    def list(self, request, *args, **kwargs):
+        floors = self.get_available_floors(self.get_queryset())
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            response.data["floors"] = floors
+        return response
+
+
 class LocationDeviceList(
     FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
 ):
@@ -202,6 +280,17 @@ class LocationDeviceList(
         super().get_queryset()
         qs = Device.objects.filter(devicelocation__location_id=self.kwargs["pk"])
         return qs
+
+    def get_has_floorplan(self, qs):
+        qs = qs.filter(devicelocation__floorplan__isnull=False).exists()
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        has_floorplan = self.get_has_floorplan(self.get_queryset())
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            response.data["has_floorplan"] = has_floorplan
+        return response
 
 
 class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
@@ -245,5 +334,6 @@ geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
 list_floorplan = FloorPlanListCreateView.as_view()
 detail_floorplan = FloorPlanDetailView.as_view()
+indoor_coordinates_list = IndoorCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()

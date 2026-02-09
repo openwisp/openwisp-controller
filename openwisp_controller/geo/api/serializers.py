@@ -348,3 +348,55 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         )
         validated_data = self._validate(validated_data)
         return super().update(instance, validated_data)
+
+
+class IndoorCoordinatesSerializer(serializers.ModelSerializer):
+    admin_edit_url = SerializerMethodField("get_admin_edit_url")
+    device_id = serializers.UUIDField(source="content_object.id", read_only=True)
+    floorplan_id = serializers.UUIDField(source="floorplan.id", read_only=True)
+    device_name = serializers.CharField(source="content_object.name")
+    mac_address = serializers.CharField(source="content_object.mac_address")
+    floor_name = serializers.SerializerMethodField()
+    floor = serializers.IntegerField(source="floorplan.floor")
+    image = serializers.ImageField(source="floorplan.image", read_only=True)
+    coordinates = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DeviceLocation
+        fields = [
+            "id",
+            "admin_edit_url",
+            "device_id",
+            "floorplan_id",
+            "device_name",
+            "mac_address",
+            "floor_name",
+            "floor",
+            "image",
+            "coordinates",
+        ]
+
+    def get_admin_edit_url(self, obj):
+        return self.context["request"].build_absolute_uri(
+            reverse(
+                f"admin:{obj.content_object._meta.app_label}_device_change",
+                args=(obj.content_object.id,),
+            )
+        )
+
+    def get_floor_name(self, obj):
+        if not obj.floorplan:
+            return None
+        return str(obj.floorplan)
+
+    def get_coordinates(self, obj):
+        """
+        NetJsonGraph expects indoor coordinates in {'lat': y, 'lng': x}.
+        """
+        if not obj.indoor:
+            return None
+        try:
+            y, x = (v.strip() for v in obj.indoor.split(",", 1))
+            return {"lat": float(y), "lng": float(x)}
+        except (ValueError, TypeError):
+            return None
