@@ -1,12 +1,15 @@
+import os
 import time
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
+from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.utils import free_port
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
@@ -497,6 +500,37 @@ class TestDeviceAdminUnsavedChanges(
     StaticLiveServerTestCase,
 ):
     browser = "chrome"
+
+    @classmethod
+    def get_chrome_webdriver(cls):
+        """
+        Override the parent class method to enable BiDi mode and set
+        unhandledPromptBehavior to "ignore". This is required to test
+        beforeunload alerts, as Chromium v126+ auto-accepts them per
+        WebDriver standard.
+
+        Ref: https://github.com/openwisp/openwisp-controller/issues/902
+        """
+        options = webdriver.ChromeOptions()
+        options.page_load_strategy = "eager"
+        if os.environ.get("SELENIUM_HEADLESS", False):
+            options.add_argument("--headless")
+        CHROME_BIN = os.environ.get("CHROME_BIN", None)
+        if CHROME_BIN:
+            options.binary_location = CHROME_BIN
+        options.add_argument("--window-size=1366,768")
+        options.add_argument("--ignore-certificate-errors")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument(f"--remote-debugging-port={free_port()}")
+        options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+        # Enable BiDi mode and set unhandledPromptBehavior to "ignore"
+        # to allow testing beforeunload alerts (Chromium v126+).
+        options.enable_bidi = True
+        options.set_capability("unhandledPromptBehavior", "ignore")
+        return webdriver.Chrome(options=options)
 
     def _is_unsaved_changes_alert_present(self):
         for entry in self.get_browser_logs():
