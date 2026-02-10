@@ -1325,6 +1325,102 @@ class TestConfigApi(
             )
             self.assertEqual(response.status_code, 200)
 
+    def test_organization_create_with_config_settings_api(self):
+        """Test creating organization with config_settings via API"""
+        path = reverse('config_api:organization_list')
+        
+        data = {
+            'name': 'Test Org with Config',
+            'config_settings': {
+                'registration_enabled': True,
+                'shared_secret': 'my-secret-123',
+                'context': {'location': 'New York'}
+            }
+        }
+        
+        response = self.client.post(path, data, content_type='application/json')
+        if response.status_code != 201:
+            print(f"Error response: {response.data}")  
+        self.assertEqual(response.status_code, 201)
+        
+        self.assertIn('config_settings', response.data)
+        self.assertTrue(response.data['config_settings']['registration_enabled'])
+        self.assertEqual(
+            response.data['config_settings']['context'], 
+            {'location': 'New York'}
+        )
+        self.assertEqual(response.data['config_settings']['shared_secret'], 'my-secret-123')
+
+        Organization = load_model('openwisp_users', 'Organization')
+        org = Organization.objects.get(name='Test Org with Config')
+        self.assertIsNotNone(org.config_settings)
+        self.assertEqual(org.config_settings.shared_secret, 'my-secret-123')
+
+    def test_organization_get_with_config_settings_api(self):
+        """Test retrieving organization with config_settings"""
+        org = self._create_org(name='Test Get Org')
+        OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
+        
+        try:
+            config_settings = org.config_settings
+        except OrganizationConfigSettings.DoesNotExist:
+            config_settings = OrganizationConfigSettings.objects.create(organization=org)
+        
+        config_settings.registration_enabled = False
+        config_settings.shared_secret = 'test-secret-456'
+        config_settings.context = {'city': 'London'}
+        config_settings.save()
+        
+        path = reverse('config_api:organization_detail', args=[org.pk])
+        response = self.client.get(path)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('config_settings', response.data)
+        self.assertFalse(response.data['config_settings']['registration_enabled'])
+        self.assertEqual(response.data['config_settings']['context'], {'city': 'London'})
+        self.assertEqual(response.data['config_settings']['shared_secret'], 'test-secret-456')
+
+    def test_organization_update_config_settings_api(self):
+        """Test updating organization config_settings via PATCH"""
+        org = self._create_org(name='Update Test Org')
+        OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
+        
+        try:
+            config_settings = org.config_settings
+        except OrganizationConfigSettings.DoesNotExist:
+            config_settings = OrganizationConfigSettings.objects.create(organization=org)
+        
+        config_settings.registration_enabled = True
+        config_settings.shared_secret = 'old-secret'
+        config_settings.context = {'old': 'data'}
+        config_settings.save()
+        
+        path = reverse('config_api:organization_detail', args=[org.pk])
+        data = {
+            'config_settings': {
+                'registration_enabled': False,
+                'shared_secret': 'new-secret-789',
+                'context': {'new': 'data', 'location': 'Paris'}
+            }
+        }
+        
+        response = self.client.patch(path, data, content_type='application/json')
+        if response.status_code != 200:
+            print(f"Error response: {response.data}")  
+        self.assertEqual(response.status_code, 200)
+        
+        self.assertFalse(response.data['config_settings']['registration_enabled'])
+        self.assertEqual(
+            response.data['config_settings']['context'], 
+            {'new': 'data', 'location': 'Paris'}
+        )
+        
+        config_settings.refresh_from_db()
+        self.assertFalse(config_settings.registration_enabled)
+        self.assertEqual(config_settings.shared_secret, 'new-secret-789')
+        self.assertEqual(config_settings.context, {'new': 'data', 'location': 'Paris'})
+
+
 
 class TestConfigApiTransaction(
     ApiTestMixin,

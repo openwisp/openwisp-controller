@@ -83,6 +83,16 @@ def get_api_urls(api_views):
                 api_download_views.download_device_config,
                 name="download_device_config",
             ),
+            path(
+                "controller/organization/",
+                api_views.organization_list,
+                name="organization_list",
+            ),
+            path(
+                "controller/organization/<uuid:pk>/",
+                api_views.organization_detail,
+                name="organization_detail",
+            ),
         ]
     else:
         return []

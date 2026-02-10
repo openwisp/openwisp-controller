@@ -16,6 +16,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 Organization = load_model("openwisp_users", "Organization")
+OrganizationConfigSettings = load_model('config', 'OrganizationConfigSettings')
 
 
 class BaseMeta:
@@ -376,3 +377,68 @@ class DeviceGroupSerializer(BaseSerializer):
         instance = super().update(instance, validated_data)
         self._save_m2m_templates(instance)
         return instance
+    
+class OrganizationConfigSettingsSerializer(serializers.ModelSerializer):
+    registration_enabled = serializers.BooleanField(required=False, default=False)
+    shared_secret = serializers.CharField(
+        required=False, 
+        allow_blank=False, 
+        min_length=8,
+        help_text='Used for automatic registration of devices'
+    )
+    context = serializers.JSONField(required=False, default=dict)
+
+    class Meta:
+        model = OrganizationConfigSettings
+        fields = ['id', 'registration_enabled', 'shared_secret', 'context']
+        read_only_fields = ['id']
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    config_settings = OrganizationConfigSettingsSerializer(required=False)
+    
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'slug', 'description', 'config_settings', 'created', 'modified']
+        read_only_fields = ['id', 'slug', 'created', 'modified']
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        config_settings_data = validated_data.pop('config_settings', None)
+        organization = Organization.objects.create(**validated_data)
+
+        if config_settings_data:
+            try:
+                config_settings = organization.config_settings
+                for attr, value in config_settings_data.items():
+                    setattr(config_settings, attr, value)
+                config_settings.save()
+            except OrganizationConfigSettings.DoesNotExist:
+                OrganizationConfigSettings.objects.create(
+                    organization=organization,
+                    **config_settings_data
+                )
+        
+        return organization
+    
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        config_settings_data = validated_data.pop('config_settings', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        if config_settings_data is not None:
+            try:
+                config_settings = instance.config_settings
+            except OrganizationConfigSettings.DoesNotExist:
+                config_settings = OrganizationConfigSettings.objects.create(
+                    organization=instance
+                )
+
+            for attr, value in config_settings_data.items():
+                setattr(config_settings, attr, value)
+            config_settings.save()
+        
+        return instance
+    
