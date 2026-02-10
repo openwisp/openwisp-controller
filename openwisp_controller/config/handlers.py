@@ -141,6 +141,7 @@ def devicegroup_templates_change_handler(instance, **kwargs):
 def organization_disabled_handler(instance, **kwargs):
     """
     Asynchronously invalidates device and VPN controller views cache
+    when organization becomes inactive
     """
     if instance.is_active:
         return
@@ -149,6 +150,5 @@ def organization_disabled_handler(instance, **kwargs):
     except Organization.DoesNotExist:
         return
     if instance.is_active == db_instance.is_active:
-        # No change in is_active
         return
     tasks.invalidate_controller_views_cache.delay(str(instance.id))

@@ -103,6 +103,28 @@ def invalidate_vpn_server_devices_cache_change(vpn_pk):
 
 
 @shared_task(soft_time_limit=7200)
+def invalidate_organization_vpn_cache(organization_id):
+    """
+    Invalidates VPN cache for all VPNs in an organization when
+    organization configuration variables change.
+    """
+    Vpn = load_model("config", "Vpn")
+    from .controller.views import GetVpnView
+
+    try:
+        for vpn in (
+            Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
+        ):
+            GetVpnView.invalidate_get_vpn_cache(vpn)
+            vpn.invalidate_checksum_cache()
+    except SoftTimeLimitExceeded:
+        logger.exception(
+            "soft time limit hit while executing "
+            f"invalidate_organization_vpn_cache for organization {organization_id}"
+        )
+
+
+@shared_task(soft_time_limit=7200)
 def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
     from .api.views import DeviceGroupCommonName
 
