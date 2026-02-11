@@ -1,22 +1,27 @@
+import reversion
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import F, Q
 from django.http import Http404
+from django.shortcuts import get_list_or_404
 from django.urls.base import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import pagination, serializers, status
 from rest_framework.generics import (
     GenericAPIView,
+    ListAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.response import Response
+from reversion.models import Version
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions
 
-from ...mixins import ProtectedAPIMixin
+from ...mixins import AutoRevisionMixin, ProtectedAPIMixin
 from .filters import (
     DeviceGroupListFilter,
     DeviceListFilter,
@@ -29,6 +34,7 @@ from .serializers import (
     DeviceGroupSerializer,
     DeviceListSerializer,
     TemplateSerializer,
+    VersionSerializer,
     VpnSerializer,
 )
 
@@ -48,7 +54,7 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class TemplateListCreateView(ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView):
     serializer_class = TemplateSerializer
     queryset = Template.objects.prefetch_related("tags").order_by("-created")
     pagination_class = ListViewPagination
@@ -56,12 +62,14 @@ class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     filterset_class = TemplateListFilter
 
 
-class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class TemplateDetailView(
+    ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView
+):
     serializer_class = TemplateSerializer
     queryset = Template.objects.all()
 
 
-class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class VpnListCreateView(ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
     queryset = Vpn.objects.select_related("subnet").order_by("-created")
     pagination_class = ListViewPagination
@@ -69,7 +77,7 @@ class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     filterset_class = VPNListFilter
 
 
-class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class VpnDetailView(ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = VpnSerializer
     queryset = Vpn.objects.all()
 
@@ -82,7 +90,7 @@ class DevicePermission(DjangoModelPermissions):
         return perm and not obj.is_deactivated()
 
 
-class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class DeviceListCreateView(ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView):
     """
     Templates: Templates flagged as required will be added automatically
                to the `config` of a device and cannot be unassigned.
@@ -97,7 +105,9 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     filterset_class = DeviceListFilter
 
 
-class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class DeviceDetailView(
+    ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView
+):
     """
     Templates: Templates flagged as _required_ will be added automatically
                to the `config` of a device and cannot be unassigned.
@@ -124,7 +134,7 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
         return context
 
 
-class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
+class DeviceActivateView(ProtectedAPIMixin, AutoRevisionMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Device.objects.filter(_is_deactivated=True)
 
@@ -137,7 +147,7 @@ class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
+class DeviceDeactivateView(ProtectedAPIMixin, AutoRevisionMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Device.objects.filter(_is_deactivated=False)
 
@@ -150,7 +160,9 @@ class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class DeviceGroupListCreateView(
+    ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView
+):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.prefetch_related("templates").order_by("-created")
     pagination_class = ListViewPagination
@@ -158,7 +170,9 @@ class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     filterset_class = DeviceGroupListFilter
 
 
-class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class DeviceGroupDetailView(
+    ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView
+):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
 
@@ -172,7 +186,7 @@ def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
     return url
 
 
-class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
+class DeviceGroupCommonName(ProtectedAPIMixin, AutoRevisionMixin, RetrieveAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
     # Not setting lookup_field makes DRF raise error. but it is not used
@@ -289,6 +303,60 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 
 
+class RevisionListView(ProtectedAPIMixin, ListAPIView):
+    serializer_class = VersionSerializer
+    queryset = Version.objects.select_related("revision").order_by(
+        "-revision__date_created"
+    )
+
+    def get_queryset(self):
+        model = self.kwargs.get("model").lower()
+        queryset = self.queryset.filter(content_type__model=model)
+        revision_id = self.request.query_params.get("revision_id")
+        if revision_id:
+            queryset = queryset.filter(revision_id=revision_id)
+        return self.queryset.filter(content_type__model=model)
+
+
+class VersionDetailView(ProtectedAPIMixin, RetrieveAPIView):
+    serializer_class = VersionSerializer
+    queryset = Version.objects.select_related("revision").order_by(
+        "-revision__date_created"
+    )
+
+    def get_queryset(self):
+        model = self.kwargs.get("model").lower()
+        return self.queryset.filter(content_type__model=model)
+
+
+class RevisionRestoreView(ProtectedAPIMixin, GenericAPIView):
+    serializer_class = serializers.Serializer
+    queryset = Version.objects.select_related("revision").order_by(
+        "-revision__date_created"
+    )
+
+    def get_queryset(self):
+        model = self.kwargs.get("model").lower()
+        return self.queryset.filter(content_type__model=model)
+
+    def post(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        versions = get_list_or_404(qs, revision_id=kwargs["pk"])
+        with transaction.atomic():
+            with reversion.create_revision():
+                for version in versions:
+                    version.revert()
+                reversion.set_user(request.user)
+                reversion.set_comment(
+                    f"Restored to previous revision: {self.kwargs.get('pk')}"
+                )
+
+        serializer = VersionSerializer(
+            versions, many=True, context=self.get_serializer_context()
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
 vpn_list = VpnListCreateView.as_view()
@@ -300,3 +368,6 @@ device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
+revision_list = RevisionListView.as_view()
+version_detail = VersionDetailView.as_view()
+revision_restore = RevisionRestoreView.as_view()
