@@ -1014,6 +1014,29 @@ Delete Floor Plan
 
     DELETE /api/v1/controller/floorplan/{pk}/
 
+List Indoor Coordinates of a Location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+
+    This endpoint returns device coordinates from the first floor above
+    ground (lowest non-negative floors) by default. If a location only has
+    negative floors (e.g. underground parking lot), then it will return
+    the closest floor to the ground (greatest negative floor).
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/{id}/indoor-coordinates/
+
+**Available filters**
+
+You can filter using ``floor`` to get list of devices and their indoor
+coordinates for that floor.
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/{id}/indoor-coordinates/?floor={floor}
+
 List Templates
 ~~~~~~~~~~~~~~
 
