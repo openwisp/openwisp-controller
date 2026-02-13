@@ -51,8 +51,17 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = Location
         fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # This is evaluated at runtime, which makes it suited
+        # For the automated testing strategy we are using.
+        # Defining this at class definition does not allow flexible testing.
         if config_app_settings.WHOIS_CONFIGURED:
-            fields.append("is_estimated")
+            self.filters["is_estimated"] = filters.BooleanFilter(
+                field_name="is_estimated",
+                label=_("Is geographic location estimated?"),
+            )
 
 
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
