@@ -166,7 +166,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
     def to_representation(self, instance):
         request = self.context["request"]
         data = super().to_representation(instance)
-        floorplans = instance.floorplan_set.all().order_by("-modified")
+        floorplans = instance.floorplan_set.all()
         floorplan_list = []
         for floorplan in floorplans:
             dict_ = {

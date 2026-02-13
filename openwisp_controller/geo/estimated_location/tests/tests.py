@@ -755,7 +755,7 @@ class TestEstimatedLocationFieldFilters(
 
         with self.subTest("Test Estimated Location in Locations List"):
             path = reverse("geo_api:list_location")
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -833,6 +833,9 @@ class TestEstimatedLocationFieldFilters(
         location2 = self._create_location(
             name="location2", is_estimated=False, organization=org
         )
+        location3 = self._create_location(
+            name="location3", is_estimated=False, organization=org
+        )
         device1 = self._create_device()
         device2 = self._create_device(
             name="11:22:33:44:55:66", mac_address="11:22:33:44:55:66"
@@ -851,16 +854,17 @@ class TestEstimatedLocationFieldFilters(
             self.assertEqual(response.data["count"], 1)
             self.assertContains(response, location1.id)
             self.assertNotContains(response, location2.id)
+            self.assertNotContains(response, location3.id)
 
         with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
                 "Test Estimated Location filter not available in location list "
                 "when WHOIS not configured"
             ):
-                with self.assertNumQueries(5):
+                with self.assertNumQueries(4):
                     response = self.client.get(path, {"is_estimated": True})
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.data["count"], 2)
+                self.assertEqual(response.data["count"], 3)
                 self.assertContains(response, location1.id)
                 self.assertContains(response, location2.id)
 

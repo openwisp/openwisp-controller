@@ -1,5 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
@@ -314,7 +314,12 @@ class FloorPlanDetailView(
 
 class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = LocationSerializer
-    queryset = Location.objects.order_by("-created")
+    queryset = Location.objects.prefetch_related(
+        Prefetch(
+            "floorplan_set",
+            queryset=FloorPlan.objects.order_by("-modified"),
+        )
+    ).order_by("-created")
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = LocationOrganizationFilter
