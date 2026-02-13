@@ -112,7 +112,7 @@ class WHOISService:
         return org_settings
 
     @staticmethod
-    def check_estimate_location_configured(org_id):
+    def check_estimated_location_configured(org_id):
         if not org_id:
             return False
         if not app_settings.WHOIS_CONFIGURED:

@@ -52,7 +52,7 @@ class BaseLocation(OrgMixin, AbstractLocation):
         if (
             (self._state.adding or estimated_status_changed)
             and self.is_estimated
-            and not WHOISService.check_estimate_location_configured(
+            and not WHOISService.check_estimated_location_configured(
                 self.organization_id
             )
         ):
@@ -80,7 +80,7 @@ class BaseLocation(OrgMixin, AbstractLocation):
             The result of the parent save method.
         """
         changed_fields = set()
-        if WHOISService.check_estimate_location_configured(self.organization_id):
+        if WHOISService.check_estimated_location_configured(self.organization_id):
             address_changed = (
                 self._initial_address is not models.DEFERRED
                 and self._initial_address != self.address

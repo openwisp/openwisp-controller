@@ -105,7 +105,7 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
         org_id = obj.organization_id if obj else None
-        if not WHOISService.check_estimate_location_configured(org_id):
+        if not WHOISService.check_estimated_location_configured(org_id):
             if "is_estimated" in fields:
                 fields.remove("is_estimated")
         return fields
@@ -113,14 +113,14 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
         org_id = obj.organization_id if obj else None
-        if obj and WHOISService.check_estimate_location_configured(org_id):
+        if obj and WHOISService.check_estimated_location_configured(org_id):
             fields = fields + ("is_estimated",)
         return fields
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         obj = self.get_object(request, object_id)
         org_id = obj.organization_id if obj else None
-        estimated_configured = WHOISService.check_estimate_location_configured(org_id)
+        estimated_configured = WHOISService.check_estimated_location_configured(org_id)
         extra_context = extra_context or {}
         extra_context["estimated_configured"] = estimated_configured
         return super().change_view(request, object_id, form_url, extra_context)

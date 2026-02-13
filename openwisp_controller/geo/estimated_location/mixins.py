@@ -9,7 +9,7 @@ class EstimatedLocationMixin:
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        if WHOISService.check_estimate_location_configured(obj.organization_id):
+        if WHOISService.check_estimated_location_configured(obj.organization_id):
             data["is_estimated"] = obj.is_estimated
         else:
             data.pop("is_estimated", None)
@@ -24,7 +24,7 @@ class EstimatedLocationGeoJsonMixin:
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        if WHOISService.check_estimate_location_configured(obj.organization_id):
+        if WHOISService.check_estimated_location_configured(obj.organization_id):
             data["properties"]["is_estimated"] = obj.is_estimated
         else:
             data["properties"].pop("is_estimated", None)
