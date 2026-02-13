@@ -82,7 +82,9 @@ Setup Instructions
 6. Restart the application/containers if using ansible-openwisp2 or
    docker.
 7. Run the ``clear_last_ip`` management command to clear the last IP
-   address of **all active devices across organizations**.
+   address of any active device which doesn't have WHOIS info yet across
+   all organizations (which will trigger the WHOIS look up at the next
+   config checksum check).
 
    - If using ansible-openwisp2 (default directory is /opt/openwisp2,
      unless changed in Ansible playbook configuration):

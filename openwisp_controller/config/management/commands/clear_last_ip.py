@@ -1,6 +1,6 @@
-from django.core.management.base import BaseCommand, CommandError
-from django.db.models import OuterRef, Subquery
-from swapper import load_model
+from django.core.management.base import BaseCommand
+
+from openwisp_controller.config.whois.commands import clear_last_ip_command
 
 
 class Command(BaseCommand):
@@ -19,50 +19,9 @@ class Command(BaseCommand):
         )
         return super().add_arguments(parser)
 
-    def handle(self, *_args, **options):
-        Device = load_model("config", "Device")
-        WHOISInfo = load_model("config", "WHOISInfo")
-
-        if options["interactive"]:
-            message = ["\n"]
-            message.append(
-                "This will clear last IP of all active devices across organizations!\n"
-            )
-            message.append(
-                "Are you sure you want to do this?\n\n"
-                "Type 'yes' to continue, or 'no' to cancel: "
-            )
-            if input("".join(message)).lower() != "yes":
-                raise CommandError("Operation cancelled by user.")
-
-        devices = (
-            Device.objects.filter(_is_deactivated=False).select_related(
-                "organization__config_settings"
-            )
-            # include the FK field 'organization' in .only() so the related
-            # `organization__config_settings` traversal is not deferred
-            .only("last_ip", "organization", "key")
+    def handle(self, *args, **options):
+        clear_last_ip_command(
+            stdout=self.stdout,
+            stderr=self.stderr,
+            interactive=options["interactive"],
         )
-        # Filter out devices that have WHOIS information for their last IP
-        devices = devices.exclude(last_ip=None).exclude(
-            last_ip__in=Subquery(
-                WHOISInfo.objects.filter(ip_address=OuterRef("last_ip")).values(
-                    "ip_address"
-                )
-            ),
-        )
-        # We cannot use a queryset-level update here because it bypasses model save()
-        # and signals, which are required to properly invalidate related caches
-        # (e.g. DeviceChecksumView.get_device). To ensure correct behavior and
-        # future compatibility, each device is saved individually.
-        updated_devices = 0
-        for device in devices.iterator():
-            device.last_ip = None
-            device.save(update_fields=["last_ip"])
-            updated_devices += 1
-        if updated_devices:
-            self.stdout.write(
-                f"Cleared last IP addresses for {updated_devices} active device(s)."
-            )
-        else:
-            self.stdout.write("No active devices with last IP to clear.")

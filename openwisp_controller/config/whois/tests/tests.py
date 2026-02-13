@@ -9,7 +9,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
@@ -287,13 +287,14 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertNotIn("whois_info", response.data)
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_last_ip_management_command(self):
         out = StringIO()
         device = self._create_device(last_ip="172.217.22.11")
         args = ["--noinput"]
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn(
-            "Cleared last IP addresses for 1 active device(s).", out.getvalue()
+            "Cleared the last IP addresses for 1 active device(s).", out.getvalue()
         )
         device.refresh_from_db()
         self.assertIsNone(device.last_ip)
@@ -302,6 +303,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
         self.assertIn("No active devices with last IP to clear.", out.getvalue())
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_last_ip_management_command_queries(self):
         out = StringIO()
         self._create_device(last_ip="172.217.22.11")
@@ -323,6 +325,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         with self.assertNumQueries(4):
             call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_last_ip_management_command_invalidates_cache(self):
         device = self._create_device(last_ip="172.217.22.11")
         self._create_config(device=device)
@@ -340,6 +343,15 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         device.refresh_from_db()
         self.assertEqual(device.last_ip, "172.217.22.11")
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", False)
+    def test_clear_last_ip_command_not_enabled(self):
+        """Test that clear_last_ip command raises error when WHOIS is not configured."""
+        out = StringIO()
+        err = StringIO()
+        with self.assertRaises(CommandError) as context:
+            call_command("clear_last_ip", "--noinput", stdout=out, stderr=err)
+        self.assertIn("WHOIS lookup is not configured", str(context.exception))
 
 
 class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
