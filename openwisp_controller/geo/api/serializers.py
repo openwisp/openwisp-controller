@@ -8,6 +8,7 @@ from rest_framework.serializers import IntegerField, SerializerMethodField
 from rest_framework_gis import serializers as gis_serializers
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
@@ -137,7 +138,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
 
     class Meta:
         model = Location
-        fields = (
+        fields = [
             "id",
             "organization",
             "name",
@@ -148,8 +149,12 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
             "created",
             "modified",
             "floorplan",
-        )
-        read_only_fields = ("id", "created", "modified")
+        ]
+        read_only_fields = ["id", "created", "modified"]
+        # Add estimated location field if enabled
+        if config_app_settings.WHOIS_CONFIGURED:
+            fields.insert(fields.index("is_mobile") + 1, "is_estimated")
+            read_only_fields.insert(fields.index("id") + 1, "is_estimated")
 
     def validate(self, data):
         if data.get("type") == "outdoor" and data.get("floorplan"):
