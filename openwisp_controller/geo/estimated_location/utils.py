@@ -24,9 +24,7 @@ MESSAGE_MAP.update(
                 " [{notification.target}]({notification.target_link})"
                 " {notification.verb} successfully."
             ),
-            "description": _(
-                "Estimated Location {notification.verb} for IP: {ip_address}"
-            ),
+            "description": _("Geographic coordinates inferred from IP: {ip_address}"),
         },
         "estimated_location_updated": {
             "type": "estimated_location_info",
@@ -37,7 +35,7 @@ MESSAGE_MAP.update(
                 " [{notification.target}]({notification.target_link})"
                 " updated successfully."
             ),
-            "description": _("Estimated Location updated for IP: {ip_address}"),
+            "description": _("Geographic coordinates updated for IP: {ip_address}"),
         },
     }
 )
