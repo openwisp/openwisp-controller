@@ -533,7 +533,7 @@ class TestGeoApi(
         path = reverse("geo_api:list_location")
 
         with self.subTest("Test without organization filtering"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
