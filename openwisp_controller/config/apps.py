@@ -42,6 +42,7 @@ class ConfigConfig(AppConfig):
     default_auto_field = "django.db.models.AutoField"
 
     def ready(self, *args, **kwargs):
+        self.register_path_converters()
         self.__setmodels__()
         self.connect_signals()
         self.register_notification_types()
@@ -50,6 +51,18 @@ class ConfigConfig(AppConfig):
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
+
+    def register_path_converters(self):
+        from django.urls import register_converter
+        from django.urls.converters import get_converters
+
+        from .converters import UUIDAnyConverter, UUIDAnyOrFKConverter
+
+        converters = get_converters()
+        if "uuid_any" not in converters:
+            register_converter(UUIDAnyConverter, "uuid_any")
+        if "uuid_or_fk" not in converters:
+            register_converter(UUIDAnyOrFKConverter, "uuid_or_fk")
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
