@@ -8,7 +8,6 @@ class UUIDAnyConverter:
     that may send UUIDs without dashes.
     """
 
-    # dashed OR no-dash UUID
     regex = (
         r"(?:"
         r"[0-9a-fA-F]{32}"
@@ -22,7 +21,6 @@ class UUIDAnyConverter:
     )
 
     def to_python(self, value: str) -> str:
-        # normalize to dashed, validates both formats
         return str(uuid.UUID(value))
 
     def to_url(self, value) -> str:
