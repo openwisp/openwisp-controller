@@ -227,8 +227,10 @@ class GeoJsonLocationList(
     Shows only locations which are assigned to devices.
     """
 
-    queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
-        device_count=Count("devicelocation")
+    queryset = (
+        Location.objects.filter(devicelocation__isnull=False)
+        .annotate(device_count=Count("devicelocation"))
+        .order_by("-created")
     )
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
