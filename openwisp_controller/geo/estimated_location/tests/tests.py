@@ -329,10 +329,7 @@ class TestEstimatedLocationTransaction(
                 ]
             )
             ip_address = mocked_response.ip_address or device.last_ip
-            location_name = (
-                ",".join(address.split(",")[:2])
-                + f" ~Estimated Location: {ip_address}~"
-            )
+            location_name = ",".join(address.split(",")[:2]) + f": {ip_address}"
             self.assertEqual(location.name, location_name)
             self.assertEqual(location.address, address)
             self.assertEqual(
@@ -697,7 +694,7 @@ class TestEstimatedLocationTransaction(
             location.save()
             location.refresh_from_db()
             self.assertTrue(location.is_estimated)
-            self.assertIn(f"~Estimated Location: {device.last_ip}~", location.name)
+            self.assertIn(f": {device.last_ip}", location.name)
 
         with self.subTest(
             "Test Estimated Status unchanged if Estimated feature is enabled"
@@ -721,7 +718,8 @@ class TestEstimatedLocationTransaction(
             location.save(update_fields=["geometry"])
             location.refresh_from_db()
             self.assertFalse(location.is_estimated)
-            self.assertNotIn(f"~Estimated Location: {device.last_ip}~", location.name)
+            # Note: Name is no longer automatically cleaned up when is_estimated becomes False
+            # Users must update the name manually if desired
 
 
 class TestEstimatedLocationFieldFilters(

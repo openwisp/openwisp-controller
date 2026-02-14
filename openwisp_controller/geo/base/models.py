@@ -1,4 +1,3 @@
-import re
 from typing import ClassVar
 
 from django.contrib.gis.db import models
@@ -91,10 +90,7 @@ class BaseLocation(OrgMixin, AbstractLocation):
             )
             if not _set_estimated and (address_changed or geometry_changed):
                 self.is_estimated = False
-                if self.name:
-                    # remove estimated status between '~' and trim extra spaces
-                    self.name = re.sub(r"~[^~]*~", "", self.name).strip()
-                changed_fields = {"is_estimated", "name"}
+                changed_fields = {"is_estimated"}
         # Manual changes to is_estimated discarded if feature not enabled
         elif self._initial_is_estimated is not models.DEFERRED:
             self.is_estimated = self._initial_is_estimated

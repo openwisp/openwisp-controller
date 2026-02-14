@@ -144,7 +144,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
             location = ", ".join(parts)
             # Use named placeholders so translators receive the template
-            return _("%(location)s ~Estimated Location: %(ip)s~") % {
+            return _("%(location)s: %(ip)s") % {
                 "location": location,
                 "ip": self.ip_address,
             }
