@@ -14,6 +14,7 @@ from swapper import load_model
 from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.whois.handlers import connect_whois_handlers
 from openwisp_controller.config.whois.tests.utils import WHOISTransactionMixin
+from openwisp_controller.geo import estimated_location
 
 from ....tests.utils import TestAdminMixin
 from ...tests.utils import TestGeoMixin
@@ -153,6 +154,9 @@ class TestEstimatedLocationTransaction(
     )
     _ESTIMATED_LOCATION_INFO_LOGGER = (
         "openwisp_controller.geo.estimated_location.tasks.logger.info"
+    )
+    _ESTIMATED_LOCATION_WARNING_LOGGER = (
+        "openwisp_controller.geo.estimated_location.tasks.logger.warning"
     )
     _ESTIMATED_LOCATION_ERROR_LOGGER = (
         "openwisp_controller.geo.estimated_location.tasks.logger.error"
@@ -668,6 +672,37 @@ class TestEstimatedLocationTransaction(
                 "Please assign/create a location manually.",
             ]
             _verify_notification(device3, messages, "error")
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.send_whois_task_notification")
+    @mock.patch(
+        "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"
+    )
+    @mock.patch(
+        "openwisp_controller.config.whois.service.WHOISService.trigger_estimated_location_task"  # noqa E501
+    )
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_manage_estimated_locations_no_coordinates_warning(
+        self, mock_client, _mocked_task, _mocked_notify, _mocked_notify2
+    ):
+        with mock.patch.object(estimated_location.tasks.logger, "warning") as mock_warn:
+            connect_whois_handlers()
+            mock_client.return_value.city.return_value = self._mocked_client_response()
+            device = self._create_device(last_ip="172.217.22.14")
+            WHOISInfo.objects.filter(ip_address=device.last_ip).delete()
+            WHOISInfo.objects.create(
+                ip_address=device.last_ip,
+                address={
+                    "city": "Mountain View",
+                    "country": "United States",
+                    "postal": "94043",
+                },
+            )
+            manage_estimated_locations(device.pk, device.last_ip)
+            mock_warn.assert_called_once_with(
+                f"Coordinates not available for {device.pk} for IP: {device.last_ip}. "
+                "Estimated location cannot be determined."
+            )
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(

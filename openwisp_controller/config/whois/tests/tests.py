@@ -26,7 +26,7 @@ from ....tests.utils import TestAdminMixin
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
 from ..service import WHOISService
-from ..tasks import delete_whois_record
+from ..tasks import delete_whois_record, fetch_whois_details
 from ..utils import get_whois_info, send_whois_task_notification
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
@@ -874,6 +874,15 @@ class TestWHOISTransaction(
         assert_retry_on_exception(errors.AuthenticationError, should_retry=False)
         assert_retry_on_exception(errors.PermissionRequiredError, should_retry=False)
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
+    def test_fetch_whois_details_device_not_found(self, mock_warn):
+        invalid_pk = uuid4()
+        fetch_whois_details(device_pk=invalid_pk, initial_ip_address="10.0.0.1")
+        mock_warn.assert_called_once_with(
+            f"Device {invalid_pk} not found, skipping WHOIS lookup"
+        )
+
     def test_send_whois_task_notification_with_invalid_device_pk(self):
         invalid_pk = uuid4()
         result = send_whois_task_notification(
@@ -891,6 +900,43 @@ class TestWHOISTransaction(
         org = self._get_org()
         org.config_settings.whois_enabled = False
         org.config_settings.save()
+        device = self._create_device(last_ip="172.217.22.14")
+        result = get_whois_info(pk=device.pk)
+        self.assertIsNone(result)
+
+    def test_get_whois_info_with_none_pk(self):
+        result = get_whois_info(pk=None)
+        self.assertIsNone(result)
+
+    def test_get_whois_info_device_not_found(self):
+        result = get_whois_info(pk=uuid4())
+        self.assertIsNone(result)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.geoip2_webservice.Client")
+    def test_get_whois_info_returns_data_with_formatted_address(self, mock_client):
+        mock_client.return_value.city.return_value = self._mocked_client_response()
+        org = self._get_org()
+        device = self._create_device(last_ip="172.217.22.14")
+        WHOISInfo.objects.filter(ip_address=device.last_ip).delete()
+        org.config_settings.whois_enabled = True
+        org.config_settings.save()
+        WHOISInfo.objects.create(
+            ip_address=device.last_ip,
+            address={
+                "city": "Mountain View",
+                "country": "United States",
+                "postal": "94043",
+            },
+        )
+        result = get_whois_info(pk=device.pk)
+        self.assertIsNotNone(result)
+        self.assertEqual(
+            result["formatted_address"], "Mountain View, United States, 94043"
+        )
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", False)
+    def test_get_whois_info_when_not_configured(self):
         device = self._create_device(last_ip="172.217.22.14")
         result = get_whois_info(pk=device.pk)
         self.assertIsNone(result)

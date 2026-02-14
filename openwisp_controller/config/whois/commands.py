@@ -20,7 +20,7 @@ def clear_last_ip_command(stdout, stderr, interactive=True):
     Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
 
-    if interactive:
+    if interactive:  # pragma: no cover
         message = ["\n"]
         message.append(
             "This will clear the last IP of any active device which doesn't "
