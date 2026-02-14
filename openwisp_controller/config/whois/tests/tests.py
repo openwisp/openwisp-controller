@@ -3,6 +3,7 @@ import importlib
 from datetime import timedelta
 from io import StringIO
 from unittest import mock
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.gis.geos import Point
@@ -25,6 +26,8 @@ from ....tests.utils import TestAdminMixin
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
 from ..service import WHOISService
+from ..tasks import delete_whois_record
+from ..utils import get_whois_info, send_whois_task_notification
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Config = load_model("config", "Config")
@@ -870,6 +873,27 @@ class TestWHOISTransaction(
         assert_retry_on_exception(errors.AddressNotFoundError, should_retry=False)
         assert_retry_on_exception(errors.AuthenticationError, should_retry=False)
         assert_retry_on_exception(errors.PermissionRequiredError, should_retry=False)
+
+    def test_send_whois_task_notification_with_invalid_device_pk(self):
+        invalid_pk = uuid4()
+        result = send_whois_task_notification(
+            device=invalid_pk, notify_type="whois_device_error"
+        )
+        self.assertIsNone(result)
+
+    def test_delete_whois_record_force(self):
+        whois_obj = self._create_whois_info()
+        ip_address = whois_obj.ip_address
+        delete_whois_record(ip_address=ip_address, force=True)
+        self.assertFalse(WHOISInfo.objects.filter(ip_address=ip_address).exists())
+
+    def test_get_whois_info_device_whois_disabled(self):
+        org = self._get_org()
+        org.config_settings.whois_enabled = False
+        org.config_settings.save()
+        device = self._create_device(last_ip="172.217.22.14")
+        result = get_whois_info(pk=device.pk)
+        self.assertIsNone(result)
 
 
 @tag("selenium_tests")
