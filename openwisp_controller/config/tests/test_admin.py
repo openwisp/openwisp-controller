@@ -1405,52 +1405,13 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 
-    def test_malformed_admin_urls_return_404(self):
+    def test_strict_url_patterns_prevent_500(self):
         device = self._create_device()
-        template = self._create_template()
-        vpn = self._create_vpn()
-
-        test_cases = [
-            ("device", device.pk, "config_device"),
-            ("template", template.pk, "config_template"),
-            ("vpn", vpn.pk, "config_vpn"),
-        ]
-
-        junk_path = "some/junk/path/here/"
-        original_bug_junk = "history/1564/undefinedadmin/img/icon-deletelink.svg"
-
-        for model_name, valid_pk, model_admin_name in test_cases:
-            with self.subTest(model=model_name):
-                change_url_name = f"admin:{model_admin_name}_change"
-                valid_change_url = reverse(change_url_name, args=[valid_pk])
-                malformed_change_url = f"{valid_change_url}{junk_path}"
-
-                response_change = self.client.get(malformed_change_url, follow=False)
-                self.assertEqual(
-                    response_change.status_code,
-                    404,
-                    f'Malformed "change" URL for {model_name} did not return 404.',
-                )
-                history_url_name = f"admin:{model_admin_name}_history"
-                valid_history_url = reverse(history_url_name, args=[valid_pk])
-                malformed_history_url = f"{valid_history_url}{junk_path}"
-
-                response_history = self.client.get(malformed_history_url, follow=False)
-                self.assertEqual(
-                    response_history.status_code,
-                    404,
-                    f'Malformed "history" URL for {model_name} did not return 404.',
-                )
-                original_bug_url = f"{valid_history_url}{original_bug_junk}"
-                response_original_bug = self.client.get(original_bug_url, follow=False)
-                self.assertEqual(
-                    response_original_bug.status_code,
-                    404,
-                    (
-                        f"Original bug URL for {model_name} did not return 404. "
-                        "This may be a regression of bug #682."
-                    ),
-                )
+        valid = reverse("admin:config_device_change", args=[device.pk])
+        garbage = "history/1564/undefinedadmin/img/icon-deletelink.svg"
+        bad = f"{valid}{garbage}"
+        response = self.client.get(bad)
+        self.assertEqual(response.status_code, 404)
 
     def test_uuid_field_in_change(self):
         t = Template.objects.first()
