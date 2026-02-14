@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
@@ -67,3 +68,18 @@ API_TASK_RETRY_OPTIONS = get_setting(
     "API_TASK_RETRY_OPTIONS",
     dict(max_retries=5, retry_backoff=True, retry_backoff_max=600, retry_jitter=True),
 )
+WHOIS_REFRESH_THRESHOLD_DAYS = get_setting("WHOIS_REFRESH_THRESHOLD_DAYS", 14)
+WHOIS_GEOIP_ACCOUNT = get_setting("WHOIS_GEOIP_ACCOUNT", None)
+WHOIS_GEOIP_KEY = get_setting("WHOIS_GEOIP_KEY", None)
+WHOIS_ENABLED = get_setting("WHOIS_ENABLED", False)
+WHOIS_CONFIGURED = WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY
+if WHOIS_ENABLED and not WHOIS_CONFIGURED:
+    raise ImproperlyConfigured(
+        "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
+        + "when WHOIS_ENABLED is True."
+    )
+ESTIMATED_LOCATION_ENABLED = get_setting("ESTIMATED_LOCATION_ENABLED", False)
+if ESTIMATED_LOCATION_ENABLED and not WHOIS_ENABLED:
+    raise ImproperlyConfigured(
+        "WHOIS must be enabled before enabling ESTIMATED_LOCATION globally"
+    )
