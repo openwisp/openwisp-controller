@@ -38,7 +38,9 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
         """
         device_pk = kwargs.get("device_pk") or (args[0] if args else None)
         if device_pk is not None:
-            # All exceptions are treated globally to prevent notification spam
+            # All exceptions are treated globally to prevent notification spam.
+            # The cache key is global (not per-device) to avoid spamming admins
+            # with multiple notifications for the same recurring issue.
             task_key = f"{self.name}_last_operation"
             last_operation = cache.get(task_key)
             if last_operation != "errored":
