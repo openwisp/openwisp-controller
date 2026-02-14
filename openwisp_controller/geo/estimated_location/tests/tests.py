@@ -718,8 +718,9 @@ class TestEstimatedLocationTransaction(
             location.save(update_fields=["geometry"])
             location.refresh_from_db()
             self.assertFalse(location.is_estimated)
-            # Note: Name is no longer automatically cleaned up when is_estimated becomes False
-            # Users must update the name manually if desired
+            # Note: Name is no longer automatically cleaned up when
+            # is_estimated becomes False. Users must update the name manually
+            # if desired
 
 
 class TestEstimatedLocationFieldFilters(

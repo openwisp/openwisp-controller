@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import CommandError
 from django.db.models import OuterRef, Subquery
 from swapper import load_model
 
@@ -12,7 +12,8 @@ def clear_last_ip_command(stdout, stderr, interactive=True):
     """
     if not app_settings.WHOIS_CONFIGURED:
         raise CommandError(
-            "WHOIS lookup is not configured. Set OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT "
+            "WHOIS lookup is not configured. Set "
+            "OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT "
             "and OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY to enable this command."
         )
 
@@ -22,7 +23,8 @@ def clear_last_ip_command(stdout, stderr, interactive=True):
     if interactive:
         message = ["\n"]
         message.append(
-            "This will clear the last IP of any active device which doesn't have WHOIS info yet!\n"
+            "This will clear the last IP of any active device which doesn't "
+            "have WHOIS info yet!\n"
         )
         message.append(
             "Are you sure you want to do this?\n\n"
