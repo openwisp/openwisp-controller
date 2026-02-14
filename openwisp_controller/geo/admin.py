@@ -102,6 +102,14 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     list_select_related = ("organization",)
     change_form_template = "admin/geo/location/change_form.html"
 
+    list_display = AbstractLocationAdmin.list_display[:]  # copy
+    if config_app_settings.WHOIS_CONFIGURED:
+        list_display.insert(list_display.index("created"), "is_estimated")
+
+    list_filter = AbstractLocationAdmin.list_filter[:]  # copy
+    if config_app_settings.WHOIS_CONFIGURED:
+        list_filter.append("is_estimated")
+
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
         org_id = obj.organization_id if obj else None
