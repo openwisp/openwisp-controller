@@ -1407,7 +1407,7 @@ class TestAdmin(
 
     def test_strict_url_patterns_prevent_500(self):
         device = self._create_device()
-        valid = reverse("admin:config_device_change", args=[device.pk])
+        valid = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
         garbage = "history/1564/undefinedadmin/img/icon-deletelink.svg"
         bad = f"{valid}{garbage}"
         response = self.client.get(bad)
