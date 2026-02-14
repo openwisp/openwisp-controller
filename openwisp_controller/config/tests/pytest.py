@@ -5,17 +5,13 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import Permission
-from django.urls import re_path
+from django.urls import path
 from swapper import load_model
 
 from ..base.channels_consumer import BaseDeviceConsumer
 from .utils import CreateDeviceMixin
 
 Device = load_model("config", "Device")
-
-uuid_regex = (
-    r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
-)
 
 
 @pytest.mark.asyncio
@@ -28,8 +24,8 @@ class TestDeviceConsumer(CreateDeviceMixin):
                 AuthMiddlewareStack(
                     URLRouter(
                         [
-                            re_path(
-                                rf"^ws/controller/device/(?P<pk>{uuid_regex})/$",
+                            path(
+                                "ws/controller/device/<uuid_any:pk>/",
                                 BaseDeviceConsumer.as_asgi(),
                             )
                         ]

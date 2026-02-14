@@ -61,8 +61,8 @@ class ConfigConfig(AppConfig):
         converters = get_converters()
         if "uuid_any" not in converters:
             register_converter(UUIDAnyConverter, "uuid_any")
-        if "uuid_any_or_fk" not in converters:
-            register_converter(UUIDAnyOrFKConverter, "uuid_any_or_fk")
+        if "uuid_or_fk" not in converters:
+            register_converter(UUIDAnyOrFKConverter, "uuid_or_fk")
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
