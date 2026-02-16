@@ -13,6 +13,29 @@ Overview
 The WebSocket API provides real-time, push-based communication for
 monitoring device command execution and tracking mobile device locations.
 
+Authentication & Connection
+---------------------------
+
+**Authentication**
+
+WebSocket connections require Django authentication. Include your API
+token as a query parameter:
+
+.. code-block:: text
+
+    ws://<host>:<port>/ws/controller/device/{device_id}/command?token=YOUR_API_TOKEN
+
+Alternatively, use session authentication if connecting from the same
+domain while logged in.
+
+**Connection Behavior**
+
+- Invalid/missing token: Connection rejected with HTTP 403
+- Valid token but insufficient permissions: Connection rejected with HTTP
+  403
+- Successful authentication: Connection accepted, messages stream in
+  real-time
+
 Endpoints
 ---------
 
@@ -38,7 +61,7 @@ Receive real-time updates when commands execute on devices.
 **Permissions Required:**
 
 - Superuser, OR
-- Staff user with ``change_command`` permission on devices
+- Staff user with ``change_device`` permission on devices
 
 Location Updates (Single Location)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,7 +91,7 @@ Location Broadcasting (Organization-wide)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Receive real-time location updates for all mobile devices in your
-organizations.
++organization.
 
 .. code-block:: text
 
