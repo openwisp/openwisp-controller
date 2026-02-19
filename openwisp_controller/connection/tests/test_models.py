@@ -501,7 +501,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("test extra arg on reboot"):
             command.type = "reboot"
-            command.input = '["test"]'
+            command.input = ["test"]
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
@@ -535,12 +535,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn("input", e.message_dict)
             self.assertEqual(
                 e.message_dict["input"],
-                ["Enter valid JSON.", "'notjson' is not of type 'object'"],
+                ["'notjson' is not of type 'object'"],
             )
 
         with self.subTest("JSON check on arguments"):
             command.type = "change_password"
-            command.input = "[]"
+            command.input = []
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
@@ -600,7 +600,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(list(command.arguments), ["newpwd", "newpwd"])
 
         with self.subTest("value error"):
-            command = Command(input='["echo test"]', type="custom")
+            command = Command(input=["echo test"], type="custom")
             with self.assertRaises(TypeError) as context_manager:
                 command.arguments
             self.assertEqual(
@@ -971,7 +971,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config >= 0.6.0a"):
-            conf.config = '{"dns_servers": []}'
+            conf.config = {"dns_servers": []}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -986,7 +986,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config < 0.6.0a: exit_code 0"):
-            conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
+            conf.config = {"interfaces": [{"name": "eth00", "type": "ethernet"}]}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -1000,7 +1000,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config < 0.6.0a: exit_code 1"):
-            conf.config = '{"radios": []}'
+            conf.config = {"radios": []}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 stdin, stdout, stderr = self._exec_command_return_value(
