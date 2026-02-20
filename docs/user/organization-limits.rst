@@ -13,5 +13,5 @@ To set these limits:
 Refer to the screenshot below for guidance:
 
 .. figure:: ../images/organization-limits.png
-   :target: ../images/organization-limits.png
-   :alt: Organization limits
+    :target: ../images/organization-limits.png
+    :alt: Organization limits
