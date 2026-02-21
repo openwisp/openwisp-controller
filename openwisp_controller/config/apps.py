@@ -61,6 +61,9 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.organization_config_settings_model = load_model(
+            "config", "OrganizationConfigSettings"
+        )
 
     def connect_signals(self):
         """
