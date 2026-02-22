@@ -6,10 +6,10 @@ Controller
     **Source code**: `github.com/openwisp/openwisp-controller
     <https://github.com/openwisp/openwisp-controller>`_.
 
-OpenWISP Controller is responsible of of managing the core resources of
-the network and allows automating several aspects like adoption,
-provisioning, VPN tunnel configuration, generation of X509 certificates,
-subnet and IP address allocation and more.
+OpenWISP Controller is responsible for managing the core resources of the
+network and allows automating several aspects like adoption, provisioning,
+VPN tunnel configuration, generation of X509 certificates, subnet and IP
+address allocation and more.
 
 For a full introduction please refer to :doc:`user/intro`.
 

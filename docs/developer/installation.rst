@@ -10,7 +10,7 @@ Developer Installation Instructions
 Dependencies
 ------------
 
-- Python >= 3.9
+- Python >= 3.10
 - OpenSSL
 
 Installing for Development
@@ -166,7 +166,7 @@ Unable to Load SpatiaLite library Extension?
 
 If you are incurring in the following exception:
 
-.. code-block::
+.. code-block:: text
 
     django.core.exceptions.ImproperlyConfigured: Unable to load the SpatiaLite library extension
 

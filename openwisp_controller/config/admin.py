@@ -352,10 +352,13 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
         config_model = self.Meta.model
         instance = config_model(**options)
         device_model = config_model.device.field.related_model
-        org = Organization.objects.get(pk=self.data["organization"])
+        if not (org_id := self.data.get("organization")):
+            # We cannot validate the templates without an organization.
+            return
+        org = Organization.objects.get(pk=org_id)
         instance.device = device_model(
-            name=self.data["name"],
-            mac_address=self.data["mac_address"],
+            name=self.data.get("name", ""),
+            mac_address=self.data.get("mac_address", ""),
             organization=org,
         )
         return instance
@@ -369,6 +372,12 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
             # when adding self.instance is empty, we need to create a
             # temporary instance that we'll use just for validation
             config = self.get_temp_model_instance(**data)
+            if not config:
+                # The request does not contain vaild data to create a temporary
+                # Device instance. Thus, we cannot validate the templates.
+                # The Device validation will be handled by DeviceAdmin.
+                # Therefore, we don't need to raise any error here.
+                return
         else:
             config = self.instance
         if config.backend and templates:

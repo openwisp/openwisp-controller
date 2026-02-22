@@ -4,13 +4,15 @@ from io import StringIO
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
+from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
 from .utils import CreateConnectionsMixin
 
 Command = load_model("connection", "Command")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 class TestTasks(CreateConnectionsMixin, TestCase):
@@ -85,3 +87,22 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
+
+
+class TestTransactionTasks(
+    TestRegistrationMixin, CreateConnectionsMixin, TransactionTestCase
+):
+    @mock.patch.object(tasks.update_config, "delay")
+    def test_update_config_hostname_changed_on_reregister(self, mocked_update_config):
+        device = self._create_device_config()
+        self._create_device_connection(device=device)
+        # Trigger re-registration with new hostname
+        response = self.client.post(
+            self.register_url,
+            self._get_reregistration_payload(
+                device,
+                name="new-hostname",
+            ),
+        )
+        self.assertEqual(response.status_code, 201)
+        mocked_update_config.assert_not_called()

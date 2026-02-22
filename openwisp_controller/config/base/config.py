@@ -30,15 +30,6 @@ from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
 logger = logging.getLogger(__name__)
 
 
-def get_cached_checksum_args_rewrite(config):
-    """
-    DEPRECATED: Use get_cached_args_rewrite instead.
-
-    TODO: Remove this in 1.2.0 release.
-    """
-    return get_cached_args_rewrite(config)
-
-
 class TemplatesThrough(object):
     """
     Improves string representation of m2m relationship objects

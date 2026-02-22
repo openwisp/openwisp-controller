@@ -17,6 +17,9 @@ DeviceConnection = load_model("connection", "DeviceConnection")
 
 class BaseTestNotification:
     app_label = "connection"
+    config_app_label = (
+        "config" if not os.environ.get("SAMPLE_APP", False) else "sample_config"
+    )
 
     def setUp(self):
         self._create_admin()
@@ -29,10 +32,9 @@ class BaseTestNotification:
         self, exp_level, exp_type, exp_verb, exp_message, exp_email_subject
     ):
         n = Notification.objects.first()
-        config_app = (
-            "config" if not os.environ.get("SAMPLE_APP", False) else "sample_config"
+        device_url_path = reverse(
+            f"admin:{self.config_app_label}_device_change", args=[self.d.id]
         )
-        device_url_path = reverse(f"admin:{config_app}_device_change", args=[self.d.id])
         exp_target_link = f"https://example.com{device_url_path}"
 
         self.assertEqual(n.type, exp_type)

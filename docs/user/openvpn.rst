@@ -65,14 +65,14 @@ After installing both Ansible and Git, install the required roles:
 Create an Ansible inventory file named ``inventory`` **on your local
 machine** (not on the server) with the following contents:
 
-.. code-block::
+.. code-block:: ini
 
     [openvpn]
     your_server_domain_or_ip
 
 For example, if your server IP is ``192.168.56.2``:
 
-.. code-block::
+.. code-block:: ini
 
     [openvpn]
     192.168.56.2
