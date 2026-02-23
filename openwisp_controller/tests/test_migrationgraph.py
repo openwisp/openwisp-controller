@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.migrations.executor import MigrationLoader
+from django.db.migrations.loader import MigrationLoader
 from django.test import SimpleTestCase
 
 
@@ -11,6 +11,9 @@ class TestMigrationGraphIntegrity(SimpleTestCase):
 
         This catches missing dependencies / broken swappable references that only
         show up when Django renders historical models.
+
+        Note : issues in third-party dependency migrations
+        will also be detected.
         """
         loader = MigrationLoader(None, ignore_no_migrations=True)
 
