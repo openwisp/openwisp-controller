@@ -23,7 +23,7 @@ class TestMigrationGraphIntegrity(SimpleTestCase):
             try:
                 state = loader.project_state([key])
                 _ = state.apps  # triggers StateApps rendering
-            except (KeyError, LookupError, ValueError, AttributeError) as e:
+            except (LookupError, ValueError, AttributeError, TypeError) as e:
                 failures.append(f"{key[0]}.{key[1]} -> {type(e).__name__}: {e}")
 
         if failures:
