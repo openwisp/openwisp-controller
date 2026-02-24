@@ -9,8 +9,7 @@ on:
     branches:
       - master
       - "1.1"
-      - gsoc25-map
-      - gsoc25-whois
+      - "1.2"
 
 jobs:
   build:
