@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from django.db.migrations.loader import MigrationLoader
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, tag
 
 
+@tag("slow")
 class TestMigrationGraphIntegrity(SimpleTestCase):
     def test_all_migration_states_render_apps(self) -> None:
         """
@@ -22,7 +23,7 @@ class TestMigrationGraphIntegrity(SimpleTestCase):
             try:
                 state = loader.project_state([key])
                 _ = state.apps  # triggers StateApps rendering
-            except Exception as e:
+            except (KeyError, LookupError, ValueError, AttributeError) as e:
                 failures.append(f"{key[0]}.{key[1]} -> {type(e).__name__}: {e}")
 
         if failures:
