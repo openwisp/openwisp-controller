@@ -827,33 +827,34 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                     f"Cannot update configuration of {vpn.name} VPN server, "
                     "webhook endpoint and authentication token are empty."
                 )
-        success_response = mock.Mock(spec=requests.Response)
-        success_response.status_code = 200
-        success_response.raise_for_status = mock.Mock()
 
         with self.subTest("Webhook endpoint and authentication endpoint is present"):
             vpn.webhook_endpoint = "https://example.com"
             vpn.auth_token = "super-secret-token"
-            vpn.save()
-            vpn_client.refresh_from_db()
+            success_response = mock.Mock(spec=requests.Response)
+            success_response.status_code = 200
+            success_response.raise_for_status = mock.Mock()
 
             with mock.patch(
                 "openwisp_controller.config.tasks.logger.info"
             ) as mocked_logger, mock.patch(
                 "requests.post", return_value=success_response
             ):
+                vpn.save()
+                vpn_client.refresh_from_db()
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
-                mocked_logger.assert_called_once_with(
+                self.assertEqual(mocked_logger.call_count, 2)
+                mocked_logger.assert_called_with(
                     f"Triggered update webhook of VPN Server UUID: {vpn.pk}"
                 )
+
             fail_response = mock.Mock(spec=requests.Response)
             fail_response.status_code = 404
             fail_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
                 "Not Found"
             )
-
             with mock.patch("logging.Logger.warning") as mocked_logger, mock.patch(
                 "requests.post", return_value=fail_response
             ):
