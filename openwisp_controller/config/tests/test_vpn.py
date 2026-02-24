@@ -845,10 +845,11 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
-                self.assertEqual(mocked_logger.call_count, 2)
-                mocked_logger.assert_called_with(
+                expected_call = mock.call(
                     f"Triggered update webhook of VPN Server UUID: {vpn.pk}"
                 )
+                mocked_logger.assert_has_calls([expected_call, expected_call])
+                self.assertEqual(mocked_logger.call_count, 2)
 
             fail_response = mock.Mock(spec=requests.Response)
             fail_response.status_code = 404
