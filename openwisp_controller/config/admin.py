@@ -503,6 +503,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     delete_selected_confirmation_template = (
         "admin/config/device/delete_selected_confirmation.html"
     )
+    delete_confirmation_template = "admin/config/device/delete_confirmation.html"
     list_display = [
         "name",
         "backend",
