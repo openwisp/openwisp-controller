@@ -22,7 +22,7 @@ from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
-from .converters import UUIDAnyConverter, UUIDAnyOrFKConverter
+from .converters import UUIDAnyConverter
 from .signals import (
     config_backend_changed,
     config_deactivated,
@@ -59,8 +59,6 @@ class ConfigConfig(AppConfig):
         converters = get_converters()
         if "uuid_any" not in converters:
             register_converter(UUIDAnyConverter, "uuid_any")
-        if "uuid_or_fk" not in converters:
-            register_converter(UUIDAnyOrFKConverter, "uuid_or_fk")
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")

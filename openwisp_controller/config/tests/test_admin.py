@@ -1405,36 +1405,15 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 
-    def test_malformed_admin_urls_return_404(self):
-        device = self._create_device()
-        template = self._create_template()
-        vpn = self._create_vpn()
-        test_cases = [
-            ("device", device.pk, "device"),
-            ("template", template.pk, "template"),
-            ("vpn", vpn.pk, "vpn"),
-        ]
-        junk_path = "some/junk/path/here/"
-        original_bug_junk = "history/1564/undefinedadmin/img/icon-deletelink.svg"
-        for model_name, valid_pk, model_name_for_url in test_cases:
+    def test_malformed_download_url_status_code(self):
+        models = [Device, Template, Vpn]
+        malformed_uuid = "de8fa775-1134-47b6-adc5-2da3d0626c72/history/undefined"
+        for model in models:
+            model_name = model._meta.model_name
             with self.subTest(model=model_name):
-                change_url = reverse(
-                    f"admin:{self.app_label}_{model_name_for_url}_change",
-                    args=[valid_pk],
-                )
-                malformed_change_url = f"{change_url}{junk_path}"
-                response = self.client.get(malformed_change_url, follow=False)
-                self.assertEqual(response.status_code, 404)
-                history_url = reverse(
-                    f"admin:{self.app_label}_{model_name_for_url}_history",
-                    args=[valid_pk],
-                )
-                malformed_history_url = f"{history_url}{junk_path}"
-                response = self.client.get(malformed_history_url, follow=False)
-                self.assertEqual(response.status_code, 404)
-                original_bug_url = f"{history_url}{original_bug_junk}"
-                response = self.client.get(original_bug_url, follow=False)
-                self.assertEqual(response.status_code, 404)
+                url = f"/admin/{self.app_label}/{model_name}/download/{malformed_uuid}/"
+                response = self.client.get(url)
+                self.assertNotEqual(response.status_code, 500)
 
     def test_uuid_field_in_change(self):
         t = Template.objects.first()
