@@ -47,9 +47,9 @@ the OpenWISP architecture.
     user/vxlan-wireguard.rst
     user/zerotier.rst
     user/openvpn.rst
-    user/subnet-division-rules.rst
     user/whois.rst
     user/estimated-location.rst
+    user/subnet-division-rules.rst
     user/rest-api.rst
     user/settings.rst
 

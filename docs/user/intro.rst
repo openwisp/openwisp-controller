@@ -35,6 +35,8 @@ following features:
 - **VPN management**: automatically provision VPN tunnel configurations,
   including cryptographic keys and IP addresses, e.g.: :doc:`OpenVPN
   </user/vpn>`, :doc:`WireGuard <wireguard>`
+- :doc:`whois`: display information about the public IP address used by
+  devices to communicate with OpenWISP
 - :doc:`import-export`
 
 It exposes various :doc:`REST API endpoints <rest-api>`.
@@ -95,6 +97,9 @@ The geographic app is based on `django-loci
 <https://github.com/openwisp/django-loci>`_ and allows to define the
 geographic coordinates of the devices, as well as their indoor coordinates
 on floor plan images.
+
+It also provides an :doc:`estimated-location` feature which automatically
+creates or updates device locations based on WHOIS data.
 
 It exposes various :doc:`REST API endpoints <rest-api>`.
 

@@ -68,18 +68,26 @@ API_TASK_RETRY_OPTIONS = get_setting(
     "API_TASK_RETRY_OPTIONS",
     dict(max_retries=5, retry_backoff=True, retry_backoff_max=600, retry_jitter=True),
 )
-WHOIS_REFRESH_THRESHOLD_DAYS = get_setting("WHOIS_REFRESH_THRESHOLD_DAYS", 14)
-WHOIS_GEOIP_ACCOUNT = get_setting("WHOIS_GEOIP_ACCOUNT", None)
-WHOIS_GEOIP_KEY = get_setting("WHOIS_GEOIP_KEY", None)
+WHOIS_GEOIP_ACCOUNT = get_setting("WHOIS_GEOIP_ACCOUNT", "")
+WHOIS_GEOIP_KEY = get_setting("WHOIS_GEOIP_KEY", "")
 WHOIS_ENABLED = get_setting("WHOIS_ENABLED", False)
-WHOIS_CONFIGURED = WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY
+WHOIS_CONFIGURED = bool(WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY)
 if WHOIS_ENABLED and not WHOIS_CONFIGURED:
     raise ImproperlyConfigured(
-        "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
-        + "when WHOIS_ENABLED is True."
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY must be set "
+        + "when OPENWISP_CONTROLLER_WHOIS_ENABLED is True."
+    )
+WHOIS_REFRESH_THRESHOLD_DAYS = get_setting("WHOIS_REFRESH_THRESHOLD_DAYS", 90)
+if not (
+    isinstance(WHOIS_REFRESH_THRESHOLD_DAYS, int) and WHOIS_REFRESH_THRESHOLD_DAYS > 0
+):
+    raise ImproperlyConfigured(
+        "OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS must be a positive integer"
     )
 ESTIMATED_LOCATION_ENABLED = get_setting("ESTIMATED_LOCATION_ENABLED", False)
 if ESTIMATED_LOCATION_ENABLED and not WHOIS_ENABLED:
     raise ImproperlyConfigured(
-        "WHOIS must be enabled before enabling ESTIMATED_LOCATION globally"
+        "OPENWISP_CONTROLLER_WHOIS_ENABLED must be set to True before "
+        "setting OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED to True."
     )

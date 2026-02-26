@@ -1,11 +1,17 @@
 "use strict";
 
-if (typeof gettext === "undefined") {
-  var gettext = function (word) {
+var gettext =
+  window.gettext ||
+  function (word) {
     return word;
   };
+// For XSS prevention
+function escapeHtml(text) {
+  if (text == null) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 }
-
 django.jQuery(function ($) {
   const $addForm = $(".add-form");
   const $deviceForm = $("#device_form");
@@ -34,8 +40,8 @@ django.jQuery(function ($) {
           <th>${gettext("Country")}</th>
         </tr>
         <tr>
-          <td>${deviceWHOISDetails.isp}</td>
-          <td>${deviceWHOISDetails.address.country}</td>
+          <td>${escapeHtml(deviceWHOISDetails.isp)}</td>
+          <td>${escapeHtml(deviceWHOISDetails.address.country)}</td>
         </tr>
      </table>
      <details class="whois">
@@ -46,10 +52,10 @@ django.jQuery(function ($) {
           </div>
         </summary>
         <div>
-          <span class="additional-text">${gettext("ASN")}: ${deviceWHOISDetails.asn}</span>
-          <span class="additional-text">${gettext("Timezone")}: ${deviceWHOISDetails.timezone}</span>
-          <span class="additional-text">${gettext("Address")}: ${deviceWHOISDetails.formatted_address}</span>
-          <span class="additional-text">${gettext("CIDR")}: ${deviceWHOISDetails.cidr}</span>
+          <span class="additional-text">${gettext("ASN")}: ${escapeHtml(deviceWHOISDetails.asn)}</span>
+          <span class="additional-text">${gettext("Timezone")}: ${escapeHtml(deviceWHOISDetails.timezone)}</span>
+          <span class="additional-text">${gettext("Address")}: ${escapeHtml(deviceWHOISDetails.formatted_address)}</span>
+          <span class="additional-text">${gettext("CIDR")}: ${escapeHtml(deviceWHOISDetails.cidr)}</span>
         </div>
      </details>`,
   );

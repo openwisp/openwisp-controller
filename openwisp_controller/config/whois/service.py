@@ -2,36 +2,19 @@ from datetime import timedelta
 from ipaddress import ip_address as ip_addr
 
 import requests
+from celery import current_app
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
-from django.utils.translation import gettext as _
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
 
-from .tasks import fetch_whois_details, manage_estimated_locations
-from .utils import send_whois_task_notification
-
-EXCEPTION_MESSAGES = {
-    errors.AddressNotFoundError: _(
-        "No WHOIS information found for IP address {ip_address}"
-    ),
-    errors.AuthenticationError: _(
-        "Authentication failed for GeoIP2 service. "
-        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
-        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
-    ),
-    errors.OutOfQueriesError: _(
-        "Your account has run out of queries for the GeoIP2 service."
-    ),
-    errors.PermissionRequiredError: _(
-        "Your account does not have permission to access this service."
-    ),
-}
+from .tasks import fetch_whois_details
+from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
 
 
 class WHOISService:
@@ -71,6 +54,7 @@ class WHOISService:
         try:
             return ip and ip_addr(ip).is_global
         except ValueError:
+            # ip_address() from the stdlib raises ValueError for malformed strings
             return False
 
     @staticmethod
@@ -83,11 +67,14 @@ class WHOISService:
         return WHOISInfo.objects.filter(ip_address=ip_address)
 
     @staticmethod
-    def is_older(datetime):
+    def is_older(dt):
         """
         Check if given datetime is older than the refresh threshold.
+        Raises TypeError if datetime is naive (not timezone-aware).
         """
-        return (timezone.now() - datetime) >= timedelta(
+        if not timezone.is_aware(dt):
+            raise TypeError("datetime must be timezone-aware")
+        return (timezone.now() - dt) >= timedelta(
             days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS
         )
 
@@ -125,7 +112,7 @@ class WHOISService:
         return org_settings
 
     @staticmethod
-    def check_estimate_location_configured(org_id):
+    def check_estimated_location_enabled(org_id):
         if not org_id:
             return False
         if not app_settings.WHOIS_CONFIGURED:
@@ -174,9 +161,9 @@ class WHOISService:
             message = EXCEPTION_MESSAGES.get(exc_type)
             if exc_type is errors.AddressNotFoundError:
                 message = message.format(ip_address=ip_address)
-            raise exc_type(message)
-        except requests.RequestException as e:
-            raise e
+            raise exc_type(message) from e
+        except requests.RequestException:
+            raise
         else:
             # The attributes are always present in the response,
             # but they can be None, so added fallbacks.
@@ -186,16 +173,23 @@ class WHOISService:
                 "continent": data.continent.name or "",
                 "postal": str(data.postal.code or ""),
             }
-            coordinates = Point(
-                data.location.longitude, data.location.latitude, srid=4326
-            )
+            # Coordinates may be None in WHOIS response
+            # WHOISInfo.timezone is a non-nullable CharField, so store empty
+            # string when missing to avoid IntegrityError on save.
+            time_zone, coordinates = "", None
+            if location := data.location:
+                if location.latitude is not None and location.longitude is not None:
+                    coordinates = Point(
+                        location.longitude, location.latitude, srid=4326
+                    )
+                time_zone = location.time_zone or ""
             return {
-                "isp": data.traits.autonomous_system_organization,
-                "asn": data.traits.autonomous_system_number,
-                "timezone": data.location.time_zone,
+                "isp": str(data.traits.autonomous_system_organization or ""),
+                "asn": str(data.traits.autonomous_system_number or ""),
+                "timezone": time_zone,
                 "address": address,
                 "coordinates": coordinates,
-                "cidr": data.traits.network,
+                "cidr": str(data.traits.network or ""),
                 "ip_address": ip_address,
             }
 
@@ -210,25 +204,35 @@ class WHOISService:
               X days (defined by "WHOIS_REFRESH_THRESHOLD_DAYS").
             - WHOIS is disabled in the organization settings. (query from db)
         """
-
         # Check cheap conditions first before hitting the database
+        if not self.is_whois_enabled:
+            return False
         if not self.is_valid_public_ip_address(new_ip):
             return False
         whois_obj = self._get_whois_info_from_db(ip_address=new_ip).first()
         if whois_obj and not self.is_older(whois_obj.modified):
             return False
-        return self.is_whois_enabled
+        return True
 
     def _need_estimated_location_management(self, new_ip):
         """
         Used to determine if Estimated locations need to be created/updated
         or not during WHOIS lookup.
         """
-        if not self.is_valid_public_ip_address(new_ip):
-            return False
         if not self.is_whois_enabled:
             return False
-        return self.is_estimated_location_enabled
+        if not self.is_valid_public_ip_address(new_ip):
+            return False
+        if not self.is_estimated_location_enabled:
+            return False
+        return True
+
+    def trigger_estimated_location_task(self, ip_address):
+        """Helper method to trigger the estimated location task."""
+        current_app.send_task(
+            "whois_estimated_location_task",
+            kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
+        )
 
     def get_device_whois_info(self):
         """
@@ -238,7 +242,6 @@ class WHOISService:
         ip_address = self.device.last_ip
         if not (self.is_valid_public_ip_address(ip_address) and self.is_whois_enabled):
             return None
-
         return self._get_whois_info_from_db(ip_address=ip_address).first()
 
     def process_ip_data_and_location(self, force_lookup=False):
@@ -249,11 +252,12 @@ class WHOISService:
         Tasks are triggered on commit to ensure redundant data is not created.
         """
         new_ip = self.device.last_ip
+        initial_ip = self.device._initial_last_ip
         if force_lookup or self._need_whois_lookup(new_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    initial_ip_address=self.device._initial_last_ip,
+                    initial_ip_address=initial_ip,
                 )
             )
         # To handle the case when WHOIS already exists as in that case
@@ -261,14 +265,16 @@ class WHOISService:
         # manage estimated locations.
         elif self._need_estimated_location_management(new_ip):
             transaction.on_commit(
-                lambda: manage_estimated_locations.delay(
-                    device_pk=self.device.pk, ip_address=new_ip
+                lambda: self.trigger_estimated_location_task(
+                    ip_address=new_ip,
                 )
             )
 
     def update_whois_info(self):
         """
-        Update the WHOIS information for the device.
+        Update existing WHOIS data for the device
+        when the data is older than
+        ``OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS``.
         """
         ip_address = self.device.last_ip
         if not self.is_valid_public_ip_address(ip_address):
@@ -277,7 +283,12 @@ class WHOISService:
             return
         whois_obj = WHOISService._get_whois_info_from_db(ip_address=ip_address).first()
         if whois_obj and self.is_older(whois_obj.modified):
-            fetch_whois_details.delay(device_pk=self.device.pk, initial_ip_address=None)
+            transaction.on_commit(
+                lambda: fetch_whois_details.delay(
+                    device_pk=self.device.pk,
+                    initial_ip_address=None,
+                )
+            )
 
     def _create_or_update_whois(self, whois_details, whois_instance=None):
         """
@@ -285,15 +296,18 @@ class WHOISService:
         Returns the updated or created WHOIS instance along with update fields.
         """
         WHOISInfo = load_model("config", "WHOISInfo")
-
         update_fields = []
         if whois_instance:
             for attr, value in whois_details.items():
+                # whois_details already coerce to string most values
                 if getattr(whois_instance, attr) != value:
                     update_fields.append(attr)
                     setattr(whois_instance, attr, value)
-            if update_fields:
-                whois_instance.save(update_fields=update_fields)
+            # bump modified time so staleness check
+            # doesn't re-trigger the lookup
+            update_fields.append("modified")
+            whois_instance.modified = timezone.now()
+            whois_instance.save(update_fields=update_fields)
         else:
             whois_instance = WHOISInfo(**whois_details)
             whois_instance.full_clean()
@@ -325,11 +339,11 @@ class WHOISService:
                 device_location.location = current_location
                 device_location.full_clean()
                 device_location.save()
-                send_whois_task_notification(
-                    device=self.device,
-                    notify_type="estimated_location_created",
-                    actor=current_location,
-                )
+            send_whois_task_notification(
+                device=self.device,
+                notify_type="estimated_location_created",
+                actor=current_location,
+            )
         elif current_location.is_estimated:
             update_fields = []
             for attr, value in location_defaults.items():
@@ -341,11 +355,9 @@ class WHOISService:
                     current_location.save(
                         update_fields=update_fields, _set_estimated=True
                     )
-
                 send_whois_task_notification(
                     device=self.device,
                     notify_type="estimated_location_updated",
                     actor=current_location,
                 )
-
         return current_location

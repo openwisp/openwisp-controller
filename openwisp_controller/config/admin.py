@@ -942,7 +942,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         # passing the whois details to the context to avoid
         # the need to make an additional request in the js
         if data := get_whois_info(pk):
-            ctx["device_whois_details"] = json.dumps(data)
+            ctx["device_whois_details"] = data
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):

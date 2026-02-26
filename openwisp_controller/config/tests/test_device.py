@@ -531,6 +531,16 @@ class TestDevice(
             with self.assertNumQueries(3):
                 device._check_changed_fields()
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_changed_checked_fields_no_duplicates(self):
+        """Ensure `_changed_checked_fields` contains `last_ip` only once.
+        This prevents duplicates if __init__ is invoked multiple times.
+        """
+        device = Device()
+        # Simulate __init__ being called again on the same instance
+        device.__init__()
+        self.assertEqual(device._changed_checked_fields.count("last_ip"), 1)
+
     def test_exceed_organization_device_limit(self):
         org = self._get_org()
         org.config_limits.device_limit = 1

@@ -4,6 +4,8 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
 
+from .utils import MESSAGE_MAP
+
 
 def register_estimated_location_notification_types():
     """
@@ -19,18 +21,10 @@ def register_estimated_location_notification_types():
     register_notification_type(
         "estimated_location_info",
         {
+            **MESSAGE_MAP["estimated_location_created"],
             "verbose_name": _("Estimated Location INFO"),
             "verb": _("created"),
-            "level": "info",
-            "email_subject": _(
-                "Estimated Location: Created for device {notification.target}"
-            ),
-            "message": _(
-                "Estimated location [{notification.actor}]({notification.actor_link})"
-                " for device"
-                " [{notification.target}]({notification.target_link})"
-                " {notification.verb} successfully."
-            ),
+            "email_subject": _("Estimated location created for {notification.target}"),
             "target_link": (
                 "openwisp_controller.geo.estimated_location.utils"
                 ".get_device_location_notification_target_url"

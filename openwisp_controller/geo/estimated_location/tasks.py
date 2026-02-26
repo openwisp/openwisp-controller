@@ -28,7 +28,10 @@ def _handle_attach_existing_location(
             .exclude(pk=device.pk)
             .exists()
         )
-    if existing_device_location:
+    if (
+        existing_device_location
+        and existing_device_location.location != device_location.location
+    ):
         existing_location = existing_device_location.location
         device_location.location = existing_location
         device_location.full_clean()
@@ -61,6 +64,18 @@ def _handle_attach_existing_location(
         **whois_obj._get_defaults_for_estimated_location(),
         "organization_id": device.organization_id,
     }
+    # Create new location only if location is changed.
+    if (
+        attached_devices_exists
+        and current_location
+        and current_location.geometry == location_defaults.get("geometry")
+        and current_location.name == location_defaults.get("name")
+    ):
+        logger.debug(
+            f"Estimated location unchanged for {device.pk}"
+            f" for IP: {ip_address}, keeping existing location"
+        )
+        return
     # create new location if no location exists for device or the estimated location
     # of device is shared.
     whois_service = device.whois_service
@@ -73,7 +88,7 @@ def _handle_attach_existing_location(
     )
 
 
-@shared_task
+@shared_task(name="whois_estimated_location_task")
 def manage_estimated_locations(device_pk, ip_address):
     """
     Creates/updates estimated location for a device based on the latitude and
@@ -82,7 +97,7 @@ def manage_estimated_locations(device_pk, ip_address):
     the given ip_address.
     Does not alters the existing location if it is not estimated.
 
-    - If the current device has no location or location is estimate, either update
+    - If the current device has no location or location is estimated, either update
     to an existing location; if it exists, else
 
     - A new location is created if current device has no location, or
@@ -94,18 +109,34 @@ def manage_estimated_locations(device_pk, ip_address):
     Device = load_model("config", "Device")
     DeviceLocation = load_model("geo", "DeviceLocation")
 
-    device = Device.objects.select_related("devicelocation__location").get(pk=device_pk)
-
-    devices_with_location = (
-        Device.objects.only("devicelocation")
+    try:
+        device = Device.objects.select_related("devicelocation__location").get(
+            pk=device_pk
+        )
+    except Device.DoesNotExist:
+        logger.warning(
+            f"Device {device_pk} not found, skipping manage_estimated_locations"
+        )
+        return
+    devices_with_location = list(
+        # "devicelocation" and "devicelocation__location" must be in only() to
+        # prevent Django from deferring them, which would conflict with
+        # select_related(). Django raises FieldError if a relation field is
+        # both deferred and traversed via select_related.
+        Device.objects.only(
+            "id", "name", "last_ip", "devicelocation", "devicelocation__location"
+        )
         .select_related("devicelocation__location")
-        .filter(organization_id=device.organization_id)
-        .filter(last_ip=ip_address, devicelocation__location__isnull=False)
-        .exclude(pk=device.pk)
+        .filter(
+            organization_id=device.organization_id,
+            last_ip=ip_address,
+            devicelocation__location__isnull=False,
+        )
+        # evaluated to LIMIT query, we need to know if there's more than 1 result
+        .exclude(pk=device.pk)[:2]
     )
-
     # multiple devices can have same last_ip in cases like usage of proxy
-    if devices_with_location.count() > 1:
+    if len(devices_with_location) > 1:
         send_whois_task_notification(
             device=device, notify_type="estimated_location_error"
         )
@@ -114,16 +145,19 @@ def manage_estimated_locations(device_pk, ip_address):
             f"last_ip {ip_address}. Please resolve the conflict manually."
         )
         return
-
+    # if device doesn't have a location yet, initialize a draft
     if not (device_location := getattr(device, "devicelocation", None)):
         device_location = DeviceLocation(content_object=device)
-
     current_location = device_location.location
-
     if not current_location or current_location.is_estimated:
-        existing_device_location = getattr(
-            devices_with_location.first(), "devicelocation", None
-        )
+        # existing device location
+        try:
+            existing_device_location = getattr(
+                devices_with_location[0], "devicelocation", None
+            )
+        # no existing device location
+        except IndexError:
+            existing_device_location = None
         _handle_attach_existing_location(
             device, device_location, ip_address, existing_device_location
         )

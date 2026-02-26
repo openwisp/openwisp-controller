@@ -774,8 +774,8 @@ documentation regarding automatic retries for known errors.
 
 Allows enabling the optional :doc:`WHOIS Lookup feature <whois>`.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois-admin-setting.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois-admin-setting.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois/admin-setting.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/whois/admin-setting.png
     :alt: WHOIS admin setting
 
 After enabling this feature, you have to set
@@ -796,10 +796,10 @@ After enabling this feature, you have to set
 
 ============ =======
 **type**:    ``str``
-**default**: None
+**default**: ``""``
 ============ =======
 
-Maxmind Account ID required for the :doc:`WHOIS Lookup feature <whois>`.
+MaxMind Account ID required for the :doc:`WHOIS Lookup feature <whois>`.
 
 .. _openwisp_controller_whois_geoip_key:
 
@@ -808,15 +808,28 @@ Maxmind Account ID required for the :doc:`WHOIS Lookup feature <whois>`.
 
 ============ =======
 **type**:    ``str``
-**default**: None
+**default**: ``""``
 ============ =======
 
-Maxmind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
+MaxMind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
 
-.. _openwisp_controller_whois_estimated_location_enabled:
+.. _openwisp_controller_whois_refresh_threshold_days:
 
-``OPENWISP_CONTROLLER_WHOIS_ESTIMATED_LOCATION_ENABLED``
---------------------------------------------------------
+``OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS``
+----------------------------------------------------
+
+============ =======
+**type**:    ``int``
+**default**: ``90``
+============ =======
+
+Specifies the number of days after which the WHOIS information for a
+device is considered stale and eligible for refresh.
+
+.. _openwisp_controller_estimated_location_enabled:
+
+``OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED``
+--------------------------------------------------
 
 ============ =========
 **type**:    ``bool``
@@ -826,19 +839,14 @@ Maxmind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
 Allows enabling the optional :doc:`Estimated Location feature
 <estimated-location>`.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-location-setting.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-location-setting.png
+.. warning::
+
+    :ref:`OPENWISP_CONTROLLER_WHOIS_ENABLED
+    <openwisp_controller_whois_enabled>` must be set to ``True`` before
+    enabling this feature. Enabling estimated locations while
+    ``WHOIS_ENABLED=False`` will raise ``ImproperlyConfigured`` at startup
+    time.
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-locations/admin-setting.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.3/estimated-locations/admin-setting.png
     :alt: Estimated Location setting
-
-.. _openwisp_controller_whois_refresh_threshold_days:
-
-``OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS``
-----------------------------------------------------
-
-============ =======
-**type**:    ``int``
-**default**: ``14``
-============ =======
-
-Specifies the number of days after which the WHOIS information for a
-device is considered stale and eligible for refresh.

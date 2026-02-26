@@ -102,26 +102,43 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
     list_select_related = ("organization",)
     change_form_template = "admin/geo/location/change_form.html"
 
+    # Adding is_estimated field via 'get_' methods to allow testing in
+    # isolation as class level insertions are evaluated at import time
+    # making it unsuitable as per current testing setup.
+    def get_list_display(self, request):
+        list_display = list(super().get_list_display(request))  # makes a copy
+        if config_app_settings.WHOIS_CONFIGURED:
+            list_display.insert(list_display.index("created"), "is_estimated")
+        return list_display
+
+    def get_list_filter(self, request):
+        list_filter = list(super().get_list_filter(request))  # makes a copy
+        if config_app_settings.WHOIS_CONFIGURED:
+            list_filter.append("is_estimated")
+        return list_filter
+
     def get_fields(self, request, obj=None):
-        fields = super().get_fields(request, obj)
-        org_id = obj.organization_id if obj else None
-        if not WHOISService.check_estimate_location_configured(org_id):
-            if "is_estimated" in fields:
-                fields.remove("is_estimated")
+        fields = list(super().get_fields(request, obj))  # makes a copy
+        # do not show the is_estimated field on add pages
+        # or if the estimated location feature is not enabled for the organization
+        if not obj or not WHOISService.check_estimated_location_enabled(
+            obj.organization_id
+        ):
+            fields.remove("is_estimated")
         return fields
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
-        org_id = obj.organization_id if obj else None
-        if obj and WHOISService.check_estimate_location_configured(org_id):
-            fields = fields + ("is_estimated",)
+        if obj and WHOISService.check_estimated_location_enabled(obj.organization_id):
+            fields = ("is_estimated",) + fields  # creates a new tuple
         return fields
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         obj = self.get_object(request, object_id)
         org_id = obj.organization_id if obj else None
-        estimated_configured = WHOISService.check_estimate_location_configured(org_id)
-        extra_context = {"estimated_configured": estimated_configured}
+        estimated_enabled = WHOISService.check_estimated_location_enabled(org_id)
+        extra_context = extra_context or {}
+        extra_context["estimated_enabled"] = estimated_enabled
         return super().change_view(request, object_id, form_url, extra_context)
 
 

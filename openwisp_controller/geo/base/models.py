@@ -1,8 +1,7 @@
-import re
+from typing import ClassVar
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.models import (
     AbstractFloorPlan,
@@ -16,9 +15,14 @@ from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
-    _changed_checked_fields = ["is_estimated", "address", "geometry"]
+    _changed_checked_fields: ClassVar[list[str]] = [
+        "is_estimated",
+        "address",
+        "geometry",
+    ]
 
     is_estimated = models.BooleanField(
+        _("Is Estimated?"),
         default=False,
         help_text=_("Whether the location's coordinates are estimated."),
     )
@@ -41,12 +45,14 @@ class BaseLocation(OrgMixin, AbstractLocation):
     def clean(self):
         # Raise validation error if `is_estimated` is True but estimated feature is
         # disabled.
+        estimated_status_changed = (
+            self._initial_is_estimated is not models.DEFERRED
+            and self._initial_is_estimated != self.is_estimated
+        )
         if (
-            (self._state.adding or self._initial_is_estimated != self.is_estimated)
+            (self._state.adding or estimated_status_changed)
             and self.is_estimated
-            and not WHOISService.check_estimate_location_configured(
-                self.organization_id
-            )
+            and not WHOISService.check_estimated_location_enabled(self.organization_id)
         ):
             raise ValidationError(
                 {
@@ -64,27 +70,35 @@ class BaseLocation(OrgMixin, AbstractLocation):
         Parameters:
             _set_estimated: Boolean flag to indicate if this save is being performed
             by the estimated location system. When False (default),
-            manual edits will clear the estimated status.
+            manual edits will clear the estimated status (only if estimated location
+            feature is enabled).
             *args, **kwargs: Arguments passed to the parent save method.
 
         Returns:
             The result of the parent save method.
         """
-        if WHOISService.check_estimate_location_configured(self.organization_id):
-            if not _set_estimated and (
-                self._initial_address != self.address
-                or self._initial_geometry != self.geometry
-            ):
+        changed_fields = set()
+        if WHOISService.check_estimated_location_enabled(self.organization_id):
+            address_changed = (
+                self._initial_address is not models.DEFERRED
+                and self._initial_address != self.address
+            )
+            geometry_changed = (
+                self._initial_geometry is not models.DEFERRED
+                and self._initial_geometry != self.geometry
+            )
+            if not _set_estimated and (address_changed or geometry_changed):
                 self.is_estimated = False
-                estimated_string = gettext("Estimated Location")
-                if self.name and estimated_string in self.name:
-                    # remove string starting with "(Estimated Location"
-                    self.name = re.sub(
-                        rf"\s\({estimated_string}.*", "", self.name, flags=re.IGNORECASE
-                    )
-        else:
+                changed_fields = {"is_estimated"}
+        # Manual changes to is_estimated discarded if feature not enabled
+        elif self._initial_is_estimated is not models.DEFERRED:
             self.is_estimated = self._initial_is_estimated
-        return super().save(*args, **kwargs)
+            changed_fields = {"is_estimated"}
+        if update_fields := kwargs.get("update_fields"):
+            kwargs["update_fields"] = set(update_fields) | changed_fields
+        result = super().save(*args, **kwargs)
+        self._set_initial_values_for_changed_checked_fields()
+        return result
 
 
 class BaseFloorPlan(OrgMixin, AbstractFloorPlan):

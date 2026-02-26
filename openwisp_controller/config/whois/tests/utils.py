@@ -27,7 +27,6 @@ class CreateWHOISMixin(CreateConfigMixin):
             cidr="172.217.22.0/24",
             coordinates=Point(150, 50, srid=4326),
         )
-
         options.update(kwargs)
         w = WHOISInfo(**options)
         w.full_clean()
@@ -59,39 +58,27 @@ class WHOISTransactionMixin:
 
     def _task_called(self, mocked_task, task_name="WHOIS lookup"):
         org = self._get_org()
-
-        with self.subTest(f"{task_name} task called when last_ip is public"):
-            with mock.patch(
-                "django.core.cache.cache.get", side_effect=[None, org.config_settings]
-            ) as mocked_get, mock.patch("django.core.cache.cache.set") as mocked_set:
-                device = self._create_device(last_ip="172.217.22.14")
-                mocked_task.assert_called()
-                mocked_set.assert_called_once()
-                mocked_get.assert_called()
-        mocked_task.reset_mock()
-
-        with self.subTest(
-            f"{task_name} task called when last_ip is changed and is public"
-        ):
-            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
-                "django.core.cache.cache.set"
-            ) as mocked_set:
-                device.last_ip = "172.217.22.10"
-                device.save()
-                mocked_task.assert_called()
-                mocked_set.assert_not_called()
-                mocked_get.assert_called()
+        device = self._create_device(last_ip="172.217.22.14")
         mocked_task.reset_mock()
 
         with self.subTest(f"{task_name} task not called when last_ip not updated"):
             device.name = "default.test.Device2"
             device.save()
+            device.refresh_from_db()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
         with self.subTest(f"{task_name} task not called when last_ip is private"):
             device.last_ip = "10.0.0.1"
             device.save()
+            device.refresh_from_db()
+            mocked_task.assert_not_called()
+        mocked_task.reset_mock()
+
+        with self.subTest(f"{task_name} task not called when last_ip is invalid"):
+            device.last_ip = "invalid_ip"
+            device.save()
+            device.refresh_from_db()
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
 
@@ -100,6 +87,7 @@ class WHOISTransactionMixin:
             org.config_settings.whois_enabled = False
             # Invalidates old org config settings cache
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             device = self._create_device(last_ip="172.217.22.14")
             mocked_task.assert_not_called()
         mocked_task.reset_mock()
@@ -110,6 +98,7 @@ class WHOISTransactionMixin:
             org.config_settings.whois_enabled = True
             # Invalidates old org config settings cache
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             # config is required for checksum view to work
             device.refresh_from_db()
             self._create_config(device=device)
@@ -125,7 +114,8 @@ class WHOISTransactionMixin:
         mocked_task.reset_mock()
 
         with self.subTest(
-            f"{task_name} task not called via DeviceChecksumView for no WHOIS record"
+            f"{task_name} task not called via DeviceChecksumView "
+            "if no WHOIS record and IP unchanged"
         ):
             WHOISInfo.objects.all().delete()
             device.refresh_from_db()
@@ -145,6 +135,25 @@ class WHOISTransactionMixin:
             device.refresh_from_db()
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
+            org.config_settings.refresh_from_db(fields=["whois_enabled"])
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+                REMOTE_ADDR=device.last_ip,
+            )
+            self.assertEqual(response.status_code, 200)
+            mocked_task.assert_not_called()
+        mocked_task.reset_mock()
+
+        with self.subTest(
+            f"{task_name} task not called explicitly via DeviceChecksumView for "
+            "stale records"
+        ), mock.patch(
+            "openwisp_controller.config.whois.service.WHOISService.is_older",
+            return_value=True,
+        ):
+            WHOISInfo.objects.all().delete()
+            self._create_whois_info(ip_address=device.last_ip)
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device.pk]),
                 {"key": device.key},
