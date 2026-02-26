@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from geoip2 import errors
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
@@ -14,37 +15,32 @@ MESSAGE_MAP = {
         ),
         "description": _("WHOIS details could not be fetched for ip: {ip_address}."),
     },
-    "estimated_location_error": {
-        "level": "error",
-        "type": "estimated_location_info",
-        "message": _(
-            "Unable to create estimated location for device "
-            "[{notification.target}]({notification.target_link}). "
-            "Please assign/create a location manually."
-        ),
-        "description": _("Multiple devices found for IP: {ip_address}"),
-    },
-    "estimated_location_created": {
-        "type": "estimated_location_info",
-        "description": _("Estimated Location {notification.verb} for IP: {ip_address}"),
-    },
-    "estimated_location_updated": {
-        "type": "estimated_location_info",
-        "message": _(
-            "Estimated location [{notification.actor}]({notification.actor_link})"
-            " for device"
-            " [{notification.target}]({notification.target_link})"
-            " updated successfully."
-        ),
-        "description": _("Estimated Location updated for IP: {ip_address}"),
-    },
+}
+
+EXCEPTION_MESSAGES = {
+    errors.AddressNotFoundError: _(
+        "No WHOIS information found for IP address {ip_address}"
+    ),
+    errors.AuthenticationError: _(
+        "Authentication failed for GeoIP2 service. "
+        "Check your OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT and "
+        "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY settings."
+    ),
+    errors.OutOfQueriesError: _(
+        "Your account has run out of queries for the GeoIP2 service."
+    ),
+    errors.PermissionRequiredError: _(
+        "Your account does not have permission to access this service."
+    ),
 }
 
 
 def send_whois_task_notification(device, notify_type, actor=None):
     Device = load_model("config", "Device")
     if not isinstance(device, Device):
-        device = Device.objects.get(pk=device)
+        device = Device.objects.filter(pk=device).first()
+        if not device:
+            return
     notify_details = MESSAGE_MAP[notify_type]
     notify.send(
         sender=actor or device,

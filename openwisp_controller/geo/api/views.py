@@ -1,5 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
@@ -52,11 +52,15 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
         model = Location
         fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
 
-    def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
-        super().__init__(data, queryset, request=request, prefix=prefix)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # This is evaluated at runtime, which makes it suited
+        # For the automated testing strategy we are using.
+        # Defining this at class definition does not allow flexible testing.
         if config_app_settings.WHOIS_CONFIGURED:
             self.filters["is_estimated"] = filters.BooleanFilter(
-                field_name="is_estimated"
+                field_name="is_estimated",
+                label=_("Is geographic location estimated?"),
             )
 
 
@@ -223,8 +227,10 @@ class GeoJsonLocationList(
     Shows only locations which are assigned to devices.
     """
 
-    queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
-        device_count=Count("devicelocation")
+    queryset = (
+        Location.objects.filter(devicelocation__isnull=False)
+        .annotate(device_count=Count("devicelocation"))
+        .order_by("-created")
     )
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
@@ -319,7 +325,12 @@ class FloorPlanDetailView(
 
 class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = LocationSerializer
-    queryset = Location.objects.order_by("-created")
+    queryset = Location.objects.prefetch_related(
+        Prefetch(
+            "floorplan_set",
+            queryset=FloorPlan.objects.order_by("-created"),
+        )
+    ).order_by("-created")
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = LocationOrganizationFilter

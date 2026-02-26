@@ -12,6 +12,9 @@
 {% endblock %}
 
 {% block extrahead %}
+    {% if device_whois_details %}
+        {{ device_whois_details|json_script:"device-whois-details" }}
+    {% endif %}
     <script>
     {% if OPENWISP_CONTROLLER_API_HOST %}
         const owControllerApiHost = new URL('{{ OPENWISP_CONTROLLER_API_HOST }}');
@@ -20,7 +23,9 @@
     {% endif %}
         const owCommandApiEndpoint = '{{ commands_api_endpoint | safe }}';
     {% if device_whois_details %}
-        const deviceWHOISDetails = {{ device_whois_details | safe }};
+        const deviceWHOISDetails = JSON.parse(
+            document.getElementById("device-whois-details").textContent
+        );
     {% endif %}
     </script>
    {{ block.super}}

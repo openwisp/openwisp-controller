@@ -5,8 +5,6 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
-from swapper import load_model
 
 from openwisp_utils.base import TimeStampedEditableModel
 
@@ -34,7 +32,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         help_text=_("Organization for ASN"),
     )
     asn = models.CharField(
-        max_length=6,
+        max_length=10,
         blank=True,
         help_text=_("ASN"),
     )
@@ -43,13 +41,13 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         blank=True,
         help_text=_("Time zone"),
     )
-    address = JSONField(
+    address = models.JSONField(
         default=dict,
         help_text=_("Address"),
         blank=True,
     )
     cidr = models.CharField(
-        max_length=20,
+        max_length=49,
         blank=True,
         help_text=_("CIDR"),
     )
@@ -81,8 +79,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             except ValueError as e:
                 raise ValidationError(
                     {"cidr": _("Invalid CIDR format: %(error)s") % {"error": str(e)}}
-                )
-
+                ) from e
         if self.coordinates:
             if not (-90 <= self.coordinates.y <= 90):
                 raise ValidationError(
@@ -104,17 +101,8 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         Delete WHOIS information for a device when the last IP address is removed or
         when device is deleted.
         """
-        Device = load_model("config", "Device")
-
         last_ip = instance.last_ip
-        existing_devices = Device.objects.filter(_is_deactivated=False).filter(
-            last_ip=last_ip
-        )
-        if (
-            last_ip
-            and instance._get_organization__config_settings().whois_enabled
-            and not existing_devices.exists()
-        ):
+        if last_ip and instance._get_organization__config_settings().whois_enabled:
             transaction.on_commit(lambda: delete_whois_record.delay(last_ip))
 
     # this method is kept here instead of in OrganizationConfigSettings because
@@ -155,8 +143,13 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         if address:
             parts = [part.strip() for part in address.split(",")[:2] if part.strip()]
             location = ", ".join(parts)
-            return _(f"{location} (Estimated Location: {self.ip_address})")
-        return _(f"Estimated Location: {self.ip_address}")
+            # Use named placeholders so translators receive the template
+            return _("%(location)s: %(ip)s") % {
+                "location": location,
+                "ip": self.ip_address,
+            }
+        # Use named placeholder for consistency
+        return _("Estimated Location: %(ip)s") % {"ip": self.ip_address}
 
     def _get_defaults_for_estimated_location(self):
         """

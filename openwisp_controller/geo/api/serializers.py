@@ -12,7 +12,7 @@ from openwisp_utils.api.serializers import ValidatedModelSerializer
 
 from ...serializers import BaseSerializer
 from ..estimated_location.mixins import (
-    EstimatedLocationGeoJsonSerializer,
+    EstimatedLocationGeoJsonMixin,
     EstimatedLocationMixin,
 )
 
@@ -36,7 +36,7 @@ class LocationDeviceSerializer(ValidatedModelSerializer):
 
 
 class GeoJsonLocationSerializer(
-    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
+    EstimatedLocationGeoJsonMixin, gis_serializers.GeoFeatureModelSerializer
 ):
     device_count = IntegerField()
 
@@ -166,7 +166,8 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
     def to_representation(self, instance):
         request = self.context["request"]
         data = super().to_representation(instance)
-        floorplans = instance.floorplan_set.all().order_by("-modified")
+        # floorplan_set is already prefetched and ordered in the view
+        floorplans = instance.floorplan_set.all()
         floorplan_list = []
         for floorplan in floorplans:
             dict_ = {
@@ -232,7 +233,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
 
 
 class NestedtLocationSerializer(
-    EstimatedLocationGeoJsonSerializer, gis_serializers.GeoFeatureModelSerializer
+    EstimatedLocationGeoJsonMixin, gis_serializers.GeoFeatureModelSerializer
 ):
     class Meta:
         model = Location

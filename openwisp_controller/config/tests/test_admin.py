@@ -2267,14 +2267,17 @@ class TestAdmin(
             self.assertEqual(response.status_code, 200)
 
     # ensuring queries are consistent for different number of templates
+    @patch.object(app_settings, "WHOIS_CONFIGURED", False)
     def test_templates_fetch_queries_1(self):
         config = self._create_config(organization=self._get_org())
         self._verify_template_queries(config, 1)
 
+    @patch.object(app_settings, "WHOIS_CONFIGURED", False)
     def test_templates_fetch_queries_5(self):
         config = self._create_config(organization=self._get_org())
         self._verify_template_queries(config, 5)
 
+    @patch.object(app_settings, "WHOIS_CONFIGURED", False)
     def test_templates_fetch_queries_10(self):
         config = self._create_config(organization=self._get_org())
         self._verify_template_queries(config, 10)

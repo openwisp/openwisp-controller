@@ -80,9 +80,9 @@ information.
 
 **Estimated Location Filters**
 
-if :doc:`Estimated Location feature <estimated-location>` is enabled,
+If :doc:`Estimated Location feature <estimated-location>` is enabled,
 devices can be filtered based on the estimated nature of their location
-using the ``geo_is_estimated``.
+using the ``geo_is_estimated`` filter.
 
 **Available filters**
 
@@ -814,7 +814,7 @@ List Locations
 
 |estimated_details|
 
-Locations can also be filtered using the ``is_estimated``.
+Locations can also be filtered using the ``is_estimated`` filter.
 
 **Available filters**
 
@@ -951,7 +951,7 @@ List Locations with Devices Deployed (in GeoJSON Format)
 
 |estimated_details|
 
-Locations can also be filtered using the ``is_estimated``.
+Locations can also be filtered using the ``is_estimated`` filter.
 
 **Available filters**
 

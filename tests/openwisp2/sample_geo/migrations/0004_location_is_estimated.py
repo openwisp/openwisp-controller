@@ -16,6 +16,7 @@ class Migration(migrations.Migration):
             field=models.BooleanField(
                 default=False,
                 help_text="Whether the location's coordinates are estimated.",
+                verbose_name="Is Estimated?",
             ),
         ),
     ]
