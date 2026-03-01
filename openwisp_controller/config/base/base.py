@@ -203,7 +203,7 @@ class BaseConfig(BaseModel):
                 'Invalid configuration triggered by "#/{0}", '
                 "validator says:\n\n{1}".format(trigger, error)
             )
-            raise ValidationError(message)
+            raise ValidationError({"config": message})
 
     @cached_property
     def backend_class(self):
