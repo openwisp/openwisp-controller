@@ -14,6 +14,9 @@ from .. import settings as app_settings
 from ..exceptions import OrganizationDeviceLimitExceeded
 from ..tasks import bulk_invalidate_config_get_cached_checksum
 
+FALLBACK_WHOIS_ENABLED = False
+FALLBACK_ESTIMATED_LOCATION_ENABLED = False
+
 
 class AbstractOrganizationConfigSettings(UUIDModel):
     organization = models.OneToOneField(
@@ -36,12 +39,12 @@ class AbstractOrganizationConfigSettings(UUIDModel):
     )
     whois_enabled = FallbackBooleanChoiceField(
         help_text=_("Whether the WHOIS lookup feature is enabled"),
-        fallback=app_settings.WHOIS_ENABLED,
+        fallback=FALLBACK_WHOIS_ENABLED,
         verbose_name=_("WHOIS Enabled"),
     )
     estimated_location_enabled = FallbackBooleanChoiceField(
         help_text=_("Whether the estimated location feature is enabled"),
-        fallback=app_settings.ESTIMATED_LOCATION_ENABLED,
+        fallback=FALLBACK_ESTIMATED_LOCATION_ENABLED,
         verbose_name=_("Estimated Location Enabled"),
     )
     context = JSONField(
