@@ -216,48 +216,60 @@ class BaseSubnetDivisionRuleType(object):
     def get_max_subnet(master_subnet, division_rule):
         from netaddr import IPNetwork, IPSet
 
-        # Look for subnets belonging specifically to this rule first
-        existing_rule_subnets = Subnet.objects.filter(
-            master_subnet_id=master_subnet.id, subnetdivisionindex__rule=division_rule
-        ).order_by("subnet")
+        existing_rule_subnets = (
+            Subnet.objects.filter(
+                master_subnet_id=master_subnet.id,
+                subnetdivisionindex__rule=division_rule,
+            )
+            .values_list("subnet", flat=True)
+            .distinct()
+        )
 
-        if existing_rule_subnets.exists():
-            return str(existing_rule_subnets.last().subnet)
+        if existing_rule_subnets:
+            max_subnet = max(
+                (IPNetwork(str(subnet)) for subnet in existing_rule_subnets),
+                key=lambda net: int(net.network),
+            )
+            return str(max_subnet)
 
-        # If no subnets for this rule, find the first available gap in the master
         all_existing = Subnet.objects.filter(master_subnet_id=master_subnet.id)
         master_network = IPNetwork(str(master_subnet.subnet))
         consumed_space = IPSet([str(s.subnet) for s in all_existing])
 
         for candidate in master_network.subnet(prefixlen=division_rule.size):
             if not consumed_space.intersection(IPSet([candidate])):
-                # Return the block BEFORE this one so .next() hits this candidate
                 return str(candidate.previous())
 
         from django.core.exceptions import ValidationError
+        from django.utils.translation import gettext_lazy as _
 
-        raise ValidationError("Not enough space in master subnet.")
+        raise ValidationError(_("Not enough space in master subnet."))
 
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
         from ipaddress import ip_network
 
+        from django.utils.translation import gettext_lazy as _
         from netaddr import IPNetwork
 
         master_subnet = division_rule.master_subnet
-        # Check how many subnets already exist for this rule
-        existing_count = Subnet.objects.filter(
-            master_subnet_id=master_subnet.id, subnetdivisionindex__rule=division_rule
-        ).count()
 
-        # If we already have the required number, don't create more (AssertionError: 4 != 2 fix)
+        existing_count = (
+            Subnet.objects.filter(
+                master_subnet_id=master_subnet.id,
+                subnetdivisionindex__rule=division_rule,
+            )
+            .values("id")
+            .distinct()
+            .count()
+        )
+
         if existing_count >= division_rule.number_of_subnets:
             return []
 
         required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
 
-        # Only create the REMAINING subnets needed
         for subnet_id in range(existing_count + 1, division_rule.number_of_subnets + 1):
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
                 break
@@ -265,6 +277,9 @@ class BaseSubnetDivisionRuleType(object):
             subnet_obj = Subnet(
                 name=f"{division_rule.label}_subnet{subnet_id}",
                 subnet=str(required_subnet),
+                description=_(
+                    f"Automatically generated using {division_rule.label} rule."
+                ),
                 master_subnet_id=master_subnet.id,
                 organization_id=division_rule.organization_id,
             )
