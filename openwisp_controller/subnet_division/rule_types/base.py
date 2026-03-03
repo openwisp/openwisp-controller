@@ -183,7 +183,7 @@ class BaseSubnetDivisionRuleType(object):
                         config=config,
                     )
                 )
-        IpAddress.objects.bulk_create(generated_ips)
+
         return generated_ips
 
     @classmethod
@@ -249,6 +249,7 @@ class BaseSubnetDivisionRuleType(object):
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
         from ipaddress import ip_network
 
+        from django.core.exceptions import ValidationError
         from django.utils.translation import gettext_lazy as _
         from netaddr import IPNetwork
 
@@ -272,7 +273,7 @@ class BaseSubnetDivisionRuleType(object):
 
         for subnet_id in range(existing_count + 1, division_rule.number_of_subnets + 1):
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
-                break
+                raise ValidationError(_("Not enough space in master subnet."))
 
             subnet_obj = Subnet(
                 name=f"{division_rule.label}_subnet{subnet_id}",
@@ -308,13 +309,16 @@ class BaseSubnetDivisionRuleType(object):
             else:
                 index_start = 0
                 index_end = division_rule.number_of_ips
+
             for ip_index in range(index_start, index_end):
                 ip_obj = IpAddress(
                     subnet_id=subnet_obj.id,
                     ip_address=str(subnet_obj.subnet[ip_index]),
                 )
                 ip_obj.full_clean()
+                ip_obj.save()  # <--- THIS SAVES IT TO PREVENT THE FK CRASH
                 generated_ips.append(ip_obj)
+
                 keyword_index = ip_index if index_start == 1 else ip_index + 1
                 generated_indexes.append(
                     SubnetDivisionIndex(
@@ -325,7 +329,6 @@ class BaseSubnetDivisionRuleType(object):
                         config=config,
                     )
                 )
-        IpAddress.objects.bulk_create(generated_ips)
         return generated_ips
 
     @classmethod
