@@ -23,7 +23,10 @@ class Migration(migrations.Migration):
         swapper.dependency(
             *swapper.split(settings.AUTH_USER_MODEL), version="0004_default_groups"
         ),
-        swapper.dependency("config", "Device"),
+        swapper.dependency(
+            *swapper.split(settings.CONFIG_DEVICE_MODEL),
+            version="0004_add_device_model"
+        ),
     ]
 
     operations = [

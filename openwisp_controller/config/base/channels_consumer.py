@@ -10,13 +10,7 @@ class BaseDeviceConsumer(WebsocketConsumer):
     channel_layer_group = "config.device"
 
     def _is_user_authenticated(self):
-        try:
-            assert self.scope["user"].is_authenticated is True
-        except (KeyError, AssertionError):
-            self.close()
-            return False
-        else:
-            return True
+        return self.scope["user"].is_authenticated is True
 
     def is_user_authorized(self):
         user = self.scope["user"]

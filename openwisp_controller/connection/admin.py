@@ -149,7 +149,7 @@ class CommandInline(admin.StackedInline):
 
     def status_display(self, obj):
         status_value = obj.status
-        css_class = f"command-status-{status_value}"
+        css_class = f"command-status {status_value}"
         return format_html(
             '<span class="{0}">{1}</span>',
             css_class,
