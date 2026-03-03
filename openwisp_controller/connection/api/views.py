@@ -11,6 +11,7 @@ from rest_framework.generics import (
 from swapper import load_model
 
 from ...mixins import (
+    AutoRevisionMixin,
     ProtectedAPIMixin,
     RelatedDeviceModelPermission,
     RelatedDeviceProtectedAPIMixin,
@@ -62,7 +63,7 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
         return context
 
 
-class CommandListCreateView(BaseCommandView, ListCreateAPIView):
+class CommandListCreateView(BaseCommandView, AutoRevisionMixin, ListCreateAPIView):
     pagination_class = ListViewPagination
 
     def create(self, request, *args, **kwargs):
@@ -98,13 +99,15 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
         return obj
 
 
-class CredentialListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class CredentialListCreateView(ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView):
     queryset = Credentials.objects.order_by("-created")
     serializer_class = CredentialSerializer
     pagination_class = ListViewPagination
 
 
-class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class CredentialDetailView(
+    ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView
+):
     queryset = Credentials.objects.all()
     serializer_class = CredentialSerializer
 
@@ -116,7 +119,6 @@ class BaseDeviceConnection(
     organization_lookup = "organization__in"
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
-    queryset = DeviceConnection.objects.prefetch_related("device")
 
     def get_queryset(self):
         return (
@@ -131,15 +133,38 @@ class BaseDeviceConnection(
         context["device_id"] = self.kwargs["device_id"]
         return context
 
+    def initial(self, *args, **kwargs):
+        super().initial(*args, **kwargs)
+        self.assert_parent_exists()
+
+    def assert_parent_exists(self):
+        try:
+            assert self.get_parent_queryset().exists()
+        except (AssertionError, ValidationError):
+            device_id = self.kwargs["device_id"]
+            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
+
     def get_parent_queryset(self):
         return Device.objects.filter(pk=self.kwargs["device_id"])
 
 
-class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
+class DeviceConnenctionListCreateView(
+    BaseDeviceConnection, AutoRevisionMixin, ListCreateAPIView
+):
     pagination_class = ListViewPagination
 
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .filter(device_id=self.kwargs["device_id"])
+            .order_by("-created")
+        )
+    
 
-class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
+class DeviceConnectionDetailView(
+    BaseDeviceConnection, AutoRevisionMixin, RetrieveUpdateDestroyAPIView
+):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         filter_kwargs = {
