@@ -9,6 +9,8 @@ from django.db.models.signals import (
     pre_delete,
     pre_save,
 )
+from django.urls import register_converter
+from django.urls.converters import get_converters
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -20,6 +22,7 @@ from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
+from .converters import UUIDAnyConverter
 from .signals import (
     config_backend_changed,
     config_deactivated,
@@ -29,7 +32,6 @@ from .signals import (
     vpn_peers_changed,
     vpn_server_modified,
 )
-from .whois.handlers import connect_whois_handlers
 
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
@@ -43,6 +45,7 @@ class ConfigConfig(AppConfig):
     default_auto_field = "django.db.models.AutoField"
 
     def ready(self, *args, **kwargs):
+        self.register_path_converters()
         self.__setmodels__()
         self.connect_signals()
         self.register_notification_types()
@@ -51,7 +54,11 @@ class ConfigConfig(AppConfig):
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
-        connect_whois_handlers()
+
+    def register_path_converters(self):
+        converters = get_converters()
+        if "uuid_any" not in converters:
+            register_converter(UUIDAnyConverter, "uuid_any")
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
@@ -98,6 +105,11 @@ class ConfigConfig(AppConfig):
             self.config_model.enforce_required_templates,
             sender=self.config_model.templates.through,
             dispatch_uid="template.enforce_required_template",
+        )
+        m2m_changed.connect(
+            self.config_model.manage_certs,
+            sender=self.config_model.templates.through,
+            dispatch_uid="config.manage_certs",
         )
         post_save.connect(
             self.vpnclient_model.post_save,

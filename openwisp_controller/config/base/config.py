@@ -16,6 +16,7 @@ from packaging import version
 from swapper import get_model_name, load_model
 
 from .. import settings as app_settings
+from .. import tasks
 from ..signals import (
     config_backend_changed,
     config_deactivated,
@@ -388,6 +389,35 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     )
                     client.full_clean()
                     client.save()
+
+    @classmethod
+    def manage_certs(cls, action, instance, pk_set, **kwargs):
+        if instance._state.adding or action not in [
+            "post_add",
+            "post_remove",
+            "post_clear",
+        ]:
+            return
+        templates = cls._get_templates_from_pk_set(pk_set)
+        if action == "post_add" and templates is not None:
+            for template in templates.filter(type="cert", auto_cert=True):
+                transaction.on_commit(
+                    lambda t_id=template.pk: (
+                        tasks.generate_device_certificate_task.delay(
+                            instance.id,
+                            t_id,
+                        )
+                    )
+                )
+        elif action == "post_remove" and templates is not None:
+            if templates.filter(type="cert", auto_cert=True).exists():
+                transaction.on_commit(
+                    lambda: tasks.revoke_device_certificate_task.delay(instance.id)
+                )
+        elif action == "post_clear":
+            transaction.on_commit(
+                lambda: tasks.revoke_device_certificate_task.delay(instance.id)
+            )
 
     @classmethod
     def clean_templates_org(cls, action, instance, pk_set, raw_data=None, **kwargs):

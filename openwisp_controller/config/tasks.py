@@ -5,6 +5,8 @@ from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import gettext_lazy as _
+from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
@@ -217,3 +219,76 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(soft_time_limit=300)
+def generate_device_certificate_task(config_id, template_id):
+    Config = load_model("config", "Config")
+    Template = load_model("config", "Template")
+    Cert = load_model("django_x509", "Cert")
+    try:
+        config = Config.objects.select_related("device").get(pk=config_id)
+        template = Template.objects.select_related("ca").get(pk=template_id)
+        device = config.device
+        cert_name = f"{device.name}-generic-cert"
+        if not Cert.objects.filter(name=cert_name).exists():
+            cert = Cert.objects.create(
+                name=cert_name,
+                ca=template.ca,
+                common_name=device.name,
+                extensions=[
+                    {
+                        "name": "1.3.6.1.4.1.99999.1",
+                        "value": device.mac_address,
+                        "critical": False,
+                    }
+                ],
+            )
+            config.update_status_if_checksum_changed()
+            config._send_config_modified_signal(action="related_template_changed")
+            notify.send(
+                sender=config,
+                target=device,
+                type="generic_message",
+                action_object=cert,
+                verb=_("was generated successfully"),
+                message=_("A generic certificate for {device} was generated.").format(
+                    device=device.name
+                ),
+                level="success",
+            )
+            logger.info(f"Successfully generated certificate for Device {device.id}")
+    except Exception as e:
+        logger.exception(
+            f"Failed to generate certificate for Config {config_id}: {str(e)}"
+        )
+
+
+@shared_task(soft_time_limit=300)
+def revoke_device_certificate_task(config_id):
+    Config = load_model("config", "Config")
+    Cert = load_model("django_x509", "Cert")
+    try:
+        config = Config.objects.select_related("device").get(pk=config_id)
+        device = config.device
+        cert_name = f"{device.name}-generic-cert"
+        cert = Cert.objects.filter(name=cert_name, revoked=False).first()
+        if cert:
+            cert.revoke()
+            config.update_status_if_checksum_changed()
+            config._send_config_modified_signal(action="related_template_changed")
+            notify.send(
+                sender=config,
+                target=device,
+                type="generic_message",
+                verb=_("was revoked"),
+                message=_(
+                    "The generic certificate for {device} was successfully revoked."
+                ).format(device=device.name),
+                level="info",
+            )
+            logger.info(f"Revoked certificate for Device {device.id}")
+    except Exception as e:
+        logger.exception(
+            f"Failed to revoke certificate for Config {config_id}: {str(e)}"
+        )

@@ -21,7 +21,11 @@ from .base import BaseConfig
 
 logger = logging.getLogger(__name__)
 
-TYPE_CHOICES = (("generic", _("Generic")), ("vpn", _("VPN-client")))
+TYPE_CHOICES = (
+    ("generic", _("Generic")),
+    ("vpn", _("VPN-client")),
+    ("cert", _("Certificate")),
+)
 
 
 def default_auto_cert():
@@ -53,6 +57,13 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         blank=True,
         null=True,
         on_delete=models.CASCADE,
+    )
+    ca = models.ForeignKey(
+        get_model_name("django_x509", "Ca"),
+        verbose_name=_("Certification Authority"),
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
     )
     type = models.CharField(
         _("type"),
@@ -223,6 +234,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * if flagged as required forces it also to be default
         """
         self._validate_org_relation("vpn")
+        self._validate_org_relation("ca")
         if not self.default_values:
             self.default_values = {}
         if not isinstance(self.default_values, dict):
@@ -233,8 +245,13 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             raise ValidationError(
                 {"vpn": _('A VPN must be selected when template type is "VPN"')}
             )
-        elif self.type != "vpn":
+        elif self.type == "cert" and not self.ca:
+            raise ValidationError(
+                {"ca": _('A CA must be selected when template type is "Certificate"')}
+            )
+        elif self.type not in ["vpn", "cert"]:
             self.vpn = None
+            self.ca = None
             self.auto_cert = False
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(

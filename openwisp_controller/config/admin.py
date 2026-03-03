@@ -20,7 +20,7 @@ from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
-from django.urls import path, re_path, reverse
+from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
@@ -31,7 +31,6 @@ from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import get_default_values, get_relevant_templates
-from openwisp_controller.config.whois.utils import get_whois_info
 from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
@@ -50,7 +49,6 @@ from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
-whois_prefix = "whois/"
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -169,8 +167,8 @@ class BaseConfigAdmin(BaseAdmin):
         options = getattr(self.model, "_meta")
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
         return [
-            re_path(
-                r"^download/(?P<pk>[^/]+)/$",
+            path(
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
                 name="{0}_download".format(url_prefix),
             ),
@@ -179,8 +177,8 @@ class BaseConfigAdmin(BaseAdmin):
                 self.admin_site.admin_view(self.preview_view),
                 name="{0}_preview".format(url_prefix),
             ),
-            re_path(
-                r"^(?P<pk>[^/]+)/context\.json$",
+            path(
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
                 name="{0}_context".format(url_prefix),
             ),
@@ -571,21 +569,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    # overriding media property to allow testing in isolation
-    # as class Media is evaluated at import time making the
-    # settings not overridable in tests
-    @property
-    def media(self):
+    class Media(BaseConfigAdmin.Media):
         js = BaseConfigAdmin.Media.js + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
         ]
-        css = BaseConfigAdmin.Media.css["all"]
-        if app_settings.WHOIS_CONFIGURED:
-            js.append(f"{whois_prefix}js/whois.js")
-            css += (f"{whois_prefix}css/whois.css",)
-        return super().media + forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
@@ -939,10 +928,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 ),
             }
         )
-        # passing the whois details to the context to avoid
-        # the need to make an additional request in the js
-        if data := get_whois_info(pk):
-            ctx["device_whois_details"] = data
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):
@@ -1062,13 +1047,14 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "created",
     ]
     search_fields = ["name"]
-    multitenant_shared_relations = ("vpn",)
+    multitenant_shared_relations = ("vpn", "ca")
     fields = [
         "name",
         "organization",
         "type",
         "backend",
         "vpn",
+        "ca",
         "auto_cert",
         "tags",
         "default",
@@ -1080,7 +1066,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "modified",
     ]
     readonly_fields = ["system_context"]
-    autocomplete_fields = ["vpn"]
+    autocomplete_fields = ["vpn", "ca"]
 
     @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):
@@ -1377,29 +1363,18 @@ class OrganizationLimitsInline(admin.StackedInline):
 
 
 limits_inline_position = 0
+if getattr(app_settings, "REGISTRATION_ENABLED", True):
 
+    class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
+        class Meta:
+            widgets = {"context": FlatJsonWidget}
 
-class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
-    class Meta:
-        widgets = {"context": FlatJsonWidget}
+    class ConfigSettingsInline(admin.StackedInline):
+        model = OrganizationConfigSettings
+        form = ConfigSettingsForm
 
-
-class ConfigSettingsInline(admin.StackedInline):
-    model = OrganizationConfigSettings
-    form = ConfigSettingsForm
-
-    def get_fields(self, request, obj=None):
-        fields = []
-        if app_settings.REGISTRATION_ENABLED:
-            fields += ["registration_enabled", "shared_secret"]
-        if app_settings.WHOIS_CONFIGURED:
-            fields += ["whois_enabled", "estimated_location_enabled"]
-        fields += ["context"]
-        return fields
-
-
-OrganizationAdmin.save_on_top = True
-OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
-limits_inline_position = 1
+    OrganizationAdmin.save_on_top = True
+    OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
+    limits_inline_position = 1
 
 OrganizationAdmin.inlines.insert(limits_inline_position, OrganizationLimitsInline)
