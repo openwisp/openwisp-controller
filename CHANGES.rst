@@ -1,6 +1,18 @@
 Changelog
 =========
 
+Version 1.2.1 [2026-03-04]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Use context variables in Vpn.auto_client for OpenVPN backend
+- Fixed 500 FieldError in DeviceLocationView `#1110
+  <https://github.com/openwisp/openwisp-controller/issues/1110>`_
+- Fixed MultiValueDictKeyError on empty device form submission `#1057
+  <https://github.com/openwisp/openwisp-controller/issues/1057>`_
+
 Version 1.2.0 [2025-10-24]
 --------------------------
 
