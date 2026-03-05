@@ -640,6 +640,20 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         )
         self.assertEqual(auto, expected)
 
+    def test_auto_client_ipv6(self):
+        device, vpn, template = self._create_wireguard_vpn_template(
+            vpn_options={
+                "subnet": self._create_subnet(
+                    name="wireguard ipv6", subnet="fdca:1234::/64"
+                )
+            }
+        )
+        auto = vpn.auto_client(template_backend_class=template.backend_class)
+        addresses = auto["interfaces"][0]["addresses"]
+        self.assertEqual(len(addresses), 1)
+        self.assertEqual(addresses[0]["family"], "ipv6")
+        self.assertEqual(addresses[0]["mask"], 128)
+
     def test_change_vpn_backend(self):
         vpn = self._create_vpn(name="new", backend=self._BACKENDS["openvpn"])
         subnet = self._create_subnet(
