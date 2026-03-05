@@ -2,7 +2,7 @@ import logging
 import time
 
 import swapper
-from celery import current_app, shared_task
+from celery import current_app, current_task, shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
@@ -20,12 +20,16 @@ def _is_update_in_progress(device_id):
     active = current_app.control.inspect().active()
     if not active:
         return False
-    # check if there's any other running task before adding it
-    for task_list in active.values():
-        for task in task_list:
-            if task["name"] == _TASK_NAME and str(device_id) in task["args"]:
-                return True
-    return False
+    current_task_id = (
+        current_task.request.id if current_task and current_task.request else None
+    )
+    return any(
+        task["name"] == _TASK_NAME
+        and str(device_id) in task["args"]
+        and task.get("id") != current_task_id
+        for task_list in active.values()
+        for task in task_list
+    )
 
 
 @shared_task
