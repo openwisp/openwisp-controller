@@ -641,11 +641,13 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         self.assertEqual(auto, expected)
 
     def test_auto_client_ipv6(self):
+        org = self._get_org()
         device, vpn, template = self._create_wireguard_vpn_template(
             vpn_options={
+                "organization": org,
                 "subnet": self._create_subnet(
-                    name="wireguard ipv6", subnet="fdca:1234::/64"
-                )
+                    name="wireguard ipv6", subnet="fdca:1234::/64", organization=org
+                ),
             }
         )
         auto = vpn.auto_client(template_backend_class=template.backend_class)
