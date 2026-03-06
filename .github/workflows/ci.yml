@@ -5,12 +5,12 @@ on:
   push:
     branches:
       - master
+      - "1.2"
   pull_request:
     branches:
       - master
       - "1.1"
-      - gsoc25-map
-      - gsoc25-whois
+      - "1.2"
 
 jobs:
   build:
