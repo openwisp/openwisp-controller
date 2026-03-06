@@ -3,12 +3,13 @@ import uuid
 from subprocess import CalledProcessError, TimeoutExpired
 from unittest import mock
 
+import requests
 from celery.exceptions import Retry, SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.db.utils import IntegrityError
-from django.http.response import HttpResponse, HttpResponseNotFound
+from django.http.response import HttpResponse
 from django.test import TestCase, TransactionTestCase
 from requests.exceptions import ConnectionError, RequestException, Timeout
 from swapper import load_model
@@ -855,7 +856,7 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             fail_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
                 "Not Found"
             )
-            with mock.patch("logging.Logger.warning") as mocked_logger, mock.patch(
+            with mock.patch("logging.Logger.error") as mocked_logger, mock.patch(
                 "requests.post", return_value=fail_response
             ):
                 post_save.send(
