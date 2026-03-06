@@ -74,7 +74,7 @@ jobs:
             libgeos-dev libspatialite-dev spatialite-bin \
             libsqlite3-mod-spatialite
           sudo npm install -g prettier
-          pip install -U pip wheel setuptools
+          pip install -U pip wheel "setuptools<82"
           pip install -U -r requirements-test.txt
           pip install -U -e .
           pip install ${{ matrix.django-version }}
