@@ -62,9 +62,11 @@ class Migration(migrations.Migration):
                         dump_kwargs={"ensure_ascii": False, "indent": 4},
                         load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         help_text=(
-                            "Group meta data, use this field to store data which is"
-                            " related to this group and can be retrieved via the"
-                            " REST API."
+                            "Store custom metadata related to this group. "
+                            "This field is intended for arbitrary data that "
+                            "does not affect device configuration and can "
+                            "be retrieved via the REST API for integrations "
+                            "or external tools."
                         ),
                         verbose_name="Metadata",
                     ),

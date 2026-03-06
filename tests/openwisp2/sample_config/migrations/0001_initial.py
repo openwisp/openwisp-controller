@@ -121,9 +121,10 @@ class Migration(migrations.Migration):
                         default=dict,
                         dump_kwargs={"ensure_ascii": False, "indent": 4},
                         help_text=(
-                            'Additional <a href="http://netjsonconfig.openwisp.org'
-                            '/en/stable/general/basics.html#context" target="_blank">'
-                            "context (configuration variables)</a> in JSON format"
+                            "allows overriding "
+                            '<a href="https://openwisp.io/docs/stable/controller/user/variables.html'  # noqa: E501
+                            '" target="_blank">'
+                            "configuration variables</a>"
                         ),
                         load_kwargs={"object_pairs_hook": collections.OrderedDict},
                     ),
@@ -579,9 +580,10 @@ class Migration(migrations.Migration):
                         default=dict,
                         dump_kwargs={"ensure_ascii": False, "indent": 4},
                         help_text=(
-                            "A dictionary containing the default values for the "
-                            "variables used by this template; these default variables "
-                            "will be used during schema validation."
+                            "Define default values for the variables used "
+                            "in this template. These values are used during "
+                            "validation and when a variable is not provided "
+                            "by the device, group, or organization."
                         ),
                         load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="Default Values",
@@ -709,8 +711,8 @@ class Migration(migrations.Migration):
                         default=dict,
                         dump_kwargs={"indent": 4},
                         help_text=(
-                            'This field can be used to add "Configuration Variables"'
-                            " to the devices."
+                            "Define reusable configuration variables "
+                            "available to all devices in this organization"
                         ),
                         load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="Configuration Variables",
@@ -765,9 +767,11 @@ class Migration(migrations.Migration):
                         dump_kwargs={"ensure_ascii": False, "indent": 4},
                         load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         help_text=(
-                            "Group meta data, use this field to store data which is"
-                            " related to this group and can be retrieved via the"
-                            " REST API."
+                            "Store custom metadata related to this group. "
+                            "This field is intended for arbitrary data that "
+                            "does not affect device configuration and can "
+                            "be retrieved via the REST API for integrations "
+                            "or external tools."
                         ),
                         verbose_name="Metadata",
                     ),
@@ -779,8 +783,8 @@ class Migration(migrations.Migration):
                         default=dict,
                         dump_kwargs={"ensure_ascii": False, "indent": 4},
                         help_text=(
-                            "This field can be used to add meta data for the group"
-                            ' or to add "Configuration Variables" to the devices.'
+                            "Define configuration variables available "
+                            "to all devices in this group"
                         ),
                         load_kwargs={"object_pairs_hook": collections.OrderedDict},
                         verbose_name="Configuration Variables",
