@@ -50,7 +50,8 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},
         help_text=_(
-            'This field can be used to add "Configuration Variables"' " to the devices."
+            "Define reusable configuration variables available "
+            "to all devices in this organization"
         ),
         verbose_name=_("Configuration Variables"),
     )
