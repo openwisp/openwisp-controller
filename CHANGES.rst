@@ -1,6 +1,18 @@
 Changelog
 =========
 
+Version 1.2.2 [2026-03-06]
+--------------------------
+
+Changes
+~~~~~~~
+
+Other changes
++++++++++++++
+
+- Improved help text of configuration variable fields
+- Minor fixes in the test suite
+
 Version 1.2.1 [2026-03-04]
 --------------------------
 
