@@ -629,6 +629,12 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
                     vxlan=self.config.get("vxlan", [{}])[0],
                     **context_keys,
                 )
+                if self.subnet and self.subnet.subnet.version == 6:
+                    for interface in auto.get("interfaces", []):
+                        if interface.get("type") == "wireguard":
+                            for addr in interface.get("addresses", []):
+                                addr["family"] = "ipv6"
+                                addr["mask"] = 128
             # If the backend is 'zerotier' then
             # call auto_client and update the config
             elif self._is_backend_type("zerotier") and template_backend_class:
