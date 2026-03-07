@@ -85,10 +85,10 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         blank=True,
         default=dict,
         help_text=_(
-            "Additional "
-            '<a href="http://netjsonconfig.openwisp.org/'
-            'en/stable/general/basics.html#context" target="_blank">'
-            "context (configuration variables)</a> in JSON format"
+            "allows overriding "
+            '<a href="https://openwisp.io/docs/stable/controller/user/variables.html'
+            '" target="_blank">'
+            "configuration variables</a>"
         ),
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},

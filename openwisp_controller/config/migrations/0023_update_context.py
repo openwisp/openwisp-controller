@@ -18,9 +18,10 @@ class Migration(migrations.Migration):
                 default=dict,
                 dump_kwargs={"ensure_ascii": False, "indent": 4},
                 help_text=(
-                    'Additional <a href="http://netjsonconfig.openwisp.org'
-                    '/en/stable/general/basics.html#context" target="_blank">'
-                    "context (configuration variables)</a> in JSON format"
+                    "allows overriding "
+                    '<a href="https://openwisp.io/docs/stable/controller/user/variables.html'  # noqa: E501
+                    '" target="_blank">'
+                    "configuration variables</a>"
                 ),
                 load_kwargs={"object_pairs_hook": collections.OrderedDict},
             ),
