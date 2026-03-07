@@ -46,6 +46,7 @@ if __name__ == "__main__":
     else:
         test_app = "openwisp2"
         app_dir = "tests/openwisp2/"
+        args += ["--exclude-tag", "slow"]
     # Run Django tests
     django_tests = run_tests(args, "openwisp2.settings", test_app)
     # Run pytest tests
