@@ -21,6 +21,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
+      pr_author: ${{ steps.pr.outputs.author }}
     steps:
       - name: Find PR Number
         id: pr
@@ -30,10 +31,20 @@ jobs:
           PR_NUMBER_PAYLOAD: ${{ github.event.workflow_run.pull_requests[0].number }}
           EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          emit_pr() {
+            local pr_number="$1"
+            local pr_author
+            pr_author=$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login' 2>/dev/null || echo "")
+            if [ -z "$pr_author" ]; then
+              echo "::warning::Could not fetch PR author for PR #$pr_number"
+            fi 
+            echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+            echo "author=$pr_author" >> "$GITHUB_OUTPUT"
+          }
           PR_NUMBER="$PR_NUMBER_PAYLOAD"
           if [ -n "$PR_NUMBER" ]; then
             echo "Found PR #$PR_NUMBER from workflow payload."
-            echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            emit_pr "$PR_NUMBER"
             exit 0
           fi
           HEAD_SHA="$EVENT_HEAD_SHA"
@@ -41,14 +52,14 @@ jobs:
           PR_NUMBER=$(gh api repos/$REPO/commits/$HEAD_SHA/pulls -q '.[0].number' 2>/dev/null || true)
           if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then
              echo "Found PR #$PR_NUMBER using Commits API."
-             echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+             emit_pr "$PR_NUMBER"
              exit 0
           fi
           echo "API lookup failed/empty. Scanning open PRs for matching head SHA..."
           PR_NUMBER=$(gh pr list --repo "$REPO" --state open --limit 100 --json number,headRefOid --jq ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number" | head -n 1)
           if [ -n "$PR_NUMBER" ]; then
              echo "Found PR #$PR_NUMBER by scanning open PRs."
-             echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+             emit_pr "$PR_NUMBER"
              exit 0
           fi
           echo "::warning::No open PR found. This workflow run might not be attached to an open PR."
@@ -64,8 +75,8 @@ jobs:
       head_repo: ${{ github.event.workflow_run.head_repository.full_name }}
       base_repo: ${{ github.repository }}
       run_id: ${{ github.event.workflow_run.id }}
-      pr_author: ${{ github.event.workflow_run.actor.login }}
-      actor: ${{ github.actor }}
+      pr_author: ${{ needs.find-pr.outputs.pr_author }}
+      actor: ${{ github.event.workflow_run.actor.login }}
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       APP_ID: ${{ secrets.OPENWISP_BOT_APP_ID }}
