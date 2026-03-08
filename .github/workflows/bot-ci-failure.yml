@@ -34,7 +34,7 @@ jobs:
           emit_pr() {
             local pr_number="$1"
             local pr_author
-            pr_author=$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login' 2>/dev/null || echo "")
+            pr_author=$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login // empty' 2>/dev/null || echo "")
             if [ -z "$pr_author" ]; then
               pr_author="${{ github.event.workflow_run.actor.login }}"
               echo "::warning::Could not fetch PR author for PR #$pr_number; falling back to @$pr_author"
