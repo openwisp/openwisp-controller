@@ -1,13 +1,14 @@
 import logging
 from ipaddress import ip_network
+from django.utils.translation import gettext_lazy as _
+from django.db import transaction
 from operator import attrgetter
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import connection, transaction
+
 from django.dispatch import Signal
-from django.utils.translation import gettext_lazy as _
 from netaddr import IPNetwork
-from openwisp_notifications.signals import notify
+
 from swapper import load_model
 
 from ..signals import subnet_provisioned
@@ -153,75 +154,89 @@ class BaseSubnetDivisionRuleType(object):
         if cls.config_path == "self":
             config = instance
         else:
+            from operator import attrgetter
+
             config = attrgetter(cls.config_path)(instance)
-        # check for real existence in DB to workaround
-        # this django-import-export bug:
-        # https://github.com/django-import-export/django-import-export/issues/1078
-        # TODO: if that issue is ever solved, we can remove the this block below
         Config = config._meta.model
         if not Config.objects.filter(pk=config.pk).exists():
+            from django.core.exceptions import ObjectDoesNotExist
+
             raise ObjectDoesNotExist()
         return config
 
     @staticmethod
     def get_max_subnet(master_subnet, division_rule):
-        # Only PostgreSQL supports ordering queryset using the "subnet"
-        # field. If the project is using any other database backend, then
-        # "created" field is used for ordering the queryset.
-        order_field = "-subnet" if connection.vendor == "postgresql" else "-created"
-        try:
-            max_subnet = (
-                # Get the highest subnet created for this master_subnet
-                Subnet.objects.filter(master_subnet_id=master_subnet.id)
-                .order_by(order_field)
-                .first()
-                .subnet
-            )
-        except AttributeError:
-            # If there is no existing subnet, create a reserved subnet
-            # and use it as starting point
-            required_subnet = next(
-                IPNetwork(str(master_subnet.subnet)).subnet(
-                    prefixlen=division_rule.size
-                )
-            )
-            subnet_obj = Subnet(
-                name=f"Reserved Subnet {required_subnet}",
-                subnet=str(required_subnet),
-                description=_("Automatically generated reserved subnet."),
+        from netaddr import IPSet
+
+        existing_rule_subnets = (
+            Subnet.objects.filter(
                 master_subnet_id=master_subnet.id,
-                organization_id=master_subnet.organization_id,
+                subnetdivisionindex__rule=division_rule,
             )
-            subnet_obj.full_clean()
-            subnet_obj.save()
-            max_subnet = subnet_obj.subnet
-        return max_subnet
+            .values_list("subnet", flat=True)
+            .distinct()
+        )
+
+        if existing_rule_subnets:
+            max_subnet = max(
+                (IPNetwork(str(subnet)) for subnet in existing_rule_subnets),
+                key=lambda net: int(net.network),
+            )
+            return str(max_subnet)
+
+        all_existing = Subnet.objects.filter(master_subnet_id=master_subnet.id)
+        master_network = IPNetwork(str(master_subnet.subnet))
+        consumed_space = IPSet([str(s.subnet) for s in all_existing])
+
+        for candidate in master_network.subnet(prefixlen=division_rule.size):
+            if not consumed_space.intersection(IPSet([candidate])):
+                return str(candidate.previous())
+
+        from django.core.exceptions import ValidationError
+
+        raise ValidationError(_("Not enough space in master subnet."))
 
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
+
+        from django.core.exceptions import ValidationError
+        from netaddr import IPSet
+
         master_subnet = division_rule.master_subnet
+
+        existing_count = (
+            Subnet.objects.filter(
+                master_subnet_id=master_subnet.id,
+                subnetdivisionindex__rule=division_rule,
+            )
+            .values("id")
+            .distinct()
+            .count()
+        )
+
+        if existing_count >= division_rule.number_of_subnets:
+            return []
+
         required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
 
-        for subnet_id in range(1, division_rule.number_of_subnets + 1):
+        consumed_space = IPSet(
+            [
+                str(s.subnet)
+                for s in Subnet.objects.filter(master_subnet_id=master_subnet.id)
+            ]
+        )
+
+        for subnet_id in range(existing_count + 1, division_rule.number_of_subnets + 1):
+
+            while ip_network(str(required_subnet)).subnet_of(
+                master_subnet.subnet
+            ) and consumed_space.intersection(IPSet([required_subnet])):
+                required_subnet = required_subnet.next()
+
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
-                notify.send(
-                    sender=config,
-                    type="generic_message",
-                    target=config.device,
-                    action_object=master_subnet,
-                    level="error",
-                    message=_(
-                        "Failed to provision subnets for"
-                        " [{notification.target}]({notification.target_link})"
-                    ),
-                    description=_(
-                        "The [{notification.action_object}]({notification.action_link})"
-                        " subnet has run out of space."
-                    ),
-                )
-                logger.info(f"Cannot create more subnets of {master_subnet}")
-                break
+                raise ValidationError(_("Not enough space in master subnet."))
+
             subnet_obj = Subnet(
                 name=f"{division_rule.label}_subnet{subnet_id}",
                 subnet=str(required_subnet),
@@ -232,7 +247,11 @@ class BaseSubnetDivisionRuleType(object):
                 organization_id=division_rule.organization_id,
             )
             subnet_obj.full_clean()
+            subnet_obj.save()
             generated_subnets.append(subnet_obj)
+
+            consumed_space.update(IPSet([required_subnet]))
+
             generated_indexes.append(
                 SubnetDivisionIndex(
                     keyword=f"{division_rule.label}_subnet{subnet_id}",
@@ -241,35 +260,28 @@ class BaseSubnetDivisionRuleType(object):
                     config=config,
                 )
             )
-            required_subnet = required_subnet.next()
-        Subnet.objects.bulk_create(generated_subnets)
         return generated_subnets
 
     @staticmethod
     def create_ips(config, division_rule, generated_subnets, generated_indexes):
         generated_ips = []
         for subnet_obj in generated_subnets:
-            # don't assign first ip address of a subnet,
-            # unless the rule is designed to use the whole
-            # address space of the subnet
             if subnet_obj.subnet.num_addresses != division_rule.number_of_ips:
                 index_start = 1
                 index_end = division_rule.number_of_ips + 1
-            # this allows handling /32, /128 or cases in which
-            # the number of requested ip addresses matches exactly
-            # what is available in the subnet
             else:
                 index_start = 0
                 index_end = division_rule.number_of_ips
-            # generate IPs and indexes accordingly
+
             for ip_index in range(index_start, index_end):
                 ip_obj = IpAddress(
                     subnet_id=subnet_obj.id,
                     ip_address=str(subnet_obj.subnet[ip_index]),
                 )
                 ip_obj.full_clean()
+                ip_obj.save()  # <--- THIS SAVES IT TO PREVENT THE FK CRASH
                 generated_ips.append(ip_obj)
-                # ensure human friendly labels (starting from 1 instead of 0)
+
                 keyword_index = ip_index if index_start == 1 else ip_index + 1
                 generated_indexes.append(
                     SubnetDivisionIndex(
@@ -280,13 +292,10 @@ class BaseSubnetDivisionRuleType(object):
                         config=config,
                     )
                 )
-        IpAddress.objects.bulk_create(generated_ips)
         return generated_ips
 
     @classmethod
     def destroy_provisioned_subnets_ips(cls, instance, **kwargs):
-        # Deleting related subnets automatically deletes related IpAddress
-        # and SubnetDivisionIndex objects
         config = cls.get_config(instance)
         rule_type = f"{cls.__module__}.{cls.__name__}"
         subnet_ids = config.subnetdivisionindex_set.filter(
