@@ -1,0 +1,49 @@
+name: Stale PR Management
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: bot-autoassign-stale-pr-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  manage-stale-prs-python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.OPENWISP_BOT_APP_ID }}
+          private-key: ${{ secrets.OPENWISP_BOT_PRIVATE_KEY }}
+
+      - name: Checkout openwisp-utils
+        uses: actions/checkout@v6
+        with:
+          repository: openwisp/openwisp-utils
+          ref: master
+          path: openwisp-utils
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e openwisp-utils/.[github_actions]
+
+      - name: Run stale PR bot
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: >
+          python openwisp-utils/.github/actions/bot-autoassign/__main__.py
+          stale_pr

@@ -1,0 +1,87 @@
+name: PR Reopen Reassignment
+
+on:
+  pull_request_target:
+    types: [reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: bot-autoassign-pr-reopen-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  reassign-on-reopen:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target' && github.event.action == 'reopened'
+    steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.OPENWISP_BOT_APP_ID }}
+          private-key: ${{ secrets.OPENWISP_BOT_PRIVATE_KEY }}
+
+      - name: Checkout openwisp-utils
+        uses: actions/checkout@v6
+        with:
+          repository: openwisp/openwisp-utils
+          ref: master
+          path: openwisp-utils
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e openwisp-utils/.[github_actions]
+
+      - name: Reassign issues on PR reopen
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python openwisp-utils/.github/actions/bot-autoassign/__main__.py
+          pr_reopen "$GITHUB_EVENT_PATH"
+
+  handle-pr-activity:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+    steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.OPENWISP_BOT_APP_ID }}
+          private-key: ${{ secrets.OPENWISP_BOT_PRIVATE_KEY }}
+
+      - name: Checkout openwisp-utils
+        uses: actions/checkout@v6
+        with:
+          repository: openwisp/openwisp-utils
+          ref: master
+          path: openwisp-utils
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e openwisp-utils/.[github_actions]
+
+      - name: Handle PR activity
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python openwisp-utils/.github/actions/bot-autoassign/__main__.py
+          pr_reopen "$GITHUB_EVENT_PATH"
