@@ -652,7 +652,7 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
         )
         auto = vpn.auto_client(template_backend_class=template.backend_class)
         wg_interface = next(
-            (i for i in auto["interfaces"] if "wg" in i.get("name", "")), None
+            (i for i in auto["interfaces"] if i.get("type") == "wireguard"), None
         )
         self.assertIsNotNone(wg_interface, "WireGuard interface not found")
         addresses = wg_interface["addresses"]
@@ -1030,7 +1030,7 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
         )
         auto = vpn.auto_client(template_backend_class=template.backend_class)
         wg_interface = next(
-            (i for i in auto["interfaces"] if "wg" in i.get("name", "")), None
+            (i for i in auto["interfaces"] if i.get("type") == "wireguard"), None
         )
         self.assertIsNotNone(wg_interface, "WireGuard interface not found")
         addresses = wg_interface["addresses"]
