@@ -1012,6 +1012,24 @@ class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
         )
         self.assertEqual(auto, expected)
 
+    def test_auto_client_ipv6(self):
+        org = self._get_org()
+        device, vpn, template = self._create_vxlan_vpn_template(
+            vpn_options={
+                "organization": org,
+                "subnet": self._create_subnet(
+                    name="vxlan wireguard ipv6",
+                    subnet="fdca:1234::/64",
+                    organization=org,
+                ),
+            }
+        )
+        auto = vpn.auto_client(template_backend_class=template.backend_class)
+        addresses = auto["interfaces"][0]["addresses"]
+        self.assertEqual(len(addresses), 1)
+        self.assertEqual(addresses[0]["family"], "ipv6")
+        self.assertEqual(addresses[0]["mask"], 128)
+
 
 class TestVxlanTransaction(
     BaseTestVpn, TestVxlanWireguardVpnMixin, TransactionTestCase

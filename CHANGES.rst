@@ -4,7 +4,11 @@ Changelog
 Version 1.3.0 [unreleased]
 --------------------------
 
-Work in progress.
+Bugfixes
+~~~~~~~~
+
+- Fixed WireGuard auto tunnel provisioning broken with IPv6 subnets `#721
+  <https://github.com/openwisp/openwisp-controller/issues/721>`_
 
 Version 1.2.2 [2026-03-06]
 --------------------------
