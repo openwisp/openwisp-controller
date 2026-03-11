@@ -32,7 +32,7 @@ use any method you prefer.
 
 For simplicity, install the OpenVPN server on the same machine where OpenWISP is installed.
 
-While it is possible to install the OpenVPN server on a different server,
+While it is possible to install the OpenVPN server on a different machine,
 it requires additional steps not covered in this tutorial.
 
 1. Install Ansible and Required Ansible Roles
