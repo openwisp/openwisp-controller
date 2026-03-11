@@ -30,8 +30,7 @@ use any method you prefer.
     the OpenVPN server using a different method, you can skip forward to
     :ref:`import_ca_and_server_cert`.
 
-For simplicity, **the OpenVPN server must be installed on the same server
-where OpenWISP is also installed**.
+For simplicity, install the OpenVPN server on the same machine where OpenWISP is installed.
 
 While it is possible to install the OpenVPN server on a different server,
 it requires additional steps not covered in this tutorial.
@@ -212,7 +211,7 @@ After saving the template, you can tweak the VPN Client configuration,
 which is automatically generated to be compatible with the server
 configuration.
 
-Finally you can add the new template to your devices.
+Finally, you can add the new template to your devices.
 
 .. tip::
 
