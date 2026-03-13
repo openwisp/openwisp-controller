@@ -234,7 +234,11 @@ class BaseSubnetDivisionRuleType(object):
             subnet_obj.full_clean()
             generated_subnets.append(subnet_obj)
             required_subnet = required_subnet.next()
-        Subnet.objects.bulk_create(generated_subnets)
+        if connection.features.can_return_rows_from_bulk_insert:
+            Subnet.objects.bulk_create(generated_subnets)
+        else:
+            for subnet_obj in generated_subnets:
+                subnet_obj.save()
         for subnet_id, subnet_obj in enumerate(generated_subnets, start=1):
             generated_indexes.append(
                 SubnetDivisionIndex(
@@ -277,8 +281,12 @@ class BaseSubnetDivisionRuleType(object):
                 ip_index_metadata.append(
                     (subnet_obj, ip_obj, keyword_index)
                 )
-        IpAddress.objects.bulk_create(generated_ips)
-        # build indexes only after bulk_create has populated ip_obj.id
+        if connection.features.can_return_rows_from_bulk_insert:
+            IpAddress.objects.bulk_create(generated_ips)
+        else:
+            for ip_obj in generated_ips:
+                ip_obj.save()
+        # build indexes only after IpAddress instances have valid PKs
         for subnet_obj, ip_obj, keyword_index in ip_index_metadata:
             generated_indexes.append(
                 SubnetDivisionIndex(
