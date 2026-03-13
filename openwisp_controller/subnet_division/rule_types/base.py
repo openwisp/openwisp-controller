@@ -233,6 +233,9 @@ class BaseSubnetDivisionRuleType(object):
             )
             subnet_obj.full_clean()
             generated_subnets.append(subnet_obj)
+            required_subnet = required_subnet.next()
+        Subnet.objects.bulk_create(generated_subnets)
+        for subnet_id, subnet_obj in enumerate(generated_subnets, start=1):
             generated_indexes.append(
                 SubnetDivisionIndex(
                     keyword=f"{division_rule.label}_subnet{subnet_id}",
@@ -241,13 +244,13 @@ class BaseSubnetDivisionRuleType(object):
                     config=config,
                 )
             )
-            required_subnet = required_subnet.next()
-        Subnet.objects.bulk_create(generated_subnets)
         return generated_subnets
 
     @staticmethod
     def create_ips(config, division_rule, generated_subnets, generated_indexes):
         generated_ips = []
+        # track metadata needed to build indexes after bulk_create assigns PKs
+        ip_index_metadata = []
         for subnet_obj in generated_subnets:
             # don't assign first ip address of a subnet,
             # unless the rule is designed to use the whole
@@ -261,7 +264,7 @@ class BaseSubnetDivisionRuleType(object):
             else:
                 index_start = 0
                 index_end = division_rule.number_of_ips
-            # generate IPs and indexes accordingly
+            # generate IPs accordingly
             for ip_index in range(index_start, index_end):
                 ip_obj = IpAddress(
                     subnet_id=subnet_obj.id,
@@ -271,16 +274,21 @@ class BaseSubnetDivisionRuleType(object):
                 generated_ips.append(ip_obj)
                 # ensure human friendly labels (starting from 1 instead of 0)
                 keyword_index = ip_index if index_start == 1 else ip_index + 1
-                generated_indexes.append(
-                    SubnetDivisionIndex(
-                        keyword=f"{subnet_obj.name}_ip{keyword_index}",
-                        subnet_id=subnet_obj.id,
-                        ip_id=ip_obj.id,
-                        rule_id=division_rule.id,
-                        config=config,
-                    )
+                ip_index_metadata.append(
+                    (subnet_obj, ip_obj, keyword_index)
                 )
         IpAddress.objects.bulk_create(generated_ips)
+        # build indexes only after bulk_create has populated ip_obj.id
+        for subnet_obj, ip_obj, keyword_index in ip_index_metadata:
+            generated_indexes.append(
+                SubnetDivisionIndex(
+                    keyword=f"{subnet_obj.name}_ip{keyword_index}",
+                    subnet_id=subnet_obj.id,
+                    ip_id=ip_obj.id,
+                    rule_id=division_rule.id,
+                    config=config,
+                )
+            )
         return generated_ips
 
     @classmethod
