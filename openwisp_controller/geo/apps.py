@@ -14,6 +14,8 @@ from swapper import get_model_name
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
+from .estimated_location.handlers import register_estimated_location_notification_types
+
 
 class GeoConfig(LociConfig):
     name = "openwisp_controller.geo"
@@ -27,6 +29,7 @@ class GeoConfig(LociConfig):
         super().ready()
         self.register_dashboard_charts()
         self.register_menu_groups()
+        register_estimated_location_notification_types()
         if getattr(settings, "TESTING", False):
             self._add_params_to_test_config()
 
