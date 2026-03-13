@@ -456,7 +456,10 @@ class AbstractCommand(TimeStampedEditableModel):
         )
 
     def __str__(self):
-        command = self.input["command"] if self.is_custom else self.get_type_display()
+        if self.is_custom:
+            command = self.input.get("command", "") if self.input else ""
+        else:
+            command = self.get_type_display()
         limit = 32
         if len(command) > limit:
             command = f"{command[:limit]}…"
