@@ -121,13 +121,14 @@ class BaseSubnetDivisionRuleType(object):
         master_subnet = division_rule.master_subnet
         max_subnet = cls.get_max_subnet(master_subnet, division_rule)
         generated_indexes = []
-        generated_subnets = cls.create_subnets(
-            config, division_rule, max_subnet, generated_indexes
-        )
-        generated_ips = cls.create_ips(
-            config, division_rule, generated_subnets, generated_indexes
-        )
-        SubnetDivisionIndex.objects.bulk_create(generated_indexes)
+        with transaction.atomic():
+            generated_subnets = cls.create_subnets(
+                config, division_rule, max_subnet, generated_indexes
+            )
+            generated_ips = cls.create_ips(
+                config, division_rule, generated_subnets, generated_indexes
+            )
+            SubnetDivisionIndex.objects.bulk_create(generated_indexes)
         return {"subnets": generated_subnets, "ip_addresses": generated_ips}
 
     @classmethod
