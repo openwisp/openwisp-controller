@@ -1,0 +1,15 @@
+name: Changelog Bot
+
+on:
+  # Trigger when a PR review is submitted with approval
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  changelog:
+    # Call the reusable workflow from openwisp-utils
+    uses: openwisp/openwisp-utils/.github/workflows/reusable-bot-changelog.yml@master
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENWISP_BOT_APP_ID: ${{ secrets.OPENWISP_BOT_APP_ID }}
+      OPENWISP_BOT_PRIVATE_KEY: ${{ secrets.OPENWISP_BOT_PRIVATE_KEY }}
