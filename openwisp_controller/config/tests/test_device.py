@@ -672,7 +672,7 @@ class TestTransactionDevice(
         mocked_config_deactivating.assert_called_once()
         mocked_config_deactivated.assert_called_once()
         device.refresh_from_db()
-        config.refresh_from_db
+        config.refresh_from_db()
         self.assertEqual(device.is_deactivated(), True)
         self.assertEqual(config.status, "deactivated")
         self.assertEqual(device.management_ip, None)
