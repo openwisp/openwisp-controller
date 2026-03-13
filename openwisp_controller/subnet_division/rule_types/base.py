@@ -237,8 +237,9 @@ class BaseSubnetDivisionRuleType(object):
         if connection.features.can_return_rows_from_bulk_insert:
             Subnet.objects.bulk_create(generated_subnets)
         else:
-            for subnet_obj in generated_subnets:
-                subnet_obj.save()
+            with transaction.atomic():
+                for subnet_obj in generated_subnets:
+                    subnet_obj.save()
         for subnet_id, subnet_obj in enumerate(generated_subnets, start=1):
             generated_indexes.append(
                 SubnetDivisionIndex(
@@ -278,14 +279,13 @@ class BaseSubnetDivisionRuleType(object):
                 generated_ips.append(ip_obj)
                 # ensure human friendly labels (starting from 1 instead of 0)
                 keyword_index = ip_index if index_start == 1 else ip_index + 1
-                ip_index_metadata.append(
-                    (subnet_obj, ip_obj, keyword_index)
-                )
+                ip_index_metadata.append((subnet_obj, ip_obj, keyword_index))
         if connection.features.can_return_rows_from_bulk_insert:
             IpAddress.objects.bulk_create(generated_ips)
         else:
-            for ip_obj in generated_ips:
-                ip_obj.save()
+            with transaction.atomic():
+                for ip_obj in generated_ips:
+                    ip_obj.save()
         # build indexes only after IpAddress instances have valid PKs
         for subnet_obj, ip_obj, keyword_index in ip_index_metadata:
             generated_indexes.append(
