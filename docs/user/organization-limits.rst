@@ -8,7 +8,7 @@ To set these limits:
 1. Navigate to **USERS & ORGANIZATIONS** on the left-hand navigation menu.
 2. Go to **Organizations**.
 3. Click on the specific organization you want to limit.
-4. In the **CONTROLLER LIMIT** section, set the desired limit.
+4. In the **CONTROLLER LIMITS** section, set the desired limit.
 
 Refer to the screenshot below for guidance:
 

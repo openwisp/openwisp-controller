@@ -1,6 +1,7 @@
 import json
 import tempfile
 import uuid
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
@@ -12,6 +13,7 @@ from PIL import Image
 from rest_framework.authtoken.models import Token
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.tests.utils import (
     CreateConfigTemplateMixin,
     CreateDeviceMixin,
@@ -533,7 +535,7 @@ class TestGeoApi(
         path = reverse("geo_api:list_location")
 
         with self.subTest("Test without organization filtering"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -583,6 +585,7 @@ class TestGeoApi(
             self.assertContains(response, org1_location.id)
             self.assertNotContains(response, org2_location.id)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_post_location_list(self):
         path = reverse("geo_api:list_location")
         coords = json.loads(Point(2, 23).geojson)
@@ -614,6 +617,7 @@ class TestGeoApi(
             else:
                 self.fail("NoReverseMatch not raised as expected")
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_put_location_detail(self):
         l1 = self._create_location()
         path = reverse("geo_api:detail_location", args=[l1.pk])
@@ -691,6 +695,7 @@ class TestGeoApi(
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_create_location_with_floorplan(self):
         path = reverse("geo_api:list_location")
         fl_image = self._get_simpleuploadedfile()

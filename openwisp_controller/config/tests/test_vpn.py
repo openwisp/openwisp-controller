@@ -194,12 +194,13 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn()
         auto = vpn.auto_client()
         context_keys = vpn._get_auto_context_keys()
-        del context_keys["vpn_host"]
         del context_keys["vpn_port"]
         for key in context_keys.keys():
             context_keys[key] = "{{%s}}" % context_keys[key]
         control = vpn.backend_class.auto_client(
-            host=vpn.host, server=self._vpn_config["openvpn"][0], **context_keys
+            host=context_keys.pop("vpn_host"),
+            server=self._vpn_config["openvpn"][0],
+            **context_keys,
         )
         control["files"] = [
             {
@@ -224,14 +225,15 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn()
         auto = vpn.auto_client(auto_cert=False)
         context_keys = vpn._get_auto_context_keys()
-        del context_keys["vpn_host"]
         del context_keys["vpn_port"]
         for key in context_keys.keys():
             context_keys[key] = "{{%s}}" % context_keys[key]
         for key in ["cert_path", "cert_contents", "key_path", "key_contents"]:
             del context_keys[key]
         control = vpn.backend_class.auto_client(
-            host=vpn.host, server=self._vpn_config["openvpn"][0], **context_keys
+            host=context_keys.pop("vpn_host"),
+            server=self._vpn_config["openvpn"][0],
+            **context_keys,
         )
         control["files"] = [
             {
@@ -827,33 +829,35 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                     f"Cannot update configuration of {vpn.name} VPN server, "
                     "webhook endpoint and authentication token are empty."
                 )
-        success_response = mock.Mock(spec=requests.Response)
-        success_response.status_code = 200
-        success_response.raise_for_status = mock.Mock()
 
         with self.subTest("Webhook endpoint and authentication endpoint is present"):
             vpn.webhook_endpoint = "https://example.com"
             vpn.auth_token = "super-secret-token"
-            vpn.save()
-            vpn_client.refresh_from_db()
+            success_response = mock.Mock(spec=requests.Response)
+            success_response.status_code = 200
+            success_response.raise_for_status = mock.Mock()
 
             with mock.patch(
                 "openwisp_controller.config.tasks.logger.info"
             ) as mocked_logger, mock.patch(
                 "requests.post", return_value=success_response
             ):
+                vpn.save()
+                vpn_client.refresh_from_db()
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
                 )
-                mocked_logger.assert_called_once_with(
+                expected_call = mock.call(
                     f"Triggered update webhook of VPN Server UUID: {vpn.pk}"
                 )
+                mocked_logger.assert_has_calls([expected_call, expected_call])
+                self.assertEqual(mocked_logger.call_count, 2)
+
             fail_response = mock.Mock(spec=requests.Response)
             fail_response.status_code = 404
             fail_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
                 "Not Found"
             )
-
             with mock.patch("logging.Logger.warning") as mocked_logger, mock.patch(
                 "requests.post", return_value=fail_response
             ):
