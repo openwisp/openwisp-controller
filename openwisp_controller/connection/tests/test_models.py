@@ -664,6 +664,24 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 "This command has already been executed, " "please create a new one.",
             )
 
+    def test_execute_command_no_device_connection(self):
+        dc = self._create_device_connection()
+        # leave connection=None so _exec_command looks it up at execution time
+        command = Command(
+            device=dc.device,
+            type="custom",
+            input={"command": "echo test"},
+        )
+        command.full_clean()
+        # on_commit does not fire in TestCase, so execute() must be called explicitly
+        command.save()
+        dc.delete()
+        # must not raise AttributeError when no DeviceConnection exists
+        command.execute()
+        command.refresh_from_db()
+        self.assertEqual(command.status, "failed")
+        self.assertEqual(command.output, "No device connection available")
+
     @mock.patch(_connect_path)
     def test_execute_reboot(self, connect_mocked):
         dc = self._create_device_connection()

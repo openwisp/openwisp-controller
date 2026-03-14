@@ -541,7 +541,11 @@ class AbstractCommand(TimeStampedEditableModel):
         # because the system couldn't connect to the device
         if exit_code is None:
             self.status = "failed"
-            self.output = self.connection.failure_reason if self.connection else ""
+            self.output = (
+                self.connection.failure_reason
+                if self.connection
+                else "No device connection available"
+            )
         # one command failed
         elif exit_code != 0:
             self.status = "failed"
