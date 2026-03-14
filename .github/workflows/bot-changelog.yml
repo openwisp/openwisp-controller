@@ -7,7 +7,11 @@ on:
 
 jobs:
   changelog:
-    # Call the reusable workflow from openwisp-utils
+    if: |
+      github.event.review.state == 'approved' &&
+      (github.event.review.author_association == 'OWNER' ||
+       github.event.review.author_association == 'MEMBER' ||
+       github.event.review.author_association == 'COLLABORATOR')
     uses: openwisp/openwisp-utils/.github/workflows/reusable-bot-changelog.yml@master
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
