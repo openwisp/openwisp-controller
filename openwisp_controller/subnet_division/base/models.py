@@ -72,10 +72,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         # Auto-fill organization from master subnet
         if (
             self.master_subnet_id
-            and self.master_subnet.organization is not None
+            and self.master_subnet.organization_id is not None
             and not self.organization_id
         ):
-            self.organization = self.master_subnet.organization
+            self.organization_id = self.master_subnet.organization_id
         super().clean()
         self._validate_label()
         self._validate_master_subnet_validity()
