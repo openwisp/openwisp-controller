@@ -541,7 +541,7 @@ class AbstractCommand(TimeStampedEditableModel):
         # because the system couldn't connect to the device
         if exit_code is None:
             self.status = "failed"
-            self.output = self.connection.failure_reason
+            self.output = self.connection.failure_reason if self.connection else ""
         # one command failed
         elif exit_code != 0:
             self.status = "failed"
@@ -566,7 +566,7 @@ class AbstractCommand(TimeStampedEditableModel):
         else:
             self.connection.connect()
         # if couldn't connect to device, stop here
-        if not self.connection.is_working:
+        if not self.connection or not self.connection.is_working:
             return None
         # custom commands, perform each one separately and save output incrementally
         if self.is_custom:
