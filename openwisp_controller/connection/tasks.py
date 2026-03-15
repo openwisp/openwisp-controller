@@ -53,6 +53,10 @@ def update_config(self, device_id):
         logger.warning(f'update_config("{device_id}") failed: {e}')
         return
     if _is_update_in_progress(device_id, current_task_id=self.request.id):
+        logger.info(
+            f"Skipping update_config for device {device_id}"
+            " because another update task is already running"
+        )
         return
     try:
         device_conn = DeviceConnection.get_working_connection(device)

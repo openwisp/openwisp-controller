@@ -21,7 +21,7 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import _TASK_NAME, update_config
+from ..tasks import _TASK_NAME, _is_update_in_progress, update_config
 from .utils import CreateConnectionsMixin
 
 Config = load_model("config", "Config")
@@ -1046,6 +1046,25 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             mocked_active.assert_called_once()
             mocked_get_working_connection.assert_not_called()
             update_config.assert_not_called()
+
+    def test_update_in_progress_ignores_current_task(self):
+        """Regression test: _is_update_in_progress must not match the
+        currently running task, which would cause it to skip itself."""
+        conf = self._prepare_conf_object()
+        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
+            mocked_active.return_value = {
+                "worker1": [
+                    {
+                        "name": _TASK_NAME,
+                        "args": [str(conf.device.pk)],
+                        "id": "current-task-id",
+                    }
+                ]
+            }
+            result = _is_update_in_progress(
+                conf.device.pk, current_task_id="current-task-id"
+            )
+            self.assertFalse(result)
 
     @mock.patch("time.sleep")
     @mock.patch.object(DeviceConnection, "update_config")
