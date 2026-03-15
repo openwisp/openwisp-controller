@@ -202,7 +202,14 @@ class DeviceConfigSerializer(BaseSerializer):
                 with transaction.atomic():
                     vpn_list = config.templates.filter(type="vpn").values_list("vpn")
                     if vpn_list:
-                        config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+                        # Per-instance delete ensures post_delete signals fire
+                        # (cache invalidation, cert revocation, IP release).
+                        for vpnclient in (
+                            config.vpnclient_set.exclude(vpn__in=vpn_list)
+                            .select_related("vpn", "cert", "ip")
+                            .iterator()
+                        ):
+                            vpnclient.delete()
                     config.templates.set(config_templates, clear=True)
             config.save()
         except ValidationError as error:
