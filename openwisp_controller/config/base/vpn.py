@@ -892,12 +892,16 @@ class AbstractVpnClient(models.Model):
         """
         d = self.config.device
         end = 63 - len(d.mac_address)
-        d.name = d.name[:end]
+        # Use a local variable to avoid mutating the device object in memory.
+        # Mutating d.name would corrupt in-memory state for the rest of
+        # the request and cause the certificate to store a truncated name.
+        truncated_name = d.name[:end]
         unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == "{mac_address}-{name}" and d.name == d.mac_address:
+        if cn_format == "{mac_address}-{name}" and truncated_name == d.mac_address:
             cn_format = "{mac_address}"
-        common_name = cn_format.format(**d.__dict__)[:55]
+        format_kwargs = {**d.__dict__, "name": truncated_name}
+        common_name = cn_format.format(**format_kwargs)[:55]
         common_name = f"{common_name}-{unique_slug}"
         return common_name
 

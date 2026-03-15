@@ -298,6 +298,22 @@ class TestVpn(BaseTestVpn, TestCase):
         d.name = d.mac_address
         self.assertIn(d.mac_address, client._get_common_name())
 
+    def test_get_common_name_does_not_mutate_device_name(self):
+        """Regression test: _get_common_name() must not mutate the
+        device object's name in memory. A long device name should be
+        truncated only for the common_name, not on the device itself."""
+        long_name = "a" * 80
+        vpn = self._create_vpn()
+        d = self._create_device(name=long_name)
+        c = self._create_config(device=d)
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
+        client._get_common_name()
+        self.assertEqual(
+            d.name,
+            long_name,
+            "_get_common_name() must not truncate device.name in memory",
+        )
+
     def test_get_auto_context_keys(self):
         vpn = self._create_vpn()
         keys = vpn._get_auto_context_keys()
@@ -401,6 +417,25 @@ class TestVpn(BaseTestVpn, TestCase):
             )
         else:
             self.fail("ValidationError not raised")
+
+    def test_auto_create_cert_preserves_full_device_name(self):
+        """Regression test: when a device has a very long name, the
+        auto-created certificate's display name should be the original
+        (full) device name, not the truncated common_name version."""
+        long_name = "a" * 80  # exceeds 63 - len(mac_address) limit
+        org = self._create_org(name="org1")
+        vpn = self._create_vpn(organization=org)
+        d = self._create_device(organization=org, name=long_name)
+        c = self._create_config(device=d)
+        template = self._create_template()
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True, template=template)
+        client.full_clean()
+        client.save()
+        # The cert's name field should be the full original device name
+        cert = Cert.objects.filter(organization=org, name=long_name)
+        self.assertEqual(cert.count(), 1)
+        # Device name must not be mutated
+        self.assertEqual(d.name, long_name)
 
     def test_auto_create_cert_with_long_device_name(self):
         device_name = "abcdifghijklmnopqrstuvwxyz12345678901234567890"
