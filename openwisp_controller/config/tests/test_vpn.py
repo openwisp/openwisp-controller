@@ -302,7 +302,7 @@ class TestVpn(BaseTestVpn, TestCase):
         """Regression test: _get_common_name() must not mutate the
         device object's name in memory. A long device name should be
         truncated only for the common_name, not on the device itself."""
-        long_name = "a" * 64
+        long_name = "a" * 63  # max valid hostname label length, exceeds 63 - len(mac)
         vpn = self._create_vpn()
         d = self._create_device(name=long_name)
         c = self._create_config(device=d)
@@ -422,7 +422,7 @@ class TestVpn(BaseTestVpn, TestCase):
         """Regression test: when a device has a very long name, the
         auto-created certificate's display name should be the original
         (full) device name, not the truncated common_name version."""
-        long_name = "a" * 64  # exceeds 63 - len(mac_address) limit
+        long_name = "a" * 63  # max valid hostname label, exceeds 63 - len(mac)
         org = self._create_org(name="org1")
         vpn = self._create_vpn(organization=org)
         d = self._create_device(organization=org, name=long_name)
