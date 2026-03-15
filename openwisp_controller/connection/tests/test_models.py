@@ -1047,24 +1047,49 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             mocked_get_working_connection.assert_not_called()
             update_config.assert_not_called()
 
+        # Regression: when the only active task matches the current task's own ID,
+        # _is_update_in_progress must return False (update should proceed).
+        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
+            current_task_id = "current-task-id"
+            mocked_active.return_value = {
+                "worker1": [
+                    {
+                        "name": _TASK_NAME,
+                        "args": [str(conf.device.pk)],
+                        "id": current_task_id,
+                    }
+                ]
+            }
+            result = _is_update_in_progress(
+                conf.device.pk, current_task_id=current_task_id
+            )
+            self.assertFalse(result)
+
     def test_update_in_progress_ignores_current_task(self):
         """Regression test: _is_update_in_progress must not match the
         currently running task, which would cause it to skip itself."""
         conf = self._prepare_conf_object()
+        current_task_id = "current-task-id"
         with mock.patch("celery.app.control.Inspect.active") as mocked_active:
             mocked_active.return_value = {
                 "worker1": [
                     {
                         "name": _TASK_NAME,
                         "args": [str(conf.device.pk)],
-                        "id": "current-task-id",
+                        "id": current_task_id,
                     }
                 ]
             }
+            # Self-match: must NOT be considered as "in progress"
             result = _is_update_in_progress(
-                conf.device.pk, current_task_id="current-task-id"
+                conf.device.pk, current_task_id=current_task_id
             )
             self.assertFalse(result)
+            # Different task ID: must be considered as "in progress"
+            result = _is_update_in_progress(
+                conf.device.pk, current_task_id="different-task-id"
+            )
+            self.assertTrue(result)
 
     @mock.patch("time.sleep")
     @mock.patch.object(DeviceConnection, "update_config")
