@@ -504,7 +504,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             config_created = hasattr(device, "config")
             if not config_created:
                 # device has no config (device group has no templates)
-                return
+                continue
             group_templates = Template.objects.none()
             if group_id:
                 group = DeviceGroup.objects.get(pk=group_id)
