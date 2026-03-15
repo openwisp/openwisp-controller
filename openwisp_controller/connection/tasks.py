@@ -1,9 +1,11 @@
 import logging
 import time
+import uuid
 
 import swapper
-from celery import current_app, shared_task
+from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
@@ -13,19 +15,36 @@ from .connectors.exceptions import CommandTimeoutException
 from .exceptions import NoWorkingDeviceConnectionError
 
 logger = logging.getLogger(__name__)
-_TASK_NAME = "openwisp_controller.connection.tasks.update_config"
+_UPDATE_CONFIG_LOCK_KEY = "ow_update_config_{device_id}"
+# Lock timeout (in seconds) acts as a safety net to release the lock
+# in case the task crashes without proper cleanup.
+_UPDATE_CONFIG_LOCK_TIMEOUT = 300
 
 
-def _is_update_in_progress(device_id):
-    active = current_app.control.inspect().active()
-    if not active:
-        return False
-    # check if there's any other running task before adding it
-    for task_list in active.values():
-        for task in task_list:
-            if task["name"] == _TASK_NAME and str(device_id) in task["args"]:
-                return True
-    return False
+def _acquire_update_config_lock(device_id):
+    """
+    Attempts to atomically acquire a per-device lock using the Django cache.
+    Returns a unique token string if the lock was acquired, None otherwise.
+    The token must be passed to _release_update_config_lock to ensure
+    only the lock owner can release it.
+    """
+    lock_key = _UPDATE_CONFIG_LOCK_KEY.format(device_id=device_id)
+    token = str(uuid.uuid4())
+    # cache.add is atomic: returns True only if the key doesn't already exist
+    if cache.add(lock_key, token, timeout=_UPDATE_CONFIG_LOCK_TIMEOUT):
+        return token
+    return None
+
+
+def _release_update_config_lock(device_id, token):
+    """
+    Releases the per-device update_config lock only if the caller
+    owns it (i.e. the stored token matches).
+    """
+    lock_key = _UPDATE_CONFIG_LOCK_KEY.format(device_id=device_id)
+    stored_token = cache.get(lock_key)
+    if stored_token == token:
+        cache.delete(lock_key)
 
 
 @shared_task
@@ -48,15 +67,26 @@ def update_config(device_id):
     except ObjectDoesNotExist as e:
         logger.warning(f'update_config("{device_id}") failed: {e}')
         return
-    if _is_update_in_progress(device_id):
+    lock_token = _acquire_update_config_lock(device_id)
+    if not lock_token:
+        logger.info(
+            f"update_config for device {device_id} is already in progress, skipping"
+        )
         return
     try:
-        device_conn = DeviceConnection.get_working_connection(device)
-    except NoWorkingDeviceConnectionError:
-        return
-    else:
-        logger.info(f"Updating {device} (pk: {device_id})")
-        device_conn.update_config()
+        try:
+            device_conn = DeviceConnection.get_working_connection(device)
+        except NoWorkingDeviceConnectionError as e:
+            logger.warning(
+                f"update_config for device {device_id}: "
+                f"DeviceConnection.get_working_connection failed: {e}"
+            )
+            return
+        else:
+            logger.info(f"Updating {device} (pk: {device_id})")
+            device_conn.update_config()
+    finally:
+        _release_update_config_lock(device_id, lock_token)
 
 
 # task timeout is SSH_COMMAND_TIMEOUT plus a 20% margin

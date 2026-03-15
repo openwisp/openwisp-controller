@@ -21,7 +21,11 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import _TASK_NAME, update_config
+from ..tasks import (
+    _acquire_update_config_lock,
+    _release_update_config_lock,
+    update_config,
+)
 from .utils import CreateConnectionsMixin
 
 Config = load_model("config", "Config")
@@ -1026,20 +1030,19 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     @mock.patch.object(DeviceConnection, "update_config")
     @mock.patch.object(DeviceConnection, "get_working_connection")
     def test_device_update_config_in_progress(
-        self, mocked_get_working_connection, update_config, mocked_sleep
+        self, mocked_get_working_connection, mocked_update_config, mocked_sleep
     ):
         conf = self._prepare_conf_object()
 
-        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
-            mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": [str(conf.device.pk)]}]
-            }
+        with mock.patch(
+            "openwisp_controller.connection.tasks._acquire_update_config_lock",
+            return_value=None,
+        ):
             conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
             conf.save()
-            mocked_active.assert_called_once()
             mocked_get_working_connection.assert_not_called()
-            update_config.assert_not_called()
+            mocked_update_config.assert_not_called()
 
     @mock.patch("time.sleep")
     @mock.patch.object(DeviceConnection, "update_config")
@@ -1052,16 +1055,46 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.device.deviceconnection_set.first()
         )
 
-        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
-            mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": ["..."]}]
-            }
+        with mock.patch(
+            "openwisp_controller.connection.tasks._acquire_update_config_lock",
+            return_value="fake-lock-token",
+        ), mock.patch(
+            "openwisp_controller.connection.tasks._release_update_config_lock",
+        ) as mocked_release:
             conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
             conf.save()
-            mocked_active.assert_called_once()
             mocked_get_working_connection.assert_called_once()
             mocked_update_config.assert_called_once()
+            mocked_release.assert_called_once_with(
+                str(conf.device.pk), "fake-lock-token"
+            )
+
+    def test_acquire_update_config_lock(self):
+        """Test that the lock can be acquired and prevents duplicate acquisition."""
+        device_id = "test-device-id"
+        # First acquisition should succeed and return a token
+        token = _acquire_update_config_lock(device_id)
+        self.addCleanup(_release_update_config_lock, device_id, token)
+        self.assertIsNotNone(token)
+        # Second acquisition should fail (lock already held)
+        self.assertIsNone(_acquire_update_config_lock(device_id))
+        # After releasing with correct token, acquisition should succeed again
+        _release_update_config_lock(device_id, token)
+        token2 = _acquire_update_config_lock(device_id)
+        self.addCleanup(_release_update_config_lock, device_id, token2)
+        self.assertIsNotNone(token2)
+
+    def test_release_update_config_lock_wrong_token(self):
+        """Only the lock owner can release the lock."""
+        device_id = "test-device-id"
+        token = _acquire_update_config_lock(device_id)
+        self.addCleanup(_release_update_config_lock, device_id, token)
+        self.assertIsNotNone(token)
+        # Releasing with wrong token should not delete the lock
+        _release_update_config_lock(device_id, "wrong-token")
+        # Lock should still be held
+        self.assertIsNone(_acquire_update_config_lock(device_id))
 
     @mock.patch(_connect_path)
     def test_schedule_command_called(self, connect_mocked):

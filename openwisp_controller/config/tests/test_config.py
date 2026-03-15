@@ -984,7 +984,8 @@ class TestTransactionConfig(
             vpnclient_cert.renew()
             # An additional call from cache invalidation of
             # DeviceGroupCommonName View
-            self.assertEqual(mocked_delete.call_count, 3)
+            # +1 call from _release_update_config_lock releasing the per-device lock
+            self.assertEqual(mocked_delete.call_count, 4)
             del config.backend_instance
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()
