@@ -1032,7 +1032,13 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
 
         with mock.patch("celery.app.control.Inspect.active") as mocked_active:
             mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": [str(conf.device.pk)]}]
+                "task": [
+                    {
+                        "name": _TASK_NAME,
+                        "args": [str(conf.device.pk)],
+                        "id": "other-task-id",
+                    }
+                ]
             }
             conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
@@ -1054,7 +1060,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
 
         with mock.patch("celery.app.control.Inspect.active") as mocked_active:
             mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": ["..."]}]
+                "task": [{"name": _TASK_NAME, "args": ["..."], "id": "other-task-id"}]
             }
             conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
