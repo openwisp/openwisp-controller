@@ -129,14 +129,12 @@ class TestSubnetDivisionRule(
                 context_manager.exception.message_dict, expected_message_dict
             )
 
-        with self.subTest("Test rule allows zero subnets to assign IPs from main subnet"):
+       with self.subTest("Test rule allows zero subnets"):
             options = default_options.copy()
             options["number_of_subnets"] = 0
             rule = SubnetDivisionRule(**options)
-            try:
-                rule.full_clean()
-            except ValidationError as e:
-                self.assertNotIn("number_of_subnets", e.message_dict)
+            # Should not raise ValidationError for number_of_subnets
+             rule.full_clean()
 
         with self.subTest("Test rule does not provision any IP"):
             options = default_options.copy()
