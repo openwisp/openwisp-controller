@@ -88,7 +88,9 @@ jobs:
 
       - name: Show gecko web driver log on failures
         if: ${{ failure() }}
-        run: cat geckodriver.log
+        run: |
+          [ -f geckodriver.log ] && cat geckodriver.log \
+            || echo "there is no gecko web driver log to show"
 
       - name: Upload Coverage
         if: ${{ success() }}
