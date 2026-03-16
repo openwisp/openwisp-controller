@@ -417,6 +417,14 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
             {"name": "nsCertType", "value": "server", "critical": False}
         ]
         cert_model = self.__class__.cert.field.related_model
+        # Per-instance delete ensures post_delete signals fire
+        # (e.g. invalidate_devicegroup_cache_on_certificate_delete).
+        # This avoids unique constraint violations when the VPN backend
+        # is changed (e.g. from WireGuard back to OpenVPN).
+        for stale_cert in cert_model.objects.filter(
+            common_name=common_name, ca=self.ca
+        ):
+            stale_cert.delete()
         cert = cert_model(
             name=self.name,
             ca=self.ca,
@@ -431,6 +439,7 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
             extensions=server_extensions,
         )
         cert = self._auto_create_cert_extra(cert)
+        cert.full_clean()
         cert.save()
         return cert
 
