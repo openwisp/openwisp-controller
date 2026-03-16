@@ -341,11 +341,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                 # Per-instance delete ensures post_delete signals fire
                 # (cache invalidation, cert revocation, IP release).
                 with transaction.atomic():
-                    for vpnclient in (
-                        instance.vpnclient_set.select_related(
-                            "vpn", "cert", "ip"
-                        ).iterator()
-                    ):
+                    for vpnclient in instance.vpnclient_set.select_related(
+                        "vpn", "cert", "ip"
+                    ).iterator():
                         vpnclient.delete()
             return
 
@@ -383,9 +381,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             with transaction.atomic():
                 for vpnclient in (
                     instance.vpnclient_set.exclude(
-                        template_id__in=instance.templates.values_list(
-                            "id", flat=True
-                        )
+                        template_id__in=instance.templates.values_list("id", flat=True)
                     )
                     .select_related("vpn", "cert", "ip")
                     .iterator()
