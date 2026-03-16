@@ -35,8 +35,12 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
     )
     number_of_subnets = models.PositiveSmallIntegerField(
         verbose_name=_("Number of Subnets"),
-        help_text=_("Indicates how many subnets will be created"),
-        validators=[MinValueValidator(1)],
+        help_text=_(
+            "Indicates how many subnets will be created. "
+            "Set to 0 to assign IP addresses directly "
+            "from the main subnet.
+        ),
+        validators=[MinValueValidator(0)],
     )
     size = models.PositiveSmallIntegerField(
         verbose_name=_("Size of subnets"),
