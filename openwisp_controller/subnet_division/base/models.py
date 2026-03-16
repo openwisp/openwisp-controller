@@ -38,7 +38,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         help_text=_(
             "Indicates how many subnets will be created. "
             "Set to 0 to assign IP addresses directly "
-            "from the main subnet.
+            "from the main subnet."
         ),
         validators=[MinValueValidator(0)],
     )
