@@ -21,7 +21,7 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import _TASK_NAME, update_config
+from ..tasks import _TASK_NAME, launch_command, update_config
 from .utils import CreateConnectionsMixin
 
 Config = load_model("config", "Config")
@@ -1142,3 +1142,27 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 credential = self._create_credentials(
                     name="Mocked Credential", auto_add=True, organization=org
                 )
+
+    @mock.patch(_connect_path)
+    def test_launch_command_skips_terminal_state(self, connect_mocked):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "echo test"},
+        )
+        command.full_clean()
+        with mock.patch(_exec_command_path) as mocked:
+            mocked.return_value = self._exec_command_return_value()
+            command.save()
+            command.execute()
+        command.refresh_from_db()
+        self.assertEqual(command.status, "success")
+        # call launch_command again for the same command
+        with mock.patch(_exec_command_path) as mocked_second:
+            mocked_second.return_value = self._exec_command_return_value()
+            launch_command(str(command.pk))
+            mocked_second.assert_not_called()
+        command.refresh_from_db()
+        self.assertEqual(command.status, "success")
