@@ -899,6 +899,21 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             command.refresh_from_db()
             self.assertIn(command.connection, [dc1, dc2])
 
+    def test_update_config_disconnect_always_called(self):
+        """
+        disconnect() must be called even when connector_instance.update_config()
+        raises, so that the SSH session is never leaked.
+        """
+        dc = self._create_device_connection()
+        connector_mock = mock.Mock()
+        connector_mock.update_config.side_effect = Exception("SSH channel closed")
+        dc.connector_instance = connector_mock
+
+        with self.assertRaises(Exception):
+            dc.update_config()
+
+        connector_mock.disconnect.assert_called_once()
+
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     def _prepare_conf_object(self, organization=None):
@@ -968,7 +983,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 self.assertEqual(mocked_exec_command.call_count, 1)
                 _assert_version_check_command(mocked_exec_command)
             conf.refresh_from_db()
-            self.assertEqual(conf.status, "modified")
+            self.assertEqual(conf.status, "error")
 
         with self.subTest("openwisp_config >= 0.6.0a"):
             conf.config = '{"dns_servers": []}'
@@ -1019,8 +1034,8 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 args, _ = mocked_exec_command.call_args_list[2]
                 self.assertEqual(args[0], "/etc/init.d/openwisp_config restart")
             conf.refresh_from_db()
-            # exit code 1 considers the update not successful
-            self.assertEqual(conf.status, "modified")
+            # failed connector command sets config status to error
+            self.assertEqual(conf.status, "error")
 
     @mock.patch("time.sleep")
     @mock.patch.object(DeviceConnection, "update_config")
@@ -1062,6 +1077,26 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             mocked_active.assert_called_once()
             mocked_get_working_connection.assert_called_once()
             mocked_update_config.assert_called_once()
+
+    @capture_any_output()
+    @mock.patch(_connect_path)
+    @mock.patch("time.sleep")
+    def test_update_config_task_sets_status_error_on_failure(
+        self, mocked_sleep, mocked_connect
+    ):
+        """
+        When the SSH connector raises during a config push, the update_config
+        task must set the config status to 'error' so the failure is visible
+        in the admin dashboard rather than silently staying 'modified'.
+        """
+        conf = self._prepare_conf_object()
+        conf.config = {"general": {"timezone": "UTC"}}
+        conf.full_clean()
+        with mock.patch(_exec_command_path) as mocked_exec_command:
+            mocked_exec_command.side_effect = Exception("SSH channel closed")
+            conf.save()
+        conf.refresh_from_db()
+        self.assertEqual(conf.status, "error")
 
     @mock.patch(_connect_path)
     def test_schedule_command_called(self, connect_mocked):

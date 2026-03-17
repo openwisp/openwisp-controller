@@ -1,5 +1,4 @@
 import collections
-import logging
 
 import django
 import jsonschema
@@ -31,8 +30,6 @@ from ..commands import (
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
 from ..tasks import auto_add_credentials_to_devices, launch_command
-
-logger = logging.getLogger(__name__)
 
 
 class ConnectorMixin(object):
@@ -367,9 +364,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         if self.is_working:
             try:
                 self.connector_instance.update_config()
-            except Exception as e:
-                logger.exception(e)
-            else:
+            finally:
                 self.disconnect()
 
     def save(self, *args, **kwargs):

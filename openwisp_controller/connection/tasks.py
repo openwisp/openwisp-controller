@@ -56,7 +56,14 @@ def update_config(device_id):
         return
     else:
         logger.info(f"Updating {device} (pk: {device_id})")
-        device_conn.update_config()
+        try:
+            device_conn.update_config()
+        except Exception:
+            logger.exception(
+                f"Failed to push configuration to {device} (pk: {device_id})"
+            )
+            if hasattr(device, "config"):
+                device.config.set_status_error()
 
 
 # task timeout is SSH_COMMAND_TIMEOUT plus a 20% margin
