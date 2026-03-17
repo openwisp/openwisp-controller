@@ -10,9 +10,11 @@ django.jQuery(function ($) {
       return isDeviceGroup() ? "templates" : "config-0-templates";
     },
     isAddingNewObject = function () {
-      return isDeviceGroup()
-        ? !$(".add-form").length
-        : $('input[name="config-0-id"]').val().length === 0;
+      if (isDeviceGroup()) {
+        return $(".add-form").length > 0;
+      }
+      var configIdField = $('input[name="config-0-id"]');
+      return !configIdField.length || configIdField.val().length === 0;
     },
     getTemplateOptionElement = function (
       index,
@@ -123,11 +125,12 @@ django.jQuery(function ($) {
     },
     showRelevantTemplates = function () {
       var orgID = $(orgFieldSelector).val(),
-        backend = isDeviceGroup() ? "" : $(backendFieldSelector).val(),
+        backend = isDeviceGroup() ? "" : $(backendFieldSelector).val() || "",
+        configID = $('input[name="config-0-id"]').val(),
         currentSelection = getSelectedTemplates();
 
       // Hide templates if no organization or backend is selected
-      if (!orgID || (!isDeviceGroup() && backend.length === 0)) {
+      if (!orgID || (!isDeviceGroup() && backend.length === 0 && !configID)) {
         resetTemplateOptions();
         updateTemplateHelpText();
         return;
@@ -193,14 +196,23 @@ django.jQuery(function ($) {
       initTemplateField();
       var backendField = $(backendFieldSelector);
       $(orgFieldSelector).change(function () {
-        // Only fetch templates when backend field is present
-        if ($(backendFieldSelector).length > 0 || isDeviceGroup()) {
+        // Fetch templates when backend can be determined either from
+        // an editable backend field or from an existing config object.
+        if (
+          $(backendFieldSelector).length > 0 ||
+          isDeviceGroup() ||
+          !isAddingNewObject()
+        ) {
           showRelevantTemplates();
         }
       });
       // Change view: backendField is rendered on page load
       if (backendField.length > 0) {
         addChangeEventHandlerToBackendField();
+      } else if (!isDeviceGroup() && !isAddingNewObject()) {
+        // Change view for device config has readonly backend with no input element.
+        // In this case the backend is inferred server-side from config_id.
+        showRelevantTemplates();
       } else if (isDeviceGroup()) {
         // Initially request data to get templates
         initTemplateField();

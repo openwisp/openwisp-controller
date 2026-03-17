@@ -270,13 +270,13 @@ class TestDeviceAdmin(
             + "#config-group"
         )
         self.hide_loading_overlay()
-        self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]')
-        # Change config backed to
-        config_backend_select = Select(
-            self.find_element(by=By.NAME, value="config-0-backend")
-        )
-        config_backend_select.select_by_visible_text("OpenWISP Firmware 1.x")
-        self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
+        with self.subTest("Backend should not be editable on change form"):
+            self.wait_for_visibility(By.CSS_SELECTOR, "#config-group .field-backend")
+            self.assertEqual(
+                len(self.web_driver.find_elements(By.NAME, "config-0-backend")), 0
+            )
+        with self.subTest("Templates should still load using stored backend"):
+            self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]')
 
     def test_force_delete_device_with_deactivating_config(self):
         self._create_template(default=True)
@@ -649,7 +649,7 @@ class TestVpnAdmin(
 ):
     def test_vpn_edit(self):
         self.login()
-        device, vpn, template = self._create_wireguard_vpn_template()
+        _, vpn, _ = self._create_wireguard_vpn_template()
         self.open(reverse(f"admin:{self.config_app_label}_vpn_change", args=[vpn.id]))
         with self.subTest("Ca and Cert should not be visible"):
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-ca")
@@ -665,8 +665,21 @@ class TestVpnAdmin(
         # Close the configuration preview
         self.find_element(by=By.CSS_SELECTOR, value=".djnjc-overlay a.close").click()
 
-        with self.subTest("Changing VPN backend should hide webhook and authtoken"):
-            backend = Select(self.find_element(by=By.ID, value="id_backend"))
-            backend.select_by_visible_text("OpenVPN")
-            self.wait_for_invisibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
-            self.wait_for_invisibility(by=By.CLASS_NAME, value="field-auth_token")
+        with self.subTest("Backend should not be editable on change form"):
+            self.wait_for_visibility(By.CSS_SELECTOR, ".field-backend .readonly")
+            self.assertEqual(len(self.web_driver.find_elements(By.ID, "id_backend")), 0)
+
+        with self.subTest("WireGuard fields should remain visible on change form"):
+            self.wait_for_visibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
+            self.wait_for_visibility(by=By.CLASS_NAME, value="field-auth_token")
+
+    def test_vpn_add_backend_switches_related_fields(self):
+        self.login()
+        self.open(reverse(f"admin:{self.config_app_label}_vpn_add"))
+        backend = Select(self.find_element(by=By.ID, value="id_backend"))
+        backend.select_by_visible_text("WireGuard")
+        self.wait_for_visibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
+        self.wait_for_visibility(by=By.CLASS_NAME, value="field-auth_token")
+        backend.select_by_visible_text("OpenVPN")
+        self.wait_for_invisibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
+        self.wait_for_invisibility(by=By.CLASS_NAME, value="field-auth_token")
