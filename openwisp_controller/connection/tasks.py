@@ -71,6 +71,12 @@ def launch_command(command_id):
     except Command.DoesNotExist as e:
         logger.warning(f'launch_command("{command_id}") failed: {e}')
         return
+    if command.status in ("success", "failed"):
+        logger.warning(
+            f'launch_command("{command_id}") skipped: '
+            f'already in terminal state "{command.status}"'
+        )
+        return
     try:
         command.execute()
     except SoftTimeLimitExceeded:
