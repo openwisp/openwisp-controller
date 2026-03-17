@@ -671,9 +671,12 @@ class TestAdmin(
         self.assertIn("confirm_form", response.context)
         confirm_form = response.context["confirm_form"]
         data = confirm_form.initial
-        response = self.client.post(
-            reverse(f"admin:{self.app_label}_device_process_import"), data, follow=True
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse(f"admin:{self.app_label}_device_process_import"),
+                data,
+                follow=True,
+            )
         self.assertEqual(response.status_code, 200)
         device = Device.objects.first()
         self.assertIsNotNone(device)
@@ -746,9 +749,10 @@ class TestAdmin(
         with catch_signal(post_save) as mock_post_save, catch_signal(
             device_group_changed
         ) as device_group_changed_mock:
-            self.client.post(
-                reverse(f"admin:{self.app_label}_device_add"), data, follow=True
-            )
+            with self.captureOnCommitCallbacks(execute=True):
+                self.client.post(
+                    reverse(f"admin:{self.app_label}_device_add"), data, follow=True
+                )
         device = Device.objects.first()
         mock_post_save.assert_any_call(
             signal=post_save,
@@ -767,7 +771,8 @@ class TestAdmin(
         template = self._create_template(name="template")
         dg = self._create_device_group(name="test-group", organization=org)
         dg.templates.add(template)
-        device = self._create_device(organization=org, group=dg)
+        with self.captureOnCommitCallbacks(execute=True):
+            device = self._create_device(organization=org, group=dg)
         self.assertIn(template, device.config.templates.all())
         path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
         params = self._get_device_params(org=org)
@@ -780,7 +785,8 @@ class TestAdmin(
                 "group": "",
             }
         )
-        response = self.client.post(path, params, follow=True)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(path, params, follow=True)
         self.assertNotContains(response, "errors", status_code=200)
         device.refresh_from_db()
         self.assertIsNone(device.group)
@@ -791,7 +797,8 @@ class TestAdmin(
         t = self._create_template(name="t")
         dg = self._create_device_group(name="test-group", organization=o)
         dg.templates.add(t)
-        d = self._create_device(organization=o, group=dg)
+        with self.captureOnCommitCallbacks(execute=True):
+            d = self._create_device(organization=o, group=dg)
         self.assertIn(t, d.config.templates.all())
         path = reverse(f"admin:{self.app_label}_device_change", args=[d.pk])
         params = self._get_device_params(org=o)

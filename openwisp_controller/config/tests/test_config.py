@@ -878,7 +878,8 @@ class TestConfig(
         group.templates.add(*[t1, t2])
         with self.subTest("config_backend_changed signal must not be sent on creation"):
             with catch_signal(config_backend_changed) as handler:
-                d = self._create_device(group=group, organization=org)
+                with self.captureOnCommitCallbacks(execute=True):
+                    d = self._create_device(group=group, organization=org)
                 handler.assert_not_called()
                 self.assertTrue(d.config.templates.filter(pk=t1.pk).exists())
                 self.assertFalse(d.config.templates.filter(pk=t2.pk).exists())
@@ -896,7 +897,8 @@ class TestConfig(
             with catch_signal(config_backend_changed) as handler:
                 c = d.config
                 c.backend = backend
-                c.save(update_fields=["backend"])
+                with self.captureOnCommitCallbacks(execute=True):
+                    c.save(update_fields=["backend"])
                 handler.assert_called_once_with(
                     sender=Config,
                     signal=config_backend_changed,

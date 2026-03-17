@@ -172,7 +172,8 @@ class TestConfigApi(
         org = self._get_org()
         data["organization"] = org.pk
         data["group"] = dg.pk
-        r = self.client.post(path, data, content_type="application/json")
+        with self.captureOnCommitCallbacks(execute=True):
+            r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Device.objects.count(), 1)
         self.assertIn(template, Device.objects.first().config.templates.all())
@@ -474,7 +475,8 @@ class TestConfigApi(
         t2 = self._create_template(name="t2", backend="netjsonconfig.OpenWisp")
         dg1 = self._create_device_group(name="dg-1")
         dg1.templates.add(t1, t2)
-        d1 = self._create_device(name="test-device", group=dg1)
+        with self.captureOnCommitCallbacks(execute=True):
+            d1 = self._create_device(name="test-device", group=dg1)
         self.assertIn(t1, d1.config.templates.all())
         path = reverse("config_api:device_detail", args=[d1.pk])
         data = {
@@ -490,7 +492,8 @@ class TestConfigApi(
                 "config": {},
             },
         }
-        r = self.client.put(path, data, content_type="application/json")
+        with self.captureOnCommitCallbacks(execute=True):
+            r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["group"], dg1.pk)
         self.assertEqual(r.data["config"]["backend"], "netjsonconfig.OpenWisp")
