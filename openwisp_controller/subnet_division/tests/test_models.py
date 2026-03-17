@@ -133,8 +133,8 @@ class TestSubnetDivisionRule(
             options = default_options.copy()
             options["number_of_subnets"] = 0
             rule = SubnetDivisionRule(**options)
-            # Should not raise ValidationError for number_of_subnets
-             rule.full_clean()
+            # Should not raise ValidationError
+            rule.full_clean()
 
         with self.subTest("Test rule does not provision any IP"):
             options = default_options.copy()
