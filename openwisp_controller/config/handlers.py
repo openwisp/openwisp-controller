@@ -103,7 +103,7 @@ def devicegroup_templates_change_handler(instance, **kwargs):
         else:
             # device group changed
             transaction.on_commit(
-                lambda: tasks.change_devices_templates(
+                lambda: tasks.change_devices_templates.delay(
                     instance_id=instance.id,
                     model_name=model_name,
                     group_id=kwargs.get("group_id"),
@@ -129,12 +129,14 @@ def devicegroup_templates_change_handler(instance, **kwargs):
         )
         if not (config_created or kwargs.get("backend")):
             return
-        tasks.change_devices_templates(
-            instance_id=instance.id,
-            model_name=model_name,
-            created=config_created,
-            backend=kwargs.get("backend"),
-            old_backend=kwargs.get("old_backend"),
+        transaction.on_commit(
+            lambda: tasks.change_devices_templates.delay(
+                instance_id=instance.id,
+                model_name=model_name,
+                created=config_created,
+                backend=kwargs.get("backend"),
+                old_backend=kwargs.get("old_backend"),
+            )
         )
 
 
