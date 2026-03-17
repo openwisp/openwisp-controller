@@ -1600,54 +1600,13 @@ class TestConfigApiTransaction(
         during API template update, remaining VpnClients should still
         be deleted and the API should not crash."""
         org = self._get_org()
-        # Each VPN must have a unique OpenVPN process name and device to
-        # avoid a netjsonconfig ValidationError when both templates are
-        # applied to the same device configuration.
-        vpn1 = self._create_vpn(
-            name="vpn1",
-            organization=org,
-            config={
-                "openvpn": [
-                    {
-                        "ca": "ca.pem",
-                        "cert": "cert.pem",
-                        "dev": "tap0",
-                        "dev_type": "tap",
-                        "dh": "dh.pem",
-                        "key": "key.pem",
-                        "mode": "server",
-                        "name": "vpn1-server",
-                        "proto": "udp",
-                        "tls_server": True,
-                    }
-                ]
-            },
-        )
-        vpn2 = self._create_vpn(
-            name="vpn2",
-            organization=org,
-            config={
-                "openvpn": [
-                    {
-                        "ca": "ca.pem",
-                        "cert": "cert.pem",
-                        "dev": "tap1",
-                        "dev_type": "tap",
-                        "dh": "dh.pem",
-                        "key": "key.pem",
-                        "mode": "server",
-                        "name": "vpn2-server",
-                        "proto": "udp",
-                        "tls_server": True,
-                    }
-                ]
-            },
-        )
+        vpn1 = self._create_vpn(name="vpn1", organization=org)
+        vpn2 = self._create_vpn(name="vpn2", organization=org)
         t1 = self._create_template(
-            name="vpn-test-1", type="vpn", vpn=vpn1, organization=org, auto_cert=True
+            name="vpn-test-1", type="vpn", vpn=vpn1, organization=org
         )
         t2 = self._create_template(
-            name="vpn-test-2", type="vpn", vpn=vpn2, organization=org, auto_cert=True
+            name="vpn-test-2", type="vpn", vpn=vpn2, organization=org
         )
         generic_template = self._create_template(organization=org)
         device = self._create_device(organization=org)
