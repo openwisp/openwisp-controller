@@ -286,6 +286,187 @@ class TestVpn(BaseTestVpn, TestCase):
             vpnclient.save()
             _assert_vpn_client_cert(cert, vpnclient, 1, 0)
 
+    def test_vpn_client_post_delete_on_template_removal(self):
+        """Regression test for #1221: VpnClient.post_delete must fire
+        when a VPN template is removed so that peer cache is invalidated
+        and certificates are properly revoked."""
+        org = self._get_org()
+        vpn = self._create_vpn()
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
+        c = self._create_config(organization=org)
+        c.templates.add(t)
+        vpnclient = c.vpnclient_set.first()
+        self.assertIsNotNone(vpnclient)
+        cert_pk = vpnclient.cert.pk
+        with mock.patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+            c.templates.remove(t)
+            mock_invalidate.assert_called()
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+        # Certificate should be revoked (auto_cert=True)
+        self.assertTrue(Cert.objects.get(pk=cert_pk).revoked)
+
+    def test_vpn_client_post_delete_on_device_deactivation(self):
+        """Regression test for #1221: VpnClient.post_delete must fire
+        when a device is deactivated so that peer cache is invalidated
+        and certificates are properly revoked."""
+        org = self._get_org()
+        vpn = self._create_vpn()
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
+        d = self._create_device(organization=org)
+        c = self._create_config(device=d)
+        c.templates.add(t)
+        vpnclient = c.vpnclient_set.first()
+        self.assertIsNotNone(vpnclient)
+        cert_pk = vpnclient.cert.pk
+        with mock.patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+            d.deactivate()
+            mock_invalidate.assert_called()
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+        # Certificate should be revoked (auto_cert=True)
+        self.assertTrue(Cert.objects.get(pk=cert_pk).revoked)
+
+    def test_vpnclient_delete_partial_failure_on_deactivation(self):
+        """Regression test for #1221: if one VpnClient deletion fails
+        during device deactivation, remaining VpnClients should still
+        be deleted with their side effects (cert revocation) intact."""
+        org = self._get_org()
+        vpn1 = self._create_vpn(name="vpn1")
+        vpn2 = self._create_vpn(name="vpn2")
+        t1 = self._create_template(
+            name="vpn-test-1", type="vpn", vpn=vpn1, auto_cert=True
+        )
+        t2 = self._create_template(
+            name="vpn-test-2", type="vpn", vpn=vpn2, auto_cert=True
+        )
+        d = self._create_device(organization=org)
+        c = self._create_config(device=d)
+        c.templates.add(t1, t2)
+        vc1, vc2 = list(c.vpnclient_set.order_by("pk"))
+        vc1_pk = vc1.pk
+        vc2_pk = vc2.pk
+        vc1_cert_pk = vc1.cert.pk
+        vc2_cert_pk = vc2.cert.pk
+
+        original_delete = VpnClient.delete
+        call_count = 0
+
+        def failing_delete(self):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("simulated failure")
+            return original_delete(self)
+
+        with mock.patch.object(VpnClient, "delete", failing_delete):
+            with self.assertLogs(
+                "openwisp_controller.config.base.config", level="ERROR"
+            ) as log_cm:
+                d.deactivate()
+        # Exactly one VpnClient should remain (the one whose deletion failed)
+        remaining_pks = set(
+            VpnClient.objects.filter(pk__in=[vc1_pk, vc2_pk]).values_list(
+                "pk", flat=True
+            )
+        )
+        self.assertEqual(len(remaining_pks), 1)
+        failed_pk = next(iter(remaining_pks))
+        deleted_pk = vc2_pk if failed_pk == vc1_pk else vc1_pk
+        # The successfully deleted VpnClient's cert should be revoked
+        deleted_cert_pk = vc2_cert_pk if deleted_pk == vc2_pk else vc1_cert_pk
+        self.assertTrue(Cert.objects.get(pk=deleted_cert_pk).revoked)
+        # Error log should contain the PK of the VpnClient that failed to delete
+        self.assertTrue(
+            any(str(failed_pk) in msg for msg in log_cm.output),
+            f"Expected VpnClient PK {failed_pk} in log output",
+        )
+
+    def test_vpnclient_delete_partial_failure_on_template_removal(self):
+        """Regression test for #1221: if one VpnClient deletion fails
+        during template removal, remaining VpnClients should still
+        be deleted with their side effects (cert revocation) intact."""
+        org = self._get_org()
+        vpn1 = self._create_vpn(name="vpn1")
+        vpn2 = self._create_vpn(name="vpn2")
+        t1 = self._create_template(
+            name="vpn-test-1", type="vpn", vpn=vpn1, auto_cert=True
+        )
+        t2 = self._create_template(
+            name="vpn-test-2", type="vpn", vpn=vpn2, auto_cert=True
+        )
+        c = self._create_config(organization=org)
+        c.templates.add(t1, t2)
+        vc1, vc2 = list(c.vpnclient_set.order_by("pk"))
+        vc1_pk = vc1.pk
+        vc2_pk = vc2.pk
+        vc1_cert_pk = vc1.cert.pk
+        vc2_cert_pk = vc2.cert.pk
+
+        original_delete = VpnClient.delete
+        call_count = 0
+
+        def failing_delete(self):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("simulated failure")
+            return original_delete(self)
+
+        with mock.patch.object(VpnClient, "delete", failing_delete):
+            with self.assertLogs(
+                "openwisp_controller.config.base.config", level="ERROR"
+            ) as log_cm:
+                c.templates.remove(t1, t2)
+        # Exactly one VpnClient should remain (the one whose deletion failed)
+        remaining_pks = set(
+            VpnClient.objects.filter(pk__in=[vc1_pk, vc2_pk]).values_list(
+                "pk", flat=True
+            )
+        )
+        self.assertEqual(len(remaining_pks), 1)
+        failed_pk = next(iter(remaining_pks))
+        deleted_pk = vc2_pk if failed_pk == vc1_pk else vc1_pk
+        # The successfully deleted VpnClient's cert should be revoked
+        deleted_cert_pk = vc2_cert_pk if deleted_pk == vc2_pk else vc1_cert_pk
+        self.assertTrue(Cert.objects.get(pk=deleted_cert_pk).revoked)
+        # Error log should contain the PK of the VpnClient that failed to delete
+        self.assertTrue(
+            any(str(failed_pk) in msg for msg in log_cm.output),
+            f"Expected VpnClient PK {failed_pk} in log output",
+        )
+
+    def test_vpnclient_delete_all_fail_no_crash(self):
+        """Regression test for #1221: if all VpnClient deletions fail,
+        the method should not raise and should log each failure."""
+        org = self._get_org()
+        vpn1 = self._create_vpn(name="vpn1")
+        vpn2 = self._create_vpn(name="vpn2")
+        t1 = self._create_template(
+            name="vpn-test-1", type="vpn", vpn=vpn1, auto_cert=True
+        )
+        t2 = self._create_template(
+            name="vpn-test-2", type="vpn", vpn=vpn2, auto_cert=True
+        )
+        d = self._create_device(organization=org)
+        c = self._create_config(device=d)
+        c.templates.add(t1, t2)
+        vc1_pk, vc2_pk = list(
+            c.vpnclient_set.order_by("pk").values_list("pk", flat=True)
+        )
+
+        with mock.patch.object(
+            VpnClient, "delete", side_effect=Exception("simulated failure")
+        ):
+            with self.assertLogs(
+                "openwisp_controller.config.base.config", level="ERROR"
+            ) as log_cm:
+                d.deactivate()
+        # Both VpnClients should still exist (all deletes failed)
+        self.assertTrue(VpnClient.objects.filter(pk=vc1_pk).exists())
+        self.assertTrue(VpnClient.objects.filter(pk=vc2_pk).exists())
+        # Should have logged 2 errors
+        error_msgs = [msg for msg in log_cm.output if "Failed to delete" in msg]
+        self.assertEqual(len(error_msgs), 2)
+
     def test_vpn_client_get_common_name(self):
         vpn = self._create_vpn()
         d = self._create_device()

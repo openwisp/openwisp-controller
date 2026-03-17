@@ -1595,6 +1595,108 @@ class TestConfigApiTransaction(
             self.assertEqual(response.status_code, 200)
             self.assertEqual(device.config.templates.count(), 0)
 
+    def test_vpnclient_delete_partial_failure_on_api_template_change(self):
+        """Regression test for #1221: if one VpnClient deletion fails
+        during API template update, remaining VpnClients should still
+        be deleted and the API should not crash."""
+        org = self._get_org()
+        # Each VPN must have a unique OpenVPN process name and device to
+        # avoid a netjsonconfig ValidationError when both templates are
+        # applied to the same device configuration.
+        vpn1 = self._create_vpn(
+            name="vpn1",
+            organization=org,
+            config={
+                "openvpn": [
+                    {
+                        "ca": "ca.pem",
+                        "cert": "cert.pem",
+                        "dev": "tap0",
+                        "dev_type": "tap",
+                        "dh": "dh.pem",
+                        "key": "key.pem",
+                        "mode": "server",
+                        "name": "vpn1-server",
+                        "proto": "udp",
+                        "tls_server": True,
+                    }
+                ]
+            },
+        )
+        vpn2 = self._create_vpn(
+            name="vpn2",
+            organization=org,
+            config={
+                "openvpn": [
+                    {
+                        "ca": "ca.pem",
+                        "cert": "cert.pem",
+                        "dev": "tap1",
+                        "dev_type": "tap",
+                        "dh": "dh.pem",
+                        "key": "key.pem",
+                        "mode": "server",
+                        "name": "vpn2-server",
+                        "proto": "udp",
+                        "tls_server": True,
+                    }
+                ]
+            },
+        )
+        t1 = self._create_template(
+            name="vpn-test-1", type="vpn", vpn=vpn1, organization=org, auto_cert=True
+        )
+        t2 = self._create_template(
+            name="vpn-test-2", type="vpn", vpn=vpn2, organization=org, auto_cert=True
+        )
+        generic_template = self._create_template(organization=org)
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse("config_api:device_detail", args=[device.pk])
+        # Add both VPN templates
+        data = {
+            "name": device.name,
+            "organization": str(org.id),
+            "mac_address": device.mac_address,
+            "config": {
+                "backend": "netjsonconfig.OpenWrt",
+                "templates": [str(t1.pk), str(t2.pk), str(generic_template.pk)],
+            },
+        }
+        response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(config.vpnclient_set.count(), 2)
+        vc1, vc2 = list(config.vpnclient_set.order_by("pk"))
+        vc1_pk = vc1.pk
+        vc2_pk = vc2.pk
+
+        original_delete = VpnClient.delete
+        call_count = 0
+
+        def failing_delete(self):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("simulated failure")
+            return original_delete(self)
+
+        # Remove both VPN templates, keep only generic
+        data["config"]["templates"] = [str(generic_template.pk)]
+        with patch.object(VpnClient, "delete", failing_delete):
+            with self.assertLogs(
+                "openwisp_controller.config.base.config", level="ERROR"
+            ) as log_cm:
+                response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        # First VpnClient delete failed, so it should still exist
+        self.assertTrue(VpnClient.objects.filter(pk=vc1_pk).exists())
+        # Second VpnClient should be deleted
+        self.assertFalse(VpnClient.objects.filter(pk=vc2_pk).exists())
+        self.assertTrue(
+            any(str(vc1_pk) in msg for msg in log_cm.output),
+            f"Expected VpnClient PK {vc1_pk} in log output",
+        )
+
     def test_multiple_vpn_client_templates_same_vpn(self):
         """
         Assigning multiple templates of type 'vpn' referencing the same VPN
