@@ -1289,6 +1289,51 @@ class TestController(
         self.assertEqual(d.config.templates.filter(pk=t_shared.pk).count(), 1)
         self.assertEqual(d.config.templates.filter(pk=t2.pk).count(), 0)
 
+    def test_register_hostname_not_truncated_by_vpn_cert_provisioning(self):
+        """
+        When a new device with a long name registers and a VPN template with
+        auto_cert=True is applied via tags, _get_common_name() must not mutate
+        the in-memory device object.  The `hostname` field in the registration
+        response and the name stored in the database must both equal the full
+        original name, not a cert-length-truncated version.
+        """
+        # Name longer than the truncation threshold used in _get_common_name()
+        # (63 - len("00:11:22:33:44:55") = 46 chars).
+        long_name = "a-very-long-device-hostname-that-exceeds-46-chars"
+        self.assertGreater(len(long_name), 46)
+
+        org = self._create_org(name="org1")
+        vpn = self._create_vpn(organization=org)
+        # VPN template tagged "openvpn" with auto_cert so _get_common_name() runs.
+        t = self._create_template(
+            name="vpn-tpl",
+            organization=org,
+            type="vpn",
+            auto_cert=True,
+            vpn=vpn,
+        )
+        t.tags.add("openvpn")
+
+        response = self.client.post(
+            self.register_url,
+            {
+                "secret": TEST_ORG_SHARED_SECRET,
+                "name": long_name,
+                "mac_address": TEST_MACADDR,
+                "backend": "netjsonconfig.OpenWrt",
+                "tags": "openvpn",
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+
+        # The `hostname` line in the response must be the full original name.
+        response_text = response.content.decode()
+        self.assertIn(f"hostname: {long_name}", response_text)
+
+        # The database record must also store the full original name.
+        device = Device.objects.get(mac_address=TEST_MACADDR)
+        self.assertEqual(device.name, long_name)
+
     @capture_any_output()
     def test_register_400(self):
         self._get_org()

@@ -892,12 +892,20 @@ class AbstractVpnClient(models.Model):
         """
         d = self.config.device
         end = 63 - len(d.mac_address)
-        d.name = d.name[:end]
+        # Use a local variable to avoid mutating the device instance in-place.
+        # Mutating d.name would corrupt the device object shared with the caller
+        # (Django caches FK targets), causing the registration response hostname
+        # and any subsequent device.save() to silently persist the truncated name.
+        name = d.name[:end]
         unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == "{mac_address}-{name}" and d.name == d.mac_address:
+        if cn_format == "{mac_address}-{name}" and name == d.mac_address:
             cn_format = "{mac_address}"
-        common_name = cn_format.format(**d.__dict__)[:55]
+        # Build the format context explicitly so custom COMMON_NAME_FORMAT strings
+        # that reference other device attributes (e.g. {hardware_id}) still work,
+        # while the truncated name is used without touching the device object.
+        context = {**d.__dict__, "name": name}
+        common_name = cn_format.format(**context)[:55]
         common_name = f"{common_name}-{unique_slug}"
         return common_name
 

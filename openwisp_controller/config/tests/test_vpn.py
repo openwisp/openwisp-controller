@@ -414,13 +414,60 @@ class TestVpn(BaseTestVpn, TestCase):
         client.full_clean()
         client.save()
         # The last 9 characters gets truncated and replaced with unique id
-        self.assertIn(
-            "{mac_address}-{name}".format(**d.__dict__)[:-9], client._get_common_name()
-        )
+        mac = d.mac_address
+        self.assertIn(f"{mac}-{device_name}"[:-9], client._get_common_name())
         self.assertEqual(len(client._get_common_name()), 64)
         cert = Cert.objects.filter(organization=org, name=device_name)
         self.assertEqual(cert.count(), 1)
         self.assertEqual(cert.first().common_name[:-9], client._get_common_name()[:-9])
+        # The device name must NOT be mutated by _get_common_name()
+        self.assertEqual(d.name, device_name)
+
+    def test_get_common_name_does_not_mutate_device_name(self):
+        """
+        _get_common_name() must not modify the device.name attribute.
+        Django caches FK targets, so mutating the device inside _get_common_name()
+        would corrupt the caller's reference to the same object and could cause
+        a truncated name to be saved to the database on a subsequent device.save().
+        """
+        # Use a name longer than the truncation threshold (63 - len(mac) = 46 chars
+        # for a standard 17-char MAC address).
+        long_name = "a" * 50
+        org = self._create_org(name="org1")
+        vpn = self._create_vpn(organization=org)
+        d = self._create_device(organization=org, name=long_name)
+        c = self._create_config(device=d)
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
+
+        client._get_common_name()
+
+        # The in-memory device name must remain unchanged after _get_common_name().
+        self.assertEqual(d.name, long_name)
+        # The database record must also be unaffected.
+        self.assertEqual(
+            d.__class__.objects.values_list("name", flat=True).get(pk=d.pk),
+            long_name,
+        )
+
+    def test_get_common_name_does_not_mutate_device_name_short_name(self):
+        """
+        For device names below the truncation threshold _get_common_name()
+        must still not touch the device object even though the slice is a no-op.
+        """
+        short_name = "router-01"
+        org = self._create_org(name="org1")
+        vpn = self._create_vpn(organization=org)
+        d = self._create_device(organization=org, name=short_name)
+        c = self._create_config(device=d)
+        client = VpnClient(vpn=vpn, config=c, auto_cert=True)
+
+        # Capture the actual string object stored on the device before the call.
+        name_before = d.__dict__["name"]
+        client._get_common_name()
+
+        self.assertEqual(d.name, short_name)
+        # The same string object must still be on the device — not a fresh slice.
+        self.assertIs(d.__dict__["name"], name_before)
 
     @mock.patch.object(Vpn, "dhparam", side_effect=SoftTimeLimitExceeded)
     def test_update_vpn_dh_timeout(self, dhparam):
