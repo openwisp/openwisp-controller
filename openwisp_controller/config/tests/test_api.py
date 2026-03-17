@@ -1603,10 +1603,10 @@ class TestConfigApiTransaction(
         vpn1 = self._create_vpn(name="vpn1", organization=org)
         vpn2 = self._create_vpn(name="vpn2", organization=org)
         t1 = self._create_template(
-            name="vpn-test-1", type="vpn", vpn=vpn1, organization=org
+            name="vpn-test-1", type="vpn", vpn=vpn1, organization=org, config={}
         )
         t2 = self._create_template(
-            name="vpn-test-2", type="vpn", vpn=vpn2, organization=org
+            name="vpn-test-2", type="vpn", vpn=vpn2, organization=org, config={}
         )
         generic_template = self._create_template(organization=org)
         device = self._create_device(organization=org)
