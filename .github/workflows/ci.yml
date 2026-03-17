@@ -98,7 +98,7 @@ jobs:
         with:
           parallel: true
           format: cobertura
-          flag-name: python-${{ matrix.env.env }}
+          flag-name: python-${{ matrix.python-version }}-${{ matrix.django-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
 

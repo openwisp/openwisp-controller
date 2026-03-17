@@ -338,7 +338,26 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             if instance.is_deactivating_or_deactivated():
                 # If the device is deactivated or in the process of deactivating, then
                 # delete all vpn clients and return.
-                instance.vpnclient_set.all().delete()
+                # Use per-instance deletion to ensure post_delete signals fire,
+                # which handles peer cache invalidation, cert revocation,
+                # ZeroTier member removal, and IP address release.
+                # Each deletion is wrapped in its own transaction so that
+                # a failure in one does not roll back side effects
+                # (cert revocation, IP release) of previously committed ones.
+                for vpnclient in (
+                    instance.vpnclient_set.select_related("vpn", "cert", "ip")
+                    .order_by("pk")
+                    .iterator()
+                ):
+                    try:
+                        with transaction.atomic():
+                            vpnclient.delete()
+                    except Exception:
+                        logger.exception(
+                            "Failed to delete VpnClient (id: %s) " "for Config %s",
+                            vpnclient.pk,
+                            instance,
+                        )
             return
 
         vpn_client_model = cls.vpn.through
@@ -370,9 +389,29 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             # signal is triggered again—after all templates, including the required
             # ones, have been fully added. At that point, we can identify and
             # delete VpnClient objects not linked to the final template set.
-            instance.vpnclient_set.exclude(
-                template_id__in=instance.templates.values_list("id", flat=True)
-            ).delete()
+            # Use per-instance deletion to ensure post_delete signals fire,
+            # which handles peer cache invalidation, cert revocation,
+            # ZeroTier member removal, and IP address release.
+            # Each deletion is wrapped in its own transaction so that
+            # a failure in one does not roll back side effects
+            # (cert revocation, IP release) of previously committed ones.
+            for vpnclient in (
+                instance.vpnclient_set.select_related("vpn", "cert", "ip")
+                .exclude(
+                    template_id__in=instance.templates.values_list("id", flat=True)
+                )
+                .order_by("pk")
+                .iterator()
+            ):
+                try:
+                    with transaction.atomic():
+                        vpnclient.delete()
+                except Exception:
+                    logger.exception(
+                        "Failed to delete VpnClient (id: %s) " "for Config %s",
+                        vpnclient.pk,
+                        instance,
+                    )
 
         if action == "post_add":
             for template in templates.filter(type="vpn"):
