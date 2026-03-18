@@ -46,7 +46,7 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         pk = uuid.uuid4()
         tasks.launch_command.delay(pk)
         mocked_warning.assert_called_with(
-            f'launch_command("{pk}") failed: Command matching query does not exist.'
+            'launch_command("%s") skipped: command does not exist', pk
         )
 
     @mock.patch(_mock_execute, side_effect=SoftTimeLimitExceeded())
