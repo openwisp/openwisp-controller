@@ -7,8 +7,8 @@ on:
       - completed
 
 permissions:
-  pull-requests: write
-  actions: write  # needed for auto retries of flaky CI builds
+  pull-requests: read
+  actions: read
   contents: read
 
 concurrency:
@@ -69,6 +69,10 @@ jobs:
   call-ci-failure-bot:
     needs: find-pr
     if: ${{ needs.find-pr.outputs.pr_number != '' }}
+    permissions:
+      pull-requests: write
+      actions: write
+      contents: read
     uses: openwisp/openwisp-utils/.github/workflows/reusable-bot-ci-failure.yml@master
     with:
       pr_number: ${{ needs.find-pr.outputs.pr_number }}
