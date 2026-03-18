@@ -302,7 +302,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             except KeyError as e:
                 raise ValidationError(
                     {
-                        "update_stragy": _(
+                        "update_strategy": _(
                             "could not determine update strategy "
                             " automatically, exception: {0}".format(e)
                         )
