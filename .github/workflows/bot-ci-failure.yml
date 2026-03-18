@@ -34,8 +34,8 @@ jobs:
           emit_pr() {
             local pr_number="$1"
             local pr_author
-            pr_author=$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login' 2>/dev/null || echo "")
-            if [ -z "$pr_author" ]; then
+            pr_author=$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login // empty' 2>/dev/null || echo "")
+            if [ -z "$pr_author" ] || [ "$pr_author" = "null" ]; then
               echo "::warning::Could not fetch PR author for PR #$pr_number"
             fi 
             echo "number=$pr_number" >> "$GITHUB_OUTPUT"
