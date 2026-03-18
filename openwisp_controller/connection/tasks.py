@@ -68,8 +68,10 @@ def launch_command(command_id):
     Command = load_model("connection", "Command")
     try:
         command = Command.objects.get(pk=command_id)
-    except Command.DoesNotExist as e:
-        logger.warning(f'launch_command("{command_id}") failed: {e}')
+    except Command.DoesNotExist:
+        logger.warning(
+            'launch_command("%s") skipped: command does not exist', command_id
+        )
         return
     try:
         command.execute()
