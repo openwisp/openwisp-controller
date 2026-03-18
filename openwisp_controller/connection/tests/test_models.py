@@ -899,6 +899,26 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             command.refresh_from_db()
             self.assertIn(command.connection, [dc1, dc2])
 
+    def test_launch_command_skips_terminal_state(self):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "echo test"},
+        )
+        command.full_clean()
+        command.save()
+        for status in ("success", "failed"):
+            with self.subTest(status=status):
+                command.status = status
+                command.save()
+                with mock.patch.object(Command, "execute") as mocked_execute:
+                    launch_command(str(command.pk))
+                    mocked_execute.assert_not_called()
+                command.refresh_from_db()
+                self.assertEqual(command.status, status)
+
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     def _prepare_conf_object(self, organization=None):
@@ -1142,27 +1162,3 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 credential = self._create_credentials(
                     name="Mocked Credential", auto_add=True, organization=org
                 )
-
-    @mock.patch(_connect_path)
-    def test_launch_command_skips_terminal_state(self, connect_mocked):
-        dc = self._create_device_connection()
-        command = Command(
-            device=dc.device,
-            connection=dc,
-            type="custom",
-            input={"command": "echo test"},
-        )
-        command.full_clean()
-        with mock.patch(_exec_command_path) as mocked:
-            mocked.return_value = self._exec_command_return_value()
-            command.save()
-            command.execute()
-        command.refresh_from_db()
-        self.assertEqual(command.status, "success")
-        # call launch_command again for the same command
-        with mock.patch(_exec_command_path) as mocked_second:
-            mocked_second.return_value = self._exec_command_return_value()
-            launch_command(str(command.pk))
-            mocked_second.assert_not_called()
-        command.refresh_from_db()
-        self.assertEqual(command.status, "success")
