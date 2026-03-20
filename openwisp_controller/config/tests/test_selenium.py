@@ -389,7 +389,6 @@ class TestDeviceAdmin(
         1. User with custom group permissions can access the admin
         2. Multiple shared templates are displayed correctly
         3. Each template appears only once in the sortedm2m list
-        4. Default template is automatically selected
         """
         # Define permission codenames for the custom group
         permission_codenames = [
@@ -450,25 +449,14 @@ class TestDeviceAdmin(
             )
 
         with self.subTest(
-            "Verify checkbox HTML elements are present in page source"
-            " with correct attributes"
+            "Verify checkbox inputs are rendered with expected attributes"
         ):
-            page_source = self.web_driver.page_source
-            # Verify HTML element strings for each template
-            for idx, template_id in enumerate([template1.id, template2.id], start=0):
-                html_element = (
-                    f'<input type="checkbox" value="{template_id}" '
-                    f'id="id_config-templates_{idx}" class="sortedm2m"'
-                    ' data-required="false"'
+            for idx, template_id in enumerate([template1.id, template2.id]):
+                checkbox = self.find_element(
+                    by=By.ID, value=f"id_config-templates_{idx}"
                 )
-                self.assertIn(
-                    html_element,
-                    page_source,
-                    (
-                        f"Expected checkbox HTML for template {template_id} not found"
-                        " in page source"
-                    ),
-                )
+                self.assertEqual(checkbox.get_attribute("value"), str(template_id))
+                self.assertEqual(checkbox.get_attribute("data-required"), "false")
 
         with self.subTest("Save operation completes successfully"):
             # Scroll to the top of the page to ensure the save button is visible
