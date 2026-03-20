@@ -1,5 +1,6 @@
 import time
 
+from django.contrib.auth.models import Group, Permission
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
@@ -40,9 +41,17 @@ class SeleniumTestMixin(BaseSeleniumTestMixin):
         hidden = hidden or []
         visible = visible or []
         for template in hidden:
-            self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
+            self.wait_for_invisibility(
+                By.XPATH,
+                f'//ul[contains(@class,"sortedm2m-items")]'
+                f'//input[@value="{template.id}"]',
+            )
         for template in visible:
-            self.wait_for_visibility(By.XPATH, f'//*[@value="{template.id}"]')
+            self.wait_for_visibility(
+                By.XPATH,
+                f'//ul[contains(@class,"sortedm2m-items")]'
+                f'//input[@value="{template.id}"]',
+            )
 
 
 @tag("selenium_tests")
@@ -372,6 +381,100 @@ class TestDeviceAdmin(
             config.refresh_from_db()
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.status, "modified")
+
+    def test_relevant_templates_duplicates(self):
+        """
+        Test that a user with specific permissions can see shared templates
+        properly. Verifies that:
+        1. User with custom group permissions can access the admin
+        2. Multiple shared templates are displayed correctly
+        3. Each template appears only once in the sortedm2m list
+        4. Default template is automatically selected
+        """
+        # Define permission codenames for the custom group
+        permission_codenames = [
+            "view_group",
+            "change_config",
+            "view_config",
+            "add_device",
+            "change_device",
+            "delete_device",
+            "view_device",
+            "view_devicegroup",
+            "view_template",
+        ]
+        # Create a custom group with the specified permissions
+        permissions = Permission.objects.filter(codename__in=permission_codenames)
+        custom_group, _ = Group.objects.get_or_create(name="Custom Operator")
+        custom_group.permissions.set(permissions)
+        # Create a user and assign the custom group
+        user = self._create_user(
+            username="limited_user",
+            password="testpass123",
+            email="limited@test.com",
+            is_staff=True,
+        )
+        user.groups.add(custom_group)
+        org = self._get_org()
+        self._create_org_user(user=user, organization=org, is_admin=True)
+        # Create multiple shared templates (organization=None)
+        template1 = self._create_template(
+            name="Shared Template 1", organization=None, default=True
+        )
+        template2 = self._create_template(name="Shared Template 2", organization=None)
+        device = self._create_config(organization=org).device
+        # Login as the limited user
+        self.login(username="limited_user", password="testpass123")
+        # Navigate using Selenium
+        self.open(
+            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+        )
+        self.hide_loading_overlay()
+        with self.subTest("All shared templates should be visible"):
+            self._verify_templates_visibility(visible=[template1, template2])
+
+        with self.subTest("Verify sortedm2m list has exactly 2 template items"):
+            # Check that ul.sortedm2m-items.sortedm2m.ui-sortable has exactly 2 children
+            # with .sortedm2m-item class
+            sortedm2m_items = self.find_elements(
+                by=By.CSS_SELECTOR,
+                value="ul.sortedm2m-items.sortedm2m.ui-sortable > li.sortedm2m-item",
+            )
+            self.assertEqual(
+                len(sortedm2m_items),
+                2,
+                (
+                    "Expected exactly 2 template items in sortedm2m list,"
+                    f" found {len(sortedm2m_items)}"
+                ),
+            )
+
+        with self.subTest(
+            "Verify checkbox HTML elements are present in page source"
+            " with correct attributes"
+        ):
+            page_source = self.web_driver.page_source
+            # Verify HTML element strings for each template
+            for idx, template_id in enumerate([template1.id, template2.id], start=0):
+                html_element = (
+                    f'<input type="checkbox" value="{template_id}" '
+                    f'id="id_config-templates_{idx}" class="sortedm2m"'
+                    ' data-required="false"'
+                )
+                self.assertIn(
+                    html_element,
+                    page_source,
+                    (
+                        f"Expected checkbox HTML for template {template_id} not found"
+                        " in page source"
+                    ),
+                )
+
+        with self.subTest("Save operation completes successfully"):
+            # Scroll to the top of the page to ensure the save button is visible
+            self.web_driver.execute_script("window.scrollTo(0, 0);")
+            self.find_element(by=By.NAME, value="_save").click()
+            self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
 
 
 @tag("selenium_tests")
