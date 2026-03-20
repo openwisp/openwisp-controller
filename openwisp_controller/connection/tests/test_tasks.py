@@ -21,6 +21,56 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         "openwisp_controller.connection.base.models.AbstractDeviceConnection.connect"
     )
 
+    def _get_mocked_celery_active(self, device_id, task_id=None):
+        return {
+            "worker1": [
+                {
+                    "name": tasks._TASK_NAME,
+                    "args": [device_id],
+                    "id": task_id or str(uuid.uuid4()),
+                }
+            ]
+        }
+
+    def test_is_update_in_progress_same_task(self):
+        device_id = str(uuid.uuid4())
+        task_id = str(uuid.uuid4())
+        with mock.patch(
+            "celery.app.control.Inspect.active",
+            return_value=self._get_mocked_celery_active(device_id, task_id),
+        ):
+            result = tasks._is_update_in_progress(device_id, current_task_id=task_id)
+            self.assertEqual(result, False)
+
+    def test_is_update_in_progress_different_task(self):
+        device_id = str(uuid.uuid4())
+        current_task_id = str(uuid.uuid4())
+        other_task_id = str(uuid.uuid4())
+        with mock.patch(
+            "celery.app.control.Inspect.active",
+            return_value=self._get_mocked_celery_active(device_id, other_task_id),
+        ):
+            result = tasks._is_update_in_progress(
+                device_id, current_task_id=current_task_id
+            )
+            self.assertEqual(result, True)
+
+    def test_is_update_in_progress_no_tasks(self):
+        device_id = str(uuid.uuid4())
+        with mock.patch("celery.app.control.Inspect.active", return_value={}):
+            result = tasks._is_update_in_progress(device_id)
+            self.assertEqual(result, False)
+
+    def test_is_update_in_progress_different_device(self):
+        device_id = str(uuid.uuid4())
+        other_device_id = str(uuid.uuid4())
+        with mock.patch(
+            "celery.app.control.Inspect.active",
+            return_value=self._get_mocked_celery_active(other_device_id),
+        ):
+            result = tasks._is_update_in_progress(device_id)
+            self.assertEqual(result, False)
+
     @mock.patch("logging.Logger.warning")
     @mock.patch("time.sleep")
     def test_update_config_missing_config(self, mocked_sleep, mocked_warning):
