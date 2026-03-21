@@ -1141,6 +1141,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             conf.save()
         conf.refresh_from_db()
         self.assertEqual(conf.status, "error")
+        self.assertIn("SSH channel closed", conf.error_reason)
 
     @mock.patch(_connect_path)
     def test_schedule_command_called(self, connect_mocked):
