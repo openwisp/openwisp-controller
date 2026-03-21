@@ -12,7 +12,7 @@ from openwisp_utils.fields import FallbackBooleanChoiceField
 
 from .. import settings as app_settings
 from ..exceptions import OrganizationDeviceLimitExceeded
-from ..tasks import bulk_invalidate_config_get_cached_checksum
+from ..tasks import bulk_invalidate_config_get_cached_checksum, invalidate_controller_views_cache
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
@@ -100,6 +100,7 @@ class AbstractOrganizationConfigSettings(UUIDModel):
             bulk_invalidate_config_get_cached_checksum.delay(
                 {"device__organization_id": str(self.organization_id)}
             )
+            invalidate_controller_views_cache.delay(str(self.organization_id))
 
 
 class AbstractOrganizationLimits(models.Model):
