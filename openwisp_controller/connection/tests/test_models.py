@@ -1,6 +1,7 @@
 import socket
 from unittest import mock
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 import paramiko
 from django.contrib.auth.models import ContentType
@@ -1041,20 +1042,56 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     @mock.patch.object(DeviceConnection, "update_config")
     @mock.patch.object(DeviceConnection, "get_working_connection")
     def test_device_update_config_in_progress(
-        self, mocked_get_working_connection, update_config, mocked_sleep
+        self, mocked_get_working_connection, mocked_update_config, mocked_sleep
     ):
         conf = self._prepare_conf_object()
 
-        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
-            mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": [str(conf.device.pk)]}]
-            }
-            conf.config = {"general": {"timezone": "UTC"}}
-            conf.full_clean()
-            conf.save()
-            mocked_active.assert_called_once()
-            mocked_get_working_connection.assert_not_called()
-            update_config.assert_not_called()
+        with self.subTest("More than one update_config task active for the device"):
+            with mock.patch("celery.app.control.Inspect.active") as mocked_active:
+                mocked_active.return_value = {
+                    "task": [
+                        {
+                            "name": _TASK_NAME,
+                            "args": [str(conf.device.pk)],
+                            "id": str(uuid4()),
+                        }
+                    ]
+                }
+                conf.config = {"general": {"timezone": "UTC"}}
+                conf.full_clean()
+                conf.save()
+                mocked_active.assert_called_once()
+                mocked_get_working_connection.assert_not_called()
+                mocked_update_config.assert_not_called()
+
+        Config.objects.update(status="applied")
+        mocked_get_working_connection.return_value = (
+            conf.device.deviceconnection_set.first()
+        )
+        with self.subTest("Only one task is active for the device"):
+            task_id = str(uuid4())
+            with mock.patch(
+                "celery.app.control.Inspect.active"
+            ) as mocked_active, mock.patch(
+                "celery.app.task.Context.id",
+                new_callable=mock.PropertyMock,
+                return_value=task_id,
+            ):
+                mocked_active.return_value = {
+                    "task": [
+                        {
+                            "name": _TASK_NAME,
+                            "args": [str(conf.device.pk)],
+                            "id": task_id,
+                        }
+                    ]
+                }
+                conf.config = {"general": {"timezone": "Asia/Kolkata"}}
+                conf.full_clean()
+                conf.save()
+                mocked_active.assert_called_once()
+                mocked_get_working_connection.assert_called_once()
+                mocked_update_config.assert_called_once()
 
     @mock.patch("time.sleep")
     @mock.patch.object(DeviceConnection, "update_config")
@@ -1068,8 +1105,15 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         )
 
         with mock.patch("celery.app.control.Inspect.active") as mocked_active:
+            # Mock a task running for a different device (args is different)
             mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": ["..."]}]
+                "task": [
+                    {
+                        "name": _TASK_NAME,
+                        "args": ["another-device-id"],  # Different device
+                        "id": "different-task-id",
+                    }
+                ]
             }
             conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()
