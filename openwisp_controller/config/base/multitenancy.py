@@ -12,7 +12,10 @@ from openwisp_utils.fields import FallbackBooleanChoiceField
 
 from .. import settings as app_settings
 from ..exceptions import OrganizationDeviceLimitExceeded
-from ..tasks import bulk_invalidate_config_get_cached_checksum, invalidate_controller_views_cache
+from ..tasks import (
+    bulk_invalidate_config_get_cached_checksum,
+    invalidate_controller_views_cache,
+)
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
