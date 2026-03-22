@@ -34,7 +34,7 @@ Follow the procedure described below to set up `ZeroTier
 1. Configure Self-Hosted ZeroTier Network Controller
 ----------------------------------------------------
 
-If you haven't already set up a self-hosted ZeroTier network controller on your server, you can install ZeroTier by following the `official installation guide <https://www.zerotier.com/download/>`_.
+If you haven't already set up a self-hosted ZeroTier network controller on your server, you can install ZeroTier by following the `official installation guide <https://www.zerotier.com/download/>`_, ensuring the service is properly set up for use with OpenWISP.
 
 2. Create VPN Server Configuration for ZeroTier
 -----------------------------------------------
