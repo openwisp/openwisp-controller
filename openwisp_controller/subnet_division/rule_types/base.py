@@ -79,16 +79,22 @@ class BaseSubnetDivisionRuleType(object):
     def destroyer_receiver(cls, instance, **kwargs):
         cls.destroy_provisioned_subnets_ips(instance, **kwargs)
 
-    @staticmethod
-    def post_provision_handler(instance, provisioned, **kwargs):
+    @classmethod
+    def post_provision_handler(cls, instance, provisioned, **kwargs):
         """
-        This method should be overridden in inherited rule types to
+        This method should be extended in inherited rule types to
         perform any operation on provisioned subnets and IP addresses.
         :param instance: object that triggered provisioning
         :param provisioned: dictionary containing subnets and IP addresses
             provisioned, None if nothing is provisioned
         """
-        pass
+        if not provisioned:
+            return
+        config = cls.get_config(instance)
+        config._invalidate_backend_instance_cache()
+        if config.checksum != config.checksum_db:
+            config._update_checksum_db(config.checksum)
+            config.invalidate_checksum_cache()
 
     @staticmethod
     def subnet_provisioned_signal_emitter(instance, provisioned):
