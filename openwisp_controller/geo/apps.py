@@ -14,7 +14,11 @@ from swapper import get_model_name
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
-from .estimated_location.handlers import register_estimated_location_notification_types
+from ..config import settings as config_app_settings
+from .estimated_location.handlers import (
+    register_estimated_location_notification_types,
+    whois_info_post_save_handler,
+)
 
 
 class GeoConfig(LociConfig):
@@ -24,14 +28,33 @@ class GeoConfig(LociConfig):
 
     def __setmodels__(self):
         self.location_model = swapper.load_model("geo", "Location")
+        self.org_geo_settings_model = swapper.load_model(
+            "geo", "OrganizationGeoSettings"
+        )
+        self.whois_info_model = swapper.load_model("config", "WHOISInfo")
+        self.organization_model = swapper.load_model("openwisp_users", "Organization")
 
     def ready(self):
         super().ready()
         self.register_dashboard_charts()
         self.register_menu_groups()
+        self.connect_receivers()
         register_estimated_location_notification_types()
         if getattr(settings, "TESTING", False):
             self._add_params_to_test_config()
+
+    def connect_receivers(self):
+        post_save.connect(
+            self.org_geo_settings_model.organization_post_save_receiver,
+            sender=self.organization_model,
+            dispatch_uid="organization_geo_settings_post_save",
+        )
+        if config_app_settings.WHOIS_CONFIGURED:
+            post_save.connect(
+                whois_info_post_save_handler,
+                sender=self.whois_info_model,
+                dispatch_uid="whois_info_estimated_location_handler",
+            )
 
     def _add_params_to_test_config(self):
         """

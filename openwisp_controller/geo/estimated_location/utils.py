@@ -47,3 +47,22 @@ def get_device_location_notification_target_url(obj, field, absolute_url=True):
 
     url = _get_object_link(obj._related_object(field), absolute_url)
     return f"{url}#devicelocation-group"
+
+
+def get_location_defaults_from_whois(whois_obj):
+    """
+    Create default location data from a WHOISInfo object.
+
+    Args:
+        whois_obj: WHOISInfo instance with WHOIS data
+
+    Returns:
+        dict: Default values for creating an estimated Location instance
+    """
+    return {
+        "name": whois_obj._location_name,
+        "type": "outdoor",
+        "is_mobile": False,
+        "geometry": whois_obj.coordinates,
+        "address": whois_obj.formatted_address,
+    }

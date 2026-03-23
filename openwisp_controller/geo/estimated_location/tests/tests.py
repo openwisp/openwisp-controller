@@ -30,46 +30,37 @@ DeviceLocation = load_model("geo", "DeviceLocation")
 WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 
 
 def _notification_qs():
     return Notification.objects.all()
 
 
-class TestEstimatedLocation(TestAdminMixin, TestCase):
+class TestEstimatedLocation(
+    TestEstimatedLocationMixin, TestAdminMixin, TestGeoMixin, TestCase
+):
     @override_settings(
         OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT="test_account",
         OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY="test_key",
     )
     def test_estimated_location_configuration_setting(self):
-        # reload app_settings to apply the overridden
+        # reload app_settings to apply the overridden settings
         self.addCleanup(importlib.reload, config_app_settings)
         importlib.reload(config_app_settings)
         with self.subTest(
-            "ImproperlyConfigured raised when ESTIMATED_LOCATION_ENABLED is True "
-            "and WHOIS_ENABLED is False globally"
+            "Test WHOIS not configured does not allow enabling Estimated Location"
         ):
-            with override_settings(
-                OPENWISP_CONTROLLER_WHOIS_ENABLED=False,
-                OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED=True,
-            ):
-                with self.assertRaises(ImproperlyConfigured):
-                    # reload app_settings to apply the overridden settings
-                    importlib.reload(config_app_settings)
-
-        with self.subTest(
-            "Test WHOIS not enabled does not allow enabling Estimated Location"
-        ):
-            org_settings_obj = OrganizationConfigSettings(organization=self._get_org())
-            with self.assertRaises(ValidationError) as context_manager:
-                org_settings_obj.whois_enabled = False
-                org_settings_obj.estimated_location_enabled = True
-                org_settings_obj.full_clean()
-            self.assertEqual(
-                context_manager.exception.message_dict["estimated_location_enabled"][0],
-                "Estimated Location feature requires "
-                + "WHOIS Lookup feature to be enabled.",
-            )
+            org = self._get_org()
+            geo_settings = org.geo_settings
+            geo_settings.estimated_location_enabled = True
+            with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+                with self.assertRaises(ValidationError) as context_manager:
+                    geo_settings.full_clean()
+                self.assertIn(
+                    "estimated_location_enabled",
+                    context_manager.exception.message_dict,
+                )
 
         with self.subTest(
             "Test Estimated Location field visible on admin when "
@@ -83,14 +74,10 @@ class TestEstimatedLocation(TestAdminMixin, TestCase):
             )
             response = self.client.get(url)
             self.assertContains(
-                response, 'name="config_settings-0-estimated_location_enabled"'
+                response, 'name="geo_settings-0-estimated_location_enabled"'
             )
 
-        with override_settings(
-            OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT=None,
-            OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY=None,
-        ):
-            importlib.reload(config_app_settings)
+        with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
             with self.subTest(
                 "Test Estimated Location field hidden on admin when "
                 "WHOIS_CONFIGURED is False"
@@ -103,18 +90,37 @@ class TestEstimatedLocation(TestAdminMixin, TestCase):
                 )
                 response = self.client.get(url)
                 self.assertNotContains(
-                    response, 'name="config_settings-0-estimated_location_enabled"'
+                    response, 'name="geo_settings-0-estimated_location_enabled"'
                 )
 
+    def test_organization_geo_settings_validation(self):
+        """Test OrganizationGeoSettings model validation."""
+        org = self._get_org()
 
-class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestCase):
+        with self.subTest("WHOIS must be configured to enable estimated location"):
+            geo_settings = org.geo_settings
+            geo_settings.estimated_location_enabled = True
+            with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+                with self.assertRaises(ValidationError) as context_manager:
+                    geo_settings.full_clean()
+                self.assertIn(
+                    "estimated_location_enabled",
+                    context_manager.exception.message_dict,
+                )
+
+        with self.subTest("Estimated location can be enabled when WHOIS is configured"):
+            geo_settings = org.geo_settings
+            geo_settings.estimated_location_enabled = True
+            # Should not raise
+            geo_settings.full_clean()
+
     location_model = Location
 
     def test_estimated_location_field(self):
         org = self._get_org()
-        org.config_settings.estimated_location_enabled = False
-        org.config_settings.save()
-        org.refresh_from_db()
+        # Disable estimated_location_enabled via OrganizationGeoSettings
+        org.geo_settings.estimated_location_enabled = False
+        org.geo_settings.save()
         with self.assertRaises(ValidationError) as context_manager:
             self._create_location(organization=org, is_estimated=True)
         self.assertEqual(
@@ -125,7 +131,7 @@ class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestC
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_estimated_location_admin(self):
         connect_whois_handlers()
-        admin = self._create_admin()
+        admin = self._get_admin()
         self.client.force_login(admin)
         org = self._get_org()
         location = self._create_location(organization=org, is_estimated=True)
@@ -146,9 +152,9 @@ class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestC
             response = self.client.get(add_path)
             self.assertNotContains(response, "field-is_estimated")
 
-        org.config_settings.estimated_location_enabled = False
-        org.config_settings.save()
-        org.config_settings.refresh_from_db()
+        org.geo_settings.estimated_location_enabled = False
+        org.geo_settings.save()
+        org.geo_settings.refresh_from_db()
 
         with self.subTest(
             "is-estimated field hidden when estimated location is disabled"
@@ -167,7 +173,7 @@ class TestEstimatedLocationField(TestEstimatedLocationMixin, TestGeoMixin, TestC
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_estimated_location_admin_add_whois_disabled(self):
-        admin = self._create_admin()
+        admin = self._get_admin()
         self.client.force_login(admin)
         path = reverse("admin:geo_location_add")
         response = self.client.get(path)
@@ -224,13 +230,17 @@ class TestEstimatedLocationTransaction(
         WHOISInfo.objects.all().delete()
         org = self._get_org()
         org.config_settings.whois_enabled = True
-        org.config_settings.estimated_location_enabled = True
         org.config_settings.save()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
 
         with self.subTest("Estimated location task called when last_ip is public"):
-            with mock.patch(
-                "django.core.cache.cache.get", return_value=None
-            ) as mocked_get, mock.patch("django.core.cache.cache.set") as mocked_set:
+            with (
+                mock.patch(
+                    "django.core.cache.cache.get", return_value=None
+                ) as mocked_get,
+                mock.patch("django.core.cache.cache.set") as mocked_set,
+            ):
                 device = self._create_device(last_ip="172.217.22.14")
                 mocked_estimated_location_task.assert_called()
                 expected_cache_set_calls = [
@@ -250,9 +260,10 @@ class TestEstimatedLocationTransaction(
         with self.subTest(
             "Estimated location task called when last_ip is changed and is public"
         ):
-            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
-                "django.core.cache.cache.set"
-            ) as mocked_set:
+            with (
+                mock.patch("django.core.cache.cache.get") as mocked_get,
+                mock.patch("django.core.cache.cache.set") as mocked_set,
+            ):
                 device.last_ip = "172.217.22.10"
                 device.save()
                 device.refresh_from_db()
@@ -269,9 +280,10 @@ class TestEstimatedLocationTransaction(
         with self.subTest(
             "Estimated location task called when last_ip has related WhoIsInfo"
         ):
-            with mock.patch("django.core.cache.cache.get") as mocked_get, mock.patch(
-                "django.core.cache.cache.set"
-            ) as mocked_set:
+            with (
+                mock.patch("django.core.cache.cache.get") as mocked_get,
+                mock.patch("django.core.cache.cache.set") as mocked_set,
+            ):
                 self._create_config(device=device)
                 device.last_ip = "172.217.22.14"
                 self._create_whois_info(ip_address=device.last_ip)
@@ -607,14 +619,14 @@ class TestEstimatedLocationTransaction(
         threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
         new_time = timezone.now() - timedelta(days=threshold)
         org = self._get_org()
-        org.config_settings.estimated_location_enabled = False
-        org.config_settings.save()
+        org.geo_settings.estimated_location_enabled = False
+        org.geo_settings.save()
         device = self._create_device(last_ip="172.217.22.10")
         with self.assertRaises(Device.devicelocation.RelatedObjectDoesNotExist):
             # Accessing devicelocation to verify it doesn't exist (raises if not)
             device.devicelocation
-        org.config_settings.estimated_location_enabled = True
-        org.config_settings.save()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
         whois_obj = device.whois_service.get_device_whois_info()
         WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=new_time)
         device.name = "test.new.name"
@@ -786,9 +798,9 @@ class TestEstimatedLocationTransaction(
         with self.subTest(
             "Test Estimated Status unchanged if Estimated feature is disabled"
         ):
-            org.config_settings.estimated_location_enabled = False
-            org.config_settings.save()
-            org.config_settings.refresh_from_db()
+            org.geo_settings.estimated_location_enabled = False
+            org.geo_settings.save()
+            org.geo_settings.refresh_from_db()
             location.geometry = GEOSGeometry("POINT(12.512124 41.898903)", srid=4326)
             location.save()
             location.refresh_from_db()
@@ -799,9 +811,9 @@ class TestEstimatedLocationTransaction(
             "Test Estimated Status unchanged if Estimated feature is enabled"
             " and desired fields not changed"
         ):
-            org.config_settings.estimated_location_enabled = True
-            org.config_settings.save()
-            org.config_settings.refresh_from_db()
+            org.geo_settings.estimated_location_enabled = True
+            org.geo_settings.save()
+            org.geo_settings.refresh_from_db()
             location._set_initial_values_for_changed_checked_fields()
             location.type = "outdoor"
             location.is_mobile = True
@@ -830,7 +842,7 @@ class TestEstimatedLocationFieldFilters(
 
     def setUp(self):
         super().setUp()
-        admin = self._create_admin()
+        admin = self._get_admin()
         self.client.force_login(admin)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
@@ -840,7 +852,6 @@ class TestEstimatedLocationFieldFilters(
         OrganizationConfigSettings.objects.create(
             organization=org2,
             whois_enabled=False,
-            estimated_location_enabled=False,
         )
         org1_location = self._create_location(
             name="org1-location", organization=org1, is_estimated=True
@@ -853,7 +864,7 @@ class TestEstimatedLocationFieldFilters(
 
         with self.subTest("Test Estimated Location in Locations List"):
             path = reverse("geo_api:list_location")
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(6):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -865,19 +876,19 @@ class TestEstimatedLocationFieldFilters(
 
         with self.subTest("Test Estimated Location in Device Locations List"):
             path = reverse("geo_api:device_location", args=[org1_device.pk])
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(5):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertIn("is_estimated", response.data["location"]["properties"])
             path = reverse("geo_api:device_location", args=[org2_device.pk])
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(5):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertNotIn("is_estimated", response.data["location"]["properties"])
 
         with self.subTest("Test Estimated Location in GeoJSON List"):
             path = reverse("geo_api:location_geojson")
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(5):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -945,7 +956,7 @@ class TestEstimatedLocationFieldFilters(
             "Test Estimated Location filter available in location list "
             "when WHOIS is configured"
         ):
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(5):
                 response = self.client.get(path, {"is_estimated": True})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 1)

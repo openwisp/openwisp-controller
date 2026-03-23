@@ -30,12 +30,14 @@ from .serializers import (
     IndoorCoordinatesSerializer,
     LocationDeviceSerializer,
     LocationSerializer,
+    OrganizationGeoSettingsSerializer,
 )
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 FloorPlan = load_model("geo", "FloorPlan")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 
 
 class DevicePermission(BasePermission):
@@ -344,6 +346,18 @@ class LocationDetailView(
     queryset = Location.objects.all()
 
 
+class OrganizationGeoSettingsView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
+    serializer_class = OrganizationGeoSettingsSerializer
+    queryset = OrganizationGeoSettings.objects.all()
+
+    def get_object(self):
+        org_id = self.kwargs.get("organization_pk")
+        try:
+            return self.get_queryset().get(organization_id=org_id)
+        except OrganizationGeoSettings.DoesNotExist:
+            raise Http404(_("Geo settings not found for this organization."))
+
+
 # add with_geo filter to device API
 DeviceListCreateView.filterset_class = DeviceListFilter
 
@@ -356,3 +370,4 @@ detail_floorplan = FloorPlanDetailView.as_view()
 indoor_coordinates_list = IndoorCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
+organization_geo_settings = OrganizationGeoSettingsView.as_view()

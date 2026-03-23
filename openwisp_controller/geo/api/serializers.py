@@ -20,6 +20,14 @@ Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 FloorPlan = load_model("geo", "FloorPlan")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
+
+
+class OrganizationGeoSettingsSerializer(ValidatedModelSerializer):
+    class Meta:
+        model = OrganizationGeoSettings
+        fields = "__all__"
+        read_only_fields = ["id", "organization"]
 
 
 class LocationDeviceSerializer(ValidatedModelSerializer):
@@ -156,8 +164,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
             raise serializers.ValidationError(
                 {
                     "type": _(
-                        "Floorplan can only be added with location of "
-                        "the type indoor"
+                        "Floorplan can only be added with location of the type indoor"
                     )
                 }
             )

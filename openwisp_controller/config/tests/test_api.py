@@ -29,8 +29,6 @@ VpnClient = load_model("config", "VpnClient")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
-DeviceLocation = load_model("geo", "DeviceLocation")
-Location = load_model("geo", "Location")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
 

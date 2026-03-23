@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+import swapper
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -10,8 +11,12 @@ from django_loci.base.models import (
 )
 from swapper import get_model_name
 
-from openwisp_controller.config.whois.service import WHOISService
+from openwisp_controller.config import settings as config_settings
+from openwisp_controller.geo import settings as geo_settings
+from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
+from openwisp_utils.base import UUIDModel
+from openwisp_utils.fields import FallbackBooleanChoiceField
 
 
 class BaseLocation(OrgMixin, AbstractLocation):
@@ -52,7 +57,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
         if (
             (self._state.adding or estimated_status_changed)
             and self.is_estimated
-            and not WHOISService.check_estimated_location_enabled(self.organization_id)
+            and not EstimatedLocationService.check_estimated_location_enabled(
+                self.organization_id
+            )
         ):
             raise ValidationError(
                 {
@@ -78,7 +85,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
             The result of the parent save method.
         """
         changed_fields = set()
-        if WHOISService.check_estimated_location_enabled(self.organization_id):
+        if EstimatedLocationService.check_estimated_location_enabled(
+            self.organization_id
+        ):
             address_changed = (
                 self._initial_address is not models.DEFERRED
                 and self._initial_address != self.address
@@ -150,3 +159,46 @@ class BaseDeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
     @property
     def organization_id(self):
         return self.device.organization_id
+
+
+class AbstractOrganizationGeoSettings(UUIDModel):
+    organization = models.OneToOneField(
+        swapper.get_model_name("openwisp_users", "Organization"),
+        verbose_name=_("organization"),
+        related_name="geo_settings",
+        on_delete=models.CASCADE,
+    )
+    estimated_location_enabled = FallbackBooleanChoiceField(
+        help_text=_("Whether the estimated location feature is enabled"),
+        fallback=geo_settings.ESTIMATED_LOCATION_ENABLED,
+        verbose_name=_("Estimated Location Enabled"),
+    )
+
+    class Meta:
+        verbose_name = _("Geographic settings")
+        verbose_name_plural = verbose_name
+        abstract = True
+
+    def __str__(self):
+        return f"Geo settings for {self.organization.name}"
+
+    def clean(self):
+        if not config_settings.WHOIS_CONFIGURED and self.estimated_location_enabled:
+            raise ValidationError(
+                {
+                    "estimated_location_enabled": _(
+                        "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
+                        "before enabling Estimated Location feature."
+                    )
+                }
+            )
+        return super().clean()
+
+    @classmethod
+    def organization_post_save_receiver(cls, sender, instance, created, **kwargs):
+        """
+        Create OrganizationGeoSettings when a new Organization is created.
+        This signal handler is called when an Organization is saved.
+        """
+        if created:
+            cls.objects.get_or_create(organization=instance)

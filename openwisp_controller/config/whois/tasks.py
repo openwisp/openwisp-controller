@@ -90,23 +90,6 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
                 # execute synchronously as we're already in a background task
                 lambda: delete_whois_record(ip_address=initial_ip_address)
             )
-        if not device._get_organization__config_settings().estimated_location_enabled:
-            return
-        # the estimated location task should not run if old record is updated
-        # and location related fields are not updated
-        device_location = getattr(device, "devicelocation", None)
-        if (
-            device_location
-            and device_location.location
-            and update_fields
-            and not any(i in update_fields for i in ["address", "coordinates"])
-        ):
-            return
-        transaction.on_commit(
-            lambda: whois_service.trigger_estimated_location_task(
-                ip_address=new_ip_address,
-            )
-        )
 
 
 @shared_task

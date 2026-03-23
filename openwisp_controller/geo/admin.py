@@ -13,16 +13,22 @@ from django_loci.base.admin import (
 from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
-from openwisp_controller.config.whois.service import WHOISService
+from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdminExportable
+from ..config.admin import (
+    DeactivatedDeviceReadOnlyMixin,
+    DeviceAdminExportable,
+    OrganizationLimitsInline,
+)
+from .estimated_location.service import EstimatedLocationService
 from .exportable import GeoDeviceResource
 
 DeviceLocation = load_model("geo", "DeviceLocation")
 FloorPlan = load_model("geo", "FloorPlan")
 Location = load_model("geo", "Location")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 
 
 class FloorPlanForm(AbstractFloorPlanForm):
@@ -121,7 +127,7 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
         fields = list(super().get_fields(request, obj))  # makes a copy
         # do not show the is_estimated field on add pages
         # or if the estimated location feature is not enabled for the organization
-        if not obj or not WHOISService.check_estimated_location_enabled(
+        if not obj or not EstimatedLocationService.check_estimated_location_enabled(
             obj.organization_id
         ):
             fields.remove("is_estimated")
@@ -129,14 +135,18 @@ class LocationAdmin(MultitenantAdminMixin, AbstractLocationAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
-        if obj and WHOISService.check_estimated_location_enabled(obj.organization_id):
+        if obj and EstimatedLocationService.check_estimated_location_enabled(
+            obj.organization_id
+        ):
             fields = ("is_estimated",) + fields  # creates a new tuple
         return fields
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         obj = self.get_object(request, object_id)
         org_id = obj.organization_id if obj else None
-        estimated_enabled = WHOISService.check_estimated_location_enabled(org_id)
+        estimated_enabled = EstimatedLocationService.check_estimated_location_enabled(
+            org_id
+        )
         extra_context = extra_context or {}
         extra_context["estimated_enabled"] = estimated_enabled
         return super().change_view(request, object_id, form_url, extra_context)
@@ -199,6 +209,23 @@ class DeviceLocationFilter(admin.SimpleListFilter):
         return queryset.filter(devicelocation__isnull=self.value() == "false")
 
 
+class GeoSettingsInline(admin.StackedInline):
+    model = OrganizationGeoSettings
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if (
+            "estimated_location_enabled" in fields
+            and not config_app_settings.WHOIS_CONFIGURED
+        ):
+            fields = ["estimated_location_enabled"] + fields
+        return fields
+
+
+OrganizationAdmin.inlines.insert(
+    OrganizationAdmin.inlines.index(OrganizationLimitsInline) + 1,
+    GeoSettingsInline,
+)
 # Prepend DeviceLocationInline to config.DeviceAdminExportable
 DeviceAdminExportable.inlines.insert(1, DeviceLocationInline)
 DeviceAdminExportable.list_filter.append(DeviceLocationFilter)
