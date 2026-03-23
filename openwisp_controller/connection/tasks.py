@@ -60,8 +60,23 @@ def update_config(self, device_id):
     except NoWorkingDeviceConnectionError:
         return
     else:
-        logger.info(f"Updating {device} (pk: {device_id})")
+    logger.info(f"Updating {device} (pk: {device_id})")
+
+    try:
         device_conn.update_config()
+    except Exception as e:
+        logger.error(f"update_config failed for device {device_id}: {e}")
+        raise
+    finally:
+        #  ensure connection is closed
+        close_method = getattr(device_conn, "close", None)
+if callable(close_method):
+    try:
+        close_method()
+            try:
+                device_conn.close()
+            except Exception as close_err:
+                logger.warning(f"Error closing connection: {close_err}")
 
 
 # task timeout is SSH_COMMAND_TIMEOUT plus a 20% margin
