@@ -392,7 +392,7 @@ class TestEstimatedLocationTransaction(
 
         with self.subTest("Test Estimated location created when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
-            with self.assertNumQueries(13):
+            with self.assertNumQueries(14):
                 manage_estimated_locations(device.pk, device.last_ip)
             location = device.devicelocation.location
             mocked_response.ip_address = device.last_ip

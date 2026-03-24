@@ -21,7 +21,7 @@ class TestGeoMixin(TestLociMixin):
 
     def _add_default_org(self, kwargs):
         if "organization" not in kwargs:
-            kwargs["organization"] = self._create_organization()
+            kwargs["organization"] = self._get_org()
         return kwargs
 
     def _create_object(self, **kwargs):

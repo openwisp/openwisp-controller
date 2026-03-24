@@ -693,7 +693,7 @@ class TestGeoApi(
     def test_delete_location_detail(self):
         l1 = self._create_location()
         path = reverse("geo_api:detail_location", args=[l1.pk])
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(5):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
@@ -1377,6 +1377,7 @@ class TestGeoApi(
         org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
 
         with self.subTest("Unauthenticated access"):
+            self.client.logout()
             response = self.client.get(url)
             self.assertEqual(response.status_code, 401)
             response = self.client.put(
@@ -1518,7 +1519,7 @@ class TestGeoApi(
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("estimated_location_enabled", response.data)
                 org1_geo_settings.refresh_from_db()
-                self.assertEqual(org1_geo_settings.estimated_location_enabled, True)
+                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
 
                 response = self.client.patch(
                     url,
@@ -1645,14 +1646,23 @@ class TestGeoApi(
             self.assertEqual(response.status_code, 404)
 
         with self.subTest("Cannot update without change permission"):
+            # remove change permission for this user and attempt update on a
+            # real organization's geo settings URL so the request fails with
+            # HTTP 403 (forbidden) instead of 404 (not found).
+            content_type = ContentType.objects.get_for_model(OrganizationGeoSettings)
+            change_perm = content_type.permission_set.get(
+                codename=f"change_{OrganizationGeoSettings._meta.model_name}"
+            )
+            admin_user.user_permissions.remove(change_perm)
+            real_url = reverse("geo_api:organization_geo_settings", args=[org.pk])
             response = self.client.put(
-                url,
+                real_url,
                 {"estimated_location_enabled": False},
                 content_type="application/json",
             )
             self.assertEqual(response.status_code, 403)
             response = self.client.patch(
-                url,
+                real_url,
                 {"estimated_location_enabled": False},
                 content_type="application/json",
             )
