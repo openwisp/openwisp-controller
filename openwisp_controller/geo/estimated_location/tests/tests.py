@@ -93,6 +93,7 @@ class TestEstimatedLocation(
                     response, 'name="geo_settings-0-estimated_location_enabled"'
                 )
 
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_organization_geo_settings_validation(self):
         """Test OrganizationGeoSettings model validation."""
         org = self._get_org()
@@ -392,7 +393,7 @@ class TestEstimatedLocationTransaction(
 
         with self.subTest("Test Estimated location created when device is created"):
             device = self._create_device(last_ip="172.217.22.14")
-            with self.assertNumQueries(14):
+            with self.assertNumQueries(13):
                 manage_estimated_locations(device.pk, device.last_ip)
             location = device.devicelocation.location
             mocked_response.ip_address = device.last_ip

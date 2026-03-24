@@ -2,8 +2,9 @@
 
 from django.db import migrations
 
-from . import assign_geo_settings_permissions_to_groups
 from ...migrations import get_swapped_model
+from . import assign_geo_settings_permissions_to_groups
+
 
 def create_geo_settings_for_existing_orgs(apps, schema_editor):
     """

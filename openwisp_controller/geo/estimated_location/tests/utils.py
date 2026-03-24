@@ -21,7 +21,9 @@ class TestEstimatedLocationMixin(CreateWHOISMixin):
         # Ensure OrganizationGeoSettings exists (signals usually create it on
         # Organization creation, but make this explicit to avoid RelatedObject
         # errors in some test setups).
-        org_geo_settings, _ = OrganizationGeoSettings.objects.get_or_create(organization=org)
+        org_geo_settings, _ = OrganizationGeoSettings.objects.get_or_create(
+            organization=org
+        )
         org_geo_settings.estimated_location_enabled = True
         org_geo_settings.save()
 

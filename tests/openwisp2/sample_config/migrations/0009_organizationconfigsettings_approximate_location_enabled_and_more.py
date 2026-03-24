@@ -14,18 +14,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name="organizationconfigsettings",
-            name="estimated_location_enabled",
-            field=openwisp_utils.fields.FallbackBooleanChoiceField(
-                blank=True,
-                default=None,
-                fallback=False,
-                help_text="Whether the estimated location feature is enabled",
-                null=True,
-                verbose_name="Estimated Location Enabled",
-            ),
-        ),
-        migrations.AddField(
             model_name="whoisinfo",
             name="coordinates",
             field=django.contrib.gis.db.models.fields.PointField(

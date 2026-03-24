@@ -456,9 +456,8 @@ class TestWHOISTransaction(
     def test_fetch_whois_emits_signal(self, mock_client):
         connect_whois_handlers()
         mock_client.return_value.city.return_value = self._mocked_client_response()
-        device = self._create_device(last_ip="172.217.22.14")
         with catch_signal(whois_fetched) as handler:
-            fetch_whois_details(device_pk=device.pk, initial_ip_address=None)
+            self._create_device(last_ip="172.217.22.14")
         handler.assert_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)

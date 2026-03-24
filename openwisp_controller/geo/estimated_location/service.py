@@ -8,8 +8,6 @@ from swapper import load_model
 from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.whois.utils import send_whois_task_notification
 
-from .. import settings as geo_settings
-
 logger = logging.getLogger(__name__)
 
 
