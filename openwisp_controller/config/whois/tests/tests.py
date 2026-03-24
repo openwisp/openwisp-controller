@@ -21,7 +21,8 @@ from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
-from openwisp_utils.tests import SeleniumTestMixin
+from openwisp_controller.config.signals import whois_fetched
+from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
 from ....tests.utils import TestAdminMixin
 from ... import settings as app_settings
@@ -449,6 +450,16 @@ class TestWHOISTransaction(
         device = self._create_device(last_ip="172.217.22.14")
         whois_details = device.whois_service.process_whois_details(device.last_ip)
         self.assertIsNone(whois_details.get("coordinates"))
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_fetch_whois_emits_signal(self, mock_client):
+        connect_whois_handlers()
+        mock_client.return_value.city.return_value = self._mocked_client_response()
+        device = self._create_device(last_ip="172.217.22.14")
+        with catch_signal(whois_fetched) as handler:
+            fetch_whois_details(device_pk=device.pk, initial_ip_address=None)
+        handler.assert_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")

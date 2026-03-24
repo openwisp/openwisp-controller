@@ -823,6 +823,10 @@ organization.
 
 .. code-block:: text
 
+    PATCH /api/v1/controller/organization/{organization_pk}/geo-settings/
+
+.. code-block:: text
+
     curl -X PUT \
         'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
         -H 'authorization: Bearer <token>' \

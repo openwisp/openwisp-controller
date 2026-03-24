@@ -261,4 +261,5 @@ class WHOISService:
             whois_instance = WHOISInfo(**whois_details)
             whois_instance.full_clean()
             whois_instance.save(force_insert=True)
+            update_fields = list(whois_details.keys())
         return whois_instance, update_fields

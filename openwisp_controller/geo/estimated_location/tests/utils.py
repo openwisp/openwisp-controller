@@ -18,8 +18,9 @@ class TestEstimatedLocationMixin(CreateWHOISMixin):
             organization=org,
             whois_enabled=True,
         )
-        # OrganizationGeoSettings is auto-created by signal,
-        # update estimated_location_enabled
+        # OrganizationGeoSettings is auto-created by signal on Organization
+        # creation. Access the related object and update
+        # estimated_location_enabled to enable the feature for tests.
         org.geo_settings.estimated_location_enabled = True
         org.geo_settings.save()
 

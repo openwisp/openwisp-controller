@@ -1,11 +1,7 @@
-import logging
-
 from django.core.exceptions import ImproperlyConfigured
 
 from ..config import settings as config_settings
 from ..settings import get_setting
-
-logger = logging.getLogger(__name__)
 
 ESTIMATED_LOCATION_ENABLED = get_setting("ESTIMATED_LOCATION_ENABLED", False)
 

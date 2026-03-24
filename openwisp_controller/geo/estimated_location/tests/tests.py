@@ -12,14 +12,14 @@ from django.utils import timezone
 from openwisp_notifications.types import unregister_notification_type
 from swapper import load_model
 
-from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.whois.handlers import connect_whois_handlers
 from openwisp_controller.config.whois.tests.utils import WHOISTransactionMixin
-from openwisp_controller.geo import estimated_location
 
 from ....tests.utils import TestAdminMixin
+from ... import estimated_location
 from ...tests.utils import TestGeoMixin
 from ..handlers import register_estimated_location_notification_types
+from ..service import EstimatedLocationService, config_app_settings
 from ..tasks import manage_estimated_locations
 from .utils import TestEstimatedLocationMixin
 
@@ -210,9 +210,7 @@ class TestEstimatedLocationTransaction(
             register_estimated_location_notification_types()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch(
-        "openwisp_controller.config.whois.service.WHOISService.trigger_estimated_location_task"  # noqa: E501
-    )
+    @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_task_called(
         self, mocked_client, mocked_estimated_location_task
@@ -350,13 +348,11 @@ class TestEstimatedLocationTransaction(
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.service.send_whois_task_notification")
+    @mock.patch("openwisp_controller.config.whois.utils.send_whois_task_notification")
     @mock.patch(
         "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"
     )
-    @mock.patch(
-        "openwisp_controller.config.whois.service.WHOISService.trigger_estimated_location_task"  # noqa: E501
-    )
+    @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_creation_and_update(
@@ -606,7 +602,7 @@ class TestEstimatedLocationTransaction(
         )
 
     @mock.patch(
-        "openwisp_controller.config.whois.service.current_app.send_task",
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
         side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
@@ -638,7 +634,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.config.whois.service.current_app.send_task",
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
         side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
@@ -685,7 +681,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.config.whois.service.current_app.send_task",
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
         side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
@@ -750,12 +746,13 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device3, messages, "error")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.service.send_whois_task_notification")
+    @mock.patch("openwisp_controller.config.whois.utils.send_whois_task_notification")
     @mock.patch(
         "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"
     )
-    @mock.patch(
-        "openwisp_controller.config.whois.service.WHOISService.trigger_estimated_location_task"  # noqa: E501
+    @mock.patch.object(
+        EstimatedLocationService,
+        "trigger_estimated_location_task",
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_manage_estimated_locations_no_coordinates_warning(
@@ -782,7 +779,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.config.whois.service.current_app.send_task",
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
         side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
@@ -1109,3 +1106,61 @@ class TestEstimatedLocationFieldFilters(
                         self.assertContains(response, outdoor_device.id)
                         self.assertContains(response, indoor_device.id)
                         self.assertContains(response, "3 Devices")
+
+
+class TestEstimatedLocationCache(TestEstimatedLocationMixin, TestGeoMixin, TestCase):
+    """Tests for caching behavior of OrganizationGeoSettings used by
+    EstimatedLocationService.check_estimated_location_enabled."""
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_check_estimated_location_enabled_caches_result(self):
+        org = self._get_org()
+        cache_key = EstimatedLocationService.get_cache_key(org.pk)
+
+        # When cache is empty, the function should fetch from DB and set cache
+        with (
+            mock.patch("django.core.cache.cache.get", return_value=None) as mocked_get,
+            mock.patch("django.core.cache.cache.set") as mocked_set,
+        ):
+            result = EstimatedLocationService.check_estimated_location_enabled(org.pk)
+            mocked_get.assert_called_with(cache_key)
+            # cache.set should be called to store the org settings
+            mocked_set.assert_called()
+            self.assertEqual(result, org.geo_settings.estimated_location_enabled)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_check_estimated_location_enabled_uses_cache(self):
+        org = self._get_org()
+        cache_key = EstimatedLocationService.get_cache_key(org.pk)
+
+        # If cache.get returns an instance, no DB lookup should occur
+        with (
+            mock.patch(
+                "django.core.cache.cache.get", return_value=org.geo_settings
+            ) as mocked_get,
+            mock.patch.object(
+                OrganizationGeoSettings.objects,
+                "get",
+                side_effect=AssertionError("DB hit"),
+            ),
+        ):
+            result = EstimatedLocationService.check_estimated_location_enabled(org.pk)
+            mocked_get.assert_called_with(cache_key)
+            self.assertEqual(result, org.geo_settings.estimated_location_enabled)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_cache_invalidation_on_org_geo_settings_change(self):
+        org = self._get_org()
+        cache_key = EstimatedLocationService.get_cache_key(org.pk)
+
+        with mock.patch("django.core.cache.cache.delete") as mocked_delete:
+            # Save should invalidate cache
+            org.geo_settings.estimated_location_enabled = (
+                not org.geo_settings.estimated_location_enabled
+            )
+            org.geo_settings.save()
+            mocked_delete.assert_called_with(cache_key)
+            mocked_delete.reset_mock()
+            # Delete should also invalidate cache
+            org.geo_settings.delete()
+            mocked_delete.assert_called_with(cache_key)

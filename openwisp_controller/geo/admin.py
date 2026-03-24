@@ -214,9 +214,11 @@ class GeoSettingsInline(admin.StackedInline):
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
+        # If WHOIS is NOT configured, make the estimated_location_enabled
+        # field readonly so it cannot be toggled in the admin.
         if (
-            "estimated_location_enabled" in fields
-            and not config_app_settings.WHOIS_CONFIGURED
+            not config_app_settings.WHOIS_CONFIGURED
+            and "estimated_location_enabled" not in fields
         ):
             fields = ["estimated_location_enabled"] + fields
         return fields

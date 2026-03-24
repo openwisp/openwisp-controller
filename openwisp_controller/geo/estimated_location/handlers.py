@@ -36,21 +36,27 @@ def register_estimated_location_notification_types():
     )
 
 
-def whois_info_post_save_handler(sender, instance, created, **kwargs):
+def whois_fetched_handler(sender, whois, updated_fields, device=None, **kwargs):
     """
-    Signal handler to create/update estimated location when WHOISInfo is saved.
-    This is triggered when WHOISInfo is created or updated.
+    Signal handler triggered when WHOIS details are fetched.
     """
-    if not instance.coordinates:
+    if (
+        not updated_fields
+        or not device
+        or not EstimatedLocationService.check_estimated_location_enabled(
+            device.organization_id
+        )
+    ):
         return
-    Device = load_model("config", "Device")
-    try:
-        device = Device.objects.get(last_ip=instance.ip_address)
-    except Device.DoesNotExist:
-        return
-    if not EstimatedLocationService.check_estimated_location_enabled(
-        device.organization_id
+    # the estimated location task should not run if old record is updated
+    # and location related fields are not updated
+    device_location = getattr(device, "devicelocation", None)
+    if (
+        device_location
+        and device_location.location
+        and updated_fields
+        and not any(i in updated_fields for i in ["address", "coordinates"])
     ):
         return
     estimated_location_service = EstimatedLocationService(device)
-    estimated_location_service.trigger_estimated_location_task(instance.ip_address)
+    estimated_location_service.trigger_estimated_location_task(whois.ip_address)

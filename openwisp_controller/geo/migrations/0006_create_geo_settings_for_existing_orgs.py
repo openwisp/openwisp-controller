@@ -13,12 +13,33 @@ def create_geo_settings_for_existing_orgs(apps, schema_editor):
     Organization = apps.get_model("openwisp_users", "Organization")
     OrganizationGeoSettings = apps.get_model("geo", "OrganizationGeoSettings")
 
-    for org in Organization.objects.all():
+    for org in Organization.objects.iterator():
         OrganizationGeoSettings.objects.get_or_create(organization_id=org.pk)
 
 
-class Migration(migrations.Migration):
+def copy_estimated_location_enabled(apps, schema_editor):
+    """
+    Copy the boolean field estimated_location_enabled from
+    OrganizationConfigSettings into OrganizationGeoSettings so that
+    removing the field from config does not lose data.
+    """
+    OrganizationConfigSettings = apps.get_model("config", "OrganizationConfigSettings")
+    OrganizationGeoSettings = apps.get_model("geo", "OrganizationGeoSettings")
 
+    # Iterate using iterator() to avoid loading all rows into memory.
+    for cfg in OrganizationConfigSettings.objects.iterator():
+        geo, _ = OrganizationGeoSettings.objects.get_or_create(
+            organization_id=cfg.organization_id
+        )
+        # Copy the value if different
+        if getattr(geo, "estimated_location_enabled", None) != getattr(
+            cfg, "estimated_location_enabled", None
+        ):
+            geo.estimated_location_enabled = cfg.estimated_location_enabled
+            geo.save(update_fields=["estimated_location_enabled"])
+
+
+class Migration(migrations.Migration):
     dependencies = [
         ("geo", "0005_organizationgeosettings"),
         ("openwisp_users", "0021_rename_user_id_email_openwisp_us_id_06c07a_idx"),
@@ -31,6 +52,10 @@ class Migration(migrations.Migration):
         ),
         migrations.RunPython(
             create_geo_settings_for_existing_orgs,
+            reverse_code=migrations.RunPython.noop,
+        ),
+        migrations.RunPython(
+            copy_estimated_location_enabled,
             reverse_code=migrations.RunPython.noop,
         ),
     ]

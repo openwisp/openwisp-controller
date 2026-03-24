@@ -1,4 +1,3 @@
-import swapper
 from django.db import models
 
 from openwisp_controller.geo.base.models import (
@@ -31,7 +30,7 @@ class DeviceLocation(DetailsModel, BaseDeviceLocation):
         abstract = False
 
 
-class OrganizationGeoSettings(AbstractOrganizationGeoSettings):
+class OrganizationGeoSettings(DetailsModel, AbstractOrganizationGeoSettings):
     class Meta(AbstractOrganizationGeoSettings.Meta):
         abstract = False
 

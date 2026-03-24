@@ -6,19 +6,21 @@ from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Case, Count, Sum, When
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.utils.translation import gettext_lazy as _
 from django_loci.apps import LociConfig
 from swapper import get_model_name
 
+from openwisp_controller.config.signals import whois_fetched
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
 from ..config import settings as config_app_settings
 from .estimated_location.handlers import (
     register_estimated_location_notification_types,
-    whois_info_post_save_handler,
+    whois_fetched_handler,
 )
+from .estimated_location.service import EstimatedLocationService
 
 
 class GeoConfig(LociConfig):
@@ -49,11 +51,23 @@ class GeoConfig(LociConfig):
             sender=self.organization_model,
             dispatch_uid="organization_geo_settings_post_save",
         )
+        # invalidate cached OrganizationGeoSettings when an OrganizationGeoSettings
+        # instance is updated or deleted
+        post_save.connect(
+            EstimatedLocationService.invalidate_org_settings_cache,
+            sender=self.org_geo_settings_model,
+            dispatch_uid="invalidate_org_geo_settings_cache_on_save",
+        )
+        post_delete.connect(
+            EstimatedLocationService.invalidate_org_settings_cache,
+            sender=self.org_geo_settings_model,
+            dispatch_uid="invalidate_org_geo_settings_cache_on_delete",
+        )
         if config_app_settings.WHOIS_CONFIGURED:
-            post_save.connect(
-                whois_info_post_save_handler,
-                sender=self.whois_info_model,
-                dispatch_uid="whois_info_estimated_location_handler",
+            # connect estimated location handler to whois_fetched signal
+            whois_fetched.connect(
+                whois_fetched_handler,
+                dispatch_uid="whois_fetched_estimated_location_handler",
             )
 
     def _add_params_to_test_config(self):

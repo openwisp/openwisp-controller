@@ -4,12 +4,12 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         (
             "config",
             "0063_organizationconfigsettings_estimated_location_enabled_and_more",
         ),
+        ("geo", "0006_create_geo_settings_for_existing_orgs"),
     ]
 
     operations = [

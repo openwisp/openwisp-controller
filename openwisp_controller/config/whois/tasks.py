@@ -6,6 +6,7 @@ from django.db import transaction
 from geoip2 import errors
 from swapper import load_model
 
+from openwisp_controller.config.signals import whois_fetched
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
@@ -85,6 +86,14 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             fetched_details, whois_obj
         )
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
+        transaction.on_commit(
+            lambda: whois_fetched.send(
+                sender=WHOISInfo,
+                whois=whois_obj,
+                updated_fields=update_fields,
+                device=device,
+            )
+        )
         if initial_ip_address:
             transaction.on_commit(
                 # execute synchronously as we're already in a background task
