@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django_loci.apps import LociConfig
 from swapper import get_model_name
 
-from openwisp_controller.config.signals import whois_fetched
+from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
@@ -19,6 +19,7 @@ from ..config import settings as config_app_settings
 from .estimated_location.handlers import (
     register_estimated_location_notification_types,
     whois_fetched_handler,
+    whois_lookup_skipped_handler,
 )
 from .estimated_location.service import EstimatedLocationService
 
@@ -68,6 +69,10 @@ class GeoConfig(LociConfig):
             whois_fetched.connect(
                 whois_fetched_handler,
                 dispatch_uid="whois_fetched_estimated_location_handler",
+            )
+            whois_lookup_skipped.connect(
+                whois_lookup_skipped_handler,
+                dispatch_uid="whois_lookup_skipped_estimated_location_handler",
             )
 
     def _add_params_to_test_config(self):

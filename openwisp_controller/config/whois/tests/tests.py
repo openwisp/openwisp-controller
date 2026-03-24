@@ -21,7 +21,7 @@ from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
-from openwisp_controller.config.signals import whois_fetched
+from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
 from ....tests.utils import TestAdminMixin
@@ -459,6 +459,17 @@ class TestWHOISTransaction(
         device = self._create_device(last_ip="172.217.22.14")
         with catch_signal(whois_fetched) as handler:
             fetch_whois_details(device_pk=device.pk, initial_ip_address=None)
+        handler.assert_called()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_whois_lookup_skipped_emits_signal(self):
+        """Assert whois_lookup_skipped is emitted when lookup is not needed."""
+        connect_whois_handlers()
+        ip = "172.217.22.14"
+        self._create_whois_info(ip_address=ip)
+        device = self._create_device(last_ip=ip)
+        with catch_signal(whois_lookup_skipped) as handler:
+            device.whois_service.process_ip_data_and_location()
         handler.assert_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)

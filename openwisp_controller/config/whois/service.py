@@ -11,6 +11,7 @@ from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
+from openwisp_controller.config.signals import whois_lookup_skipped
 
 from .tasks import fetch_whois_details
 from .utils import EXCEPTION_MESSAGES
@@ -218,6 +219,9 @@ class WHOISService:
                     initial_ip_address=initial_ip,
                 )
             )
+        elif self.is_whois_enabled and self.is_valid_public_ip_address(new_ip):
+            # Emit signal when lookup is skipped so receivers can react
+            whois_lookup_skipped.send(sender=self.__class__, device=self.device)
 
     def update_whois_info(self):
         """

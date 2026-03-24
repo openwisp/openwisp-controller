@@ -823,11 +823,26 @@ organization.
 
 .. code-block:: text
 
+    curl -X PUT \
+        'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
+        -H 'authorization: Bearer <token>' \
+        -H 'content-type: application/json' \
+        -d '{"estimated_location_enabled": true}'
+
+Partially Update Organization Geographic Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This endpoint allows partial updates of Organization geographic settings
+using the PATCH method. PATCH accepts a subset of fields and applies a
+partial update to the resource at the same endpoint path.
+
+.. code-block:: text
+
     PATCH /api/v1/controller/organization/{organization_pk}/geo-settings/
 
 .. code-block:: text
 
-    curl -X PUT \
+    curl -X PATCH \
         'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
         -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \

@@ -211,6 +211,8 @@ class DeviceLocationFilter(admin.SimpleListFilter):
 
 class GeoSettingsInline(admin.StackedInline):
     model = OrganizationGeoSettings
+    can_delete = False
+    max_num = 1
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))

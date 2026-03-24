@@ -69,3 +69,7 @@ whois_fetched = Signal()
 whois_fetched.__doc__ = """
 Providing arguments: ['whois', 'updated_fields', 'device']
 """
+whois_lookup_skipped = Signal()
+whois_lookup_skipped.__doc__ = """
+Providing arguments: ['device']
+"""

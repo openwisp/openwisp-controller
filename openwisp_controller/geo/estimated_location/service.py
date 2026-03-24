@@ -40,7 +40,9 @@ class EstimatedLocationService:
                     organization_id=org_id
                 )
             except OrganizationGeoSettings.DoesNotExist:
-                return geo_settings.estimated_location_enabled
+                # Cache a sentinel object (empty settings instance) so subsequent
+                # calls do not hit the database repeatedly.
+                org_settings = OrganizationGeoSettings(organization_id=org_id)
             cache.set(cache_key, org_settings, timeout=24 * 7 * 3600)
         return org_settings.estimated_location_enabled
 
@@ -62,10 +64,18 @@ class EstimatedLocationService:
         return self.check_estimated_location_enabled(self.device.organization_id)
 
     def trigger_estimated_location_task(self, ip_address):
-        current_app.send_task(
-            "whois_estimated_location_task",
-            kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
-        )
+        try:
+            current_app.send_task(
+                "whois_estimated_location_task",
+                kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error(
+                "Failed to enqueue estimated location task for device %s ip %s: %s",
+                getattr(self.device, "pk", None),
+                ip_address,
+                exc,
+            )
 
     def _create_or_update_estimated_location(
         self, location_defaults, attached_devices_exists
@@ -81,7 +91,6 @@ class EstimatedLocationService:
             device_location = DeviceLocation(content_object=self.device)
 
         current_location = device_location.location
-
         if not current_location or (
             attached_devices_exists and current_location.is_estimated
         ):

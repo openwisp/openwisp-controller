@@ -3,7 +3,7 @@
 from django.db import migrations
 
 from . import assign_geo_settings_permissions_to_groups
-
+from ...migrations import get_swapped_model
 
 def create_geo_settings_for_existing_orgs(apps, schema_editor):
     """
@@ -11,7 +11,7 @@ def create_geo_settings_for_existing_orgs(apps, schema_editor):
     that don't have one yet.
     """
     Organization = apps.get_model("openwisp_users", "Organization")
-    OrganizationGeoSettings = apps.get_model("geo", "OrganizationGeoSettings")
+    OrganizationGeoSettings = get_swapped_model(apps, "geo", "OrganizationGeoSettings")
 
     for org in Organization.objects.iterator():
         OrganizationGeoSettings.objects.get_or_create(organization_id=org.pk)
@@ -23,8 +23,10 @@ def copy_estimated_location_enabled(apps, schema_editor):
     OrganizationConfigSettings into OrganizationGeoSettings so that
     removing the field from config does not lose data.
     """
-    OrganizationConfigSettings = apps.get_model("config", "OrganizationConfigSettings")
-    OrganizationGeoSettings = apps.get_model("geo", "OrganizationGeoSettings")
+    OrganizationConfigSettings = get_swapped_model(
+        apps, "config", "OrganizationConfigSettings"
+    )
+    OrganizationGeoSettings = get_swapped_model(apps, "geo", "OrganizationGeoSettings")
 
     # Iterate using iterator() to avoid loading all rows into memory.
     for cfg in OrganizationConfigSettings.objects.iterator():

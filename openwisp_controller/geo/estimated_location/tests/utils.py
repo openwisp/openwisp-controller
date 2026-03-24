@@ -18,11 +18,12 @@ class TestEstimatedLocationMixin(CreateWHOISMixin):
             organization=org,
             whois_enabled=True,
         )
-        # OrganizationGeoSettings is auto-created by signal on Organization
-        # creation. Access the related object and update
-        # estimated_location_enabled to enable the feature for tests.
-        org.geo_settings.estimated_location_enabled = True
-        org.geo_settings.save()
+        # Ensure OrganizationGeoSettings exists (signals usually create it on
+        # Organization creation, but make this explicit to avoid RelatedObject
+        # errors in some test setups).
+        org_geo_settings, _ = OrganizationGeoSettings.objects.get_or_create(organization=org)
+        org_geo_settings.estimated_location_enabled = True
+        org_geo_settings.save()
 
     # helper to mock send_task to directly call the task function synchronously
     @staticmethod

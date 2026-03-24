@@ -60,3 +60,16 @@ def whois_fetched_handler(sender, whois, updated_fields, device=None, **kwargs):
         return
     estimated_location_service = EstimatedLocationService(device)
     estimated_location_service.trigger_estimated_location_task(whois.ip_address)
+
+
+def whois_lookup_skipped_handler(sender, device, **kwargs):
+    """
+    Handler for skipped WHOIS lookups. If estimated location is enabled for
+    the device's organization, trigger an estimated location task.
+    """
+    if not EstimatedLocationService.check_estimated_location_enabled(
+        device.organization_id
+    ):
+        return
+    estimated_location_service = EstimatedLocationService(device)
+    estimated_location_service.trigger_estimated_location_task(device.last_ip)

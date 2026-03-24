@@ -248,6 +248,11 @@ class TestEstimatedLocationTransaction(
                         timeout=Config._CHECKSUM_CACHE_TIMEOUT,
                     ),
                     mock.call(
+                        f"organization_geo_{org.pk}",
+                        org.geo_settings,
+                        timeout=604800,
+                    ),
+                    mock.call(
                         f"{self._WHOIS_TASK_NAME}_last_operation", "success", None
                     ),
                 ]
@@ -348,15 +353,13 @@ class TestEstimatedLocationTransaction(
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.utils.send_whois_task_notification")
-    @mock.patch(
-        "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"
-    )
+    @mock.patch.object(estimated_location.tasks, "send_whois_task_notification")
+    @mock.patch.object(estimated_location.service, "send_whois_task_notification")
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_creation_and_update(
-        self, mock_client, mock_info, _mocked_task, _mocked_notify, _mocked_notify2
+        self, mock_client, mock_info, *args
     ):
         connect_whois_handlers()
 
@@ -411,7 +414,7 @@ class TestEstimatedLocationTransaction(
             mock_client.return_value.city.return_value = mocked_response
             device.save()
             device.refresh_from_db()
-            with self.assertNumQueries(7):
+            with self.assertNumQueries(8):
                 manage_estimated_locations(device.pk, device.last_ip)
 
             location = device.devicelocation.location
@@ -435,7 +438,7 @@ class TestEstimatedLocationTransaction(
             mock_client.return_value.city.return_value = mocked_response
             device.save()
             device.refresh_from_db()
-            with self.assertNumQueries(7):
+            with self.assertNumQueries(8):
                 manage_estimated_locations(device.pk, device.last_ip)
 
             location = device.devicelocation.location
@@ -746,10 +749,8 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device3, messages, "error")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.utils.send_whois_task_notification")
-    @mock.patch(
-        "openwisp_controller.geo.estimated_location.tasks.send_whois_task_notification"
-    )
+    @mock.patch.object(estimated_location.tasks, "send_whois_task_notification")
+    @mock.patch.object(estimated_location.service, "send_whois_task_notification")
     @mock.patch.object(
         EstimatedLocationService,
         "trigger_estimated_location_task",
@@ -861,7 +862,7 @@ class TestEstimatedLocationFieldFilters(
 
         with self.subTest("Test Estimated Location in Locations List"):
             path = reverse("geo_api:list_location")
-            with self.assertNumQueries(6):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -873,19 +874,19 @@ class TestEstimatedLocationFieldFilters(
 
         with self.subTest("Test Estimated Location in Device Locations List"):
             path = reverse("geo_api:device_location", args=[org1_device.pk])
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertIn("is_estimated", response.data["location"]["properties"])
             path = reverse("geo_api:device_location", args=[org2_device.pk])
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertNotIn("is_estimated", response.data["location"]["properties"])
 
         with self.subTest("Test Estimated Location in GeoJSON List"):
             path = reverse("geo_api:location_geojson")
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(3):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -953,7 +954,7 @@ class TestEstimatedLocationFieldFilters(
             "Test Estimated Location filter available in location list "
             "when WHOIS is configured"
         ):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path, {"is_estimated": True})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 1)

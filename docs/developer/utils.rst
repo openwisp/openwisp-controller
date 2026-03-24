@@ -393,3 +393,17 @@ WireGuard** backend.
 
 This signal is emitted when a WHOIS lookup task successfully creates or
 updates a ``WHOISInfo`` record.
+
+``whois_lookup_skipped``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.whois_lookup_skipped``
+
+**Arguments**:
+
+- ``device``: instance of ``Device`` for which the WHOIS lookup was
+  skipped
+
+This signal is emitted when a WHOIS lookup is not triggered because the
+lookup conditions were not met (for example, an up-to-date WHOIS record
+already exists).

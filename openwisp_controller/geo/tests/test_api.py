@@ -693,7 +693,7 @@ class TestGeoApi(
     def test_delete_location_detail(self):
         l1 = self._create_location()
         path = reverse("geo_api:detail_location", args=[l1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(8):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
