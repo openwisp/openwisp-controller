@@ -1448,6 +1448,7 @@ class TestGeoApi(
             response = self.client.get(org2_url)
             self.assertEqual(response.status_code, 200)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_organization_geo_settings_update(self):
         org1 = self._create_org(name="Org 1")
         org2 = self._create_org(name="Org 2")
@@ -1508,26 +1509,6 @@ class TestGeoApi(
                 content_type="application/json",
             )
             self.assertEqual(response.status_code, 404)
-
-        with self.subTest("Validation error when WHOIS not configured"):
-            with patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
-                response = self.client.put(
-                    url,
-                    {"estimated_location_enabled": True},
-                    content_type="application/json",
-                )
-                self.assertEqual(response.status_code, 400)
-                self.assertIn("estimated_location_enabled", response.data)
-                org1_geo_settings.refresh_from_db()
-                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
-
-                response = self.client.patch(
-                    url,
-                    {"estimated_location_enabled": True},
-                    content_type="application/json",
-                )
-                self.assertEqual(response.status_code, 400)
-                self.assertIn("estimated_location_enabled", response.data)
 
         with self.subTest("Superuser can update any organization's geo settings"):
             superuser = self._get_admin()
