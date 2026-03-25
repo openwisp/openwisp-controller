@@ -1,6 +1,18 @@
 Changelog
 =========
 
+Version 1.2.3 [unreleased]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed VPN peer cache desync when VPN template is removed from a device:
+  ``VpnClient`` objects are now deleted via per-instance ``delete()`` so that
+  ``post_delete`` signals fire, ensuring peer cache invalidation, certificate
+  revocation, and IP address release `#1221
+  <https://github.com/openwisp/openwisp-controller/issues/1221>`_
+
 Version 1.2.2 [2026-03-06]
 --------------------------
 
