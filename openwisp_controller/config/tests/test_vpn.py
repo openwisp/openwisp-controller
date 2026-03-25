@@ -286,6 +286,70 @@ class TestVpn(BaseTestVpn, TestCase):
             vpnclient.save()
             _assert_vpn_client_cert(cert, vpnclient, 1, 0)
 
+    def test_vpn_client_post_delete_on_template_removal(self):
+        """Regression test for #1221: VpnClient.post_delete must fire
+        when a VPN template is removed so that peer cache is invalidated
+        and certificates are properly revoked."""
+        org = self._get_org()
+        vpn = self._create_vpn()
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
+        c = self._create_config(organization=org)
+        c.templates.add(t)
+        vpnclient = c.vpnclient_set.first()
+        self.assertIsNotNone(vpnclient)
+        cert_pk = vpnclient.cert.pk
+        with mock.patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+            c.templates.remove(t)
+            mock_invalidate.assert_called_once()
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+        # Certificate should be revoked (auto_cert=True)
+        self.assertTrue(Cert.objects.get(pk=cert_pk).revoked)
+
+    def test_vpn_client_post_delete_on_device_deactivation(self):
+        """Regression test for #1221: VpnClient.post_delete must fire
+        when a device is deactivated so that peer cache is invalidated
+        and certificates are properly revoked."""
+        org = self._get_org()
+        vpn = self._create_vpn()
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
+        d = self._create_device(organization=org)
+        c = self._create_config(device=d)
+        c.templates.add(t)
+        vpnclient = c.vpnclient_set.first()
+        self.assertIsNotNone(vpnclient)
+        cert_pk = vpnclient.cert.pk
+        with mock.patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+            d.deactivate()
+            mock_invalidate.assert_called_once()
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+        # Certificate should be revoked (auto_cert=True)
+        self.assertTrue(Cert.objects.get(pk=cert_pk).revoked)
+
+    def test_vpn_client_post_delete_multiple_clients(self):
+        """Regression test for #1221: when a device has multiple VPN templates,
+        removing all of them must delete every VpnClient, invalidate peer cache
+        for each VPN, and revoke all auto-created certificates."""
+        org = self._get_org()
+        vpn1 = self._create_vpn(name="vpn1")
+        vpn2 = self._create_vpn(name="vpn2", ca=vpn1.ca)
+        t1 = self._create_template(name="vpn-t1", type="vpn", vpn=vpn1, auto_cert=True)
+        t2 = self._create_template(name="vpn-t2", type="vpn", vpn=vpn2, auto_cert=True)
+        d = self._create_device(organization=org)
+        c = self._create_config(device=d)
+        c.templates.add(t1, t2)
+        self.assertEqual(c.vpnclient_set.count(), 2)
+        vpnclient1 = c.vpnclient_set.get(vpn=vpn1)
+        vpnclient2 = c.vpnclient_set.get(vpn=vpn2)
+        cert_pk1 = vpnclient1.cert.pk
+        cert_pk2 = vpnclient2.cert.pk
+        with mock.patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+            d.deactivate()
+            self.assertEqual(mock_invalidate.call_count, 2)
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient1.pk).exists())
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient2.pk).exists())
+        self.assertTrue(Cert.objects.get(pk=cert_pk1).revoked)
+        self.assertTrue(Cert.objects.get(pk=cert_pk2).revoked)
+
     def test_vpn_client_get_common_name(self):
         vpn = self._create_vpn()
         d = self._create_device()
@@ -727,6 +791,18 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
             mocked_logger.assert_called_once_with(
                 f"VPN Server UUID: {vpn_id} does not exist."
             )
+
+    def test_wireguard_vpnclient_ip_released_on_template_removal(self):
+        """Regression test for #1221: when a Wireguard VPN template is removed,
+        the allocated IP address must be released (deleted)."""
+        device, vpn, template = self._create_wireguard_vpn_template()
+        vpnclient = device.config.vpnclient_set.first()
+        self.assertIsNotNone(vpnclient)
+        self.assertIsNotNone(vpnclient.ip)
+        ip_pk = vpnclient.ip.pk
+        device.config.templates.remove(template)
+        self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+        self.assertFalse(IpAddress.objects.filter(pk=ip_pk).exists())
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
