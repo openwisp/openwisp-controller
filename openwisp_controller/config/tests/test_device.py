@@ -440,8 +440,8 @@ class TestDevice(
         c1.templates.add(
             self._create_template(
                 name="t-with-var",
-                config={"interfaces": [{"name": "eth0", "type": "{{ ssid }}"}]},
-                default_values={"ssid": "default"},
+                config={"interfaces": [{"name": "{{ ssid }}", "type": "ethernet"}]},
+                default_values={"ssid": "eth0"},
             )
         )
         c1.set_status_applied()
@@ -468,8 +468,8 @@ class TestDevice(
         c1.templates.add(
             self._create_template(
                 name="t-with-var",
-                config={"interfaces": [{"name": "eth0", "type": "{{ ssid }}"}]},
-                default_values={"ssid": "default"},
+                config={"interfaces": [{"name": "{{ ssid }}", "type": "ethernet"}]},
+                default_values={"ssid": "eth0"},
             )
         )
         c1.set_status_applied()
@@ -480,7 +480,13 @@ class TestDevice(
         c2.set_status_applied()
         dg.context = {"ssid": "OrgA"}
         dg.full_clean()
-        dg.save()
+        patch_path = (
+            "openwisp_controller.config.base.device_group"
+            ".invalidate_controller_views_for_group"
+        )
+        with mock.patch(patch_path) as mocked_task:
+            dg.save()
+            mocked_task.delay.assert_called_once_with(str(dg.id))
         c1.refresh_from_db()
         c2.refresh_from_db()
         with self.subTest("affected config changes to modified"):
