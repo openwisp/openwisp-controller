@@ -18,9 +18,9 @@ from openwisp_users.multitenancy import MultitenantOrgFilter
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import (
+    ConfigSettingsInline,
     DeactivatedDeviceReadOnlyMixin,
     DeviceAdminExportable,
-    OrganizationLimitsInline,
 )
 from .estimated_location.service import EstimatedLocationService
 from .exportable import GeoDeviceResource
@@ -227,7 +227,7 @@ class GeoSettingsInline(admin.StackedInline):
 
 
 OrganizationAdmin.inlines.insert(
-    OrganizationAdmin.inlines.index(OrganizationLimitsInline) + 1,
+    OrganizationAdmin.inlines.index(ConfigSettingsInline) + 1,
     GeoSettingsInline,
 )
 # Prepend DeviceLocationInline to config.DeviceAdminExportable

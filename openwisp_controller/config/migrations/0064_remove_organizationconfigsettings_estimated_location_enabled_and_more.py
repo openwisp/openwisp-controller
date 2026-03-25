@@ -9,6 +9,9 @@ class Migration(migrations.Migration):
             "config",
             "0063_organizationconfigsettings_estimated_location_enabled_and_more",
         ),
+        # This dependency on the geo app is required to ensure that
+        # the data from OrganizationConfigSettings is properly migrated to GeoSettings
+        # before we remove the field.
         ("geo", "0006_create_geo_settings_for_existing_orgs"),
     ]
 
