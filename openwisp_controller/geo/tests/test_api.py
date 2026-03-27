@@ -1529,6 +1529,8 @@ class TestGeoApi(
                 )
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("estimated_location_enabled", response.data)
+                org1_geo_settings.refresh_from_db()
+                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
 
         with self.subTest("Superuser can update any organization's geo settings"):
             superuser = self._get_admin()

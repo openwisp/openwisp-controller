@@ -11,11 +11,15 @@ def create_geo_settings_for_existing_orgs(apps, schema_editor):
     Create OrganizationGeoSettings for all existing organizations
     that don't have one yet.
     """
-    Organization = apps.get_model("openwisp_users", "Organization")
+    Organization = get_swapped_model(apps, "openwisp_users", "Organization")
     OrganizationGeoSettings = get_swapped_model(apps, "geo", "OrganizationGeoSettings")
 
-    for org in Organization.objects.iterator():
-        OrganizationGeoSettings.objects.get_or_create(organization_id=org.pk)
+    # Use the migration's DB alias so non-default databases are respected
+    db_alias = schema_editor.connection.alias
+    for org in Organization.objects.using(db_alias).iterator():
+        OrganizationGeoSettings.objects.using(db_alias).get_or_create(
+            organization_id=org.pk
+        )
 
 
 def copy_estimated_location_enabled(apps, schema_editor):
@@ -29,9 +33,11 @@ def copy_estimated_location_enabled(apps, schema_editor):
     )
     OrganizationGeoSettings = get_swapped_model(apps, "geo", "OrganizationGeoSettings")
 
+    # Use the migration's DB alias so non-default databases are respected
+    db_alias = schema_editor.connection.alias
     # Iterate using iterator() to avoid loading all rows into memory.
-    for cfg in OrganizationConfigSettings.objects.iterator():
-        geo, _ = OrganizationGeoSettings.objects.get_or_create(
+    for cfg in OrganizationConfigSettings.objects.using(db_alias).iterator():
+        geo, _ = OrganizationGeoSettings.objects.using(db_alias).get_or_create(
             organization_id=cfg.organization_id
         )
         # Copy the value if different
@@ -39,7 +45,8 @@ def copy_estimated_location_enabled(apps, schema_editor):
             cfg, "estimated_location_enabled", None
         ):
             geo.estimated_location_enabled = cfg.estimated_location_enabled
-            geo.save(update_fields=["estimated_location_enabled"])
+            # Ensure save uses the same DB alias
+            geo.save(update_fields=["estimated_location_enabled"], using=db_alias)
 
 
 class Migration(migrations.Migration):

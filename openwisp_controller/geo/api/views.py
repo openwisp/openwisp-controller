@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination, status
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import BasePermission
 from rest_framework.request import clone_request
 from rest_framework.response import Response
@@ -352,10 +353,9 @@ class OrganizationGeoSettingsView(ProtectedAPIMixin, generics.RetrieveUpdateAPIV
 
     def get_object(self):
         org_id = self.kwargs.get("organization_pk")
-        try:
-            return self.get_queryset().get(organization_id=org_id)
-        except OrganizationGeoSettings.DoesNotExist:
-            raise Http404(_("Geo settings not found for this organization."))
+        obj = get_object_or_404(self.get_queryset(), organization_id=org_id)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 # add with_geo filter to device API

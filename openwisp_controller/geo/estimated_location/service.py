@@ -89,6 +89,13 @@ class EstimatedLocationService:
             device_location = DeviceLocation(content_object=self.device)
 
         current_location = device_location.location
+        # Re-check whether estimated locations are enabled for the device's
+        # organization. The check is needed here so the celery worker
+        # honors current org settings and avoids persisting estimated
+        # locations when the feature has been disabled since the task was
+        # enqueued.
+        if not self.check_estimated_location_enabled(self.device.organization_id):
+            return current_location
         if not current_location or (
             attached_devices_exists and current_location.is_estimated
         ):
