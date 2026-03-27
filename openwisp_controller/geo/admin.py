@@ -227,7 +227,7 @@ class GeoSettingsInline(admin.StackedInline):
 
 
 OrganizationAdmin.inlines.insert(
-    OrganizationAdmin.inlines.index(ConfigSettingsInline) + 1,
+    max(0, OrganizationAdmin.inlines.index(ConfigSettingsInline) + 1),
     GeoSettingsInline,
 )
 # Prepend DeviceLocationInline to config.DeviceAdminExportable
