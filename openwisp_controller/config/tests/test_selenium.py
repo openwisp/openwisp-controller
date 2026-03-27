@@ -442,7 +442,8 @@ class TestDeviceAdmin(
         self.login(username="limited_user", password="testpass123")
         # Navigate using Selenium
         self.open(
-            reverse("admin:config_device_change", args=[device.id]) + "#config-group"
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
         )
         self.hide_loading_overlay()
         with self.subTest("All shared templates should be visible"):
