@@ -338,9 +338,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         if not present_values:
             return
         self.refresh_from_db(fields=present_values.keys())
-        for field in self._changed_checked_fields:
-            setattr(self, f"_initial_{field}", field)
-            setattr(self, field, present_values[field])
+        for field, value in present_values.items():
+            setattr(self, f"_initial_{field}", getattr(self, field))
+            setattr(self, field, value)
 
     def _check_name_changed(self):
         if self._initial_name == models.DEFERRED:
