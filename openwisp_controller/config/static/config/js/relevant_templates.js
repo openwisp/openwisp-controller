@@ -138,7 +138,7 @@ django.jQuery(function ($) {
         resetTemplateOptions();
         var enabledTemplates = [],
           sortedm2mUl = $("ul.sortedm2m-items:first"),
-          sortedm2mPrefixUl = $("ul.sortedm2m-items:last");
+          sortedm2mPrefixUl = $("#config-empty ul.sortedm2m-items");
 
         // Adds "li" elements for templates
         Object.keys(data).forEach(function (templateId, index) {
