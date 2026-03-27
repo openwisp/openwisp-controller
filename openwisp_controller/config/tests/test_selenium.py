@@ -446,6 +446,11 @@ class TestDeviceAdmin(
             + "#config-group"
         )
         self.hide_loading_overlay()
+        with self.subTest(
+            "Regression precondition: empty Config inline is not rendered"
+        ):
+            self.assertFalse(self.web_driver.find_elements(By.ID, "config-empty"))
+
         with self.subTest("All shared templates should be visible"):
             self._verify_templates_visibility(visible=[template1, template2])
 
