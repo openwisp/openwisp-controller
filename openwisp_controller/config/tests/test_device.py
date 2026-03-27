@@ -544,17 +544,16 @@ class TestDevice(
     def test_deferred_fields_populated_correctly(self):
         device = self._create_device(
             name="deferred-test",
-            last_ip="172.16.0.1",
             management_ip="10.0.0.1",
         )
         # Load the instance with deferred fields omitted
         device = Device.objects.only("id").get(pk=device.pk)
-        device.last_ip = "172.16.1.1"
-        # Populate initial values for checked fields
-        device._check_changed_fields()
+        device.management_ip = "10.0.0.55"
+        # Saving the device object will populate the deferred fields
+        device.save()
         # Ensure `_initial_<field>` contains the actual value, not the field name
-        self.assertEqual(getattr(device, "_initial_last_ip"), "172.16.0.1")
-        self.assertNotEqual(getattr(device, "_initial_last_ip"), "last_ip")
+        self.assertEqual(getattr(device, "_initial_management_ip"), "10.0.0.55")
+        self.assertNotEqual(getattr(device, "_initial_management_ip"), "management_ip")
 
     def test_exceed_organization_device_limit(self):
         org = self._get_org()
