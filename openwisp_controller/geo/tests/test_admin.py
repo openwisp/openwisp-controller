@@ -29,6 +29,12 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         """override TestAdminMixin.setUp"""
         pass
 
+    def _get_location_add_params(self, **kwargs):
+        params = super()._get_location_add_params(**kwargs)
+        if "organization" not in kwargs:
+            params["organization"] = self._get_org().id
+        return params
+
     def _create_multitenancy_test_env(self, vpn=False):
         org1 = self._create_organization(name="test1org")
         org2 = self._create_organization(name="test2org")
