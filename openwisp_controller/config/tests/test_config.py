@@ -1000,3 +1000,26 @@ class TestTransactionConfig(
         config.refresh_from_db()
         config._invalidate_backend_instance_cache()
         self.assertEqual(config.checksum, config.checksum_db)
+
+
+class MultitenancyMigrationTest(TestCase):
+    def test_no_migration_when_toggling_whois_estimated_location(self):
+        from django.apps import apps
+        from django.db.migrations.autodetector import MigrationAutodetector
+        from django.db.migrations.loader import MigrationLoader
+        from django.db.migrations.state import ProjectState
+        from django.test import override_settings
+
+        for whois, est_loc in [(True, False), (False, True), (True, True)]:
+            with self.subTest(whois=whois, est_loc=est_loc):
+                with override_settings(
+                    OPENWISP_CONTROLLER_WHOIS_ENABLED=whois,
+                    OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED=est_loc,
+                ):
+                    loader = MigrationLoader(None, ignore_no_migrations=True)
+                    autodetector = MigrationAutodetector(
+                        loader.project_state(),
+                        ProjectState.from_apps(apps),
+                    )
+                    changes = autodetector.changes(graph=loader.graph)
+                    self.assertNotIn("config", changes)
