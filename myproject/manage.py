@@ -1,3 +1,10 @@
+import sys
+
+# Disable Django GIS before it loads
+
+sys.modules['django.contrib.gis'] = None
+sys.modules['django.contrib.gis.gdal'] = None
+
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 import os

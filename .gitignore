@@ -73,6 +73,4 @@ local_settings.py
 Pipfile
 Pipfile.lock
 venv/
-__pycache__/
-*.pyc
 .env

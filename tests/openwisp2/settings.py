@@ -73,6 +73,12 @@ INSTALLED_APPS = [
     "import_export",
     # 'debug_toolbar',
 ]
+# Disable GIS apps during pytest to avoid GDAL dependency
+if 'pytest' in sys.modules:
+    INSTALLED_APPS = [
+        app for app in INSTALLED_APPS
+        if app not in ['django.contrib.gis', 'openwisp_controller.geo']
+    ]
 EXTENDED_APPS = ("django_x509", "django_loci")
 
 AUTH_USER_MODEL = "openwisp_users.User"
