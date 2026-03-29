@@ -1,3 +1,7 @@
+import sys
+
+# GIS apps are now disabled in settings.py using environment variables
+
 #!/usr/bin/env python
 import os
 import sys

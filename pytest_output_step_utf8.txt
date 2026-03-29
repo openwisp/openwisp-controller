@@ -1,0 +1,543 @@
+﻿pytest : Traceback 
+(most recent call last):
+At line:1 char:1
++ pytest > 
+pytest_output_step.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (Traceback (most    
+ recent call last)::    
+String) [], RemoteE    
+xception
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+  File "<frozen 
+runpy>", line 198, in 
+_run_module_as_main
+  File "<frozen 
+runpy>", line 88, in 
+_run_code
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Scripts\pytest.exe\__mai
+n__.py", line 7, in 
+<module>
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\config\__init__.py", 
+line 223, in 
+console_main
+    code = main()
+           ^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\config\__init__.py", 
+line 193, in main
+    config = _preparecon
+fig(new_args, plugins)
+             ^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\config\__init__.py", 
+line 361, in 
+_prepareconfig
+    config: Config = plu
+ginmanager.hook.pytest_c
+mdline_parse(
+                     ^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_hooks.py", line 512, 
+in __call__
+    return self._hookexe
+c(self.name, 
+self._hookimpls.copy(), 
+kwargs, firstresult)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_manager.py", line 
+120, in _hookexec
+    return self._inner_h
+ookexec(hook_name, 
+methods, kwargs, 
+firstresult)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_callers.py", line 
+167, in _multicall
+    raise exception
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_callers.py", line 
+139, in _multicall
+    teardown.throw(excep
+tion)
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\helpconfig.py", line 
+124, in 
+pytest_cmdline_parse
+    config = yield
+             ^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_callers.py", line 
+121, in _multicall
+    res = hook_impl.func
+tion(*args)
+          ^^^^^^^^^^^^^^
+^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\config\__init__.py", 
+line 1186, in 
+pytest_cmdline_parse
+    self.parse(args)
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\config\__init__.py", 
+line 1556, in parse
+    self.hook.pytest_loa
+d_initial_conftests(
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_hooks.py", line 512, 
+in __call__
+    return self._hookexe
+c(self.name, 
+self._hookimpls.copy(), 
+kwargs, firstresult)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_manager.py", line 
+120, in _hookexec
+    return self._inner_h
+ookexec(hook_name, 
+methods, kwargs, 
+firstresult)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_callers.py", line 
+167, in _multicall
+    raise exception
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_callers.py", line 
+139, in _multicall
+    teardown.throw(excep
+tion)
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\_pytes
+t\capture.py", line 
+173, in pytest_load_init
+ial_conftests
+    yield
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pluggy
+\_callers.py", line 
+121, in _multicall
+    res = hook_impl.func
+tion(*args)
+          ^^^^^^^^^^^^^^
+^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pytest
+_django\plugin.py", 
+line 370, in pytest_load
+_initial_conftests
+    _setup_django(early_
+config)
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\pytest
+_django\plugin.py", 
+line 242, in 
+_setup_django
+    django.setup()
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\__init__.py", line 24, 
+in setup
+    apps.populate(settin
+gs.INSTALLED_APPS)
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\apps\registry.py", 
+line 116, in populate
+    app_config.import_mo
+dels()
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\apps\config.py", line 
+269, in import_models
+    self.models_module 
+= import_module(models_m
+odule_name)
+                        
+ ^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\importlib\__init__.p
+y", line 126, in 
+import_module
+    return _bootstrap._g
+cd_import(name[level:], 
+package, level)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
+  File "<frozen 
+importlib._bootstrap>", 
+line 1204, in 
+_gcd_import
+  File "<frozen 
+importlib._bootstrap>", 
+line 1176, in 
+_find_and_load
+  File "<frozen 
+importlib._bootstrap>", 
+line 1147, in 
+_find_and_load_unlocked
+  File "<frozen 
+importlib._bootstrap>", 
+line 690, in 
+_load_unlocked
+  File "<frozen importli
+b._bootstrap_external>",
+ line 940, in 
+exec_module
+  File "<frozen 
+importlib._bootstrap>", 
+line 241, in _call_with_
+frames_removed
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\auth\models.py"
+, line 5, in <module>
+    from django.contrib.
+auth.base_user import 
+AbstractBaseUser, 
+BaseUserManager
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\auth\base_user.
+py", line 43, in 
+<module>
+    class AbstractBaseUs
+er(models.Model):
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\db\models\base.py", 
+line 145, in __new__
+    new_class.add_to_cla
+ss("_meta", 
+Options(meta, 
+app_label))
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\db\models\base.py", 
+line 373, in 
+add_to_class
+    value.contribute_to_
+class(cls, name)
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\db\models\options.py", 
+line 238, in 
+contribute_to_class
+    self.db_table, conne
+ction.ops.max_name_lengt
+h()
+                   
+^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\utils\connection.py", 
+line 15, in __getattr__
+    return getattr(self.
+_connections[self._alias
+], item)
+                   ~~~~~
+~~~~~~~~~~~~^^^^^^^^^^^^
+^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\utils\connection.py", 
+line 62, in __getitem__
+    conn = self.create_c
+onnection(alias)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\db\utils.py", line 
+193, in 
+create_connection
+    backend = load_backe
+nd(db["ENGINE"])
+              ^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\db\utils.py", line 
+113, in load_backend
+    return 
+import_module("%s.base" 
+% backend_name)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\importlib\__init__.p
+y", line 126, in 
+import_module
+    return _bootstrap._g
+cd_import(name[level:], 
+package, level)
+           ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\openwi
+sp_utils\db\backends\spa
+tialite\base.py", line 
+1, in <module>
+    from django.contrib.
+gis.db.backends.spatiali
+te import base
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\db\backends
+\spatialite\base.py", 
+line 8, in <module>
+    from .features 
+import DatabaseFeatures
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\db\backends
+\spatialite\features.py"
+, line 1, in <module>
+    from django.contrib.
+gis.db.backends.base.fea
+tures import 
+BaseSpatialFeatures
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\db\backends
+\base\features.py", 
+line 3, in <module>
+    from 
+django.contrib.gis.db 
+import models
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\db\models\_
+_init__.py", line 3, in 
+<module>
+    import django.contri
+b.gis.db.models.function
+s  # NOQA
+    ^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+^
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\db\models\f
+unctions.py", line 3, 
+in <module>
+    from django.contrib.
+gis.db.models.fields 
+import 
+BaseSpatialField, 
+GeometryField
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\db\models\f
+ields.py", line 3, in 
+<module>
+    from 
+django.contrib.gis 
+import forms, gdal
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\forms\__ini
+t__.py", line 3, in 
+<module>
+    from .fields import 
+(  # NOQA
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\forms\field
+s.py", line 2, in 
+<module>
+    from 
+django.contrib.gis.gdal 
+import GDALException
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\gdal\__init
+__.py", line 29, in 
+<module>
+    from django.contrib.
+gis.gdal.datasource 
+import DataSource
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\gdal\dataso
+urce.py", line 40, in 
+<module>
+    from django.contrib.
+gis.gdal.driver import 
+Driver
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\gdal\driver
+.py", line 5, in 
+<module>
+    from django.contrib.
+gis.gdal.prototypes 
+import ds as capi
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\gdal\protot
+ypes\ds.py", line 10, 
+in <module>
+    from django.contrib.
+gis.gdal.libgdal import 
+lgdal
+  File "C:\Users\VIVIN 
+AKASH R\AppData\Local\Pr
+ograms\Python\Python311\
+Lib\site-packages\django
+\contrib\gis\gdal\libgda
+l.py", line 64, in 
+<module>
+    raise 
+ImproperlyConfigured(
+django.core.exceptions.I
+mproperlyConfigured: 
+Could not find the GDAL 
+library (tried 
+"gdal310", "gdal309", 
+"gdal308", "gdal307", 
+"gdal306", "gdal305", 
+"gdal304", "gdal303", 
+"gdal302", "gdal301"). 
+Is GDAL installed? If 
+it is, try setting 
+GDAL_LIBRARY_PATH in 
+your settings.

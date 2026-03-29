@@ -78,6 +78,13 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
 class CredentialSerializer(BaseSerializer):
     params = serializers.JSONField()
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and not request.user.is_superuser and instance.organization_id is None:
+            data.pop("params", None)
+        return data
+
     class Meta:
         model = Credentials
         fields = (

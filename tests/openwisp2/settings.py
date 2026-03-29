@@ -73,6 +73,12 @@ INSTALLED_APPS = [
     "import_export",
     # 'debug_toolbar',
 ]
+# Disable GIS apps during tests (works in CI + local)
+if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("CI"):
+    INSTALLED_APPS = [
+        app for app in INSTALLED_APPS
+        if app not in ['django.contrib.gis', 'openwisp_controller.geo']
+    ]
 EXTENDED_APPS = ("django_x509", "django_loci")
 
 AUTH_USER_MODEL = "openwisp_users.User"

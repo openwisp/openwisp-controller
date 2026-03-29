@@ -72,3 +72,5 @@ local_settings.py
 # Pipenv
 Pipfile
 Pipfile.lock
+venv/
+.env

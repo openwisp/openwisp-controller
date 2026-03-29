@@ -1,5 +1,6 @@
 import json
 import uuid
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
@@ -15,6 +16,7 @@ from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 
 from .. import settings as app_settings
+from ..api.serializers import CredentialSerializer
 from ..api.views import ListViewPagination
 from ..commands import ORGANIZATION_ENABLED_COMMANDS
 from .utils import CreateCommandMixin, CreateConnectionsMixin
@@ -530,6 +532,15 @@ class TestConnectionApi(
         with self.assertNumQueries(4):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
+
+    def test_shared_credentials_hide_params_for_non_superuser_representation(self):
+        shared_cred = self._create_credentials(organization=None)
+        user = self._get_user()
+        serializer = CredentialSerializer(
+            instance=shared_cred,
+            context={"request": SimpleNamespace(user=user)},
+        )
+        self.assertNotIn("params", serializer.data)
 
     def test_get_deviceconnection_list(self):
         d1 = self._create_device()
