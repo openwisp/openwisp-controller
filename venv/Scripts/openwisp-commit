@@ -1,0 +1,66 @@
+#!/bin/bash
+
+show_help() {
+  printf "Usage:\n"
+  printf "  openwisp-commit [--amend]\n"
+  printf "  openwisp-commit --check [--rev-range <range>]\n"
+  printf "\n"
+  printf "Creates or validates commits following OpenWISP commit conventions.\n"
+  printf "\n"
+  printf "Options:\n"
+  printf "  --amend              Amend the last commit (soft reset + recommit)\n"
+  printf "  --check              Validate commit messages instead of creating one\n"
+  printf "  --rev-range <range>  Git revision range to check (default: HEAD^!)\n"
+}
+
+REV_RANGE="HEAD^!"
+CHECK_MODE=false
+AMEND_MODE=false
+
+while [ "$1" != "" ]; do
+  case "$1" in
+    --check)
+      CHECK_MODE=true
+      ;;
+    --amend)
+      AMEND_MODE=true
+      ;;
+    --rev-range)
+      shift
+      if [ -z "$1" ] || [ "${1#-}" != "$1" ]; then
+        printf "Error: --rev-range requires a value\n\n"
+        show_help
+        exit 1
+      fi
+      REV_RANGE="$1"
+      ;;
+    --help | -h)
+      show_help
+      exit 0
+      ;;
+    *)
+      printf "Unknown argument: %s\n" "$1"
+      printf "\n"
+      show_help
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Define reusable commands (after argument parsing)
+CZ_CMD="cz -n cz_openwisp"
+CZ_COMMIT="$CZ_CMD commit"
+CZ_CHECK="$CZ_CMD check --rev-range $REV_RANGE"
+
+run_commit_and_check() {
+  $CZ_COMMIT && $CZ_CHECK
+}
+
+if $CHECK_MODE; then
+  $CZ_CHECK
+elif $AMEND_MODE; then
+  git reset --soft HEAD~1 && run_commit_and_check
+else
+  run_commit_and_check
+fi

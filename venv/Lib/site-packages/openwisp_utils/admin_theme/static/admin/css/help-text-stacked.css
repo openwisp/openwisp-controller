@@ -1,0 +1,13 @@
+.ow-help-text {
+  background-color: var(--ow-stacked-inline-helptext-bg);
+  padding: 5px 10px;
+  font-size: 15px;
+  font-weight: bolder;
+  display: flex;
+}
+.ow-help-text img {
+  min-width: 30px;
+}
+.ow-help-text a {
+  color: var(--ow-color-primary);
+}

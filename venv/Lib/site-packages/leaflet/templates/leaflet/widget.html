@@ -1,0 +1,49 @@
+{% load leaflet_tags l10n %}
+{% load static %}
+
+{{ FORCE_IMAGE_PATH|json_script:"force-img-path" }}
+{{ reset_view_icon|json_script:"Control-ResetView-ICON" }}
+
+<script nonce="{{ csp_nonce }}">
+    {% block vars %}var {{ module }} = {};
+    {{ module }}.fieldid = '{{ id_css }}';
+    {{ module }}.modifiable = {{ modifiable|yesno:"true,false" }};
+    {{ module }}.geom_type = '{{ widget.attrs.geom_name }}';
+    {{ module }}.srid = {{ widget.attrs.map_srid|unlocalize }};
+    {% endblock vars %}
+
+    function {{ id_map_callback }}(map, options) {
+        {{ module }}.field_store_class = {{ field_store_class }};
+        {{ module }}.precision = options.djoptions.precision;
+        (new {{ geometry_field_class}}({{ module }})).addTo(map);
+        {% block callback %}{% endblock callback %}
+    };
+
+    {% if target_map %}
+    window.addEventListener('map:init', function (e) {
+        var target_map = e.detail.map;
+        target_map.on('map:loadfield', function (me) {
+            if (me.fieldid == 'id_{{ target_map }}') {
+                setTimeout(function () {
+                    {{ id_map_callback }}(target_map, e.detail.options);
+                }, 0);
+            }
+        });
+    }, false);
+    {% endif %}
+</script>
+
+{% if not target_map %}
+{% block map %}
+    {% leaflet_map id_map callback=id_map_callback loadevent=loadevent settings_overrides=settings_overrides csp_nonce=csp_nonce %}
+{% endblock map %}
+{% endif %}
+
+{% if display_raw %}
+<p>Draw on map or paste a <a
+    href="https://geojson.io/"
+    title="Validate your GeoJSON Geometry at geojson.io in a new window"
+    target="_blank"
+    rel="nofollow">valid GeoJSON Geometry</a>:</p>
+{% endif %}
+<textarea id="{{ id_css }}" class="required django-leaflet-raw-textarea {{ class }}" cols="150" rows="10" name="{{ widget.name }}"{% if not display_raw %} hidden{% endif %}>{{ serialized }}</textarea>

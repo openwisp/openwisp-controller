@@ -1,0 +1,116 @@
+{% extends "admin/base_site.html" %}
+
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {% trans "Notification Preferences" %}
+{% endblock title %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'openwisp-notifications/css/preferences.css' %}" />
+{% endblock extrastyle %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+    {% if username %}
+      <a href="{% url 'admin:app_list' app_label='openwisp_users' %}">{% trans 'Users and Organizations' %}</a> &rsaquo;
+      <a href="{% url 'admin:openwisp_users_user_changelist' %}">{% trans 'Users' %}</a> &rsaquo;
+      <a href="{% url 'admin:openwisp_users_user_change' user_id %}">{{ username }}</a> &rsaquo;
+    {% endif %}
+    {% trans 'Notification Preferences' %}
+  </div>
+{% endblock breadcrumbs %}
+
+{% block content %}
+  <div class="settings-container" data-user-id="{{ user_id }}">
+    <div class="loader"></div>
+    <div class="global-settings">
+      <h2>{% trans 'Global Settings' %}</h2>
+      <div class="global-settings-container">
+        <!-- Global Web Settings -->
+        <div class="global-setting">
+          <div class="global-setting-content">
+            <div class="global-setting-text">
+              <h2>
+                <span class="icon icon-web"></span>
+                {% trans 'Web' %}
+              </h2>
+              <p>
+                {% trans 'Enable or disable all web notifications globally' %}.
+              </p>
+              <div class="global-setting-dropdown" data-web-state="No">
+                <button class="global-setting-dropdown-toggle"></button>
+                <div class="global-setting-dropdown-menu">
+                  <button data-web-state="Yes">{% trans 'Notify on web' %}</button>
+                  <button data-web-state="No">{% trans "Don't notify on web" %}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Global Email Settings -->
+        <div class="global-setting">
+          <div class="global-setting-content">
+            <div class="global-setting-text">
+              <h2>
+                <span class="icon icon-email"></span>
+                {% trans 'Email' %}
+              </h2>
+              <p>
+                {% trans 'Enable or disable all email notifications globally' %}.
+              </p>
+              <div class="global-setting-dropdown" data-email-state="No">
+                <button class="global-setting-dropdown-toggle"></button>
+                <div class="global-setting-dropdown-menu">
+                  <button data-email-state="Yes">{% trans 'Notify by email' %}</button>
+                  <button data-email-state="No">{% trans "Don't notify by email" %}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Org Settings -->
+    <div class="organizations">
+      <div class="intro">
+        <h2>
+          {% trans 'Organization Settings' %}
+        </h2>
+        <p>
+          {% trans 'Fine-tune notification settings for each organization below' %}.
+        </p>
+      </div>
+      <div id="org-panels"></div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmation-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-icon"></div>
+        <h2></h2>
+      </div>
+      <p class="modal-message"></p>
+      <div class="modal-buttons">
+        <button class="button default" id="go-back">
+          {% trans 'Go Back' %}
+        </button>
+        <button class="button default success-btn" id="confirm">
+          {% trans 'Confirm' %}
+        </button>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block footer %}
+  {{ block.super }}
+  {% if request.user.is_authenticated %}
+    <script type="text/javascript" src="{% static 'openwisp-notifications/js/preferences.js' %}"></script>
+  {% endif %}
+{% endblock footer %}

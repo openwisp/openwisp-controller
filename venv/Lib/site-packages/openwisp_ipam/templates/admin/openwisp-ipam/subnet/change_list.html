@@ -1,0 +1,13 @@
+{% extends "reversion/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+{% if has_add_permission %}
+<li>
+  <a href="{% url 'admin:ipam_import_subnet' %}">
+    {% trans 'Import Subnet' %}
+  </a>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}

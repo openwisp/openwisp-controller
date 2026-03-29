@@ -1,0 +1,6 @@
+{% for vpn in data.zerotier %}
+// zerotier controller config: {{ vpn.nwid }}.json
+
+{{ vpn | tojson(indent=4) }}
+
+{% endfor %}

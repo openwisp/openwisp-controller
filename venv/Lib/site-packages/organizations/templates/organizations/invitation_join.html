@@ -1,0 +1,5 @@
+{% load i18n %}
+{% trans "Would you like to join?" %}
+<form action="." method="POST">{% csrf_token %}
+	<button type="submit">{% trans "Join" %}</button>
+</form>

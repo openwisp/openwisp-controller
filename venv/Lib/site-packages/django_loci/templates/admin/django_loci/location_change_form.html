@@ -1,0 +1,14 @@
+{% extends "admin/change_form.html" %}
+{% block content %}
+{{ block.super }}
+{% comment %}
+    We use django to generate URLs that are then
+    read by javascript. This allows the JS features
+    to work also when django-loci is used as a based
+    app to create a new app with a different app_label
+{% endcomment %}
+<span id="loci-geocode-url"
+      data-url="{% url "admin:django_loci_location_geocode_api" %}"></span>
+<span id="loci-reverse-geocode-url"
+      data-url="{% url "admin:django_loci_location_reverse_geocode_api" %}"></span>
+{% endblock %}

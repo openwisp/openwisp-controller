@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "name": "Console Capture Extension",
+  "version": "1.0",
+  "description": "Captures console logs before any script runs.",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

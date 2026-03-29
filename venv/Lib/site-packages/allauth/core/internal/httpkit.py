@@ -1,0 +1,170 @@
+import json
+from typing import Optional
+from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
+
+from django import shortcuts
+from django.core.exceptions import ImproperlyConfigured
+from django.http import (
+    HttpRequest,
+    HttpResponseRedirect,
+    HttpResponseServerError,
+    QueryDict,
+)
+from django.urls import NoReverseMatch, reverse
+
+from allauth import app_settings as allauth_settings
+
+
+HTTP_USER_AGENT_MAX_LENGTH = 200
+
+
+def serialize_request(request):
+    return json.dumps(
+        {
+            "path": request.path,
+            "path_info": request.path_info,
+            "META": {k: v for k, v in request.META.items() if isinstance(v, str)},
+            "GET": request.GET.urlencode(),
+            "POST": request.POST.urlencode(),
+            "method": request.method,
+            "scheme": request.scheme,
+        }
+    )
+
+
+def deserialize_request(s, request):
+    data = json.loads(s)
+    request.GET = QueryDict(data["GET"])
+    request.POST = QueryDict(data["POST"])
+    request.META = data["META"]
+    request.path = data["path"]
+    request.path_info = data["path_info"]
+    request.method = data["method"]
+    request._get_scheme = lambda: data["scheme"]
+    return request
+
+
+def redirect(to):
+    try:
+        return shortcuts.redirect(to)
+    except NoReverseMatch:
+        return shortcuts.redirect(f"/{to}")
+
+
+def del_query_params(url: str, *params: str) -> str:
+    parsed_url = urlparse(url)
+    query_params = parse_qs(parsed_url.query, keep_blank_values=True)
+    for param in params:
+        query_params.pop(param, None)
+    encoded_query = urlencode(query_params, doseq=True)
+    new_url = urlunparse(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            parsed_url.params,
+            encoded_query,
+            parsed_url.fragment,
+        )
+    )
+    return new_url
+
+
+def add_query_params(url: str, params: dict) -> str:
+    parsed_url = urlparse(url)
+    query_params = parse_qs(parsed_url.query)
+    query_params.update(params)
+    encoded_query = urlencode(query_params, doseq=True)
+    new_url = urlunparse(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            parsed_url.params,
+            encoded_query,
+            parsed_url.fragment,
+        )
+    )
+    return new_url
+
+
+def render_url(request, url_template, **kwargs):
+    url = url_template
+    for k, v in kwargs.items():
+        qi = url.find("?")
+        ki = url.find("{" + k + "}")
+        if ki < 0:
+            raise ImproperlyConfigured(url_template)
+        is_query_param = qi >= 0 and ki > qi
+        if is_query_param:
+            qv = urlencode({"k": v}).partition("k=")[2]
+        else:
+            qv = quote(v)
+        url = url.replace("{" + k + "}", qv)
+    p = urlparse(url)
+    if not p.netloc:
+        url = request.build_absolute_uri(url)
+    return url
+
+
+def default_get_frontend_url(request, urlname, **kwargs):
+    from allauth import app_settings as allauth_settings
+
+    if allauth_settings.HEADLESS_ENABLED:
+        from allauth.headless import app_settings as headless_settings
+
+        url = headless_settings.FRONTEND_URLS.get(urlname)
+        if allauth_settings.HEADLESS_ONLY and not url:
+            raise ImproperlyConfigured(f"settings.HEADLESS_FRONTEND_URLS['{urlname}']")
+        if url:
+            return render_url(request, url, **kwargs)
+    return None
+
+
+def get_frontend_url(request, urlname, **kwargs):
+    from allauth import app_settings as allauth_settings
+
+    if allauth_settings.HEADLESS_ENABLED:
+        from allauth.headless.adapter import get_adapter
+
+        return get_adapter().get_frontend_url(urlname, **kwargs)
+    return default_get_frontend_url(request, urlname, **kwargs)
+
+
+def headed_redirect_response(viewname, query=None):
+    """
+    In some cases, we're redirecting to a non-headless view. In case of
+    headless-only mode, that view clearly does not exist.
+    """
+    try:
+        url = reverse(viewname)
+        if query:
+            url = add_query_params(url, query)
+        return HttpResponseRedirect(url)
+    except NoReverseMatch:
+        if allauth_settings.HEADLESS_ONLY:
+            # The response we would be rendering here is not actually used.
+            return HttpResponseServerError()
+        raise
+
+
+def is_headless_request(request: HttpRequest) -> Optional[str]:
+    """
+    Returns the headless client type (app/browser)in case of a headless
+    request.
+    """
+    return getattr(
+        getattr(getattr(request, "allauth", None), "headless", None), "client", None
+    )
+
+
+def get_authorization_credential(
+    request: HttpRequest, auth_scheme: str
+) -> Optional[str]:
+    auth = request.META.get("HTTP_AUTHORIZATION")
+    if not auth:
+        return None
+    parts = auth.split()
+    if not parts or len(parts) != 2 or parts[0].lower() != auth_scheme.lower():
+        return None
+    return parts[1]

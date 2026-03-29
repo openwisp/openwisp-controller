@@ -1,0 +1,15 @@
+{% extends 'admin/change_form.html' %}
+{% load i18n admin_modify %}
+
+{% block messages %}
+{{ block.super }}
+  {% if show_owner_warning %}
+    <ul class="messagelist">
+        <li class="warning">
+        {% blocktrans %}
+        You do not have permission to edit or delete this user because they are owner of an organization.
+        {% endblocktrans %}
+        </li>
+    </ul>
+  {% endif %}
+{% endblock %}

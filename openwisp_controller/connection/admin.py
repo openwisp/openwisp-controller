@@ -14,7 +14,11 @@ from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
+from ..config.admin import (
+    DeactivatedDeviceReadOnlyMixin,
+    DeviceAdmin,
+    ReadonlyPrettyJsonMixin,
+)
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
@@ -36,7 +40,12 @@ class CommandForm(forms.ModelForm):
 
 
 @admin.register(Credentials)
-class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin):
+class CredentialsAdmin(
+    ReadonlyPrettyJsonMixin,
+    MultitenantAdminMixin,
+    TimeReadonlyAdminMixin,
+    admin.ModelAdmin,
+):
     list_display = (
         "name",
         "organization",
@@ -57,6 +66,7 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
         "created",
         "modified",
     ]
+    readonly_json_fields = {"params": "pretty_params"}
 
     def get_urls(self):
         options = getattr(self.model, "_meta")
@@ -71,6 +81,16 @@ class CredentialsAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.Mode
 
     def schema_view(self, request):
         return JsonResponse(schema)
+
+    def _get_hidden_readonly_fields(self, request, obj=None):
+        if obj and obj.organization_id is None and not request.user.is_superuser:
+            return {"params"}
+        return set()
+
+    def pretty_params(self, obj):
+        return self._format_json_field(obj, "params")
+
+    pretty_params.short_description = _("parameters")
 
 
 class DeviceConnectionInline(

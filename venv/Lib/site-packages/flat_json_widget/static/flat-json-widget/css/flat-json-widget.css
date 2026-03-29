@@ -1,0 +1,45 @@
+.flat-json-textarea textarea {
+  font-family: monospace;
+}
+.flat-json-add-row,
+.flat-json-toggle-textarea {
+  text-decoration: none !important;
+}
+.flat-json-key {
+  width: 140px !important;
+  margin-right: 2px;
+}
+.flat-json-value {
+  margin-left: 6px;
+  width: 320px;
+}
+.flat-json .help {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.flat-json .related-widget-wrapper-link img {
+  position: relative;
+  top: -2px;
+}
+.flat-json-remove-row {
+  margin-left: 3px;
+}
+
+@media screen and (max-width: 767px) {
+  .flat-json-add-row {
+    margin-right: 10px;
+  }
+  .flat-json-key {
+    width: 25% !important;
+    margin-right: 4px !important;
+    flex: none !important;
+  }
+  .flat-json-value {
+    width: 55% !important;
+    margin-left: 6px !important;
+    flex: none !important;
+  }
+  .flat-json-rows .field-data {
+    line-height: 33px;
+  }
+}

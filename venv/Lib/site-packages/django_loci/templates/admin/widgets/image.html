@@ -1,0 +1,20 @@
+{% load i18n %}
+{% if url %}
+<a target="_blank"
+   href="{{ url }}"
+   class="floorplan-image">
+    {% if thumbnail %}
+    <img src="{{ url }}" />
+    {% else %}
+    {% trans 'Currently' %}: {{ filename }}
+    {% endif %}
+</a>
+<p class="change-image">
+{% endif %}
+{% include "django/forms/widgets/input.html" %}
+{% if width and height %}
+<span id="id_{{ widget.name }}-dim"
+      data-width="{{ width }}"
+      data-height="{{ height }}">
+{% endif %}
+{% if url %}</p>{% endif %}

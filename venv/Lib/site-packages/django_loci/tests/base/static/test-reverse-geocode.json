@@ -1,0 +1,32 @@
+{
+  "address": {
+    "Match_addr": "05-500",
+    "LongLabel": "05-500, POL",
+    "ShortLabel": "05-500",
+    "Addr_type": "Postal",
+    "Type": "",
+    "PlaceName": "05-500",
+    "AddNum": "",
+    "Address": "",
+    "Block": "",
+    "Sector": "",
+    "Neighborhood": "",
+    "District": "",
+    "City": "Piaseczno",
+    "MetroArea": "",
+    "Subregion": "Powiat Piaseczyński",
+    "Region": "Woj. Mazowieckie",
+    "Territory": "",
+    "Postal": "05-500",
+    "PostalExt": "",
+    "CountryCode": "POL"
+  },
+  "location": {
+    "x": 21,
+    "y": 52,
+    "spatialReference": {
+      "wkid": 4326,
+      "latestWkid": 4326
+    }
+  }
+}

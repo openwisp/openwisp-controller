@@ -1,0 +1,9 @@
+{% load account %}
+{% load i18n %}
+{% user_display user as user_display %}
+<p>
+{% blocktrans with site_name=current_site.name %}
+You're receiving this e-mail because user <b>{{ user_display }}</b> registered this e-mail address to create an account on <b>{{ site_name }}</b>.
+{% endblocktrans %}
+</p>
+<p>{% trans 'To confirm this is correct, please click on the button below.' %}</p>

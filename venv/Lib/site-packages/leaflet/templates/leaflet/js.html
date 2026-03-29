@@ -1,0 +1,25 @@
+{% load i18n %}
+{% load static %}
+{% load leaflet_tags %}
+{% if DEBUG %}
+<script src="{% static "leaflet/leaflet-src.js" %}"></script>
+{% else %}
+<script src="{% static "leaflet/leaflet.js" %}"></script>
+{% endif %}
+{% if SRID %}
+    <script src="{% static "leaflet/proj4.js" %}"></script>
+    <script src="{% static "leaflet/proj4leaflet.js" %}"></script>
+    <script src="{% static "proj4js/"|add:SRID|add:".js" %}"></script>
+{% endif %}
+{% if PLUGINS_JS %}
+    {% for js in PLUGINS_JS %}
+        <script src="{{ js }}"></script>
+    {% endfor %}
+{% endif %}
+
+{{ FORCE_IMAGE_PATH|json_script:"force-img-path" }}
+{{ reset_view_icon|json_script:"Control-ResetView-ICON" }}
+<script src="{% static "leaflet/leaflet.extras.js" %}"></script>
+
+{{ with_forms|json_script:"with-forms" }}
+{% leaflet_draw_i18n %}

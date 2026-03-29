@@ -1,0 +1,207 @@
+/************
+* Scrollbar
+************/
+:root {
+  scrollbar-color: #777 #f1f1f1 !important;
+}
+body::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #777;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
+
+/* LOGO */
+#swagger-ui > section > div.topbar > div > div > a > img {
+  content: url(../ui/openwisp/images/openwisp-logo-black.svg);
+  width: 165px;
+  height: 95px;
+}
+
+/* TOPBAR */
+.swagger-ui .topbar {
+  padding: 10px 0;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #eee;
+}
+.swagger-ui .topbar .download-url-wrapper input[type="text"] {
+  border-color: rgb(0, 0, 0);
+}
+.swagger-ui .topbar .download-url-wrapper input[type="text"]:focus {
+  border: 3px solid rgb(0, 0, 0);
+}
+
+/* EXPLORE BTN */
+.swagger-ui .topbar .download-url-wrapper .download-url-button {
+  background: #333;
+  font-size: 15px;
+  font-weight: normal;
+  text-transform: uppercase;
+}
+.swagger-ui .topbar .download-url-wrapper .download-url-button:hover {
+  background: #999;
+}
+
+/* SCHEMES */
+.swagger-ui select {
+  border-color: #ccc;
+}
+.swagger-ui .info a {
+  color: #df5d43;
+}
+.swagger-ui .info a:hover,
+.swagger-ui .info a:visited {
+  color: #d32f2f;
+}
+
+/* AUTH LABEL */
+.label-primary {
+  color: #000;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* AUTH BTN */
+#django-session-auth .btn.authorize a {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* LOGOUT BTN */
+#django-session-auth > div.btn.authorize {
+  background-color: #333;
+  border: 0;
+}
+#django-session-auth > div.btn.authorize:hover {
+  background-color: #999;
+}
+.swagger-ui .btn.authorize svg {
+  fill: #fff;
+}
+
+/* AUTH BTN */
+.swagger-ui .btn.authorize {
+  color: #fff;
+  border: 0;
+  background-color: #df5d43;
+}
+.swagger-ui .btn.authorize:hover {
+  background-color: #b31e00;
+}
+.swagger-ui .btn.authorize span {
+  padding: 4px 10px 0 0;
+}
+
+/* LOGOUT & CLOSE BTN */
+.swagger-ui .btn {
+  color: #fff;
+  border: 0;
+  background-color: #333;
+  font-size: 13px;
+  line-height: 20px;
+  text-transform: uppercase;
+  font-weight: normal;
+  margin: 0 5px;
+  font-family:
+    "Roboto", "Lucida Grande", "DejaVu Sans", "Bitstream Vera Sans", Verdana, Arial,
+    sans-serif;
+}
+.swagger-ui .btn:hover {
+  background-color: #999;
+}
+
+/* OPBLOCK */
+
+.swagger-ui .opblock-tag.no-desc {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding-left: 26px;
+}
+.swagger-ui .opblock-tag.no-desc span:hover {
+  background: #fdf2f2f2;
+  color: #df5d43;
+}
+.swagger-ui .opblock-tag:hover .nostyle > span {
+  background-color: #fdf2f2f2;
+  color: #df5d43;
+}
+.swagger-ui .opblock-tag:hover {
+  background-color: #fdf2f2f2;
+}
+.swagger-ui .download-contents {
+  width: 89px;
+  font-size: 13px;
+  right: 15px;
+  padding-top: 7px;
+}
+.swagger-ui .copy-to-clipboard {
+  right: 115px;
+}
+
+/* OPBLOCK EXECUTE */
+
+.swagger-ui .btn.cancel {
+  border: 0;
+  color: #fff;
+  background-color: #333;
+}
+.swagger-ui .btn.cancel:hover {
+  background-color: #999;
+}
+.swagger-ui .btn.execute {
+  border: 0;
+  color: #fff;
+  background-color: #333;
+}
+.swagger-ui .btn.execute:hover {
+  background-color: #999;
+}
+
+/* MODELS */
+
+.swagger-ui section.models .model-container {
+  background: #f6f6f9;
+}
+.swagger-ui section.models .model-container:hover {
+  background: #fdf2f2f2;
+  color: #df5d43;
+}
+.swagger-ui .model-title:hover {
+  color: #df5d43;
+}
+.swagger-ui section.models .model-container.is-open:hover {
+  background: #fdf2f2f2;
+  color: #df5d43;
+}
+.swagger-ui .prop-type {
+  color: #df5d43;
+}
+.swagger-ui
+  section.models
+  .model-container:hover
+  .model-box
+  > .pointer
+  > .model-box
+  > .model-title {
+  color: #df5d43;
+}
+.swagger-ui
+  section.models
+  .model-container:hover
+  .model-box
+  > .pointer
+  > .model-toggle
+  .collapsed {
+  color: #df5d43;
+}
+#swagger-ui > section > div.swagger-ui > div > div > section > section > h4:hover {
+  background: #fdf2f2f2;
+  color: #df5d43;
+}

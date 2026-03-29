@@ -1,0 +1,15 @@
+{% include "admin/edit_inline/stacked.html" %}
+{% comment %}
+    We use django to generate URLs that are then
+    read by javascript. This allows the JS features
+    to work also when django-loci is used as a based
+    app to create a new app with a different app_label
+{% endcomment %}
+<span id="loci-location-json-url"
+      data-url="{% url "admin:django_loci_location_json" "00000000-0000-0000-0000-000000000000" %}"></span>
+<span id="loci-location-floorplans-json-url"
+      data-url="{% url "admin:django_loci_location_floorplans_json" "00000000-0000-0000-0000-000000000000" %}"></span>
+<span id="loci-geocode-url"
+      data-url="{% url "admin:django_loci_location_geocode_api" %}"></span>
+<span id="loci-reverse-geocode-url"
+      data-url="{% url "admin:django_loci_location_reverse_geocode_api" %}"></span>

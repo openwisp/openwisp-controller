@@ -1,0 +1,14 @@
+#id_user_consented {
+  float: left;
+  margin-right: 8px;
+  vertical-align: top;
+  margin-bottom: 0px;
+}
+#id_metric_collection_consent_form > span.helptext {
+  display: block;
+  margin-top: 8px;
+}
+
+#metric-consent {
+  margin-top: 50px;
+}

@@ -1,0 +1,7 @@
+#content p {
+  margin: 10px 0;
+}
+button,
+form label {
+  margin-right: 5px;
+}

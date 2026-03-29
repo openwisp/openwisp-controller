@@ -1,0 +1,8 @@
+{% load static %}
+<link rel="stylesheet" href="{% static "leaflet/leaflet.css" %}" />
+<link rel="stylesheet" href="{% static "leaflet/leaflet.extras.css" %}" />
+{% if PLUGINS_CSS %}
+    {% for css in PLUGINS_CSS %}
+        <link rel="stylesheet" href="{{ css }}" />
+    {% endfor %}
+{% endif %}

@@ -1,0 +1,155 @@
+{% extends "openwisp_utils/email_template.html" %}
+{% load static %}
+
+{% block styles %}
+{{ block.super }}
+<style>
+  .alert {
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 1px solid #EAECF0;
+    border-spacing: 0;
+    font-size: 0.75rem;
+    width: 100%;
+    color: #475467;
+    padding: 1rem 0.7rem 1rem 1rem;
+  }
+
+  .alert-link {
+    display: block;
+    text-decoration: none;
+  }
+
+  .alert-link+.alert-link {
+    margin-top: 0.75rem;
+  }
+
+  a:link:hover .alert,
+  a:link:focus .alert {
+    background-color: #fff9c466
+  }
+
+  .alert .title {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding-bottom: 0.13rem;
+    max-width: 560px;
+  }
+
+  .alert .title p {
+    line-height: 1.40rem;
+    font-size: 0.875rem;
+    display: inline-block;
+    margin: 0 auto;
+    color: #0F1729;
+    padding-right: 1rem;
+  }
+
+  .right-arrow-container {
+    vertical-align: top;
+    text-align: right;
+    padding: 0;
+  }
+
+  .right-arrow {
+    width: 24px;
+    height: 24px;
+  }
+
+    .alert .timestamp {
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 13px;
+      margin: 0.5rem 0 0 0;
+
+    }
+
+  .alert .badge {
+    background-color: #F2F4F7;
+    border: solid #D0D5DD 1px;
+    color: #667085;
+    border-radius: 16px;
+    padding: 0.13rem 0;
+    line-height: 1.13rem;
+    text-transform: capitalize;
+    display: inline-block;
+    text-align: center;
+    vertical-align: top;
+    min-width: 4rem;
+    margin-top: -1px;
+    margin-bottom: 0.5rem;
+  }
+
+  .alert .badge.warning {
+    color: #DC6803;
+    border-color: #FEC84B;
+    background-color: #FFFAEB;
+  }
+
+  .alert .badge.warning {
+    color: #DC6803;
+    border-color: #FEC84B;
+    background-color: #FFFAEB;
+  }
+
+  .alert .badge.error {
+    color: #D92D20;
+    border-color: #FDA29B;
+    background-color: #FEE4E2;
+  }
+
+  .alert .badge.success {
+    color: #067647;
+    border-color: #75E0A7;
+    background-color: #DCFAE6;
+  }
+
+  .alert hr {
+    margin-right: 0.75rem;
+    margin-top: 0;
+  }
+
+  @media screen and (max-width: 768px) {
+    .alert .title {
+      display: block;
+      margin: 0 auto 0.2rem 0;
+    }
+
+    .alert hr {
+      margin: 0;
+    }
+  }
+</style>
+{% endblock styles %}
+
+{% block mail_body %}
+<div>
+  {% for notification in notifications %}
+  {% if notification.url %}<a class="alert-link" href="{{ notification.url }}" target="_blank">{% endif %}
+    <table class="alert">
+      <tbody>
+        <tr>
+          <td>
+            <div>
+              <span class="badge {{ notification.level }}">{{ notification.level }}</span>
+              <div class="title"><p>{{ notification.email_message|striptags }}</p></div>
+            </div>
+          </td>
+          <td class="right-arrow-container">
+            <img class="right-arrow" src="{{ site_url }}{% static 'ui/openwisp/images/right-arrow.png' %}" alt="right-arrow">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <hr>
+            <div>
+              <p class="timestamp">{{ notification.timestamp|date:"F j, Y, g:i A e" }}</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    {% if notification.url %}</a>{% endif %}
+  {% endfor %}
+</div>
+{% endblock mail_body %}

@@ -1,0 +1,29 @@
+# OpenWISP RADIUS
+# Copyright (C) 2022
+# This file is distributed under the same license as the PACKAGE package.
+# Federico Capoano support@openwisp.io, 2021.
+#
+msgid ""
+msgstr ""
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 "
+"&& (n%100<12 || n%100>14) ? 1 : 2);\n"
+
+#: serializers.py:422
+msgid "New password cannot be the same as your old password."
+msgstr "Новый пароль не может совпадать с вашим старым паролем."
+
+#: views.py:198
+msgid "Password updated successfully"
+msgstr "Пароль успешно обновлен"
+
+#: tasks.py:58
+msgid "Action Required: Password Expiry Notice"
+msgstr "Требуется действие: Уведомление о сроке действия пароля"
+
+#: tasks.py:73
+msgid "Change password"
+msgstr "Изменить пароль"

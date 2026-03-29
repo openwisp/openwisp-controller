@@ -1,0 +1,12 @@
+{% extends "leaflet/widget.html" %}
+{% load i18n %}
+{% load static %}
+{% load leaflet_tags %}
+
+{% block map %}
+<div id="{{ id_css }}-div-map">
+    {{ block.super }}
+</div>
+
+{% leaflet_draw_i18n %}
+{% endblock map %}

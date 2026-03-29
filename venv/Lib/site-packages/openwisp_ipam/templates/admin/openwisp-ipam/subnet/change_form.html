@@ -1,0 +1,114 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+{% load static %}
+
+{% block object-tools-items %}
+{% if has_change_permission %}
+<li>
+  <a href="{% url 'admin:ipam_export_subnet' original.id %}">
+    {% trans 'Export Subnet' %}
+  </a>
+</li>
+{% endif %}
+{% if has_add_permission %}
+<li>
+  <a href="{% url 'admin:ipam_import_subnet' %}">
+    {% trans 'Import Addresses into Subnet' %}
+  </a>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
+{% block after_related_objects %}
+{% if original and not is_popup %}
+<h2>{% trans 'Network Hierarchical View' %}</h2>
+<div id="jstree"></div>
+
+<div id="graph"></div>
+
+<h3 class="subnet-visual">{% trans 'Subnet Visual Display' %}</h3>
+<div class="subnet-visual">
+  <form onsubmit="return false">
+    <input id="goto-input" onkeypress="return event.keyCode != 13;" placeholder="Jump to" />
+    <input id="goto-button" type="button" value="Go" />
+  </form>
+  <ul id="invalid-address" class="errorlist" style="display:none;">
+    <li>{% trans 'Address not valid for subnet' %}</li>
+  </ul>
+</div>
+<section id="subnet-visual" class="subnet-visual{% if original.subnet.version == 6 %} ipv6{% endif %}">
+</section>
+{% endif %}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+{% if original and not is_popup %}
+<script type="text/javascript">
+  var current_subnet = '{{ original.pk }}';
+  var ipAddUrl = '{% url ipaddress_add_url %}'
+  var ipChangeUrl = '{% url ipaddress_change_url "1234" %}'
+  django.jQuery(document).ready(function () {
+    initHostsInfiniteScroll(django.jQuery, current_subnet, ipAddUrl, ipChangeUrl, {{ ip_uuid| safe}})
+  });
+  // Nested Subnet Tree
+  subnet_tree = [];
+  subnet_tree.push(
+    {% for subnet_queryset in subnet_tree %}
+  {% for subnet_item in subnet_queryset %}
+  {
+    subnet_id: "{{ subnet_item.pk }}",
+      subnet_tree_item: "{{ subnet_item.subnet }} ({{ subnet_item.name }})",
+        master_subnet: "{{ subnet_item.master_subnet }}",
+          url: "{% url subnet_change_url subnet_item.pk %}",
+        },
+  {% endfor %}
+  {% endfor %}
+    );
+  subnet_tree[0]['master_subnet'] = "jstree";
+  for (item in subnet_tree) {
+    var parent_element = document.getElementById(subnet_tree[item]["master_subnet"]),
+      subnet_list = document.createElement("ul"),
+      subnet_item = document.createElement("li"),
+      subnet_href = document.createElement("a"),
+      subnet_node = document.createTextNode(subnet_tree[item]["subnet_tree_item"]);
+    subnet_item.id = subnet_tree[item]["subnet_id"];
+    subnet_href.href = subnet_tree[item]["url"];
+    subnet_list.appendChild(subnet_item);
+    subnet_item.appendChild(subnet_href);
+    subnet_href.appendChild(subnet_node);
+    parent_element.appendChild(subnet_list);
+  }
+  // Ipam Graph / Visual
+  var data = [],
+    layout = {},
+    vals = {{ values| safe }}
+  vals[1] = Number(vals[1]);
+  data = [
+    {
+      values: {{ values| safe }},
+    labels: {{ labels| safe }},
+    text: vals,
+    type: 'pie',
+    hoverinfo: 'label+text',
+    textinfo: 'percent',
+    marker: {
+      colors: [
+        'rgba(149, 10, 10, 1)',
+        'rgba(20, 102, 26, 1)'
+      ]
+    },
+    textfont: {
+      size: 18,
+      color: '#FFF',
+    }
+      }
+  ];
+  layout = {
+    title: '{% trans "Subnet Freespace Display" %}'
+  };
+  Plotly.newPlot('graph', data, layout);
+</script>
+{% endif %}
+{% endblock %}

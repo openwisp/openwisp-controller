@@ -1,0 +1,70 @@
+{% load i18n static %}
+<script type="text/html" id="flat-json-row-template-{{ field_name }}" class="flat-json-row-template-inline">
+    <div class="form-row field-data">
+        <div>
+            <input type="text" placeholder="{% trans 'key' %}" value="<%= key %>" class="flat-json-key">
+            <strong>:</strong>
+            <input value="<%= _.escape(value) %>"
+                   type="text"
+                   placeholder="{% trans 'value' %}"
+                   class="flat-json-value">
+            <a href="#"
+               class="flat-json-remove-row related-widget-wrapper-link"
+               title="{% trans 'remove row' %}">
+                <img src="{% static 'admin/img/icon-deletelink.svg' %}">
+            </a>
+        </div>
+    </div>
+</script>
+
+<script type="text/html" id="flat-json-ui-template-{{ field_name }}"{% if '__prefix__' in field_name %} class="flat-json-ui-template-inline"{% endif %}>
+    <div class="flat-json" id="flat-json-{{ field_name }}">
+        <h2><%= label %></h2>
+
+        <% if(help && help != '') { %>
+            <div class="form-row">
+                <p class="help"><%= help %></p>
+            </div>
+        <% } %>
+
+        <div class="flat-json-rows">
+            <% if(errors){ %>
+                <div class="form-row field-data">
+                    <div>
+                        <ul class="errorlist">
+                            <%= errors %>
+                        </ul>
+                    </div>
+                </div>
+            <% } %>
+            <% for(key in data){ %>
+                <%= _.template(django.jQuery(".flat-json-row-template-inline").eq(0).html())({ "key": key, "value": data[key].replace(/\n/g , "\\n") }) %>
+            <% } %>
+        </div>
+
+        <div class="form-row field-data flat-json-textarea" style="display:none">
+            <div>
+                <label for="<%= id %>" class="required">{% trans 'Raw JSON Editing' %}:</label>
+                <textarea class="vLargeTextField" cols="40" id="<%= id %>" name="<%= name %>" rows="10"><%= value %></textarea>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <a href="#"
+               class="flat-json-add-row related-widget-wrapper-link"
+               title="{% trans 'Add another row' %}">
+                <img src="{% static 'admin/img/icon-addlink.svg' %}" alt="">
+                {% trans "Add row" %}
+            </a>
+
+            <a href="#"
+               class="flat-json-toggle-textarea related-widget-wrapper-link"
+               title="{% trans 'toggle textarea' %}" style="float:right">
+                <img src="{% static 'admin/img/icon-changelink.svg' %}" alt="">
+                {% trans 'Toggle Raw JSON Editing' %}
+            </a>
+        </div>
+    </div>
+</script>
+
+<script>django.jQuery(function() { initJsonKeyValueWidget('{{ field_name }}') });</script>

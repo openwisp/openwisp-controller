@@ -1,0 +1,32 @@
+{% load i18n ow_tags %}
+
+<div class="ow-filter {{ title|join_string }}">
+  {% for choice in choices %}
+    {% if choice.selected %}
+      <div id="{{title|join_string}}" aria-label="by {{title}}"
+        tabindex="0" aria-controls="choices-{{filter_title}}"
+        role="button" aria-expanded="false" class="filter-title">
+        <h3>
+          {% blocktrans with filter_title=title %} By {{ filter_title }} {% endblocktrans %}
+        </h3>
+        <div class="selected-option" tabindex="0" title="{{ choice.display }}">
+          {{ choice.display }}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+  <div id="choices-{{title|join_string}}" role="region"
+    aria-labelledby="{{title|join_string}}" class="filter-options">
+    <ul>
+    {% for choice in choices %}
+      <li>
+        <a {% if choice.selected %} class="selected" {% endif %}
+          title="{{ choice.display | default_if_none:'------'}}"
+          href="{{ choice.query_string|iriencode }}">
+          {{ choice.display | default_if_none:'------' }}
+        </a>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+</div>

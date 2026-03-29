@@ -1,0 +1,62 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'admin/css/openwisp-info.css' %}" />
+{% endblock extrastyle %}
+
+{% block content %}
+{% if openwisp_version %}
+<h2>{% trans "OpenWISP Version" %}: {{ openwisp_version }}</h2>
+{% endif %}
+<h2>{% trans "Installed OpenWISP Modules" %}</h2>
+<ul>
+{% for name, version in enabled_openwisp_modules.items %}
+<li>{{ name }}: {{ version }}</li>
+{% endfor %}
+</ul>
+<h2>{% trans "OS Information" %}</h2>
+<p><strong>{% trans "OS version" %}:</strong> {{ system_info.os_version }}</p>
+<p><strong>{% trans "Kernel version" %}:</strong> {{ system_info.kernel_version }}</p>
+<p><strong>{% trans "Hardware platform" %}:</strong> {{ system_info.hardware_platform }}</p>
+
+<div id="metric-consent">
+{% block metric_collect_consent %}
+  {% if metric_collection_installed %}
+    <h2>Metric collection</h2>
+    <form method="POST" id="id_metric_collection_consent_form">
+      {% csrf_token %}
+      {% for field in metric_consent_form %}
+        <p>
+          {% for error in field.errors %}
+            <span class="error">{{ error }}</span>
+          {% endfor %}
+          {{ field.label_tag }}
+          {{ field }}
+        </p>
+        {% if field.help_text %}
+        <p class="helptext">{{ field.help_text|safe }}</p>
+        {% endif %}
+      {% endfor %}
+      <p><input type="submit" style="display:none;"></p>
+    </form>
+  {% endif %}
+{% endblock metric_collect_consent %}
+</div>
+{% endblock content %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {% if 'jquery' not in block.super and not media.js %}
+    <script type="text/javascript" src="{% static 'admin/js/vendor/jquery/jquery.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'admin/js/jquery.init.js' %}"></script>
+  {% endif %}
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
+    {% if metric_collection_installed %}
+        <script src="{% static 'admin/js/metric-collection-consent.js' %}"></script>
+    {% endif %}
+{% endblock footer %}

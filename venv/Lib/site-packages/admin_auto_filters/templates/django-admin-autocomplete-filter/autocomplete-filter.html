@@ -1,0 +1,8 @@
+{% load i18n %}
+{% if not spec.is_placeholder_title %}
+    <h3>{% blocktrans with filter_title=title %} By {{ filter_title }} {% endblocktrans %}</h3>
+{% endif %}
+    <ul>
+        <li>{{ spec.rendered_widget }}</li>
+        <li>{{ spec.field }}</li>
+    </ul>

@@ -7,6 +7,7 @@ from uuid import uuid4
 import django
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.management import call_command
@@ -2781,6 +2782,52 @@ class TestTransactionAdmin(
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
 
+    def test_view_only_admin_shows_pretty_json_for_readonly_fields(self):
+        org = self._get_org()
+        config = self._create_config(
+            device=self._create_device(organization=org),
+            config={"interfaces": []},
+            context={"hostname": "ap-1"},
+        )
+        template = self._create_template(
+            organization=org,
+            default_values={"hostname": "ap-1"},
+        )
+        vpn = self._create_vpn(
+            organization=org,
+            config={"openvpn": [{"name": "vpn1", "proto": "udp"}]},
+        )
+        administrator = self._create_administrator(organizations=[org])
+        administrator_group = Group.objects.get(name="Administrator")
+        administrator_group.permissions.remove(
+            *Permission.objects.filter(
+                codename__in=["change_device", "change_template", "change_vpn"]
+            )
+        )
+        self.client.force_login(administrator)
+
+        test_cases = [
+            (
+                reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk]),
+                ["&quot;hostname&quot;: &quot;ap-1&quot;", "&quot;interfaces&quot;: []"],
+            ),
+            (
+                reverse(f"admin:{self.app_label}_template_change", args=[template.pk]),
+                ["&quot;hostname&quot;: &quot;ap-1&quot;"],
+            ),
+            (
+                reverse(f"admin:{self.app_label}_vpn_change", args=[vpn.pk]),
+                ["&quot;proto&quot;: &quot;udp&quot;"],
+            ),
+        ]
+        for path, expected_strings in test_cases:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, '<pre class="readonly-json">')
+                for expected in expected_strings:
+                    self.assertContains(response, expected)
+
 
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
@@ -2860,6 +2907,28 @@ class TestDeviceGroupAdmin(
         with self.subTest("test device menu item is registered"):
             url = reverse(f"admin:{self.app_label}_device_changelist")
             self.assertContains(response, f' class="menu-item" href="{url}"')
+
+    def test_view_only_admin_shows_pretty_json_for_readonly_fields(self):
+        org = self._create_org(name="org1")
+        device_group = self._create_device_group(
+            organization=org,
+            context={"group": "ap"},
+            meta_data={"role": "core"},
+        )
+        administrator = self._create_administrator(organizations=[org])
+        administrator_group = Group.objects.get(name="Administrator")
+        administrator_group.permissions.remove(
+            Permission.objects.get(codename="change_devicegroup")
+        )
+        self.client.force_login(administrator)
+
+        response = self.client.get(
+            reverse(f"admin:{self.app_label}_devicegroup_change", args=[device_group.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<pre class="readonly-json">', count=2)
+        self.assertContains(response, "&quot;group&quot;: &quot;ap&quot;")
+        self.assertContains(response, "&quot;role&quot;: &quot;core&quot;")
 
 
 class TestDeviceGroupAdminTransaction(
@@ -3071,3 +3140,65 @@ class TestDeviceGroupAdminTransaction(
         templates = device.config.templates.all()
         self.assertNotIn(t1, templates)
         self.assertIn(t2, templates)
+
+class TestReadonlyJsonIssues(TestAdminMixin, TestCase):
+    app_label = 'config'
+
+    def setUp(self):
+        org = self._get_org()
+        self.device = self._create_device(organization=org)
+        self.config = self._create_config(device=self.device, config={'test_key': 'test_value'})
+        self.template = self._create_template(organization=org, config={'test_key': 'test_value'})
+        self.devicegroup = self._create_device_group(organization=org, meta_data={'test_key': 'test_value'})
+        self.org_settings = OrganizationConfigSettings.objects.create(organization=org, context={'test_key': 'test_value'})
+        
+        # operator has read-only access (can view) but cannot change some things depending on permissions
+        # let's create a strictly view-only user
+        self.view_only_user = self._create_operator()
+        self.view_only_user.is_superuser = False
+        from django.contrib.auth.models import Permission
+        
+        # assign view permissions
+        for model in ['device', 'config', 'template', 'devicegroup', 'organizationconfigsettings', 'organization']:
+            try:
+                perm = Permission.objects.get(codename=f'view_{model}')
+                self.view_only_user.user_permissions.add(perm)
+            except Permission.DoesNotExist:
+                pass
+        self.view_only_user.save()
+
+    def test_json_rendered_as_html_for_view_only_user(self):
+        self.client.force_login(self.view_only_user)
+        # Test Template Admin
+        path = reverse('%s_%s_change' % ('admin:config', 'template'), args=[self.template.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<pre class="readonly-json">')
+        self.assertContains(response, '"test_key"')
+        self.assertNotContains(response, "{'test_key': 'test_value'}")
+
+        # Test Device Admin (inlines)
+        path = reverse('%s_%s_change' % ('admin:config', 'device'), args=[self.device.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<pre class="readonly-json">')
+        self.assertContains(response, '"test_key"')
+        self.assertNotContains(response, "{'test_key': 'test_value'}")
+
+        # Test Device Group Admin
+        path = reverse('%s_%s_change' % ('admin:config', 'devicegroup'), args=[self.devicegroup.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<pre class="readonly-json">')
+        self.assertContains(response, '"test_key"')
+        self.assertNotContains(response, "{'test_key': 'test_value'}")
+        
+    def test_json_editable_for_superuser(self):
+        admin = self._get_admin()
+        self.client.force_login(admin)
+        path = reverse('%s_%s_change' % ('admin:config', 'template'), args=[self.template.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        # It should contain the JSON form widget
+        self.assertContains(response, 'djnjc-preformatted')
+        

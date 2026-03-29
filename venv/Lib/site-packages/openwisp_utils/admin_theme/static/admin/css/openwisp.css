@@ -1,0 +1,2040 @@
+/* Django 4.2.0 stopped shipping fonts.
+See https://code.djangoproject.com/ticket/33878 */
+
+@font-face {
+  font-family: "Roboto";
+  src: url("../fonts/Roboto-Bold-webfont.woff");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Roboto";
+  src: url("../fonts/Roboto-Regular-webfont.woff");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Roboto";
+  src: url("../fonts/Roboto-Light-webfont.woff");
+  font-weight: 300;
+  font-style: normal;
+}
+
+/* VARIABLE DEFINITIONS TO PREVENT DARK MODE */
+:root {
+  --primary: #79aec8 !important;
+  --secondary: #417690 !important;
+  --accent: #f5dd5d !important;
+  --primary-fg: #fff !important;
+
+  --body-fg: #333 !important;
+  --body-bg: #fff !important;
+  --body-quiet-color: #666 !important;
+  --body-loud-color: #000 !important;
+
+  --header-color: #ffc !important;
+  --header-branding-color: var(--accent) !important;
+  --header-bg: var(--secondary) !important;
+  --header-link-color: var(--primary-fg) !important;
+
+  --breadcrumbs-fg: #c4dce8 !important;
+  --breadcrumbs-link-fg: var(--body-bg) !important;
+  --breadcrumbs-bg: var(--primary) !important;
+
+  --link-fg: #447e9b !important;
+  --link-hover-color: #036 !important;
+  --link-selected-fg: #5b80b2 !important;
+
+  --hairline-color: #e8e8e8 !important;
+  --border-color: #ccc !important;
+
+  --error-fg: #ba2121 !important;
+
+  --message-success-bg: #dfd !important;
+  --message-warning-bg: #ffc !important;
+  --message-error-bg: #ffefef !important;
+
+  --darkened-bg: #f8f8f8 !important; /* A bit darker than --body-bg */
+  --selected-bg: #e4e4e4 !important; /* E.g. selected table cells */
+  --selected-row: #ffc !important;
+
+  --button-fg: #fff !important;
+  --button-bg: var(--primary) !important;
+  --button-hover-bg: #609ab6 !important;
+  --default-button-bg: var(--secondary) !important;
+  --default-button-hover-bg: #205067 !important;
+  --close-button-bg: #888 !important; /* Previously #bbb, contrast 1.92 */
+  --close-button-hover-bg: #747474 !important;
+  --delete-button-bg: #ba2121 !important;
+  --delete-button-hover-bg: #a41515 !important;
+
+  --object-tools-fg: var(--button-fg) !important;
+  --object-tools-bg: var(--close-button-bg) !important;
+  --object-tools-hover-bg: var(--close-button-hover-bg) !important;
+  --font-family-primary:
+    "Roboto", "Lucida Grande", "DejaVu Sans", "Bitstream Vera Sans", Verdana, Arial,
+    sans-serif;
+
+  /* ========================================
+     OPENWISP BASE COLOR PALETTE (Tier 1)
+     ======================================== */
+
+  /* Primary Brand Colors */
+  --ow-color-primary: #df5d43;
+  --ow-color-primary-dark: #b31e00;
+  --ow-color-primary-alt: #c74126;
+  --ow-color-primary-light: #ffe5e5;
+  --ow-color-primary-lighter: #fdf2f2;
+
+  /* Success/Positive */
+  --ow-color-success: #498b26;
+
+  /* Foreground Scale Spectrum */
+  --ow-color-black: #000;
+  --ow-color-fg-darkest: #1b1818;
+  --ow-color-fg-darker: #333;
+  --ow-color-fg-dark: #777;
+  --ow-color-fg-medium: #bbbbbb;
+  --ow-color-fg-light: #efefef;
+  --ow-color-fg-lighter: #f6f6f6;
+  --ow-color-fg-lightest: #f9f9f9;
+  --ow-color-fg-ghost: #fcfcfc;
+  --ow-color-white: #fff;
+
+  /* Special Tones */
+  --ow-color-breadcrumb-text: #8d7d76cf;
+
+  /* Highlight/Selection Colors */
+  --ow-color-highlight: var(--ow-color-primary-light);
+  --ow-color-highlight-subtle: var(--ow-color-primary-lighter);
+
+  /* Utility Colors */
+  --ow-color-login-bg: #f4f7f6;
+  --ow-color-scrollbar-track: #f1f1f1;
+
+  /* Overlays (Dark with opacity) */
+  --ow-overlay-10: rgba(0, 0, 0, 0.1);
+  --ow-overlay-5: rgba(0, 0, 0, 0.05);
+  --ow-overlay-7: rgba(0, 0, 0, 0.07);
+  --ow-overlay-7-5: rgba(0, 0, 0, 0.075);
+  --ow-overlay-25: rgba(0, 0, 0, 0.25);
+  --ow-overlay-40: rgba(0, 0, 0, 0.4);
+  --ow-overlay-45: rgba(0, 0, 0, 0.45);
+  --ow-overlay-60: rgba(0, 0, 0, 0.6);
+  --ow-overlay-67-5: rgba(0, 0, 0, 0.675);
+  --ow-overlay-90: rgba(0, 0, 0, 0.9);
+  --ow-overlay-gray-70: rgba(51, 51, 51, 0.7);
+
+  /* White Overlay */
+  --ow-overlay-light-75: rgba(255, 255, 255, 0.75);
+
+  /* ========================================
+     COMPONENT SEMANTIC VARIABLES (Tier 2)
+     ======================================== */
+
+  /* === LINKS === */
+  --ow-link-color: var(--ow-color-fg-dark);
+  --ow-link-hover: var(--ow-color-black);
+  --ow-link-highlighted: var(--ow-color-primary);
+  --ow-link-highlighted-hover: var(--ow-color-primary-dark);
+
+  /* === BUTTONS === */
+  --ow-btn-default-bg: var(--ow-color-fg-darker);
+  --ow-btn-default-text: var(--ow-color-white);
+  --ow-btn-default-hover: var(--ow-overlay-gray-70);
+
+  --ow-btn-danger-bg: #df5d43;
+  --ow-btn-danger-text: var(--button-fg);
+  --ow-btn-danger-hover: #b31e00;
+
+  --ow-btn-success-bg: var(--ow-color-success);
+  --ow-btn-success-text: var(--ow-color-white);
+
+  /* === MENU/NAVIGATION === */
+  --ow-menu-bg: var(--ow-color-fg-ghost);
+  --ow-menu-separator: var(--ow-overlay-7-5);
+  --ow-menu-link-text: var(--ow-color-fg-dark);
+  --ow-menu-sublink-text: var(--ow-overlay-67-5);
+  --ow-menu-link-hover-bg: var(--ow-color-highlight);
+  --ow-menu-link-hover-text: var(--ow-color-primary);
+  --ow-menu-sublink-hover: var(--ow-color-primary-alt);
+  --ow-menu-icon-hover: var(--ow-color-primary);
+  --ow-menu-link-active-bg: var(--ow-color-highlight);
+  --ow-menu-link-active-text: var(--ow-color-primary);
+  --ow-menu-group-active-bg: var(--ow-color-highlight-subtle);
+  --ow-menu-group-active-text: var(--ow-color-primary);
+  --ow-menu-dropdown-bg: var(--ow-color-white);
+  --ow-menu-toggle-bg: var(--ow-overlay-25);
+  --ow-menu-toggle-icon: var(--ow-color-white);
+  --ow-menu-toggle-hover: var(--ow-overlay-60);
+  --ow-menu-backdrop: var(--ow-overlay-10);
+  --ow-menu-tooltip-bg: var(--ow-color-fg-dark);
+  --ow-menu-tooltip-text: var(--ow-color-white);
+  --ow-menu-backdrop: var(--ow-overlay-10);
+  --ow-menu-tooltip-bg: var(--ow-color-fg-dark);
+  --ow-menu-tooltip-text: var(--ow-color-white);
+
+  /* === CALENDAR/DATE PICKER === */
+  --ow-calendar-header-bg: var(--ow-color-primary);
+  --ow-calendar-header-text: var(--ow-color-white);
+  --ow-calendar-bg: var(--ow-color-fg-light);
+  --ow-calendar-nav-bg: var(--ow-overlay-light-75);
+  --ow-calendar-nav-hover: var(--ow-color-white);
+  --ow-calendar-selected-bg: var(--ow-color-highlight);
+  --ow-calendar-selected-text: var(--ow-color-primary);
+  --ow-calendar-icon: var(--ow-color-primary);
+  --ow-calendar-icon-hover: var(--ow-color-primary-dark);
+  --ow-calendar-shortcut-hover: var(--ow-color-primary);
+
+  /* === PAGINATION === */
+  --ow-paginator-bg: var(--ow-color-primary);
+  --ow-paginator-text: var(--button-fg);
+  --ow-paginator-hover: var(--ow-color-primary-dark);
+  --ow-paginator-border-color: color-mix(in srgb, var(--ow-paginator-bg), white 30%);
+  --ow-paginator-showall-text: var(--ow-color-primary);
+  --ow-paginator-showall-hover: var(--ow-color-primary-dark);
+
+  /* === ACCOUNT MENU === */
+  --ow-account-text: var(--ow-color-fg-dark);
+  --ow-account-hover: var(--ow-color-primary);
+  --ow-account-icon: var(--ow-color-fg-dark);
+  --ow-account-icon-hover: var(--ow-color-primary);
+  --ow-account-menu-bg: var(--ow-color-white);
+  --ow-account-menu-separator: var(--ow-color-fg-lighter);
+
+  /* === FORMS === */
+  --ow-form-label: var(--ow-color-fg-darkest);
+  --ow-form-help-text: var(--ow-overlay-45);
+  --ow-form-readonly-border: var(--ow-overlay-5);
+  --ow-form-readonly-bg: var(--ow-overlay-7);
+  --ow-form-input-bg: var(--ow-color-white);
+  --ow-form-input-border: var(--ow-overlay-40);
+
+  /* === BREADCRUMBS === */
+  --ow-breadcrumb-bg: var(--ow-color-white);
+  --ow-breadcrumb-text: var(--ow-color-breadcrumb-text);
+  --ow-breadcrumb-border: var(--ow-color-fg-lighter);
+
+  /* === MODULES/SECTIONS === */
+  --ow-module-bg: var(--ow-color-fg-lightest);
+  --ow-module-text: var(--ow-color-fg-darker);
+
+  /* === OVERLAYS & MODALS === */
+  --ow-overlay-bg: var(--ow-overlay-light-75);
+  --ow-loading-spinner-bg: var(--ow-overlay-90);
+  --ow-selector-chosen-bg: var(--ow-overlay-60);
+
+  /* === SCROLLBAR === */
+  --ow-scrollbar-thumb: var(--ow-color-fg-dark);
+  --ow-scrollbar-thumb-hover: var(--ow-color-fg-darker);
+  --ow-scrollbar-track: var(--ow-color-scrollbar-track);
+
+  /* === LOGIN PAGE === */
+  --ow-login-bg: var(--ow-color-login-bg);
+  --ow-login-shadow: var(--ow-color-login-bg);
+
+  /* === MISC === */
+  --ow-toggle-btn-bg: var(--ow-color-white);
+  --ow-toggle-btn-hover-bg: var(--darkened-bg);
+  --ow-option-container-bg: var(--ow-color-fg-light);
+  --ow-option-container-text: var(--ow-color-fg-darker);
+  --ow-option-hover-bg: var(--ow-color-primary);
+  --ow-option-hover-text: var(--ow-color-white);
+  --ow-hamburger-bg: var(--ow-color-white);
+  --ow-hamburger-hover: var(--ow-color-fg-light);
+  --ow-selector-chosen-text: var(--ow-color-white);
+  --ow-stacked-inline-helptext-bg: #ffe5e5;
+}
+body {
+  min-width: 320px;
+}
+th {
+  font-weight: 600;
+}
+.menu-backdrop {
+  position: fixed;
+  height: 100vh;
+  width: 100%;
+  top: 0;
+  left: 0;
+  background: var(--ow-menu-backdrop);
+  z-index: 9999;
+  display: none;
+}
+.force-inactive {
+  opacity: 0.1 !important;
+  pointer-events: none !important;
+}
+#main-content .breadcrumbs,
+.module caption,
+div[class^="app-"].module th,
+div[class^="app-"].module td {
+  padding: 1rem 1.3rem;
+}
+div[class^="app-"].module td {
+  padding-left: 0;
+}
+#main-content .results thead th .text a,
+#main-content thead th {
+  padding: 15px 10px;
+  font-size: 13.5px;
+}
+#main-content .results tbody td,
+#main-content .results tbody th,
+div#main-content table tbody th,
+div#main-content table tbody td {
+  padding: 1rem 10px;
+  vertical-align: middle;
+  font-size: 14px;
+}
+#main-content .breadcrumbs {
+  font-size: 15px;
+}
+/* Standard links (no need to stand out) */
+table thead th.sorted .sortoptions a.sortremove:focus:after,
+table thead th.sorted .sortoptions a.sortremove:hover:after,
+a:link,
+a:visited {
+  color: var(--ow-link-color);
+  text-decoration: none;
+}
+table thead th.sorted .sortoptions a.sortremove:focus:after,
+table thead th.sorted .sortoptions a.sortremove:hover:after {
+  color: var(--ow-link-hover);
+  text-decoration: underline;
+}
+#main-content .breadcrumbs a,
+a.section:link,
+a.section:visited,
+.module th a,
+#main .help a,
+#main .helptext a,
+fieldset.collapsed a.collapse-toggle,
+fieldset a.collapse-toggle,
+a.highlighted,
+a.highlighted:visited {
+  color: var(--ow-link-highlighted);
+  text-decoration: none;
+}
+#main-content .breadcrumbs a:hover,
+a.section:link:hover,
+a.section:visited:hover,
+.module th a:hover,
+#main-content .breadcrumbs a:focus,
+a.section:link:focus,
+a.section:visited:focus,
+.module th a:focus,
+#main .help a:hover,
+#main .help a:focus,
+#main .helptext a:hover,
+#main .helptext a:focus,
+a.highlighted:hover,
+a.highlighted:focus {
+  text-decoration: underline;
+}
+#main-content .module caption a {
+  text-decoration: none;
+  color: var(--ow-link-hover);
+}
+#main-content .module caption a:hover {
+  text-decoration: underline;
+}
+.module h2,
+.module caption,
+.inline-group h2,
+fieldset.module h2,
+#content-main fieldset.module summary,
+.selector .selector-available-title,
+.selector .selector-chosen-title {
+  background: var(--ow-module-bg);
+  color: var(--ow-module-text);
+  border: 1px solid var(--hairline-color);
+  /* avoid double top border due to form-row */
+  margin-top: -1px;
+  padding: 15px;
+}
+#content-main fieldset.module summary {
+  border-color: var(--hairline-color);
+}
+#changelist-filter li.selected a {
+  color: var(--ow-link-highlighted) !important;
+}
+#netjsonconfig-hint,
+#netjsonconfig-hint a,
+#container .field-backend a {
+  color: var(--ow-link-highlighted);
+}
+#main .form-row label {
+  color: var(--ow-form-label);
+  display: inline-block;
+}
+#main .form-row .help,
+#main .form-row .helptext,
+#container #main-content .help,
+#container #main-content .helptext {
+  font-size: 14px !important;
+  line-height: 20px;
+  color: var(--ow-form-help-text);
+}
+.addlink,
+.changelink {
+  font-weight: bold;
+}
+.changelink {
+  padding-left: 17px;
+}
+.addlink:hover,
+.changelink:hover {
+  color: var(--ow-link-hover);
+}
+
+/* increase font size and spacing */
+
+.module caption,
+.inline-group h2,
+#content-related h3,
+#main .aligned .selector-available-title label,
+#main .aligned .selector-chosen-title label,
+fieldset.module h2 {
+  font-size: 16px;
+}
+#content fieldset .fieldset-heading,
+#content fieldset .inline-heading {
+  border-left: 0 none;
+  border-right: 0 none;
+  border-top: 1px solid var(--hairline-color);
+}
+#main .inline-related h3 {
+  padding: 15px;
+  font-size: 15px;
+  background: var(--ow-module-bg);
+  margin-top: 0px;
+  color: var(--body-quiet-color);
+  border-top: 1px solid var(--hairline-color);
+  border-bottom: 1px solid var(--hairline-color);
+}
+/* Needed due to whitespace elimination in prod */
+#main .inline-related h3 .inline_label,
+#main .inline-related h3 .delete label {
+  margin-left: 0.4em;
+}
+
+.inline-related fieldset.module h4 {
+  font-size: 16px;
+  text-transform: uppercase;
+  padding: 15px;
+}
+td,
+th,
+li {
+  font-size: 14px;
+}
+.mini {
+  font-size: 12px;
+}
+#main .actionlist li {
+  line-height: 20px;
+  background-position: 0px 4px;
+}
+#main .aligned label,
+input,
+textarea,
+select,
+.form-row p,
+form .button,
+.readonly,
+#main .form-row {
+  font-size: 15px;
+}
+select:not([disabled]):not(.readonly) {
+  background: var(--ow-form-input-bg);
+}
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+input[type="tel"],
+textarea,
+#main .vTextField {
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+.aligned label {
+  float: left;
+}
+input.readonly {
+  border: 1px solid var(--ow-form-readonly-border) !important;
+  background-color: var(--ow-form-readonly-bg);
+}
+select {
+  height: 36px;
+  padding: 0 12px;
+}
+#main span.select2-selection {
+  min-height: 36px;
+  min-width: 320px;
+  position: relative;
+}
+.select2-dropdown,
+.select2-container {
+  min-width: 320px !important;
+}
+#main .select2-selection__arrow {
+  height: 28px;
+  top: 3px;
+  right: 4px;
+  width: 24px;
+}
+#main .select2-selection__rendered {
+  line-height: 34px;
+  height: 36px;
+  padding: 0 0 0 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.select2-results__option {
+  padding: 10px 12px !important;
+}
+.select2-search--dropdown .select2-search__field {
+  border: 1px solid var(--ow-form-input-border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.select2-selection__clear {
+  left: -27px;
+}
+.select2-results__option--highlighted[aria-selected],
+.select2-results__option[aria-selected="true"] {
+  background: var(--ow-menu-link-hover-bg) !important;
+  color: var(--ow-menu-link-hover-text) !important;
+}
+.related-widget-wrapper .change-related {
+  margin-left: 7px;
+}
+#main .form-row {
+  padding: 15px;
+  box-sizing: border-box;
+}
+#main .inline-group .tabular td.original p {
+  height: auto;
+}
+#main .inline-group thead th {
+  background: transparent;
+}
+#main .inline-group thead th:not(.original),
+#main .add-row td,
+#main div.add-row {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+#main .add-row td a,
+#main div.add-row a {
+  font-size: 15px !important;
+}
+#main .delete input {
+  vertical-align: -1px;
+}
+#main .delete label {
+  font-size: 14px;
+}
+#main ul.messagelist li {
+  padding: 15px 10px 15px 65px;
+  background-position: 40px 17px;
+}
+
+/* hide first delete link, hide save and add anoher */
+#main .submit-row:first-child .deletelink-box,
+.submit-row input[name="_addanother"] {
+  display: none;
+}
+
+/* Django 4.2.0 changed the ordering of buttons in
+submit row of the form. See https://code.djangoproject.com/ticket/33728
+
+The following CSS reverts those changes*/
+#main .submit-row {
+  text-align: right;
+  display: block;
+}
+#main .submit-row input {
+  margin: 0 0 0 5px;
+}
+#main .submit-row input.default {
+  margin: 0 0 0 8px;
+  float: right;
+}
+.submit-row p.deletelink-box {
+  float: left;
+  margin: 0;
+}
+
+/* icon fixes for Django >= 5.2 */
+.related-widget-wrapper-link {
+  line-height: 30px;
+}
+.related-widget-wrapper-link img {
+  width: 20px;
+  height: 20px;
+}
+
+/* temporary frontend fix */
+a.button.secondaryAction {
+  background: transparent;
+  border: 0 none;
+  padding: 0;
+  margin: 0.938rem 0;
+  display: block;
+}
+html {
+  overflow-x: hidden;
+}
+.ow-overlay {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  width: 100%;
+  height: 100%;
+  background: var(--ow-overlay-bg);
+}
+.ow-overlay-inner {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  overflow: auto;
+  padding: 0;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+.ow-loading-spinner {
+  width: 3.125rem;
+  height: 3.125rem;
+  background-color: var(--ow-loading-spinner-bg);
+  margin: 0 auto;
+  border-radius: 100%;
+  -webkit-animation: sk-scaleout 1s infinite ease-in-out;
+  animation: sk-scaleout 1s infinite ease-in-out;
+}
+
+@-webkit-keyframes sk-scaleout {
+  0% {
+    -webkit-transform: scale(0);
+    transform: scale(0);
+  }
+  100% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes sk-scaleout {
+  0% {
+    -webkit-transform: scale(0);
+    transform: scale(0);
+  }
+  100% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+div.breadcrumbs {
+  background: var(--ow-breadcrumb-bg);
+  color: var(--ow-breadcrumb-text);
+  border-bottom: 2px solid var(--ow-breadcrumb-border);
+}
+#main-content div.breadcrumbs {
+  padding: 1rem 2.5rem;
+}
+#main .selector-chosen h2,
+#main .aligned .selector-chosen-title {
+  background: var(--ow-selector-chosen-bg);
+  color: var(--ow-form-input-bg);
+}
+span.datetimeshortcuts .date-icon {
+  mask: url(../../ui/openwisp/images/date.svg) no-repeat center;
+  -webkit-mask: url(../../ui/openwisp/images/date.svg) no-repeat center;
+  -webkit-mask-size: contain;
+  -webkit-mask: contain;
+  background: var(--ow-calendar-icon);
+}
+span.datetimeshortcuts .clock-icon {
+  mask: url(../../ui/openwisp/images/clock.svg) no-repeat center;
+  -webkit-mask: url(../../ui/openwisp/images/clock.svg) no-repeat center;
+  -webkit-mask-size: contain;
+  -webkit-mask: contain;
+  background: var(--ow-calendar-icon);
+}
+span.datetimeshortcuts .date-icon:hover,
+span.datetimeshortcuts .clock-icon:hover {
+  background: var(--ow-calendar-icon-hover);
+}
+
+/*******************************
+* Common button styles
+*******************************/
+
+/* For toggle button [ class="toggle-btn" ] */
+.toggle-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0px 1px 2px #00000040;
+  border-radius: 4px;
+  background: var(--ow-toggle-btn-bg);
+  cursor: pointer;
+  border: 0;
+  padding: 0.313rem 0.625rem;
+}
+.toggle-btn:hover,
+.toggle-btn:focus,
+.toggle-btn:active {
+  outline: 0 none;
+  background: var(--ow-toggle-btn-hover-bg);
+}
+
+/* For danger,error, red button [ class="danger-btn" ] */
+.danger-btn,
+div.submit-row a.deletelink,
+.delete-confirmation form input[type="submit"] {
+  display: inline-block;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--ow-btn-danger-bg);
+  cursor: pointer;
+  border: 0;
+  padding: 0.625rem 1rem;
+  color: var(--ow-btn-danger-text);
+  font-weight: 500;
+}
+div.submit-row a.deletelink {
+  display: block;
+}
+.danger-btn:hover,
+.danger-btn:focus,
+.danger-btn:active,
+div.submit-row a.deletelink:hover,
+div.submit-row a.deletelink:focus,
+div.submit-row a.deletelink:active,
+.delete-confirmation form input[type="submit"]:hover,
+.delete-confirmation form input[type="submit"]:active,
+.delete-confirmation form input[type="submit"]:focus {
+  background: var(--ow-btn-danger-hover);
+  outline: 0 none;
+}
+#content .submit-row p.deletelink-box {
+  margin: 0;
+}
+
+/* For any normal, default, dark button [ class="default-btn" ] */
+
+.default-btn,
+.button.default,
+input[type="submit"].default,
+.object-tools a,
+.object-tools a:link,
+.object-tools a:visited,
+.button,
+button[type="submit"],
+input[type="submit"],
+input[type="button"],
+.submit-row input,
+.delete-confirmation form .cancel-link,
+a.button,
+.object-tools button {
+  display: inline-block;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--ow-btn-default-bg);
+  cursor: pointer;
+  border: 0;
+  padding: 0.625rem 1rem;
+  color: var(--ow-btn-default-text);
+  font-weight: 500;
+  font-size: 15px;
+}
+.delete-confirmation form .cancel-link,
+.delete-confirmation input[type="submit"] {
+  height: auto !important;
+  line-height: inherit !important;
+}
+div#toolbar {
+  padding: 0.8rem 1.2rem;
+}
+div#toolbar form input[type="submit"] {
+  margin: 0 10px 0 3px;
+  padding: 0.47rem 1rem;
+  background: var(--ow-btn-default-bg);
+  border: 0 none;
+  color: var(--ow-btn-default-text);
+}
+div#toolbar #searchbar {
+  padding: 15px 0.8em;
+  margin: 0 4px 0 7px;
+  font-size: 15px;
+}
+div#changelist .actions label,
+div#changelist .actions span {
+  font-size: 14px !important;
+  line-height: 26px;
+}
+div#changelist .actions select {
+  height: 27px !important;
+  margin-right: 7px;
+}
+div#changelist .actions .button {
+  padding: 7px 1rem;
+  border: 0 none;
+  background: var(--ow-btn-default-bg);
+  color: var(--ow-btn-default-text);
+  height: unset;
+}
+div#changelist .actions .button:hover,
+div#toolbar form input[type="submit"]:hover {
+  opacity: 0.7;
+  border-color: var(--ow-btn-default-bg);
+}
+.object-tools a,
+.object-tools a:link,
+.object-tools a:visited,
+.object-tools button {
+  padding: 0.4rem 0.8rem;
+  font-size: 13px;
+  line-height: 20px;
+  text-transform: uppercase;
+}
+#container .object-tools a.addlink {
+  background-image: url(../../ui/openwisp/images/add.svg);
+  background-repeat: no-repeat;
+  background-size: 1.35rem;
+  background-position: 0.5rem 43%;
+  padding-left: 1.9rem;
+}
+.default-btn:hover,
+.default-btn:active,
+.button.default:hover,
+.button.default:active,
+.button.default:focus,
+input[type="submit"].default:hover,
+input[type="submit"].default:active,
+input[type="submit"].default:focus,
+.default-btn:focus,
+.object-tools a:hover,
+.object-tools a:active,
+.object-tools a:focus,
+.object-tools button:hover,
+.object-tools button:focus,
+.button:active,
+button[type="submit"]:active,
+button[type="submit"]:hover,
+button[type="submit"]:focus,
+input[type="submit"]:active,
+input[type="button"]:active,
+.button:focus,
+input[type="submit"]:focus,
+input[type="button"]:focus,
+.button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+.delete-confirmation form .cancel-link:hover {
+  outline: 0 none;
+  background: var(--ow-btn-default-hover);
+}
+#main .related-lookup {
+  padding-left: 20px;
+  width: auto;
+}
+.form-row .item-label {
+  position: relative;
+  bottom: -2px;
+  margin-left: 2px;
+  font-weight: bold;
+}
+#main label.vCheckboxLabel {
+  width: auto;
+}
+
+/* For success, green button [ class="success-btn" ] */
+.success-btn,
+#main .submit-row .default {
+  display: inline-block;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--ow-btn-success-bg) !important;
+  cursor: pointer;
+  border: 0;
+  padding: 0.625rem 1rem;
+  color: var(--ow-btn-success-text);
+  font-weight: 500;
+}
+.success-btn:hover,
+.success-btn:active,
+.success-btn:focus,
+#main .submit-row .default:hover,
+#main .submit-row .default:active,
+#main .submit-row .default:focus {
+  opacity: 0.8;
+  outline: 0 none;
+}
+#main .submit-row input {
+  font-size: 14px;
+}
+.inline-quick-link-container {
+  text-align: center;
+  margin: 20px 0 40px;
+}
+.inline-related .inline-deletelink {
+  margin-top: -3px;
+}
+
+/*
+  NOTE:
+  "menu-toggle" is a class of a button which is use to close menu.
+  "toggle-menu" is a class toggled on "#contianer" when menu changes it state.
+*/
+
+/* MENU TOGGLE BUTTONS */
+.login h1#site-name {
+  padding: 1.2rem 0;
+}
+.hamburger {
+  display: flex;
+  padding: 0.813rem 0.75rem;
+  cursor: pointer;
+  justify-content: center;
+  align-items: center;
+  background: var(--ow-hamburger-bg);
+}
+.hamburger span {
+  background: url(../../ui/openwisp/images/hamburger.svg) no-repeat center;
+  height: 1.375rem;
+  width: 1.375rem;
+  display: inline-block;
+}
+.hamburger:hover {
+  background: var(--ow-hamburger-hover);
+}
+.menu-toggle {
+  position: fixed;
+  left: 18.75rem;
+  width: 1.4rem;
+  border: 0;
+  height: 100px;
+  cursor: pointer;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  top: 50vh;
+  margin-top: -3.125rem;
+  z-index: 1;
+  transition: all ease;
+  background: var(--ow-menu-toggle-bg);
+  border-radius: 0 3px 3px 0px;
+}
+.menu-toggle span {
+  mask: url(../../ui/openwisp/images/left-arrow.svg) no-repeat center;
+  -webkit-mask: url(../../ui/openwisp/images/left-arrow.svg) no-repeat center;
+  mask-position: center;
+  background: var(--ow-menu-toggle-icon);
+  height: 1rem;
+  width: 1rem;
+  display: inline-block;
+  transition: all 0.3s ease 0.5s;
+  -webkit-mask-size: 1rem;
+}
+.menu-toggle:hover {
+  opacity: 1;
+  right: -1.65rem;
+  width: 1.65rem;
+  background: var(--ow-menu-toggle-hover);
+}
+
+/* USER TOOLS */
+#ow-user-tools {
+  display: flex;
+  align-items: center;
+  margin-top: 3rem;
+}
+.account {
+  position: relative;
+}
+.account-button:hover,
+.account-button:focus {
+  color: var(--ow-account-hover);
+}
+.account-button:hover span,
+.account-button:focus span,
+.account-menu .dropdown-clickable:hover span,
+.account-menu .dropdown-clickable:focus span {
+  background: var(--ow-color-primary);
+}
+.account-menu {
+  position: absolute;
+  opacity: 1;
+  transition: all 0.3s ease;
+  width: 200px;
+  top: 2.5rem;
+  right: 0;
+  background: var(--ow-account-menu-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0px 1px 0.188rem #00000040;
+  z-index: 10;
+  padding: 0.45rem 0.625rem;
+}
+.account-menu.hide {
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  top: 100px;
+}
+.account span {
+  height: 1.375rem;
+  width: 1.375rem;
+  display: inline-block;
+  background: var(--ow-account-icon);
+  margin-right: 0.313rem;
+  -webkit-mask-size: 1.375rem;
+  -webkit-mask-repeat: no-repeat;
+  mask-size: 1.375rem;
+  mask-repeat: no-repeat;
+}
+.account-menu span {
+  margin-right: 0.5rem;
+}
+.account-button {
+  padding: 0.313rem 0.625rem;
+  position: relative;
+  color: var(--ow-account-text);
+}
+.account-menu li {
+  list-style: none;
+  border-bottom: 2px solid var(--ow-account-menu-separator);
+}
+.account-menu-username {
+  justify-content: center;
+  align-items: center;
+  display: none;
+  color: var(--ow-account-text);
+}
+#header .account-menu .dropdown-clickable {
+  display: flex;
+  padding: 0.375rem;
+  color: var(--ow-account-text);
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 22px;
+}
+#header .account-menu #logout-form button {
+  text-transform: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  outline: revert;
+  width: 100%;
+}
+#header .account-menu li:last-child {
+  border-bottom: 0;
+}
+.account-menu-username:hover,
+#header .account-menu .dropdown-clickable:hover,
+#header .account-menu .dropdown-clickable:active,
+#header .account-menu .dropdown-clickable:focus {
+  color: var(--ow-account-hover);
+}
+#main-content #header {
+  height: 0;
+  overflow: visible;
+  z-index: 9989;
+  justify-content: flex-end;
+  flex-direction: row;
+  padding: 0px 2.5rem;
+}
+.no-auth #site-name a {
+  margin-left: 2.5rem;
+  width: 150px;
+  height: 86px;
+  background: url(../../../static/ui/openwisp/images/openwisp-logo-black.svg) no-repeat
+    scroll 0 50%/100%;
+}
+
+/* Fix for object tools */
+#content-main .object-tools {
+  display: none;
+}
+#content-main .form-row a:link:not(.button) {
+  text-decoration: underline;
+}
+#content-main .form-row a:link:hover,
+#content-main a:link:focus,
+#main .object-tools a:hover,
+#main .object-tools a:focus {
+  text-decoration: none;
+}
+.title-wrapper h1,
+.title-wrapper h2 {
+  display: inline-block;
+  margin: 0px;
+  margin-bottom: 20px;
+}
+.title-wrapper h2 {
+  margin-left: 10px;
+  font-weight: normal;
+}
+.title-wrapper h2::before {
+  content: "(";
+}
+.title-wrapper h2::after {
+  content: ")";
+}
+#content .title-wrapper .object-tools {
+  margin-top: -4px;
+  margin-bottom: 20px;
+}
+.title-wrapper .object-tools li {
+  height: auto;
+}
+#changelist .paginator {
+  box-sizing: border-box;
+  font-size: 14px;
+}
+#changelist p.paginator a,
+#changelist p.paginator .this-page {
+  background: var(--ow-paginator-bg);
+  padding: 5px 10px;
+  margin-right: 5px;
+  border-radius: 2px;
+}
+#changelist p.paginator .this-page {
+  background: transparent;
+  border: 1px solid var(--ow-paginator-border-color);
+  padding: 4px 9px;
+}
+#changelist p.paginator a:focus,
+#changelist p.paginator a:hover {
+  background: var(--ow-paginator-hover);
+}
+#changelist p.paginator a.showall {
+  background: none;
+  color: var(--ow-paginator-showall-text);
+}
+#changelist p.paginator a.showall:focus,
+#changelist p.paginator a.showall:hover {
+  color: var(--ow-paginator-showall-hover);
+}
+div#toolbar #searchbar {
+  max-width: 68%;
+}
+#main .option-container {
+  position: absolute;
+  margin-top: 0px;
+  top: 39px;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  z-index: 999;
+  background-color: var(--ow-option-container-bg);
+  border-radius: 8px;
+  box-shadow: 0px 1px 3px #00000040;
+  color: var(--ow-option-container-text);
+  font-weight: normal;
+}
+#main .option-container .option {
+  padding: 10px;
+  border: 0;
+  font-weight: normal;
+  cursor: pointer;
+  background-color: var(--ow-option-container-bg);
+  color: var(--ow-option-container-text);
+  border-radius: 0;
+}
+#main .option-container .option:hover,
+#main .option-container .option:focus,
+#main .option-container .option:active {
+  background: var(--ow-option-hover-bg);
+  color: var(--ow-option-hover-text);
+  outline: 0 none;
+}
+
+/* Calender style */
+div.calendar caption,
+div.calendar td,
+div.calendar th,
+div.calendar-shortcuts,
+p.calendar-cancel {
+  font-size: 14px;
+  line-height: 20px;
+}
+div.calendar caption,
+div.calendarbox h2 {
+  background: var(--ow-calendar-header-bg);
+  color: var(--ow-calendar-header-text);
+}
+div.calendar caption {
+  padding: 0.9rem 10px;
+}
+.calendarbox a.calendarnav-previous,
+.calendarbox a.calendarnav-next {
+  background: var(--ow-calendar-nav-bg);
+  mask-size: contain !important;
+  -webkit-mask-size: contain !important;
+  top: 15px;
+}
+div.calendarbox,
+div.clockbox {
+  width: auto;
+  background-color: var(--ow-calendar-bg);
+  border-radius: 8px;
+  box-shadow: 0px 1px 3px #00000040;
+}
+div.calendar th {
+  padding: 10px;
+}
+div.calendar td a {
+  padding: 10px;
+}
+ul.timelist a {
+  padding: 8px 0px;
+}
+div.calendar td a:hover,
+div.calendar td.selected a,
+ul.timelist a:hover {
+  background: var(--ow-calendar-selected-bg);
+  color: var(--ow-calendar-selected-text);
+}
+.calendarbox a.calendarnav-previous {
+  mask: url(../../ui/openwisp/images/calender-prev.svg) no-repeat center;
+  -webkit-mask: url(../../ui/openwisp/images/calender-prev.svg) no-repeat center;
+}
+.calendarbox a.calendarnav-next {
+  mask: url(../../ui/openwisp/images/calender-next.svg) no-repeat center;
+  -webkit-mask: url(../../ui/openwisp/images/calender-next.svg) no-repeat center;
+}
+.calendarbox a.calendarnav-previous,
+.calendarbox a.calendarnav-next {
+  padding: 4px;
+  top: 13px;
+  margin: 0 3px;
+  mask-size: inherit !important;
+  -webkit-mask-size: inherit !important;
+}
+ul.timelist,
+div.calendarbox .calendarnav-next:focus,
+div.calendarbox .calendarnav-next:hover,
+.calendarbox .calendarnav-previous:focus,
+.calendarbox .calendarnav-previous:hover {
+  background: var(--ow-calendar-nav-hover);
+}
+div.calendar-shortcuts {
+  padding: 10px;
+}
+p.calendar-cancel {
+  padding: 10px;
+}
+div.calendar-shortcuts a:hover {
+  color: var(--ow-calendar-shortcut-hover);
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  #main-content div.breadcrumbs {
+    padding: 1rem 1.875rem;
+  }
+  #main-content #header {
+    padding: 0rem 1.875rem;
+  }
+  .no-auth #site-name a {
+    margin-left: 1.875rem;
+  }
+}
+@media (max-width: 768px) {
+  #main-content div.breadcrumbs {
+    padding: 1rem 0.938rem;
+  }
+  #main-content #header {
+    padding: 0px 0.938rem;
+    top: 0;
+    position: sticky;
+  }
+  .account-menu-username {
+    display: flex;
+    padding-bottom: 5px;
+  }
+  .account-button strong {
+    display: none;
+  }
+  #ow-user-tools .account-button .user {
+    margin-right: 0;
+  }
+  .default-btn,
+  .success-btn,
+  .error-btn {
+    display: block;
+    text-align: center;
+  }
+  .title-wrapper h1,
+  .title-wrapper h2 {
+    margin-bottom: 15px;
+    display: block;
+  }
+  .title-wrapper .object-tools {
+    display: inline-block;
+    margin-bottom: 15px !important;
+  }
+  .title-wrapper .object-tools li {
+    margin-left: 0px;
+    width: 100%;
+  }
+}
+
+/*********** Selector fix ***********/
+.selector-available-title label,
+.selector-chosen-title label {
+  float: unset;
+}
+#main .form-row .selector-chosen-title label,
+#container #main .form-row .selector-chosen-title .helptext {
+  color: var(--ow-selector-chosen-text);
+}
+
+@media (max-width: 1226px) and (min-width: 1024px) {
+  .related-widget-wrapper > a {
+    order: 2;
+  }
+  div.selector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  div.related-widget-wrapper {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+  }
+  div.selector ul.selector-chooser {
+    margin: 15px auto 20px;
+  }
+}
+
+/****** COMMON CSS FOR MENU ON MUTIPLE SCREEN SIZE *****/
+#container.no-auth,
+#container.toggle-menu.no-auth {
+  flex-direction: column;
+}
+div#container.no-auth,
+.popup div#container {
+  display: flex;
+}
+#container.no-auth #menu {
+  position: relative;
+  height: auto;
+  width: 100%;
+  box-shadow: none;
+  min-height: unset;
+}
+#container.no-auth #main-content {
+  margin-left: 0;
+}
+#container.no-auth #site-name {
+  display: block;
+}
+#container.no-auth .hamburger,
+#container.no-auth .menu-toggle {
+  display: none;
+}
+#menu {
+  position: fixed;
+  background: var(--ow-menu-bg);
+  box-shadow: 0 1px 4px -1px #00000026;
+  top: 0;
+  left: 0;
+}
+.menu-bar {
+  border-bottom: 1px solid var(--ow-menu-separator);
+}
+a.menu-item,
+.mg-link,
+.mg-head {
+  display: flex;
+  padding: 0.875rem 1rem;
+  word-break: break-word;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.86rem;
+  font-weight: 500;
+  align-items: center;
+  color: var(--ow-menu-link-text);
+  text-decoration: none !important;
+}
+.menu-item .icon,
+.mg-heading .icon,
+.mg-link .icon {
+  background: var(--ow-menu-link-text);
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  display: inline-block;
+  margin-right: 0.8rem;
+}
+.menu-item:hover,
+.mg-head:hover,
+#menu .mg-link:hover,
+.menu-item:focus,
+.mg-head:focus,
+#menu .mg-link:focus,
+.select2-results__option--highlighted[aria-selected],
+.select2-results__option[aria-selected="true"] {
+  background: var(--ow-menu-link-hover-bg) !important;
+  color: var(--ow-menu-link-hover-text) !important;
+}
+#menu .mg-link:hover,
+#menu .mg-link:focus {
+  color: var(--ow-menu-sublink-hover);
+}
+.mg-head {
+  justify-content: space-between;
+}
+#menu .mg-link {
+  font-weight: 300;
+  font-size: 0.9rem;
+  padding: 0.55rem 1rem;
+  text-transform: capitalize;
+  color: var(--ow-menu-sublink-text);
+}
+.menu-item:hover .icon,
+.mg-head:hover .icon,
+.menu-item:focus .icon,
+.mg-head:focus .icon,
+.mg-head:hover .mg-arrow,
+.mg-head:focus .mg-arrow,
+.menu-group.active .mg-head .icon,
+.menu-group.active .mg-head .mg-arrow,
+.menu-group.active-mg .mg-head .icon,
+.menu-group.active-mg .mg-head .mg-arrow,
+.mg-link:hover .icon,
+.mg-link:focus .icon,
+#menu a.active .icon {
+  background: var(--ow-menu-icon-hover);
+}
+.mg-arrow {
+  flex-shrink: 0;
+  mask: url(../../ui/openwisp/images/down-arrow.svg) no-repeat center;
+  -webkit-mask: url(../../ui/openwisp/images/down-arrow.svg) no-repeat center;
+  height: 1.25rem;
+  width: 1.25rem;
+  margin-left: 1.25rem;
+  background: var(--ow-color-fg-medium);
+  transition: transform 0.3s;
+}
+.mg-heading {
+  display: flex;
+  align-items: center;
+}
+.mg-dropdown {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  background: var(--ow-color-highlight-subtle);
+}
+.mg-list li {
+  padding: 0;
+}
+
+/* for transition in the height of mg-dropdown */
+.menu-group.active .mg-dropdown {
+  max-height: 200vh !important;
+}
+.mg-dropdown-label {
+  text-transform: uppercase;
+  color: var(--ow-menu-link-text);
+  padding: 0.625rem 0.875rem;
+  font-weight: 600;
+  display: none;
+}
+.mg-list {
+  padding: 0;
+  margin: 0;
+}
+.mg-list li {
+  list-style: none;
+}
+.menu-group.active .mg-arrow {
+  transform: rotate(-90deg);
+}
+.menu-group.active .mg-head {
+  color: var(--ow-menu-group-active-text);
+}
+.mg-heading,
+.mg-list span,
+.mg-arrow {
+  pointer-events: none;
+}
+.menu-group.active {
+  background: var(--ow-menu-group-active-bg);
+}
+h1#site-name {
+  margin: 0;
+  padding: 0.5rem 0px;
+}
+#site-name a {
+  display: block;
+  width: 165px;
+  height: 95px;
+  margin: auto;
+  background: url(../../../static/ui/openwisp/images/openwisp-logo-black.svg) no-repeat
+    scroll 0 50%/100%;
+  text-indent: -2000px;
+}
+#main-content.m-0 {
+  margin: 0;
+}
+.popup #main-content {
+  margin-left: 0;
+}
+#changelist-search > div {
+  align-items: center;
+}
+
+/* Highlight menu item */
+#menu a.active {
+  background: var(--ow-menu-link-active-bg) !important;
+  color: var(--ow-menu-link-active-text) !important;
+  cursor: default;
+}
+.menu-group.active-mg:not(.active) .mg-head {
+  background: var(--ow-menu-link-active-bg) !important;
+}
+#menu a.active:hover {
+  background: var(--ow-menu-link-active-bg) !important;
+}
+
+/****************** MENU(screen-size > 768px) ******************/
+@media (min-width: 769px) {
+  .toggle-menu .menu-toggle span {
+    transform: rotate(180deg);
+  }
+  .toggle-menu .hamburger {
+    display: flex;
+  }
+  .toggle-menu .menu-toggle {
+    left: 3.75rem;
+  }
+  .toggle-menu .menu-backdrop {
+    display: none;
+  }
+  .menu-backdrop {
+    display: block;
+  }
+  #main-content {
+    margin-left: 3.75rem;
+  }
+
+  /*** MENU OPEN ***/
+
+  .hamburger {
+    display: none;
+  }
+  #main-content #header {
+    position: sticky;
+    top: 0;
+  }
+
+  #menu {
+    width: 18.75rem;
+    height: 100vh;
+    z-index: 9999;
+    overflow: visible;
+  }
+  #menu .nav {
+    height: calc(100% - 113px);
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  #menu .nav:hover {
+    overflow-y: auto;
+    overflow-y: overlay;
+    overflow-x: hidden;
+  }
+
+  a.menu-item,
+  .mg-link,
+  .mg-head {
+    width: 268px;
+  }
+
+  /*** MENU CLOSE ***/
+
+  .toggle-menu #main-content #header {
+    position: relative;
+  }
+
+  .toggle-menu #menu {
+    width: 3.75rem;
+  }
+  .toggle-menu .menu-item .icon,
+  .toggle-menu .mg-heading .icon {
+    margin: 0;
+  }
+
+  .toggle-menu .menu-item,
+  .toggle-menu .mg-head {
+    justify-content: center;
+    width: auto;
+  }
+  .toggle-menu #menu .nav {
+    height: calc(100% - 50px);
+  }
+
+  .toggle-menu .mg-arrow,
+  .toggle-menu #site-name,
+  .toggle-menu .menu-group.active .mg-heading .label {
+    display: none;
+  }
+
+  .toggle-menu .mg-heading .label,
+  .toggle-menu .menu-item .label {
+    opacity: 0;
+    position: absolute;
+    left: 3.125rem;
+    width: fit-content;
+    background: var(--ow-menu-tooltip-bg);
+    color: var(--ow-menu-tooltip-text);
+    padding: 0.375rem 0.875rem;
+    white-space: nowrap;
+    border-radius: 0.188rem;
+    box-shadow: 0px 0px 4px #00000030;
+    pointer-events: none;
+  }
+
+  .toggle-menu .menu-item:hover .label,
+  .toggle-menu .mg-head:hover .mg-heading .label {
+    opacity: 1;
+    left: 4.1rem;
+    z-index: 2;
+    transition: all 0.2s ease-in;
+  }
+  .toggle-menu .mg-dropdown {
+    position: absolute;
+    left: 3.95rem;
+    opacity: 0;
+    top: 47px;
+    background: transparent;
+    pointer-events: none;
+    padding: 0.375rem;
+    max-height: unset;
+  }
+  .toggle-menu .mg-dropdown-label,
+  .toggle-menu .mg-list {
+    border-radius: 0.5rem;
+    background: var(--ow-menu-dropdown-bg);
+    box-shadow: 0px 1px 4px #00000040;
+  }
+  .toggle-menu .mg-dropdown-label {
+    display: block;
+  }
+  .toggle-menu .mg-list {
+    padding: 0.625rem 0rem;
+    margin-top: 0.375rem;
+  }
+  .toggle-menu .menu-group.active .mg-dropdown {
+    opacity: 1;
+    top: 0;
+    z-index: 1;
+    pointer-events: all;
+    transition: top 0.3s ease;
+  }
+}
+
+/****************** MENU(screen-size > 1024px) ******************/
+@media (min-width: 1024px) {
+  .menu-backdrop {
+    display: none;
+  }
+
+  /*** MENU OPEN ***/
+  #main-content {
+    margin-left: 18.75rem;
+  }
+
+  /*** MENU CLOSE ***/
+  .toggle-menu #main-content {
+    margin-left: 3.75rem;
+  }
+}
+
+/****************** MENU(screen-size < 768px) ******************/
+@media (max-width: 768px) {
+  #container {
+    height: 100vh;
+    overflow-y: scroll;
+    overflow-y: overlay;
+  }
+  #container:not(.toggle-menu)::-webkit-scrollbar {
+    display: none !important;
+  }
+  #container:not(.toggle-menu) {
+    scrollbar-width: none;
+  }
+  #main-content #header {
+    margin-bottom: 3rem;
+    position: sticky;
+    z-index: 9999;
+  }
+  .no-auth #main-content #header {
+    margin-bottom: 0;
+  }
+  .menu-toggle {
+    display: none;
+  }
+  h1#site-name {
+    padding: 0;
+  }
+
+  #site-name a {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: url(../../../static/ui/openwisp/images/openwisp-logo-small.svg)
+      no-repeat center;
+  }
+  .hamburger {
+    padding: 0.813rem 1rem;
+  }
+  .head {
+    display: flex;
+    align-items: center;
+  }
+  .nav {
+    height: calc(100% - 3rem);
+    overflow-y: auto;
+  }
+  .no-auth #site-name a {
+    margin-left: 0.938rem;
+  }
+
+  /*** MENU OPEN ***/
+
+  #menu {
+    height: 100vh;
+    position: fixed;
+    width: 100%;
+    z-index: 9999;
+    overflow: hidden;
+    min-width: 314px;
+    top: 0;
+  }
+
+  /*** MENU CLOSE ***/
+  .toggle-menu #menu {
+    height: 3rem;
+  }
+  .toggle-menu .nav {
+    display: none;
+  }
+}
+
+/* LOGIN PAGE */
+
+.login #main-content {
+  padding-bottom: 1.25rem;
+}
+.login #menu {
+  box-shadow: none;
+}
+body.login {
+  background: #f4f7f6;
+}
+.login #container {
+  box-shadow: 0px 0px 6px #f4f7f6;
+  width: 31em !important;
+}
+.hide {
+  display: none;
+}
+.login #menu {
+  position: relative;
+  height: auto;
+  width: 100%;
+}
+.login .head {
+  display: block;
+}
+.login #site-name {
+  display: block;
+}
+.login #site-name a {
+  background: url(../../../static/ui/openwisp/images/openwisp-logo-black.svg) no-repeat
+    scroll 0 50%/100%;
+  text-indent: -2000px;
+  width: 150px;
+  height: 86px;
+  margin: auto;
+}
+.login .hamburger {
+  display: none;
+}
+.login #main .form-row {
+  padding: 4px 0;
+}
+.login #main #content {
+  padding: 20px 35px 10px;
+}
+.login #main .submit-row {
+  padding-left: 0;
+  text-align: center;
+}
+
+/************
+* Scrollbar
+************/
+:root {
+  scrollbar-color: var(--ow-scrollbar-thumb) var(--ow-scrollbar-track) !important;
+}
+body::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ow-scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ow-scrollbar-thumb);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ow-scrollbar-thumb-hover);
+}
+
+/* UTILS ICONS */
+.user {
+  mask-image: url(../../ui/openwisp/images/user.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/user.svg);
+}
+.ow-dashboard-icon {
+  mask-image: url(../../ui/openwisp/images/dashboard.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/dashboard.svg);
+}
+.ow-info-icon {
+  mask-image: url(../../ui/openwisp/images/info.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/info.svg);
+}
+.password {
+  mask-image: url(../../ui/openwisp/images/password.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/password.svg);
+}
+.logout {
+  mask-image: url(../../ui/openwisp/images/logout.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/logout.svg);
+}
+.ow-help {
+  mask-image: url(../../ui/openwisp/images/help.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/help.svg);
+}
+#menu .icon.None,
+#menu .icon.None:hover {
+  background: transparent;
+}
+
+/* USERS ICONS */
+
+.ow-org {
+  mask-image: url(../../ui/openwisp/images/org.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/org.svg);
+}
+.ow-org-user {
+  mask-image: url(../../ui/openwisp/images/org-user.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/org-user.svg);
+}
+.ow-org-owner {
+  mask-image: url(../../ui/openwisp/images/org-owner.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/org-owner.svg);
+}
+.ow-user-and-org {
+  mask-image: url(../../ui/openwisp/images/user-and-org.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/user-and-org.svg);
+}
+.ow-permission {
+  mask-image: url(../../ui/openwisp/images/permission.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/permission.svg);
+}
+
+/* CONTROLLER ICONS */
+
+.ow-config {
+  mask-image: url(../../ui/openwisp/images/config.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/config.svg);
+}
+.ow-device {
+  mask-image: url(../../ui/openwisp/images/device.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/device.svg);
+}
+.ow-device-group {
+  mask-image: url(../../ui/openwisp/images/device-group.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/device-group.svg);
+}
+.ow-template {
+  mask-image: url(../../ui/openwisp/images/template.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/template.svg);
+}
+.ow-vpn {
+  mask-image: url(../../ui/openwisp/images/vpn.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/vpn.svg);
+}
+.ow-geo {
+  mask-image: url(../../ui/openwisp/images/geo-info.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/geo-info.svg);
+}
+.ow-location {
+  mask-image: url(../../ui/openwisp/images/location.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/location.svg);
+}
+.ow-floor {
+  mask-image: url(../../ui/openwisp/images/floor.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/floor.svg);
+}
+.ow-cer-group {
+  mask-image: url(../../ui/openwisp/images/cer-group.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/cer-group.svg);
+}
+.ow-access-credential {
+  mask-image: url(../../ui/openwisp/images/access-credential.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/access-credential.svg);
+}
+.ow-ca {
+  mask-image: url(../../ui/openwisp/images/ca.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/ca.svg);
+}
+.ow-certificate {
+  mask-image: url(../../ui/openwisp/images/certificate.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/certificate.svg);
+}
+
+/* RADIUS ICONS */
+
+.ow-radius {
+  mask-image: url(../../ui/openwisp/images/radius.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/radius.svg);
+}
+.ow-radius-accounting {
+  mask-image: url(../../ui/openwisp/images/accounting.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/accounting.svg);
+}
+.ow-batch-creation {
+  mask-image: url(../../ui/openwisp/images/batch-user.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/batch-user.svg);
+}
+.ow-radius-checks {
+  mask-image: url(../../ui/openwisp/images/check.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/check.svg);
+}
+.ow-radius-group {
+  mask-image: url(../../ui/openwisp/images/radius-group.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/radius-group.svg);
+}
+.ow-radius-nas {
+  mask-image: url(../../ui/openwisp/images/nas.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/nas.svg);
+}
+.ow-radius-token {
+  mask-image: url(../../ui/openwisp/images/token.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/token.svg);
+}
+.ow-radius-replies {
+  mask-image: url(../../ui/openwisp/images/replies.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/replies.svg);
+}
+.ow-radius-post-log {
+  mask-image: url(../../ui/openwisp/images/log.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/log.svg);
+}
+
+/* IPAM ICONS */
+
+.ow-ipam {
+  mask-image: url(../../ui/openwisp/images/ipam.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/ipam.svg);
+}
+.ow-subnet {
+  mask-image: url(../../ui/openwisp/images/subnet.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/subnet.svg);
+}
+.ow-ip-address {
+  mask-image: url(../../ui/openwisp/images/ip-address.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/ip-address.svg);
+}
+
+/* MONITORING ICONS */
+
+.ow-monitoring {
+  mask-image: url(../../ui/openwisp/images/monitoring.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/monitoring.svg);
+}
+.ow-metrics {
+  mask-image: url(../../ui/openwisp/images/metrics.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/metrics.svg);
+}
+.ow-monitoring-checks {
+  mask-image: url(../../ui/openwisp/images/montoring-checks.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/montoring-checks.svg);
+}
+.ow-monitoring-wifi {
+  mask-image: url(../../ui/openwisp/images/monitoring-wifi.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/monitoring-wifi.svg);
+}
+
+/* FIRMWARE */
+
+.ow-firmware {
+  mask-image: url(../../ui/openwisp/images/firmware.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/firmware.svg);
+}
+.ow-build {
+  mask-image: url(../../ui/openwisp/images/build.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/build.svg);
+}
+.ow-category {
+  mask-image: url(../../ui/openwisp/images/category.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/category.svg);
+}
+.ow-mass-upgrade {
+  mask-image: url(../../ui/openwisp/images/mass-upgrade.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/mass-upgrade.svg);
+}
+
+/* NETWORK TOPOLOGY */
+.ow-network-topology {
+  mask-image: url(../../ui/openwisp/images/network-topology.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/network-topology.svg);
+}
+.ow-link {
+  mask-image: url(../../ui/openwisp/images/link.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/link.svg);
+}
+.ow-topology {
+  mask-image: url(../../ui/openwisp/images/topology.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/topology.svg);
+}
+.ow-node {
+  mask-image: url(../../ui/openwisp/images/node.svg);
+  -webkit-mask-image: url(../../ui/openwisp/images/node.svg);
+}
+
+/* LOGIN SCREEN */
+@media only screen and (max-width: 576px) {
+  .login #container {
+    width: auto !important;
+  }
+}

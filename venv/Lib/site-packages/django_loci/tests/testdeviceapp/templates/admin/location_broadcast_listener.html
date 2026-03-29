@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+<p class="hidden" id="ws-connected">{% trans "WebSocket connection established. Location updates will appear below." %}</p>
+<ul id="location-updates"></ul>
+{% endblock content %}
+
+{% block footer %}
+{{ block.super }}
+<script src="{% static 'django-loci/js/vendor/reconnecting-websocket.min.js' %}"></script>
+<script>
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/loci/location/`;
+    const ws = new ReconnectingWebSocket(wsUrl);
+    const locationUpdates = document.getElementById('location-updates');
+
+    ws.onmessage = function(event) {
+        const li = document.createElement('li');
+        const pre = document.createElement('pre');
+        const data = JSON.parse(event.data);
+        pre.textContent = JSON.stringify(data, null, 2);
+        li.appendChild(pre);
+        locationUpdates.appendChild(li);
+    };
+
+    ws.onopen = function() {
+        const statusMessage = document.querySelector('#ws-connected');
+        if (statusMessage) {
+            statusMessage.classList.remove('hidden');
+        }
+    };
+</script>
+{% endblock footer %}

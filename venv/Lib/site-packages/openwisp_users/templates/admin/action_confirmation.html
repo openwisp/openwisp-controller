@@ -1,0 +1,45 @@
+{% extends 'admin/base_site.html' %}
+{% load i18n l10n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src='{% static 'admin/js/cancel.js' %}'></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation
+  delete-selected-confirmation{% endblock %}
+
+{% block breadcrumbs %}
+<div class='breadcrumbs'>
+<a href='{% url 'admin:index' %}'>{% trans 'Home' %}</a>
+&rsaquo; <a href='{% url 'admin:app_list' app_label=opts.app_label %}'>{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href='{% url opts|admin_urlname:'changelist' %}'>{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% trans 'Modify active status' %}
+</div>
+{% endblock %}
+
+{% block content %}
+  {% if action == 'make_inactive' %}
+    <p>{% blocktrans %}Are you sure you want to make the selected users inactive?{% endblocktrans %}</p>
+  {% else %}
+    <p>{% blocktrans %}Are you sure you want to make the selected users active?{% endblocktrans %}</p>
+  {% endif %}
+  <h2>{% trans "Summary" %}</h2>
+  <ul>
+    {% for user in queryset.all %}
+    <li>{% trans "User" %}: {{ user }}</li>
+    {% endfor %}
+  </ul>
+  <form action='' method='post'>{% csrf_token %}
+    {% for obj in queryset.all %}
+    <input type='hidden' name='_selected_action' value='{{ obj.pk|unlocalize }}'/>
+    {% endfor %}
+    <div class='submit-row'>
+      <input type='hidden' name='action' value='{{ action }}'/>
+      <input type='submit' name='confirmation' value='{% trans "Confirm" %}'/>
+      <a href='#' onclick='window.history.back(); return false;'
+         class='button cancel-link'>{% trans 'No, take me back' %}</a>
+    </div>
+  </form>
+{% endblock %}

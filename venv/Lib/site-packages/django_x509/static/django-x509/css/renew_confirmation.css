@@ -1,0 +1,23 @@
+input[type="submit"] {
+  background: #ba2121;
+  border-radius: 4px;
+  padding: 10px 15px;
+  color: #fff;
+}
+a.cancel-link {
+  display: inline-block;
+  vertical-align: middle;
+  height: 15px;
+  line-height: 15px;
+  background: #ddd;
+  border-radius: 4px;
+  padding: 10px 15px;
+  color: #333;
+  margin: 0 0 0 10px;
+}
+a.cancel-link:hover {
+  background-color: #ddd;
+}
+input[type="submit"]:hover {
+  background-color: #ba2121;
+}

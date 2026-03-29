@@ -1,0 +1,78 @@
+{% extends "./base.html" %}
+{% load static i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+{% if OPENWISP_ADMIN_THEME_LINKS %}
+  {% for link in OPENWISP_ADMIN_THEME_LINKS %}
+    <link rel="{{ link.rel }}" type="{{ link.type }}"
+      href="{{ link.href }}" {% if link.media %}media="{{ link.media }}" {% endif %}/>
+  {% endfor %}
+{% else %}
+  <link rel="stylesheet" type="text/css" href="{% static 'admin/css/openwisp.css' %}" />
+  <link rel="icon" type="image/x-icon" href="{% static 'ui/openwisp/images/favicon.png' %}" />
+{% endif %}
+{% endblock %}
+
+{% block menu-bar %}
+  <div class="head">
+    <span tabindex="0" role="button" aria-label="{% trans 'Maxamize menu' %}" class="hamburger">
+    <span></span></span>
+    <h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header }}</a></h1>
+  </div>
+{% endblock %}
+
+{% block user-tools %}
+  <div  class="account">
+    <div title="account" id="account-btn" role="button" tabindex="0" aria-label="account button"
+    aria-expanded="false" aria-controls="account-dropdown" class="account-button toggle-btn tooltip-sm">
+      <span class="user"></span>
+      <strong>{% firstof user.get_short_name user.get_username %}</strong>
+    </div>
+    <ul id="account-dropdown" role="list" aria-labelledby="account-btn" class="account-menu hide">
+      <li class="account-menu-username">
+        <span class="user"></span>
+        <strong>{% firstof user.get_short_name user.get_username %}</strong>
+      </li>
+      {% if user.has_usable_password %}
+      <li>
+        <a class="dropdown-clickable" tabindex="-1" href="{% url 'admin:password_change' %}">
+          <span class="password"></span>
+          {% trans 'Change password' %}
+        </a>
+      </li>
+      {% endif %}
+      <li>
+        <form tabindex="-1" id="logout-form" method="post" action="{% url 'admin:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="dropdown-clickable"><span class="logout"></span>{% translate 'Log out' %}</button>
+        </form>
+      </li>
+    </ul>
+  </div>
+{% endblock  %}
+{% block menu %}{% include "./menu.html" %}{% endblock %}
+
+{% block footer %}
+<div id="ow-loading" class="ow-overlay">
+  <div class="ow-overlay-inner">
+    <div class="ow-loading-spinner"></div>
+  </div>
+</div>
+
+{% comment %}
+    we need to put the JS here otherwise
+    if we put it in extrahead it will be
+    loaded before jQuery is loaded
+{% endcomment %}
+{% if user.is_authenticated and user.is_staff %}
+    <script src="{% static "admin/js/menu.js" %}"></script>
+{% endif %}
+{% if OPENWISP_ADMIN_THEME_JS %}
+    {% for js in OPENWISP_ADMIN_THEME_JS %}
+        <script src="{{ js }}"></script>
+    {% endfor %}
+{% endif %}
+{% endblock %}

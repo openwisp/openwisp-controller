@@ -1,0 +1,64 @@
+{% extends 'admin/base_site.html' %}
+{% load i18n l10n admin_urls static %}
+
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{% static "django-x509/css/renew_confirmation.css" %}" />
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+    <form method="post">
+        {% csrf_token %}
+        {% if ca_count %}
+            {% blocktrans %}
+                <p>Are you sure you want to renew the selected CAs and their related certificates?</p>
+                <p>All the CAs listed below with related certificates will be renewed.</p>
+            {% endblocktrans %}
+        {% else %}
+        {% blocktrans %}
+                <p>Are you sure you want to renew the selected certificates?</p>
+                <p>All the certificates listed below will be renewed.</p>
+            {% endblocktrans %}
+        {% endif %}
+        <h2>{% trans 'Summary:' %}</h2>
+        <ul>
+            {% if ca_count %}
+                <li>{% trans 'CAs:' %} {{ ca_count }}</li>
+            {% endif %}
+            <li>{% trans 'Certificates:' %} {{ cert_count }}</li>
+        </ul>
+        <h2>{% trans 'Objects:' %}</h2>
+        <ul>
+            {% if ca_count %}
+                {% for ca, certs in data.items %}
+                    <li>{% trans 'CA:' %} {{ ca.name }}</li>
+                    <ul>
+                        {% for cert in certs %}
+                            <li>{% trans 'Certificate:' %} {{ cert.name }}</li>
+                        {% endfor %}
+                    </ul>
+                    <input type="hidden" name="_selected_action" value="{{ ca.pk }}">
+                {% endfor %}
+            {% else %}
+                {% for cert in data %}
+                    <li>{% trans 'Certificate:' %} {{ cert.name }}</li>
+                    <input type="hidden" name="_selected_action" value="{{ cert.pk }}">
+                {% endfor %}
+            {% endif %}
+        </ul>
+        <div>
+            <input type="hidden" name="post" value="yes">
+            <input type="submit" value="Yes I'm sure">
+            <input type="hidden" name="action" value="{{ action }}">
+            <a href="{% url 'admin:'|add:cancel_url %}" class="button cancel-link">No, take me back</a>
+        </div>
+    </form>
+{% endblock content %}

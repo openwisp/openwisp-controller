@@ -1,0 +1,54 @@
+{% extends "admin/index.html" %}
+{% load static i18n %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/ow-dashboard.css" %}" />
+{% for css in dashboard_css %}
+<link rel="stylesheet" type="text/css" href="{% static css %}" />
+{% endfor %}
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {% if 'jquery' not in block.super and not media.js %}
+    <script type="text/javascript" src="{% static 'admin/js/vendor/jquery/jquery.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'admin/js/jquery.init.js' %}"></script>
+  {% endif %}
+{% endblock %}
+
+{% block messages %}
+{{ block.super }}
+
+{% if not app_label and dashboard_enabled %}
+
+{% for template in dashboard_templates_before_charts %}
+  {% include template %}
+{% endfor %}
+
+<div id="plot-container"></div>
+
+{% for template in dashboard_templates_after_charts %}
+  {% include template %}
+{% endfor %}
+
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+{% endblock content %}
+
+{% block footer %}
+{{ block.super }}
+{% if not app_label and dashboard_enabled %}
+<script>
+  const owDashboardCharts = {{ dashboard_charts | safe }};
+</script>
+<script src="{% static "admin/vendor/js/plotly-cartesian.min.js" %}"></script>
+<script src="{% static "admin/js/ow-dashboard.js" %}"></script>
+{% for js in dashboard_js %}
+<script src="{% static js %}"></script>
+{% endfor %}
+{% endif %}
+{% endblock footer %}

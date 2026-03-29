@@ -1,0 +1,36 @@
+{% load i18n %}
+<button class="menu-toggle">
+  <span></span>
+</button>
+<nav class="nav">
+  {% for item in openwisp_menu_groups %} {% if item.sub_items %}
+  <div class="menu-group">
+    <div id="mg-control-{{item.id}}" aria-label="{{ item.label }}" tabindex="0" role="button"
+     aria-expanded="false" aria-controls="mg-dropdown-{{item.id}}" class="mg-head">
+      <div class="mg-heading">
+        <span class="{{ item.icon }} icon"></span>
+        <span class="label">{{ item.label }}</span>
+      </div>
+      <span class="mg-arrow"></span>
+    </div>
+    <div id="mg-dropdown-{{item.id}}" role="region" aria-labelledby="mg-control-{{item.id}}" class="mg-dropdown">
+      <div class="mg-dropdown-label">{{ item.label }}</div>
+      <ul class="mg-list">
+        {% for sub_item in item.sub_items %}
+        <li>
+          <a class="mg-link" href="{{ sub_item.url }}" aria-label="{{ sub_item.label }}" tabindex="-1">
+            <span class="{{ sub_item.icon }} icon"></span>
+            <span class="label">{{ sub_item.label }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% else %}
+  <a class="menu-item" href="{{ item.url }}" aria-label="{{ item.label }}">
+    <span class="{{ item.icon }} icon"></span>
+    <span class="label">{{ item.label }}</span>
+  </a>
+  {% endif %} {% endfor %}
+</nav>

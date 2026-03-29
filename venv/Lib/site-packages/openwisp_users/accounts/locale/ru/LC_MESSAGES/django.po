@@ -1,0 +1,88 @@
+# OpenWISP RADIUS
+# Copyright (C) 2021
+# This file is distributed under the same license as the PACKAGE package.
+# Federico Capoano support@openwisp.io, 2021.
+#
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2021-09-01 18:32-0500\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/account/email/base_message.txt:1
+#, python-format
+msgid "Welcome to %(site_name)s!"
+msgstr "Добро пожаловат на %(site_name)s!"
+
+#: templates/account/email/base_message.txt:5
+#, python-format
+msgid ""
+"Thank you for using %(site_name)s!\n"
+"%(site_domain)s"
+msgstr ""
+"Спасибо за использование %(site_name)s!\n"
+"%(site_domain)s"
+
+#: accounts/templates/account/email/email_confirmation_message.html:5
+#, python-format
+msgid ""
+"\n"
+"You're receiving this e-mail because user <b>%(user_display)s</b> registered "
+"this e-mail address to create an account on <b>%(site_name)s</b>.\n"
+msgstr ""
+"\n"
+"Вы получаете это письмо, потому что пользователь <b>%(user_display)s</b> зарегистрировал это "
+"емейл на <b>%(site_name)s</b>.\n"
+
+#: accounts/templates/account/email/email_confirmation_message.html:9
+msgid "To confirm this is correct, please click on the button below."
+msgstr "Чтобы убедиться, что это правильно, нажмите кнопку ниже."
+
+#: templates/account/email_confirm.html:6 templates/account/email_confirm.html:9
+msgid "Confirm E-mail Address"
+msgstr "Подтверждать емейл адрес"
+
+#: templates/account/email_confirm.html:15
+#, python-format
+msgid ""
+"Please confirm that <a href=\"mailto:%(email)s\">%(email)s</a> is an e-mail address for "
+"user %(user_display)s."
+msgstr ""
+"Подтвердите, что это <a href=\"mailto:%(email)s\">%(email)s</a> адрес электронной почты "
+"пользователя %(user_display)s."
+
+#: templates/account/email_verification_success.html:18
+msgid "Your email has been verified successfully."
+msgstr "Емейл адрес успешно подтверждён"
+
+#: templates/account/email_verification_success.html:19
+msgid "This web page can be closed."
+msgstr "Вы можете закрывать страницу"
+
+#: templates/account/email_confirm.html:20
+msgid "Confirm"
+msgstr "Подтверждать"
+
+#: accounts/templates/account/logout_success.html:18
+msgid "Logout successful."
+msgstr "Выход прошел успешно."
+
+#: accounts/templates/account/email/password_expiration_message.html:3
+#: accounts/templates/account/email/password_expiration_message.txt:3
+#, python-format
+msgid ""
+"We inform you that the password for your account %(username)s will expire in "
+"7 days, precisely on %(expiry_date)s."
+msgstr ""
+"Мы информируем вас о том, что пароль для вашей учетной записи %(username)s "
+"истекает через 7 дней, точно %(expiry_date)s."
+
+#: accounts/templates/account/email/password_expiration_message.html:5
+#: accounts/templates/account/email/password_expiration_message.txt:5
+msgid ""
+"Kindly proceed with updating your password by clicking on the button below."
+msgstr ""
+"Просим вас обновить ваш пароль, нажав на кнопку ниже."

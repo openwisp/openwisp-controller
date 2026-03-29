@@ -1,0 +1,25 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+{% if opts.model_name == 'ca' %}
+<li>
+    <a href="{% url 'admin:crl' object_id %}" class="downloadcrl">
+        {% trans "Download CRL" %}
+    </a>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
+{% block after_field_sets %}
+{% if not add %}
+<fieldset class="module x509-custom">
+    <div class="form-row x509-text">
+        <div>
+            <pre class="x509">{{ original.x509_text }}</pre>
+        </div>
+    </div>
+</fieldset>
+{% endif %}
+{% endblock %}

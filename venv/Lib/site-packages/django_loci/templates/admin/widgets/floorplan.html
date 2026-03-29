@@ -1,0 +1,11 @@
+<div id="id_{{ widget.name }}_map" class="floorplan-widget"></div>
+<div id="id_{{ widget.name }}_raw" class="floorplan-raw">
+    {% include "django/forms/widgets/input.html" %}
+</div>
+{% if '__prefix__' not in widget.name %}
+<script>
+django.jQuery(function() {
+    window['django-loci-floorplan-{{ widget.name }}'] = django.loadFloorPlan('{{ widget.name }}');
+});
+</script>
+{% endif %}

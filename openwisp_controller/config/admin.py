@@ -80,6 +80,66 @@ class BaseAdmin(TimeReadonlyAdminMixin, ModelAdmin):
     history_latest_first = True
 
 
+class ReadonlyPrettyJsonMixin(object):
+    readonly_json_fields = {}
+
+    def _get_hidden_readonly_fields(self, request, obj=None):
+        return set()
+
+    def _format_json_field(self, obj, field_name):
+        data = getattr(obj, field_name, None)
+        
+        # Keep None or empty strings as a dash, but allow {} or [] to be formatted.
+        if data is None or data == "":
+            return format_html("<span class='readonly-json-empty'>-</span>")
+
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                pass
+
+        return format_html(
+            '<pre class="readonly-json">{}</pre>',
+            json.dumps(data, indent=4, sort_keys=True),
+        )
+
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if not obj:
+            return fields
+        readonly_fields = set(super().get_readonly_fields(request, obj))
+        
+        if not self.has_change_permission(request, obj):
+            readonly_fields.update(self.readonly_json_fields.keys())
+            
+        hidden_fields = self._get_hidden_readonly_fields(request, obj)
+        return [
+            self.readonly_json_fields.get(field, field)
+            if field in readonly_fields
+            else field
+            for field in fields
+            if field not in hidden_fields
+        ]
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if not obj:
+            return fields
+            
+        if not self.has_change_permission(request, obj):
+            for field in self.readonly_json_fields.keys():
+                if field not in fields:
+                    fields.append(field)
+                    
+        hidden_fields = self._get_hidden_readonly_fields(request, obj)
+        return [
+            self.readonly_json_fields.get(field, field)
+            for field in fields
+            if field not in hidden_fields
+        ]
+
+
 class DeactivatedDeviceReadOnlyMixin(object):
     def _has_permission(self, request, obj, perm):
         if not obj or getattr(request, "_recover_view", False):
@@ -431,6 +491,7 @@ class ConfigForm(AlwaysHasChangedMixin, BaseForm):
 
 
 class ConfigInline(
+    ReadonlyPrettyJsonMixin,
     DeactivatedDeviceReadOnlyMixin,
     MultitenantAdminMixin,
     TimeReadonlyAdminMixin,
@@ -456,6 +517,10 @@ class ConfigInline(
     verbose_name = _("Configuration")
     verbose_name_plural = verbose_name
     multitenant_shared_relations = ("templates",)
+    readonly_json_fields = {
+        "config": "pretty_config",
+        "context": "pretty_context",
+    }
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -481,6 +546,16 @@ class ConfigInline(
         if db_field.name == "templates" and request.method != "POST":
             kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+    def pretty_context(self, obj):
+        return self._format_json_field(obj, "context")
+
+    pretty_context.short_description = _("Configuration Variables")
+
+    def pretty_config(self, obj):
+        return self._format_json_field(obj, "config")
+
+    pretty_config.short_description = _("configuration")
 
 
 class ChangeDeviceGroupForm(forms.Form):
@@ -1041,7 +1116,12 @@ class TemplateForm(BaseForm):
         }
 
 
-class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariableMixin):
+class TemplateAdmin(
+    ReadonlyPrettyJsonMixin,
+    MultitenantAdminMixin,
+    BaseConfigAdmin,
+    SystemDefinedVariableMixin,
+):
     form = TemplateForm
     list_display = [
         "name",
@@ -1081,6 +1161,10 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     ]
     readonly_fields = ["system_context"]
     autocomplete_fields = ["vpn"]
+    readonly_json_fields = {
+        "config": "pretty_config",
+        "default_values": "pretty_default_values",
+    }
 
     @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):
@@ -1191,6 +1275,16 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
 
     actions = ["clone_selected_templates"]
 
+    def pretty_default_values(self, obj):
+        return self._format_json_field(obj, "default_values")
+
+    pretty_default_values.short_description = _("Configuration variables")
+
+    def pretty_config(self, obj):
+        return self._format_json_field(obj, "config")
+
+    pretty_config.short_description = _("configuration")
+
 
 if not app_settings.CONFIG_BACKEND_FIELD_SHOWN:  # pragma: nocover
     DeviceAdmin.list_display.remove("backend")
@@ -1217,6 +1311,7 @@ class VpnForm(forms.ModelForm):
 
 
 class VpnAdmin(
+    ReadonlyPrettyJsonMixin,
     MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin, SystemDefinedVariableMixin
 ):
     form = VpnForm
@@ -1260,9 +1355,15 @@ class VpnAdmin(
         "created",
         "modified",
     ]
+    readonly_json_fields = {"config": "pretty_config"}
 
     class Media(BaseConfigAdmin):
         js = list(BaseConfigAdmin.Media.js) + [f"{prefix}js/vpn.js"]
+
+    def pretty_config(self, obj):
+        return self._format_json_field(obj, "config")
+
+    pretty_config.short_description = _("configuration")
 
 
 class DeviceGroupForm(BaseForm):
@@ -1289,7 +1390,7 @@ class DeviceGroupForm(BaseForm):
         widgets = {"meta_data": DeviceGroupJsonSchemaWidget, "context": FlatJsonWidget}
 
 
-class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
+class DeviceGroupAdmin(ReadonlyPrettyJsonMixin, MultitenantAdminMixin, BaseAdmin):
     change_form_template = "admin/device_group/change_form.html"
     form = DeviceGroupForm
     list_display = [
@@ -1311,6 +1412,10 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
     search_fields = ["name", "description", "meta_data"]
     list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
     multitenant_shared_relations = ("templates",)
+    readonly_json_fields = {
+        "context": "pretty_context",
+        "meta_data": "pretty_meta_data",
+    }
 
     class Media:
         js = list(UUIDAdmin.Media.js) + [
@@ -1358,6 +1463,16 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
             kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
+    def pretty_context(self, obj):
+        return self._format_json_field(obj, "context")
+
+    pretty_context.short_description = _("Configuration Variables")
+
+    def pretty_meta_data(self, obj):
+        return self._format_json_field(obj, "meta_data")
+
+    pretty_meta_data.short_description = _("meta data")
+
 
 admin.site.register(Device, DeviceAdminExportable)
 admin.site.register(Template, TemplateAdmin)
@@ -1384,18 +1499,22 @@ class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
         widgets = {"context": FlatJsonWidget}
 
 
-class ConfigSettingsInline(admin.StackedInline):
+class ConfigSettingsInline(ReadonlyPrettyJsonMixin, admin.StackedInline):
     model = OrganizationConfigSettings
     form = ConfigSettingsForm
+    readonly_json_fields = {"context": "pretty_context"}
 
-    def get_fields(self, request, obj=None):
-        fields = []
-        if app_settings.REGISTRATION_ENABLED:
-            fields += ["registration_enabled", "shared_secret"]
-        if app_settings.WHOIS_CONFIGURED:
-            fields += ["whois_enabled", "estimated_location_enabled"]
-        fields += ["context"]
-        return fields
+    fields = []
+    if app_settings.REGISTRATION_ENABLED:
+        fields += ["registration_enabled", "shared_secret"]
+    if app_settings.WHOIS_CONFIGURED:
+        fields += ["whois_enabled", "estimated_location_enabled"]
+    fields += ["context"]
+
+    def pretty_context(self, obj):
+        return self._format_json_field(obj, "context")
+
+    pretty_context.short_description = _("Configuration Variables")
 
 
 OrganizationAdmin.save_on_top = True

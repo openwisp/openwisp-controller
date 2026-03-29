@@ -1,0 +1,14 @@
+{% extends "rest_framework/api.html" %}
+{% load static %}
+
+{% block head %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/browsable-api.css" %}" />
+  <link rel="icon" type="image/png" href="{% static 'ui/openwisp/images/favicon.png' %}"/>
+{% endblock head %}
+
+{% block branding %}
+<a class='navbar-brand' href=''>
+    <img src="{% static 'ui/openwisp/images/openwisp-logo-black.svg' %}" height="70px" width="185px" alt="ow-logo-dark">
+</a>
+{% endblock %}

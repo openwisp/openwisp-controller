@@ -1,0 +1,60 @@
+# OpenWISP Users
+# Copyright (C) 2021
+# This file is distributed under the same license as the PACKAGE package.
+# Federico Capoano support@openwisp.io, 2021.
+#
+msgid ""
+msgstr ""
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2021-11-11 21:36-0500\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: accounts/templates/account/email/email_confirmation_message.html:5
+#, python-format
+msgid ""
+"\n"
+"You're receiving this e-mail because user <b>%(user_display)s</b> registered "
+"this e-mail address to create an account on <b>%(site_name)s</b>.\n"
+msgstr ""
+"\n"
+"Sie bekommen diese E-Mail, weil diese E-Mail-Adresse von einem Benutzer "
+"<b>%(user_display)s</b> auf <b>%(site_name)s</b> registriert wurde.\n"
+
+#: accounts/templates/account/email/email_confirmation_message.html:9
+msgid "To confirm this is correct, please click on the button below."
+msgstr "Um zu bestätigen, dass dies korrekt ist, klicken Sie bitte auf die Schaltfläche unten."
+
+#: accounts/templates/account/email_verification_success.html:18
+msgid "Your email has been verified successfully."
+msgstr "E-Mail-Adresse bestätigt."
+
+#: accounts/templates/account/email_verification_success.html:19
+#: accounts/templates/account/logout_success.html:19
+msgid "This web page can be closed."
+msgstr "Die Seite kann geschlossen werden."
+
+#: accounts/templates/account/logout_success.html:18
+msgid "Logout successful."
+msgstr "Sie wurden erfolgreich abgemeldet."
+
+#: accounts/templates/account/email/password_expiration_message.html:3
+#: accounts/templates/account/email/password_expiration_message.txt:3
+#, python-format
+msgid ""
+"We inform you that the password for your account %(username)s will expire in "
+"7 days, precisely on %(expiry_date)s."
+msgstr ""
+"Wir informieren Sie darüber, dass das Passwort für Ihr Konto %(username)s in "
+"7 Tagen abläuft, genau am %(expiry_date)s."
+
+#: accounts/templates/account/email/password_expiration_message.html:5
+#: accounts/templates/account/email/password_expiration_message.txt:5
+msgid ""
+"Kindly proceed with updating your password by clicking on the button below."
+msgstr ""
+"Bitte aktualisieren Sie Ihr Passwort, indem Sie auf die Schaltfläche unten "
+"klicken."

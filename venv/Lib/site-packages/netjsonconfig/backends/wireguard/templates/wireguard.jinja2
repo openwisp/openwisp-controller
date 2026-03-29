@@ -1,0 +1,20 @@
+{% for vpn in data.wireguard %}
+    # wireguard config: {{ vpn.name }}
+
+    [Interface]
+        {% for key, value in vpn.items() %}
+            {% if key not in ['name', 'peers'] %}
+                {{ key }} = {{ value }}
+            {% endif %}
+        {% endfor %}
+
+    {% for peer in vpn.peers %}
+    [Peer]
+        {% for key, value in peer.items() %}
+            {% if value %}
+                {{ key }} = {{ value }}
+            {% endif %}
+        {% endfor %}
+
+    {% endfor %}
+{% endfor %}

@@ -1,0 +1,27 @@
+{% load i18n %}
+{% load static %}
+{% if creatediv %}<div id="{{ name }}" class="leaflet-container-default"></div>{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+
+    function loadmap() {
+        var djoptions = {% autoescape off %}{{ djoptions }}{% endautoescape %},
+            options = {djoptions: djoptions, initfunc: loadmap,
+                       globals: {{ NO_GLOBALS|yesno:"false,true"}}, callback: {{ callback|default:"null" }}},
+            map = L.Map.djangoMap('{{ name }}', options);
+        {% if not NO_GLOBALS %}
+        window['leafletmap' + '{{ name }}'] = map;
+        {% endif %}
+    }
+    var loadevents = {% autoescape off %}{{ loadevents }}{% endautoescape %};
+    if (loadevents.length === 0) loadmap();
+    else {
+        for (var i=0; i<loadevents.length; i++) window.addEventListener(loadevents[i], loadmap, false);
+    }
+    {% if not NO_GLOBALS %}
+    // Put initialization function in global scope (like django-leaflet < 0.7)
+    window['loadmap' + '{{ name }}'] = loadmap;
+    {% endif %}
+})();
+</script>

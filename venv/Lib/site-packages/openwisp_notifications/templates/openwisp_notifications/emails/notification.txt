@@ -1,0 +1,14 @@
+{% load i18n %}
+
+[{{ site_name }}] {{ notifications_count }} {% translate "unread notifications since" %} {{ since }}
+
+{% for notification in notifications %}
+- {{ notification.email_message }}{% if notification.rendered_description %}
+  {% translate "Description" %}: {{ notification.rendered_description }}{% endif %}
+  {% translate "Date & Time" %}: {{ notification.timestamp|date:"F j, Y, g:i A e" }}{% if notification.url %}
+  {% translate "URL" %}: {{ notification.url }}{% endif %}
+{% endfor %}
+
+{% if call_to_action_url and notifications|length > 1 %}
+{{ call_to_action_text }}: {{ call_to_action_url }}
+{% endif %}

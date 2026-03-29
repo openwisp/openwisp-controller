@@ -1,0 +1,91 @@
+{% extends 'account/base_entrance.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans 'Manage Email Notifications' %}{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'openwisp-notifications/css/unsubscribe.css' %}">
+{% endblock %}
+
+{% block menu-bar %}{% if user.is_authenticated %}{{ block.super }}{% endif %}{% endblock %}
+
+{% block content %}
+  <div class="unsubscribe-container">
+    {% comment %} Workaround to use the same logo as webapp to make overriding easier. {% endcomment %}
+    <div class="no-auth">
+      <div id="site-name">
+        <a class="logo"></a>
+      </div>
+    </div>
+    <div class="unsubscribe-content">
+      <div class="email-icon-container">
+        <img class="email-icon"
+             src="{% static "ui/openwisp/images/email.png" %}"
+             alt="{% trans 'Email Icon' %}">
+      </div>
+      <h1>{% trans 'Email Notifications' %}</h1>
+      {% if valid %}
+        <div id="manage-preferences">
+          <div class="status-msg-container">
+            <p id="subscribed-message" class="{% if not is_subscribed %}hidden{% endif %}">
+              {% trans 'You are currently subscribed to email notifications.' %}
+            </p>
+            <p id="unsubscribed-message" class="{% if is_subscribed %}hidden{% endif %}">
+              {% trans 'You are currently unsubscribed from email notifications.' %}
+            </p>
+          </div>
+          <div class="confirmation-msg-container hidden">
+            <p id="confirm-subscribed" class="confirmation-msg hidden">
+              {% trans 'Successfully subscribed to all email notifications.' %}
+            </p>
+            <p id="confirm-unsubscribed" class="confirmation-msg hidden">
+              {% trans 'Successfully unsubscribed from all email notifications.' %}
+            </p>
+          </div>
+          <button
+            id="toggle-btn"
+            class="button"
+            data-has-subscribe="{{ is_subscribed|yesno:'true,false' }}"
+          >
+            {% if is_subscribed %}
+              {% trans 'Unsubscribe' %}
+            {% else %}
+              {% trans 'Subscribe' %}
+            {% endif %}
+          </button>
+        </div>
+        <div id="error-msg-container" class="hidden">
+          <p id="error-msg" class="error-msg">
+            {% trans 'An error occurred while updating your notification preferences.' %}<br>
+            {% trans 'You can update your preferences by ' %}
+            <a href="{% url 'notifications:notification_preference' %}">
+              {% trans 'logging into your account.' %}
+            </a>
+          </p>
+        </div>
+      {% else %}
+        <div id="invalid-token-msg-container">
+          <h2>{% trans 'Invalid or Expired Link' %}</h2>
+          <p>{% trans 'The link you used is invalid or expired.' %}</p>
+        </div>
+      {% endif %}
+
+      <div class="footer">
+        <p>
+          {% url 'notifications:notification_preference' as notification_preference_url %}
+          {% blocktrans with url=notification_preference_url %}
+            Fine-tune your alert settings in the
+            <a href="{{ url }}" class="highlighted">notification preferences</a>.
+          {% endblocktrans %}
+        </p>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block footer %}
+  {{ block.super }}
+  <script src="{% static 'openwisp-notifications/js/unsubscribe.js' %}"></script>
+{% endblock %}

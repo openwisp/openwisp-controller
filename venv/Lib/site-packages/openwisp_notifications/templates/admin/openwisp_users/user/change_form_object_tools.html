@@ -1,0 +1,12 @@
+{% extends "admin/change_form_object_tools.html" %}
+
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+  {% if request.user.is_staff and original.is_staff %}
+    <li>
+      <a class="button" href="{% url 'notifications:user_notification_preference' object_id %}">Notification Preferences</a>
+    </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

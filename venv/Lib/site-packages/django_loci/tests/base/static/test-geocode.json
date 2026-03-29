@@ -1,0 +1,23 @@
+{
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "candidates": [
+    {
+      "address": "Red Square",
+      "location": {
+        "x": 37.620020000000068,
+        "y": 55.754120000000057
+      },
+      "score": 100,
+      "attributes": {},
+      "extent": {
+        "xmin": 37.615020000000065,
+        "ymin": 55.749120000000055,
+        "xmax": 37.62502000000007,
+        "ymax": 55.75912000000006
+      }
+    }
+  ]
+}
