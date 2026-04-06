@@ -3,10 +3,10 @@ import logging
 from celery import shared_task
 from swapper import load_model
 
-from openwisp_controller.config.whois.utils import send_whois_task_notification
 from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
 from openwisp_controller.geo.estimated_location.utils import (
     get_location_defaults_from_whois,
+    send_estimated_location_notification,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def _handle_attach_existing_location(
         # if it is not shared
         if attached_devices_exists is False:
             current_location.delete()
-        send_whois_task_notification(
+        send_estimated_location_notification(
             device=device,
             notify_type="estimated_location_updated",
             actor=existing_location,
@@ -140,7 +140,7 @@ def manage_estimated_locations(device_pk, ip_address):
     )
     # multiple devices can have same last_ip in cases like usage of proxy
     if len(devices_with_location) > 1:
-        send_whois_task_notification(
+        send_estimated_location_notification(
             device=device, notify_type="estimated_location_error"
         )
         logger.error(

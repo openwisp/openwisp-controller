@@ -1,44 +1,57 @@
 from django.utils.translation import gettext_lazy as _
+from openwisp_notifications.signals import notify
+from swapper import load_model
 
-from openwisp_controller.config.whois.utils import MESSAGE_MAP
+MESSAGE_MAP = {
+    "estimated_location_error": {
+        "level": "error",
+        "type": "estimated_location_info",
+        "message": _(
+            "Unable to create estimated location for device "
+            "[{notification.target}]({notification.target_link}). "
+            "Please assign/create a location manually."
+        ),
+        "description": _("Multiple devices found for IP: {ip_address}"),
+    },
+    "estimated_location_created": {
+        "type": "estimated_location_info",
+        "level": "info",
+        "message": _(
+            "Estimated location [{notification.actor}]({notification.actor_link})"
+            " for device"
+            " [{notification.target}]({notification.target_link})"
+            " {notification.verb} successfully."
+        ),
+        "description": _("Geographic coordinates inferred from IP: {ip_address}"),
+    },
+    "estimated_location_updated": {
+        "type": "estimated_location_info",
+        "level": "info",
+        "message": _(
+            "Estimated location [{notification.actor}]({notification.actor_link})"
+            " for device"
+            " [{notification.target}]({notification.target_link})"
+            " updated successfully."
+        ),
+        "description": _("Geographic coordinates updated for IP: {ip_address}"),
+    },
+}
 
-# Mutating the existing MESSAGE_MAP to include estimated location messages
-MESSAGE_MAP.update(
-    {
-        "estimated_location_error": {
-            "level": "error",
-            "type": "estimated_location_info",
-            "message": _(
-                "Unable to create estimated location for device "
-                "[{notification.target}]({notification.target_link}). "
-                "Please assign/create a location manually."
-            ),
-            "description": _("Multiple devices found for IP: {ip_address}"),
-        },
-        "estimated_location_created": {
-            "type": "estimated_location_info",
-            "level": "info",
-            "message": _(
-                "Estimated location [{notification.actor}]({notification.actor_link})"
-                " for device"
-                " [{notification.target}]({notification.target_link})"
-                " {notification.verb} successfully."
-            ),
-            "description": _("Geographic coordinates inferred from IP: {ip_address}"),
-        },
-        "estimated_location_updated": {
-            "type": "estimated_location_info",
-            "level": "info",
-            "message": _(
-                "Estimated location [{notification.actor}]({notification.actor_link})"
-                " for device"
-                " [{notification.target}]({notification.target_link})"
-                " updated successfully."
-            ),
-            "description": _("Geographic coordinates updated for IP: {ip_address}"),
-        },
-    }
-)
+
+def send_estimated_location_notification(device, notify_type, actor=None):
+    Device = load_model("config", "Device")
+    if not isinstance(device, Device):
+        device = Device.objects.filter(pk=device).first()
+        if not device:
+            return
+    notify_details = MESSAGE_MAP[notify_type]
+    notify.send(
+        sender=actor or device,
+        target=device,
+        action_object=device,
+        ip_address=device.last_ip,
+        **notify_details,
+    )
 
 
 def get_device_location_notification_target_url(obj, field, absolute_url=True):

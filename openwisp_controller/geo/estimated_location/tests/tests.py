@@ -354,8 +354,10 @@ class TestEstimatedLocationTransaction(
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch.object(estimated_location.tasks, "send_whois_task_notification")
-    @mock.patch.object(estimated_location.service, "send_whois_task_notification")
+    @mock.patch.object(estimated_location.tasks, "send_estimated_location_notification")
+    @mock.patch.object(
+        estimated_location.service, "send_estimated_location_notification"
+    )
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
@@ -750,8 +752,10 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device3, messages, "error")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch.object(estimated_location.tasks, "send_whois_task_notification")
-    @mock.patch.object(estimated_location.service, "send_whois_task_notification")
+    @mock.patch.object(estimated_location.tasks, "send_estimated_location_notification")
+    @mock.patch.object(
+        estimated_location.service, "send_estimated_location_notification"
+    )
     @mock.patch.object(
         EstimatedLocationService,
         "trigger_estimated_location_task",

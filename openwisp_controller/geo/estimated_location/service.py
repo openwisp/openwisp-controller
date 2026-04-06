@@ -6,7 +6,8 @@ from django.db import transaction
 from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
-from openwisp_controller.config.whois.utils import send_whois_task_notification
+
+from .utils import send_estimated_location_notification
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ class EstimatedLocationService:
                 device_location.full_clean()
                 device_location.save()
 
-            send_whois_task_notification(
+            send_estimated_location_notification(
                 device=self.device,
                 notify_type="estimated_location_created",
                 actor=current_location,
@@ -124,7 +125,7 @@ class EstimatedLocationService:
                     current_location.save(
                         update_fields=update_fields, _set_estimated=True
                     )
-                send_whois_task_notification(
+                send_estimated_location_notification(
                     device=self.device,
                     notify_type="estimated_location_updated",
                     actor=current_location,
