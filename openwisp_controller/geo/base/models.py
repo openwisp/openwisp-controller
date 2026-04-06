@@ -15,7 +15,6 @@ from openwisp_controller.config import settings as config_settings
 from openwisp_controller.geo import settings as geo_settings
 from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
-from openwisp_utils.base import UUIDModel
 from openwisp_utils.fields import FallbackBooleanChoiceField
 
 
@@ -161,12 +160,13 @@ class BaseDeviceLocation(ValidateOrgMixin, AbstractObjectLocation):
         return self.device.organization_id
 
 
-class AbstractOrganizationGeoSettings(UUIDModel):
+class AbstractOrganizationGeoSettings(models.Model):
     organization = models.OneToOneField(
         swapper.get_model_name("openwisp_users", "Organization"),
         verbose_name=_("organization"),
         related_name="geo_settings",
         on_delete=models.CASCADE,
+        primary_key=True,
     )
     estimated_location_enabled = FallbackBooleanChoiceField(
         help_text=_("Whether the estimated location feature is enabled"),
@@ -180,7 +180,9 @@ class AbstractOrganizationGeoSettings(UUIDModel):
         abstract = True
 
     def __str__(self):
-        return f"Geo settings for {self.organization.name}"
+        return _("Geo settings for %(organization)s") % {
+            "organization": self.organization.name
+        }
 
     def clean(self):
         if not config_settings.WHOIS_CONFIGURED and self.estimated_location_enabled:
@@ -192,7 +194,6 @@ class AbstractOrganizationGeoSettings(UUIDModel):
                     )
                 }
             )
-        return super().clean()
 
     @classmethod
     def organization_post_save_receiver(cls, sender, instance, created, **kwargs):

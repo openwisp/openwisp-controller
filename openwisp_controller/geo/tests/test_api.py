@@ -1415,7 +1415,6 @@ class TestGeoApi(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             data = response.data
-            self.assertEqual(data["id"], str(org1_geo_settings.pk))
             self.assertEqual(str(data["organization"]), str(org1.pk))
             self.assertEqual(
                 data["estimated_location_enabled"],

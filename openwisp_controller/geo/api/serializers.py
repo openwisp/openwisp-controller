@@ -29,7 +29,7 @@ class OrganizationGeoSettingsSerializer(ValidatedModelSerializer):
     class Meta:
         model = OrganizationGeoSettings
         fields = "__all__"
-        read_only_fields = ["id", "organization"]
+        read_only_fields = ["organization"]
 
     # Workaround for https://github.com/openwisp/openwisp-utils/issues/633
     # TODO: Remove when the Bug is fixed in openwisp-utils
