@@ -115,6 +115,20 @@ class TestEstimatedLocation(
             # Should not raise
             geo_settings.full_clean()
 
+        with self.subTest(
+            "Estimated location cannot be enabled when WHOIS is disabled for the org"
+        ):
+            org.config_settings.whois_enabled = False
+            org.config_settings.save()
+            geo_settings = org.geo_settings
+            geo_settings.estimated_location_enabled = True
+            with self.assertRaises(ValidationError) as context_manager:
+                geo_settings.full_clean()
+            self.assertIn(
+                "estimated_location_enabled",
+                context_manager.exception.message_dict,
+            )
+
     location_model = Location
 
     def test_estimated_location_field(self):

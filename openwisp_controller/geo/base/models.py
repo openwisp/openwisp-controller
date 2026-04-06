@@ -11,7 +11,7 @@ from django_loci.base.models import (
 )
 from swapper import get_model_name
 
-from openwisp_controller.config import settings as config_settings
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.geo import settings as geo_settings
 from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
 from openwisp_users.mixins import OrgMixin, ValidateOrgMixin
@@ -185,12 +185,26 @@ class AbstractOrganizationGeoSettings(models.Model):
         }
 
     def clean(self):
-        if not config_settings.WHOIS_CONFIGURED and self.estimated_location_enabled:
+        if not config_app_settings.WHOIS_CONFIGURED and self.estimated_location_enabled:
             raise ValidationError(
                 {
                     "estimated_location_enabled": _(
                         "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
                         "before enabling Estimated Location feature."
+                    )
+                }
+            )
+        config_settings = getattr(self.organization, "config_settings", None)
+        if (
+            config_settings
+            and not config_settings.whois_enabled
+            and self.estimated_location_enabled
+        ):
+            raise ValidationError(
+                {
+                    "estimated_location_enabled": _(
+                        "The WHOIS feature must be enabled for this organization "
+                        "before enabling the Estimated Location feature."
                     )
                 }
             )
