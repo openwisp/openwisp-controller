@@ -8,6 +8,8 @@ from django.db import migrations, models
 
 import openwisp_utils.fields
 
+from .. import settings as app_settings
+
 
 class Migration(migrations.Migration):
 
@@ -34,7 +36,7 @@ class Migration(migrations.Migration):
                     openwisp_utils.fields.FallbackBooleanChoiceField(
                         blank=True,
                         default=None,
-                        fallback=False,
+                        fallback=app_settings.ESTIMATED_LOCATION_ENABLED,
                         help_text="Whether the estimated location feature is enabled",
                         null=True,
                         verbose_name="Estimated Location Enabled",
