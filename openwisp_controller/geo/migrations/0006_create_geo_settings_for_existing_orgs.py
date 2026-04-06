@@ -22,33 +22,6 @@ def create_geo_settings_for_existing_orgs(apps, schema_editor):
         )
 
 
-def copy_estimated_location_enabled(apps, schema_editor):
-    """
-    Copy the boolean field estimated_location_enabled from
-    OrganizationConfigSettings into OrganizationGeoSettings so that
-    removing the field from config does not lose data.
-    """
-    OrganizationConfigSettings = get_swapped_model(
-        apps, "config", "OrganizationConfigSettings"
-    )
-    OrganizationGeoSettings = get_swapped_model(apps, "geo", "OrganizationGeoSettings")
-
-    # Use the migration's DB alias so non-default databases are respected
-    db_alias = schema_editor.connection.alias
-    # Iterate using iterator() to avoid loading all rows into memory.
-    for cfg in OrganizationConfigSettings.objects.using(db_alias).iterator():
-        geo, _ = OrganizationGeoSettings.objects.using(db_alias).get_or_create(
-            organization_id=cfg.organization_id
-        )
-        # Copy the value if different
-        if getattr(geo, "estimated_location_enabled", None) != getattr(
-            cfg, "estimated_location_enabled", None
-        ):
-            geo.estimated_location_enabled = cfg.estimated_location_enabled
-            # Ensure save uses the same DB alias
-            geo.save(update_fields=["estimated_location_enabled"], using=db_alias)
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("geo", "0005_organizationgeosettings"),
@@ -62,10 +35,6 @@ class Migration(migrations.Migration):
         ),
         migrations.RunPython(
             create_geo_settings_for_existing_orgs,
-            reverse_code=migrations.RunPython.noop,
-        ),
-        migrations.RunPython(
-            copy_estimated_location_enabled,
             reverse_code=migrations.RunPython.noop,
         ),
     ]
