@@ -3,9 +3,8 @@ from django.contrib.auth.models import Permission
 from ...migrations import create_default_permissions, get_swapped_model
 
 
-def assign_permissions_to_groups(apps, schema_editor):
+def _assign_permissions_to_groups(apps, schema_editor, operators_and_admins_can_change):
     create_default_permissions(apps, schema_editor)
-    operators_and_admins_can_change = ["location", "floorplan", "devicelocation"]
     manage_operations = ["add", "change", "delete"]
     Group = get_swapped_model(apps, "openwisp_users", "Group")
 
@@ -24,3 +23,17 @@ def assign_permissions_to_groups(apps, schema_editor):
             )
             admin.permissions.add(permission.pk)
             operator.permissions.add(permission.pk)
+
+
+def assign_permissions_to_groups(apps, schema_editor):
+    _assign_permissions_to_groups(
+        apps,
+        schema_editor,
+        operators_and_admins_can_change=["location", "floorplan", "devicelocation"],
+    )
+
+
+def assign_geo_settings_permissions_to_groups(apps, schema_editor):
+    _assign_permissions_to_groups(
+        apps, schema_editor, operators_and_admins_can_change=["organizationgeosettings"]
+    )

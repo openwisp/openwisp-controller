@@ -379,3 +379,31 @@ The signal is emitted when the peers of VPN server gets changed.
 
 It is only emitted for ``Vpn`` object with **WireGuard** or **VXLAN over
 WireGuard** backend.
+
+``whois_fetched``
+~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.whois_fetched``
+
+**Arguments**:
+
+- ``whois``: instance of ``WHOISInfo`` that was created or updated
+- ``updated_fields``: list of fields updated in the lookup
+- ``device``: optional instance of ``Device`` related to this WHOIS lookup
+
+This signal is emitted when a WHOIS lookup task successfully creates or
+updates a ``WHOISInfo`` record.
+
+``whois_lookup_skipped``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Path**: ``openwisp_controller.config.signals.whois_lookup_skipped``
+
+**Arguments**:
+
+- ``device``: instance of ``Device`` for which the WHOIS lookup was
+  skipped
+
+This signal is emitted when a WHOIS lookup is not triggered because the
+lookup conditions were not met (for example, an up-to-date WHOIS record
+already exists).

@@ -1,6 +1,8 @@
+from copy import copy
+
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -20,6 +22,26 @@ Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 FloorPlan = load_model("geo", "FloorPlan")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
+
+
+class OrganizationGeoSettingsSerializer(ValidatedModelSerializer):
+    class Meta:
+        model = OrganizationGeoSettings
+        fields = "__all__"
+        read_only_fields = ["organization"]
+
+    # Workaround for https://github.com/openwisp/openwisp-utils/issues/633
+    # TODO: Remove when the Bug is fixed in openwisp-utils
+    def validate(self, data):
+        Model = self.Meta.model
+        instance = copy(self.instance) if self.instance else Model()
+        for key, value in data.items():
+            # avoid direct assignment for m2m (not allowed)
+            if not isinstance(Model._meta.get_field(key), models.ManyToManyField):
+                setattr(instance, key, value)
+        instance.full_clean(exclude=self.exclude_validation)
+        return data
 
 
 class LocationDeviceSerializer(ValidatedModelSerializer):
@@ -156,8 +178,7 @@ class LocationSerializer(EstimatedLocationMixin, BaseSerializer):
             raise serializers.ValidationError(
                 {
                     "type": _(
-                        "Floorplan can only be added with location of "
-                        "the type indoor"
+                        "Floorplan can only be added with location of the type indoor"
                     )
                 }
             )

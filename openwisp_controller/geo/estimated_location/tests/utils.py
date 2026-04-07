@@ -6,17 +6,26 @@ from openwisp_controller.config.whois.tests.utils import CreateWHOISMixin
 from ..tasks import manage_estimated_locations
 
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 
 
 class TestEstimatedLocationMixin(CreateWHOISMixin):
     def setUp(self):
         # skip the org config settings creation from the parent mixin
         super(CreateWHOISMixin, self).setUp()
+        org = self._get_org()
         OrganizationConfigSettings.objects.create(
-            organization=self._get_org(),
+            organization=org,
             whois_enabled=True,
-            estimated_location_enabled=True,
         )
+        # Ensure OrganizationGeoSettings exists (signals usually create it on
+        # Organization creation, but make this explicit to avoid RelatedObject
+        # errors in some test setups).
+        org_geo_settings, _ = OrganizationGeoSettings.objects.get_or_create(
+            organization=org
+        )
+        org_geo_settings.estimated_location_enabled = True
+        org_geo_settings.save()
 
     # helper to mock send_task to directly call the task function synchronously
     @staticmethod
