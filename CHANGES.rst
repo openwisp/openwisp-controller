@@ -6,6 +6,18 @@ Version 1.3.0 [unreleased]
 
 Work in progress.
 
+Version 1.2.3 [2026-04-09]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Corrected initial field value assignment in ``AbstractDevice`` class
+- Fixed duplicate template entries in Device admin
+- Invalidate Config checksum after subnet provisioning
+- Fixed concurrent ``update_config`` detection `#1204
+  <https://github.com/openwisp/openwisp-controller/issues/1204>`_
+
 Version 1.2.2 [2026-03-06]
 --------------------------
 
