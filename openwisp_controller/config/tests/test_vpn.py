@@ -880,6 +880,45 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 device.config.templates.remove(template)
                 handler.assert_called_once()
 
+    def test_template_removal_fires_post_delete_signals(self):
+        """Regression test for #1221: removing a VPN template must trigger
+        VpnClient.post_delete so that the peer cache is invalidated,
+        and IP addresses are released."""
+        device, vpn, template = self._create_wireguard_vpn_template()
+        vpn_client = device.config.vpnclient_set.first()
+        self.assertIsNotNone(vpn_client)
+        vpn_client_pk = vpn_client.pk
+        ip_pk = vpn_client.ip.pk
+
+        with self.subTest("peer cache invalidated on template removal"):
+            with catch_signal(vpn_peers_changed) as handler:
+                device.config.templates.remove(template)
+                handler.assert_called_once()
+
+        with self.subTest("VpnClient deleted"):
+            self.assertFalse(VpnClient.objects.filter(pk=vpn_client_pk).exists())
+
+        with self.subTest("IP address released"):
+            self.assertFalse(IpAddress.objects.filter(pk=ip_pk).exists())
+
+    def test_deactivation_fires_post_delete_signals(self):
+        """Regression test for #1221: deactivating a device must trigger
+        VpnClient.post_delete for each client (not bulk QuerySet.delete)."""
+        device, vpn, template = self._create_wireguard_vpn_template()
+        vpn_client = device.config.vpnclient_set.first()
+        self.assertIsNotNone(vpn_client)
+        ip_pk = vpn_client.ip.pk
+
+        with catch_signal(vpn_peers_changed) as handler:
+            device.deactivate()
+            handler.assert_called_once()
+
+        # Verify cleanup happened
+        self.assertEqual(device.config.vpnclient_set.count(), 0)
+
+        with self.subTest("IP address released"):
+            self.assertFalse(IpAddress.objects.filter(pk=ip_pk).exists())
+
 
 class TestVxlan(BaseTestVpn, TestVxlanWireguardVpnMixin, TestCase):
     def test_vxlan_config_creation(self):
