@@ -2,7 +2,6 @@ from datetime import timedelta
 from ipaddress import ip_address as ip_addr
 
 import requests
-from celery import current_app
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
@@ -12,9 +11,10 @@ from geoip2 import webservice as geoip2_webservice
 from swapper import load_model
 
 from openwisp_controller.config import settings as app_settings
+from openwisp_controller.config.signals import whois_lookup_skipped
 
 from .tasks import fetch_whois_details
-from .utils import EXCEPTION_MESSAGES, send_whois_task_notification
+from .utils import EXCEPTION_MESSAGES
 
 
 class WHOISService:
@@ -111,15 +111,6 @@ class WHOISService:
             )
         return org_settings
 
-    @staticmethod
-    def check_estimated_location_enabled(org_id):
-        if not org_id:
-            return False
-        if not app_settings.WHOIS_CONFIGURED:
-            return False
-        org_settings = WHOISService.get_org_config_settings(org_id=org_id)
-        return org_settings.estimated_location_enabled
-
     @property
     def is_whois_enabled(self):
         """
@@ -129,16 +120,6 @@ class WHOISService:
             return False
         org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
         return org_settings.whois_enabled
-
-    @property
-    def is_estimated_location_enabled(self):
-        """
-        Check if the Estimated location feature is enabled.
-        """
-        if not app_settings.WHOIS_CONFIGURED:
-            return False
-        org_settings = self.get_org_config_settings(org_id=self.device.organization.pk)
-        return org_settings.estimated_location_enabled
 
     def process_whois_details(self, ip_address):
         """
@@ -214,26 +195,6 @@ class WHOISService:
             return False
         return True
 
-    def _need_estimated_location_management(self, new_ip):
-        """
-        Used to determine if Estimated locations need to be created/updated
-        or not during WHOIS lookup.
-        """
-        if not self.is_whois_enabled:
-            return False
-        if not self.is_valid_public_ip_address(new_ip):
-            return False
-        if not self.is_estimated_location_enabled:
-            return False
-        return True
-
-    def trigger_estimated_location_task(self, ip_address):
-        """Helper method to trigger the estimated location task."""
-        current_app.send_task(
-            "whois_estimated_location_task",
-            kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
-        )
-
     def get_device_whois_info(self):
         """
         If the WHOIS lookup feature is enabled and the device ``last_ip``
@@ -246,9 +207,7 @@ class WHOISService:
 
     def process_ip_data_and_location(self, force_lookup=False):
         """
-        Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`
-        and also manage estimated locations based on the conditions of
-        `_need_estimated_location_management`.
+        Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
         Tasks are triggered on commit to ensure redundant data is not created.
         """
         new_ip = self.device.last_ip
@@ -260,15 +219,9 @@ class WHOISService:
                     initial_ip_address=initial_ip,
                 )
             )
-        # To handle the case when WHOIS already exists as in that case
-        # WHOIS lookup is not triggered but we still need to
-        # manage estimated locations.
-        elif self._need_estimated_location_management(new_ip):
-            transaction.on_commit(
-                lambda: self.trigger_estimated_location_task(
-                    ip_address=new_ip,
-                )
-            )
+        elif self.is_whois_enabled and self.is_valid_public_ip_address(new_ip):
+            # Emit signal when lookup is skipped so receivers can react
+            whois_lookup_skipped.send(sender=self.__class__, device=self.device)
 
     def update_whois_info(self):
         """
@@ -312,52 +265,5 @@ class WHOISService:
             whois_instance = WHOISInfo(**whois_details)
             whois_instance.full_clean()
             whois_instance.save(force_insert=True)
+            update_fields = list(whois_details.keys())
         return whois_instance, update_fields
-
-    def _create_or_update_estimated_location(
-        self, location_defaults, attached_devices_exists
-    ):
-        """
-        Create or update estimated location for the device based on the
-        given location defaults.
-        """
-        Location = load_model("geo", "Location")
-        DeviceLocation = load_model("geo", "DeviceLocation")
-
-        if not (device_location := getattr(self.device, "devicelocation", None)):
-            device_location = DeviceLocation(content_object=self.device)
-
-        current_location = device_location.location
-
-        if not current_location or (
-            attached_devices_exists and current_location.is_estimated
-        ):
-            with transaction.atomic():
-                current_location = Location(**location_defaults, is_estimated=True)
-                current_location.full_clean()
-                current_location.save(_set_estimated=True)
-                device_location.location = current_location
-                device_location.full_clean()
-                device_location.save()
-            send_whois_task_notification(
-                device=self.device,
-                notify_type="estimated_location_created",
-                actor=current_location,
-            )
-        elif current_location.is_estimated:
-            update_fields = []
-            for attr, value in location_defaults.items():
-                if getattr(current_location, attr) != value:
-                    setattr(current_location, attr, value)
-                    update_fields.append(attr)
-            if update_fields:
-                with transaction.atomic():
-                    current_location.save(
-                        update_fields=update_fields, _set_estimated=True
-                    )
-                send_whois_task_notification(
-                    device=self.device,
-                    notify_type="estimated_location_updated",
-                    actor=current_location,
-                )
-        return current_location

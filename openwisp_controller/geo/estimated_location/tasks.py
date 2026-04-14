@@ -3,7 +3,11 @@ import logging
 from celery import shared_task
 from swapper import load_model
 
-from openwisp_controller.config.whois.utils import send_whois_task_notification
+from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
+from openwisp_controller.geo.estimated_location.utils import (
+    get_location_defaults_from_whois,
+    send_estimated_location_notification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,7 @@ def _handle_attach_existing_location(
         # if it is not shared
         if attached_devices_exists is False:
             current_location.delete()
-        send_whois_task_notification(
+        send_estimated_location_notification(
             device=device,
             notify_type="estimated_location_updated",
             actor=existing_location,
@@ -61,7 +65,7 @@ def _handle_attach_existing_location(
         return
 
     location_defaults = {
-        **whois_obj._get_defaults_for_estimated_location(),
+        **get_location_defaults_from_whois(whois_obj),
         "organization_id": device.organization_id,
     }
     # Create new location only if location is changed.
@@ -78,13 +82,12 @@ def _handle_attach_existing_location(
         return
     # create new location if no location exists for device or the estimated location
     # of device is shared.
-    whois_service = device.whois_service
-    whois_service._create_or_update_estimated_location(
+    estimated_location_service = EstimatedLocationService(device)
+    estimated_location_service._create_or_update_estimated_location(
         location_defaults, attached_devices_exists
     )
     logger.info(
-        f"Estimated location saved successfully for {device.pk}"
-        f" for IP: {ip_address}"
+        f"Estimated location saved successfully for {device.pk} for IP: {ip_address}"
     )
 
 
@@ -137,7 +140,7 @@ def manage_estimated_locations(device_pk, ip_address):
     )
     # multiple devices can have same last_ip in cases like usage of proxy
     if len(devices_with_location) > 1:
-        send_whois_task_notification(
+        send_estimated_location_notification(
             device=device, notify_type="estimated_location_error"
         )
         logger.error(

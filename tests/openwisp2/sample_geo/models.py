@@ -1,6 +1,7 @@
 from django.db import models
 
 from openwisp_controller.geo.base.models import (
+    AbstractOrganizationGeoSettings,
     BaseDeviceLocation,
     BaseFloorPlan,
     BaseLocation,
@@ -26,6 +27,11 @@ class FloorPlan(DetailsModel, BaseFloorPlan):
 
 class DeviceLocation(DetailsModel, BaseDeviceLocation):
     class Meta(BaseDeviceLocation.Meta):
+        abstract = False
+
+
+class OrganizationGeoSettings(DetailsModel, AbstractOrganizationGeoSettings):
+    class Meta(AbstractOrganizationGeoSettings.Meta):
         abstract = False
 
 
