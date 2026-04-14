@@ -150,16 +150,3 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             }
         # Use named placeholder for consistency
         return _("Estimated Location: %(ip)s") % {"ip": self.ip_address}
-
-    def _get_defaults_for_estimated_location(self):
-        """
-        Used to get default values for creating or updating
-        an estimated location based on the WHOIS information.
-        """
-        return {
-            "name": self._location_name,
-            "type": "outdoor",
-            "is_mobile": False,
-            "geometry": self.coordinates,
-            "address": self.formatted_address,
-        }

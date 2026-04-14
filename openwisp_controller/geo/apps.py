@@ -6,15 +6,21 @@ from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Case, Count, Sum, When
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.utils.translation import gettext_lazy as _
 from django_loci.apps import LociConfig
 from swapper import get_model_name
 
+from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
-from .estimated_location.handlers import register_estimated_location_notification_types
+from .estimated_location.handlers import (
+    register_estimated_location_notification_types,
+    whois_fetched_handler,
+    whois_lookup_skipped_handler,
+)
+from .estimated_location.service import EstimatedLocationService
 
 
 class GeoConfig(LociConfig):
@@ -24,14 +30,48 @@ class GeoConfig(LociConfig):
 
     def __setmodels__(self):
         self.location_model = swapper.load_model("geo", "Location")
+        self.org_geo_settings_model = swapper.load_model(
+            "geo", "OrganizationGeoSettings"
+        )
+        self.whois_info_model = swapper.load_model("config", "WHOISInfo")
+        self.organization_model = swapper.load_model("openwisp_users", "Organization")
 
     def ready(self):
         super().ready()
         self.register_dashboard_charts()
         self.register_menu_groups()
+        self.connect_receivers()
         register_estimated_location_notification_types()
         if getattr(settings, "TESTING", False):
             self._add_params_to_test_config()
+
+    def connect_receivers(self):
+        post_save.connect(
+            self.org_geo_settings_model.organization_post_save_receiver,
+            sender=self.organization_model,
+            dispatch_uid="organization_geo_settings_post_save",
+        )
+        # invalidate cached OrganizationGeoSettings when an OrganizationGeoSettings
+        # instance is updated or deleted
+        post_save.connect(
+            EstimatedLocationService.invalidate_org_settings_cache,
+            sender=self.org_geo_settings_model,
+            dispatch_uid="invalidate_org_geo_settings_cache_on_save",
+        )
+        post_delete.connect(
+            EstimatedLocationService.invalidate_org_settings_cache,
+            sender=self.org_geo_settings_model,
+            dispatch_uid="invalidate_org_geo_settings_cache_on_delete",
+        )
+        # connect estimated location handler to whois_fetched signal
+        whois_fetched.connect(
+            whois_fetched_handler,
+            dispatch_uid="whois_fetched_estimated_location_handler",
+        )
+        whois_lookup_skipped.connect(
+            whois_lookup_skipped_handler,
+            dispatch_uid="whois_lookup_skipped_estimated_location_handler",
+        )
 
     def _add_params_to_test_config(self):
         """
