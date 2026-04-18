@@ -8,6 +8,7 @@ from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -144,6 +145,13 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
     returns device's configuration checksum
     """
 
+    # Grace period before reconciling a "modified" status.
+    # If the config has been in "modified" state for longer than this,
+    # and the device is actively requesting its checksum (proving it's
+    # online and polling), we assume a previous report_status call was
+    # lost due to a transient error and reconcile the status to "applied".
+    _STATUS_RECONCILE_GRACE_SECONDS = 300  # 5 minutes
+
     def get(self, request, pk):
         device = self.get_device()
         bad_request = forbid_unallowed(request, "GET", "key", device.key)
@@ -156,9 +164,86 @@ class DeviceChecksumView(UpdateLastIpMixin, GetDeviceView):
         checksum_requested.send(
             sender=device.__class__, instance=device, request=request
         )
+        self._reconcile_modified_status(device)
         return ControllerResponse(
             device.config.get_cached_checksum(), content_type="text/plain"
         )
+
+    @staticmethod
+    def _reconcile_modified_status(device):
+        """
+        Reconciles config status for devices stuck in "modified" state.
+
+        When a device applies a new configuration but fails to report its
+        status back (e.g., due to a transient HTTP error like 502), the
+        config remains in "modified" state on the controller even though
+        the device already has the current configuration.
+
+        The device's agent will compare its local checksum with the
+        remote checksum on the next polling cycle and find they match,
+        so it won't re-download or re-report. The status stays "modified"
+        indefinitely.
+
+        This method detects this condition: if the config has been in
+        "modified" state for longer than the grace period and the device
+        is actively polling (proven by this very checksum request), we
+        set the status to "applied".
+
+        Fast path: the cached device object (from cache_memoize) is used
+        first to check the status. Only when the cached status indicates
+        "modified" do we re-query the database for the fresh state. This
+        keeps the checksum endpoint zero-query for the common case where
+        the status is already "applied".
+        """
+        # Best-effort: never let reconciliation fail the checksum endpoint.
+        try:
+            # Fast path 1: if the cached device's config is not "modified",
+            # there is nothing to reconcile.
+            try:
+                cached_config = device.config
+            except Config.DoesNotExist:
+                return
+            if cached_config is None or cached_config.status != "modified":
+                return
+
+            # Fast path 2: even if cached status is "modified", the cached
+            # `modified` timestamp gives a lower bound on the real elapsed
+            # time. If that lower bound is below the grace period, the real
+            # value cannot be above it either, so skip the DB query entirely.
+            grace = DeviceChecksumView._STATUS_RECONCILE_GRACE_SECONDS
+            cached_elapsed = (timezone.now() - cached_config.modified).total_seconds()
+            if cached_elapsed < grace:
+                return
+
+            # Slow path: re-read config fresh from the database because
+            # cache_memoize has a 30-day TTL and may be serving a stale
+            # "modified" status that was already reconciled earlier.
+            # Fetch the full Config (not ``.only()``) so that ``save()``
+            # path (via ``_check_changes``) can evaluate the checksum
+            # without triggering lazy-loads that would recompute it
+            # against a partially-loaded instance and reset status.
+            try:
+                config = Config.objects.get(device=device)
+            except Config.DoesNotExist:
+                return
+            if config.status != "modified":
+                return
+            elapsed = (timezone.now() - config.modified).total_seconds()
+            if elapsed < grace:
+                return
+            config.set_status_applied()
+            logger.info(
+                "Reconciled config status for device %s: was 'modified' "
+                "for %d seconds with device actively polling, "
+                "setting to 'applied'.",
+                device,
+                int(elapsed),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to reconcile config status for device %s",
+                device,
+            )
 
     @cache_memoize(
         timeout=Config._CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_device_args_rewrite
