@@ -200,9 +200,15 @@ class DeviceConfigSerializer(BaseSerializer):
             old_templates = list(config.templates.values_list("id", flat=True))
             if config_templates != old_templates:
                 with transaction.atomic():
-                    vpn_list = config.templates.filter(type="vpn").values_list("vpn")
-                    if vpn_list:
-                        config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+                    new_vpn_ids = Template.objects.filter(
+                        pk__in=config_templates, type="vpn"
+                    ).values_list("vpn", flat=True)
+                    for vpnclient in (
+                        config.vpnclient_set.select_related("vpn", "cert", "ip")
+                        .exclude(vpn__in=new_vpn_ids)
+                        .iterator()
+                    ):
+                        vpnclient.delete()
                     config.templates.set(config_templates, clear=True)
             config.save()
         except ValidationError as error:

@@ -4,7 +4,14 @@ Changelog
 Version 1.3.0 [unreleased]
 --------------------------
 
-Work in progress.
+Bugfixes
+~~~~~~~~
+
+- Fixed VPN peer cache desync when a VPN template is removed from a
+  device: replaced bulk ``QuerySet.delete()`` with per-instance deletion
+  so that ``post_delete`` signals fire, ensuring peer cache invalidation,
+  certificate revocation and IP address release `#1221
+  <https://github.com/openwisp/openwisp-controller/issues/1221>`_
 
 Version 1.2.3 [2026-04-09]
 --------------------------

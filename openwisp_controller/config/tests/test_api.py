@@ -26,6 +26,7 @@ from .utils import (
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 VpnClient = load_model("config", "VpnClient")
+Cert = load_model("django_x509", "Cert")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -515,6 +516,50 @@ class TestConfigApi(
             "The following templates are owned by organizations which"
             f" do not match the organization of this configuration: {t3}",
         )
+
+    def test_device_patch_vpn_template_removal_triggers_post_delete(self):
+        """Regression test for #1221: removing VPN template via PATCH API must
+        trigger VpnClient.post_delete so peer cache is invalidated and the
+        certificate is revoked. Tests both empty and non-empty replacement."""
+        org = self._get_org()
+        vpn = self._create_vpn(organization=org)
+        t_vpn = self._create_template(
+            name="vpn-test", type="vpn", vpn=vpn, auto_cert=True, organization=org
+        )
+        t_generic = self._create_template(name="generic-test", organization=org)
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse("config_api:device_detail", args=[device.pk])
+
+        with self.subTest("replace VPN template with generic template"):
+            config.templates.set([t_vpn])
+            vpnclient = config.vpnclient_set.first()
+            self.assertIsNotNone(vpnclient)
+            cert_pk = vpnclient.cert.pk
+            data = {"config": {"templates": [str(t_generic.pk)]}}
+            with patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+                response = self.client.patch(
+                    path, data, content_type="application/json"
+                )
+                mock_invalidate.assert_called_once()
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+            self.assertTrue(Cert.objects.get(pk=cert_pk).revoked)
+
+        with self.subTest("remove all templates (empty list)"):
+            config.templates.set([t_vpn])
+            vpnclient = config.vpnclient_set.first()
+            self.assertIsNotNone(vpnclient)
+            cert_pk = vpnclient.cert.pk
+            data = {"config": {"templates": []}}
+            with patch.object(Vpn, "_invalidate_peer_cache") as mock_invalidate:
+                response = self.client.patch(
+                    path, data, content_type="application/json"
+                )
+                mock_invalidate.assert_called_once()
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+            self.assertTrue(Cert.objects.get(pk=cert_pk).revoked)
 
     def test_device_change_organization_required_templates(self):
         org1 = self._create_org(name="org1")
