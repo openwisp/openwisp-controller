@@ -64,6 +64,16 @@
 {% block content %}
 <div class="{% if not add %}change-form{% else %}add-form{% endif %}">
     {{ block.super }}
+    {% if not add and original %}
+    {% firstof original.config.backend original.backend "" as readonly_backend %}
+    {% if readonly_backend %}
+    <script>
+        django
+            .jQuery(".field-backend .readonly")
+            .attr("data-backend", "{{ readonly_backend|escapejs }}");
+    </script>
+    {% endif %}
+    {% endif %}
     <div class="djnjc-overlay">
         <div class="inner"></div>
     </div>
