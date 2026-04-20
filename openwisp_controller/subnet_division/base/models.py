@@ -69,6 +69,13 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         return import_string(self.type)
 
     def clean(self):
+        # Auto-fill organization from master subnet
+        if (
+            self.master_subnet_id
+            and self.master_subnet.organization_id is not None
+            and not self.organization_id
+        ):
+            self.organization_id = self.master_subnet.organization_id
         super().clean()
         self._validate_label()
         self._validate_master_subnet_validity()
