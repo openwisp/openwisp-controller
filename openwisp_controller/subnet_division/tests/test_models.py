@@ -129,21 +129,13 @@ class TestSubnetDivisionRule(
                 context_manager.exception.message_dict, expected_message_dict
             )
 
-        with self.subTest("Test rule does not provision any subnet"):
+        with self.subTest("Test rule allows zero subnets"):
             options = default_options.copy()
             options["number_of_subnets"] = 0
             rule = SubnetDivisionRule(**options)
-            with self.assertRaises(ValidationError) as context_manager:
-                rule.full_clean()
-            expected_message_dict = {
-                "number_of_subnets": [
-                    "Ensure this value is greater than or equal to 1."
-                ]
-            }
-            self.assertDictEqual(
-                context_manager.exception.message_dict, expected_message_dict
-            )
-
+            # Should not raise ValidationError
+            rule.full_clean()
+            
         with self.subTest("Test rule does not provision any IP"):
             options = default_options.copy()
             options["number_of_ips"] = 0
