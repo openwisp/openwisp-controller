@@ -1,4 +1,6 @@
+from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -14,6 +16,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Organization = load_model("openwisp_users", "Organization")
 Cert = load_model("django_x509", "Cert")
+VpnClient = load_model("config", "VpnClient")
 
 
 @receiver(
@@ -152,3 +155,33 @@ def organization_disabled_handler(instance, **kwargs):
         # No change in is_active
         return
     tasks.invalidate_controller_views_cache.delay(str(instance.id))
+
+
+def check_ipam_change_handler(sender, instance, **kwargs):
+    if instance._state.adding or kwargs.get("raw"):
+        return
+    try:
+        if hasattr(instance, "ip_address"):
+            old_instance = sender.objects.only("ip_address").get(pk=instance.pk)
+            if old_instance.ip_address == instance.ip_address:
+                return
+            is_in_use = VpnClient.objects.filter(
+                Q(ip=instance) | Q(vpn__ip=instance)
+            ).exists()
+            error_msg = _(
+                "Cannot modify this IP address because it is assigned to an "
+                "active VPN connection. Disconnect the clients first."
+            )
+        else:
+            old_instance = sender.objects.only("subnet").get(pk=instance.pk)
+            if old_instance.subnet == instance.subnet:
+                return
+            is_in_use = VpnClient.objects.filter(vpn__subnet=instance).exists()
+            error_msg = _(
+                "Cannot modify this subnet because it is assigned to a VPN "
+                "server with active clients. Disconnect the clients first."
+            )
+    except sender.DoesNotExist:
+        return
+    if is_in_use:
+        raise ValidationError(error_msg)
