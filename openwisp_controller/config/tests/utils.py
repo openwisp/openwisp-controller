@@ -187,8 +187,8 @@ class TestVxlanWireguardVpnMixin(CreateIpamModelsMixin):
     def _create_vxlan_tunnel(self, config=None, **kwargs):
         if config is None:
             config = {"wireguard": [{"name": "wg0", "port": 51820}]}
-        org = self._get_org()
-        subnet = self._create_subnet(
+        org = kwargs.pop("organization", None) or self._get_org()
+        subnet = kwargs.pop("subnet", None) or self._create_subnet(
             name="wireguard test", subnet="10.0.0.0/16", organization=org
         )
         tunnel = self._create_vpn(
