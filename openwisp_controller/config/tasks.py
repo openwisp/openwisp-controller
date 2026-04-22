@@ -217,3 +217,19 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(base=OpenwispCeleryTask)
+def invalidate_controller_views_for_group(group_id):
+    """
+    Invalidates the DeviceChecksumView cache only for devices in the given group.
+
+    Unlike invalidate_controller_views_cache, this is scoped to a single device
+    group and does not invalidate VPN caches.
+    """
+    from .controller.views import DeviceChecksumView
+
+    Device = load_model("config", "Device")
+
+    for device in Device.objects.filter(group_id=group_id).only("id").iterator():
+        DeviceChecksumView.invalidate_get_device_cache(device)

@@ -15,7 +15,10 @@ from openwisp_utils.base import TimeStampedEditableModel
 from .. import settings as app_settings
 from ..signals import group_templates_changed
 from ..sortedm2m.fields import SortedManyToManyField
-from ..tasks import bulk_invalidate_config_get_cached_checksum
+from ..tasks import (
+    bulk_invalidate_config_get_cached_checksum,
+    invalidate_controller_views_for_group,
+)
 from .config import TemplatesThrough
 
 
@@ -88,6 +91,7 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
             bulk_invalidate_config_get_cached_checksum.delay(
                 {"device__group_id": str(self.id)}
             )
+            invalidate_controller_views_for_group.delay(str(self.id))
 
     def get_context(self):
         return deepcopy(self.context)

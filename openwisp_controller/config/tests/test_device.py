@@ -433,6 +433,67 @@ class TestDevice(
         new_checksum = config.get_cached_checksum()
         self.assertNotEqual(old_checksum, new_checksum)
 
+    def test_status_update_on_org_variable_change(self):
+        org = self._get_org()
+        cs = OrganizationConfigSettings.objects.create(organization=org, context={})
+        c1 = self._create_config(organization=org)
+        c1.templates.add(
+            self._create_template(
+                name="t-with-var",
+                config={"interfaces": [{"name": "{{ ssid }}", "type": "ethernet"}]},
+                default_values={"ssid": "eth0"},
+            )
+        )
+        c1.set_status_applied()
+        d2 = self._create_device(
+            organization=org, name="d2", mac_address="00:11:22:33:44:56"
+        )
+        c2 = self._create_config(device=d2)
+        c2.set_status_applied()
+        cs.context = {"ssid": "OrgA"}
+        cs.full_clean()
+        cs.save()
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        with self.subTest("affected config changes to modified"):
+            self.assertEqual(c1.status, "modified")
+        with self.subTest("unaffected config remains applied"):
+            self.assertEqual(c2.status, "applied")
+
+    def test_status_update_on_group_variable_change(self):
+        org = self._get_org()
+        dg = self._create_device_group(organization=org, context={})
+        d1 = self._create_device(organization=org, group=dg)
+        c1 = self._create_config(device=d1)
+        c1.templates.add(
+            self._create_template(
+                name="t-with-var",
+                config={"interfaces": [{"name": "{{ ssid }}", "type": "ethernet"}]},
+                default_values={"ssid": "eth0"},
+            )
+        )
+        c1.set_status_applied()
+        d2 = self._create_device(
+            organization=org, group=dg, name="d2", mac_address="00:11:22:33:44:56"
+        )
+        c2 = self._create_config(device=d2)
+        c2.set_status_applied()
+        dg.context = {"ssid": "OrgA"}
+        dg.full_clean()
+        patch_path = (
+            "openwisp_controller.config.base.device_group"
+            ".invalidate_controller_views_for_group"
+        )
+        with mock.patch(patch_path) as mocked_task:
+            dg.save()
+            mocked_task.delay.assert_called_once_with(str(dg.id))
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        with self.subTest("affected config changes to modified"):
+            self.assertEqual(c1.status, "modified")
+        with self.subTest("unaffected config remains applied"):
+            self.assertEqual(c2.status, "applied")
+
     def test_management_ip_changed_not_emitted_on_creation(self):
         with catch_signal(management_ip_changed) as handler:
             self._create_device(organization=self._get_org())
