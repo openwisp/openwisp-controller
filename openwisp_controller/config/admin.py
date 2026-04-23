@@ -20,7 +20,7 @@ from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
-from django.urls import path, re_path, reverse
+from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
@@ -169,8 +169,8 @@ class BaseConfigAdmin(BaseAdmin):
         options = getattr(self.model, "_meta")
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
         return [
-            re_path(
-                r"^download/(?P<pk>[^/]+)/$",
+            path(
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
                 name="{0}_download".format(url_prefix),
             ),
@@ -179,8 +179,8 @@ class BaseConfigAdmin(BaseAdmin):
                 self.admin_site.admin_view(self.preview_view),
                 name="{0}_preview".format(url_prefix),
             ),
-            re_path(
-                r"^(?P<pk>[^/]+)/context\.json$",
+            path(
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
                 name="{0}_context".format(url_prefix),
             ),
