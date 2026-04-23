@@ -99,7 +99,10 @@ class TestDevice(
         ).click()
         try:
             WebDriverWait(self.web_driver, 5).until(
-                EC.url_to_be(f"{self.live_server_url}/admin/config/device/")
+                EC.url_to_be(
+                    self.live_server_url
+                    + reverse(f"admin:{self.config_app_label}_device_changelist")
+                )
             )
         except TimeoutException:
             self.fail("Deleted device was not restored")
