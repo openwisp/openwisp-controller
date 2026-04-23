@@ -4,8 +4,7 @@ on:
   pull_request_review:
     types: [submitted]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions: {}
 
 jobs:
   check:
@@ -33,7 +32,7 @@ jobs:
 
       - name: Upload PR metadata
         if: steps.check.outputs.has_noteworthy == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: changelog-metadata
           path: pr_number

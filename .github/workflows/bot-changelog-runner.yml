@@ -8,23 +8,19 @@ on:
 
 permissions:
   actions: read
-  contents: read
-  pull-requests: write
-  issues: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   fetch-metadata:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      actions: read
     outputs:
       pr_number: ${{ steps.metadata.outputs.pr_number }}
     steps:
       - name: Download PR metadata
         id: download
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: changelog-metadata
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -45,6 +41,10 @@ jobs:
   changelog:
     needs: fetch-metadata
     if: needs.fetch-metadata.outputs.pr_number != ''
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     uses: openwisp/openwisp-utils/.github/workflows/reusable-bot-changelog.yml@master
     with:
       pr_number: ${{ needs.fetch-metadata.outputs.pr_number }}
