@@ -210,7 +210,7 @@ class WHOISService:
         Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
         Tasks are triggered on commit to ensure redundant data is not created.
         """
-        if self.device.is_deactived():
+        if self.device.is_deactivated():
             return
         new_ip = self.device.last_ip
         initial_ip = self.device._initial_last_ip
@@ -231,7 +231,7 @@ class WHOISService:
         when the data is older than
         ``OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS``.
         """
-        if self.device.is_deactived():
+        if self.device.is_deactivated():
             return
         ip_address = self.device.last_ip
         if not self.is_valid_public_ip_address(ip_address):

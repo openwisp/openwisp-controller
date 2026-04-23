@@ -2,7 +2,7 @@ import copy
 import importlib
 from datetime import timedelta
 from io import StringIO
-from unittest import mock, mocke
+from unittest import mock
 from uuid import uuid4
 
 from django.conf import settings
