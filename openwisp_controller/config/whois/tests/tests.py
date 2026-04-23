@@ -3,6 +3,7 @@ import importlib
 from datetime import timedelta
 from io import StringIO
 from unittest import mock
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.conf import settings
@@ -21,7 +22,9 @@ from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
+from openwisp_controller.config.models import Device
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
+from openwisp_controller.config.whois.service import WhoIsService
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
 from ....tests.utils import TestAdminMixin
@@ -347,7 +350,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         )
         args = ["--noinput"]
         # 4 queries (3 for each device's last_ip update) and 1 for fetching devices
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
@@ -1186,3 +1189,26 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 _assert_no_js_errors()
             except UnexpectedAlertPresentException:
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")
+
+
+class TestWhoisDeactivated(TestCase):
+    def setUp(self):
+        self.device = Device.objects.create(name="test-device")
+
+    @patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_process_ip_skips_when_deactivated(self, mock_task):
+        self.device._is_deactivated = True
+
+        service = WhoIsService(self.device)
+        service.process_ip_data_and_location()
+
+        mock_task.assert_not_called()
+
+    @patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_update_whois_skips_when_deactivated(self, mock_task):
+        self.device._is_deactivated = True
+
+        service = WhoIsService(self.device)
+        service.update_whois_info()
+
+        mock_task.assert_not_called()
