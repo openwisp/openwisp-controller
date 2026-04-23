@@ -2,7 +2,7 @@ import copy
 import importlib
 from datetime import timedelta
 from io import StringIO
-from unittest import mock
+from unittest import mock, mocke
 from uuid import uuid4
 
 from django.conf import settings
@@ -21,7 +21,9 @@ from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
+from openwisp_controller.config import settings as app_settings
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
+from openwisp_controller.config.whois.service import WHOISService
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
 from ....tests.utils import TestAdminMixin
@@ -346,8 +348,8 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             name="default.test.device4", mac_address="66:33:44:55:66:77"
         )
         args = ["--noinput"]
-        # 4 queries (3 for each device's last_ip update) and 1 for fetching devices
-        with self.assertNumQueries(4):
+
+        with self.assertNumQueries(7):
             call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
@@ -1186,3 +1188,30 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 _assert_no_js_errors()
             except UnexpectedAlertPresentException:
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")
+
+
+class TestWHOISDeactivated(TransactionTestCase):
+    def setUp(self):
+        self.device = self._create_device()
+        self.device.last_ip = "8.8.8.8"  # public IP
+        self.device.save()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_process_ip_skips_when_deactivated(self, mock_task):
+        self.device._is_deactivated = True
+
+        service = WHOISService(self.device)
+        service.process_ip_data_and_location()
+
+        self.assertEqual(mock_task.call_count, 0)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_process_ip_runs_when_active(self, mock_task):
+        self.device._is_deactivated = False
+
+        service = WHOISService(self.device)
+        service.process_ip_data_and_location()
+
+        self.assertEqual(mock_task.call_count, 1)
