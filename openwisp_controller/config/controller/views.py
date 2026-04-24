@@ -475,7 +475,19 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         normalized_name = name.replace(":", "").replace("-", "").lower()
         if normalized_name != normalized_mac:
             device.name = name
-            device.skip_push_update_on_save()
+            # NOTE: ``device.skip_push_update_on_save()`` is defined on
+            # AbstractDevice, but we guard the call defensively so that
+            # subclasses or older installations that may lack the method
+            # do not crash during factory-reset re-registration.
+            skip = getattr(device, "skip_push_update_on_save", None)
+            if callable(skip):
+                skip()
+            else:
+                logger.warning(
+                    "Device %s does not implement skip_push_update_on_save(); "
+                    "continuing registration without push-skip optimization.",
+                    device.pk,
+                )
 
 
 class GetVpnView(SingleObjectMixin, View):
