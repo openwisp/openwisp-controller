@@ -21,9 +21,7 @@ from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
-from openwisp_controller.config import settings as app_settings
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
-from openwisp_controller.config.whois.service import WHOISService
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
 from ....tests.utils import TestAdminMixin
@@ -348,8 +346,8 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             name="default.test.device4", mac_address="66:33:44:55:66:77"
         )
         args = ["--noinput"]
-
-        with self.assertNumQueries(7):
+        # 4 queries (3 for each device's last_ip update) and 1 for fetching devices
+        with self.assertNumQueries(4):
             call_command("clear_last_ip", *args, stdout=out, stderr=StringIO())
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
@@ -1079,6 +1077,65 @@ class TestWHOISTransaction(
         result = get_whois_info(pk=device.pk)
         self.assertIsNone(result)
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_process_ip_skips_when_deactivated(self, mock_task):
+        # Public IP that would normally trigger a lookup, so the only reason
+        # the task is not enqueued is the deactivation guard under test.
+        device = self._create_device()
+        org_settings = device.organization.config_settings
+        org_settings.whois_enabled = True
+        org_settings.save()
+        device._initial_last_ip = None
+        device.last_ip = "8.8.8.8"
+        device.save()
+        mock_task.reset_mock()
+        device.deactivate()
+        service = WHOISService(device)
+        service.process_ip_data_and_location()
+        self.assertEqual(mock_task.call_count, 0)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_process_ip_runs_when_active(self, mock_task):
+        device = self._create_device()
+        org_settings = device.organization.config_settings
+        org_settings.whois_enabled = True
+        org_settings.save()
+        device._initial_last_ip = None
+        device.last_ip = "8.8.8.8"
+        device.save()
+        mock_task.reset_mock()
+        service = WHOISService(device)
+        service.process_ip_data_and_location()
+        # transaction.on_commit executes immediately in TransactionTestCase,
+        # so the task is triggered synchronously here
+        mock_task.assert_called_once_with(
+            device_pk=device.pk,
+            initial_ip_address=device._initial_last_ip,
+        )
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
+    def test_update_whois_skips_when_deactivated(self, mock_task):
+        device = self._create_device()
+        org_settings = device.organization.config_settings
+        org_settings.whois_enabled = True
+        org_settings.save()
+        ip = "8.8.8.8"
+        device._initial_last_ip = None
+        device.last_ip = ip
+        device.save()
+        threshold = app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
+        expired_time = timezone.now() - timedelta(days=threshold)
+        whois_obj = self._create_whois_info(ip_address=ip)
+        WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=expired_time)
+        device.deactivate()
+        mock_task.reset_mock()
+        service = WHOISService(device)
+        service.update_whois_info()
+        mock_task.assert_not_called()
+
 
 @tag("selenium_tests")
 class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTestCase):
@@ -1188,35 +1245,3 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 _assert_no_js_errors()
             except UnexpectedAlertPresentException:
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")
-
-
-class TestWHOISDeactivated(
-    CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
-):
-    def setUp(self):
-        super().setUp()
-        self.device = self._create_device()
-        org_settings = self.device.organization.config_settings
-        org_settings.whois_enabled = True
-        org_settings.save()
-
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
-    def test_process_ip_skips_when_deactivated(self, mock_task):
-        self.device._is_deactivated = True
-
-        service = WHOISService(self.device)
-        service.process_ip_data_and_location()
-
-        self.assertEqual(mock_task.call_count, 0)
-
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
-    def test_process_ip_runs_when_active(self, mock_task):
-        self.device._is_deactivated = False
-        self.device.last_ip = "8.8.8.8"
-
-        service = WHOISService(self.device)
-        service.process_ip_data_and_location()
-
-        self.assertEqual(mock_task.call_count, 1)

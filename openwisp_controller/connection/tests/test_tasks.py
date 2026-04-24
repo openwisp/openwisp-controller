@@ -142,8 +142,11 @@ class TestTasks(CreateConnectionsMixin, TestCase):
 class TestTransactionTasks(
     TestRegistrationMixin, CreateConnectionsMixin, TransactionTestCase
 ):
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
     @mock.patch.object(tasks.update_config, "delay")
-    def test_update_config_hostname_changed_on_reregister(self, mocked_update_config):
+    def test_update_config_hostname_changed_on_reregister(
+        self, mocked_update_config, mocked_launch_command
+    ):
         device = self._create_device_config()
         self._create_device_connection(device=device)
         # Trigger re-registration with new hostname

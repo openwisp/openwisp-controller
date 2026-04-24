@@ -63,6 +63,8 @@ class EstimatedLocationService:
         return self.check_estimated_location_enabled(self.device.organization_id)
 
     def trigger_estimated_location_task(self, ip_address):
+        if self.device.is_deactivated():
+            return
         try:
             current_app.send_task(
                 "whois_estimated_location_task",
