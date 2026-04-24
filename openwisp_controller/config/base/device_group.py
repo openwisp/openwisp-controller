@@ -1,11 +1,11 @@
-import collections
 from copy import deepcopy
 
 import jsonschema
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
@@ -39,24 +39,22 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
     meta_data = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
         help_text=_(
             "Store custom metadata related to this group. This field is intended "
             "for arbitrary data that does not affect device configuration and can "
             "be retrieved via the REST API for integrations or external tools."
         ),
         verbose_name=_("Metadata"),
+        encoder=DjangoJSONEncoder,
     )
     context = JSONField(
         blank=True,
         default=dict,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
         help_text=_(
             "Define configuration variables available to all devices in this group"
         ),
         verbose_name=_("Configuration Variables"),
+        encoder=DjangoJSONEncoder,
     )
 
     def __str__(self):

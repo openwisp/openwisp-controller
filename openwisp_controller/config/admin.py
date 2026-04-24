@@ -15,6 +15,7 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
+from django.db import models
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
@@ -217,6 +218,9 @@ class BaseConfigAdmin(BaseAdmin):
                 key = "{relation}_id".format(relation=key)
                 # pass non-empty string or None
                 kwargs[key] = value or None
+            # parse JSON strings for JSONField fields
+            elif isinstance(field, models.JSONField) and isinstance(value, str):
+                kwargs[key] = json.loads(value) if value else None
             # put regular field values in kwargs dict
             else:
                 kwargs[key] = value

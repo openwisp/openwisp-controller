@@ -428,8 +428,8 @@ class TestConfigApi(
                 "backend": "netjsonconfig.OpenWisp",
                 "status": "modified",
                 "templates": [],
-                "context": "{}",
-                "config": "{}",
+                "context": {},
+                "config": {},
             },
         }
         r = self.client.put(path, data, content_type="application/json")
