@@ -1190,11 +1190,15 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")
 
 
-class TestWHOISDeactivated(TransactionTestCase):
+class TestWHOISDeactivated(
+    CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
+):
     def setUp(self):
+        super().setUp()
         self.device = self._create_device()
-        self.device.last_ip = "8.8.8.8"  # public IP
-        self.device.save()
+        org_settings = self.device.organization.config_settings
+        org_settings.whois_enabled = True
+        org_settings.save()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
@@ -1210,6 +1214,7 @@ class TestWHOISDeactivated(TransactionTestCase):
     @mock.patch("openwisp_controller.config.whois.service.fetch_whois_details.delay")
     def test_process_ip_runs_when_active(self, mock_task):
         self.device._is_deactivated = False
+        self.device.last_ip = "8.8.8.8"
 
         service = WHOISService(self.device)
         service.process_ip_data_and_location()
