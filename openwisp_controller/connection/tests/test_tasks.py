@@ -9,6 +9,7 @@ from swapper import load_model
 
 from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
+from ..connectors.exceptions import CommandTimeoutException
 from .utils import CreateConnectionsMixin
 
 Command = load_model("connection", "Command")
@@ -116,6 +117,30 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Background task time limit exceeded.\n")
+
+    @mock.patch(
+        _mock_execute,
+        side_effect=CommandTimeoutException("connection timed out after 30s"),
+    )
+    @mock.patch(_mock_connect, return_value=True)
+    def test_launch_command_ssh_timeout(self, *args):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "/usr/sbin/exotic_command"},
+        )
+        command.full_clean()
+        command.save()
+        # must call this explicitly because lack of transactions in this test case
+        tasks.launch_command.delay(command.pk)
+        command.refresh_from_db()
+        self.assertEqual(command.status, "failed")
+        self.assertEqual(
+            command.output,
+            "The command took longer than expected: connection timed out after 30s\n",
+        )
 
     @mock.patch(_mock_execute, side_effect=RuntimeError("test error"))
     @mock.patch(_mock_connect, return_value=True)
