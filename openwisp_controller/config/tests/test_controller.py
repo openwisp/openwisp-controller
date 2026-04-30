@@ -270,6 +270,68 @@ class TestController(
                 request=response.wsgi_request,
             )
 
+    def test_device_checksum_reconciles_modified_status(self):
+        """
+        When a device with status "modified" requests its checksum,
+        and enough time has passed (grace period), the status should
+        be automatically reconciled to "applied".
+        """
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        d = self._create_device_config()
+        c = d.config
+        c.set_status_modified()
+        self.assertEqual(c.status, "modified")
+        url = reverse("controller:device_checksum", args=[d.pk])
+
+        # First request within grace period: status should stay "modified"
+        response = self.client.get(url, {"key": d.key})
+        self.assertEqual(response.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "modified")
+
+        # Simulate that grace period has elapsed by backdating the
+        # modified timestamp. ``.update()`` bypasses the cache
+        # invalidation signal that ``Device.save()`` would normally
+        # emit, so we invalidate the cached device explicitly to make
+        # sure the view re-reads the backdated timestamp.
+        Config.objects.filter(pk=c.pk).update(
+            modified=timezone.now()
+            - timedelta(seconds=DeviceChecksumView._STATUS_RECONCILE_GRACE_SECONDS + 1)
+        )
+        DeviceChecksumView.invalidate_get_device_cache(instance=d)
+
+        # Second request after grace period: status should be reconciled
+        # to "applied"
+        response = self.client.get(url, {"key": d.key})
+        self.assertEqual(response.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "applied")
+
+    def test_device_checksum_no_reconcile_for_applied(self):
+        """Status "applied" should not be changed."""
+        d = self._create_device_config()
+        c = d.config
+        c.set_status_applied()
+        url = reverse("controller:device_checksum", args=[d.pk])
+        response = self.client.get(url, {"key": d.key})
+        self.assertEqual(response.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "applied")
+
+    def test_device_checksum_no_reconcile_within_grace_period(self):
+        """Status should not be reconciled if within the grace period."""
+        d = self._create_device_config()
+        c = d.config
+        c.set_status_modified()
+        url = reverse("controller:device_checksum", args=[d.pk])
+        response = self.client.get(url, {"key": d.key})
+        self.assertEqual(response.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "modified")
+
     def test_device_checksum_bad_uuid(self):
         d = self._create_device_config()
         pk = "{}-wrong".format(d.pk)
