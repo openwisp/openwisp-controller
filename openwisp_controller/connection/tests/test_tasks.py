@@ -9,6 +9,7 @@ from swapper import load_model
 
 from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
+from ..connectors.exceptions import CommandTimeoutException
 from .utils import CreateConnectionsMixin
 
 Command = load_model("connection", "Command")
@@ -20,6 +21,56 @@ class TestTasks(CreateConnectionsMixin, TestCase):
     _mock_connect = (
         "openwisp_controller.connection.base.models.AbstractDeviceConnection.connect"
     )
+
+    def _get_mocked_celery_active(self, device_id, task_id=None):
+        return {
+            "worker1": [
+                {
+                    "name": tasks._TASK_NAME,
+                    "args": [device_id],
+                    "id": task_id or str(uuid.uuid4()),
+                }
+            ]
+        }
+
+    def test_is_update_in_progress_same_task(self):
+        device_id = str(uuid.uuid4())
+        task_id = str(uuid.uuid4())
+        with mock.patch(
+            "celery.app.control.Inspect.active",
+            return_value=self._get_mocked_celery_active(device_id, task_id),
+        ):
+            result = tasks._is_update_in_progress(device_id, current_task_id=task_id)
+            self.assertEqual(result, False)
+
+    def test_is_update_in_progress_different_task(self):
+        device_id = str(uuid.uuid4())
+        current_task_id = str(uuid.uuid4())
+        other_task_id = str(uuid.uuid4())
+        with mock.patch(
+            "celery.app.control.Inspect.active",
+            return_value=self._get_mocked_celery_active(device_id, other_task_id),
+        ):
+            result = tasks._is_update_in_progress(
+                device_id, current_task_id=current_task_id
+            )
+            self.assertEqual(result, True)
+
+    def test_is_update_in_progress_no_tasks(self):
+        device_id = str(uuid.uuid4())
+        with mock.patch("celery.app.control.Inspect.active", return_value={}):
+            result = tasks._is_update_in_progress(device_id)
+            self.assertEqual(result, False)
+
+    def test_is_update_in_progress_different_device(self):
+        device_id = str(uuid.uuid4())
+        other_device_id = str(uuid.uuid4())
+        with mock.patch(
+            "celery.app.control.Inspect.active",
+            return_value=self._get_mocked_celery_active(other_device_id),
+        ):
+            result = tasks._is_update_in_progress(device_id)
+            self.assertEqual(result, False)
 
     @mock.patch("logging.Logger.warning")
     @mock.patch("time.sleep")
@@ -66,6 +117,30 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Background task time limit exceeded.\n")
+
+    @mock.patch(
+        _mock_execute,
+        side_effect=CommandTimeoutException("connection timed out after 30s"),
+    )
+    @mock.patch(_mock_connect, return_value=True)
+    def test_launch_command_ssh_timeout(self, *args):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "/usr/sbin/exotic_command"},
+        )
+        command.full_clean()
+        command.save()
+        # must call this explicitly because lack of transactions in this test case
+        tasks.launch_command.delay(command.pk)
+        command.refresh_from_db()
+        self.assertEqual(command.status, "failed")
+        self.assertEqual(
+            command.output,
+            "The command took longer than expected: connection timed out after 30s\n",
+        )
 
     @mock.patch(_mock_execute, side_effect=RuntimeError("test error"))
     @mock.patch(_mock_connect, return_value=True)

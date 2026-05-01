@@ -694,8 +694,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
             "opts": self.model._meta,
             "changelist_url": (
-                f"{request.resolver_match.app_name}:"
-                f"{request.resolver_match.url_name}"
+                f"{request.resolver_match.app_name}:{request.resolver_match.url_name}"
             ),
         }
 
@@ -1104,8 +1103,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     validated_org = Organization.objects.get(pk=organization)
                 except (ValidationError, Organization.DoesNotExist) as e:
                     logger.warning(
-                        "Detected tampering in clone template "
-                        f"form by user {user}: {e}"
+                        f"Detected tampering in clone template form by user {user}: {e}"
                     )
                     return
                 if not user.is_superuser and not user.is_manager(organization):
@@ -1393,7 +1391,7 @@ class ConfigSettingsInline(admin.StackedInline):
         if app_settings.REGISTRATION_ENABLED:
             fields += ["registration_enabled", "shared_secret"]
         if app_settings.WHOIS_CONFIGURED:
-            fields += ["whois_enabled", "estimated_location_enabled"]
+            fields += ["whois_enabled"]
         fields += ["context"]
         return fields
 

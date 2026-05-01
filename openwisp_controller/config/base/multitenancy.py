@@ -39,18 +39,14 @@ class AbstractOrganizationConfigSettings(UUIDModel):
         fallback=app_settings.WHOIS_ENABLED,
         verbose_name=_("WHOIS Enabled"),
     )
-    estimated_location_enabled = FallbackBooleanChoiceField(
-        help_text=_("Whether the estimated location feature is enabled"),
-        fallback=app_settings.ESTIMATED_LOCATION_ENABLED,
-        verbose_name=_("Estimated Location Enabled"),
-    )
     context = JSONField(
         blank=True,
         default=dict,
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},
         help_text=_(
-            'This field can be used to add "Configuration Variables"' " to the devices."
+            "Define reusable configuration variables available "
+            "to all devices in this organization"
         ),
         verbose_name=_("Configuration Variables"),
     )
@@ -73,15 +69,6 @@ class AbstractOrganizationConfigSettings(UUIDModel):
                     "whois_enabled": _(
                         "WHOIS_GEOIP_ACCOUNT and WHOIS_GEOIP_KEY must be set "
                         + "before enabling WHOIS feature."
-                    )
-                }
-            )
-        if not self.whois_enabled and self.estimated_location_enabled:
-            raise ValidationError(
-                {
-                    "estimated_location_enabled": _(
-                        "Estimated Location feature requires "
-                        "WHOIS Lookup feature to be enabled."
                     )
                 }
             )
