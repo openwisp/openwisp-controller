@@ -3,6 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from uuid import UUID
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils import timezone
@@ -69,6 +70,19 @@ def get_relevant_templates(request, organization_id):
     # this filter is for shared templates
     org_filters |= Q(organization_id=None)
 
+    # On device change pages the backend field is readonly, therefore the
+    # backend query argument is not sent by the browser.
+    if not backend and config_id:
+        try:
+            config_queryset = Config.objects.only("backend")
+            if not user.is_superuser:
+                config_queryset = config_queryset.filter(
+                    device__organization_id__in=user.organizations_managed
+                )
+            backend = config_queryset.get(pk=config_id).backend
+        except (Config.DoesNotExist, ValidationError, ValueError):
+            pass
+
     filter_options = {}
     if backend:
         filter_options.update(backend=backend)
@@ -91,7 +105,7 @@ def get_relevant_templates(request, organization_id):
                 .templates.filter(org_filters)
                 .filter(**filter_options)
             )
-        except (Config.DoesNotExist, ValueError):
+        except (Config.DoesNotExist, ValidationError, ValueError):
             pass
 
     if group_id:

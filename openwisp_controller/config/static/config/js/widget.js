@@ -413,6 +413,57 @@
     });
   };
 
+  var getReadonlySchemaKey = function (schemas) {
+    var readonlyBackendEl = $(".field-backend .readonly").first();
+    if (!readonlyBackendEl.length) {
+      return false;
+    }
+    var backendValue = String(
+      readonlyBackendEl.data("backend") || readonlyBackendEl.attr("data-backend") || "",
+    ).trim();
+    if (backendValue) {
+      if (schemas[backendValue] !== undefined) {
+        return backendValue;
+      }
+      var normalizedBackendValue = backendValue.toLocaleLowerCase(),
+        directSchemaKey = false;
+      $.each(Object.keys(schemas), function (index, key) {
+        if (String(key).toLocaleLowerCase() === normalizedBackendValue) {
+          directSchemaKey = key;
+          return false;
+        }
+      });
+      if (directSchemaKey) {
+        return directSchemaKey;
+      }
+    }
+    // Fallback for deployments that do not expose data-backend yet.
+    // Match readonly backend labels to schema keys using normalize().
+    var backendLabel = readonlyBackendEl.text().trim();
+    if (!backendLabel) {
+      return false;
+    }
+    var normalize = function (value) {
+      return String(value)
+        .toLocaleLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+    };
+    var normalizedBackendLabel = normalize(backendLabel);
+    var schemaKey = false;
+    $.each(Object.keys(schemas), function (index, key) {
+      var normalizedBackendKey = normalize(key.split(".").pop());
+      if (
+        normalizedBackendLabel === normalizedBackendKey ||
+        normalizedBackendLabel.includes(normalizedBackendKey) ||
+        normalizedBackendKey.includes(normalizedBackendLabel)
+      ) {
+        schemaKey = key;
+        return false;
+      }
+    });
+    return schemaKey;
+  };
+
   var bindLoadUi = function () {
     $('.jsoneditor-raw:not([name*="__prefix__"]):not(.manual)').each(function (i, el) {
       // Add query parameters defined in the widget
@@ -439,7 +490,12 @@
             schemaSelector = "#id_backend, #id_config-0-backend";
           }
           var selector = $(schemaSelector),
+            schemaKey = false;
+          if (selector.length) {
             schemaKey = selector.val() || false;
+          } else {
+            schemaKey = getReadonlySchemaKey(schemas);
+          }
           // load first time
           loadUi(el, schemaKey, schemas, true);
           // reload when selector is changed

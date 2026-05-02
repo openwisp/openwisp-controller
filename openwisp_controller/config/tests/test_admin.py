@@ -1,10 +1,12 @@
 import io
 import json
 import os
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
 import django
+from django.contrib import admin as django_admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -12,7 +14,7 @@ from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.db.models.signals import post_save
-from django.test import TestCase, TransactionTestCase
+from django.test import RequestFactory, TestCase, TransactionTestCase
 from django.urls import reverse
 from reversion.models import Version
 from swapper import load_model
@@ -1435,12 +1437,76 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertContains(response, '<option value="netjsonconfig.OpenWrt" selected')
 
-    def test_existing_device_backend(self):
+    def test_device_backend_readonly_on_change(self):
         d = self._create_device()
         self._create_config(device=d, backend="netjsonconfig.OpenWisp")
         path = reverse(f"admin:{self.app_label}_device_change", args=[d.pk])
         response = self.client.get(path)
-        self.assertContains(response, '<option value="netjsonconfig.OpenWisp" selected')
+        self.assertContains(response, "field-backend")
+        self.assertNotContains(response, 'name="config-0-backend"')
+
+    def test_device_backend_cannot_be_changed_from_change_form(self):
+        template = Template.objects.first()
+        device = self._create_device()
+        config = self._create_config(
+            device=device,
+            backend=template.backend,
+            config=template.config,
+        )
+        original_backend = config.backend
+        alternate_backend = (
+            "netjsonconfig.OpenWisp"
+            if original_backend != "netjsonconfig.OpenWisp"
+            else "netjsonconfig.OpenWrt"
+        )
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        params = self._get_device_params(org=device.organization)
+        params.update(
+            {
+                "name": "device-backend-unchanged",
+                "config-0-id": str(config.pk),
+                "config-0-device": str(device.pk),
+                "config-0-backend": alternate_backend,
+                "config-INITIAL_FORMS": 1,
+            }
+        )
+        response = self.client.post(path, params)
+        self.assertNotContains(response, "errors field-backend", status_code=302)
+        config.refresh_from_db()
+        self.assertEqual(config.backend, original_backend)
+        device.refresh_from_db(fields=["name"])
+        self.assertEqual(device.name, "device-backend-unchanged")
+
+    def _build_admin_request(self, url_name=None):
+        request = RequestFactory().get("/")
+        request.user = self._get_admin()
+        if url_name:
+            request.resolver_match = SimpleNamespace(url_name=url_name)
+        return request
+
+    def test_device_backend_recover_view_behavior(self):
+        template = Template.objects.first()
+        device = self._create_device()
+        self._create_config(
+            device=device, backend=template.backend, config=template.config
+        )
+        change_request = self._build_admin_request()
+        recover_request = self._build_admin_request(
+            url_name=f"{self.app_label}_device_recover"
+        )
+        device_admin = django_admin.site._registry[Device]
+        config_inline_cls = next(
+            inline
+            for inline in device_admin.inlines
+            if getattr(inline, "model", None) is Config
+        )
+        config_inline = config_inline_cls(Device, django_admin.site)
+        self.assertIn(
+            "backend", config_inline.get_readonly_fields(change_request, device)
+        )
+        self.assertNotIn(
+            "backend", config_inline.get_readonly_fields(recover_request, device)
+        )
 
     def test_device_search(self):
         d = self._create_device(name="admin-search-test")
@@ -1502,7 +1568,7 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertContains(response, '<option value="netjsonconfig.OpenWrt" selected')
 
-    def test_existing_template_backend(self):
+    def test_template_backend_readonly_on_change(self):
         t = Template.objects.first()
         t.backend = "netjsonconfig.OpenWisp"
         t.config = {
@@ -1513,7 +1579,48 @@ class TestAdmin(
         t.save()
         path = reverse(f"admin:{self.app_label}_template_change", args=[t.pk])
         response = self.client.get(path)
-        self.assertContains(response, '<option value="netjsonconfig.OpenWisp" selected')
+        self.assertContains(response, "field-backend")
+        self.assertNotContains(response, 'name="backend"')
+
+    def test_template_backend_cannot_be_changed_from_change_form(self):
+        template = self._create_template()
+        original_backend = template.backend
+        path = reverse(f"admin:{self.app_label}_template_change", args=[template.pk])
+        params = {
+            "name": "template-backend-unchanged",
+            "organization": str(template.organization_id or ""),
+            "type": template.type,
+            "backend": "totally.invalid.backend",
+            "vpn": str(template.vpn_id or ""),
+            "tags": ",".join(template.tags.names()),
+            "default_values": json.dumps(template.default_values or {}),
+            "config": json.dumps(template.config),
+        }
+        if template.auto_cert:
+            params["auto_cert"] = "on"
+        if template.default:
+            params["default"] = "on"
+        if template.required:
+            params["required"] = "on"
+        response = self.client.post(path, params)
+        self.assertNotContains(response, "errors field-backend", status_code=302)
+        template.refresh_from_db()
+        self.assertEqual(template.backend, original_backend)
+        self.assertEqual(template.name, "template-backend-unchanged")
+
+    def test_template_backend_recover_view_behavior(self):
+        template = self._create_template()
+        change_request = self._build_admin_request()
+        recover_request = self._build_admin_request(
+            url_name=f"{self.app_label}_template_recover"
+        )
+        template_admin = django_admin.site._registry[Template]
+        self.assertIn(
+            "backend", template_admin.get_readonly_fields(change_request, template)
+        )
+        self.assertNotIn(
+            "backend", template_admin.get_readonly_fields(recover_request, template)
+        )
 
     def test_preview_variables(self):
         path = reverse(f"admin:{self.app_label}_device_preview")
@@ -1625,6 +1732,49 @@ class TestAdmin(
         self.assertContains(
             response, 'value="openwisp_controller.vpn_backends.OpenVpn" selected'
         )
+
+    def test_vpn_backend_readonly_on_change(self):
+        vpn = self._create_vpn()
+        path = reverse(f"admin:{self.app_label}_vpn_change", args=[vpn.pk])
+        response = self.client.get(path)
+        self.assertContains(response, "field-backend")
+        self.assertNotContains(response, 'name="backend"')
+
+    def test_vpn_backend_cannot_be_changed_from_change_form(self):
+        vpn = self._create_vpn()
+        original_backend = vpn.backend
+        path = reverse(f"admin:{self.app_label}_vpn_change", args=[vpn.pk])
+        params = {
+            "organization": str(vpn.organization_id or ""),
+            "name": "vpn-backend-unchanged",
+            "host": vpn.host,
+            "key": vpn.key,
+            "backend": "totally.invalid.backend",
+            "ca": str(vpn.ca_id or ""),
+            "cert": str(vpn.cert_id or ""),
+            "subnet": str(vpn.subnet_id or ""),
+            "ip": str(vpn.ip_id or ""),
+            "webhook_endpoint": vpn.webhook_endpoint or "",
+            "auth_token": vpn.auth_token or "",
+            "notes": vpn.notes or "",
+            "dh": vpn.dh or "",
+            "config": json.dumps(vpn.config),
+        }
+        response = self.client.post(path, params)
+        self.assertNotContains(response, "errors field-backend", status_code=302)
+        vpn.refresh_from_db()
+        self.assertEqual(vpn.backend, original_backend)
+        self.assertEqual(vpn.name, "vpn-backend-unchanged")
+
+    def test_vpn_backend_recover_view_behavior(self):
+        vpn = self._create_vpn()
+        change_request = self._build_admin_request()
+        recover_request = self._build_admin_request(
+            url_name=f"{self.app_label}_vpn_recover"
+        )
+        vpn_admin = django_admin.site._registry[Vpn]
+        self.assertIn("backend", vpn_admin.get_readonly_fields(change_request, vpn))
+        self.assertNotIn("backend", vpn_admin.get_readonly_fields(recover_request, vpn))
 
     def test_vpn_clients_deleted(self):
         def _update_template(templates):
