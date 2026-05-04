@@ -1,10 +1,10 @@
 import reversion
 from cache_memoize import cache_memoize
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import F, Q
 from django.http import Http404
-from django.shortcuts import get_list_or_404
 from django.urls.base import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import pagination, serializers, status
@@ -14,9 +14,10 @@ from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
+    get_object_or_404,
 )
 from rest_framework.response import Response
-from reversion.models import Version
+from reversion.models import Revision, Version
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions
@@ -26,6 +27,7 @@ from .filters import (
     DeviceGroupListFilter,
     DeviceListFilter,
     DeviceListFilterBackend,
+    ReversionListFilter,
     TemplateListFilter,
     VPNListFilter,
 )
@@ -33,8 +35,8 @@ from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
     DeviceListSerializer,
+    ReversionSerializer,
     TemplateSerializer,
-    VersionSerializer,
     VpnSerializer,
 )
 
@@ -303,55 +305,45 @@ class DeviceGroupCommonName(ProtectedAPIMixin, AutoRevisionMixin, RetrieveAPIVie
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 
 
-class RevisionListView(ProtectedAPIMixin, ListAPIView):
-    serializer_class = VersionSerializer
+class BaseReversionView:
+    def get_queryset(self):
+        model = self.kwargs.get("model").lower()
+        content_type = get_object_or_404(ContentType, model=model)
+        return super().get_queryset().filter(content_type=content_type)
+
+
+class ReversionListView(BaseReversionView, ProtectedAPIMixin, ListAPIView):
+    serializer_class = ReversionSerializer
     queryset = Version.objects.select_related("revision").order_by(
         "-revision__date_created"
     )
-
-    def get_queryset(self):
-        model = self.kwargs.get("model").lower()
-        queryset = self.queryset.filter(content_type__model=model)
-        revision_id = self.request.query_params.get("revision_id")
-        if revision_id:
-            queryset = queryset.filter(revision_id=revision_id)
-        return self.queryset.filter(content_type__model=model)
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ReversionListFilter
+    pagination_class = ListViewPagination
 
 
-class VersionDetailView(ProtectedAPIMixin, RetrieveAPIView):
-    serializer_class = VersionSerializer
-    queryset = Version.objects.select_related("revision").order_by(
-        "-revision__date_created"
-    )
-
-    def get_queryset(self):
-        model = self.kwargs.get("model").lower()
-        return self.queryset.filter(content_type__model=model)
+class ReversionDetailView(BaseReversionView, ProtectedAPIMixin, RetrieveAPIView):
+    serializer_class = ReversionSerializer
+    queryset = Version.objects.select_related("revision")
 
 
-class RevisionRestoreView(ProtectedAPIMixin, GenericAPIView):
+class ReversionRestoreView(BaseReversionView, ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Version.objects.select_related("revision").order_by(
         "-revision__date_created"
     )
 
-    def get_queryset(self):
-        model = self.kwargs.get("model").lower()
-        return self.queryset.filter(content_type__model=model)
-
     def post(self, request, *args, **kwargs):
         qs = self.get_queryset()
-        versions = get_list_or_404(qs, revision_id=kwargs["pk"])
+        version = get_object_or_404(qs, revision_id=kwargs["pk"])
+        revision = version.revision
         with transaction.atomic():
             with reversion.create_revision():
-                for version in versions:
-                    version.revert()
+                revision.revert()
                 reversion.set_user(request.user)
-                reversion.set_comment(
-                    f"Restored to previous revision: {self.kwargs.get('pk')}"
-                )
-
-        serializer = VersionSerializer(
+                reversion.set_comment(f"Restored to previous revision: {revision.id}")
+        versions = qs.filter(revision=revision)
+        serializer = ReversionSerializer(
             versions, many=True, context=self.get_serializer_context()
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -368,6 +360,6 @@ device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
-revision_list = RevisionListView.as_view()
-version_detail = VersionDetailView.as_view()
-revision_restore = RevisionRestoreView.as_view()
+reversion_list = ReversionListView.as_view()
+reversion_detail = ReversionDetailView.as_view()
+reversion_restore = ReversionRestoreView.as_view()

@@ -160,7 +160,7 @@ class DeviceConnenctionListCreateView(
             .filter(device_id=self.kwargs["device_id"])
             .order_by("-created")
         )
-    
+
 
 class DeviceConnectionDetailView(
     BaseDeviceConnection, AutoRevisionMixin, RetrieveUpdateDestroyAPIView

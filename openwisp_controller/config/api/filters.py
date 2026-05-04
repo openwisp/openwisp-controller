@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
+from reversion.models import Version
 from swapper import load_model
 
 from openwisp_users.api.filters import OrganizationManagedFilter
@@ -142,3 +143,47 @@ class DeviceGroupListFilter(BaseConfigAPIFilter):
 
     class Meta(BaseConfigAPIFilter.Meta):
         model = DeviceGroup
+
+
+class ReversionListFilter(filters.FilterSet):
+    revision_id = filters.NumberFilter(field_name="revision_id")
+    object_id = filters.CharFilter(
+        field_name="object_id",
+        lookup_expr="icontains",
+    )
+    user_id = filters.CharFilter(field_name="revision__user_id")
+    comment = filters.CharFilter(
+        field_name="revision__comment",
+        lookup_expr="icontains",
+    )
+    date_created__gte = filters.DateTimeFilter(
+        field_name="revision__date_created",
+        lookup_expr="gte",
+    )
+    date_created__lt = filters.DateTimeFilter(
+        field_name="revision__date_created",
+        lookup_expr="lt",
+    )
+
+    def _set_valid_filter_form_lables(self):
+        self.filters["revision_id"].label = _("Revision ID")
+        self.filters["object_id"].label = _("Object ID")
+        self.filters["user_id"].label = _("User ID")
+        self.filters["comment"].label = _("Comment")
+        self.filters["date_created__gte"].label = _("Created after")
+        self.filters["date_created__lt"].label = _("Created before")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._set_valid_filter_form_lables()
+
+    class Meta:
+        model = Version
+        fields = [
+            "revision_id",
+            "object_id",
+            "user_id",
+            "comment",
+            "date_created__gte",
+            "date_created__lt",
+        ]

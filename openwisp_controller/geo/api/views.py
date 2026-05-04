@@ -18,8 +18,8 @@ from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
 from ...mixins import (
-    BaseProtectedAPIMixin,
     AutoRevisionMixin,
+    BaseProtectedAPIMixin,
     ProtectedAPIMixin,
     RelatedDeviceProtectedAPIMixin,
 )
@@ -312,6 +312,7 @@ class LocationDeviceList(
         if response.status_code == 200:
             response.data["has_floorplan"] = has_floorplan
         return response
+
 
 class FloorPlanListCreateView(
     ProtectedAPIMixin, AutoRevisionMixin, generics.ListCreateAPIView
