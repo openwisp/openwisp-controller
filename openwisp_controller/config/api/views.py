@@ -17,7 +17,7 @@ from rest_framework.generics import (
     get_object_or_404,
 )
 from rest_framework.response import Response
-from reversion.models import Version
+from reversion.models import Revision, Version
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions
@@ -309,10 +309,18 @@ class BaseReversionView:
     def get_queryset(self):
         model = self.kwargs.get("model").lower()
         content_type = get_object_or_404(ContentType, model=model)
-        return super().get_queryset().filter(content_type=content_type)
+        qs = super().get_queryset().filter(content_type=content_type)
+        user = self.request.user
+        if user.is_superuser:
+            return qs
+        model_class = content_type.model_class()
+        allowed_object_ids = model_class.objects.filter(
+            organization__in=user.organizations_managed
+        ).values_list("pk", flat=True)
+        return qs.filter(object_id__in=allowed_object_ids)
 
 
-class ReversionListView(BaseReversionView, ProtectedAPIMixin, ListAPIView):
+class ReversionListView(BaseReversionView, ListAPIView):
     serializer_class = ReversionSerializer
     queryset = Version.objects.select_related("revision").order_by(
         "-revision__date_created"
@@ -322,12 +330,12 @@ class ReversionListView(BaseReversionView, ProtectedAPIMixin, ListAPIView):
     pagination_class = ListViewPagination
 
 
-class ReversionDetailView(BaseReversionView, ProtectedAPIMixin, RetrieveAPIView):
+class ReversionDetailView(BaseReversionView, RetrieveAPIView):
     serializer_class = ReversionSerializer
     queryset = Version.objects.select_related("revision")
 
 
-class ReversionRestoreView(BaseReversionView, ProtectedAPIMixin, GenericAPIView):
+class ReversionRestoreView(BaseReversionView, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Version.objects.select_related("revision").order_by(
         "-revision__date_created"
@@ -335,14 +343,23 @@ class ReversionRestoreView(BaseReversionView, ProtectedAPIMixin, GenericAPIView)
 
     def post(self, request, *args, **kwargs):
         qs = self.get_queryset()
-        version = get_object_or_404(qs, revision_id=kwargs["pk"])
-        revision = version.revision
+        revision = get_object_or_404(Revision, pk=kwargs["pk"])
+        if not qs.filter(revision=revision).exists():
+            raise Http404
+        comment = f"Restored to previous revision: {revision.id}"
         with transaction.atomic():
             with reversion.create_revision():
                 revision.revert()
                 reversion.set_user(request.user)
-                reversion.set_comment(f"Restored to previous revision: {revision.id}")
-        versions = qs.filter(revision=revision)
+                reversion.set_comment(comment)
+        restored_revision = get_object_or_404(
+            Revision.objects.order_by(
+                "-date_created"
+            ),
+            user=request.user,
+            comment=comment,
+        )
+        versions = qs.filter(revision=restored_revision)
         serializer = ReversionSerializer(
             versions, many=True, context=self.get_serializer_context()
         )

@@ -1779,6 +1779,7 @@ class TestConfigApiTransaction(
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
 
+    # Todo: create sperate test for each endpoint
     def test_reversion_list_and_restore_api(self):
         org = self._get_org()
         model_slug = "device"
