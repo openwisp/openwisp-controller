@@ -17,7 +17,7 @@ from rest_framework.generics import (
     get_object_or_404,
 )
 from rest_framework.response import Response
-from reversion.models import Revision, Version
+from reversion.models import Version
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions

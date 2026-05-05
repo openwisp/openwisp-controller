@@ -119,6 +119,7 @@ class BaseDeviceConnection(
     organization_lookup = "organization__in"
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
+    queryset = DeviceConnection.objects.prefetch_related("device")
 
     def get_queryset(self):
         return (
@@ -133,17 +134,6 @@ class BaseDeviceConnection(
         context["device_id"] = self.kwargs["device_id"]
         return context
 
-    def initial(self, *args, **kwargs):
-        super().initial(*args, **kwargs)
-        self.assert_parent_exists()
-
-    def assert_parent_exists(self):
-        try:
-            assert self.get_parent_queryset().exists()
-        except (AssertionError, ValidationError):
-            device_id = self.kwargs["device_id"]
-            raise NotFound(detail=f'Device with ID "{device_id}" not found.')
-
     def get_parent_queryset(self):
         return Device.objects.filter(pk=self.kwargs["device_id"])
 
@@ -152,14 +142,6 @@ class DeviceConnenctionListCreateView(
     BaseDeviceConnection, AutoRevisionMixin, ListCreateAPIView
 ):
     pagination_class = ListViewPagination
-
-    def get_queryset(self):
-        return (
-            super()
-            .get_queryset()
-            .filter(device_id=self.kwargs["device_id"])
-            .order_by("-created")
-        )
 
 
 class DeviceConnectionDetailView(

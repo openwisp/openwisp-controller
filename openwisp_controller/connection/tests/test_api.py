@@ -561,7 +561,7 @@ class TestConnectionApi(
             "enabled": True,
             "failure_reason": "",
         }
-        with self.assertNumQueries(23):
+        with self.assertNumQueries(22):
             response = self.client.post(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
 

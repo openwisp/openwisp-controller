@@ -1,5 +1,4 @@
 import reversion
-from reversion.views import RevisionMixin
 
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
@@ -38,7 +37,7 @@ class ProtectedAPIMixin(BaseProtectedAPIMixin, FilterByOrganizationManaged):
     pass
 
 
-class AutoRevisionMixin(RevisionMixin):
+class AutoRevisionMixin:
     revision_atomic = False
 
     def dispatch(self, request, *args, **kwargs):
@@ -46,13 +45,13 @@ class AutoRevisionMixin(RevisionMixin):
         model = getattr(qs, "model", None)
         if (
             request.method in ("POST", "PUT", "PATCH")
-            and request.user.is_authenticated
             and model
             and reversion.is_registered(model)
         ):
             with reversion.create_revision(atomic=self.revision_atomic):
                 response = super().dispatch(request, *args, **kwargs)
-                reversion.set_user(request.user)
+                if self.request.user.is_authenticated:
+                    reversion.set_user(self.request.user)
                 reversion.set_comment(
                     f"API request: {request.method} {request.get_full_path()}"
                 )
