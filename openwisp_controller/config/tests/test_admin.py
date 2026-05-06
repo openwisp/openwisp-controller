@@ -1405,6 +1405,16 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 
+    def test_malformed_download_url_status_code(self):
+        models = [Device, Template, Vpn]
+        malformed_uuid = "de8fa775-1134-47b6-adc5-2da3d0626c72/history/undefined"
+        for model in models:
+            model_name = model._meta.model_name
+            with self.subTest(model=model_name):
+                url = f"/admin/{self.app_label}/{model_name}/download/{malformed_uuid}/"
+                response = self.client.get(url)
+                self.assertNotEqual(response.status_code, 500)
+
     def test_uuid_field_in_change(self):
         t = Template.objects.first()
         d = self._create_device()

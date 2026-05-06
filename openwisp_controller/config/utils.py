@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404 as base_get_object_or_404
-from django.urls import path, re_path
+from django.urls import path
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from openwisp_notifications.utils import _get_object_link
@@ -120,23 +120,23 @@ def get_controller_urls(views_module):
     used by third party apps to reduce boilerplate
     """
     urls = [
-        re_path(
-            "controller/device/checksum/(?P<pk>[^/]+)/$",
+        path(
+            "controller/device/checksum/<uuid_any:pk>/",
             views_module.device_checksum,
             name="device_checksum",
         ),
-        re_path(
-            "controller/device/download-config/(?P<pk>[^/]+)/$",
+        path(
+            "controller/device/download-config/<uuid_any:pk>/",
             views_module.device_download_config,
             name="device_download_config",
         ),
-        re_path(
-            "controller/device/update-info/(?P<pk>[^/]+)/$",
+        path(
+            "controller/device/update-info/<uuid_any:pk>/",
             views_module.device_update_info,
             name="device_update_info",
         ),
-        re_path(
-            "controller/device/report-status/(?P<pk>[^/]+)/$",
+        path(
+            "controller/device/report-status/<uuid_any:pk>/",
             views_module.device_report_status,
             name="device_report_status",
         ),
@@ -145,34 +145,34 @@ def get_controller_urls(views_module):
             views_module.device_register,
             name="device_register",
         ),
-        re_path(
-            "controller/vpn/checksum/(?P<pk>[^/]+)/$",
+        path(
+            "controller/vpn/checksum/<uuid_any:pk>/",
             views_module.vpn_checksum,
             name="vpn_checksum",
         ),
-        re_path(
-            "controller/vpn/download-config/(?P<pk>[^/]+)/$",
+        path(
+            "controller/vpn/download-config/<uuid_any:pk>/",
             views_module.vpn_download_config,
             name="vpn_download_config",
         ),
         # legacy URLs
-        re_path(
-            "controller/checksum/(?P<pk>[^/]+)/$",
+        path(
+            "controller/checksum/<uuid_any:pk>/",
             views_module.device_checksum,
             name="checksum_legacy",
         ),
-        re_path(
-            "controller/download-config/(?P<pk>[^/]+)/$",
+        path(
+            "controller/download-config/<uuid_any:pk>/",
             views_module.device_download_config,
             name="download_config_legacy",
         ),
-        re_path(
-            "controller/update-info/(?P<pk>[^/]+)/$",
+        path(
+            "controller/update-info/<uuid_any:pk>/",
             views_module.device_update_info,
             name="update_info_legacy",
         ),
-        re_path(
-            "controller/report-status/(?P<pk>[^/]+)/$",
+        path(
+            "controller/report-status/<uuid_any:pk>/",
             views_module.device_report_status,
             name="report_status_legacy",
         ),
