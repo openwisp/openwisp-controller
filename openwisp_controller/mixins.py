@@ -1,3 +1,5 @@
+import reversion
+
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizationManager
@@ -33,3 +35,25 @@ class RelatedDeviceProtectedAPIMixin(FilterByParentManaged, BaseProtectedAPIMixi
 
 class ProtectedAPIMixin(BaseProtectedAPIMixin, FilterByOrganizationManaged):
     pass
+
+
+class AutoRevisionMixin:
+    revision_atomic = False
+
+    def dispatch(self, request, *args, **kwargs):
+        qs = getattr(self, "queryset", None)
+        model = getattr(qs, "model", None)
+        if (
+            request.method in ("POST", "PUT", "PATCH")
+            and model
+            and reversion.is_registered(model)
+        ):
+            with reversion.create_revision(atomic=self.revision_atomic):
+                response = super().dispatch(request, *args, **kwargs)
+                if self.request.user.is_authenticated:
+                    reversion.set_user(self.request.user)
+                reversion.set_comment(
+                    f"API request: {request.method} {request.get_full_path()}"
+                )
+            return response
+        return super().dispatch(request, *args, **kwargs)

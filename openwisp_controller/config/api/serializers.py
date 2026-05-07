@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from reversion.models import Version
 from swapper import load_model
 
 from openwisp_utils.api.serializers import ValidatedModelSerializer
@@ -377,3 +378,28 @@ class DeviceGroupSerializer(BaseSerializer):
         instance = super().update(instance, validated_data)
         self._save_m2m_templates(instance)
         return instance
+
+
+class ReversionSerializer(BaseSerializer):
+    user_id = serializers.CharField(source="revision.user_id", read_only=True)
+    date_created = serializers.DateTimeField(
+        source="revision.date_created", read_only=True
+    )
+    comment = serializers.CharField(source="revision.comment", read_only=True)
+    content_type = serializers.CharField(source="content_type.model", read_only=True)
+
+    class Meta:
+        model = Version
+        fields = [
+            "id",
+            "revision_id",
+            "object_id",
+            "content_type",
+            "db",
+            "format",
+            "serialized_data",
+            "object_repr",
+            "user_id",
+            "date_created",
+            "comment",
+        ]

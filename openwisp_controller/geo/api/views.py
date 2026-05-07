@@ -18,6 +18,7 @@ from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 
 from ...mixins import (
+    AutoRevisionMixin,
     BaseProtectedAPIMixin,
     ProtectedAPIMixin,
     RelatedDeviceProtectedAPIMixin,
@@ -109,7 +110,9 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
+class DeviceCoordinatesView(
+    ProtectedAPIMixin, AutoRevisionMixin, generics.RetrieveUpdateAPIView
+):
     serializer_class = DeviceCoordinatesSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
@@ -157,6 +160,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
 class DeviceLocationView(
     RelatedDeviceProtectedAPIMixin,
+    AutoRevisionMixin,
     FilterByParentManaged,
     generics.RetrieveUpdateDestroyAPIView,
 ):
@@ -310,7 +314,9 @@ class LocationDeviceList(
         return response
 
 
-class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
+class FloorPlanListCreateView(
+    ProtectedAPIMixin, AutoRevisionMixin, generics.ListCreateAPIView
+):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related().order_by("-created")
     pagination_class = ListViewPagination
@@ -320,13 +326,16 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
 
 class FloorPlanDetailView(
     ProtectedAPIMixin,
+    AutoRevisionMixin,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related()
 
 
-class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
+class LocationListCreateView(
+    ProtectedAPIMixin, AutoRevisionMixin, generics.ListCreateAPIView
+):
     serializer_class = LocationSerializer
     queryset = Location.objects.prefetch_related(
         Prefetch(
@@ -341,6 +350,7 @@ class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
 
 class LocationDetailView(
     ProtectedAPIMixin,
+    AutoRevisionMixin,
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = LocationSerializer
