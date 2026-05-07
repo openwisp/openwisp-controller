@@ -181,3 +181,32 @@ class TestTransactionTasks(
         )
         self.assertEqual(response.status_code, 201)
         mocked_update_config.assert_not_called()
+
+    def test_update_config_closes_connection_on_exception(self):
+        with mock.patch(
+            "openwisp_controller.connection.tasks.DeviceConnection.get_working_connection"
+        ) as mocked_get_conn, mock.patch(
+            "openwisp_controller.connection.tasks.Device.objects.select_related"
+        ) as mocked_device, mock.patch(
+            "openwisp_controller.connection.tasks._is_update_in_progress",
+            return_value=False,
+        ):
+            device = mock.MagicMock()
+            device.can_be_updated.return_value = True
+            mocked_device.return_value.get.return_value = device
+
+            device_conn = mock.MagicMock()
+            device_conn.update_config.side_effect = Exception("Test exception")
+            mocked_get_conn.return_value = device_conn
+
+            from openwisp_controller.connection.tasks import update_config
+
+            try:
+                update_config(device_id=1)
+            except Exception:
+                pass
+
+            self.assertTrue(
+                device_conn.disconnect.called or device_conn.close.called,
+                "Connection was not properly closed",
+            )
