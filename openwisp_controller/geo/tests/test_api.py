@@ -1,8 +1,10 @@
 import json
 import tempfile
 import uuid
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -12,6 +14,7 @@ from PIL import Image
 from rest_framework.authtoken.models import Token
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.tests.utils import (
     CreateConfigTemplateMixin,
     CreateDeviceMixin,
@@ -25,6 +28,7 @@ Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 FloorPlan = load_model("geo", "FloorPlan")
 DeviceLocation = load_model("geo", "DeviceLocation")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 Group = load_model("openwisp_users", "Group")
 User = get_user_model()
@@ -533,7 +537,7 @@ class TestGeoApi(
         path = reverse("geo_api:list_location")
 
         with self.subTest("Test without organization filtering"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -583,6 +587,7 @@ class TestGeoApi(
             self.assertContains(response, org1_location.id)
             self.assertNotContains(response, org2_location.id)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_post_location_list(self):
         path = reverse("geo_api:list_location")
         coords = json.loads(Point(2, 23).geojson)
@@ -614,6 +619,7 @@ class TestGeoApi(
             else:
                 self.fail("NoReverseMatch not raised as expected")
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_put_location_detail(self):
         l1 = self._create_location()
         path = reverse("geo_api:detail_location", args=[l1.pk])
@@ -691,6 +697,7 @@ class TestGeoApi(
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_create_location_with_floorplan(self):
         path = reverse("geo_api:list_location")
         fl_image = self._get_simpleuploadedfile()
@@ -1348,3 +1355,317 @@ class TestGeoApi(
             self.assertEqual(len(response.data["results"]), 1)
             self.assertEqual(response.data["results"][0]["device_name"], "device-0")
             self.assertEqual(response.data["results"][0]["floor"], 0)
+
+    def _add_model_permission(self, user, model, perms):
+        content_type = ContentType.objects.get_for_model(model)
+        for perm in perms:
+            user.user_permissions.add(
+                content_type.permission_set.get(
+                    codename=f"{perm}_{model._meta.model_name}"
+                )
+            )
+
+    def test_organization_geo_settings_retrieve(self):
+        org1 = self._create_org(name="Org 1")
+        org2 = self._create_org(name="Org 2")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org1, is_admin=True
+        )
+        org1_geo_settings = OrganizationGeoSettings.objects.get(organization=org1)
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+        org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
+
+        with self.subTest("Unauthenticated access"):
+            self.client.logout()
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 401)
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 401)
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 401)
+
+        self.client.force_login(user=admin_user)
+        with self.subTest("Access without permission"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+
+        self._add_model_permission(admin_user, OrganizationGeoSettings, ["view"])
+        with self.subTest("Retrieve organization geo settings"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.data
+            self.assertEqual(str(data["organization"]), str(org1.pk))
+            self.assertEqual(
+                data["estimated_location_enabled"],
+                org1_geo_settings.estimated_location_enabled,
+            )
+
+        with self.subTest("Cannot access geo settings from other organization"):
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Cannot update without change permission"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("Superuser can access any organization's geo settings"):
+            superuser = self._get_admin()
+            self.client.force_login(user=superuser)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 200)
+
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_organization_geo_settings_update(self):
+        org1 = self._create_org(name="Org 1")
+        org2 = self._create_org(name="Org 2")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org1, is_admin=True
+        )
+        org1_geo_settings = OrganizationGeoSettings.objects.get(organization=org1)
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+        org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
+
+        self.client.force_login(user=admin_user)
+        self._add_model_permission(
+            admin_user, OrganizationGeoSettings, ["view", "change"]
+        )
+
+        with self.subTest("PUT operation"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org1_geo_settings.refresh_from_db()
+            self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+        with self.subTest("PATCH operation"):
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": True},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org1_geo_settings.refresh_from_db()
+            self.assertEqual(org1_geo_settings.estimated_location_enabled, True)
+
+        with self.subTest("PUT with organization field should be ignored"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False, "organization": str(org2.pk)},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org1_geo_settings.refresh_from_db()
+            self.assertEqual(org1_geo_settings.organization, org1)
+            self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+        with self.subTest("Cannot update geo settings of other organization"):
+            response = self.client.put(
+                org2_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+            response = self.client.patch(
+                org2_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Validation error when WHOIS not configured"):
+            with patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+                response = self.client.put(
+                    url,
+                    {"estimated_location_enabled": True},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("estimated_location_enabled", response.data)
+                org1_geo_settings.refresh_from_db()
+                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+                response = self.client.patch(
+                    url,
+                    {"estimated_location_enabled": True},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("estimated_location_enabled", response.data)
+                org1_geo_settings.refresh_from_db()
+                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+        with self.subTest("Superuser can update any organization's geo settings"):
+            superuser = self._get_admin()
+            self.client.force_login(user=superuser)
+            org2_geo_settings = OrganizationGeoSettings.objects.get(organization=org2)
+            response = self.client.put(
+                org2_url,
+                {"estimated_location_enabled": True},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org2_geo_settings.refresh_from_db()
+            self.assertEqual(org2_geo_settings.estimated_location_enabled, True)
+
+    def test_organization_geo_settings_multi_tenancy(self):
+        org1 = self._create_org(name="Org 1")
+        org2 = self._create_org(name="Org 2")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org1, is_admin=True
+        )
+        self._add_model_permission(
+            admin_user, OrganizationGeoSettings, ["view", "change"]
+        )
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+        org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
+
+        with self.subTest("User cannot access organization they don't manage"):
+            self.client.force_login(user=admin_user)
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 404)
+            response = self.client.put(
+                org2_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("User can access organization they manage"):
+            self.client.force_login(user=admin_user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("User managing multiple organizations can access both"):
+            OrganizationUser.objects.create(
+                user=admin_user, organization=org2, is_admin=True
+            )
+            self.client.force_login(user=admin_user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 200)
+
+    def test_organization_geo_settings_user_access_levels(self):
+        org1 = self._create_org(name="Org 1")
+        regular_member = self._create_user(
+            username="regular_member", email="member@test.com"
+        )
+        OrganizationUser.objects.create(user=regular_member, organization=org1)
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+
+        with self.subTest("Regular organization member cannot access"):
+            self.client.force_login(user=regular_member)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("Organization admin can access"):
+            org_admin = self._create_user(
+                username="org_admin", email="orgadmin@test.com"
+            )
+            OrganizationUser.objects.create(
+                user=org_admin, organization=org1, is_admin=True
+            )
+            self._add_model_permission(org_admin, OrganizationGeoSettings, ["view"])
+            self.client.force_login(user=org_admin)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("Superuser can access without explicit permissions"):
+            superuser = self._get_admin()
+            self.client.force_login(user=superuser)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+    def test_organization_geo_settings_non_existent_organization(self):
+        org = self._create_org(name="Org 1")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org, is_admin=True
+        )
+        self._add_model_permission(
+            admin_user, OrganizationGeoSettings, ["view", "change"]
+        )
+        self.client.force_login(user=admin_user)
+        fake_uuid = uuid.uuid4()
+        url = reverse("geo_api:organization_geo_settings", args=[fake_uuid])
+
+        with self.subTest("GET returns 404"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("PUT returns 404"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("PATCH returns 404"):
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Cannot update without change permission"):
+            # remove change permission for this user and attempt update on a
+            # real organization's geo settings URL so the request fails with
+            # HTTP 403 (forbidden) instead of 404 (not found).
+            content_type = ContentType.objects.get_for_model(OrganizationGeoSettings)
+            change_perm = content_type.permission_set.get(
+                codename=f"change_{OrganizationGeoSettings._meta.model_name}"
+            )
+            admin_user.user_permissions.remove(change_perm)
+            real_url = reverse("geo_api:organization_geo_settings", args=[org.pk])
+            response = self.client.put(
+                real_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            response = self.client.patch(
+                real_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)

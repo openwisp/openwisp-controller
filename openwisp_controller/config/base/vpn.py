@@ -648,7 +648,7 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
                 context_keys.pop("ip_address", None)
                 context_keys.pop("vpn_subnet", None)
                 auto = backend.auto_client(
-                    host=self.host,
+                    host=vpn_host,
                     server=self.config[config_dict_key][0],
                     **context_keys,
                 )

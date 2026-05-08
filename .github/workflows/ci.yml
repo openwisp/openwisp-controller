@@ -9,8 +9,7 @@ on:
     branches:
       - master
       - "1.1"
-      - gsoc25-map
-      - gsoc25-whois
+      - "1.2"
 
 jobs:
   build:
@@ -89,7 +88,9 @@ jobs:
 
       - name: Show gecko web driver log on failures
         if: ${{ failure() }}
-        run: cat geckodriver.log
+        run: |
+          [ -f geckodriver.log ] && cat geckodriver.log \
+            || echo "there is no gecko web driver log to show"
 
       - name: Upload Coverage
         if: ${{ success() }}
@@ -99,6 +100,7 @@ jobs:
           format: cobertura
           flag-name: python-${{ matrix.env.env }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-error: false
 
   coveralls:
     needs: build
@@ -108,3 +110,4 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           parallel-finished: true
+          fail-on-error: false

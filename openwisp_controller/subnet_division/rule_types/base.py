@@ -79,16 +79,36 @@ class BaseSubnetDivisionRuleType(object):
     def destroyer_receiver(cls, instance, **kwargs):
         cls.destroy_provisioned_subnets_ips(instance, **kwargs)
 
-    @staticmethod
-    def post_provision_handler(instance, provisioned, **kwargs):
+    @classmethod
+    def post_provision_handler(cls, instance, provisioned, **kwargs):
         """
-        This method should be overridden in inherited rule types to
-        perform any operation on provisioned subnets and IP addresses.
-        :param instance: object that triggered provisioning
-        :param provisioned: dictionary containing subnets and IP addresses
-            provisioned, None if nothing is provisioned
+        Hook for post-provisioning actions on subnets and IP addresses.
+
+        This method is intended to be extended by subclasses of rule types
+        to perform custom operations after subnets and IPs are provisioned.
+
+        Subnet provisioning is executed asynchronously in Celery workers.
+        If the device configuration references variables provided by the
+        subnet division rule, the current checksum may have been computed
+        using variable names instead of their provisioned values. In such cases,
+        `Config.checksum_db` (which tracks persisted configuration changes)
+        must be updated to reflect the actual provisioned values, and the
+        checksum cache invalidated to avoid stale data.
+
+        :param instance: The object that triggered the provisioning.
+        :param provisioned: Dictionary containing provisioned subnets and IPs,
+            or None if no provisioning occurred.
         """
-        pass
+        if not provisioned:
+            return
+        config = cls.get_config(instance)
+        config._invalidate_backend_instance_cache()
+        current_checksum = config.checksum
+        if current_checksum != config.checksum_db:
+            # Update checksum using the UPDATE query to avoid sending
+            # unnecessary signals that may be triggered by `save()` method.
+            config._update_checksum_db(current_checksum)
+            config.invalidate_checksum_cache()
 
     @staticmethod
     def subnet_provisioned_signal_emitter(instance, provisioned):

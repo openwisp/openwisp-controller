@@ -20,8 +20,8 @@ class Migration(migrations.Migration):
                 default=dict,
                 dump_kwargs={"indent": 4},
                 help_text=(
-                    'This field can be used to add "Configuration Variables"'
-                    " to the devices."
+                    "Define reusable configuration variables available "
+                    "to all devices in this organization"
                 ),
                 load_kwargs={"object_pairs_hook": collections.OrderedDict},
                 verbose_name="Configuration Variables",

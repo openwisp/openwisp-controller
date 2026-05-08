@@ -524,10 +524,36 @@ class TestDevice(
             device.management_ip = "10.0.0.1"
             device.group_id = device_group.id
             device.organization_id = self._create_org().id
+            # assigning a random ip to last_ip
+            device.last_ip = "172.217.22.14"
             # Another query is generated due to "config.set_status_modified"
             # on name change
             with self.assertNumQueries(3):
                 device._check_changed_fields()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_changed_checked_fields_no_duplicates(self):
+        """Ensure `_changed_checked_fields` contains `last_ip` only once.
+        This prevents duplicates if __init__ is invoked multiple times.
+        """
+        device = Device()
+        # Simulate __init__ being called again on the same instance
+        device.__init__()
+        self.assertEqual(device._changed_checked_fields.count("last_ip"), 1)
+
+    def test_deferred_fields_populated_correctly(self):
+        device = self._create_device(
+            name="deferred-test",
+            management_ip="10.0.0.1",
+        )
+        # Load the instance with deferred fields omitted
+        device = Device.objects.only("id").get(pk=device.pk)
+        device.management_ip = "10.0.0.55"
+        # Saving the device object will populate the deferred fields
+        device.save()
+        # Ensure `_initial_<field>` contains the actual value, not the field name
+        self.assertEqual(getattr(device, "_initial_management_ip"), "10.0.0.55")
+        self.assertNotEqual(getattr(device, "_initial_management_ip"), "management_ip")
 
     def test_exceed_organization_device_limit(self):
         org = self._get_org()

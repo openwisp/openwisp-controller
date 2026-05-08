@@ -42,8 +42,9 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},
         help_text=_(
-            "Group meta data, use this field to store data which is related"
-            " to this group and can be retrieved via the REST API."
+            "Store custom metadata related to this group. This field is intended "
+            "for arbitrary data that does not affect device configuration and can "
+            "be retrieved via the REST API for integrations or external tools."
         ),
         verbose_name=_("Metadata"),
     )
@@ -53,8 +54,7 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         load_kwargs={"object_pairs_hook": collections.OrderedDict},
         dump_kwargs={"indent": 4},
         help_text=_(
-            "This field can be used to add meta data for the group"
-            ' or to add "Configuration Variables" to the devices.'
+            "Define configuration variables available to all devices in this group"
         ),
         verbose_name=_("Configuration Variables"),
     )
