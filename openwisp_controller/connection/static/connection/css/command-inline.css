@@ -69,7 +69,7 @@ li.commands:not(.recent) {
   display: inherit !important;
 }
 .ow-error-input {
-  border: 1px var(--ow-btn-danger-bg) solid;
+  border: 1px var(--ow-color-danger) solid;
 }
 #id_command_set-0-input_jsoneditor .errorlist {
   display: none;

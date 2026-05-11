@@ -18,16 +18,16 @@ div#main-content table tbody td {
     background-color: var(--ow-color-fg-light);
   }
   table.import-preview tr.new {
-    background-color: var(--ow-color-success);
+    background-color: var(--message-success-bg);
   }
   table.import-preview tr.delete {
-    background-color: var(--ow-btn-danger-bg);
+    background-color: var(--message-error-bg);
   }
   table.import-preview tr.update {
-    background-color: var(--ow-color-fg-lighter);
+    background-color: var(--message-warning-bg);
   }
   .validation-error-container {
-    background-color: var(--ow-btn-danger-bg);
+    background-color: var(--message-error-bg);
   }
   table.import-preview td ins {
     background-color: var(--ow-color-fg-light);

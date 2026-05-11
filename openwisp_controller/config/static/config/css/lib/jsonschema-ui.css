@@ -18,11 +18,11 @@
   padding: 18px;
 }
 input.deletelink {
-  background: var(--ow-btn-danger-bg);
+  background: var(--delete-button-bg);
 }
 input.deletelink:hover,
 input.deletelink:focus {
-  background: var(--ow-btn-danger-bg);
+  background: var(--delete-button-hover-bg);
 }
 .jsoneditor-wrapper div.jsoneditor input.button,
 .jsoneditor-wrapper div.jsoneditor input.deletelink,

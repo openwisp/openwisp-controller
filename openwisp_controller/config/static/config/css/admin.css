@@ -1,3 +1,11 @@
+:root {
+  --djnjc-preview-success: #adffa6;
+  --djnjc-preview-error: #ff7277;
+  --djnjc-preview-close-bg: #772299;
+  --djnjc-preview-close-hover: #9e47c1;
+  --djnjc-previewlink-bg: #778898;
+  --djnjc-previewlink-hover: #576a7c;
+}
 a.button:focus,
 a.jsoneditor-exit:focus {
   text-decoration: none;
@@ -102,11 +110,11 @@ input.readonly {
   margin: 0;
   padding: 40px 60px 20px;
   background-color: transparent;
-  color: var(--ow-color-success);
+  color: var(--djnjc-preview-success);
   line-height: 1.5em;
 }
 .djnjc-preformatted.error {
-  color: var(--ow-btn-danger-bg);
+  color: var(--djnjc-preview-error);
 }
 .djnjc-overlay .close,
 .djnjc-overlay .close:focus,
@@ -116,14 +124,14 @@ input.readonly {
   top: 1.5%;
   font-weight: bold;
   font-size: 15px;
-  background-color: var(--ow-color-primary);
+  background-color: var(--djnjc-preview-close-bg);
   color: var(--ow-color-white);
   padding: 5px 8px;
   border-radius: 5px;
   text-decoration: none;
 }
 .djnjc-overlay .close:hover {
-  background-color: var(--ow-color-primary);
+  background-color: var(--djnjc-preview-close-hover);
 }
 .errors.field-templates li,
 .errorlist.nonfield li {
@@ -315,11 +323,11 @@ defined variables such as `secret`
   margin-top: 0;
 }
 .submit-row .previewlink {
-  background: var(--ow-color-fg-medium);
+  background: var(--djnjc-previewlink-bg);
 }
 .submit-row .previewlink:hover,
 .submit-row .previewlink:focus {
-  background: var(--ow-color-fg-dark);
+  background: var(--djnjc-previewlink-hover);
 }
 #system-context {
   overflow: hidden;
@@ -365,7 +373,7 @@ button.show-sc {
   max-height: 10em;
   padding: 0.5em;
   overflow: auto;
-  background-color: var(--ow-btn-danger-bg);
+  background-color: var(--ow-color-primary-light);
 }
 
 @media (max-width: 767px) {

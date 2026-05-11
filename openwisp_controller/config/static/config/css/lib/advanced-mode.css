@@ -1,5 +1,13 @@
 /* reset styling (prevent conflicts with bootstrap, materialize.css, etc.) */
 
+:root {
+  --jsoneditor-accent: #3883fa;
+  --jsoneditor-highlight-bg: #ffffab;
+  --jsoneditor-highlight-border: yellow;
+  --jsoneditor-syntax-null: #004ed0;
+  --jsoneditor-syntax-value: var(--ow-color-primary);
+}
+
 .field-config div.jsoneditor .jsoneditor-search input {
   height: auto;
   border: inherit;
@@ -74,7 +82,7 @@ a.jsoneditor-value.jsoneditor-url {
 }
 a.jsoneditor-value.jsoneditor-url:hover,
 a.jsoneditor-value.jsoneditor-url:focus {
-  color: var(--ow-btn-danger-bg);
+  color: var(--ow-color-primary);
 }
 .field-config div.jsoneditor td.jsoneditor-separator {
   padding: 3px 0;
@@ -87,8 +95,8 @@ div.jsoneditor-value[contenteditable="true"]:focus,
 div.jsoneditor-value[contenteditable="true"]:hover,
 div.jsoneditor-field.jsoneditor-highlight,
 div.jsoneditor-value.jsoneditor-highlight {
-  background-color: var(--ow-color-fg-lighter);
-  border: 1px solid var(--ow-color-warning);
+  background-color: var(--jsoneditor-highlight-bg);
+  border: 1px solid var(--jsoneditor-highlight-border);
   border-radius: 2px;
 }
 div.jsoneditor-field.jsoneditor-highlight-active,
@@ -97,8 +105,8 @@ div.jsoneditor-field.jsoneditor-highlight-active:hover,
 div.jsoneditor-value.jsoneditor-highlight-active,
 div.jsoneditor-value.jsoneditor-highlight-active:focus,
 div.jsoneditor-value.jsoneditor-highlight-active:hover {
-  background-color: var(--ow-color-fg-lighter);
-  border: 1px solid var(--ow-color-fg-lighter);
+  background-color: var(--ow-color-warning);
+  border: 1px solid var(--ow-color-warning);
   border-radius: 2px;
 }
 div.jsoneditor-value.jsoneditor-string {
@@ -110,13 +118,13 @@ div.jsoneditor-value.jsoneditor-array {
   color: var(--ow-color-fg-medium);
 }
 div.jsoneditor-value.jsoneditor-number {
-  color: var(--ow-btn-danger-bg);
+  color: var(--jsoneditor-syntax-value);
 }
 div.jsoneditor-value.jsoneditor-boolean {
-  color: var(--ow-color-fg-darker);
+  color: var(--jsoneditor-syntax-value);
 }
 div.jsoneditor-value.jsoneditor-null {
-  color: var(--ow-color-fg-darker);
+  color: var(--jsoneditor-syntax-null);
 }
 div.jsoneditor-value.jsoneditor-invalid {
   color: var(--ow-color-black);
@@ -166,7 +174,7 @@ div.jsoneditor-tree button.jsoneditor-invisible {
 }
 .field-config div.jsoneditor {
   color: var(--ow-color-fg-darker);
-  border: 1px solid var(--ow-color-primary);
+  border: 1px solid var(--jsoneditor-accent);
   -moz-box-sizing: border-box;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
@@ -426,8 +434,8 @@ div.jsoneditor-tree .jsoneditor-schema-error {
 .jsoneditor .jsoneditor-text-errors {
   width: 100%;
   border-collapse: collapse;
-  background-color: var(--ow-color-fg-lighter);
-  border-top: 1px solid var(--ow-color-fg-lighter);
+  background-color: var(--ow-color-warning);
+  border-top: 1px solid var(--ow-color-warning);
 }
 .jsoneditor .jsoneditor-text-errors td {
   padding: 3px 6px;
@@ -587,7 +595,7 @@ div.jsoneditor-contextmenu ul li button.jsoneditor-selected,
 div.jsoneditor-contextmenu ul li button.jsoneditor-selected:hover,
 div.jsoneditor-contextmenu ul li button.jsoneditor-selected:focus {
   color: var(--ow-color-white);
-  background-color: var(--ow-btn-danger-bg);
+  background-color: var(--ow-color-primary);
 }
 div.jsoneditor-contextmenu ul li {
   overflow: hidden;
@@ -668,7 +676,7 @@ div.jsoneditor-menu {
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
   color: var(--ow-color-white);
-  background-color: var(--ow-color-primary);
+  background-color: var(--jsoneditor-accent);
 }
 div.jsoneditor-menu > button,
 div.jsoneditor-menu > div.jsoneditor-modes > button {
