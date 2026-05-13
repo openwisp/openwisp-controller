@@ -1,18 +1,20 @@
 import json
 import tempfile
 import uuid
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from PIL import Image
-from rest_framework import status
 from rest_framework.authtoken.models import Token
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.tests.utils import (
     CreateConfigTemplateMixin,
     CreateDeviceMixin,
@@ -26,6 +28,7 @@ Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 FloorPlan = load_model("geo", "FloorPlan")
 DeviceLocation = load_model("geo", "DeviceLocation")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 Group = load_model("openwisp_users", "Group")
 User = get_user_model()
@@ -36,6 +39,7 @@ class TestApi(TestGeoMixin, TestCase):
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
+    floorplan_model = FloorPlan
 
     def test_permission_404(self):
         url = reverse(self.url_name, args=[self.object_model().pk])
@@ -131,7 +135,17 @@ class TestApi(TestGeoMixin, TestCase):
             username="admin", password="password", is_staff=True, is_superuser=True
         )
         token = Token.objects.create(user=user).key
-        device = self._create_object_location().device
+        device = self._create_object()
+        location = self._create_location(
+            organization=device.organization, type="indoor"
+        )
+        floor = self._create_floorplan(floor=1, location=location)
+        self._create_object_location(
+            content_object=device,
+            location=location,
+            floorplan=floor,
+            organization=device.organization,
+        )
 
         with self.subTest("Test DeviceLocationView"):
             response = self.client.get(
@@ -151,9 +165,16 @@ class TestApi(TestGeoMixin, TestCase):
             self.assertEqual(response.status_code, 200)
 
         with self.subTest("Test LocationDeviceList"):
-            location = self._create_location(organization=device.organization)
             response = self.client.get(
                 reverse("geo_api:location_device_list", args=[location.id]),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("Test IndoorCoordinatesList"):
+            response = self.client.get(
+                reverse("geo_api:indoor_coordinates_list", args=[location.id]),
                 content_type="application/json",
                 HTTP_AUTHORIZATION=f"Bearer {token}",
             )
@@ -183,6 +204,7 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
     object_location_model = DeviceLocation
     location_model = Location
     object_model = Device
+    floorplan_model = FloorPlan
 
     def setUp(self):
         super().setUp()
@@ -285,6 +307,86 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             self.client.logout()
             r = self.client.get(reverse(url))
             self.assertEqual(r.status_code, 401)
+
+    def test_indoor_coordinate_list(self):
+        url = "geo_api:indoor_coordinates_list"
+        org_a = self._get_org("org_a")
+        org_b = self._get_org("org_b")
+        device_a = self._create_device(organization=org_a)
+        device_b = self._create_device(organization=org_b)
+        location_a = self._create_location(type="indoor", organization=org_a)
+        location_b = self._create_location(type="indoor", organization=org_b)
+        floor_a = self._create_floorplan(location=location_a)
+        floor_b = self._create_floorplan(location=location_b)
+        self._create_object_location(
+            content_object=device_a,
+            location=location_a,
+            floorplan=floor_a,
+            organization=org_a,
+        )
+        device_location_b = self._create_object_location(
+            content_object=device_b,
+            location=location_b,
+            floorplan=floor_b,
+            organization=org_b,
+        )
+
+        with self.subTest("Test indoor coordinate list for org operator"):
+            self.client.login(username="operator", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("Test indoor coordinate list for superuser"):
+            self.client.login(username="admin", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertContains(r, str(device_b.id))
+
+        with self.subTest("Test indoor coordinate list for org administrator"):
+            administrator = self._create_administrator(organizations=[org_a, org_b])
+            self.client.force_login(administrator)
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, str(device_a.id))
+            r = self.client.get(reverse(url, args=[location_b.id]))
+            self.assertEqual(r.status_code, 200)
+            # Verify all fields in the response
+            self.assertEqual(r.data["count"], 1)
+            self.assertIsNone(r.data["next"])
+            self.assertIsNone(r.data["previous"])
+            self.assertEqual(len(r.data["results"]), 1)
+            self.assertEqual(r.data["floors"], [floor_b.floor])
+            indoor_coordinate = r.data["results"][0]
+            self.assertEqual(indoor_coordinate["id"], str(device_location_b.id))
+            self.assertEqual(indoor_coordinate["device_id"], str(device_b.id))
+            self.assertEqual(indoor_coordinate["floorplan_id"], str(floor_b.id))
+            self.assertEqual(indoor_coordinate["device_name"], device_b.name)
+            self.assertEqual(indoor_coordinate["mac_address"], device_b.mac_address)
+            self.assertEqual(indoor_coordinate["floor_name"], str(floor_b))
+            self.assertEqual(indoor_coordinate["floor"], floor_b.floor)
+            self.assertEqual(
+                indoor_coordinate["admin_edit_url"],
+                "http://testserver{}".format(
+                    reverse(
+                        f"admin:{Device._meta.app_label}_device_change",
+                        args=(device_b.id,),
+                    )
+                ),
+            )
+            self.assertEqual(
+                indoor_coordinate["image"], f"http://testserver{floor_b.image.url}"
+            )
+            self.assertEqual(
+                indoor_coordinate["coordinates"], {"lat": -140.3862, "lng": 40.369227}
+            )
+
+        with self.subTest("Test for unauthenticated user"):
+            self.client.logout()
+            response = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(response.status_code, 401)
 
 
 class TestGeoApi(
@@ -435,7 +537,7 @@ class TestGeoApi(
         path = reverse("geo_api:list_location")
 
         with self.subTest("Test without organization filtering"):
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 2)
@@ -485,6 +587,7 @@ class TestGeoApi(
             self.assertContains(response, org1_location.id)
             self.assertNotContains(response, org2_location.id)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_post_location_list(self):
         path = reverse("geo_api:list_location")
         coords = json.loads(Point(2, 23).geojson)
@@ -516,6 +619,7 @@ class TestGeoApi(
             else:
                 self.fail("NoReverseMatch not raised as expected")
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_put_location_detail(self):
         l1 = self._create_location()
         path = reverse("geo_api:detail_location", args=[l1.pk])
@@ -593,6 +697,7 @@ class TestGeoApi(
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
     def test_create_location_with_floorplan(self):
         path = reverse("geo_api:list_location")
         fl_image = self._get_simpleuploadedfile()
@@ -1097,19 +1202,470 @@ class TestGeoApi(
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 403)
 
-    def test_device_location_view_parent_permission(self):
-        org1 = self._create_org(name="Org One")
-        device1 = self._create_device(organization=org1)
-        org2 = self._create_org(name="Org Two")
-        manager_org2 = self._create_administrator(
-            organizations=[org2],
-            username="manager_org2",
-            password="test_password",
-            is_superuser=False,
-            is_staff=True,
+    def test_indoor_coordinates_list_api(self):
+        org = self._create_org(name="Test org")
+        location = self._create_location(type="indoor", organization=org)
+        floor1 = self._create_floorplan(floor=1, location=location)
+        floor2 = self._create_floorplan(floor=2, location=location)
+        device1 = self._create_device(
+            name="device1", mac_address="00:00:00:00:00:01", organization=org
         )
-        self.client.force_login(manager_org2)
-        url = reverse("geo_api:device_location", args=[device1.pk])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.client.logout()
+        device2 = self._create_device(
+            name="device2", mac_address="00:00:00:00:00:02", organization=org
+        )
+        self._create_object_location(
+            content_object=device1,
+            location=location,
+            floorplan=floor1,
+            organization=org,
+        )
+        self._create_object_location(
+            content_object=device2,
+            location=location,
+            floorplan=floor2,
+            organization=org,
+        )
+        path = reverse("geo_api:indoor_coordinates_list", args=[location.id])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["device_name"], "device1")
+        self.assertEqual(response.data["results"][0]["floor"], 1)
+
+        with self.subTest("Test filter by floor"):
+            response = self.client.get(f"{path}?floor=2")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device2")
+            self.assertEqual(response.data["results"][0]["floor"], 2)
+
+        with self.subTest("Test default floor with all positive floor"):
+            location2 = self._create_location(type="indoor", organization=org)
+            floor0 = self._create_floorplan(floor=0, location=location2)
+            floor5 = self._create_floorplan(floor=5, location=location2)
+            floor9 = self._create_floorplan(floor=9, location=location2)
+            device0 = self._create_device(
+                name="device", mac_address="00:00:00:00:00:00", organization=org
+            )
+            device5 = self._create_device(
+                name="device5", mac_address="00:00:00:00:00:05", organization=org
+            )
+            device9 = self._create_device(
+                name="device9", mac_address="00:00:00:00:00:09", organization=org
+            )
+            self._create_object_location(
+                content_object=device0,
+                location=location2,
+                floorplan=floor0,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device5,
+                location=location2,
+                floorplan=floor5,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device9,
+                location=location2,
+                floorplan=floor9,
+                organization=org,
+            )
+            path = reverse("geo_api:indoor_coordinates_list", args=[location2.id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device")
+            self.assertEqual(response.data["results"][0]["floor"], 0)
+
+        with self.subTest("Test default floor with all negative floor"):
+            location3 = self._create_location(type="indoor", organization=org)
+            floor_1 = self._create_floorplan(floor=-1, location=location3)
+            floor_2 = self._create_floorplan(floor=-2, location=location3)
+            floor_3 = self._create_floorplan(floor=-3, location=location3)
+            device_1 = self._create_device(
+                name="device-1", mac_address="00:00:00:00:10:01", organization=org
+            )
+            device_2 = self._create_device(
+                name="device-2", mac_address="00:00:00:00:10:02", organization=org
+            )
+            device_3 = self._create_device(
+                name="device-3", mac_address="00:00:00:00:10:03", organization=org
+            )
+            self._create_object_location(
+                content_object=device_1,
+                location=location3,
+                floorplan=floor_1,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device_2,
+                location=location3,
+                floorplan=floor_2,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device_3,
+                location=location3,
+                floorplan=floor_3,
+                organization=org,
+            )
+            path = reverse("geo_api:indoor_coordinates_list", args=[location3.id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device-1")
+            self.assertEqual(response.data["results"][0]["floor"], -1)
+
+        with self.subTest("Test default floor with positive and negative floor"):
+            location4 = self._create_location(type="indoor", organization=org)
+            floor_4 = self._create_floorplan(floor=-4, location=location4)
+            floor0 = self._create_floorplan(floor=0, location=location4)
+            floor22 = self._create_floorplan(floor=22, location=location4)
+            device_3 = self._create_device(
+                name="device-4", mac_address="00:00:00:10:10:03", organization=org
+            )
+            device0 = self._create_device(
+                name="device-0", mac_address="00:00:00:00:10:00", organization=org
+            )
+            device22 = self._create_device(
+                name="device22", mac_address="00:00:00:00:10:22", organization=org
+            )
+            self._create_object_location(
+                content_object=device_3,
+                location=location4,
+                floorplan=floor_4,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device0,
+                location=location4,
+                floorplan=floor0,
+                organization=org,
+            )
+            self._create_object_location(
+                content_object=device22,
+                location=location4,
+                floorplan=floor22,
+                organization=org,
+            )
+            path = reverse("geo_api:indoor_coordinates_list", args=[location4.id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["results"]), 1)
+            self.assertEqual(response.data["results"][0]["device_name"], "device-0")
+            self.assertEqual(response.data["results"][0]["floor"], 0)
+
+    def _add_model_permission(self, user, model, perms):
+        content_type = ContentType.objects.get_for_model(model)
+        for perm in perms:
+            user.user_permissions.add(
+                content_type.permission_set.get(
+                    codename=f"{perm}_{model._meta.model_name}"
+                )
+            )
+
+    def test_organization_geo_settings_retrieve(self):
+        org1 = self._create_org(name="Org 1")
+        org2 = self._create_org(name="Org 2")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org1, is_admin=True
+        )
+        org1_geo_settings = OrganizationGeoSettings.objects.get(organization=org1)
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+        org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
+
+        with self.subTest("Unauthenticated access"):
+            self.client.logout()
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 401)
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 401)
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 401)
+
+        self.client.force_login(user=admin_user)
+        with self.subTest("Access without permission"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+
+        self._add_model_permission(admin_user, OrganizationGeoSettings, ["view"])
+        with self.subTest("Retrieve organization geo settings"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.data
+            self.assertEqual(str(data["organization"]), str(org1.pk))
+            self.assertEqual(
+                data["estimated_location_enabled"],
+                org1_geo_settings.estimated_location_enabled,
+            )
+
+        with self.subTest("Cannot access geo settings from other organization"):
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Cannot update without change permission"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("Superuser can access any organization's geo settings"):
+            superuser = self._get_admin()
+            self.client.force_login(user=superuser)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 200)
+
+    @patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_organization_geo_settings_update(self):
+        org1 = self._create_org(name="Org 1")
+        org2 = self._create_org(name="Org 2")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org1, is_admin=True
+        )
+        org1_geo_settings = OrganizationGeoSettings.objects.get(organization=org1)
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+        org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
+
+        self.client.force_login(user=admin_user)
+        self._add_model_permission(
+            admin_user, OrganizationGeoSettings, ["view", "change"]
+        )
+
+        with self.subTest("PUT operation"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org1_geo_settings.refresh_from_db()
+            self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+        with self.subTest("PATCH operation"):
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": True},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org1_geo_settings.refresh_from_db()
+            self.assertEqual(org1_geo_settings.estimated_location_enabled, True)
+
+        with self.subTest("PUT with organization field should be ignored"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False, "organization": str(org2.pk)},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org1_geo_settings.refresh_from_db()
+            self.assertEqual(org1_geo_settings.organization, org1)
+            self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+        with self.subTest("Cannot update geo settings of other organization"):
+            response = self.client.put(
+                org2_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+            response = self.client.patch(
+                org2_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Validation error when WHOIS not configured"):
+            with patch.object(config_app_settings, "WHOIS_CONFIGURED", False):
+                response = self.client.put(
+                    url,
+                    {"estimated_location_enabled": True},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("estimated_location_enabled", response.data)
+                org1_geo_settings.refresh_from_db()
+                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+                response = self.client.patch(
+                    url,
+                    {"estimated_location_enabled": True},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("estimated_location_enabled", response.data)
+                org1_geo_settings.refresh_from_db()
+                self.assertEqual(org1_geo_settings.estimated_location_enabled, False)
+
+        with self.subTest("Superuser can update any organization's geo settings"):
+            superuser = self._get_admin()
+            self.client.force_login(user=superuser)
+            org2_geo_settings = OrganizationGeoSettings.objects.get(organization=org2)
+            response = self.client.put(
+                org2_url,
+                {"estimated_location_enabled": True},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            org2_geo_settings.refresh_from_db()
+            self.assertEqual(org2_geo_settings.estimated_location_enabled, True)
+
+    def test_organization_geo_settings_multi_tenancy(self):
+        org1 = self._create_org(name="Org 1")
+        org2 = self._create_org(name="Org 2")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org1, is_admin=True
+        )
+        self._add_model_permission(
+            admin_user, OrganizationGeoSettings, ["view", "change"]
+        )
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+        org2_url = reverse("geo_api:organization_geo_settings", args=[org2.pk])
+
+        with self.subTest("User cannot access organization they don't manage"):
+            self.client.force_login(user=admin_user)
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 404)
+            response = self.client.put(
+                org2_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("User can access organization they manage"):
+            self.client.force_login(user=admin_user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("User managing multiple organizations can access both"):
+            OrganizationUser.objects.create(
+                user=admin_user, organization=org2, is_admin=True
+            )
+            self.client.force_login(user=admin_user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            response = self.client.get(org2_url)
+            self.assertEqual(response.status_code, 200)
+
+    def test_organization_geo_settings_user_access_levels(self):
+        org1 = self._create_org(name="Org 1")
+        regular_member = self._create_user(
+            username="regular_member", email="member@test.com"
+        )
+        OrganizationUser.objects.create(user=regular_member, organization=org1)
+        url = reverse("geo_api:organization_geo_settings", args=[org1.pk])
+
+        with self.subTest("Regular organization member cannot access"):
+            self.client.force_login(user=regular_member)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("Organization admin can access"):
+            org_admin = self._create_user(
+                username="org_admin", email="orgadmin@test.com"
+            )
+            OrganizationUser.objects.create(
+                user=org_admin, organization=org1, is_admin=True
+            )
+            self._add_model_permission(org_admin, OrganizationGeoSettings, ["view"])
+            self.client.force_login(user=org_admin)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("Superuser can access without explicit permissions"):
+            superuser = self._get_admin()
+            self.client.force_login(user=superuser)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+    def test_organization_geo_settings_non_existent_organization(self):
+        org = self._create_org(name="Org 1")
+        admin_user = self._create_user(username="admin_user", email="admin@test.com")
+        OrganizationUser.objects.create(
+            user=admin_user, organization=org, is_admin=True
+        )
+        self._add_model_permission(
+            admin_user, OrganizationGeoSettings, ["view", "change"]
+        )
+        self.client.force_login(user=admin_user)
+        fake_uuid = uuid.uuid4()
+        url = reverse("geo_api:organization_geo_settings", args=[fake_uuid])
+
+        with self.subTest("GET returns 404"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("PUT returns 404"):
+            response = self.client.put(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("PATCH returns 404"):
+            response = self.client.patch(
+                url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("Cannot update without change permission"):
+            # remove change permission for this user and attempt update on a
+            # real organization's geo settings URL so the request fails with
+            # HTTP 403 (forbidden) instead of 404 (not found).
+            content_type = ContentType.objects.get_for_model(OrganizationGeoSettings)
+            change_perm = content_type.permission_set.get(
+                codename=f"change_{OrganizationGeoSettings._meta.model_name}"
+            )
+            admin_user.user_permissions.remove(change_perm)
+            real_url = reverse("geo_api:organization_geo_settings", args=[org.pk])
+            response = self.client.put(
+                real_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            response = self.client.patch(
+                real_url,
+                {"estimated_location_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)

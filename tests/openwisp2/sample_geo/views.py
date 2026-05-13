@@ -14,6 +14,9 @@ from openwisp_controller.geo.api.views import (
     GeoJsonLocationList as BaseGeoJsonLocationList,
 )
 from openwisp_controller.geo.api.views import (
+    IndoorCoordinatesList as BaseIndoorCoordinatesList,
+)
+from openwisp_controller.geo.api.views import (
     LocationDetailView as BaseLocationDetailView,
 )
 from openwisp_controller.geo.api.views import (
@@ -21,6 +24,9 @@ from openwisp_controller.geo.api.views import (
 )
 from openwisp_controller.geo.api.views import (
     LocationListCreateView as BaseLocationListCreateView,
+)
+from openwisp_controller.geo.api.views import (
+    OrganizationGeoSettingsView as BaseOrganizationGeoSettingsView,
 )
 
 
@@ -56,11 +62,21 @@ class LocationDetailView(BaseLocationDetailView):
     pass
 
 
+class IndoorCoordinatesList(BaseIndoorCoordinatesList):
+    pass
+
+
+class OrganizationGeoSettingsView(BaseOrganizationGeoSettingsView):
+    pass
+
+
 device_coordinates = DeviceCoordinatesView.as_view()
 device_location = DeviceLocationView.as_view()
 geojson = GeoJsonLocationList.as_view()
 location_device_list = LocationDeviceList.as_view()
 list_floorplan = FloorPlanListCreateView.as_view()
+indoor_coordinates_list = IndoorCoordinatesList.as_view()
 detail_floorplan = FloorPlanDetailView.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
+organization_geo_settings = OrganizationGeoSettingsView.as_view()

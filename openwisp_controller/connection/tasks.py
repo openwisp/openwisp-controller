@@ -16,20 +16,25 @@ logger = logging.getLogger(__name__)
 _TASK_NAME = "openwisp_controller.connection.tasks.update_config"
 
 
-def _is_update_in_progress(device_id):
+def _is_update_in_progress(device_id, current_task_id=None):
     active = current_app.control.inspect().active()
     if not active:
         return False
     # check if there's any other running task before adding it
+    # exclude the current task by comparing task IDs
     for task_list in active.values():
         for task in task_list:
-            if task["name"] == _TASK_NAME and str(device_id) in task["args"]:
+            if (
+                task["name"] == _TASK_NAME
+                and str(device_id) in task["args"]
+                and task["id"] != current_task_id
+            ):
                 return True
     return False
 
 
-@shared_task
-def update_config(device_id):
+@shared_task(bind=True)
+def update_config(self, device_id):
     """
     Launches the ``update_config()`` operation
     of a specific device in the background
@@ -48,7 +53,7 @@ def update_config(device_id):
     except ObjectDoesNotExist as e:
         logger.warning(f'update_config("{device_id}") failed: {e}')
         return
-    if _is_update_in_progress(device_id):
+    if _is_update_in_progress(device_id, current_task_id=self.request.id):
         return
     try:
         device_conn = DeviceConnection.get_working_connection(device)

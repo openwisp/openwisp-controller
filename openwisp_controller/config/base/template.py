@@ -97,10 +97,9 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         default=dict,
         blank=True,
         help_text=_(
-            "A dictionary containing the default "
-            "values for the variables used by this "
-            "template; these default variables will "
-            "be used during schema validation."
+            "Define default values for the variables used in this template. "
+            "These values are used during validation and when a variable is "
+            "not provided by the device, group, or organization."
         ),
         load_kwargs={"object_pairs_hook": OrderedDict},
         dump_kwargs={"indent": 4},

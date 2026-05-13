@@ -585,10 +585,10 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
     return el;
   },
   disableHeader: function (header) {
-    header.style.color = "#ccc";
+    header.style.color = "var(--ow-color-fg-medium)";
   },
   disableLabel: function (label) {
-    label.style.color = "#ccc";
+    label.style.color = "var(--ow-color-fg-medium)";
   },
   enableHeader: function (header) {
     header.style.color = "";
@@ -848,7 +848,7 @@ JSONEditor.defaults.themes.django = JSONEditor.AbstractTheme.extend({
     el.appendChild(span);
     el.style = el.style || {};
     this.applyStyles(el, {
-      border: "1px solid #ccc",
+      border: "1px solid var(--border-color)",
       borderWidth: "1px 0 1px 1px",
       textAlign: "center",
       lineHeight: "30px",

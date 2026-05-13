@@ -18,9 +18,9 @@ class Migration(migrations.Migration):
                 default=dict,
                 dump_kwargs={"ensure_ascii": False, "indent": 4},
                 help_text=(
-                    "A dictionary containing the default values for "
-                    "the variables used by this template; these default "
-                    "variables will be used during schema validation."
+                    "Define default values for the variables used in this template. "
+                    "These values are used during validation and when a variable is "
+                    "not provided by the device, group, or organization."
                 ),
                 load_kwargs={"object_pairs_hook": collections.OrderedDict},
                 verbose_name="Default Values",

@@ -68,6 +68,22 @@ List Devices
 
     GET /api/v1/controller/device/
 
+.. _device_list_whois:
+
+**WHOIS Details**
+
+If :doc:`WHOIS Lookup feature <whois>` is enabled, each device in the list
+response will also include a ``whois_info`` field with related brief WHOIS
+information.
+
+.. _device_list_estimated_filters:
+
+**Estimated Location Filters**
+
+If :doc:`Estimated Location feature <estimated-location>` is enabled,
+devices can be filtered based on the estimated nature of their location
+using the ``geo_is_estimated`` filter.
+
 **Available filters**
 
 You can filter a list of devices based on their configuration status using
@@ -144,6 +160,13 @@ Get Device Detail
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/
+
+.. _device_detail_whois:
+
+**WHOIS Details**
+
+If :doc:`WHOIS Lookup feature <whois>` is enabled, the response will also
+include a ``whois_info`` field with related detailed WHOIS information.
 
 Download Device Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -529,12 +552,25 @@ of certificate's organization as show in the example below:
 
     GET /api/v1/controller/cert/{common_name}/group/?org={org1_slug},{org2_slug}
 
+.. |est_loc| replace:: Estimated Location feature
+
+.. _est_loc: estimated-location.html
+
+.. |estimated_details| replace:: If |est_loc|_ is enabled, the location
+    response will also include ``is_estimated`` status field.
+
 Get Device Location
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/device/{id}/location/
+
+.. _device_location_estimated:
+
+**Estimated Status**
+
+|estimated_details|
 
 .. _create_device_location:
 
@@ -765,12 +801,67 @@ device is updating it's position.
                 },
             }'
 
+Get Organization Geographic Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/organization/{organization_pk}/geo-settings/
+
+This endpoint allows retrieving geographic settings for a specific
+organization.
+
+Update Organization Geographic Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This endpoint allows updating geographic settings for a specific
+organization.
+
+.. code-block:: text
+
+    PUT /api/v1/controller/organization/{organization_pk}/geo-settings/
+
+.. code-block:: text
+
+    curl -X PUT \
+        'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
+        -H 'authorization: Bearer <token>' \
+        -H 'content-type: application/json' \
+        -d '{"estimated_location_enabled": true}'
+
+Partially Update Organization Geographic Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This endpoint allows partial updates of Organization geographic settings
+using the PATCH method. PATCH accepts a subset of fields and applies a
+partial update to the resource at the same endpoint path.
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/organization/{organization_pk}/geo-settings/
+
+.. code-block:: text
+
+    curl -X PATCH \
+        'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
+        -H 'authorization: Bearer <token>' \
+        -H 'content-type: application/json' \
+        -d '{"estimated_location_enabled": true}'
+
 List Locations
 ~~~~~~~~~~~~~~
 
 .. code-block:: text
 
     GET /api/v1/controller/location/
+
+.. _location_list_estimated:
+
+**Estimated Status**
+
+|estimated_details|
+
+Locations can also be filtered using the ``is_estimated`` filter.
 
 **Available filters**
 
@@ -853,6 +944,12 @@ Get Location Details
 
     GET /api/v1/controller/location/{pk}/
 
+.. _location_detail_estimated:
+
+**Estimated Status**
+
+|estimated_details|
+
 Change Location Details
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -894,6 +991,14 @@ List Locations with Devices Deployed (in GeoJSON Format)
 .. code-block:: text
 
     GET /api/v1/controller/location/geojson/
+
+.. _location_geojson_estimated:
+
+**Estimated Status**
+
+|estimated_details|
+
+Locations can also be filtered using the ``is_estimated`` filter.
 
 **Available filters**
 
@@ -955,6 +1060,29 @@ Delete Floor Plan
 .. code-block:: text
 
     DELETE /api/v1/controller/floorplan/{pk}/
+
+List Indoor Coordinates of a Location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+
+    This endpoint returns device coordinates from the first floor above
+    ground (lowest non-negative floors) by default. If a location only has
+    negative floors (e.g. underground parking lot), then it will return
+    the closest floor to the ground (greatest negative floor).
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/{id}/indoor-coordinates/
+
+**Available filters**
+
+You can filter using ``floor`` to get list of devices and their indoor
+coordinates for that floor.
+
+.. code-block:: text
+
+    GET /api/v1/controller/location/{id}/indoor-coordinates/?floor={floor}
 
 List Templates
 ~~~~~~~~~~~~~~

@@ -31,6 +31,7 @@ from openwisp_ipam.filters import SubnetFilter
 from swapper import load_model
 
 from openwisp_controller.config.views import get_default_values, get_relevant_templates
+from openwisp_controller.config.whois.utils import get_whois_info
 from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
@@ -49,6 +50,7 @@ from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
+whois_prefix = "whois/"
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
@@ -503,6 +505,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
     delete_selected_confirmation_template = (
         "admin/config/device/delete_selected_confirmation.html"
     )
+    delete_confirmation_template = "admin/config/device/delete_confirmation.html"
     list_display = [
         "name",
         "backend",
@@ -569,12 +572,21 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         fields.insert(0, "hardware_id")
     list_select_related = ("config", "organization")
 
-    class Media(BaseConfigAdmin.Media):
+    # overriding media property to allow testing in isolation
+    # as class Media is evaluated at import time making the
+    # settings not overridable in tests
+    @property
+    def media(self):
         js = BaseConfigAdmin.Media.js + [
             f"{prefix}js/tabs.js",
             f"{prefix}js/management_ip.js",
             f"{prefix}js/relevant_templates.js",
         ]
+        css = BaseConfigAdmin.Media.css["all"]
+        if app_settings.WHOIS_CONFIGURED:
+            js.append(f"{whois_prefix}js/whois.js")
+            css += (f"{whois_prefix}css/whois.css",)
+        return super().media + forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
         perm = super().has_change_permission(request)
@@ -683,8 +695,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
             "opts": self.model._meta,
             "changelist_url": (
-                f"{request.resolver_match.app_name}:"
-                f"{request.resolver_match.url_name}"
+                f"{request.resolver_match.app_name}:{request.resolver_match.url_name}"
             ),
         }
 
@@ -928,6 +939,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
                 ),
             }
         )
+        # passing the whois details to the context to avoid
+        # the need to make an additional request in the js
+        if data := get_whois_info(pk):
+            ctx["device_whois_details"] = data
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):
@@ -1089,8 +1104,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     validated_org = Organization.objects.get(pk=organization)
                 except (ValidationError, Organization.DoesNotExist) as e:
                     logger.warning(
-                        "Detected tampering in clone template "
-                        f"form by user {user}: {e}"
+                        f"Detected tampering in clone template form by user {user}: {e}"
                     )
                     return
                 if not user.is_superuser and not user.is_manager(organization):
@@ -1362,18 +1376,29 @@ class OrganizationLimitsInline(admin.StackedInline):
 
 
 limits_inline_position = 0
-if getattr(app_settings, "REGISTRATION_ENABLED", True):
 
-    class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
-        class Meta:
-            widgets = {"context": FlatJsonWidget}
 
-    class ConfigSettingsInline(admin.StackedInline):
-        model = OrganizationConfigSettings
-        form = ConfigSettingsForm
+class ConfigSettingsForm(AlwaysHasChangedMixin, forms.ModelForm):
+    class Meta:
+        widgets = {"context": FlatJsonWidget}
 
-    OrganizationAdmin.save_on_top = True
-    OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
-    limits_inline_position = 1
+
+class ConfigSettingsInline(admin.StackedInline):
+    model = OrganizationConfigSettings
+    form = ConfigSettingsForm
+
+    def get_fields(self, request, obj=None):
+        fields = []
+        if app_settings.REGISTRATION_ENABLED:
+            fields += ["registration_enabled", "shared_secret"]
+        if app_settings.WHOIS_CONFIGURED:
+            fields += ["whois_enabled"]
+        fields += ["context"]
+        return fields
+
+
+OrganizationAdmin.save_on_top = True
+OrganizationAdmin.inlines.insert(0, ConfigSettingsInline)
+limits_inline_position = 1
 
 OrganizationAdmin.inlines.insert(limits_inline_position, OrganizationLimitsInline)

@@ -1,12 +1,16 @@
+import os
 import time
 
+from django.contrib.auth.models import Group, Permission
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
+from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.utils import free_port
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
@@ -42,9 +46,17 @@ class SeleniumTestMixin(BaseSeleniumTestMixin):
         hidden = hidden or []
         visible = visible or []
         for template in hidden:
-            self.wait_for_invisibility(By.XPATH, f'//*[@value="{template.id}"]')
+            self.wait_for_invisibility(
+                By.XPATH,
+                f'//ul[contains(@class,"sortedm2m-items")]'
+                f'//input[@value="{template.id}"]',
+            )
         for template in visible:
-            self.wait_for_visibility(By.XPATH, f'//*[@value="{template.id}"]')
+            self.wait_for_visibility(
+                By.XPATH,
+                f'//ul[contains(@class,"sortedm2m-items")]'
+                f'//input[@value="{template.id}"]',
+            )
 
 
 @tag("selenium_tests")
@@ -386,6 +398,94 @@ class TestDeviceAdmin(
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.status, "modified")
 
+    def test_relevant_templates_duplicates(self):
+        """
+        Test that a user with specific permissions can see shared templates
+        properly. Verifies that:
+        1. User with custom group permissions can access the admin
+        2. Multiple shared templates are displayed correctly
+        3. Each template appears only once in the sortedm2m list
+        """
+        # Define permission codenames for the custom group
+        permission_codenames = [
+            "view_group",
+            "change_config",
+            "view_config",
+            "add_device",
+            "change_device",
+            "delete_device",
+            "view_device",
+            "view_devicegroup",
+            "view_template",
+        ]
+        # Create a custom group with the specified permissions
+        permissions = Permission.objects.filter(codename__in=permission_codenames)
+        custom_group, _ = Group.objects.get_or_create(name="Custom Operator")
+        custom_group.permissions.set(permissions)
+        # Create a user and assign the custom group
+        user = self._create_user(
+            username="limited_user",
+            password="testpass123",
+            email="limited@test.com",
+            is_staff=True,
+        )
+        user.groups.add(custom_group)
+        org = self._get_org()
+        self._create_org_user(user=user, organization=org, is_admin=True)
+        # Create multiple shared templates (organization=None)
+        template1 = self._create_template(
+            name="Shared Template 1", organization=None, default=True
+        )
+        template2 = self._create_template(name="Shared Template 2", organization=None)
+        device = self._create_config(organization=org).device
+        # Login as the limited user
+        self.login(username="limited_user", password="testpass123")
+        # Navigate using Selenium
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
+        )
+        self.hide_loading_overlay()
+        with self.subTest(
+            "Regression precondition: empty Config inline is not rendered"
+        ):
+            self.assertFalse(self.web_driver.find_elements(By.ID, "config-empty"))
+
+        with self.subTest("All shared templates should be visible"):
+            self._verify_templates_visibility(visible=[template1, template2])
+
+        with self.subTest("Verify sortedm2m list has exactly 2 template items"):
+            # Check that ul.sortedm2m-items.sortedm2m.ui-sortable has exactly 2 children
+            # with .sortedm2m-item class
+            sortedm2m_items = self.find_elements(
+                by=By.CSS_SELECTOR,
+                value="ul.sortedm2m-items.sortedm2m.ui-sortable > li.sortedm2m-item",
+            )
+            self.assertEqual(
+                len(sortedm2m_items),
+                2,
+                (
+                    "Expected exactly 2 template items in sortedm2m list,"
+                    f" found {len(sortedm2m_items)}"
+                ),
+            )
+
+        with self.subTest(
+            "Verify checkbox inputs are rendered with expected attributes"
+        ):
+            for idx, template_id in enumerate([template1.id, template2.id]):
+                checkbox = self.find_element(
+                    by=By.ID, value=f"id_config-templates_{idx}"
+                )
+                self.assertEqual(checkbox.get_attribute("value"), str(template_id))
+                self.assertEqual(checkbox.get_attribute("data-required"), "false")
+
+        with self.subTest("Save operation completes successfully"):
+            # Scroll to the top of the page to ensure the save button is visible
+            self.web_driver.execute_script("window.scrollTo(0, 0);")
+            self.find_element(by=By.NAME, value="_save").click()
+            self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+
 
 @tag("selenium_tests")
 class TestDeviceGroupAdmin(
@@ -497,6 +597,37 @@ class TestDeviceAdminUnsavedChanges(
     StaticLiveServerTestCase,
 ):
     browser = "chrome"
+
+    @classmethod
+    def get_chrome_webdriver(cls):
+        """
+        Override the parent class method to enable BiDi mode and set
+        unhandledPromptBehavior to "ignore". This is required to test
+        beforeunload alerts, as Chromium v126+ auto-accepts them per
+        WebDriver standard.
+
+        Ref: https://github.com/openwisp/openwisp-controller/issues/902
+        """
+        options = webdriver.ChromeOptions()
+        options.page_load_strategy = "eager"
+        if os.environ.get("SELENIUM_HEADLESS", False):
+            options.add_argument("--headless")
+        CHROME_BIN = os.environ.get("CHROME_BIN", None)
+        if CHROME_BIN:
+            options.binary_location = CHROME_BIN
+        options.add_argument("--window-size=1366,768")
+        options.add_argument("--ignore-certificate-errors")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument(f"--remote-debugging-port={free_port()}")
+        options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+        # Enable BiDi mode and set unhandledPromptBehavior to "ignore"
+        # to allow testing beforeunload alerts (Chromium v126+).
+        options.enable_bidi = True
+        options.set_capability("unhandledPromptBehavior", "ignore")
+        return webdriver.Chrome(options=options)
 
     def _is_unsaved_changes_alert_present(self):
         for entry in self.get_browser_logs():

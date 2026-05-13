@@ -91,7 +91,11 @@ class TestDeviceAdminReadonly(
     def test_unsaved_changes_readonly(self):
         self.login()
         ol = self._create_object_location()
-        path = reverse("admin:config_device_change", args=[ol.device.id])
+        path = reverse(
+            f"admin:{self.object_model._meta.app_label}_"
+            f"{self.object_model._meta.model_name}_change",
+            args=[ol.device.id],
+        )
 
         with self.subTest("Alert should not be displayed without any change"):
             self.open(path)

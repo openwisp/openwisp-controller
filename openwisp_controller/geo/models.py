@@ -1,6 +1,11 @@
 import swapper
 
-from .base.models import BaseDeviceLocation, BaseFloorPlan, BaseLocation
+from .base.models import (
+    AbstractOrganizationGeoSettings,
+    BaseDeviceLocation,
+    BaseFloorPlan,
+    BaseLocation,
+)
 
 
 class Location(BaseLocation):
@@ -19,6 +24,12 @@ class DeviceLocation(BaseDeviceLocation):
     class Meta(BaseDeviceLocation.Meta):
         abstract = False
         swappable = swapper.swappable_setting("geo", "DeviceLocation")
+
+
+class OrganizationGeoSettings(AbstractOrganizationGeoSettings):
+    class Meta(AbstractOrganizationGeoSettings.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting("geo", "OrganizationGeoSettings")
 
 
 # maintain compatibility with django_loci
