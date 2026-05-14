@@ -15,6 +15,8 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
+from django.db import models
+from django.db.models.functions import Cast
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
@@ -217,6 +219,15 @@ class BaseConfigAdmin(BaseAdmin):
                 key = "{relation}_id".format(relation=key)
                 # pass non-empty string or None
                 kwargs[key] = value or None
+            # parse JSON strings for JSONField fields
+            elif isinstance(field, models.JSONField) and isinstance(value, str):
+                if not value:
+                    kwargs[key] = None
+                else:
+                    try:
+                        kwargs[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        kwargs[key] = value
             # put regular field values in kwargs dict
             else:
                 kwargs[key] = value
@@ -1307,9 +1318,16 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         "created",
         "modified",
     ]
-    search_fields = ["name", "description", "meta_data"]
+    search_fields = ["name", "description", "_meta_data_text"]
     list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
     multitenant_shared_relations = ("templates",)
+
+    def get_search_results(self, request, queryset, search_term):
+        if search_term:
+            queryset = queryset.annotate(
+                _meta_data_text=Cast("meta_data", output_field=models.TextField()),
+            )
+        return super().get_search_results(request, queryset, search_term)
 
     class Media:
         js = list(UUIDAdmin.Media.js) + [
