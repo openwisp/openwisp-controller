@@ -20,13 +20,14 @@ def _is_update_in_progress(device_id, current_task_id=None):
     active = current_app.control.inspect().active()
     if not active:
         return False
+    device_id_str = str(device_id)
     # check if there's any other running task before adding it
     # exclude the current task by comparing task IDs
     for task_list in active.values():
         for task in task_list:
             if (
                 task["name"] == _TASK_NAME
-                and str(device_id) in task["args"]
+                and device_id_str in [str(arg) for arg in task.get("args", [])]
                 and task["id"] != current_task_id
             ):
                 return True
