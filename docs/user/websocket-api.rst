@@ -54,8 +54,8 @@ Authorization
 A user is authorized if:
 
 - The user is a superuser, OR
-- The user is marked as staff AND has ``add``, ``change`` and ``delete``
-  permissions on the device model.
+- The user is marked as staff AND has the ``config.add_device``,
+  ``config.change_device`` and ``config.delete_device`` permissions.
 
 Real-time Updates
 +++++++++++++++++
@@ -104,7 +104,7 @@ A user is authorized if:
 - The user:
 
   - Is marked as staff,
-  - Has ``view`` or ``change`` permission on the location model,
+  - Has the ``geo.view_location`` or ``geo.change_location`` permission,
   - Is an organization manager for the location's organization.
 
 Real-time Updates
@@ -149,9 +149,9 @@ Authorization
 A user is authorized if:
 
 - The user is a superuser (receives updates for every organization), OR
-- The user is marked as staff AND has ``view`` or ``change`` permission on
-  the location model. In this case, updates are received only for the
-  organizations the user manages.
+- The user is marked as staff AND has the ``geo.view_location`` or
+  ``geo.change_location`` permission. In this case, updates are received
+  only for the organizations the user manages.
 
 Real-time Updates
 +++++++++++++++++
