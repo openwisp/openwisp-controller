@@ -13,7 +13,8 @@ command execution and for mobile device location tracking.
 
 All endpoints:
 
-- Use JSON messages.
+- Use JSON-encoded messages on the wire. The payload examples below are
+  shown in JavaScript-style notation with inline comments for readability.
 - Push real-time updates after the connection is established.
 - Do not accept client messages: any data sent from the client is ignored.
 
