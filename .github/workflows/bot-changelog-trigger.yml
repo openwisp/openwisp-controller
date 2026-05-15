@@ -36,3 +36,4 @@ jobs:
         with:
           name: changelog-metadata
           path: pr_number
+          retention-days: 1
