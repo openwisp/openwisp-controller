@@ -1,14 +1,11 @@
 import logging
 
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
+from ..settings import get_setting
+
 logger = logging.getLogger(__name__)
-
-
-def get_setting(option, default):
-    return getattr(settings, f"OPENWISP_CONTROLLER_{option}", default)
 
 
 BACKENDS = get_setting(
@@ -84,10 +81,4 @@ if not (
 ):
     raise ImproperlyConfigured(
         "OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS must be a positive integer"
-    )
-ESTIMATED_LOCATION_ENABLED = get_setting("ESTIMATED_LOCATION_ENABLED", False)
-if ESTIMATED_LOCATION_ENABLED and not WHOIS_ENABLED:
-    raise ImproperlyConfigured(
-        "OPENWISP_CONTROLLER_WHOIS_ENABLED must be set to True before "
-        "setting OPENWISP_CONTROLLER_ESTIMATED_LOCATION_ENABLED to True."
     )

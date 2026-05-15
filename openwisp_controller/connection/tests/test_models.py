@@ -1,6 +1,7 @@
 import socket
 from unittest import mock
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 import paramiko
 from django.contrib.auth.models import ContentType
@@ -501,7 +502,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("test extra arg on reboot"):
             command.type = "reboot"
-            command.input = '["test"]'
+            command.input = ["test"]
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
@@ -535,12 +536,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn("input", e.message_dict)
             self.assertEqual(
                 e.message_dict["input"],
-                ["Enter valid JSON.", "'notjson' is not of type 'object'"],
+                ["'notjson' is not of type 'object'"],
             )
 
         with self.subTest("JSON check on arguments"):
             command.type = "change_password"
-            command.input = "[]"
+            command.input = []
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
@@ -600,7 +601,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(list(command.arguments), ["newpwd", "newpwd"])
 
         with self.subTest("value error"):
-            command = Command(input='["echo test"]', type="custom")
+            command = Command(input=["echo test"], type="custom")
             with self.assertRaises(TypeError) as context_manager:
                 command.arguments
             self.assertEqual(
@@ -971,7 +972,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config >= 0.6.0a"):
-            conf.config = '{"dns_servers": []}'
+            conf.config = {"dns_servers": []}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -986,7 +987,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config < 0.6.0a: exit_code 0"):
-            conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
+            conf.config = {"interfaces": [{"name": "eth00", "type": "ethernet"}]}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -1000,7 +1001,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config < 0.6.0a: exit_code 1"):
-            conf.config = '{"radios": []}'
+            conf.config = {"radios": []}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 stdin, stdout, stderr = self._exec_command_return_value(
@@ -1026,20 +1027,56 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     @mock.patch.object(DeviceConnection, "update_config")
     @mock.patch.object(DeviceConnection, "get_working_connection")
     def test_device_update_config_in_progress(
-        self, mocked_get_working_connection, update_config, mocked_sleep
+        self, mocked_get_working_connection, mocked_update_config, mocked_sleep
     ):
         conf = self._prepare_conf_object()
 
-        with mock.patch("celery.app.control.Inspect.active") as mocked_active:
-            mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": [str(conf.device.pk)]}]
-            }
-            conf.config = {"general": {"timezone": "UTC"}}
-            conf.full_clean()
-            conf.save()
-            mocked_active.assert_called_once()
-            mocked_get_working_connection.assert_not_called()
-            update_config.assert_not_called()
+        with self.subTest("More than one update_config task active for the device"):
+            with mock.patch("celery.app.control.Inspect.active") as mocked_active:
+                mocked_active.return_value = {
+                    "task": [
+                        {
+                            "name": _TASK_NAME,
+                            "args": [str(conf.device.pk)],
+                            "id": str(uuid4()),
+                        }
+                    ]
+                }
+                conf.config = {"general": {"timezone": "UTC"}}
+                conf.full_clean()
+                conf.save()
+                mocked_active.assert_called_once()
+                mocked_get_working_connection.assert_not_called()
+                mocked_update_config.assert_not_called()
+
+        Config.objects.update(status="applied")
+        mocked_get_working_connection.return_value = (
+            conf.device.deviceconnection_set.first()
+        )
+        with self.subTest("Only one task is active for the device"):
+            task_id = str(uuid4())
+            with mock.patch(
+                "celery.app.control.Inspect.active"
+            ) as mocked_active, mock.patch(
+                "celery.app.task.Context.id",
+                new_callable=mock.PropertyMock,
+                return_value=task_id,
+            ):
+                mocked_active.return_value = {
+                    "task": [
+                        {
+                            "name": _TASK_NAME,
+                            "args": [str(conf.device.pk)],
+                            "id": task_id,
+                        }
+                    ]
+                }
+                conf.config = {"general": {"timezone": "Asia/Kolkata"}}
+                conf.full_clean()
+                conf.save()
+                mocked_active.assert_called_once()
+                mocked_get_working_connection.assert_called_once()
+                mocked_update_config.assert_called_once()
 
     @mock.patch("time.sleep")
     @mock.patch.object(DeviceConnection, "update_config")
@@ -1053,8 +1090,15 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         )
 
         with mock.patch("celery.app.control.Inspect.active") as mocked_active:
+            # Mock a task running for a different device (args is different)
             mocked_active.return_value = {
-                "task": [{"name": _TASK_NAME, "args": ["..."]}]
+                "task": [
+                    {
+                        "name": _TASK_NAME,
+                        "args": ["another-device-id"],  # Different device
+                        "id": "different-task-id",
+                    }
+                ]
             }
             conf.config = {"general": {"timezone": "UTC"}}
             conf.full_clean()

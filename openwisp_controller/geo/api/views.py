@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination, status
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import BasePermission
 from rest_framework.request import clone_request
 from rest_framework.response import Response
@@ -30,12 +31,14 @@ from .serializers import (
     IndoorCoordinatesSerializer,
     LocationDeviceSerializer,
     LocationSerializer,
+    OrganizationGeoSettingsSerializer,
 )
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 FloorPlan = load_model("geo", "FloorPlan")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 
 
 class DevicePermission(BasePermission):
@@ -344,6 +347,17 @@ class LocationDetailView(
     queryset = Location.objects.all()
 
 
+class OrganizationGeoSettingsView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
+    serializer_class = OrganizationGeoSettingsSerializer
+    queryset = OrganizationGeoSettings.objects.all()
+
+    def get_object(self):
+        org_id = self.kwargs.get("organization_pk")
+        obj = get_object_or_404(self.get_queryset(), organization_id=org_id)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+
 # add with_geo filter to device API
 DeviceListCreateView.filterset_class = DeviceListFilter
 
@@ -356,3 +370,4 @@ detail_floorplan = FloorPlanDetailView.as_view()
 indoor_coordinates_list = IndoorCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
+organization_geo_settings = OrganizationGeoSettingsView.as_view()

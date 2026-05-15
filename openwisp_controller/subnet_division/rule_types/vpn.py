@@ -41,8 +41,9 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
         for vpn_client in qs:
             cls.provision_receiver(instance=vpn_client, created=True)
 
-    @staticmethod
-    def post_provision_handler(instance, provisioned, **kwargs):
+    @classmethod
+    def post_provision_handler(cls, instance, provisioned, **kwargs):
+        super().post_provision_handler(instance, provisioned, **kwargs)
         # Assign the first provisioned IP address to the VPNClient
         # only when subnets and IPs have been provisioned
         if provisioned and provisioned["ip_addresses"]:

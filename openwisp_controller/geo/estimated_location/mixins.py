@@ -1,4 +1,4 @@
-from openwisp_controller.config.whois.service import WHOISService
+from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
 
 
 # These mixins are required as estimated location is an organization level feature.
@@ -11,7 +11,9 @@ class EstimatedLocationMixin:
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        if WHOISService.check_estimated_location_enabled(obj.organization_id):
+        if EstimatedLocationService.check_estimated_location_enabled(
+            obj.organization_id
+        ):
             data["is_estimated"] = obj.is_estimated
         else:
             data.pop("is_estimated", None)
@@ -26,7 +28,9 @@ class EstimatedLocationGeoJsonMixin:
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        if WHOISService.check_estimated_location_enabled(obj.organization_id):
+        if EstimatedLocationService.check_estimated_location_enabled(
+            obj.organization_id
+        ):
             data["properties"]["is_estimated"] = obj.is_estimated
         else:
             data["properties"].pop("is_estimated", None)

@@ -1,16 +1,21 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_controller.config.tests.utils import TestWireguardVpnMixin
+from openwisp_controller.config.tests.test_admin import TestDeviceAdminMixin
+from openwisp_controller.config.tests.utils import (
+    TestVpnX509Mixin,
+    TestWireguardVpnMixin,
+)
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
-from .helpers import SubnetDivisionAdminTestMixin
+from .helpers import SubnetDivisionAdminTestMixin, SubnetDivisionTestMixin
 
 Subnet = load_model("openwisp_ipam", "Subnet")
 Device = load_model("config", "Device")
+Config = load_model("config", "Config")
 
 
 class TestSubnetAdmin(
@@ -257,3 +262,132 @@ class TestDeviceAdmin(
         )
         self.assertEqual(subnet_response.status_code, 200)
         self.assertContains(subnet_response, self.config.device.name, 1)
+
+
+class TestTransactionDeviceAdmin(
+    SubnetDivisionTestMixin,
+    TestVpnX509Mixin,
+    TestDeviceAdminMixin,
+    TransactionTestCase,
+):
+    ipam_label = "openwisp_ipam"
+    config_label = "config"
+
+    def test_vpn_template_switch_checksum_db(self):
+        admin = self._create_admin()
+        self.client.force_login(admin)
+        org = self._get_org()
+        vpn1_subnet = self._get_master_subnet(organization=org, subnet="10.0.0.0/24")
+        self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            organization=org,
+            master_subnet=vpn1_subnet,
+            label="VPN1",
+        )
+        vpn1 = self._create_vpn(name="vpn1", organization=org, subnet=vpn1_subnet)
+        vpn2_subnet = self._get_master_subnet(organization=org, subnet="10.0.1.0/24")
+        self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            organization=org,
+            master_subnet=vpn2_subnet,
+            label="VPN2",
+        )
+        vpn2 = self._create_vpn(name="vpn2", organization=org, subnet=vpn2_subnet)
+        vpn1_template = self._create_template(
+            organization=org,
+            name="vpn1-template",
+            type="vpn",
+            vpn=vpn1,
+            default_values={
+                "VPN1_subnet1_ip1": "10.0.0.1",
+                "VPN1_prefix": "24",
+                "ifname": "tun0",
+            },
+            auto_cert=True,
+            config={},
+        )
+        vpn1_template.config["openvpn"][0]["dev"] = "{{ ifname }}"
+        vpn1_template.config.update(
+            {
+                "network": [
+                    {
+                        "config_name": "interface",
+                        "config_value": "lan",
+                        "ipaddr": "{{ VPN1_subnet1_ip1 }}",
+                        "netmask": "255.255.255.240",
+                    }
+                ],
+            }
+        )
+        vpn1_template.full_clean()
+        vpn1_template.save()
+        vpn2_template = self._create_template(
+            organization=org,
+            name="vpn2-template",
+            type="vpn",
+            vpn=vpn2,
+            default_values={
+                "VPN2_subnet1_ip1": "10.0.1.1",
+                "VPN2_prefix": "32",
+                "ifname": "tun1",
+            },
+            auto_cert=True,
+            config={},
+        )
+        vpn2_template.config["openvpn"][0]["dev"] = "{{ ifname }}"
+        vpn2_template.config.update(
+            {
+                "network": [
+                    {
+                        "config_name": "interface",
+                        "config_value": "lan",
+                        "ipaddr": "{{ VPN2_subnet1_ip1 }}",
+                        "netmask": "255.255.255.240",
+                    }
+                ],
+            }
+        )
+        vpn2_template.full_clean()
+        vpn2_template.save()
+        default_template = self._create_template(
+            name="default-template",
+            default=True,
+        )
+        path = reverse(f"admin:{self.config_label}_device_add")
+        params = self._get_device_params(org=org)
+        params.update(
+            {"config-0-templates": f"{default_template.pk},{vpn1_template.pk}"}
+        )
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        config = Config.objects.get(device__name=params["name"])
+        config.refresh_from_db()
+        config._invalidate_backend_instance_cache()
+        initial_checksum = config.checksum
+        self.assertEqual(config.checksum_db, initial_checksum)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        self.assertEqual(config.vpnclient_set.first().vpn, vpn1)
+
+        path = reverse(
+            f"admin:{self.config_label}_device_change", args=[config.device_id]
+        )
+        params.update(
+            {
+                "config-0-templates": f"{default_template.pk},{vpn2_template.pk}",
+                "config-0-id": str(config.pk),
+                "config-0-device": str(config.device_id),
+                "config-INITIAL_FORMS": 1,
+                "_continue": True,
+            }
+        )
+        response = self.client.post(path, data=params, follow=True)
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        config._invalidate_backend_instance_cache()
+        self.assertEqual(config.status, "modified")
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        self.assertEqual(config.vpnclient_set.first().vpn, vpn2)
+        self.assertNotEqual(config.checksum, initial_checksum)
+        self.assertEqual(config.checksum, config.checksum_db)

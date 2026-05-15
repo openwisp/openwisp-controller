@@ -280,6 +280,7 @@ if os.environ.get("SAMPLE_APP", False):
     GEO_LOCATION_MODEL = "sample_geo.Location"
     GEO_FLOORPLAN_MODEL = "sample_geo.FloorPlan"
     GEO_DEVICELOCATION_MODEL = "sample_geo.DeviceLocation"
+    GEO_ORGANIZATIONGEOSETTINGS_MODEL = "sample_geo.OrganizationGeoSettings"
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"
