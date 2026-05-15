@@ -38,8 +38,8 @@ from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
     AlwaysHasChangedMixin,
+    CopyableFieldsAdmin,
     TimeReadonlyAdminMixin,
-    UUIDAdmin,
 )
 
 from ..admin import MultitenantAdminMixin
@@ -115,7 +115,7 @@ class BaseConfigAdmin(BaseAdmin):
 
     class Media:
         css = {"all": (f"{prefix}css/admin.css",)}
-        js = list(UUIDAdmin.Media.js) + [
+        js = list(CopyableFieldsAdmin.Media.js) + [
             f"{prefix}js/{file_}"
             for file_ in ("preview.js", "unsaved_changes.js", "switcher.js")
         ]
@@ -511,7 +511,7 @@ class ChangeDeviceGroupForm(forms.Form):
         )
 
 
-class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
     change_form_template = "admin/config/device/change_form.html"
     delete_selected_confirmation_template = (
         "admin/config/device/delete_selected_confirmation.html"
@@ -562,6 +562,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         "created",
         "modified",
     ]
+    copyable_fields = ["uuid"]
     inlines = [ConfigInline]
     conditional_inlines = []
     actions = [
@@ -1227,7 +1228,10 @@ class VpnForm(forms.ModelForm):
 
 
 class VpnAdmin(
-    MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin, SystemDefinedVariableMixin
+    MultitenantAdminMixin,
+    BaseConfigAdmin,
+    CopyableFieldsAdmin,
+    SystemDefinedVariableMixin,
 ):
     form = VpnForm
     list_display = [
@@ -1248,6 +1252,7 @@ class VpnAdmin(
     ]
     search_fields = ["id", "name", "host", "key"]
     readonly_fields = ["id", "uuid", "system_context"]
+    copyable_fields = ["uuid"]
     multitenant_shared_relations = ("ca", "cert", "subnet")
     autocomplete_fields = ["ip", "subnet"]
     fields = [
@@ -1330,7 +1335,7 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         return super().get_search_results(request, queryset, search_term)
 
     class Media:
-        js = list(UUIDAdmin.Media.js) + [
+        js = list(CopyableFieldsAdmin.Media.js) + [
             f"{prefix}js/relevant_templates.js",
         ]
         css = {"all": (f"{prefix}css/admin.css",)}
