@@ -1,16 +1,18 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from rest_framework import generics, pagination, status
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import BasePermission
 from rest_framework.request import clone_request
 from rest_framework.response import Response
 from rest_framework_gis.pagination import GeoJsonPagination
 from swapper import load_model
 
+from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
@@ -29,12 +31,14 @@ from .serializers import (
     IndoorCoordinatesSerializer,
     LocationDeviceSerializer,
     LocationSerializer,
+    OrganizationGeoSettingsSerializer,
 )
 
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 FloorPlan = load_model("geo", "FloorPlan")
+OrganizationGeoSettings = load_model("geo", "OrganizationGeoSettings")
 
 
 class DevicePermission(BasePermission):
@@ -50,6 +54,17 @@ class LocationOrganizationFilter(OrganizationManagedFilter):
     class Meta(OrganizationManagedFilter.Meta):
         model = Location
         fields = OrganizationManagedFilter.Meta.fields + ["is_mobile", "type"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # This is evaluated at runtime, which makes it suited
+        # For the automated testing strategy we are using.
+        # Defining this at class definition does not allow flexible testing.
+        if config_app_settings.WHOIS_CONFIGURED:
+            self.filters["is_estimated"] = filters.BooleanFilter(
+                field_name="is_estimated",
+                label=_("Is geographic location estimated?"),
+            )
 
 
 class FloorPlanOrganizationFilter(OrganizationManagedFilter):
@@ -215,8 +230,10 @@ class GeoJsonLocationList(
     Shows only locations which are assigned to devices.
     """
 
-    queryset = Location.objects.filter(devicelocation__isnull=False).annotate(
-        device_count=Count("devicelocation")
+    queryset = (
+        Location.objects.filter(devicelocation__isnull=False)
+        .annotate(device_count=Count("devicelocation"))
+        .order_by("-created")
     )
     serializer_class = GeoJsonLocationSerializer
     pagination_class = GeoJsonLocationListPagination
@@ -311,7 +328,12 @@ class FloorPlanDetailView(
 
 class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = LocationSerializer
-    queryset = Location.objects.order_by("-created")
+    queryset = Location.objects.prefetch_related(
+        Prefetch(
+            "floorplan_set",
+            queryset=FloorPlan.objects.order_by("-created"),
+        )
+    ).order_by("-created")
     pagination_class = ListViewPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = LocationOrganizationFilter
@@ -323,6 +345,17 @@ class LocationDetailView(
 ):
     serializer_class = LocationSerializer
     queryset = Location.objects.all()
+
+
+class OrganizationGeoSettingsView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
+    serializer_class = OrganizationGeoSettingsSerializer
+    queryset = OrganizationGeoSettings.objects.all()
+
+    def get_object(self):
+        org_id = self.kwargs.get("organization_pk")
+        obj = get_object_or_404(self.get_queryset(), organization_id=org_id)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 # add with_geo filter to device API
@@ -337,3 +370,4 @@ detail_floorplan = FloorPlanDetailView.as_view()
 indoor_coordinates_list = IndoorCoordinatesList.as_view()
 list_location = LocationListCreateView.as_view()
 detail_location = LocationDetailView.as_view()
+organization_geo_settings = OrganizationGeoSettingsView.as_view()

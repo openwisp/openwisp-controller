@@ -344,11 +344,13 @@ Once you have created the models, add the following to your
     CONFIG_VPNCLIENT_MODEL = "sample_config.VpnClient"
     CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = "sample_config.OrganizationConfigSettings"
     CONFIG_ORGANIZATIONLIMITS_MODEL = "sample_config.OrganizationLimits"
+    CONFIG_WHOISINFO_MODEL = "sample_config.WHOISInfo"
     DJANGO_X509_CA_MODEL = "sample_pki.Ca"
     DJANGO_X509_CERT_MODEL = "sample_pki.Cert"
     GEO_LOCATION_MODEL = "sample_geo.Location"
     GEO_FLOORPLAN_MODEL = "sample_geo.FloorPlan"
     GEO_DEVICELOCATION_MODEL = "sample_geo.DeviceLocation"
+    GEO_ORGANIZATIONGEOSETTINGS_MODEL = "sample_geo.OrganizationGeoSettings"
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"
@@ -455,7 +457,11 @@ For example:
 
 .. code-block:: python
 
-    from openwisp_controller.geo.admin import FloorPlanAdmin, LocationAdmin
+    from openwisp_controller.geo.admin import (
+        FloorPlanAdmin,
+        LocationAdmin,
+        GeoSettingsInline,
+    )
 
     FloorPlanAdmin.fields += ["example"]  # <-- monkey patching example
 

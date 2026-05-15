@@ -29,8 +29,6 @@ VpnClient = load_model("config", "VpnClient")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
-DeviceLocation = load_model("geo", "DeviceLocation")
-Location = load_model("geo", "Location")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
 
@@ -250,7 +248,9 @@ class TestConfigApi(
     def test_device_list_api(self):
         device = self._create_device()
         path = reverse("config_api:device_list")
-        with self.assertNumQueries(3):
+        with patch.object(
+            app_settings, "WHOIS_CONFIGURED", False
+        ), self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         with self.subTest("device list should show most recent first"):
@@ -396,7 +396,9 @@ class TestConfigApi(
     def test_device_detail_api(self):
         d1 = self._create_device()
         path = reverse("config_api:device_detail", args=[d1.pk])
-        with self.assertNumQueries(2):
+        with patch.object(
+            app_settings, "WHOIS_CONFIGURED", False
+        ), self.assertNumQueries(2):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["config"], None)
@@ -406,7 +408,9 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse("config_api:device_detail", args=[d1.pk])
-        with self.assertNumQueries(3):
+        with patch.object(
+            app_settings, "WHOIS_CONFIGURED", False
+        ), self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertNotEqual(r.data["config"], None)
@@ -424,8 +428,8 @@ class TestConfigApi(
                 "backend": "netjsonconfig.OpenWisp",
                 "status": "modified",
                 "templates": [],
-                "context": "{}",
-                "config": "{}",
+                "context": {},
+                "config": {},
             },
         }
         r = self.client.put(path, data, content_type="application/json")
