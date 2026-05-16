@@ -1144,7 +1144,7 @@ class TestAdmin(
     def test_download_device_config(self):
         d = self._create_device(name="download")
         self._create_config(device=d)
-        path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk.hex])
+        path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1153,7 +1153,7 @@ class TestAdmin(
         device = self._create_device(name="download")
         self._create_config(device=device)
         device.deactivate()
-        path = reverse(f"admin:{self.app_label}_device_download", args=[device.pk.hex])
+        path = reverse(f"admin:{self.app_label}_device_download", args=[device.pk])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1162,6 +1162,15 @@ class TestAdmin(
         d = self._create_device(name="download")
         path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk])
         response = self.client.get(path)
+        self.assertEqual(response.status_code, 404)
+
+    def test_change_device_404_malformed_url(self):
+        url = (
+            "/admin/config/device/"
+            "de8fa775-1134-47b6-adc5-2da3d0626c72/history/1564/"
+            "undefinedadmin/img/icon-deletelink.svg"
+        )
+        response = self.client.get(url, follow=True)
         self.assertEqual(response.status_code, 404)
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
@@ -1404,16 +1413,6 @@ class TestAdmin(
         )
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
-
-    def test_malformed_download_url_status_code(self):
-        models = [Device, Template, Vpn]
-        malformed_uuid = "de8fa775-1134-47b6-adc5-2da3d0626c72/history/undefined"
-        for model in models:
-            model_name = model._meta.model_name
-            with self.subTest(model=model_name):
-                url = f"/admin/{self.app_label}/{model_name}/download/{malformed_uuid}/"
-                response = self.client.get(url)
-                self.assertNotEqual(response.status_code, 500)
 
     def test_uuid_field_in_change(self):
         t = Template.objects.first()

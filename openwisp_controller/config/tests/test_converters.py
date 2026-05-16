@@ -19,3 +19,9 @@ class TestUUIDConverters(SimpleTestCase):
         converter = UUIDAnyConverter()
         with self.assertRaises(ValueError):
             converter.to_python("not-a-uuid")
+
+    def test_uuid_any_converter_uppercase(self):
+        converter = UUIDAnyConverter()
+        uppercase_uuid = "DE8FA775-1134-47B6-ADC5-2DA3D0626C72"
+        with self.assertRaises(ValueError):
+            converter.to_python(uppercase_uuid)

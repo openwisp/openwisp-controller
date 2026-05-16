@@ -25,7 +25,7 @@ class TestDeviceConsumer(CreateDeviceMixin):
                     URLRouter(
                         [
                             path(
-                                "ws/controller/device/<uuid_any:pk>/",
+                                "ws/controller/device/<uuid:pk>/",
                                 BaseDeviceConsumer.as_asgi(),
                             )
                         ]

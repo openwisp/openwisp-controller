@@ -10,17 +10,19 @@ class UUIDAnyConverter:
 
     regex = (
         r"(?:"
-        r"[0-9a-fA-F]{32}"
+        r"[0-9a-f]{32}"
         r"|"
-        r"[0-9a-fA-F]{8}-"
-        r"[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{12}"
+        r"[0-9a-f]{8}-"
+        r"[0-9a-f]{4}-"
+        r"[0-9a-f]{4}-"
+        r"[0-9a-f]{4}-"
+        r"[0-9a-f]{12}"
         r")"
     )
 
     def to_python(self, value: str) -> str:
+        if value != value.lower():
+            raise ValueError("UUID must be lowercase")
         return str(uuid.UUID(value))
 
     def to_url(self, value) -> str:

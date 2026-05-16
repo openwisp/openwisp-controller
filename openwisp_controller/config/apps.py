@@ -10,7 +10,6 @@ from django.db.models.signals import (
     pre_save,
 )
 from django.urls import register_converter
-from django.urls.converters import get_converters
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -58,9 +57,7 @@ class ConfigConfig(AppConfig):
         connect_whois_handlers()
 
     def register_path_converters(self):
-        converters = get_converters()
-        if "uuid_any" not in converters:
-            register_converter(UUIDAnyConverter, "uuid_any")
+        register_converter(UUIDAnyConverter, "uuid_any")
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
