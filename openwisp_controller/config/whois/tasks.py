@@ -119,6 +119,8 @@ def delete_whois_record(ip_address, force=False):
     if force:
         queryset.delete()
     else:
+        # Only delete the WHOIS record if there are no active devices
+        # linked to the same IP address.
         if (
             not Device.objects.filter(_is_deactivated=False)
             .filter(last_ip=ip_address)

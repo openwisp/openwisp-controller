@@ -996,6 +996,8 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         Config = load_model("config", "Config")
         Template = load_model("config", "Template")
         config = Config.objects.get(pk=instance_id)
+        if config.is_deactivating_or_deactivated():
+            return
         device_group = config.device.group
         if not device_group:
             return
