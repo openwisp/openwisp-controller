@@ -22,7 +22,7 @@ from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
-from django.urls import path, re_path, reverse
+from django.urls import NoReverseMatch, path, reverse
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
@@ -141,16 +141,15 @@ class BaseConfigAdmin(BaseAdmin):
         if not issubclass(self.model, AbstractVpn):
             ctx["CONFIG_BACKEND_FIELD_SHOWN"] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
         if pk:
-            ctx["download_url"] = reverse("{0}_download".format(prefix), args=[pk])
             try:
+                download_url = reverse("{0}_download".format(prefix), args=[pk])
                 has_config = True
                 if self.model.__name__ == "Device":
                     has_config = self.model.objects.get(pk=pk)._has_config()
-            except (ObjectDoesNotExist, ValidationError):
+            except (ObjectDoesNotExist, ValidationError, NoReverseMatch):
                 raise Http404()
             else:
-                if not has_config:
-                    ctx["download_url"] = None
+                ctx["download_url"] = download_url if has_config else None
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):
@@ -171,8 +170,8 @@ class BaseConfigAdmin(BaseAdmin):
         options = getattr(self.model, "_meta")
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
         return [
-            re_path(
-                r"^download/(?P<pk>[^/]+)/$",
+            path(
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
                 name="{0}_download".format(url_prefix),
             ),
@@ -181,8 +180,8 @@ class BaseConfigAdmin(BaseAdmin):
                 self.admin_site.admin_view(self.preview_view),
                 name="{0}_preview".format(url_prefix),
             ),
-            re_path(
-                r"^(?P<pk>[^/]+)/context\.json$",
+            path(
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
                 name="{0}_context".format(url_prefix),
             ),
