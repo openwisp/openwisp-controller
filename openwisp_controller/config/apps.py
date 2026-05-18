@@ -37,6 +37,10 @@ from .whois.handlers import connect_whois_handlers
 # (because it's flagged as unique_together with organization)
 app_settings.HARDWARE_ID_OPTIONS["unique"] = False
 
+# register at import time so the converter is available when URL
+# patterns are first parsed; safe to call before ready() runs
+register_converter(UUIDAnyConverter, "uuid_any")
+
 
 class ConfigConfig(AppConfig):
     name = "openwisp_controller.config"
@@ -45,7 +49,6 @@ class ConfigConfig(AppConfig):
     default_auto_field = "django.db.models.AutoField"
 
     def ready(self, *args, **kwargs):
-        self.register_path_converters()
         self.__setmodels__()
         self.connect_signals()
         self.register_notification_types()
@@ -55,9 +58,6 @@ class ConfigConfig(AppConfig):
         self.register_menu_groups()
         self.notification_cache_update()
         connect_whois_handlers()
-
-    def register_path_converters(self):
-        register_converter(UUIDAnyConverter, "uuid_any")
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")

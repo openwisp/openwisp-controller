@@ -1144,7 +1144,9 @@ class TestAdmin(
     def test_download_device_config(self):
         d = self._create_device(name="download")
         self._create_config(device=d)
-        path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk])
+        # use the hex (dashless) form to also cover the legacy UUID format
+        # accepted by the uuid_any path converter
+        path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk.hex])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1164,12 +1166,21 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertEqual(response.status_code, 404)
 
-    def test_change_device_404_malformed_url(self):
-        url = (
-            "/admin/config/device/"
+    def test_change_view_404_malformed_url(self):
+        # regression test for #682: malformed admin URLs must return 404
+        # instead of raising NoReverseMatch (HTTP 500) in get_extra_context
+        malformed_suffix = (
             "de8fa775-1134-47b6-adc5-2da3d0626c72/history/1564/"
             "undefinedadmin/img/icon-deletelink.svg"
         )
+        for model_name in ("device", "template", "vpn"):
+            with self.subTest(model=model_name):
+                url = f"/admin/{self.app_label}/{model_name}/{malformed_suffix}"
+                response = self.client.get(url, follow=True)
+                self.assertEqual(response.status_code, 404)
+
+    def test_context_view_404_malformed_url(self):
+        url = f"/admin/{self.app_label}/device/not-a-uuid/context.json"
         response = self.client.get(url, follow=True)
         self.assertEqual(response.status_code, 404)
 

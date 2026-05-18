@@ -121,8 +121,9 @@ def get_device_args_rewrite(view):
     # return view.kwargs['pk']
     pk = view.kwargs["pk"]
     try:
-        pk = uuid.UUID(pk)
-    except ValueError:
+        # str(pk) normalizes UUID instances and plain strings
+        pk = uuid.UUID(str(pk))
+    except (ValueError, TypeError):
         return pk
     return pk.hex
 
@@ -133,8 +134,9 @@ def get_vpn_args_rewrite(view):
     """
     pk = view.kwargs["pk"]
     try:
-        pk = uuid.UUID(pk)
-    except ValueError:
+        # str(pk) normalizes UUID instances and plain strings
+        pk = uuid.UUID(str(pk))
+    except (ValueError, TypeError):
         return pk
     return pk.hex
 

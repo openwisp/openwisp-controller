@@ -20,10 +20,8 @@ class UUIDAnyConverter:
         r")"
     )
 
-    def to_python(self, value: str) -> str:
-        if value != value.lower():
-            raise ValueError("UUID must be lowercase")
-        return str(uuid.UUID(value))
+    def to_python(self, value: str) -> uuid.UUID:
+        return uuid.UUID(value)
 
     def to_url(self, value) -> str:
         return str(value)

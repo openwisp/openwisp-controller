@@ -171,7 +171,7 @@ class BaseConfigAdmin(BaseAdmin):
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
         return [
             path(
-                "download/<uuid:pk>/",
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
                 name="{0}_download".format(url_prefix),
             ),
@@ -181,7 +181,7 @@ class BaseConfigAdmin(BaseAdmin):
                 name="{0}_preview".format(url_prefix),
             ),
             path(
-                "<uuid:pk>/context.json",
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
                 name="{0}_context".format(url_prefix),
             ),
