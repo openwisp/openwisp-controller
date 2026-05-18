@@ -210,6 +210,8 @@ class WHOISService:
         Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
         Tasks are triggered on commit to ensure redundant data is not created.
         """
+        if self.device.is_deactivated():
+            return
         new_ip = self.device.last_ip
         initial_ip = self.device._initial_last_ip
         if force_lookup or self._need_whois_lookup(new_ip):

@@ -141,7 +141,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         DeviceConnection = load_model("connection", "DeviceConnection")
         Device = load_model("config", "Device")
 
-        devices = Device.objects.exclude(config=None)
+        devices = Device.objects.exclude(config=None).exclude(_is_deactivated=True)
         if organization_id:
             devices = devices.filter(organization_id=organization_id)
         # exclude devices which have been already added
@@ -268,6 +268,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     ):
         qs = cls.objects.filter(
             device=device,
+            device___is_deactivated=False,
             enabled=True,
             credentials__connector=connector,
         ).order_by("-is_working")
@@ -345,6 +346,8 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
 
     def connect(self):
         try:
+            if self.device.is_fully_deactivated():
+                raise RuntimeError("Device is deactivated")
             self.connector_instance.connect()
         except Exception as e:
             self.is_working = False
@@ -378,6 +381,8 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         self._initial_failure_reason = self.failure_reason
 
     def send_is_working_changed_signal(self):
+        if self.device.is_fully_deactivated():
+            return
         is_working_changed.send(
             sender=self.__class__,
             is_working=self.is_working,
@@ -462,6 +467,8 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
+        if self.device.is_deactivated():
+            raise ValidationError({"device": _("Device is deactivated.")})
         self._verify_command_type_allowed()
         self._verify_connection()
         try:
