@@ -11,6 +11,7 @@ on:
       - "1.1"
       - "1.2"
       - "gsoc26-x509-certificate-generator-templates"
+      - "gsoc26-mass-commands"
 
 jobs:
   build:
