@@ -10,6 +10,7 @@ on:
       - master
       - "1.1"
       - "1.2"
+      - gsoc26-mass-commands
 
 jobs:
   build:
