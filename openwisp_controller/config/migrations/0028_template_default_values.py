@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="template",
             name="default_values",
-            field=models.JSONField(
+            field=models.TextField(
                 blank=True,
                 default=dict,
                 help_text=(

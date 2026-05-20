@@ -74,7 +74,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "input",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         null=True,
                     ),

@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "config",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text="configuration in NetJSON DeviceConfiguration format",
@@ -246,7 +246,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "config",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text="configuration in NetJSON DeviceConfiguration format",
@@ -341,7 +341,7 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(max_length=64, unique=True)),
                 (
                     "config",
-                    models.JSONField(
+                    models.TextField(
                         default=dict,
                         help_text="configuration in NetJSON DeviceConfiguration format",
                         verbose_name="configuration",

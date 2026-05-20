@@ -109,7 +109,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "extensions",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=list,
                         help_text="additional x509 certificate extensions",
@@ -260,7 +260,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "extensions",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=list,
                         help_text="additional x509 certificate extensions",

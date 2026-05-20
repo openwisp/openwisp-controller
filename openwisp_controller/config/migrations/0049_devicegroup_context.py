@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="devicegroup",
             name="context",
-            field=models.JSONField(
+            field=models.TextField(
                 blank=True,
                 default=dict,
                 help_text=(

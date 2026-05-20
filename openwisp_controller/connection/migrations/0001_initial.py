@@ -67,7 +67,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "params",
-                    models.JSONField(
+                    models.TextField(
                         default=dict,
                         help_text="global connection parameters",
                         verbose_name="parameters",
@@ -132,7 +132,7 @@ class Migration(migrations.Migration):
                 ("enabled", models.BooleanField(db_index=True, default=True)),
                 (
                     "params",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(
