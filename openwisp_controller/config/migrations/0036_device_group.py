@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "meta_data",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(

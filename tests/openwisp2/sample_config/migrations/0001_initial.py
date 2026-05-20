@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "config",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text="configuration in NetJSON DeviceConfiguration format",
@@ -112,7 +112,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "context",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(
@@ -238,7 +238,7 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(db_index=True, max_length=64, unique=True)),
                 (
                     "config",
-                    models.JSONField(
+                    models.TextField(
                         default=dict,
                         help_text="configuration in NetJSON DeviceConfiguration format",
                         verbose_name="configuration",
@@ -502,7 +502,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "config",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text="configuration in NetJSON DeviceConfiguration format",
@@ -565,7 +565,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "default_values",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(
@@ -694,7 +694,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "context",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(
@@ -747,7 +747,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "meta_data",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(
@@ -762,7 +762,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "context",
-                    models.JSONField(
+                    models.TextField(
                         blank=True,
                         default=dict,
                         help_text=(

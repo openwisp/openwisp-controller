@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="config",
             name="context",
-            field=models.JSONField(
+            field=models.TextField(
                 blank=True,
                 help_text=(
                     'Additional <a href="http://netjsonconfig.openwisp.org'

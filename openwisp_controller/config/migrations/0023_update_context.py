@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="config",
             name="context",
-            field=models.JSONField(
+            field=models.TextField(
                 blank=True,
                 default=dict,
                 help_text=(
