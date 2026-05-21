@@ -9,6 +9,7 @@ from django.db.models.signals import (
     pre_delete,
     pre_save,
 )
+from django.urls import register_converter
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
     register_notification_type,
@@ -20,6 +21,7 @@ from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
 from . import settings as app_settings
+from .converters import UUIDAnyConverter
 from .signals import (
     config_backend_changed,
     config_deactivated,
@@ -34,6 +36,10 @@ from .whois.handlers import connect_whois_handlers
 # ensure Device.hardware_id field is not flagged as unique
 # (because it's flagged as unique_together with organization)
 app_settings.HARDWARE_ID_OPTIONS["unique"] = False
+
+# register at import time so the converter is available when URL
+# patterns are first parsed; safe to call before ready() runs
+register_converter(UUIDAnyConverter, "uuid_any")
 
 
 class ConfigConfig(AppConfig):
