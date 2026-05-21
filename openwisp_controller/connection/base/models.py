@@ -369,7 +369,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                 self.connector_instance.update_config()
             except Exception as e:
                 logger.exception(e)
-            else:
+            finally:
                 self.disconnect()
 
     def save(self, *args, **kwargs):
