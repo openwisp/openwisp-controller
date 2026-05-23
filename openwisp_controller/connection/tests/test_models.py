@@ -714,7 +714,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             connect_mocked.assert_called_once()
             mocked_exec_command.assert_called_once()
             mocked_exec_command.assert_called_with(
-                'echo -e "Newpasswd@123\nNewpasswd@123" | passwd root',
+                "printf '%s\\n%s\\n' 'Newpasswd@123' 'Newpasswd@123' | passwd 'root'",
                 timeout=app_settings.SSH_COMMAND_TIMEOUT,
             )
         command.refresh_from_db()
