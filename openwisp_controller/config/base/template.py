@@ -22,7 +22,11 @@ from .base import BaseConfig
 
 logger = logging.getLogger(__name__)
 
-TYPE_CHOICES = (("generic", _("Generic")), ("vpn", _("VPN-client")))
+TYPE_CHOICES = (
+    ("generic", _("Generic")),
+    ("vpn", _("VPN-client")),
+    ("cert", _("Certificate")),
+)
 
 
 def default_auto_cert():
@@ -54,6 +58,28 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         blank=True,
         null=True,
         on_delete=models.CASCADE,
+    )
+    ca = models.ForeignKey(
+        get_model_name("django_x509", "Ca"),
+        on_delete=models.CASCADE,
+        verbose_name=_("Certificate Authority"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "The Certificate Authority that will sign certificates generated "
+            "by this template."
+        ),
+    )
+    blueprint_cert = models.ForeignKey(
+        get_model_name("django_x509", "Cert"),
+        on_delete=models.SET_NULL,
+        verbose_name=_("Blueprint Certificate"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "Optional: Select an unassigned certificate to copy extensions and "
+            "properties from."
+        ),
     )
     type = models.CharField(
         _("type"),
@@ -222,6 +248,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * if flagged as required forces it also to be default
         """
         self._validate_org_relation("vpn")
+        self._validate_org_relation("ca")
+        self._validate_org_relation("blueprint_cert")
         if not self.default_values:
             self.default_values = {}
         if not isinstance(self.default_values, dict):
@@ -234,15 +262,53 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             )
         elif self.type != "vpn":
             self.vpn = None
-            self.auto_cert = False
+            if self.type != "cert":
+                self.auto_cert = False
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
             )
+        if self.type == "cert":
+            if not self.ca:
+                raise ValidationError(
+                    {
+                        "ca": _(
+                            "A Certificate Authority is required when the template "
+                            "type is certificate."
+                        )
+                    }
+                )
+            if self.blueprint_cert and self.blueprint_cert.ca_id != self.ca_id:
+                raise ValidationError(
+                    {
+                        "blueprint_cert": _(
+                            "The selected certificate must match the selected "
+                            "Certificate Authority."
+                        )
+                    }
+                )
+            if self.blueprint_cert and hasattr(
+                self.blueprint_cert, "devicecertificate_set"
+            ):
+                if self.blueprint_cert.devicecertificate_set.exists():
+                    raise ValidationError(
+                        {
+                            "blueprint_cert": _(
+                                "This certificate is already assigned to a device. "
+                                "Please select an unassigned certificate to use as a "
+                                "blueprint."
+                            )
+                        }
+                    )
+            if not self.config:
+                self.config = {}
+        else:
+            self.ca = None
+            self.blueprint_cert = None
         if self.required and not self.default:
             self.default = True
         super().clean(*args, **kwargs)
-        if not self.config:
+        if not self.config and self.type != "cert":
             raise ValidationError(_("The configuration field cannot be empty."))
 
     def get_context(self, system=False):
