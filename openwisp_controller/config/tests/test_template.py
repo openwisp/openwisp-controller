@@ -967,3 +967,119 @@ class TestTemplateTransaction(
             required_template.full_clean()
             required_template.save()
             mocked_task.assert_not_called()
+
+
+class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
+    """
+    tests for standalone X.509 certificate Template configurations
+    """
+
+    def test_cert_template_requires_ca(self):
+        """Test that creating a template with type='cert' requires a CA."""
+        try:
+            self._create_template(type="cert", config={})
+        except ValidationError as err:
+            self.assertIn("ca", err.message_dict)
+            self.assertIn("required", str(err.message_dict["ca"][0]))
+        else:
+            self.fail("ValidationError not raised for missing CA")
+
+    def test_blueprint_must_match_ca(self):
+        """Test that blueprint_cert must match the selected CA."""
+        org = self._get_org()
+        ca_main = self._create_ca(
+            name="Main CA", common_name="Main CA", organization=org
+        )
+        ca_other = self._create_ca(
+            name="Other CA", common_name="Other CA", organization=org
+        )
+        blueprint = self._create_cert(
+            name="Master Blueprint", ca=ca_main, organization=org
+        )
+        try:
+            self._create_template(
+                type="cert",
+                ca=ca_other,
+                blueprint_cert=blueprint,
+                organization=org,
+                config={},
+            )
+        except ValidationError as err:
+            self.assertIn("blueprint_cert", err.message_dict)
+            self.assertIn("match", str(err.message_dict["blueprint_cert"][0]))
+        else:
+            self.fail("ValidationError not raised for CA mismatch")
+
+    def test_blueprint_cannot_be_already_assigned(self):
+        """Test that blueprint_cert cannot be already assigned to a device."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        mock_manager = mock.Mock()
+        mock_manager.exists.return_value = True
+        blueprint.devicecertificate_set = mock_manager
+        try:
+            self._create_template(
+                type="cert",
+                ca=ca,
+                blueprint_cert=blueprint,
+                organization=org,
+                config={},
+            )
+        except ValidationError as err:
+            self.assertIn("blueprint_cert", err.message_dict)
+            self.assertIn(
+                "already assigned", str(err.message_dict["blueprint_cert"][0])
+            )
+        else:
+            self.fail("ValidationError not raised for assigned blueprint")
+        finally:
+            del blueprint.devicecertificate_set
+
+    def test_non_cert_clears_fields(self):
+        """Test that non-cert template types clear ca and blueprint_cert fields."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        t = self._create_template(
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        t.type = "generic"
+        t.backend = "netjsonconfig.OpenWrt"
+        t.config = {"interfaces": [{"name": "eth0", "type": "ethernet"}]}
+        t.full_clean()
+        self.assertIsNone(t.ca)
+        self.assertIsNone(t.blueprint_cert)
+
+    def test_cert_template_allows_empty_config(self):
+        """Test that cert templates can have empty config (unlike other types)."""
+        ca = self._create_ca()
+        t = self._create_template(
+            type="cert",
+            ca=ca,
+            config={},
+        )
+        self.assertEqual(t.config, {})
+
+    def test_organization_validation_for_relations(self):
+        """Test organization validation for ca field."""
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca_org2 = self._create_ca(organization=org2)
+
+        try:
+            self._create_template(
+                type="cert",
+                ca=ca_org2,
+                organization=org1,
+                config={},
+            )
+        except ValidationError as err:
+            self.assertIn("organization", err.message_dict)
+            self.assertIn("related CA match", str(err.message_dict["organization"][0]))
+        else:
+            self.fail("ValidationError not raised for cross-organization CA relation")
