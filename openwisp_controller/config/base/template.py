@@ -116,7 +116,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         help_text=_(
             "whether tunnel specific configuration (cryptographic keys, ip addresses, "
             "etc) should be automatically generated and managed behind the scenes "
-            "for each configuration using this template, valid only for the VPN type"
+            "for each configuration using this template, valid only for the VPN and "
+            "certificate template types"
         ),
     )
     default_values = JSONField(
