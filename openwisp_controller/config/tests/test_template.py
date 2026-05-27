@@ -1083,3 +1083,32 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             self.assertIn("related CA match", str(err.message_dict["organization"][0]))
         else:
             self.fail("ValidationError not raised for cross-organization CA relation")
+
+    def test_organization_validation_skipped_for_non_cert(self):
+        """
+        Organization validation for 'ca' and 'blueprint_cert'
+        should not run if the template is not type 'cert'.
+        """
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca_org2 = self._create_ca(organization=org2)
+        blueprint_org2 = self._create_cert(ca=ca_org2, organization=org2)
+        t = self._create_template(
+            name="stale-relations",
+            type="generic",
+            backend="netjsonconfig.OpenWrt",
+            ca=ca_org2,
+            blueprint_cert=blueprint_org2,
+            organization=org1,
+            config={"interfaces": [{"name": "eth0", "type": "ethernet"}]},
+        )
+        try:
+            t.full_clean()
+        except ValidationError as err:
+            if "organization" in err.message_dict:
+                self.fail(
+                    "Organization validation ran on stale cert relations for a non-cert template."
+                )
+            raise err
+        self.assertIsNone(t.ca)
+        self.assertIsNone(t.blueprint_cert)
