@@ -1107,7 +1107,8 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         except ValidationError as err:
             if "organization" in err.message_dict:
                 self.fail(
-                    "Organization validation ran on stale cert relations for a non-cert template."
+                    "Organization validation ran on stale cert relations "
+                    "for a non-cert template."
                 )
             raise err
         self.assertIsNone(t.ca)
