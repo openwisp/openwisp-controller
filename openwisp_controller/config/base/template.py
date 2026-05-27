@@ -249,8 +249,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * if flagged as required forces it also to be default
         """
         self._validate_org_relation("vpn")
-        self._validate_org_relation("ca")
-        self._validate_org_relation("blueprint_cert")
         if not self.default_values:
             self.default_values = {}
         if not isinstance(self.default_values, dict):
@@ -270,6 +268,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
             )
         if self.type == "cert":
+            self._validate_org_relation("ca")
+            self._validate_org_relation("blueprint_cert")
             if not self.ca:
                 raise ValidationError(
                     {
@@ -301,7 +301,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                             )
                         }
                     )
-            if not self.config:
+            if self.config is None:
                 self.config = {}
         else:
             self.ca = None
