@@ -48,8 +48,16 @@ jobs:
 
       - name: Detect doc-only changes
         id: paths
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
-          changed=$(git diff --name-only origin/master...HEAD 2>/dev/null || true)
+          if [[ "$EVENT_NAME" == "push" && -n "$BEFORE_SHA" ]]; then
+            changed=$(git diff --name-only "${BEFORE_SHA}...${AFTER_SHA}" 2>/dev/null || true)
+          else
+            changed=$(git diff --name-only origin/master...HEAD 2>/dev/null || true)
+          fi
           if [ -z "$changed" ] || echo "$changed" | grep -qvE '(\.rst$|docs/)'; then
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
           else
@@ -72,7 +80,6 @@ jobs:
         run: |
           BRANCH_TAG="branch-$(printf '%s' "$BRANCH_REF" | sha256sum | cut -c1-12)"
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/ci-base"
-          CATTHEHACKER="ghcr.io/catthehacker/ubuntu:act-24.04"
 
           # can_push: true for push events or same-repo PRs (fork PRs get read-only token)
           if [[ "$EVENT_NAME" == "push" ]]; then
@@ -108,17 +115,24 @@ jobs:
 
           # Decision logic
           if [[ "$can_push" == "false" ]]; then
-            # Fork PR: read-only token, cannot push images
+            # Fork PR: read-only token, cannot push to upstream GHCR.
+            # Try upstream :stable -> upstream branch image -> build from scratch.
             if docker manifest inspect "$IMAGE:stable" > /dev/null 2>&1; then
-              echo "Fork PR: using stable image"
-              echo "image_tag=$IMAGE:stable"   >> "$GITHUB_OUTPUT"
-              echo "use_prebuilt=true"         >> "$GITHUB_OUTPUT"
+              echo "Fork PR: using upstream stable image"
+              echo "image_tag=$IMAGE:stable"           >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"                 >> "$GITHUB_OUTPUT"
+              echo "needs_build=false"                 >> "$GITHUB_OUTPUT"
+            elif docker manifest inspect "$IMAGE:$BRANCH_TAG" > /dev/null 2>&1; then
+              echo "Fork PR: using upstream branch image $IMAGE:$BRANCH_TAG"
+              echo "image_tag=$IMAGE:$BRANCH_TAG"      >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"                 >> "$GITHUB_OUTPUT"
+              echo "needs_build=false"                 >> "$GITHUB_OUTPUT"
             else
-              echo "Fork PR: stable not found, falling back to catthehacker"
-              echo "image_tag=$CATTHEHACKER"   >> "$GITHUB_OUTPUT"
-              echo "use_prebuilt=false"        >> "$GITHUB_OUTPUT"
+              echo "Fork PR: no upstream image found, building from scratch"
+              echo "image_tag=$IMAGE:$BRANCH_TAG"      >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"                 >> "$GITHUB_OUTPUT"
+              echo "needs_build=true"                  >> "$GITHUB_OUTPUT"
             fi
-            echo "needs_build=false" >> "$GITHUB_OUTPUT"
           elif [[ "$is_master" == "true" ]]; then
             # On master: promote-stable job will build/update :stable
             echo "Master push: using stable image (promote-stable will update it)"
@@ -147,11 +161,11 @@ jobs:
             echo "use_prebuilt=true"           >> "$GITHUB_OUTPUT"
             echo "needs_build=false"           >> "$GITHUB_OUTPUT"
           else
-            # No stable image yet: fall back to catthehacker
-            echo "No stable image found, falling back to catthehacker"
-            echo "image_tag=$CATTHEHACKER"     >> "$GITHUB_OUTPUT"
-            echo "use_prebuilt=false"          >> "$GITHUB_OUTPUT"
-            echo "needs_build=false"           >> "$GITHUB_OUTPUT"
+            # No stable image yet (bootstrap): build from scratch
+            echo "No stable image found, building from scratch"
+            echo "image_tag=$IMAGE:$BRANCH_TAG" >> "$GITHUB_OUTPUT"
+            echo "use_prebuilt=true"            >> "$GITHUB_OUTPUT"
+            echo "needs_build=true"             >> "$GITHUB_OUTPUT"
           fi
 
           echo "branch_image=$IMAGE:$BRANCH_TAG" >> "$GITHUB_OUTPUT"
@@ -226,8 +240,11 @@ jobs:
 
       - name: Check whether Dockerfile.ci changed in this push
         id: df_check
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if git diff --quiet HEAD^ HEAD -- Dockerfile.ci 2>/dev/null; then
+          base="${BEFORE_SHA:-HEAD^}"
+          if git diff --quiet "${base}...HEAD" -- Dockerfile.ci 2>/dev/null; then
             echo "df_changed_master=false" >> "$GITHUB_OUTPUT"
           else
             echo "df_changed_master=true"  >> "$GITHUB_OUTPUT"
@@ -353,7 +370,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha}}
+          ref: ${{ github.event.pull_request.head.sha}}
           persist-credentials: false
 
       - name: Mark repo as safe

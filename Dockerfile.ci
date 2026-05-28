@@ -33,10 +33,16 @@ RUN ARCH="$(dpkg --print-architecture)" \
        arm64) GECKO_ARCH=linux-aarch64 ;; \
        *) echo "Unsupported arch $ARCH" >&2; exit 1 ;; \
      esac \
-  && curl -fsSL "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
+  && BASE_URL="https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}" \
+  && curl -fsSL "${BASE_URL}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
        -o /tmp/geckodriver.tar.gz \
+  && curl -fsSL "${BASE_URL}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz.sha256" \
+       -o /tmp/geckodriver.sha256 \
+  && EXPECTED="$(awk '{print $1}' /tmp/geckodriver.sha256)" \
+  && ACTUAL="$(sha256sum /tmp/geckodriver.tar.gz | awk '{print $1}')" \
+  && [ "$EXPECTED" = "$ACTUAL" ] || { echo "geckodriver SHA256 mismatch" >&2; exit 1; } \
   && tar -xz -C /usr/local/bin geckodriver -f /tmp/geckodriver.tar.gz \
-  && rm /tmp/geckodriver.tar.gz \
+  && rm /tmp/geckodriver.tar.gz /tmp/geckodriver.sha256 \
   && chmod +x /usr/local/bin/geckodriver
 
 RUN gdalinfo --version \
