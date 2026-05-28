@@ -1,0 +1,51 @@
+# Node Docker image is just debian bookworm-slim underneath
+FROM node:lts-bookworm-slim
+
+RUN npm install -g --prefer-offline prettier@3.8.3 \
+  && npm cache clean --force
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+  git \
+  gdal-bin \
+  sqlite3 \
+  libsqlite3-mod-spatialite \
+  spatialite-bin \
+  libgeos-c1v5 \
+  libspatialite-dev \
+  ca-certificates \
+  xz-utils \
+  libstdc++6 \
+  curl \
+  firefox-esr \
+  chromium \
+  chromium-driver \
+  redis-server \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/share/man /usr/share/doc
+
+ARG GECKODRIVER_VERSION=0.36.0
+RUN ARCH="$(dpkg --print-architecture)" \
+  && case "$ARCH" in \
+       amd64) GECKO_ARCH=linux64 ;; \
+       arm64) GECKO_ARCH=linux-aarch64 ;; \
+       *) echo "Unsupported arch $ARCH" >&2; exit 1 ;; \
+     esac \
+  && curl -fsSL "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
+       -o /tmp/geckodriver.tar.gz \
+  && tar -xz -C /usr/local/bin geckodriver -f /tmp/geckodriver.tar.gz \
+  && rm /tmp/geckodriver.tar.gz \
+  && chmod +x /usr/local/bin/geckodriver
+
+RUN gdalinfo --version \
+  && node --version \
+  && prettier --version \
+  && firefox-esr --version \
+  && chromium --version \
+  && chromedriver --version \
+  && geckodriver --version \
+  && redis-server --version
+
+CMD ["/bin/bash"]
