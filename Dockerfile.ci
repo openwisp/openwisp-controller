@@ -27,22 +27,23 @@ RUN apt-get update \
   && rm -rf /usr/share/man /usr/share/doc
 
 ARG GECKODRIVER_VERSION=0.36.0
+# geckodriver releases provide only .asc GPG signatures, not .sha256 sidecars.
+# Pin hashes here; refresh by running `sha256sum` on the new tarball when bumping the version.
+ARG GECKODRIVER_SHA256_AMD64=0bde38707eb0a686a20c6bd50f4adcc7d60d4f73c60eb83ee9e0db8f65823e04
+ARG GECKODRIVER_SHA256_ARM64=b5fd13fc8f05ca99292700896d43fa986747a01b5fdc77f7bfc88a3707dc4241
 RUN ARCH="$(dpkg --print-architecture)" \
   && case "$ARCH" in \
-       amd64) GECKO_ARCH=linux64 ;; \
-       arm64) GECKO_ARCH=linux-aarch64 ;; \
+       amd64) GECKO_ARCH=linux64;       EXPECTED="$GECKODRIVER_SHA256_AMD64" ;; \
+       arm64) GECKO_ARCH=linux-aarch64; EXPECTED="$GECKODRIVER_SHA256_ARM64" ;; \
        *) echo "Unsupported arch $ARCH" >&2; exit 1 ;; \
      esac \
   && BASE_URL="https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}" \
   && curl -fsSL "${BASE_URL}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
        -o /tmp/geckodriver.tar.gz \
-  && curl -fsSL "${BASE_URL}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz.sha256" \
-       -o /tmp/geckodriver.sha256 \
-  && EXPECTED="$(awk '{print $1}' /tmp/geckodriver.sha256)" \
   && ACTUAL="$(sha256sum /tmp/geckodriver.tar.gz | awk '{print $1}')" \
-  && [ "$EXPECTED" = "$ACTUAL" ] || { echo "geckodriver SHA256 mismatch" >&2; exit 1; } \
-  && tar -xz -C /usr/local/bin geckodriver -f /tmp/geckodriver.tar.gz \
-  && rm /tmp/geckodriver.tar.gz /tmp/geckodriver.sha256 \
+  && { [ "$EXPECTED" = "$ACTUAL" ] || { echo "geckodriver SHA256 mismatch: expected $EXPECTED got $ACTUAL" >&2; exit 1; }; } \
+  && tar -xz -C /usr/local/bin -f /tmp/geckodriver.tar.gz geckodriver \
+  && rm /tmp/geckodriver.tar.gz \
   && chmod +x /usr/local/bin/geckodriver
 
 RUN gdalinfo --version \
