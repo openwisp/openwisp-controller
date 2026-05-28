@@ -1015,9 +1015,21 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         org = self._get_org()
         ca = self._create_ca(organization=org)
         blueprint = self._create_cert(ca=ca, organization=org)
-        mock_manager = mock.Mock()
-        mock_manager.exists.return_value = True
-        blueprint.devicecertificate_set = mock_manager
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            name="cert-template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        DeviceCertificate.objects.create(
+            config=config,
+            template=template,
+            cert=blueprint,
+            auto_cert=True,
+        )
         try:
             self._create_template(
                 type="cert",
@@ -1029,12 +1041,10 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         except ValidationError as err:
             self.assertIn("blueprint_cert", err.message_dict)
             self.assertIn(
-                "already assigned", str(err.message_dict["blueprint_cert"][0])
+                "already assigned", str(err.message_dict["blueprint_cert"])
             )
         else:
             self.fail("ValidationError not raised for assigned blueprint")
-        finally:
-            del blueprint.devicecertificate_set
 
     def test_non_cert_clears_fields(self):
         """Test that non-cert template types clear ca and blueprint_cert fields."""

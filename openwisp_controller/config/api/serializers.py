@@ -38,6 +38,8 @@ class TemplateSerializer(BaseSerializer):
             "type",
             "backend",
             "vpn",
+            "ca",
+            "blueprint_cert",
             "tags",
             "default",
             "required",
@@ -62,7 +64,8 @@ class TemplateSerializer(BaseSerializer):
         """
         Display appropriate field name.
         """
-        if self.initial_data.get("type") == "generic" and value == {}:
+        template_type = self.initial_data.get("type")
+        if template_type == "generic" and value == {}:
             raise serializers.ValidationError(
                 _("The configuration field cannot be empty.")
             )

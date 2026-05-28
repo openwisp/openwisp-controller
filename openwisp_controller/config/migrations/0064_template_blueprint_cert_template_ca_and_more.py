@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 help_text="Optional: Select an unassigned certificate "
                 "to copy extensions and properties from.",
+                limit_choices_to={"devicecertificate__isnull": True},
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 to=settings.DJANGO_X509_CERT_MODEL,

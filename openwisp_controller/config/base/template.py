@@ -76,6 +76,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         verbose_name=_("Blueprint Certificate"),
         blank=True,
         null=True,
+        limit_choices_to={"devicecertificate__isnull": True},
         help_text=_(
             "Optional: Select an unassigned certificate to copy extensions and "
             "properties from."
@@ -289,18 +290,17 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                     }
                 )
             if self.blueprint_cert and hasattr(
-                self.blueprint_cert, "devicecertificate_set"
+                self.blueprint_cert, "devicecertificate"
             ):
-                if self.blueprint_cert.devicecertificate_set.exists():
-                    raise ValidationError(
-                        {
-                            "blueprint_cert": _(
-                                "This certificate is already assigned to a device. "
-                                "Please select an unassigned certificate to use as a "
-                                "blueprint."
-                            )
-                        }
-                    )
+                raise ValidationError(
+                    {
+                        "blueprint_cert": _(
+                            "This certificate is already assigned to a device. "
+                            "Please select an unassigned certificate to use as a "
+                            "blueprint."
+                        )
+                    }
+                )
             if self.config is None:
                 self.config = {}
         else:
