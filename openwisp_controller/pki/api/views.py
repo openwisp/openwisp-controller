@@ -10,7 +10,7 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from swapper import load_model
 
-from ...mixins import ProtectedAPIMixin
+from ...mixins import AutoRevisionMixin, ProtectedAPIMixin
 from .serializers import (
     CaDetailSerializer,
     CaListSerializer,
@@ -30,18 +30,18 @@ class ListViewPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class CaListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class CaListCreateView(ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView):
     serializer_class = CaListSerializer
     queryset = Ca.objects.order_by("-created")
     pagination_class = ListViewPagination
 
 
-class CaDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class CaDetailView(ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CaDetailSerializer
     queryset = Ca.objects.all()
 
 
-class CaRenewView(ProtectedAPIMixin, GenericAPIView):
+class CaRenewView(ProtectedAPIMixin, AutoRevisionMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Ca.objects.all()
 
@@ -66,18 +66,20 @@ class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
         )
 
 
-class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
+class CertListCreateView(ProtectedAPIMixin, AutoRevisionMixin, ListCreateAPIView):
     serializer_class = CertListSerializer
     queryset = Cert.objects.order_by("-created")
     pagination_class = ListViewPagination
 
 
-class CertDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
+class CertDetailView(
+    ProtectedAPIMixin, AutoRevisionMixin, RetrieveUpdateDestroyAPIView
+):
     serializer_class = CertDetailSerializer
     queryset = Cert.objects.select_related("ca")
 
 
-class CertRevokeRenewBaseView(ProtectedAPIMixin, GenericAPIView):
+class CertRevokeRenewBaseView(ProtectedAPIMixin, AutoRevisionMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Cert.objects.select_related("ca")
 

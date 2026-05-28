@@ -1,6 +1,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+import reversion
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -1777,3 +1778,50 @@ class TestConfigApiTransaction(
                 template2.refresh_from_db()
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
+
+    # Todo: create sperate test for each endpoint
+    def test_reversion_list_and_restore_api(self):
+        org = self._get_org()
+        model_slug = "device"
+        with reversion.create_revision():
+            device = self._create_device(
+                organization=org,
+                name="test",
+            )
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = dict(name="change-test-device")
+        response = self.client.patch(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["name"], "change-test-device")
+
+        with self.subTest("Test reversion list"):
+            path = reverse("config_api:reversion_list", args=[model_slug])
+            response = self.client.get(path)
+            response_json = response.json()
+            version_id = response_json["results"][1]["id"]
+            revision_id = response_json["results"][1]["revision_id"]
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response_json["results"]), 2)
+
+        with self.subTest("Test revision list filter by revision id"):
+            path = reverse("config_api:reversion_list", args=[model_slug])
+            response = self.client.get(f"{path}?revision_id={revision_id}")
+            response_json = response.json()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response_json["results"]), 1)
+
+        with self.subTest("Test reversion detail"):
+            path = reverse("config_api:reversion_detail", args=[model_slug, version_id])
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["id"], version_id)
+            self.assertEqual(response.json()["object_id"], str(device.pk))
+
+        with self.subTest("Test reversion restore view"):
+            revision_id = response_json["results"][0]["revision_id"]
+            path = reverse(
+                "config_api:reversion_restore", args=[model_slug, revision_id]
+            )
+            response = self.client.post(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(Device.objects.get(name="test").pk, device.pk)
