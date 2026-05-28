@@ -1040,9 +1040,8 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             )
         except ValidationError as err:
             self.assertIn("blueprint_cert", err.message_dict)
-            self.assertIn(
-                "already assigned", str(err.message_dict["blueprint_cert"])
-            )
+            error_messages = " ".join(err.message_dict["blueprint_cert"])
+            self.assertIn("already assigned", error_messages)
         else:
             self.fail("ValidationError not raised for assigned blueprint")
 
