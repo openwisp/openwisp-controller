@@ -247,56 +247,40 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                         f"config {config.pk}: {e}"
                     )
 
-    def clean(self, *args, **kwargs):
+    def _validate_cert_template_changes(self):
         """
-        * validates org relationship of VPN if present
-        * validates default_values field
-        * ensures VPN is selected if type is VPN
-        * clears VPN specific fields if type is not VPN
-        * automatically determines configuration if necessary
-        * if flagged as required forces it also to be default
+        Prevents changing the CA or Blueprint Certificate of a certificate template
+        if it is already assigned to active devices.
         """
-        if not self._state.adding:
-            try:
-                current = self.__class__.objects.get(pk=self.pk)
-                if (
-                    current.ca_id != self.ca_id
-                    or current.blueprint_cert_id != self.blueprint_cert_id
-                ):
-                    Config = load_model("config", "Config")
-                    if Config.objects.filter(templates=self).exists():
-                        message = _(
-                            "This template is already assigned to active devices. "
-                            "You cannot change the CA or Blueprint Certificate "
-                            "on an active template."
-                        )
-                        errors = {}
-                        if current.ca_id != self.ca_id:
-                            errors["ca"] = message
-                        if current.blueprint_cert_id != self.blueprint_cert_id:
-                            errors["blueprint_cert"] = message
-                        raise ValidationError(errors)
-            except self.__class__.DoesNotExist:
-                pass
-        self._validate_org_relation("vpn")
-        if not self.default_values:
-            self.default_values = {}
-        if not isinstance(self.default_values, dict):
-            raise ValidationError(
-                {"default_values": _("the supplied value is not a JSON object")}
-            )
-        if self.type == "vpn" and not self.vpn:
-            raise ValidationError(
-                {"vpn": _('A VPN must be selected when template type is "VPN"')}
-            )
-        elif self.type != "vpn":
-            self.vpn = None
-            if self.type != "cert":
-                self.auto_cert = False
-        if self.type == "vpn" and not self.config:
-            self.config = self.vpn.auto_client(
-                auto_cert=self.auto_cert, template_backend_class=self.backend_class
-            )
+        if self._state.adding:
+            return
+        try:
+            current = self.__class__.objects.get(pk=self.pk)
+        except self.__class__.DoesNotExist:
+            return
+        if (
+            current.ca_id != self.ca_id
+            or current.blueprint_cert_id != self.blueprint_cert_id
+        ):
+            Config = load_model("config", "Config")
+            if Config.objects.filter(templates=self).exists():
+                message = _(
+                    "This template is already assigned to active devices. "
+                    "You cannot change the CA or Blueprint Certificate "
+                    "on an active template."
+                )
+                errors = {}
+                if current.ca_id != self.ca_id:
+                    errors["ca"] = message
+                if current.blueprint_cert_id != self.blueprint_cert_id:
+                    errors["blueprint_cert"] = message
+                raise ValidationError(errors)
+
+    def _clean_cert_template(self):
+        """
+        Validates requirements specific to templates of type 'cert'.
+        Clears cert-related fields if the type is not 'cert'.
+        """
         if self.type == "cert":
             self._validate_org_relation("ca")
             self._validate_org_relation("blueprint_cert")
@@ -337,6 +321,39 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         else:
             self.ca = None
             self.blueprint_cert = None
+
+    def clean(self, *args, **kwargs):
+        """
+        * validates org relationship of VPN if present
+        * validates default_values field
+        * ensures VPN is selected if type is VPN
+        * clears VPN specific fields if type is not VPN
+        * automatically determines configuration if necessary
+        * if flagged as required forces it also to be default
+        * prevents mutating CA or Blueprint on active cert templates
+        * enforces CA and Blueprint requirements for cert templates
+        """
+        self._validate_cert_template_changes()
+        self._clean_cert_template()
+        self._validate_org_relation("vpn")
+        if not self.default_values:
+            self.default_values = {}
+        if not isinstance(self.default_values, dict):
+            raise ValidationError(
+                {"default_values": _("the supplied value is not a JSON object")}
+            )
+        if self.type == "vpn" and not self.vpn:
+            raise ValidationError(
+                {"vpn": _('A VPN must be selected when template type is "VPN"')}
+            )
+        elif self.type != "vpn":
+            self.vpn = None
+            if self.type != "cert":
+                self.auto_cert = False
+        if self.type == "vpn" and not self.config:
+            self.config = self.vpn.auto_client(
+                auto_cert=self.auto_cert, template_backend_class=self.backend_class
+            )
         if self.required and not self.default:
             self.default = True
         super().clean(*args, **kwargs)

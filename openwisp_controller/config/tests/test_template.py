@@ -26,6 +26,7 @@ Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 User = get_user_model()
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 _original_context = app_settings.CONTEXT.copy()
 
@@ -1023,7 +1024,6 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             organization=org,
             config={},
         )
-        DeviceCertificate = load_model("config", "DeviceCertificate")
         DeviceCertificate.objects.create(
             config=config,
             template=template,

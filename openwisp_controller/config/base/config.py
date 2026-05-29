@@ -503,6 +503,23 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if func not in cls._config_context_functions:
             cls._config_context_functions.append(func)
 
+    @classmethod
+    def manage_device_certs(cls, sender, instance, action, pk_set, **kwargs):
+        """
+        Syncs DeviceCertificate objects when templates are added/removed
+        """
+        if action == "post_add":
+            templates = instance.templates.filter(pk__in=pk_set, type="cert")
+            for tpl in templates:
+                instance.devicecertificate_set.get_or_create(
+                    template=tpl, defaults={"auto_cert": tpl.auto_cert}
+                )
+        elif action in ["post_remove", "pre_clear"]:
+            certs_to_delete = instance.devicecertificate_set.all()
+            if action == "post_remove":
+                certs_to_delete = certs_to_delete.filter(template_id__in=pk_set)
+            certs_to_delete.delete()
+
     def get_default_templates(self):
         """
         retrieves default templates of a Config object
