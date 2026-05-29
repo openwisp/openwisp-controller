@@ -141,7 +141,11 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         DeviceConnection = load_model("connection", "DeviceConnection")
         Device = load_model("config", "Device")
 
-        devices = Device.objects.exclude(config=None).exclude(_is_deactivated=True)
+        # Deactivated devices are intentionally included: attaching credentials
+        # is a database-only operation with no network activity (the connection
+        # cannot be used while the device is deactivated), and having the
+        # credentials ready avoids extra setup when the device is reactivated.
+        devices = Device.objects.exclude(config=None)
         if organization_id:
             devices = devices.filter(organization_id=organization_id)
         # exclude devices which have been already added
@@ -179,6 +183,9 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         if not created:
             return
         device = instance.device
+        # Credentials are attached even when the device is deactivated: this only
+        # creates DeviceConnection rows (no network operation) and avoids extra
+        # setup on reactivation. See auto_add_to_devices for the same rationale.
         # select credentials which
         #   - are flagged as auto_add
         #   - belong to the same organization of the device
@@ -266,9 +273,13 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     def get_working_connection(
         cls, device, connector="openwisp_controller.connection.connectors.ssh.Ssh"
     ):
+        # Deactivated devices are not filtered out here on purpose: a device that
+        # is still "deactivating" needs one last connection so the cleared
+        # configuration can be pushed to it. connect() below refuses fully
+        # deactivated devices, so only the legitimate deactivating push gets
+        # through.
         qs = cls.objects.filter(
             device=device,
-            device___is_deactivated=False,
             enabled=True,
             credentials__connector=connector,
         ).order_by("-is_working")
@@ -346,6 +357,9 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
 
     def connect(self):
         try:
+            # Refuse fully deactivated devices (device deactivated and its config
+            # already "deactivated"). A device that is only "deactivating" is let
+            # through so the final cleared configuration can still be pushed.
             if self.device.is_fully_deactivated():
                 raise RuntimeError("Device is deactivated")
             self.connector_instance.connect()

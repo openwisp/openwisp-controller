@@ -482,6 +482,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         except ObjectDoesNotExist:
             return
         else:
+            # Skip deactivated (and deactivating) configs: they are meant to stay
+            # inert, so a certificate renewal must not recompute their checksum or
+            # mark them modified again.
+            if config.is_deactivating_or_deactivated():
+                return
             transaction.on_commit(config.update_status_if_checksum_changed)
 
     @classmethod

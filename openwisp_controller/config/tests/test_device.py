@@ -512,6 +512,23 @@ class TestDevice(
             self._create_device(name="test", organization=org, group=device_group)
         handler.assert_not_called()
 
+    def test_manage_devices_group_templates_skips_deactivated_devices(self):
+        org = self._get_org()
+        old_template = self._create_template(name="old-template", organization=org)
+        new_template = self._create_template(name="new-template", organization=org)
+        old_group = self._create_device_group(name="old-group", organization=org)
+        new_group = self._create_device_group(name="new-group", organization=org)
+        old_group.templates.add(old_template)
+        new_group.templates.add(new_template)
+        device = self._create_device(name="test", organization=org, group=old_group)
+        device.deactivate()
+        device.config.refresh_from_db()
+        self.assertEqual(device.config.templates.count(), 0)
+        Device.manage_devices_group_templates(device.pk, old_group.pk, new_group.pk)
+        device.config.refresh_from_db()
+        self.assertEqual(device.config.templates.count(), 0)
+        self.assertNotIn(new_template, device.config.templates.all())
+
     def test_device_field_changed_checks(self):
         self._create_device()
         device_group = self._create_device_group()
