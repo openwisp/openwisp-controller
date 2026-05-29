@@ -70,13 +70,18 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "by this template."
         ),
     )
+
+    def get_unassigned_certs():
+        Cert = load_model("django_x509", "Cert")
+        return {"pk__in": Cert.objects.exclude(devicecertificate__isnull=False)}
+
     blueprint_cert = models.ForeignKey(
         get_model_name("django_x509", "Cert"),
         on_delete=models.SET_NULL,
         verbose_name=_("Blueprint Certificate"),
         blank=True,
         null=True,
-        limit_choices_to={"devicecertificate__isnull": True},
+        limit_choices_to=get_unassigned_certs,
         help_text=_(
             "Optional: Select an unassigned certificate to copy extensions and "
             "properties from."
@@ -249,6 +254,26 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * automatically determines configuration if necessary
         * if flagged as required forces it also to be default
         """
+        if not self._state.adding:
+            try:
+                current = self.__class__.objects.get(pk=self.pk)
+                if (
+                    current.ca_id != self.ca_id
+                    or current.blueprint_cert_id != self.blueprint_cert_id
+                ):
+                    Config = load_model("config", "Config")
+                    if Config.objects.filter(templates=self).exists():
+                        raise ValidationError(
+                            {
+                                "ca": _(
+                                    "This template is already assigned "
+                                    "to active devices. You cannot change the CA "
+                                    "or Blueprint Certificate on an active template."
+                                )
+                            }
+                        )
+            except self.__class__.DoesNotExist:
+                pass
         self._validate_org_relation("vpn")
         if not self.default_values:
             self.default_values = {}
@@ -289,18 +314,20 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                         )
                     }
                 )
-            if self.blueprint_cert and hasattr(
-                self.blueprint_cert, "devicecertificate"
-            ):
-                raise ValidationError(
-                    {
-                        "blueprint_cert": _(
-                            "This certificate is already assigned to a device. "
-                            "Please select an unassigned certificate to use as a "
-                            "blueprint."
-                        )
-                    }
-                )
+            if self.blueprint_cert_id:
+                DeviceCertificate = load_model("config", "DeviceCertificate")
+                if DeviceCertificate.objects.filter(
+                    cert_id=self.blueprint_cert_id
+                ).exists():
+                    raise ValidationError(
+                        {
+                            "blueprint_cert": _(
+                                "This certificate is already assigned to a device. "
+                                "Please select an unassigned certificate to "
+                                "use as a blueprint."
+                            )
+                        }
+                    )
             if self.config is None:
                 self.config = {}
         else:

@@ -738,7 +738,7 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data["count"], 1)
-            self.assertEqual(len(data["results"][0]), 13)
+            self.assertEqual(len(data["results"][0]), 15)
             self.assertEqual(data["results"][0]["id"], str(template.pk))
             self.assertEqual(data["results"][0]["name"], str(template.name))
             self.assertEqual(

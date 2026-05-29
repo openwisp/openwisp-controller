@@ -17,6 +17,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 Organization = load_model("openwisp_users", "Organization")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 
 class BaseMeta:
@@ -48,6 +49,16 @@ class TemplateSerializer(BaseSerializer):
             "created",
             "modified",
         ]
+        extra_kwargs = {
+            "blueprint_cert": {
+                "error_messages": {
+                    "does_not_exist": _(
+                        "This certificate does not exist or is already "
+                        "assigned to an active device."
+                    )
+                }
+            }
+        }
 
     def validate_vpn(self, value):
         """
@@ -70,6 +81,66 @@ class TemplateSerializer(BaseSerializer):
                 _("The configuration field cannot be empty.")
             )
         return value
+
+    def validate(self, data):
+        """
+        Explicitly validate certificate template fields and locks for the API.
+        """
+        template_type = data.get("type", getattr(self.instance, "type", "generic"))
+        ca = data.get("ca", getattr(self.instance, "ca", None))
+        blueprint_cert = data.get(
+            "blueprint_cert", getattr(self.instance, "blueprint_cert", None)
+        )
+        if template_type == "cert" and not ca:
+            raise serializers.ValidationError(
+                {
+                    "ca": _(
+                        "A Certificate Authority is required when "
+                        "the template type is certificate."
+                    )
+                }
+            )
+        elif template_type != "cert":
+            data["ca"] = None
+            data["blueprint_cert"] = None
+        if blueprint_cert and ca:
+            if blueprint_cert.ca_id != ca.id:
+                raise serializers.ValidationError(
+                    {
+                        "blueprint_cert": _(
+                            "The selected certificate must match "
+                            "the selected Certificate Authority."
+                        )
+                    }
+                )
+        if self.instance and self.instance.pk:
+            if Config.objects.filter(templates=self.instance).exists():
+
+                if "ca" in data and data["ca"] != getattr(
+                    self.instance, "ca_id", self.instance.ca
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "ca": _(
+                                "This template is already assigned to active devices. "
+                                "You cannot change the CA or Blueprint Certificate "
+                                "on an active template."
+                            )
+                        }
+                    )
+                if "blueprint_cert" in data and data["blueprint_cert"] != getattr(
+                    self.instance, "blueprint_cert_id", self.instance.blueprint_cert
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "blueprint_cert": _(
+                                "This template is already assigned to active devices. "
+                                "You cannot change the CA or Blueprint Certificate "
+                                "on an active template."
+                            )
+                        }
+                    )
+        return super().validate(data)
 
 
 class VpnSerializer(BaseSerializer):
@@ -206,6 +277,9 @@ class DeviceConfigSerializer(BaseSerializer):
                     vpn_list = config.templates.filter(type="vpn").values_list("vpn")
                     if vpn_list:
                         config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
+                    DeviceCertificate.objects.filter(config=config).exclude(
+                        template_id__in=config_templates
+                    ).delete()
                     config.templates.set(config_templates, clear=True)
             config.save()
         except ValidationError as error:
