@@ -3,7 +3,7 @@ from django.db.models import Count, Prefetch
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
-from rest_framework import generics, pagination, status
+from rest_framework import generics, status
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import BasePermission
@@ -16,6 +16,7 @@ from openwisp_controller.config import settings as config_app_settings
 from openwisp_controller.config.api.views import DeviceListCreateView
 from openwisp_users.api.filters import OrganizationManagedFilter
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
+from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import (
     BaseProtectedAPIMixin,
@@ -101,12 +102,6 @@ class IndoorCoordinatesFilter(filters.FilterSet):
     class Meta(OrganizationManagedFilter.Meta):
         model = DeviceLocation
         fields = ["floor"]
-
-
-class ListViewPagination(pagination.PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 100
 
 
 class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
@@ -241,17 +236,14 @@ class GeoJsonLocationList(
     filterset_class = LocationOrganizationFilter
 
 
-class IndoorCoordinatesViewPagination(ListViewPagination):
-    page_size = 50
-
-
 class IndoorCoordinatesList(
     FilterByParentManaged, BaseProtectedAPIMixin, generics.ListAPIView
 ):
     serializer_class = IndoorCoordinatesSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = IndoorCoordinatesFilter
-    pagination_class = IndoorCoordinatesViewPagination
+    pagination_class = OpenWispPagination
+    pagination_page_size = 50
     queryset = (
         DeviceLocation.objects.filter(
             location__type="indoor",
@@ -286,7 +278,7 @@ class LocationDeviceList(
     FilterByParentManaged, ProtectedAPIMixin, generics.ListAPIView
 ):
     serializer_class = LocationDeviceSerializer
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     queryset = Device.objects.none()
 
     def get_parent_queryset(self):
@@ -313,7 +305,7 @@ class LocationDeviceList(
 class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related().order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = FloorPlanOrganizationFilter
 
@@ -334,7 +326,7 @@ class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
             queryset=FloorPlan.objects.order_by("-created"),
         )
     ).order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = LocationOrganizationFilter
 

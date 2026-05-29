@@ -1,7 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import pagination
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveAPIView,
@@ -9,6 +8,8 @@ from rest_framework.generics import (
     get_object_or_404,
 )
 from swapper import load_model
+
+from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import (
     ProtectedAPIMixin,
@@ -25,12 +26,6 @@ Command = load_model("connection", "Command")
 Device = load_model("config", "Device")
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
-
-
-class ListViewPagination(pagination.PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 100
 
 
 class BaseCommandView(RelatedDeviceProtectedAPIMixin):
@@ -63,7 +58,7 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
 
 
 class CommandListCreateView(BaseCommandView, ListCreateAPIView):
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
 
     def create(self, request, *args, **kwargs):
         self.assert_parent_exists()
@@ -101,7 +96,7 @@ class CommandDetailsView(BaseCommandView, RetrieveAPIView):
 class CredentialListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     queryset = Credentials.objects.order_by("-created")
     serializer_class = CredentialSerializer
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
 
 
 class CredentialDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -136,7 +131,7 @@ class BaseDeviceConnection(
 
 
 class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
