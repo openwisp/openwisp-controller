@@ -115,10 +115,7 @@ class TemplateSerializer(BaseSerializer):
                 )
         if self.instance and self.instance.pk:
             if Config.objects.filter(templates=self.instance).exists():
-
-                if "ca" in data and data["ca"] != getattr(
-                    self.instance, "ca_id", self.instance.ca
-                ):
+                if "ca" in data and data["ca"] != self.instance.ca:
                     raise serializers.ValidationError(
                         {
                             "ca": _(
@@ -128,8 +125,9 @@ class TemplateSerializer(BaseSerializer):
                             )
                         }
                     )
-                if "blueprint_cert" in data and data["blueprint_cert"] != getattr(
-                    self.instance, "blueprint_cert_id", self.instance.blueprint_cert
+                if (
+                    "blueprint_cert" in data
+                    and data["blueprint_cert"] != self.instance.blueprint_cert
                 ):
                     raise serializers.ValidationError(
                         {

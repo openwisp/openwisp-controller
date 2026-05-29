@@ -272,7 +272,7 @@ class TestPkiApi(
     def test_cert_delete_api(self):
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Cert.objects.count(), 0)

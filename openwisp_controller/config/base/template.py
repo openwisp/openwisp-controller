@@ -73,7 +73,9 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 
     def get_unassigned_certs():
         Cert = load_model("django_x509", "Cert")
-        return {"pk__in": Cert.objects.exclude(devicecertificate__isnull=False)}
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        assigned_cert_ids = DeviceCertificate.objects.values_list("cert_id", flat=True)
+        return {"pk__in": Cert.objects.exclude(id__in=assigned_cert_ids)}
 
     blueprint_cert = models.ForeignKey(
         get_model_name("django_x509", "Cert"),
@@ -263,15 +265,17 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 ):
                     Config = load_model("config", "Config")
                     if Config.objects.filter(templates=self).exists():
-                        raise ValidationError(
-                            {
-                                "ca": _(
-                                    "This template is already assigned "
-                                    "to active devices. You cannot change the CA "
-                                    "or Blueprint Certificate on an active template."
-                                )
-                            }
+                        message = _(
+                            "This template is already assigned to active devices. "
+                            "You cannot change the CA or Blueprint Certificate "
+                            "on an active template."
                         )
+                        errors = {}
+                        if current.ca_id != self.ca_id:
+                            errors["ca"] = message
+                        if current.blueprint_cert_id != self.blueprint_cert_id:
+                            errors["blueprint_cert"] = message
+                        raise ValidationError(errors)
             except self.__class__.DoesNotExist:
                 pass
         self._validate_org_relation("vpn")
