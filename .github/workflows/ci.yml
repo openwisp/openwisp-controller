@@ -67,13 +67,13 @@ jobs:
           sudo apt update
           sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
             libgeos-dev libspatialite-dev spatialite-bin \
-            libsqlite3-mod-spatialite
+            libsqlite3-mod-spatialite libjpeg-dev libpng-dev
           sudo npm install -g prettier
           pip install -U pip wheel setuptools
           pip install -U -r requirements-test.txt
           pip install -U -e .
+          pip install --force-reinstall --no-deps "openwisp-utils @ https://github.com/BHARATH0153/openwisp-utils/archive/7eb5232ae2ed92c36a527e69f42143405a10e763.tar.gz"
           pip install ${{ matrix.django-version }}
-
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
         run: docker compose up -d redis

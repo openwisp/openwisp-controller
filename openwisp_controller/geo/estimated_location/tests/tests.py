@@ -630,6 +630,7 @@ class TestEstimatedLocationTransaction(
     def test_estimated_location_handling_on_whois_update(
         self, mock_client, mock_send_task
     ):
+        connect_whois_handlers()
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
         threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
