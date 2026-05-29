@@ -501,6 +501,11 @@ class AbstractDevice(OrgMixin, BaseModel):
             old_group_ids = [old_group_ids]
         for device_id, old_group_id in zip(device_ids, old_group_ids):
             device = Device.objects.get(pk=device_id)
+            if device.is_deactivated():
+                # Skip deactivated devices: their configuration is intentionally
+                # emptied during deactivation, so re-applying group templates
+                # would break that state and trigger a push to the device.
+                continue
             if not hasattr(device, "config"):
                 device.create_default_config()
             config_created = hasattr(device, "config")

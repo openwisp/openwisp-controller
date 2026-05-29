@@ -11,12 +11,12 @@ class TestGeoMixin(TestLociMixin):
         options = dict(name="org1")
         options.update(kwargs)
         options.setdefault("slug", slugify(options["name"]))
-        if not Organization.objects.filter(**kwargs).count():
+        if not Organization.objects.filter(**options).count():
             org = Organization(**options)
             org.full_clean()
             org.save()
         else:
-            org = Organization.objects.get(**kwargs)
+            org = Organization.objects.get(**options)
         return org
 
     def _add_default_org(self, kwargs):
@@ -44,7 +44,10 @@ class TestGeoMixin(TestLociMixin):
 
     def _create_object_location(self, **kwargs):
         if "location" not in kwargs:
-            kwargs["location"] = self._create_location()
+            location_kwargs = {}
+            if "content_object" in kwargs:
+                location_kwargs["organization"] = kwargs["content_object"].organization
+            kwargs["location"] = self._create_location(**location_kwargs)
         kwargs["organization"] = kwargs["location"].organization
         if "content_object" not in kwargs:
             kwargs["content_object"] = self._create_object(

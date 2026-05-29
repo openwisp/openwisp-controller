@@ -163,6 +163,24 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
 
+    @mock.patch(_mock_execute)
+    def test_launch_command_deactivated_device(self, mocked_execute):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "/usr/sbin/exotic_command"},
+        )
+        command.full_clean()
+        command.save()
+        dc.device.deactivate()
+        tasks.launch_command.delay(command.pk)
+        command.refresh_from_db()
+        self.assertEqual(command.status, "failed")
+        self.assertEqual(command.output, "Device is deactivated.\n")
+        mocked_execute.assert_not_called()
+
 
 class TestTransactionTasks(
     TestRegistrationMixin, CreateConnectionsMixin, TransactionTestCase
