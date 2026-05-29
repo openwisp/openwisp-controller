@@ -1064,16 +1064,6 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         self.assertIsNone(t.ca)
         self.assertIsNone(t.blueprint_cert)
 
-    def test_cert_template_allows_empty_config(self):
-        """Test that cert templates can have empty config (unlike other types)."""
-        ca = self._create_ca()
-        t = self._create_template(
-            type="cert",
-            ca=ca,
-            config={},
-        )
-        self.assertEqual(t.config, {})
-
     def test_organization_validation_for_relations(self):
         """Test organization validation for ca field."""
         org1 = self._get_org()
@@ -1122,3 +1112,172 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             raise err
         self.assertIsNone(t.ca)
         self.assertIsNone(t.blueprint_cert)
+
+    def test_active_mutation_blocked(self):
+        """
+        Test that ca and blueprint_cert cannot be
+        changed if assigned to active devices.
+        """
+        org = self._get_org()
+        ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
+        ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
+        blueprint1 = self._create_cert(
+            name="BP1", common_name="BP1_CN", ca=ca1, organization=org
+        )
+        blueprint2 = self._create_cert(
+            name="BP2", common_name="BP2_CN", ca=ca1, organization=org
+        )
+        template = self._create_template(
+            name="Active Cert Template",
+            type="cert",
+            ca=ca1,
+            blueprint_cert=blueprint1,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        with self.subTest("Cannot mutate CA on active template"):
+            template.ca = ca2
+            template.blueprint_cert = None
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("ca", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices", str(err.message_dict["ca"][0])
+                )
+            else:
+                self.fail("ValidationError not raised for active mutation of CA")
+
+        with self.subTest("Cannot mutate blueprint_cert on active template"):
+            template.refresh_from_db()
+            template.blueprint_cert = blueprint2
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("blueprint_cert", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices",
+                    str(err.message_dict["blueprint_cert"][0]),
+                )
+            else:
+                self.fail(
+                    "ValidationError not raised for active mutation of blueprint_cert"
+                )
+
+    def test_cert_generation_fallback_to_ca_defaults(self):
+        """
+        Verify synchronous generation falls back to CA defaults
+        when no blueprint_cert is specified.
+        """
+        org = self._get_org()
+        ca = self._create_ca(
+            name="Fallback CA",
+            organization=org,
+            country_code="DE",
+            city="Berlin",
+            key_length="2048",
+            digest="sha256",
+        )
+        template = self._create_template(
+            name="No Blueprint Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=None,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert)
+        generated_cert = dev_cert.cert
+        self.assertEqual(generated_cert.country_code, "DE")
+        self.assertEqual(generated_cert.city, "Berlin")
+        self.assertEqual(generated_cert.key_length, "2048")
+        self.assertEqual(generated_cert.digest, "sha256")
+
+    def test_cert_generation_and_revocation_lifecycle(self):
+        """
+        Verify synchronous generation copies blueprint attributes, injects CN/OIDs,
+        and securely revokes the underlying certificate upon removal.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(
+            name="Master Blueprint",
+            common_name="Master Blueprint CN",
+            ca=ca,
+            organization=org,
+            key_length="4096",
+            digest="sha512",
+            city="Rome",
+            country_code="IT",
+            extensions=[
+                {"name": "nsComment", "value": "Test comment", "critical": False}
+            ],
+        )
+        template = self._create_template(
+            name="Deep Lifecycle Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert, "DeviceCertificate was not created")
+        generated_cert = dev_cert.cert
+        with self.subTest("Copies blueprint attributes and sets CN"):
+            self.assertEqual(generated_cert.key_length, "4096")
+            self.assertEqual(generated_cert.digest, "sha512")
+            self.assertEqual(generated_cert.city, "Rome")
+            self.assertEqual(generated_cert.country_code, "IT")
+            self.assertTrue(
+                generated_cert.common_name.startswith(
+                    f"{device.mac_address}-{device.name}"
+                )
+            )
+
+        # uncomment after #228 in django-x509
+        # with self.subTest("Injects custom MAC and UUID OIDs"):
+        #     extensions = generated_cert.extensions
+        #     mac_oid = "1.3.6.1.4.1.65901.1"
+        #     uuid_oid = "1.3.6.1.4.1.65901.2"
+        #     mac_ext = next(
+        #         (
+        #             ext
+        #             for ext in extensions
+        #             if ext.get("oid") == mac_oid
+        #             or ext.get("name") == mac_oid
+        #         ),
+        #         None,
+        #     )
+        #     uuid_ext = next(
+        #         (
+        #             ext
+        #             for ext in extensions
+        #             if ext.get("oid") == uuid_oid
+        #             or ext.get("name") == uuid_oid
+        #         ),
+        #         None,
+        #     )
+        #     self.assertIsNotNone(mac_ext, "MAC OID extension missing")
+        #     self.assertIn(device.mac_address, mac_ext["value"])
+        #     self.assertIsNotNone(uuid_ext, "UUID OID extension missing")
+        #     self.assertIn(str(device.id), uuid_ext["value"])
+
+        with self.subTest("Secure Revocation (post_remove)"):
+            cert_pk = generated_cert.pk
+            config.templates.remove(template)
+            self.assertEqual(config.devicecertificate_set.count(), 0)
+            revoked_cert = Cert.objects.get(pk=cert_pk)
+            self.assertTrue(
+                revoked_cert.revoked, "Underlying certificate was not revoked!"
+            )
