@@ -490,11 +490,12 @@ class TestGeoApi(
 
     def test_put_floorplan_detail(self):
         f1 = self._create_floorplan()
-        l1 = self._create_location()
+        l1 = self._create_location(type="indoor")
         path = reverse("geo_api:detail_floorplan", args=[f1.pk])
         temporary_image = tempfile.NamedTemporaryFile(suffix=".jpg")
         image = Image.new("RGB", (100, 100))
         image.save(temporary_image.name)
+        temporary_image.seek(0)
         data = {"floor": 12, "image": temporary_image, "location": l1.pk}
         with self.assertNumQueries(9):
             response = self.client.put(

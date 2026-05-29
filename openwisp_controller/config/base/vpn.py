@@ -250,7 +250,7 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
         if not created:
             self._check_changes()
         create_dh = False
-        if not self.cert and self.ca:
+        if self.ca and (not self.cert or self.cert.ca_id != self.ca_id):
             self.cert = self._auto_create_cert()
         if self._is_backend_type("openvpn") and not self.dh:
             self.dh = self._placeholder_dh
