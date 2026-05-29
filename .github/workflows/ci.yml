@@ -1,4 +1,3 @@
----
 name: OpenWISP Controller CI Build
 
 on:
@@ -13,11 +12,341 @@ on:
       - "gsoc26-x509-certificate-generator-templates"
       - "gsoc26-mass-commands"
 
-jobs:
-  build:
-    name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
-    runs-on: ubuntu-24.04
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
+permissions:
+  contents: read
+  packages: read
+  pull-requests: write
+
+jobs:
+  # Determine which CI base image to use for this branch/PR.
+  # Outputs: image_tag, use_prebuilt, needs_build, branch_image, image
+  resolve-image:
+    name: Resolve CI base image
+    runs-on: ubuntu-24.04
+    outputs:
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+      use_prebuilt: ${{ steps.resolve.outputs.use_prebuilt }}
+      needs_build: ${{ steps.resolve.outputs.needs_build }}
+      branch_image: ${{ steps.resolve.outputs.branch_image }}
+      image: ${{ steps.resolve.outputs.image }}
+      docs_only: ${{ steps.paths.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Mark repo as safe and fetch master
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin master --depth=1 || true
+
+      - name: Detect doc-only changes
+        id: paths
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "push" && -n "$BEFORE_SHA" ]]; then
+            changed=$(git diff --name-only "${BEFORE_SHA}...${AFTER_SHA}" 2>/dev/null || true)
+          else
+            changed=$(git diff --name-only origin/master...HEAD 2>/dev/null || true)
+          fi
+          if [ -z "$changed" ] || echo "$changed" | grep -qvE '(\.rst$|docs/)'; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image tag
+        id: resolve
+        env:
+          BRANCH_REF: ${{ github.head_ref || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          BRANCH_TAG="branch-$(printf '%s' "$BRANCH_REF" | sha256sum | cut -c1-12)"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/ci-base"
+
+          # can_push: true for push events or same-repo PRs (fork PRs get read-only token)
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            can_push=true
+          elif [[ "$EVENT_NAME" == "pull_request" && "$HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; then
+            can_push=true
+          else
+            can_push=false
+          fi
+
+          # is_master: true when pushing directly to master
+          if [[ "$GITHUB_REF" == "refs/heads/master" ]]; then
+            is_master=true
+          else
+            is_master=false
+          fi
+
+          # build_changed: whether Dockerfile.ci, requirements.txt, or
+          # requirements-test.txt differ from origin/master.
+          # Always false on master itself (promote-stable handles it separately)
+          if [[ "$is_master" == "true" ]]; then
+            build_changed=false
+          else
+            if git diff --quiet origin/master -- Dockerfile.ci requirements.txt requirements-test.txt 2>/dev/null; then
+              build_changed=false
+            else
+              build_changed=true
+            fi
+          fi
+
+          echo "can_push=$can_push  is_master=$is_master  build_changed=$build_changed"
+          echo "IMAGE=$IMAGE  BRANCH_TAG=$BRANCH_TAG"
+
+          # Decision logic
+          if [[ "$can_push" == "false" ]]; then
+            # Fork PR: read-only token, cannot push to upstream GHCR.
+            # Try upstream :stable -> upstream branch image -> build from scratch.
+            if docker manifest inspect "$IMAGE:stable" > /dev/null 2>&1; then
+              echo "Fork PR: using upstream stable image"
+              echo "image_tag=$IMAGE:stable"           >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"                 >> "$GITHUB_OUTPUT"
+              echo "needs_build=false"                 >> "$GITHUB_OUTPUT"
+            elif docker manifest inspect "$IMAGE:$BRANCH_TAG" > /dev/null 2>&1; then
+              echo "Fork PR: using upstream branch image $IMAGE:$BRANCH_TAG"
+              echo "image_tag=$IMAGE:$BRANCH_TAG"      >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"                 >> "$GITHUB_OUTPUT"
+              echo "needs_build=false"                 >> "$GITHUB_OUTPUT"
+            else
+              echo "Fork PR: no upstream image found, building from scratch"
+              echo "image_tag=$IMAGE:$BRANCH_TAG"      >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"                 >> "$GITHUB_OUTPUT"
+              echo "needs_build=true"                  >> "$GITHUB_OUTPUT"
+            fi
+          elif [[ "$is_master" == "true" ]]; then
+            # On master: promote-stable job will build/update :stable
+            echo "Master push: using stable image (promote-stable will update it)"
+            echo "image_tag=$IMAGE:stable"     >> "$GITHUB_OUTPUT"
+            echo "use_prebuilt=true"           >> "$GITHUB_OUTPUT"
+            echo "needs_build=false"           >> "$GITHUB_OUTPUT"
+          elif [[ "$build_changed" == "true" ]]; then
+            # Build files differ from master: need a branch-specific image.
+            # Only rebuild if the image doesn't exist yet, or the files changed since the last commit.
+            if docker manifest inspect "$IMAGE:$BRANCH_TAG" > /dev/null 2>&1 \
+                && git diff --quiet HEAD^ HEAD -- Dockerfile.ci requirements.txt requirements-test.txt 2>/dev/null; then
+              echo "Branch image exists and build files unchanged since last commit: reusing $IMAGE:$BRANCH_TAG"
+              echo "image_tag=$IMAGE:$BRANCH_TAG" >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"            >> "$GITHUB_OUTPUT"
+              echo "needs_build=false"            >> "$GITHUB_OUTPUT"
+            else
+              echo "Building branch image $IMAGE:$BRANCH_TAG"
+              echo "image_tag=$IMAGE:$BRANCH_TAG" >> "$GITHUB_OUTPUT"
+              echo "use_prebuilt=true"            >> "$GITHUB_OUTPUT"
+              echo "needs_build=true"             >> "$GITHUB_OUTPUT"
+            fi
+          elif docker manifest inspect "$IMAGE:stable" > /dev/null 2>&1; then
+            # Dockerfile.ci unchanged and stable exists: reuse stable
+            echo "Dockerfile.ci unchanged: using stable image"
+            echo "image_tag=$IMAGE:stable"     >> "$GITHUB_OUTPUT"
+            echo "use_prebuilt=true"           >> "$GITHUB_OUTPUT"
+            echo "needs_build=false"           >> "$GITHUB_OUTPUT"
+          else
+            # No stable image yet (bootstrap): build from scratch
+            echo "No stable image found, building from scratch"
+            echo "image_tag=$IMAGE:$BRANCH_TAG" >> "$GITHUB_OUTPUT"
+            echo "use_prebuilt=true"            >> "$GITHUB_OUTPUT"
+            echo "needs_build=true"             >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "branch_image=$IMAGE:$BRANCH_TAG" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE"                     >> "$GITHUB_OUTPUT"
+
+  # Build and push a per-branch image when Dockerfile.ci, requirements.txt, or
+  # requirements-test.txt differ from master.  The whole job is skipped when
+  # needs_build is false; qa/test tolerate a skipped result via != 'failure'.
+  build-image:
+    name: Build CI base image (branch)
+    needs: resolve-image
+    if: ${{ needs.resolve-image.outputs.needs_build == 'true' && github.ref != 'refs/heads/master' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push branch image
+        if: ${{ needs.resolve-image.outputs.needs_build == 'true' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.ci
+          push: true
+          # Single manifest (no provenance/SBOM attestations) so the
+          # untagged-version cleanup below can't delete child manifests
+          # that the tagged image depends on.
+          provenance: false
+          sbom: false
+          tags: ${{ needs.resolve-image.outputs.branch_image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Delete superseded untagged images
+        if: ${{ needs.resolve-image.outputs.needs_build == 'true' }}
+        continue-on-error: true
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/ci-base
+          package-type: container
+          delete-only-untagged-versions: "true"
+
+  # On pushes to master: rebuild :stable when Dockerfile.ci changed.
+  promote-stable:
+    name: Promote CI base image to stable
+    needs: resolve-image
+    runs-on: ubuntu-24.04
+    if: ${{ github.ref == 'refs/heads/master' }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Check whether Dockerfile.ci changed in this push
+        id: df_check
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          base="${BEFORE_SHA:-HEAD^}"
+          if git diff --quiet "${base}...HEAD" -- Dockerfile.ci 2>/dev/null; then
+            echo "df_changed_master=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "df_changed_master=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push stable image
+        if: ${{ steps.df_check.outputs.df_changed_master == 'true' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.ci
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ needs.resolve-image.outputs.image }}:stable
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Delete superseded untagged images
+        if: ${{ steps.df_check.outputs.df_changed_master == 'true' }}
+        continue-on-error: true
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/ci-base
+          package-type: container
+          delete-only-untagged-versions: "true"
+
+  # Lint / format checks
+  qa:
+    name: Code Quality Checks
+    needs:
+      - resolve-image
+      - build-image
+      - promote-stable
+    runs-on: ubuntu-24.04
+    if: ${{ !cancelled() && needs.resolve-image.result == 'success' && needs.build-image.result != 'failure' }}
+    container:
+      image: ${{ needs.resolve-image.outputs.image_tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha}}
+          persist-credentials: false
+
+      - name: Mark repo as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install system deps (fallback)
+        if: needs.resolve-image.outputs.use_prebuilt != 'true'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git nodejs npm python3 python3-pip
+          npm install -g prettier
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/requirements*.txt"
+
+      - name: Set up Python and QA dependencies
+        run: |
+          uv venv --python 3.12 /opt/venv
+          echo "/opt/venv/bin" >> "$GITHUB_PATH"
+          uv pip install --python /opt/venv -r requirements-test.txt -e .
+
+      - name: Run QA checks
+        run: ./run-qa-checks
+
+  test:
+    name: "py${{ matrix.python-version }} | ${{ matrix.django-version }} | ${{ matrix.test-group }}"
+    needs:
+      - resolve-image
+      - build-image
+      - qa
+      - promote-stable
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    if: ${{ !cancelled() && needs.resolve-image.result == 'success' && needs.qa.result == 'success' && needs.build-image.result != 'failure' && needs.resolve-image.outputs.docs_only != 'true' }}
+    container:
+      image: ${{ needs.resolve-image.outputs.image_tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: >-
+        --tmpfs /tmp:exec
+        --shm-size 2g
     strategy:
       fail-fast: false
       matrix:
@@ -30,85 +359,156 @@ jobs:
           - django~=4.2.0
           - django~=5.1.0
           - django~=5.2.0
+        test-group:
+          - standard
+          - selenium
+          - sample_app
         exclude:
-          # Python 3.13 supported only in Django >=5.1.3
           - python-version: "3.13"
             django-version: django~=4.2.0
 
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha}}
+          persist-credentials: false
 
-      - name: Cache APT packages
-        uses: actions/cache@v5
-        with:
-          path: /var/cache/apt/archives
-          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: |
-            apt-${{ runner.os }}-
+      - name: Mark repo as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Disable man page auto-update
+      - name: Install system deps (fallback)
+        if: needs.resolve-image.outputs.use_prebuilt != 'true'
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
-          sudo dpkg-reconfigure man-db
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            git sqlite3 gdal-bin libproj-dev libgeos-dev \
+            libspatialite-dev spatialite-bin libsqlite3-mod-spatialite \
+            redis-server
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+      - name: Start Redis
+        run: redis-server --daemonize yes
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            **/requirements*.txt
+          enable-cache: true
+          cache-dependency-glob: "**/requirements*.txt"
 
-      - name: Install Dependencies
+      - name: Set up Python ${{ matrix.python-version }} and dependencies
         id: deps
         run: |
-          sudo apt update
-          sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
-            libgeos-dev libspatialite-dev spatialite-bin \
-            libsqlite3-mod-spatialite
-          sudo npm install -g prettier
-          pip install -U pip wheel setuptools
-          pip install -U -r requirements-test.txt
-          pip install -U -e .
-          pip install ${{ matrix.django-version }}
+          uv venv --python ${{ matrix.python-version }} /opt/venv
+          echo "/opt/venv/bin" >> "$GITHUB_PATH"
+          uv pip install --python /opt/venv -r requirements-test.txt -e . "${{ matrix.django-version }}"
 
-      - name: Start redis
-        if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
-        run: docker compose up -d redis
+      - name: Run standard tests
+        if: ${{ !cancelled() && steps.deps.conclusion == 'success' && matrix.test-group == 'standard' }}
+        env:
+          SELENIUM_HEADLESS: 1
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          coverage run runtests.py --parallel --exclude-tag=selenium_tests \
+            || coverage run runtests.py --exclude-tag=selenium_tests
+          coverage combine
 
-      - name: QA checks
-        run: ./run-qa-checks
-
-      - name: Tests
-        if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
-        run: ./runtests
+      - name: Run selenium tests
+        if: ${{ !cancelled() && steps.deps.conclusion == 'success' && matrix.test-group == 'selenium' }}
         env:
           SELENIUM_HEADLESS: 1
           GECKO_LOG: 1
-
-      - name: Show gecko web driver log on failures
-        if: ${{ failure() }}
+          REDIS_URL: redis://localhost:6379/0
+          HOME: /root
         run: |
-          [ -f geckodriver.log ] && cat geckodriver.log \
-            || echo "there is no gecko web driver log to show"
+          coverage run runtests.py --tag=selenium_tests --no-input --exclude-pytest
+          coverage combine
 
-      - name: Upload Coverage
-        if: ${{ success() }}
+      - name: Upload geckodriver logs on failure
+        if: ${{ (failure() || cancelled()) && matrix.test-group == 'selenium' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: geckodriver-logs-py${{ matrix.python-version }}-${{ matrix.django-version }}
+          path: geckodriver*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Run sample_app tests
+        if: ${{ !cancelled() && steps.deps.conclusion == 'success' && matrix.test-group == 'sample_app' }}
+        env:
+          SAMPLE_APP: "1"
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          coverage run runtests.py --parallel --exclude-tag=selenium_tests \
+            || coverage run runtests.py --exclude-tag=selenium_tests
+          coverage combine
+
+      - name: Rename coverage file for artifact upload
+        if: |
+          success() &&
+          matrix.python-version == '3.13' &&
+          matrix.django-version == 'django~=5.2.0'
+        run: mv .coverage .coverage.${{ matrix.test-group }}
+
+      - name: Upload coverage artifact
+        if: |
+          success() &&
+          matrix.python-version == '3.13' &&
+          matrix.django-version == 'django~=5.2.0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.test-group }}
+          path: .coverage.${{ matrix.test-group }}
+          retention-days: 1
+
+  coverage-combine:
+    name: Combine and upload coverage
+    needs: test
+    runs-on: ubuntu-24.04
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install coverage
+        run: pip install coverage
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: coverage-*
+          path: coverage_parts
+          merge-multiple: true
+
+      - name: Combine and generate XML report
+        run: |
+          if [ -z "$(ls -A coverage_parts 2>/dev/null)" ]; then
+            echo "No coverage artifacts found, skipping."
+            exit 0
+          fi
+          coverage combine coverage_parts/
+          coverage xml
+
+      - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         with:
-          parallel: true
-          format: cobertura
-          flag-name: python-${{ matrix.env.env }}
+          files: coverage.xml
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
 
   coveralls:
-    needs: build
-    runs-on: ubuntu-latest
+    name: Finalize Coveralls
+    needs: coverage-combine
+    runs-on: ubuntu-24.04
+    if: always()
     steps:
-      - name: Coveralls Finished
+      - name: Coveralls finished
         uses: coverallsapp/github-action@v2
         with:
           parallel-finished: true

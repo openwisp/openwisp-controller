@@ -1,0 +1,58 @@
+# Node Docker image is just debian bookworm-slim underneath
+FROM node:lts-bookworm-slim
+
+RUN npm install -g --prefer-offline prettier@3.8.3 \
+  && npm cache clean --force
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+  git \
+  gdal-bin \
+  sqlite3 \
+  libsqlite3-mod-spatialite \
+  spatialite-bin \
+  libgeos-c1v5 \
+  libspatialite-dev \
+  ca-certificates \
+  xz-utils \
+  libstdc++6 \
+  curl \
+  firefox-esr \
+  chromium \
+  chromium-driver \
+  redis-server \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/share/man /usr/share/doc
+
+ARG GECKODRIVER_VERSION=0.36.0
+# geckodriver releases provide only .asc GPG signatures, not .sha256 sidecars.
+# Pin hashes here; refresh by running `sha256sum` on the new tarball when bumping the version.
+ARG GECKODRIVER_SHA256_AMD64=0bde38707eb0a686a20c6bd50f4adcc7d60d4f73c60eb83ee9e0db8f65823e04
+ARG GECKODRIVER_SHA256_ARM64=b5fd13fc8f05ca99292700896d43fa986747a01b5fdc77f7bfc88a3707dc4241
+RUN ARCH="$(dpkg --print-architecture)" \
+  && case "$ARCH" in \
+       amd64) GECKO_ARCH=linux64;       EXPECTED="$GECKODRIVER_SHA256_AMD64" ;; \
+       arm64) GECKO_ARCH=linux-aarch64; EXPECTED="$GECKODRIVER_SHA256_ARM64" ;; \
+       *) echo "Unsupported arch $ARCH" >&2; exit 1 ;; \
+     esac \
+  && BASE_URL="https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}" \
+  && curl -fsSL "${BASE_URL}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
+       -o /tmp/geckodriver.tar.gz \
+  && ACTUAL="$(sha256sum /tmp/geckodriver.tar.gz | awk '{print $1}')" \
+  && { [ "$EXPECTED" = "$ACTUAL" ] || { echo "geckodriver SHA256 mismatch: expected $EXPECTED got $ACTUAL" >&2; exit 1; }; } \
+  && tar -xz -C /usr/local/bin -f /tmp/geckodriver.tar.gz geckodriver \
+  && rm /tmp/geckodriver.tar.gz \
+  && chmod +x /usr/local/bin/geckodriver
+
+RUN gdalinfo --version \
+  && node --version \
+  && prettier --version \
+  && firefox-esr --version \
+  && chromium --version \
+  && chromedriver --version \
+  && geckodriver --version \
+  && redis-server --version
+
+CMD ["/bin/bash"]
