@@ -4,7 +4,7 @@ from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import pagination, serializers, status
+from rest_framework import pagination, serializers, status, mixins, viewsets
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -30,6 +30,7 @@ from .serializers import (
     DeviceListSerializer,
     TemplateSerializer,
     VpnSerializer,
+    OrganizationSerializer,
 )
 
 Template = load_model("config", "Template")
@@ -288,6 +289,16 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls.get_device_group.invalidate(cls, "", common_name)
         cls.get_device_group.invalidate(cls, org_slug, common_name)
 
+class OrganizationViewSet(ProtectedAPIMixin,
+                         mixins.CreateModelMixin,
+                         mixins.RetrieveModelMixin,
+                         mixins.UpdateModelMixin,
+                         mixins.ListModelMixin,
+                         viewsets.GenericViewSet):
+    queryset = Organization.objects.select_related('config_settings').order_by('-created')
+    serializer_class = OrganizationSerializer
+    pagination_class = ListViewPagination
+
 
 template_list = TemplateListCreateView.as_view()
 template_detail = TemplateDetailView.as_view()
@@ -300,3 +311,9 @@ device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
+organization_list = OrganizationViewSet.as_view({'get': 'list', 'post': 'create'})
+organization_detail = OrganizationViewSet.as_view({
+    'get': 'retrieve',
+    'put': 'update',
+    'patch': 'partial_update'
+})
