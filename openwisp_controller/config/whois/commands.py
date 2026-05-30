@@ -39,7 +39,7 @@ def clear_last_ip_command(stdout, stderr, interactive=True):
         )
         # include the FK field 'organization' in .only() so the related
         # `organization__config_settings` traversal is not deferred
-        .only("last_ip", "organization", "key")
+        .only("last_ip", "organization", "key", "_is_deactivated")
     )
     # Filter out devices that have WHOIS information for their last IP
     devices = devices.exclude(last_ip=None).exclude(

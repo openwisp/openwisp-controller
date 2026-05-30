@@ -72,6 +72,9 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     except Device.DoesNotExist:
         logger.warning(f"Device {device_pk} not found, skipping WHOIS lookup")
         return
+    if device.is_deactivated():
+        logger.info(f"Device {device_pk} is deactivated, skipping WHOIS lookup")
+        return
     new_ip_address = device.last_ip
     whois_service = device.whois_service
     # If there is existing WHOIS older record then it needs to be updated

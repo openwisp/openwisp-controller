@@ -121,6 +121,11 @@ def manage_estimated_locations(device_pk, ip_address):
             f"Device {device_pk} not found, skipping manage_estimated_locations"
         )
         return
+    if device.is_deactivated():
+        logger.info(
+            f"Device {device_pk} is deactivated, skipping estimated location task"
+        )
+        return
     devices_with_location = list(
         # "devicelocation" and "devicelocation__location" must be in only() to
         # prevent Django from deferring them, which would conflict with
