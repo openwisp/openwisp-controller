@@ -629,6 +629,10 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
                     vxlan=self.config.get("vxlan", [{}])[0],
                     **context_keys,
                 )
+                # Workaround: netjsonconfig's wireguard_auto_client hardcodes
+                # family="ipv4" and mask=32. Correct these for IPv6 subnets.
+                # Remove when netjsonconfig handles IPv6 natively.
+                # See: https://github.com/openwisp/openwisp-controller/issues/721
                 if self.subnet and self.subnet.subnet.version == 6:
                     for interface in auto.get("interfaces", []):
                         if interface.get("type") == "wireguard":
