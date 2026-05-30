@@ -37,6 +37,13 @@ def default_auto_cert():
     return DEFAULT_AUTO_CERT
 
 
+def get_unassigned_certs():
+    Cert = load_model("django_x509", "Cert")
+    DeviceCertificate = load_model("config", "DeviceCertificate")
+    assigned_cert_ids = DeviceCertificate.objects.values_list("cert_id", flat=True)
+    return {"pk__in": Cert.objects.exclude(id__in=assigned_cert_ids)}
+
+
 class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     """
     Abstract model implementing a
@@ -70,12 +77,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "by this template."
         ),
     )
-
-    def get_unassigned_certs():
-        Cert = load_model("django_x509", "Cert")
-        DeviceCertificate = load_model("config", "DeviceCertificate")
-        assigned_cert_ids = DeviceCertificate.objects.values_list("cert_id", flat=True)
-        return {"pk__in": Cert.objects.exclude(id__in=assigned_cert_ids)}
 
     blueprint_cert = models.ForeignKey(
         get_model_name("django_x509", "Cert"),

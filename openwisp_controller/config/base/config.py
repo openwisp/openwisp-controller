@@ -3,7 +3,6 @@ import logging
 import re
 from collections import defaultdict
 
-import swapper
 from cache_memoize import cache_memoize
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -65,8 +64,8 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         blank=True,
     )
     device_certificates = models.ManyToManyField(
-        swapper.get_model_name("config", "Template"),
-        through=swapper.get_model_name("config", "DeviceCertificate"),
+        get_model_name("config", "Template"),
+        through=get_model_name("config", "DeviceCertificate"),
         related_name="config_device_certificates",
         blank=True,
         verbose_name=_("device certificates"),

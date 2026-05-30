@@ -70,12 +70,13 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         """
         d = self.config.device
         end = 63 - len(d.mac_address)
-        d.name = d.name[:end]
+        truncated_name = d.name[:end]
         unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == "{mac_address}-{name}" and d.name == d.mac_address:
+        if cn_format == "{mac_address}-{name}" and truncated_name == d.mac_address:
             cn_format = "{mac_address}"
-        common_name = cn_format.format(**d.__dict__)[:55]
+        format_dict = {**d.__dict__, "name": truncated_name}
+        common_name = cn_format.format(**format_dict)[:55]
         common_name = f"{common_name}-{unique_slug}"
         return common_name
 
@@ -111,8 +112,16 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         # mac_oid = "1.3.6.1.4.1.65901.1"
         # uuid_oid = "1.3.6.1.4.1.65901.2"
         # extensions.extend([
-        #     {"name": mac_oid, "value": device.mac_address, "critical": False},
-        #     {"name": uuid_oid, "value": str(device.id), "critical": False}
+        #     {
+        #         "oid": mac_oid,
+        #         "value": f"ASN1:UTF8:string:{device.mac_address}",
+        #         "critical": False
+        #     },
+        #     {
+        #         "oid": uuid_oid,
+        #         "value": f"ASN1:UTF8:string:{device.id}",
+        #         "critical": False
+        #     }
         # ])
         cert = cert_model(
             name=name,
