@@ -580,11 +580,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if len(self.error_reason) > 1024:
             self.error_reason = f"{self.error_reason[:1012]}\n[truncated]"
 
-    def full_clean(self, exclude=None, validate_unique=True):
+    def full_clean(self, exclude=None, validate_unique=True, **kwargs):
         # Modify the "error_reason" before the field validation
         # is executed by self.full_clean
         self.clean_error_reason()
-        return super().full_clean(exclude, validate_unique)
+        return super().full_clean(exclude, validate_unique, **kwargs)
 
     def clean(self):
         """
