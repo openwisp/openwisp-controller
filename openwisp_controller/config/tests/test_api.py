@@ -1388,7 +1388,7 @@ class TestConfigApi(
         self.assertEqual(r.data["blueprint_cert"], blueprint.pk)
 
     def test_template_create_api_blueprint_ca_mismatch(self):
-        """API: Blueprint cert must belong to the selected CA"""
+        """Blueprint cert must belong to the selected CA"""
         org = self._get_org()
         ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
         ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
@@ -1449,6 +1449,9 @@ class TestConfigApi(
         org = self._get_org()
         ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
         ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
+        blueprint = self._create_cert(
+            name="BP", common_name="BP_CN", ca=ca1, organization=org
+        )
         template = self._create_template(
             name="Active Template", type="cert", ca=ca1, organization=org, config={}
         )
@@ -1461,6 +1464,72 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
         self.assertIn("ca", r.data)
         self.assertIn("already assigned to active devices", str(r.data["ca"]))
+        r = self.client.patch(
+            path, {"blueprint_cert": blueprint.pk}, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("blueprint_cert", r.data)
+        self.assertIn(
+            "already assigned to active devices", str(r.data["blueprint_cert"])
+        )
+
+    def test_template_create_api_org_scoping(self):
+        """Rejects CA or Blueprint from a different organization"""
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca_org2 = self._create_ca(name="CA2", common_name="CA2", organization=org2)
+        path = reverse("config_api:template_list")
+        data = self._template_data
+        data.update(
+            {
+                "name": "Org Scope Template",
+                "type": "cert",
+                "ca": ca_org2.pk,
+                "organization": str(org1.pk),
+                "config": {},
+            }
+        )
+        r = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("organization", r.data)
+        self.assertIn("related CA match", str(r.data["organization"]))
+
+    def test_device_api_cert_template_lifecycle(self):
+        """Assigning/removing a cert template triggers DeviceCertificate lifecycle"""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="API Lifecycle Cert", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = self._device_data
+        data.update(
+            {
+                "name": device.name,
+                "organization": str(org.pk),
+                "mac_address": device.mac_address,
+            }
+        )
+        with self.subTest("Assigning template via API creates DeviceCertificate"):
+            data["config"]["templates"] = [str(cert_template.pk)]
+            response = self.client.put(path, data, content_type="application/json")
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.devicecertificate_set.count(), 1)
+            generated_cert = config.devicecertificate_set.get().cert
+
+        with self.subTest(
+            "Removing template via API deletes/revokes DeviceCertificate"
+        ):
+            data["config"]["templates"] = []
+            response = self.client.put(path, data, content_type="application/json")
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.devicecertificate_set.count(), 0)
+            generated_cert.refresh_from_db()
+            self.assertTrue(generated_cert.revoked)
 
 
 class TestConfigApiTransaction(
