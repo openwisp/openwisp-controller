@@ -68,6 +68,15 @@ else:  # pragma: nocover
     from django.contrib.admin import ModelAdmin
 
 
+def is_recover_view(request):
+    resolver_match = getattr(request, "resolver_match", None)
+    return getattr(request, "_recover_view", False) or bool(
+        resolver_match
+        and resolver_match.url_name
+        and resolver_match.url_name.endswith("_recover")
+    )
+
+
 class SystemDefinedVariableMixin(object):
     def system_context(self, obj):
         system_context = obj.get_system_context()
@@ -359,6 +368,12 @@ class BaseForm(forms.ModelForm):
 
 class ConfigForm(AlwaysHasChangedMixin, BaseForm):
     _old_templates = None
+    readonly_backend = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.readonly_backend and "backend" in self.fields:
+            self.fields["backend"].disabled = True
 
     def get_temp_model_instance(self, **options):
         config_model = self.Meta.model
@@ -467,6 +482,17 @@ class ConfigInline(
     verbose_name_plural = verbose_name
     multitenant_shared_relations = ("templates",)
 
+    def get_formset(self, request, obj=None, **kwargs):
+        readonly_backend = bool(
+            obj and obj._has_config() and not is_recover_view(request)
+        )
+        kwargs["form"] = type(
+            "ConfigInlineForm",
+            (self.form,),
+            {"readonly_backend": readonly_backend},
+        )
+        return super().get_formset(request, obj, **kwargs)
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related(*self.change_select_related)
@@ -478,7 +504,14 @@ class ConfigInline(
         return fields
 
     def get_readonly_fields(self, request, obj):
-        fields = super().get_readonly_fields(request, obj)
+        fields = list(super().get_readonly_fields(request, obj))
+        if (
+            obj
+            and obj._has_config()
+            and not is_recover_view(request)
+            and "backend" not in fields
+        ):
+            fields.append("backend")
         return self._error_reason_field_conditional(obj, fields)
 
     def get_fields(self, request, obj):
@@ -1093,6 +1126,12 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
     readonly_fields = ["system_context"]
     autocomplete_fields = ["vpn"]
 
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj and not is_recover_view(request) and "backend" not in fields:
+            fields.append("backend")
+        return fields
+
     @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):
         selectable_orgs = None
@@ -1274,6 +1313,12 @@ class VpnAdmin(
         "created",
         "modified",
     ]
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj and not is_recover_view(request) and "backend" not in fields:
+            fields.append("backend")
+        return fields
 
     class Media(BaseConfigAdmin):
         js = list(BaseConfigAdmin.Media.js) + [f"{prefix}js/vpn.js"]

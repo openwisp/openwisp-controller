@@ -171,6 +171,95 @@ class TestViews(
         )
         self.assertNotIn(str(t1.pk), templates)
 
+    def test_get_relevant_templates_uses_config_backend_if_missing(self):
+        org1 = self._create_org(name="org1")
+        config = self._create_config(organization=org1, backend="netjsonconfig.OpenWrt")
+        t1 = self._create_template(
+            name="t1",
+            organization=org1,
+            default=True,
+            backend="netjsonconfig.OpenWrt",
+            required=True,
+        )
+        t2 = self._create_template(
+            name="t2",
+            organization=org1,
+            default=True,
+            backend="netjsonconfig.OpenWisp",
+            required=True,
+        )
+        self._login()
+        response = self.client.get(
+            reverse("admin:get_relevant_templates", args=[org1.pk]),
+            {"config_id": str(config.pk)},
+        )
+        self.assertEqual(response.status_code, 200)
+        templates = response.json()
+        self.assertIn(str(t1.pk), templates)
+        self.assertNotIn(str(t2.pk), templates)
+
+    def test_get_relevant_templates_ignores_config_backend_of_other_organization(self):
+        org_owner = self._create_org_owner()
+        org1 = org_owner.organization
+        org2 = self._create_org(name="org2")
+        foreign_config = self._create_config(
+            organization=org2, backend="netjsonconfig.OpenWisp"
+        )
+        t1 = self._create_template(
+            name="t1",
+            organization=org1,
+            default=True,
+            backend="netjsonconfig.OpenWrt",
+            required=True,
+        )
+        t2 = self._create_template(
+            name="t2",
+            organization=org1,
+            default=True,
+            backend="netjsonconfig.OpenWisp",
+            required=True,
+        )
+        user = org_owner.organization_user.user
+        user.is_staff = True
+        user.save()
+        self.client.force_login(user)
+        response = self.client.get(
+            reverse("admin:get_relevant_templates", args=[org1.pk]),
+            {"config_id": str(foreign_config.pk)},
+        )
+        self.assertEqual(response.status_code, 200)
+        templates = response.json()
+        self.assertNotIn(str(t1.pk), templates)
+        self.assertNotIn(str(t2.pk), templates)
+
+    def test_get_relevant_templates_uses_config_backend_when_org_changes(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        config = self._create_config(organization=org1, backend="netjsonconfig.OpenWrt")
+        t1 = self._create_template(
+            name="t1",
+            organization=org2,
+            default=True,
+            backend="netjsonconfig.OpenWrt",
+            required=True,
+        )
+        t2 = self._create_template(
+            name="t2",
+            organization=org2,
+            default=True,
+            backend="netjsonconfig.OpenWisp",
+            required=True,
+        )
+        self._login()
+        response = self.client.get(
+            reverse("admin:get_relevant_templates", args=[org2.pk]),
+            {"config_id": str(config.pk)},
+        )
+        self.assertEqual(response.status_code, 200)
+        templates = response.json()
+        self.assertIn(str(t1.pk), templates)
+        self.assertNotIn(str(t2.pk), templates)
+
     def test_get_relevant_templates_authorization(self):
         org1 = self._create_org(name="org1")
         with self.subTest("Unauthenticated user"):

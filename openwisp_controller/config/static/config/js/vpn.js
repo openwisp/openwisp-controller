@@ -33,12 +33,29 @@ django.jQuery(function ($) {
     return el.parents(".form-row").eq(0);
   };
 
+  var getBackendValue = function () {
+    var backendInput = $("#id_backend");
+    if (backendInput.length && backendInput.val() !== undefined) {
+      return String(backendInput.val()).toLocaleLowerCase();
+    }
+    var readonlyBackendEl = $(".field-backend .readonly").first();
+    if (!readonlyBackendEl.length) {
+      return "";
+    }
+    var readonlyBackend = readonlyBackendEl.data("backend");
+    if (
+      readonlyBackend === undefined ||
+      readonlyBackend === null ||
+      String(readonlyBackend).trim() === ""
+    ) {
+      readonlyBackend = readonlyBackendEl.text().trim();
+    }
+    return String(readonlyBackend).toLocaleLowerCase();
+  };
+
   var toggleRelatedFields = function () {
     // Show IP and Subnet field only for WireGuard backend
-    var backendValue =
-        $("#id_backend").val() === undefined
-          ? ""
-          : $("#id_backend").val().toLocaleLowerCase().toLocaleLowerCase(),
+    var backendValue = getBackendValue(),
       op;
     if (backendValue.includes("wireguard") || backendValue.includes("vxlan")) {
       op = "show";
@@ -62,10 +79,12 @@ django.jQuery(function ($) {
   };
 
   // clean config when VPN backend is changed
-  $("#id_backend").change(function () {
-    $("#id_config").val("{}");
-    toggleRelatedFields();
-  });
+  if ($("#id_backend").length) {
+    $("#id_backend").change(function () {
+      $("#id_config").val("{}");
+      toggleRelatedFields();
+    });
+  }
 
   toggleRelatedFields();
 });
