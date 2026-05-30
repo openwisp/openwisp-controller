@@ -6,9 +6,10 @@ from collections import defaultdict
 from cache_memoize import cache_memoize
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
 from netjsonconfig import OpenWrt
@@ -90,8 +91,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             '" target="_blank">'
             "configuration variables</a>"
         ),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
     checksum_db = models.CharField(
         _("configuration checksum"),
@@ -555,11 +555,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if len(self.error_reason) > 1024:
             self.error_reason = f"{self.error_reason[:1012]}\n[truncated]"
 
-    def full_clean(self, exclude=None, validate_unique=True):
+    def full_clean(self, exclude=None, validate_unique=True, **kwargs):
         # Modify the "error_reason" before the field validation
         # is executed by self.full_clean
         self.clean_error_reason()
-        return super().full_clean(exclude, validate_unique)
+        return super().full_clean(exclude, validate_unique, **kwargs)
 
     def clean(self):
         """

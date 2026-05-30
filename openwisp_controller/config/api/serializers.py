@@ -91,6 +91,21 @@ class VpnSerializer(BaseSerializer):
             "modified",
         ]
 
+    def validate(self, data):
+        """Validates the VPN and clears the certificate if CA is changed.
+
+        When the CA is updated on an existing VPN, the current certificate
+        (which was issued by the old CA) becomes invalid. This method clears
+        the certificate so the model's ``save()`` method can auto-create a
+        new one for the new CA.
+        """
+        if self.instance and "ca" in data and self.instance.cert:
+            # if the CA is changed and new cert not supplied,
+            # allow creating a new certificate automatically
+            if data["ca"] and self.instance.cert.ca != data["ca"]:
+                data["cert"] = None
+        return super().validate(data)
+
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
