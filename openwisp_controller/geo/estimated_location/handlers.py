@@ -43,6 +43,7 @@ def whois_fetched_handler(sender, whois, updated_fields, device=None, **kwargs):
     if (
         not updated_fields
         or not device
+        or device.is_deactivated()
         or not EstimatedLocationService.check_estimated_location_enabled(
             device.organization_id
         )
@@ -67,8 +68,13 @@ def whois_lookup_skipped_handler(sender, device, **kwargs):
     Handler for skipped WHOIS lookups. If estimated location is enabled for
     the device's organization, trigger an estimated location task.
     """
-    if not EstimatedLocationService.check_estimated_location_enabled(
-        device.organization_id
+    # Skip deactivated devices: there is no value in estimating a location for
+    # a device that is no longer managed.
+    if (
+        device.is_deactivated()
+        or not EstimatedLocationService.check_estimated_location_enabled(
+            device.organization_id
+        )
     ):
         return
     estimated_location_service = EstimatedLocationService(device)

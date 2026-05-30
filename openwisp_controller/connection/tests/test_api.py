@@ -287,6 +287,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertDictEqual(response.data, device_not_found)
 
     def test_endpoints_for_deactivated_device(self):
+        command = self._create_command(device_conn=self.device_conn)
         self.device_conn.device.deactivate()
 
         with self.subTest("Test listing commands"):
@@ -308,7 +309,6 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.status_code, 403)
 
         with self.subTest("Test retrieving commands"):
-            command = self._create_command(device_conn=self.device_conn)
             url = self._get_path("device_command_details", self.device_id, command.id)
             response = self.client.get(
                 url,

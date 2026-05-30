@@ -349,6 +349,15 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
 
+    def test_auto_add_to_new_deactivated_device(self):
+        org = Organization.objects.first()
+        self._create_credentials(auto_add=True, organization=None)
+        device = self._create_device(organization=org, name="deactivated-device")
+        device.deactivate()
+        self._create_config(device=device)
+        device.refresh_from_db()
+        self.assertEqual(device.deviceconnection_set.count(), 1)
+
     def test_auto_add_device_missing_config(self):
         org = Organization.objects.first()
         self._create_device(organization=org)
@@ -1163,6 +1172,27 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    @mock.patch.object(DeviceConnection, "update_config")
+    @mock.patch.object(DeviceConnection, "get_working_connection")
+    @mock.patch("time.sleep")
+    def test_deactivating_device_update_config(
+        self, mocked_sleep, mocked_get_working_connection, mocked_update_config
+    ):
+        conf = self._prepare_conf_object()
+        conf.save()
+        mocked_get_working_connection.reset_mock()
+        mocked_update_config.reset_mock()
+        mocked_get_working_connection.return_value = (
+            conf.device.deviceconnection_set.first()
+        )
+
+        conf.device.deactivate()
+
+        conf.refresh_from_db()
+        self.assertEqual(conf.status, "deactivating")
+        mocked_get_working_connection.assert_called_once_with(conf.device)
+        mocked_update_config.assert_called_once()
 
     def test_chunk_size(self):
         org = self._get_org()

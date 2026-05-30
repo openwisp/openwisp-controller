@@ -46,6 +46,9 @@ def update_config(self, device_id):
     time.sleep(2)
     try:
         device = Device.objects.select_related("config").get(pk=device_id)
+        if device.is_fully_deactivated():
+            logger.info(f"{device} (pk: {device_id}) is deactivated, skipping update")
+            return
         # abort operation if device shouldn't be updated
         if not device.can_be_updated():
             logger.info(f"{device} (pk: {device_id}) is not going to be updated")
@@ -75,6 +78,14 @@ def launch_command(command_id):
         command = Command.objects.get(pk=command_id)
     except Command.DoesNotExist as e:
         logger.warning(f'launch_command("{command_id}") failed: {e}')
+        return
+    # Do not execute commands on deactivated devices. Creation is already
+    # rejected by Command.clean(); this guards the case where the device was
+    # deactivated after the command had been queued.
+    if command.device.is_deactivated():
+        command.status = "failed"
+        command._add_output(_("Device is deactivated."))
+        command.save()
         return
     try:
         command.execute()
