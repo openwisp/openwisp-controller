@@ -1281,3 +1281,44 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             self.assertTrue(
                 revoked_cert.revoked, "Underlying certificate was not revoked!"
             )
+
+    def test_cert_template_reorder_does_not_revoke(self):
+        """
+        Verify that reordering templates or performing bulk .set() updates
+        does not delete and recreate the existing DeviceCertificate.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="Cert Template", type="cert", ca=ca, organization=org, config={}
+        )
+        regular_template = self._create_template(
+            name="Regular Template",
+            organization=org,
+            config={"system": {"hostname": "test_router"}},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.set([regular_template, cert_template])
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert, "DeviceCertificate should be created.")
+        original_dev_cert_id = dev_cert.pk
+        original_cert_id = dev_cert.cert.pk
+        config.templates.set([cert_template, regular_template], clear=True)
+        dev_certs = config.devicecertificate_set.all()
+        self.assertEqual(dev_certs.count(), 1)
+        surviving_dev_cert = dev_certs.first()
+        self.assertEqual(
+            surviving_dev_cert.pk,
+            original_dev_cert_id,
+            "DeviceCertificate was deleted and recreated during reordering!",
+        )
+        self.assertEqual(
+            surviving_dev_cert.cert.pk,
+            original_cert_id,
+            "Underlying X.509 Cert was replaced during reordering!",
+        )
+        self.assertFalse(
+            surviving_dev_cert.cert.revoked,
+            "Certificate was erroneously revoked during reordering!",
+        )

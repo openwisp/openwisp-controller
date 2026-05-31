@@ -507,17 +507,32 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         Syncs DeviceCertificate objects when templates are added/removed
         """
+        if instance._state.adding or action not in [
+            "post_add",
+            "post_remove",
+            "post_clear",
+        ]:
+            return
+        if action == "post_clear":
+            if instance.is_deactivating_or_deactivated():
+                instance.devicecertificate_set.all().delete()
+            return
+        if isinstance(pk_set, set):
+            template_model = cls.get_template_model()
+            templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
+                "created"
+            )
+        else:
+            templates = pk_set
+        if len(pk_set) != templates.filter(required=True).count():
+            instance.devicecertificate_set.exclude(
+                template_id__in=instance.templates.values_list("id", flat=True)
+            ).delete()
         if action == "post_add":
-            templates = instance.templates.filter(pk__in=pk_set, type="cert")
-            for tpl in templates:
+            for template in templates.filter(type="cert"):
                 instance.devicecertificate_set.get_or_create(
-                    template=tpl, defaults={"auto_cert": tpl.auto_cert}
+                    template=template, defaults={"auto_cert": template.auto_cert}
                 )
-        elif action in ["post_remove", "pre_clear"]:
-            certs_to_delete = instance.devicecertificate_set.all()
-            if action == "post_remove":
-                certs_to_delete = certs_to_delete.filter(template_id__in=pk_set)
-            certs_to_delete.delete()
 
     def get_default_templates(self):
         """

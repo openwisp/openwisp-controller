@@ -113,7 +113,11 @@ class TemplateSerializer(BaseSerializer):
                         )
                     }
                 )
-        if self.instance and self.instance.pk:
+        if (
+            self.instance
+            and self.instance.pk
+            and ("ca" in data or "blueprint_cert" in data)
+        ):
             if Config.objects.filter(templates=self.instance).exists():
                 if "ca" in data and data["ca"] != self.instance.ca:
                     raise serializers.ValidationError(
