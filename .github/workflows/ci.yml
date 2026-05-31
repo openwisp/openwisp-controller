@@ -13,32 +13,105 @@ on:
       - "gsoc26-x509-certificate-generator-templates"
       - "gsoc26-mass-commands"
 
+permissions:
+  contents: read
+
 jobs:
+  set-matrix:
+    name: Determine Strategy Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - id: select
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Reduced matrix for PRs
+            JSON='{
+              "include": [
+                {"python-version": "3.10", "django-version": "django~=4.2.0", "run-selenium": "1"},
+                {"python-version": "3.13", "django-version": "django~=5.2.0", "run-selenium": "1"}
+              ]
+            }'
+          else
+            # Full matrix for master pushes
+            JSON='{
+              "include": [
+                {"python-version": "3.10", "django-version": "django~=4.2.0", "run-selenium": "1"},
+                {"python-version": "3.10", "django-version": "django~=5.1.0", "run-selenium": "0"},
+                {"python-version": "3.10", "django-version": "django~=5.2.0", "run-selenium": "0"},
+                {"python-version": "3.11", "django-version": "django~=4.2.0", "run-selenium": "0"},
+                {"python-version": "3.11", "django-version": "django~=5.1.0", "run-selenium": "1"},
+                {"python-version": "3.11", "django-version": "django~=5.2.0", "run-selenium": "0"},
+                {"python-version": "3.12", "django-version": "django~=4.2.0", "run-selenium": "0"},
+                {"python-version": "3.12", "django-version": "django~=5.1.0", "run-selenium": "0"},
+                {"python-version": "3.12", "django-version": "django~=5.2.0", "run-selenium": "0"},
+                {"python-version": "3.13", "django-version": "django~=5.1.0", "run-selenium": "0"},
+                {"python-version": "3.13", "django-version": "django~=5.2.0", "run-selenium": "1"}
+              ]
+            }'
+          fi
+          # Compress multi-line JSON to a single line for GITHUB_OUTPUT
+          COMPRESSED_JSON=$(echo "$JSON" | tr -d '\n' | tr -s ' ')
+          echo "matrix=${COMPRESSED_JSON}" >> $GITHUB_OUTPUT
+
+  qa:
+    name: QA Checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Cache APT packages
+        uses: actions/cache@v5
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: |
+            apt-${{ runner.os }}-
+
+      - name: Disable man page auto-update
+        run: |
+          echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
+          sudo dpkg-reconfigure man-db
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            **/requirements*.txt
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
+            libgeos-dev libspatialite-dev spatialite-bin \
+            libsqlite3-mod-spatialite
+          sudo npm install -g prettier
+          pip install -U pip wheel setuptools
+          pip install -U -r requirements-test.txt
+          pip install -U -e .
+
+      - name: QA checks
+        run: ./run-qa-checks
+
   build:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
+    needs: set-matrix
     runs-on: ubuntu-24.04
-
     strategy:
       fail-fast: false
-      matrix:
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-        django-version:
-          - django~=4.2.0
-          - django~=5.1.0
-          - django~=5.2.0
-        exclude:
-          # Python 3.13 supported only in Django >=5.1.3
-          - python-version: "3.13"
-            django-version: django~=4.2.0
+      matrix: ${{ fromJson(needs.set-matrix.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Cache APT packages
         uses: actions/cache@v5
@@ -68,18 +141,14 @@ jobs:
           sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
             libgeos-dev libspatialite-dev spatialite-bin \
             libsqlite3-mod-spatialite
-          sudo npm install -g prettier
           pip install -U pip wheel setuptools
           pip install -U -r requirements-test.txt
-          pip install -U -e .
           pip install ${{ matrix.django-version }}
+          pip install -U -e .
 
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
         run: docker compose up -d redis
-
-      - name: QA checks
-        run: ./run-qa-checks
 
       - name: Tests
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
@@ -87,6 +156,7 @@ jobs:
         env:
           SELENIUM_HEADLESS: 1
           GECKO_LOG: 1
+          RUN_SELENIUM: ${{ matrix.run-selenium || '1' }}
 
       - name: Show gecko web driver log on failures
         if: ${{ failure() }}
@@ -100,7 +170,7 @@ jobs:
         with:
           parallel: true
           format: cobertura
-          flag-name: python-${{ matrix.env.env }}
+          flag-name: python-${{ matrix.python-version }}-django-${{ matrix.django-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
 
