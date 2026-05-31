@@ -30,7 +30,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         verbose_name_plural = _("Device certificates")
 
     def __str__(self):
-        cert_name = self.cert.name if self.cert else "Pending Generation"
+        cert_name = self.cert.name if self.cert else str(_("Pending Generation"))
         return f"{self.config.device.name} - {cert_name}"
 
     def clean(self):

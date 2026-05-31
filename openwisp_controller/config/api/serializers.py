@@ -118,7 +118,11 @@ class TemplateSerializer(BaseSerializer):
             and self.instance.pk
             and ("ca" in data or "blueprint_cert" in data)
         ):
-            if Config.objects.filter(templates=self.instance).exists():
+            if (
+                Config.objects.filter(templates=self.instance)
+                .exclude(status__in=["deactivating", "deactivated"])
+                .exists()
+            ):
                 if "ca" in data and data["ca"] != self.instance.ca:
                     raise serializers.ValidationError(
                         {

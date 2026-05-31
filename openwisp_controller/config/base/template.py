@@ -264,7 +264,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             or current.blueprint_cert_id != self.blueprint_cert_id
         ):
             Config = load_model("config", "Config")
-            if Config.objects.filter(templates=self).exists():
+            if (
+                Config.objects.filter(templates=self)
+                .exclude(status__in=["deactivating", "deactivated"])
+                .exists()
+            ):
                 message = _(
                     "This template is already assigned to active devices. "
                     "You cannot change the CA or Blueprint Certificate "
