@@ -346,7 +346,6 @@ class ConfigConfig(AppConfig):
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
         )
-        # cache invalidation via generic mechanism
         post_save.connect(
             related_object_cache_invalidation_handler,
             sender=self.ca_model,
