@@ -162,9 +162,8 @@ def related_object_cache_invalidation_handler(sender, instance, **kwargs):
         sender_name = sender._meta.object_name
         if sender_name in relations:
             field_name, method_name = relations[sender_name]
-            tasks.invalidate_related_cache.delay(
-                dependent_model._meta.object_name,
-                field_name,
-                related_pk,
-                method_name,
+            transaction.on_commit(
+                lambda dm=dependent_model, fn=field_name, mn=method_name, rp=related_pk: tasks.invalidate_related_cache.delay(  # noqa: E501
+                    dm._meta.object_name, fn, rp, mn
+                )
             )
