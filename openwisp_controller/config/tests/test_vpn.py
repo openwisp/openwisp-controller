@@ -498,7 +498,7 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn()
         cached_checksum = vpn.get_cached_checksum()
 
-        vpn.ca.key_size = 4096
+        vpn.ca.key_length = "4096"
         vpn.ca.full_clean()
         vpn.ca.save()
 
@@ -508,7 +508,7 @@ class TestVpn(BaseTestVpn, TestCase):
         vpn = self._create_vpn()
         cached_checksum = vpn.get_cached_checksum()
 
-        vpn.cert.key_size = 4096
+        vpn.cert.key_length = "4096"
         vpn.cert.full_clean()
         vpn.cert.save()
 
