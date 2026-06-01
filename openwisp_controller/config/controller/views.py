@@ -93,7 +93,7 @@ class UpdateLastIpMixin(object):
             where &= Q(organization_id=device.organization_id)
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
-        for dupe in queryset.only("pk", "key", "management_ip"):
+        for dupe in queryset.only("pk", "key", "management_ip", "_is_deactivated"):
             dupe.management_ip = ""
             dupe.save(update_fields=["management_ip"])
 
@@ -108,7 +108,7 @@ class UpdateLastIpMixin(object):
             where &= Q(organization_id=device.organization_id)
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
-        for dupe in queryset.only("pk", "key", "last_ip"):
+        for dupe in queryset.only("pk", "key", "last_ip", "_is_deactivated"):
             dupe.last_ip = ""
             dupe.save(update_fields=["last_ip"])
 

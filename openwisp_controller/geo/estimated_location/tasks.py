@@ -121,6 +121,8 @@ def manage_estimated_locations(device_pk, ip_address):
             f"Device {device_pk} not found, skipping manage_estimated_locations"
         )
         return
+    # Defense in depth: a device can be deactivated after the task is queued,
+    # so re-check here.
     if device.is_deactivated():
         logger.info(
             f"Device {device_pk} is deactivated, skipping estimated location task"

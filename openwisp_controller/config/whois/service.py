@@ -208,8 +208,12 @@ class WHOISService:
     def process_ip_data_and_location(self, force_lookup=False):
         """
         Trigger WHOIS lookup based on the conditions of `_need_whois_lookup`.
+        Returns early if the device is deactivated.
         Tasks are triggered on commit to ensure redundant data is not created.
         """
+        # Do not trigger WHOIS fetch for deactivated devices.
+        # Returning here also suppresses the whois_lookup_skipped signal emitted
+        # below, so estimated location is not triggered for a deactivated device.
         if self.device.is_deactivated():
             return
         new_ip = self.device.last_ip
@@ -230,7 +234,9 @@ class WHOISService:
         Update existing WHOIS data for the device
         when the data is older than
         ``OPENWISP_CONTROLLER_WHOIS_REFRESH_THRESHOLD_DAYS``.
+        Returns early if the device is deactivated.
         """
+        # Do not refresh WHOIS data for deactivated devices.
         if self.device.is_deactivated():
             return
         ip_address = self.device.last_ip
