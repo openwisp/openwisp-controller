@@ -554,6 +554,14 @@ class AbstractCommand(TimeStampedEditableModel):
             raise RuntimeError(
                 "This command has already been executed, " "please create a new one."
             )
+        # Guard against a device that was deactivated after the command was queued.
+        # Command.clean() already rejects creation for deactivated devices, but
+        # the device could be deactivated while the task is still pending.
+        if self.device.is_deactivated():
+            self.status = "failed"
+            self._add_output(_("Device is deactivated."))
+            self.save()
+            return
         exit_code = self._exec_command()
         # if output is None, the commands couldn't execute
         # because the system couldn't connect to the device

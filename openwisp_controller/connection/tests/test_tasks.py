@@ -163,8 +163,10 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
 
-    @mock.patch(_mock_execute)
-    def test_launch_command_deactivated_device(self, mocked_execute):
+    @mock.patch(
+        "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
+    )
+    def test_launch_command_deactivated_device(self, mocked_exec_command):
         dc = self._create_device_connection()
         command = Command(
             device=dc.device,
@@ -179,7 +181,7 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Device is deactivated.\n")
-        mocked_execute.assert_not_called()
+        mocked_exec_command.assert_not_called()
 
 
 class TestTransactionTasks(

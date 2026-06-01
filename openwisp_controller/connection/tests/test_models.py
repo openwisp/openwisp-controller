@@ -1186,9 +1186,11 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         mocked_get_working_connection.return_value = (
             conf.device.deviceconnection_set.first()
         )
-
+        # Deactivate the device
         conf.device.deactivate()
-
+        # Ensure that the config status is set to "deactivating" and
+        # update_config is called to apply the empty configuration for deactivated
+        # devices.
         conf.refresh_from_db()
         self.assertEqual(conf.status, "deactivating")
         mocked_get_working_connection.assert_called_once_with(conf.device)

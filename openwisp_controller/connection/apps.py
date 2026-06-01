@@ -89,7 +89,7 @@ class ConnectionConfig(AppConfig):
         from .tasks import update_config
 
         # Check if push update should be skipped
-        if device.is_fully_deactivated() or device.should_skip_push_update():
+        if device.should_skip_push_update():
             return
         update_config.delay(str(device.pk))
 

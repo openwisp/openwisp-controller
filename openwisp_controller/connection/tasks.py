@@ -79,14 +79,6 @@ def launch_command(command_id):
     except Command.DoesNotExist as e:
         logger.warning(f'launch_command("{command_id}") failed: {e}')
         return
-    # Do not execute commands on deactivated devices. Creation is already
-    # rejected by Command.clean(); this guards the case where the device was
-    # deactivated after the command had been queued.
-    if command.device.is_deactivated():
-        command.status = "failed"
-        command._add_output(_("Device is deactivated."))
-        command.save()
-        return
     try:
         command.execute()
     except SoftTimeLimitExceeded:

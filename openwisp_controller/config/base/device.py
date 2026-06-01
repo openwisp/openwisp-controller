@@ -481,7 +481,11 @@ class AbstractDevice(OrgMixin, BaseModel):
         creates a new config instance to apply group templates
         if group has templates.
         """
-        if self.is_deactivated() or not (self.group and self.group.templates.exists()):
+        if self.is_deactivated():
+            # All modification operations are blocked on deactivated devices.
+            # Hence, default config should not be created for deactivated devices.
+            return
+        if not (self.group and self.group.templates.exists()):
             return
         config = self.get_temp_config_instance(
             backend=app_settings.DEFAULT_BACKEND, **options

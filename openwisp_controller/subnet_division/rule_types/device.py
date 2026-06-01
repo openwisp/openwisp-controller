@@ -33,12 +33,6 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @classmethod
     def should_create_subnets_ips(cls, instance, **kwargs):
-        # Skip deactivated devices: provisioning subnets and IP addresses for a
-        # device that is no longer managed serves no purpose and wastes address
-        # space. This also covers configs created directly for a device that is
-        # already deactivated, not just the rule backfill path.
-        if instance.device.is_deactivated():
-            return False
         return kwargs.get("created", False)
 
     @staticmethod
@@ -52,11 +46,7 @@ class DeviceSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
     def provision_for_existing_objects(cls, rule_obj):
         for config in (
             Config.objects.select_related("device", "device__organization")
-            # Skip deactivated devices: provisioning subnets and IP addresses
-            # for them serves no purpose and wastes address space.
-            .filter(
-                device__organization_id=rule_obj.organization_id,
-                device___is_deactivated=False,
-            ).iterator()
+            .filter(device__organization_id=rule_obj.organization_id)
+            .iterator()
         ):
             cls.provision_receiver(config, created=True, rule=rule_obj)

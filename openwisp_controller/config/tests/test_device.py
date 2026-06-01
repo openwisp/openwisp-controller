@@ -526,8 +526,12 @@ class TestDevice(
         self.assertEqual(device.config.templates.count(), 0)
         Device.manage_devices_group_templates(device.pk, old_group.pk, new_group.pk)
         device.config.refresh_from_db()
+        # Deactivated device config is skipped: adding templates to a cleared
+        # config would misrepresent what has been applied to the device.
         self.assertEqual(device.config.templates.count(), 0)
         self.assertNotIn(new_template, device.config.templates.all())
+        # Status must remain "deactivated" — no config push is initiated.
+        self.assertEqual(device.config.status, "deactivated")
 
     def test_device_field_changed_checks(self):
         self._create_device()

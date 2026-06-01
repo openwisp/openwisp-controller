@@ -482,11 +482,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         except ObjectDoesNotExist:
             return
         else:
-            # Skip deactivated (and deactivating) configs: they are meant to stay
-            # inert, so a certificate renewal must not recompute their checksum or
-            # mark them modified again.
-            if config.is_deactivating_or_deactivated():
-                return
             transaction.on_commit(config.update_status_if_checksum_changed)
 
     @classmethod
@@ -862,13 +857,15 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         self._invalidate_backend_instance_cache()
         old_checksum = self.checksum
         self.add_default_templates()
-        if self.device._get_group():
-            self.device.manage_devices_group_templates(
-                device_ids=self.device.id,
-                old_group_ids=None,
-                group_id=self.device.group_id,
+        if self.device._has_group():
+            # Call manage_group_templates directly rather than going through
+            # manage_devices_group_templates, which would skip the device because
+            # it is still marked as deactivated at this point in the activation flow.
+            self.manage_group_templates(
+                self.device.group.templates.all(),
+                self.get_template_model().objects.none(),
             )
-        del self.backend_instance
+        self._invalidate_backend_instance_cache()
         if old_checksum == self.checksum:
             # Accelerate activation if the configuration remains
             # unchanged (i.e. empty configuration)
@@ -1001,6 +998,9 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         Config = load_model("config", "Config")
         Template = load_model("config", "Template")
         config = Config.objects.get(pk=instance_id)
+        # All modification operations are blocked on deactivated devices.
+        # Thus, a user cannot edit the backend for device when it is deactivating.
+        # Therefore. it will be safe to block this operation here. 
         if config.is_deactivating_or_deactivated():
             return
         device_group = config.device.group
