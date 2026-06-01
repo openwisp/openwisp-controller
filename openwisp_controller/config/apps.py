@@ -67,6 +67,7 @@ class ConfigConfig(AppConfig):
         self.vpn_model = load_model("config", "Vpn")
         self.vpnclient_model = load_model("config", "VpnClient")
         self.org_limits = load_model("config", "OrganizationLimits")
+        self.ca_model = load_model("django_x509", "Ca")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
 
@@ -278,6 +279,7 @@ class ConfigConfig(AppConfig):
             device_cache_invalidation_handler,
             devicegroup_change_handler,
             devicegroup_delete_handler,
+            related_object_cache_invalidation_handler,
             vpn_server_change_handler,
         )
 
@@ -343,6 +345,16 @@ class ConfigConfig(AppConfig):
             vpn_server_change_handler,
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
+        )
+        post_save.connect(
+            related_object_cache_invalidation_handler,
+            sender=self.ca_model,
+            dispatch_uid="related_cache_ca_post_save",
+        )
+        post_save.connect(
+            related_object_cache_invalidation_handler,
+            sender=self.cert_model,
+            dispatch_uid="related_cache_cert_post_save",
         )
 
     def register_dashboard_charts(self):

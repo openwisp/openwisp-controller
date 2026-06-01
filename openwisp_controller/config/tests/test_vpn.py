@@ -538,6 +538,30 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
             device=device,
         )
 
+    def test_cache_invalidation_on_related_ca_change(self):
+        vpn = self._create_vpn()
+        with mock.patch.object(
+            type(vpn), "checksum", new_callable=mock.PropertyMock
+        ) as mocked_checksum:
+            mocked_checksum.return_value = "fake-cached-checksum"
+            self.assertEqual(vpn.get_cached_checksum(), "fake-cached-checksum")
+        vpn.ca.key_length = "4096"
+        vpn.ca.full_clean()
+        vpn.ca.save()
+        self.assertNotEqual(vpn.get_cached_checksum(), "fake-cached-checksum")
+
+    def test_cache_invalidation_on_related_cert_change(self):
+        vpn = self._create_vpn()
+        with mock.patch.object(
+            type(vpn), "checksum", new_callable=mock.PropertyMock
+        ) as mocked_checksum:
+            mocked_checksum.return_value = "fake-cached-checksum"
+            self.assertEqual(vpn.get_cached_checksum(), "fake-cached-checksum")
+        vpn.cert.key_length = "4096"
+        vpn.cert.full_clean()
+        vpn.cert.save()
+        self.assertNotEqual(vpn.get_cached_checksum(), "fake-cached-checksum")
+
 
 class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
     def test_wireguard_config_creation(self):

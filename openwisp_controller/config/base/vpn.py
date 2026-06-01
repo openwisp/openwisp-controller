@@ -139,6 +139,11 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
     # cache wireguard / vxlan peers for 7 days (generation is expensive)
     _PEER_CACHE_TIMEOUT = 60 * 60 * 24 * 7
 
+    cache_invalidation_relations = {
+        "Ca": ("ca", "invalidate_checksum_cache"),
+        "Cert": ("cert", "invalidate_checksum_cache"),
+    }
+
     class Meta:
         verbose_name = _("VPN server")
         verbose_name_plural = _("VPN servers")
