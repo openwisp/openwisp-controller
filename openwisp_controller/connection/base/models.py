@@ -361,7 +361,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             # already "deactivated"). A device that is only "deactivating" is let
             # through so the final cleared configuration can still be pushed.
             if self.device.is_fully_deactivated():
-                raise RuntimeError("Device is deactivated")
+                raise RuntimeError(_("Device is deactivated"))
             self.connector_instance.connect()
         except Exception as e:
             self.is_working = False

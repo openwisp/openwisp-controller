@@ -238,6 +238,31 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertIsNotNone(dc.last_attempt)
         self.assertEqual(dc.failure_reason, "Authentication failed.")
 
+    def test_connect_deactivated_device(self):
+        dc = self._create_device_connection()
+
+        with self.subTest("fully deactivated: connect blocked, signal suppressed"):
+            dc.device.deactivate()
+            self.assertTrue(dc.device.is_fully_deactivated())
+            with catch_signal(is_working_changed) as handler:
+                dc.connect()
+            self.assertEqual(dc.is_working, False)
+            self.assertEqual(dc.failure_reason, "Device is deactivated")
+            handler.assert_not_called()
+
+        with self.subTest("deactivating: connect allowed through"):
+            cred2 = self._create_credentials(name="cred-deactivating")
+            device2 = self._create_device(
+                name="deactivating-device", mac_address="11:22:33:44:55:66"
+            )
+            self._create_config(device=device2)
+            dc2 = self._create_device_connection(credentials=cred2, device=device2)
+            dc2.device._is_deactivated = True
+            self.assertEqual(dc2.device.is_fully_deactivated(), False)
+            with mock.patch.object(dc2.connector_instance, "connect") as mocked_conn:
+                dc2.connect()
+            mocked_conn.assert_called_once()
+
     def test_credentials_schema(self):
         # unrecognized parameter
         try:

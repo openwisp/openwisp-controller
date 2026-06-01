@@ -13,6 +13,7 @@ from ..connectors.exceptions import CommandTimeoutException
 from .utils import CreateConnectionsMixin
 
 Command = load_model("connection", "Command")
+DeviceConnection = load_model("connection", "DeviceConnection")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
@@ -91,6 +92,25 @@ class TestTasks(CreateConnectionsMixin, TestCase):
             f'update_config("{pk}") failed: Device matching query does not exist.'
         )
         mocked_sleep.assert_called_once()
+
+    @mock.patch("logging.Logger.info")
+    @mock.patch("time.sleep")
+    def test_update_config_skipped_for_deactivated_device(
+        self, mocked_sleep, mocked_info
+    ):
+        dc = self._create_device_connection()
+        device = dc.device
+        device.deactivate()
+        self.assertTrue(device.is_fully_deactivated())
+        with mock.patch.object(
+            DeviceConnection, "get_working_connection"
+        ) as mocked_get_working_connection:
+            tasks.update_config.delay(device.pk)
+        mocked_get_working_connection.assert_not_called()
+        mocked_sleep.assert_called_once()
+        mocked_info.assert_called_with(
+            f"{device} (pk: {device.pk}) is deactivated, skipping update"
+        )
 
     @mock.patch("logging.Logger.warning")
     def test_launch_command_missing(self, mocked_warning):

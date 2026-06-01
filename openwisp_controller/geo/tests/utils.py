@@ -11,7 +11,7 @@ class TestGeoMixin(TestLociMixin):
         options = dict(name="org1")
         options.update(kwargs)
         options.setdefault("slug", slugify(options["name"]))
-        if not Organization.objects.filter(**options).count():
+        if not Organization.objects.filter(**options).exists():
             org = Organization(**options)
             org.full_clean()
             org.save()

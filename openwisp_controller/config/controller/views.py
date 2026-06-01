@@ -230,6 +230,12 @@ class DeviceUpdateInfoView(CsrfExtemptMixin, GetDeviceView):
         bad_request = forbid_unallowed(request, "POST", "key", device.key)
         if bad_request:
             return bad_request
+        if device.is_deactivated():
+            # Inventory metadata must not be recorded for deactivated devices.
+            # GetDeviceView already returns 404 once the config is fully
+            # "deactivated"; this additionally rejects the transient
+            # "deactivating" state, where the device flag is already set.
+            return ControllerResponse("error: device deactivated", status=403)
         # update device information
         for attr in self.UPDATABLE_FIELDS:
             if attr in request.POST:
