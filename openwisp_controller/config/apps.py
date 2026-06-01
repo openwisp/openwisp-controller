@@ -69,6 +69,7 @@ class ConfigConfig(AppConfig):
         self.org_limits = load_model("config", "OrganizationLimits")
         self.cert_model = load_model("django_x509", "Cert")
         self.org_model = load_model("openwisp_users", "Organization")
+        self.devicecert_model = load_model("config", "DeviceCertificate")
 
     def connect_signals(self):
         """
@@ -95,6 +96,11 @@ class ConfigConfig(AppConfig):
             dispatch_uid="config.manage_vpn_clients",
         )
         m2m_changed.connect(
+            self.config_model.manage_device_certs,
+            sender=self.config_model.templates.through,
+            dispatch_uid="config.manage_device_certs",
+        )
+        m2m_changed.connect(
             self.config_model.templates_changed,
             sender=self.config_model.templates.through,
             dispatch_uid="config.templates_changed",
@@ -114,6 +120,11 @@ class ConfigConfig(AppConfig):
             self.vpnclient_model.post_delete,
             sender=self.vpnclient_model,
             dispatch_uid="vpnclient.post_delete",
+        )
+        post_delete.connect(
+            self.devicecert_model.post_delete,
+            sender=self.devicecert_model,
+            dispatch_uid="devicecert.post_delete",
         )
         vpn_peers_changed.connect(
             self.vpn_model.update_vpn_server_configuration,

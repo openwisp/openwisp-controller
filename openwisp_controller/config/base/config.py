@@ -63,6 +63,13 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         related_name="vpn_relations",
         blank=True,
     )
+    device_certificates = models.ManyToManyField(
+        get_model_name("config", "Template"),
+        through=get_model_name("config", "DeviceCertificate"),
+        related_name="config_device_certificates",
+        blank=True,
+        verbose_name=_("device certificates"),
+    )
 
     STATUS = Choices("modified", "applied", "error", "deactivating", "deactivated")
     status = StatusField(
@@ -494,6 +501,49 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         if func not in cls._config_context_functions:
             cls._config_context_functions.append(func)
+
+    @classmethod
+    def manage_device_certs(cls, sender, instance, action, pk_set, **kwargs):
+        """
+        Syncs DeviceCertificate objects when templates are added/removed
+        """
+        # ignore signals during initial creation or for irrelevant M2M actions
+        if instance._state.adding or action not in [
+            "post_add",
+            "post_remove",
+            "post_clear",
+        ]:
+            return
+
+        # handle full cleanup if the device configuration profile is being wiped
+        if action == "post_clear":
+            if instance.is_deactivating_or_deactivated():
+                instance.devicecertificate_set.all().delete()
+            return
+
+        # normalize templates across standard M2M sets vs Admin ModelForm querysets
+        if isinstance(pk_set, set):
+            template_model = cls.get_template_model()
+            templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
+                "created"
+            )
+        else:
+            templates = pk_set
+
+        # deletes orphaned certificates that are no
+        # longer assigned in the templates list.
+        if len(pk_set) != templates.filter(required=True).count():
+            instance.devicecertificate_set.exclude(
+                template_id__in=instance.templates.values_list("id", flat=True)
+            ).delete()
+
+        # allocate new DeviceCertificate associations
+        # for newly added certificate templates
+        if action == "post_add":
+            for template in templates.filter(type="cert"):
+                instance.devicecertificate_set.get_or_create(
+                    template=template, defaults={"auto_cert": template.auto_cert}
+                )
 
     def get_default_templates(self):
         """

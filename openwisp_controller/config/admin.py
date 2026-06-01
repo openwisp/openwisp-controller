@@ -117,7 +117,12 @@ class BaseConfigAdmin(BaseAdmin):
         css = {"all": (f"{prefix}css/admin.css",)}
         js = list(CopyableFieldsAdmin.Media.js) + [
             f"{prefix}js/{file_}"
-            for file_ in ("preview.js", "unsaved_changes.js", "switcher.js")
+            for file_ in (
+                "preview.js",
+                "unsaved_changes.js",
+                "switcher.js",
+                "template_ui.js",
+            )
         ]
 
     def get_extra_context(self, pk=None):
@@ -1059,6 +1064,8 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "organization",
         "type",
         "backend",
+        "ca",
+        "blueprint_cert",
         "default",
         "required",
         "created",
@@ -1073,13 +1080,15 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "created",
     ]
     search_fields = ["name"]
-    multitenant_shared_relations = ("vpn",)
+    multitenant_shared_relations = ("vpn", "ca", "blueprint_cert")
     fields = [
         "name",
         "organization",
         "type",
         "backend",
         "vpn",
+        "ca",
+        "blueprint_cert",
         "auto_cert",
         "tags",
         "default",
@@ -1091,7 +1100,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "modified",
     ]
     readonly_fields = ["system_context"]
-    autocomplete_fields = ["vpn"]
+    autocomplete_fields = ["vpn", "ca", "blueprint_cert"]
 
     @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):
