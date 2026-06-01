@@ -1,4 +1,4 @@
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 from packaging.version import parse as parse_version
 from rest_framework import VERSION as REST_FRAMEWORK_VERSION
@@ -15,7 +15,6 @@ Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 
 
-@override_settings(CELERY_TASK_ALWAYS_EAGER=False)
 class TestPkiApi(
     AssertNumQueriesSubTestMixin,
     TestAdminMixin,
