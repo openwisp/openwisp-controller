@@ -1138,9 +1138,11 @@ class TestWHOISTransaction(
         service.process_ip_data_and_location()
         # transaction.on_commit executes immediately in TransactionTestCase,
         # so the task is triggered synchronously here
+        # _initial_last_ip is '8.8.8.8' here because _check_last_ip in
+        # device.save() set it to device.last_ip after the first save.
         mock_task.assert_called_once_with(
             device_pk=device.pk,
-            initial_ip_address=device._initial_last_ip,
+            initial_ip_address="8.8.8.8",
         )
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)

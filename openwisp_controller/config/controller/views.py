@@ -94,6 +94,10 @@ class UpdateLastIpMixin(object):
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
         for dupe in queryset.only("pk", "key", "management_ip", "_is_deactivated"):
+            # Include _is_deactivated in .only() even though it is not referenced
+            # in this loop: dupe.save() triggers signal handlers that call
+            # is_deactivated(), and omitting the field would cause a SELECT
+            # per save (N+1 query).
             dupe.management_ip = ""
             dupe.save(update_fields=["management_ip"])
 
@@ -109,6 +113,9 @@ class UpdateLastIpMixin(object):
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
         for dupe in queryset.only("pk", "key", "last_ip", "_is_deactivated"):
+            # Include _is_deactivated in .only() to avoid N+1 queries:
+            # dupe.save() triggers signal handlers that call is_deactivated(),
+            # so the flag is prefetched rather than loaded per row.
             dupe.last_ip = ""
             dupe.save(update_fields=["last_ip"])
 
