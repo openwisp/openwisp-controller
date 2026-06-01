@@ -186,9 +186,9 @@ class WHOISService:
             - WHOIS is disabled in the organization settings. (query from db)
         """
         # Check cheap conditions first before hitting the database
-        if not self.is_whois_enabled:
-            return False
         if not self.is_valid_public_ip_address(new_ip):
+            return False
+        if not self.is_whois_enabled:
             return False
         whois_obj = self._get_whois_info_from_db(ip_address=new_ip).first()
         if whois_obj and not self.is_older(whois_obj.modified):

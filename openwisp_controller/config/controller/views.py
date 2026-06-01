@@ -112,10 +112,12 @@ class UpdateLastIpMixin(object):
             where &= Q(organization_id=device.organization_id)
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
-        for dupe in queryset.only("pk", "key", "last_ip", "_is_deactivated"):
-            # Include _is_deactivated in .only() to avoid N+1 queries:
-            # dupe.save() triggers signal handlers that call is_deactivated(),
-            # so the flag is prefetched rather than loaded per row.
+        # Include _is_deactivated and organization to avoid N+1 queries:
+        # dupe.save() triggers signal handlers that call is_deactivated()
+        # and WHOIS checks that read device.organization.
+        for dupe in queryset.select_related("organization").only(
+            "pk", "key", "last_ip", "_is_deactivated", "organization__id"
+        ):
             dupe.last_ip = ""
             dupe.save(update_fields=["last_ip"])
 
