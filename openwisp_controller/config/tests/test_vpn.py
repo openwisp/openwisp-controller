@@ -496,23 +496,23 @@ class TestVpn(BaseTestVpn, TestCase):
 
     def test_cache_invalidation_on_related_ca_change(self):
         vpn = self._create_vpn()
-        cached_checksum = vpn.get_cached_checksum()
-
-        vpn.ca.key_length = "4096"
-        vpn.ca.full_clean()
-        vpn.ca.save()
-
-        self.assertNotEqual(cached_checksum, vpn.get_cached_checksum())
+        with mock.patch.object(tasks, 'invalidate_related_cache') as mock_task:
+            vpn.ca.key_length = "4096"
+            vpn.ca.full_clean()
+            vpn.ca.save()
+            mock_task.delay.assert_called_once_with(
+                'Vpn', 'ca', vpn.ca.pk, 'invalidate_checksum_cache'
+            )
 
     def test_cache_invalidation_on_related_cert_change(self):
         vpn = self._create_vpn()
-        cached_checksum = vpn.get_cached_checksum()
-
-        vpn.cert.key_length = "4096"
-        vpn.cert.full_clean()
-        vpn.cert.save()
-
-        self.assertNotEqual(cached_checksum, vpn.get_cached_checksum())
+        with mock.patch.object(tasks, 'invalidate_related_cache') as mock_task:
+            vpn.cert.key_length = "4096"
+            vpn.cert.full_clean()
+            vpn.cert.save()
+            mock_task.delay.assert_called_once_with(
+                'Vpn', 'cert', vpn.cert.pk, 'invalidate_checksum_cache'
+            )
 
 
 class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
