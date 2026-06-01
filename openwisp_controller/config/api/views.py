@@ -4,7 +4,7 @@ from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import pagination, serializers, status
+from rest_framework import serializers, status
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions
+from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import ProtectedAPIMixin
 from .filters import (
@@ -42,16 +43,10 @@ Cert = load_model("django_x509", "Cert")
 Organization = load_model("openwisp_users", "Organization")
 
 
-class ListViewPagination(pagination.PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 100
-
-
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = TemplateSerializer
     queryset = Template.objects.prefetch_related("tags").order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = TemplateListFilter
 
@@ -64,7 +59,7 @@ class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
     queryset = Vpn.objects.select_related("subnet").order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = VPNListFilter
 
@@ -92,7 +87,7 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     queryset = Device.objects.select_related(
         "config", "group", "organization", "devicelocation"
     ).order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DeviceListFilterBackend]
     filterset_class = DeviceListFilter
 
@@ -153,7 +148,7 @@ class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
 class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.prefetch_related("templates").order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = DeviceGroupListFilter
 
