@@ -494,6 +494,26 @@ class TestVpn(BaseTestVpn, TestCase):
             self.assertIn("ca", message_dict)
             self.assertIn("CA is required with this VPN backend", message_dict["ca"])
 
+    def test_cache_invalidation_on_related_ca_change(self):
+        vpn = self._create_vpn()
+        cached_checksum = vpn.get_cached_checksum()
+
+        vpn.ca.key_size = 4096
+        vpn.ca.full_clean()
+        vpn.ca.save()
+
+        self.assertNotEqual(cached_checksum, vpn.get_cached_checksum())
+
+    def test_cache_invalidation_on_related_cert_change(self):
+        vpn = self._create_vpn()
+        cached_checksum = vpn.get_cached_checksum()
+
+        vpn.cert.key_size = 4096
+        vpn.cert.full_clean()
+        vpn.cert.save()
+
+        self.assertNotEqual(cached_checksum, vpn.get_cached_checksum())
+
 
 class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
     @mock.patch.object(create_vpn_dh, "delay")

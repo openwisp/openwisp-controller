@@ -33,6 +33,7 @@ class ChecksumCacheMixin:
     """
 
     _CHECKSUM_CACHE_TIMEOUT = 60 * 60 * 24 * 30  # 30 days
+    cache_invalidation_relations = {}
 
     @cache_memoize(
         timeout=_CHECKSUM_CACHE_TIMEOUT, args_rewrite=get_cached_args_rewrite

@@ -13,6 +13,7 @@ Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Organization = load_model("openwisp_users", "Organization")
+Vpn = load_model("config", "Vpn")
 Cert = load_model("django_x509", "Cert")
 
 
@@ -152,3 +153,18 @@ def organization_disabled_handler(instance, **kwargs):
         # No change in is_active
         return
     tasks.invalidate_controller_views_cache.delay(str(instance.id))
+
+
+def related_object_cache_invalidation_handler(sender, instance, **kwargs):
+    related_pk = instance.pk
+    for dependent_model in [Vpn, Config, Device]:
+        relations = getattr(dependent_model, "cache_invalidation_relations", {})
+        sender_name = sender._meta.object_name
+        if sender_name in relations:
+            field_name, method_name = relations[sender_name]
+            tasks.invalidate_related_cache.delay(
+                dependent_model._meta.object_name,
+                field_name,
+                related_pk,
+                method_name,
+            )
