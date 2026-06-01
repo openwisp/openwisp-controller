@@ -1441,11 +1441,12 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
         self.assertIn("blueprint_cert", r.data)
         self.assertIn(
-            "already assigned to an active device", str(r.data["blueprint_cert"])
+            "already assigned to a device configuration profile.",
+            str(r.data["blueprint_cert"]),
         )
 
     def test_template_update_api_active_change_blocked(self):
-        """Cannot mutate CA or Blueprint on a template attached to active devices"""
+        """Cannot mutate cert-specific fields on active templates"""
         org = self._get_org()
         ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
         ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
@@ -1472,6 +1473,12 @@ class TestConfigApi(
         self.assertIn(
             "already assigned to active devices", str(r.data["blueprint_cert"])
         )
+        r = self.client.patch(
+            path, {"type": "generic"}, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("type", r.data)
+        self.assertIn("already assigned to active devices", str(r.data["type"]))
 
     def test_template_create_api_org_scoping(self):
         """Rejects CA or Blueprint from a different organization"""

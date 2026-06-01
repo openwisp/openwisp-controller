@@ -4,7 +4,7 @@ from unittest import mock
 from celery.exceptions import SoftTimeLimitExceeded
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
@@ -1115,8 +1115,8 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
 
     def test_active_mutation_blocked(self):
         """
-        Test that ca and blueprint_cert cannot be
-        changed if assigned to active devices.
+        Test that cert-specific fields cannot be changed
+        if assigned to active devices.
         """
         org = self._get_org()
         ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
@@ -1165,6 +1165,22 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             else:
                 self.fail(
                     "ValidationError not raised for active mutation of blueprint_cert"
+                )
+
+        with self.subTest("Cannot change type away from cert on active template"):
+            template.refresh_from_db()
+            template.type = "generic"
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("type", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices",
+                    str(err.message_dict["type"][0]),
+                )
+            else:
+                self.fail(
+                    "ValidationError not raised for active mutation of template type"
                 )
 
     def test_cert_generation_fallback_to_ca_defaults(self):
@@ -1281,6 +1297,39 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             self.assertTrue(
                 revoked_cert.revoked, "Underlying certificate was not revoked!"
             )
+
+    def test_device_certificate_autocert_save_is_atomic(self):
+        """
+        Ensure certificate auto-provisioning does not leak Cert rows
+        when DeviceCertificate save fails.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="Atomic Cert Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        DeviceCertificate.objects.create(
+            config=config,
+            template=template,
+            cert=self._create_cert(ca=ca, organization=org),
+            auto_cert=False,
+        )
+        cert_count = Cert.objects.count()
+
+        with self.assertRaises(IntegrityError):
+            DeviceCertificate.objects.create(
+                config=config,
+                template=template,
+                auto_cert=True,
+            )
+
+        self.assertEqual(Cert.objects.count(), cert_count)
 
     def test_cert_template_reorder_does_not_revoke(self):
         """

@@ -507,16 +507,21 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         Syncs DeviceCertificate objects when templates are added/removed
         """
+        # ignore signals during initial creation or for irrelevant M2M actions
         if instance._state.adding or action not in [
             "post_add",
             "post_remove",
             "post_clear",
         ]:
             return
+
+        # handle full cleanup if the device configuration profile is being wiped
         if action == "post_clear":
             if instance.is_deactivating_or_deactivated():
                 instance.devicecertificate_set.all().delete()
             return
+
+        # normalize templates across standard M2M sets vs Admin ModelForm querysets
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
             templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
@@ -524,10 +529,16 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             )
         else:
             templates = pk_set
+
+        # deletes orphaned certificates that are no
+        # longer assigned in the templates list.
         if len(pk_set) != templates.filter(required=True).count():
             instance.devicecertificate_set.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
+
+        # allocate new DeviceCertificate associations
+        # for newly added certificate templates
         if action == "post_add":
             for template in templates.filter(type="cert"):
                 instance.devicecertificate_set.get_or_create(

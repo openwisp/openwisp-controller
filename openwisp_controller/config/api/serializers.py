@@ -54,7 +54,7 @@ class TemplateSerializer(BaseSerializer):
                 "error_messages": {
                     "does_not_exist": _(
                         "This certificate does not exist or is already "
-                        "assigned to an active device."
+                        "assigned to a device configuration profile."
                     )
                 }
             }
@@ -91,6 +91,7 @@ class TemplateSerializer(BaseSerializer):
         blueprint_cert = data.get(
             "blueprint_cert", getattr(self.instance, "blueprint_cert", None)
         )
+        # cert templates must have a CA
         if template_type == "cert" and not ca:
             raise serializers.ValidationError(
                 {
@@ -100,9 +101,12 @@ class TemplateSerializer(BaseSerializer):
                     )
                 }
             )
+        # clear certificate-specific fields if the template is not a certificate
         elif template_type != "cert":
             data["ca"] = None
             data["blueprint_cert"] = None
+
+        # assert structural binding matches between CA and template blueprints
         if blueprint_cert and ca:
             if blueprint_cert.ca_id != ca.id:
                 raise serializers.ValidationError(
@@ -113,16 +117,32 @@ class TemplateSerializer(BaseSerializer):
                         )
                     }
                 )
+
+        # apply mutation protections over protected fields
         if (
             self.instance
             and self.instance.pk
-            and ("ca" in data or "blueprint_cert" in data)
+            and ("ca" in data or "blueprint_cert" in data or "type" in data)
         ):
+            # only enforce locks if the template is assigned
+            # to active/activating devices
             if (
                 Config.objects.filter(templates=self.instance)
                 .exclude(status__in=["deactivating", "deactivated"])
                 .exists()
             ):
+                # block changing a certificate template to a generic template
+                if self.instance.type == "cert" and template_type != "cert":
+                    raise serializers.ValidationError(
+                        {
+                            "type": _(
+                                "This template is already assigned to active devices. "
+                                "You cannot change the template type from certificate "
+                                "on an active template."
+                            )
+                        }
+                    )
+                # block altering the assigned Certificate Authority
                 if "ca" in data and data["ca"] != self.instance.ca:
                     raise serializers.ValidationError(
                         {
@@ -133,6 +153,7 @@ class TemplateSerializer(BaseSerializer):
                             )
                         }
                     )
+                # block altering the assigned Blueprint Certificate
                 if (
                     "blueprint_cert" in data
                     and data["blueprint_cert"] != self.instance.blueprint_cert

@@ -250,7 +250,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 
     def _validate_cert_template_changes(self):
         """
-        Prevents changing the CA or Blueprint Certificate of a certificate template
+        Prevents changing cert-specific settings of a certificate template
         if it is already assigned to active devices.
         """
         if self._state.adding:
@@ -259,27 +259,40 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             current = self.__class__.objects.get(pk=self.pk)
         except self.__class__.DoesNotExist:
             return
-        if (
+        changing_protected_fields = (
             current.ca_id != self.ca_id
             or current.blueprint_cert_id != self.blueprint_cert_id
+            or (current.type == "cert" and self.type != "cert")
+        )
+        if not changing_protected_fields:
+            return
+
+        Config = load_model("config", "Config")
+        if not (
+            Config.objects.filter(templates=self)
+            .exclude(status__in=["deactivating", "deactivated"])
+            .exists()
         ):
-            Config = load_model("config", "Config")
-            if (
-                Config.objects.filter(templates=self)
-                .exclude(status__in=["deactivating", "deactivated"])
-                .exists()
-            ):
-                message = _(
-                    "This template is already assigned to active devices. "
-                    "You cannot change the CA or Blueprint Certificate "
-                    "on an active template."
-                )
-                errors = {}
-                if current.ca_id != self.ca_id:
-                    errors["ca"] = message
-                if current.blueprint_cert_id != self.blueprint_cert_id:
-                    errors["blueprint_cert"] = message
-                raise ValidationError(errors)
+            return
+
+        message = _(
+            "This template is already assigned to active devices. "
+            "You cannot change the CA or Blueprint Certificate "
+            "on an active template."
+        )
+        errors = {}
+        if current.ca_id != self.ca_id:
+            errors["ca"] = message
+        if current.blueprint_cert_id != self.blueprint_cert_id:
+            errors["blueprint_cert"] = message
+        if current.type == "cert" and self.type != "cert":
+            errors["type"] = _(
+                "This template is already assigned to active devices. "
+                "You cannot change the template type from certificate "
+                "on an active template."
+            )
+        if errors:
+            raise ValidationError(errors)
 
     def _clean_cert_template(self):
         """
@@ -335,7 +348,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * clears VPN specific fields if type is not VPN
         * automatically determines configuration if necessary
         * if flagged as required forces it also to be default
-        * prevents mutating CA or Blueprint on active cert templates
+        * prevents mutating cert-specific fields on active cert templates
         * enforces CA and Blueprint requirements for cert templates
         """
         self._validate_cert_template_changes()

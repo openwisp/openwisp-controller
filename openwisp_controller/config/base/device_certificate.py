@@ -1,6 +1,8 @@
+import copy
+
 import shortuuid
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from swapper import get_model_name, load_model
 
@@ -51,9 +53,10 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
 
     def save(self, *args, **kwargs):
         """Performs automatic provisioning if ``auto_cert`` is True."""
-        if self.auto_cert and not self.cert:
-            self._auto_x509()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            if self.auto_cert and not self.cert:
+                self._auto_x509()
+            super().save(*args, **kwargs)
 
     def _auto_x509(self):
         """
@@ -85,8 +88,6 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         Automatically creates and assigns a client x509 certificate
         using Blueprint cloning and custom hardware OID injection.
         """
-        import copy
-
         ca = self.template.ca
         blueprint = self.template.blueprint_cert
         # device = self.config.device
