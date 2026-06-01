@@ -40,7 +40,9 @@ def default_auto_cert():
 def get_unassigned_certs():
     Cert = load_model("django_x509", "Cert")
     DeviceCertificate = load_model("config", "DeviceCertificate")
-    assigned_cert_ids = DeviceCertificate.objects.values_list("cert_id", flat=True)
+    assigned_cert_ids = DeviceCertificate.objects.filter(
+        cert_id__isnull=False
+    ).values_list("cert_id", flat=True)
     return {"pk__in": Cert.objects.exclude(id__in=assigned_cert_ids)}
 
 
