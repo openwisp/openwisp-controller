@@ -219,7 +219,7 @@ def invalidate_controller_views_cache(organization_id):
         GetVpnView.invalidate_get_vpn_cache(vpn)
 
 
-@shared_task(base=OpenwispCeleryTask, soft_time_limit=7200)
+@shared_task(soft_time_limit=7200)
 def invalidate_related_cache(dependent_model, relation_field, related_pk, method_name):
     model = load_model("config", dependent_model)
     for instance in model.objects.filter(**{relation_field: related_pk}).iterator():
