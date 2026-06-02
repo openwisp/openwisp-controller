@@ -15,7 +15,7 @@ from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 
 from .. import settings as app_settings
-from ..api.views import ListViewPagination
+from ..api.views import CommandListCreateView
 from ..commands import ORGANIZATION_ENABLED_COMMANDS
 from .utils import CreateCommandMixin, CreateConnectionsMixin
 
@@ -48,7 +48,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
     def _get_device_not_found_error(self, device_id):
         return {"detail": ErrorDetail("Not found.", code="not_found")}
 
-    @patch.object(ListViewPagination, "page_size", 3)
+    @patch.object(CommandListCreateView, "pagination_page_size", 3, create=True)
     def test_command_list_api(self):
         number_of_commands = 6
         url = self._get_path("device_command_list", self.device_id)
