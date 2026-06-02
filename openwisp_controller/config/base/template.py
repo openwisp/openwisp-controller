@@ -43,7 +43,10 @@ def get_unassigned_certs():
     assigned_cert_ids = DeviceCertificate.objects.filter(
         cert_id__isnull=False
     ).values_list("cert_id", flat=True)
-    return {"pk__in": Cert.objects.exclude(id__in=assigned_cert_ids)}
+    return {
+        "pk__in": Cert.objects.exclude(id__in=assigned_cert_ids),
+        "revoked": False,
+    }
 
 
 class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
