@@ -17,7 +17,7 @@ class TestHandlers(TestOrganizationMixin, TestCase):
         with self.subTest("Test task executed on changing active to inactive org"):
             org.is_active = False
             org.save()
-            mocked_task.assert_called_once()
+            mocked_task.assert_called_once_with(str(org.id))
 
         mocked_task.reset_mock()
         with self.subTest("Test task not executed on saving inactive org"):

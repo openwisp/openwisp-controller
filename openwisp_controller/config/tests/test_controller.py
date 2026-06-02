@@ -3,8 +3,10 @@ from unittest.mock import patch
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.http.response import Http404
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse, reverse_lazy
 from swapper import load_model
 
@@ -1507,6 +1509,39 @@ class TestController(
             view.kwargs = {"pk": str(c1.device.pk)}
             cached_device1 = view.get_device()
             self.assertIsNone(cached_device1.management_ip)
+
+    @patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_remove_duplicated_last_ip_no_nplus1_queries(self):
+        # When WHOIS is configured, clearing a duplicate's last_ip runs
+        # process_ip_data_and_location during save(), which reads
+        # device.organization via is_whois_enabled. If organization is not
+        # selected upfront, each duplicate triggers extra SELECTs (N+1).
+        # The marginal cost per duplicate must be a single UPDATE only.
+        def _measure(n):
+            ip = f"192.168.40.{n}"
+            org = self._create_org(name=f"dupes-{n}", shared_secret=f"dupes-secret-{n}")
+            incoming = self._create_device(
+                organization=org,
+                name=f"incoming-{n}",
+                mac_address=f"00:11:22:33:{n:02x}:99",
+                last_ip=ip,
+            )
+            for i in range(n):
+                self._create_device(
+                    organization=org,
+                    name=f"dupe-{n}-{i}",
+                    mac_address=f"00:11:22:33:{n:02x}:{i:02x}",
+                    last_ip=ip,
+                )
+            view = DeviceChecksumView()
+            with CaptureQueriesContext(connection) as ctx:
+                view._remove_duplicated_last_ip(incoming)
+            return len(ctx.captured_queries)
+
+        one = _measure(1)
+        three = _measure(3)
+        # two extra duplicates must add exactly two queries (one UPDATE each)
+        self.assertEqual(three - one, 2)
 
     @patch.object(app_settings, "SHARED_MANAGEMENT_IP_ADDRESS_SPACE", True)
     def test_organization_shares_management_ip_address_space(self):

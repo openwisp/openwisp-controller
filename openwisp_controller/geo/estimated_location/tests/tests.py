@@ -194,6 +194,22 @@ class TestEstimatedLocation(
         response = self.client.get(path)
         self.assertNotContains(response, "field-is_estimated")
 
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task"
+    )
+    def test_trigger_estimated_location_task_skips_when_deactivated(
+        self, mock_send_task
+    ):
+        org = self._get_org()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
+        device = self._create_device(last_ip="172.217.22.14")
+        device.deactivate()
+        service = EstimatedLocationService(device)
+        service.trigger_estimated_location_task(device.last_ip)
+        mock_send_task.assert_not_called()
+
 
 class TestEstimatedLocationTransaction(
     TestEstimatedLocationMixin, WHOISTransactionMixin, TestGeoMixin, TransactionTestCase
@@ -796,6 +812,19 @@ class TestEstimatedLocationTransaction(
                 f"Coordinates not available for {device.pk} for IP: {device.last_ip}. "
                 "Estimated location cannot be determined."
             )
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
+    def test_manage_estimated_locations_skips_when_deactivated(self, mock_info):
+        # Create WHOIS info first to prevent eager task from attempting
+        # a real WHOIS lookup during device creation.
+        whois_obj = self._create_whois_info(ip_address="172.217.22.14")
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        device.deactivate()
+        manage_estimated_locations(device.pk, device.last_ip)
+        mock_info.assert_called_once_with(
+            f"Device {device.pk} is deactivated, skipping estimated location task"
+        )
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
