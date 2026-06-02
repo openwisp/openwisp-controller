@@ -1519,9 +1519,7 @@ class TestController(
         # The marginal cost per duplicate must be a single UPDATE only.
         def _measure(n):
             ip = f"192.168.40.{n}"
-            org = self._create_org(
-                name=f"dupes-{n}", shared_secret=f"dupes-secret-{n}"
-            )
+            org = self._create_org(name=f"dupes-{n}", shared_secret=f"dupes-secret-{n}")
             incoming = self._create_device(
                 organization=org,
                 name=f"incoming-{n}",
