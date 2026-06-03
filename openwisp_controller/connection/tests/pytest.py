@@ -78,6 +78,7 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
         assert response == expected_response
         await communicator.disconnect()
 
+    @mock.patch("paramiko.SSHClient.connect")
     async def test_multiple_connections_receive_updates_with_redis(
         self, admin_user, admin_client, settings
     ):
