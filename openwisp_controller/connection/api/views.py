@@ -154,4 +154,7 @@ command_details_view = CommandDetailsView.as_view()
 credential_list_create_view = CredentialListCreateView.as_view()
 credential_detail_view = CredentialDetailView.as_view()
 deviceconnection_list_create_view = DeviceConnectionListCreateView.as_view()
-deviceconnection_details_view = DeviceConnectionDetailView.as_view()
+deviceconnection_detail_view = DeviceConnectionDetailView.as_view()
+
+# TODO: remove in version 1.4
+deviceconnection_details_view = deviceconnection_detail_view
