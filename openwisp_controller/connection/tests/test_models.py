@@ -255,9 +255,11 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             device2 = self._create_device(
                 name="deactivating-device", mac_address="11:22:33:44:55:66"
             )
-            self._create_config(device=device2)
+            template = self._create_template(organization=device2.organization)
+            self._create_config(device=device2, templates=[template])
             dc2 = self._create_device_connection(credentials=cred2, device=device2)
-            dc2.device._is_deactivated = True
+            dc2.device.deactivate()
+            self.assertEqual(dc2.device.config.status, "deactivating")
             self.assertEqual(dc2.device.is_fully_deactivated(), False)
             with mock.patch.object(dc2.connector_instance, "connect") as mocked_conn:
                 dc2.connect()

@@ -559,21 +559,20 @@ class AbstractCommand(TimeStampedEditableModel):
         # the device could be deactivated while the task is still pending.
         if self.device.is_deactivated():
             self.status = "failed"
-            self._add_output(_("Device is deactivated."))
-            self.save()
-            return
-        exit_code = self._exec_command()
-        # if output is None, the commands couldn't execute
-        # because the system couldn't connect to the device
-        if exit_code is None:
-            self.status = "failed"
-            self.output = self.connection.failure_reason
-        # one command failed
-        elif exit_code != 0:
-            self.status = "failed"
-        # all commands succeeded
+            self._add_output("Device is deactivated.")
         else:
-            self.status = "success"
+            exit_code = self._exec_command()
+            # if output is None, the commands couldn't execute
+            # because the system couldn't connect to the device
+            if exit_code is None:
+                self.status = "failed"
+                self.output = self.connection.failure_reason
+            # one command failed
+            elif exit_code != 0:
+                self.status = "failed"
+            # all commands succeeded
+            else:
+                self.status = "success"
         self._clean_sensitive_info()
         self.save()
 

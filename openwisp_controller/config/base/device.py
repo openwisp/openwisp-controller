@@ -307,7 +307,9 @@ class AbstractDevice(OrgMixin, BaseModel):
 
     def delete(self, using=None, keep_parents=False, check_deactivated=True):
         if check_deactivated and (not self.is_fully_deactivated()):
-            raise PermissionDenied("The device must be deactivated prior to deletion")
+            raise PermissionDenied(
+                _("The device must be deactivated prior to deletion")
+            )
         return super().delete(using, keep_parents)
 
     def _check_changed_fields(self):
