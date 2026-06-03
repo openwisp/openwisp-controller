@@ -354,7 +354,15 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
-            self.save()
+            # Avoid resurrecting a connection whose row was deleted (e.g. a
+            # background command racing a deletion or test teardown): record the
+            # attempt only if the connection still exists, otherwise save() would
+            # fall back to an INSERT with a dangling device foreign key.
+            if (
+                self._state.adding
+                or type(self)._base_manager.filter(pk=self.pk).exists()
+            ):
+                self.save()
         return self.is_working
 
     def disconnect(self):

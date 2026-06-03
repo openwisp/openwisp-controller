@@ -181,3 +181,16 @@ class TestTransactionTasks(
         )
         self.assertEqual(response.status_code, 201)
         mocked_update_config.assert_not_called()
+
+    @mock.patch("paramiko.SSHClient.connect", side_effect=Exception("boom"))
+    def test_connect_does_not_resurrect_deleted_connection(self, *args):
+        # A background command (launch_command) can run against a connection
+        # whose row was already deleted by a concurrent deletion or test
+        # teardown. connect() records the attempt with save(); it must not
+        # resurrect the deleted row (an INSERT with a dangling device FK),
+        # which used to surface as flaky "FOREIGN KEY constraint failed".
+        DeviceConnection = load_model("connection", "DeviceConnection")
+        dc = self._create_device_connection()
+        DeviceConnection.objects.filter(pk=dc.pk).delete()
+        dc.connect()
+        self.assertFalse(DeviceConnection.objects.filter(pk=dc.pk).exists())
