@@ -4,7 +4,7 @@ import django
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models, transaction
+from django.db import DatabaseError, models, transaction
 from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -355,14 +355,17 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         finally:
             self.last_attempt = timezone.now()
             # Avoid resurrecting a connection whose row was deleted (e.g. a
-            # background command racing a deletion or test teardown): record the
-            # attempt only if the connection still exists, otherwise save() would
-            # fall back to an INSERT with a dangling device foreign key.
-            if (
-                self._state.adding
-                or type(self)._base_manager.filter(pk=self.pk).exists()
-            ):
+            # background command racing a deletion or test teardown): force an
+            # UPDATE so save() cannot fall back to an INSERT with a dangling
+            # device foreign key, and ignore the error Django raises when there
+            # is no row to update.
+            if self._state.adding:
                 self.save()
+            else:
+                try:
+                    self.save(force_update=True)
+                except DatabaseError:
+                    pass
         return self.is_working
 
     def disconnect(self):
