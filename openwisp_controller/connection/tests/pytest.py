@@ -69,7 +69,7 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
         }
 
     @mock.patch("paramiko.SSHClient.connect")
-    async def test_new_command_created(self, admin_user, admin_client):
+    async def test_new_command_created(self, mocked_connect, admin_user, admin_client):
         device_conn = await database_sync_to_async(self._create_device_connection)()
         communicator = await self._get_communicator(admin_client, device_conn.device_id)
         command = await self._create_command(device_conn)
@@ -80,7 +80,7 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
 
     @mock.patch("paramiko.SSHClient.connect")
     async def test_multiple_connections_receive_updates_with_redis(
-        self, admin_user, admin_client, settings
+        self, mocked_connect, admin_user, admin_client, settings
     ):
         settings.CHANNEL_LAYERS = {
             "default": {
