@@ -35,9 +35,9 @@ scheduled to be removed from the device.
 
 The device has been deactivated. The configuration applied through
 OpenWISP has been removed, and any other operation to manage the device
-will be prevented or rejected. This also includes network operations
-which would normally push configuration updates, for example changes to
-shared templates.
+will be prevented or rejected. This also includes network operations which
+would normally push configuration updates, for example changes to shared
+templates.
 
 .. note::
 
