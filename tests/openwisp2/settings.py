@@ -166,7 +166,18 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-    }
+    },
+    # Sessions are kept in a dedicated cache so that tests calling
+    # cache.clear() on the default cache (whois tests do, and parallel
+    # workers share the same cache) cannot wipe the authenticated session
+    # mid-test, which caused flaky 401 responses.
+    "sessions": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"{REDIS_URL}/8",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    },
 }
 
 if not TESTING:
@@ -177,7 +188,7 @@ else:
     CELERY_BROKER_URL = "memory://"
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+SESSION_CACHE_ALIAS = "sessions"
 
 LOGGING = {
     "version": 1,

@@ -1342,6 +1342,18 @@ class TestConfigApiTransaction(
         super().setUp()
         self._login()
 
+    def test_session_survives_default_cache_clear(self):
+        # The authenticated session must live in a cache separate from the
+        # default one: tests (e.g. whois) call cache.clear() on the default
+        # cache and parallel workers share it, so storing sessions there made
+        # the session disappear mid-test and produced flaky 401 responses.
+        from django.core.cache import cache
+
+        path = reverse("config_api:device_list")
+        self.assertEqual(self.client.get(path).status_code, 200)
+        cache.clear()
+        self.assertEqual(self.client.get(path).status_code, 200)
+
     def _get_devicegroup_org_cert(self):
         org = self._get_org()
         device_group = self._create_device_group(organization=org)
