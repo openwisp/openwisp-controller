@@ -613,6 +613,38 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 ["Device has no credentials assigned."],
             )
 
+    def test_command_validation_deactivated_device(self):
+        dc = self._create_device_connection()
+
+        with self.subTest("deactivating device does not block command creation"):
+            dc.device._is_deactivated = True
+            dc.device.save(update_fields=["_is_deactivated"])
+            dc.device.config.set_status_deactivating()
+            device = Device.objects.get(pk=dc.device.pk)
+            command = Command(
+                device=device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.clean()
+
+        with self.subTest("fully deactivated device blocks command creation"):
+            dc.device.config.set_status_deactivated()
+            device = Device.objects.get(pk=dc.device.pk)
+            command = Command(
+                device=device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            with self.assertRaises(ValidationError) as ctx:
+                command.clean()
+            self.assertIn("device", ctx.exception.message_dict)
+            self.assertEqual(
+                ctx.exception.message_dict["device"], ["Device is deactivated."]
+            )
+
     @tag("skip_prod")
     def test_enabled_command(self):
         self.assertEqual(

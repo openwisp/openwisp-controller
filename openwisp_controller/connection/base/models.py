@@ -481,7 +481,7 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
-        if self.device.is_deactivated():
+        if self.device.is_fully_deactivated():
             raise ValidationError({"device": _("Device is deactivated.")})
         self._verify_command_type_allowed()
         self._verify_connection()
@@ -554,10 +554,11 @@ class AbstractCommand(TimeStampedEditableModel):
             raise RuntimeError(
                 "This command has already been executed, " "please create a new one."
             )
-        # Guard against a device that was deactivated after the command was queued.
-        # Command.clean() already rejects creation for deactivated devices, but
-        # the device could be deactivated while the task is still pending.
-        if self.device.is_deactivated():
+        # Guard against a device that was fully deactivated after the command was
+        # queued. Command.clean() already rejects creation for fully deactivated
+        # devices, but the device could be fully deactivated while the task
+        # is still pending.
+        if self.device.is_fully_deactivated():
             self.status = "failed"
             self._add_output("Device is deactivated.")
         else:

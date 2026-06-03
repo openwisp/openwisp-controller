@@ -186,6 +186,29 @@ class TestTasks(CreateConnectionsMixin, TestCase):
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
     )
+    def test_launch_command_deactivating_device_not_blocked(self, mocked_exec_command):
+        mocked_exec_command.return_value = 0
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "/usr/sbin/exotic_command"},
+        )
+        command.full_clean()
+        command.save()
+        # Device deactivation has started but config is still deactivating
+        dc.device._is_deactivated = True
+        dc.device.save(update_fields=["_is_deactivated"])
+        dc.device.config.set_status_deactivating()
+        tasks.launch_command.delay(command.pk)
+        command.refresh_from_db()
+        self.assertNotEqual(command.output, "Device is deactivated.\n")
+        mocked_exec_command.assert_called_once()
+
+    @mock.patch(
+        "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
+    )
     def test_launch_command_deactivated_device(self, mocked_exec_command):
         dc = self._create_device_connection()
         command = Command(
