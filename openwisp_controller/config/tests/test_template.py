@@ -1373,6 +1373,42 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             "Certificate was erroneously revoked during reordering!",
         )
 
+    def test_cert_template_partial_replacement_cleans_up(self):
+        """
+        Verify that when a subset of templates is replaced via .set(..., clear=True),
+        the DeviceCertificates for the removed templates are correctly deleted,
+        while the kept ones survive.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+
+        cert_template_1 = self._create_template(
+            name="Cert Template 1", type="cert", ca=ca, organization=org, config={}
+        )
+        cert_template_2 = self._create_template(
+            name="Cert Template 2", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.set([cert_template_1, cert_template_2])
+        self.assertEqual(
+            config.devicecertificate_set.count(), 2, "Two certs should be created"
+        )
+        kept_cert_id = config.devicecertificate_set.get(template=cert_template_1).pk
+        removed_cert_id = config.devicecertificate_set.get(template=cert_template_2).pk
+        config.templates.set([cert_template_1], clear=True)
+        self.assertEqual(
+            config.devicecertificate_set.count(), 1, "Only one cert should remain"
+        )
+        self.assertTrue(
+            config.devicecertificate_set.filter(pk=kept_cert_id).exists(),
+            "The kept template's certificate should have survived.",
+        )
+        self.assertFalse(
+            config.devicecertificate_set.filter(pk=removed_cert_id).exists(),
+            "The removed template's certificate should have been deleted.",
+        )
+
     def test_get_unassigned_certs_with_null_device_cert(self):
         """
         Test that a DeviceCertificate with cert=None does not poison
