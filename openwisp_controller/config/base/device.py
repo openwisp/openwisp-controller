@@ -183,9 +183,11 @@ class AbstractDevice(OrgMixin, BaseModel):
         )
 
     def is_deactivated(self):
+        """Return whether deactivation has been initiated."""
         return self._is_deactivated
 
     def is_fully_deactivated(self):
+        """Return whether the device and its configuration are fully deactivated."""
         return self.is_deactivated() and (
             not self._has_config() or self.config.is_deactivated()
         )

@@ -416,7 +416,7 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         try:
             device = self.model.objects.select_related("config").get(key=key)
             if device.is_deactivated():
-                return ControllerResponse(_("error: device deactivated"), status=403)
+                return ControllerResponse("error: device deactivated", status=403)
             # update device info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:

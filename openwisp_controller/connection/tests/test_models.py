@@ -375,7 +375,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
 
     def test_auto_add_to_new_deactivated_device(self):
-        org = Organization.objects.first()
+        org = self._get_org()
         self._create_credentials(auto_add=True, organization=None)
         device = self._create_device(organization=org, name="deactivated-device")
         device.deactivate()

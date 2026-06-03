@@ -1000,7 +1000,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         config = Config.objects.get(pk=instance_id)
         # All modification operations are blocked on deactivated devices.
         # Thus, a user cannot edit the backend for device when it is deactivating.
-        # Therefore. it will be safe to block this operation here.
+        # Therefore, it will be safe to block this operation here.
         if config.is_deactivating_or_deactivated():
             return
         device_group = config.device.group
