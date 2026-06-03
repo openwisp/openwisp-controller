@@ -240,6 +240,15 @@ class TestEstimatedLocationTransaction(
         with mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True):
             register_estimated_location_notification_types()
 
+    def _warm_org_geo_settings_cache(self, device):
+        # Keep the OrganizationGeoSettings cache warm so the
+        # manage_estimated_locations query count stays deterministic: under a full
+        # suite LocMemCache culling can evict the cached entry between subtests,
+        # adding one geo_organizationgeosettings query and breaking assertNumQueries.
+        EstimatedLocationService.check_estimated_location_enabled(
+            device.organization_id
+        )
+
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_WHOIS_GEOIP_CLIENT)
@@ -447,6 +456,7 @@ class TestEstimatedLocationTransaction(
             mock_client.return_value.city.return_value = mocked_response
             device.save()
             device.refresh_from_db()
+            self._warm_org_geo_settings_cache(device)
             with self.assertNumQueries(8):
                 manage_estimated_locations(device.pk, device.last_ip)
 
@@ -471,6 +481,7 @@ class TestEstimatedLocationTransaction(
             mock_client.return_value.city.return_value = mocked_response
             device.save()
             device.refresh_from_db()
+            self._warm_org_geo_settings_cache(device)
             with self.assertNumQueries(8):
                 manage_estimated_locations(device.pk, device.last_ip)
 
@@ -495,6 +506,7 @@ class TestEstimatedLocationTransaction(
             device.devicelocation.location.save(_set_estimated=True)
             device.save()
             device.refresh_from_db()
+            self._warm_org_geo_settings_cache(device)
             with self.assertNumQueries(2):
                 manage_estimated_locations(device.pk, device.last_ip)
 
