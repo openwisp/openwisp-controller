@@ -13,6 +13,7 @@ from swapper import load_model
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from ..base.template import get_unassigned_certs
 from ..signals import config_modified, config_status_changed
 from ..tasks import auto_add_template_to_existing_configs
 from ..tasks import logger as task_logger
@@ -1371,3 +1372,24 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             surviving_dev_cert.cert.revoked,
             "Certificate was erroneously revoked during reordering!",
         )
+
+    def test_get_unassigned_certs_with_null_device_cert(self):
+        """
+        Test that a DeviceCertificate with cert=None does not poison
+        the get_unassigned_certs() SQL query due to NULL semantics.
+        """
+        org = self._get_org()
+        ca = self._create_ca(name="Test-CA", organization=org)
+        unassigned_cert = self._create_cert(
+            name="Available-Blueprint", ca=ca, organization=org
+        )
+        device = self._create_device(name="Test-Device", organization=org)
+        config = self._create_config(device=device)
+        template = self._create_template(
+            name="Test-Template", type="cert", ca=ca, organization=org, config={}
+        )
+        DeviceCertificate.objects.create(config=config, template=template, cert=None)
+        choices = get_unassigned_certs()
+        queryset = choices.get("pk__in")
+        self.assertIsNotNone(queryset)
+        self.assertIn(unassigned_cert, queryset)

@@ -519,6 +519,14 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if action == "post_clear":
             if instance.is_deactivating_or_deactivated():
                 instance.devicecertificate_set.all().delete()
+            else:
+                # If this is a reorder, the subsequent 'add' will complete first,
+                # saving the certs. If it is a pure clear, the certs will be deleted.
+                transaction.on_commit(
+                    lambda: instance.devicecertificate_set.exclude(
+                        template_id__in=instance.templates.values_list("id", flat=True)
+                    ).delete()
+                )
             return
 
         # normalize templates across standard M2M sets vs Admin ModelForm querysets
