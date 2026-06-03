@@ -375,7 +375,10 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             ).delete()
 
         if action == "post_add":
-            for template in templates.filter(type="vpn"):
+            # Reconcile against the full current VPN-template set (not just this
+            # cycle's pk_set delta) so the create stays idempotent across the
+            # multiple m2m cycles a single template change fires.
+            for template in instance.templates.filter(type="vpn"):
                 # Create VPN client if needed
                 if not vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn, template=template
