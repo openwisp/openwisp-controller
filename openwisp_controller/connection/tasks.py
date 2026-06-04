@@ -71,9 +71,6 @@ def launch_command(command_id):
     Launches execution of commands in the background
     """
     Command = load_model("connection", "Command")
-    # imported lazily because models imports this module (avoids a circular import)
-    from .base.models import _save_without_resurrecting
-
     try:
         command = Command.objects.get(pk=command_id)
     except Command.DoesNotExist as e:
@@ -84,18 +81,18 @@ def launch_command(command_id):
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
-        _save_without_resurrecting(command)
+        command._save_without_resurrecting()
     except CommandTimeoutException as e:
         command.status = "failed"
         command._add_output(_(f"The command took longer than expected: {e}"))
-        _save_without_resurrecting(command)
+        command._save_without_resurrecting()
     except Exception as e:
         logger.exception(
             f"An exception was raised while executing command {command_id}"
         )
         command.status = "failed"
         command._add_output(_(f"Internal system error: {e}"))
-        _save_without_resurrecting(command)
+        command._save_without_resurrecting()
 
 
 @shared_task(soft_time_limit=3600)

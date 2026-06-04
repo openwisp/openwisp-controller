@@ -51,7 +51,7 @@ def _save_without_resurrecting(instance):
     try:
         instance.save(force_update=True)
     except DatabaseError:
-        if type(instance)._base_manager.filter(pk=instance.pk).exists():
+        if instance._meta.model.objects.filter(pk=instance.pk).exists():
             logger.error(
                 "Failed to persist %s %s", type(instance).__name__, instance.pk
             )
@@ -377,7 +377,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
-            _save_without_resurrecting(self)
+            self._save_without_resurrecting()
         return self.is_working
 
     def disconnect(self):
@@ -399,6 +399,11 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.send_is_working_changed_signal()
         self._initial_is_working = self.is_working
         self._initial_failure_reason = self.failure_reason
+
+    def _save_without_resurrecting(self):
+        """Delegate to the module-level helper of the same name (kept as a
+        method so callers such as launch_command need no import)."""
+        _save_without_resurrecting(self)
 
     def send_is_working_changed_signal(self):
         is_working_changed.send(
@@ -539,6 +544,11 @@ class AbstractCommand(TimeStampedEditableModel):
             self._schedule_command()
         return output
 
+    def _save_without_resurrecting(self):
+        """Delegate to the module-level helper of the same name (kept as a
+        method so callers such as launch_command need no import)."""
+        _save_without_resurrecting(self)
+
     def _schedule_command(self):
         """
         executes ``launch_command`` celery taks in the background
@@ -561,7 +571,7 @@ class AbstractCommand(TimeStampedEditableModel):
         # do not perform the remote action for a command that no longer exists.
         if (
             not self._state.adding
-            and not type(self)._base_manager.filter(pk=self.pk).exists()
+            and not self._meta.model.objects.filter(pk=self.pk).exists()
         ):
             return
         exit_code = self._exec_command()
@@ -577,11 +587,7 @@ class AbstractCommand(TimeStampedEditableModel):
         else:
             self.status = "success"
         self._clean_sensitive_info()
-        # use the resurrection-safe save: execute() runs from a background task
-        # that can race a deletion of this command (or its device), and a
-        # resurrecting INSERT here raises a FOREIGN KEY error that can corrupt
-        # the live-server DB connection during selenium tests.
-        _save_without_resurrecting(self)
+        self._save_without_resurrecting()
 
     def _exec_command(self):
         """
