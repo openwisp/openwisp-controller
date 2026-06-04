@@ -207,3 +207,24 @@ class TestTransactionTasks(
         ):
             with self.assertRaises(DatabaseError):
                 dc.connect()
+
+    @mock.patch("paramiko.SSHClient.connect")
+    def test_execute_does_not_resurrect_deleted_command(self, *args):
+        # execute() runs from a background task and can race a deletion of the
+        # command (or its device); its final save must not resurrect the deleted
+        # row, whose FK error can corrupt the live-server DB during selenium
+        # tests.
+        with mock.patch("openwisp_controller.connection.base.models.launch_command"):
+            dc = self._create_device_connection()
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.full_clean()
+            command.save()
+        Command.objects.filter(pk=command.pk).delete()
+        with mock.patch.object(command, "_exec_command", return_value=0):
+            command.execute()
+        self.assertFalse(Command.objects.filter(pk=command.pk).exists())

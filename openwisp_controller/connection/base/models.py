@@ -35,6 +35,29 @@ from ..tasks import auto_add_credentials_to_devices, launch_command
 logger = logging.getLogger(__name__)
 
 
+def _save_without_resurrecting(instance):
+    """
+    Persists ``instance`` without resurrecting a row that was deleted
+    concurrently (e.g. a background command racing a deletion or a test
+    teardown). A plain save() would find no row to update and fall back to an
+    INSERT, recreating the row with dangling foreign keys; the resulting
+    IntegrityError can also break the live-server database connection during
+    selenium tests. Force an UPDATE so no INSERT can happen, ignore the case
+    where the row is already gone, and re-raise any other database error.
+    """
+    if instance._state.adding:
+        instance.save()
+        return
+    try:
+        instance.save(force_update=True)
+    except DatabaseError:
+        if type(instance)._base_manager.filter(pk=instance.pk).exists():
+            logger.error(
+                "Failed to persist %s %s", type(instance).__name__, instance.pk
+            )
+            raise
+
+
 class ConnectorMixin(object):
     _connector_field = "connector"
 
@@ -354,24 +377,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
-            # Force an UPDATE so save() cannot fall back to an INSERT and
-            # resurrect a connection whose row was deleted (e.g. a background
-            # command racing a deletion or test teardown) with a dangling device
-            # foreign key.
-            if self._state.adding:
-                self.save()
-            else:
-                try:
-                    self.save(force_update=True)
-                except DatabaseError:
-                    # If the row is gone there is nothing to persist, so the
-                    # deletion race is ignored; any other write failure is a
-                    # genuine error that must be logged and re-raised.
-                    if type(self)._base_manager.filter(pk=self.pk).exists():
-                        logger.error(
-                            "Failed to persist connection attempt for %s", self.pk
-                        )
-                        raise
+            _save_without_resurrecting(self)
         return self.is_working
 
     def disconnect(self):
@@ -563,7 +569,11 @@ class AbstractCommand(TimeStampedEditableModel):
         else:
             self.status = "success"
         self._clean_sensitive_info()
-        self.save()
+        # use the resurrection-safe save: execute() runs from a background task
+        # that can race a deletion of this command (or its device), and a
+        # resurrecting INSERT here raises a FOREIGN KEY error that can corrupt
+        # the live-server DB connection during selenium tests.
+        _save_without_resurrecting(self)
 
     def _exec_command(self):
         """
