@@ -679,6 +679,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
             form = ChangeDeviceGroupForm(data=request.POST, org_id=org_id)
             if form.is_valid():
                 group = form.cleaned_data["device_group"]
+                queryset = queryset.filter(_is_deactivated=False)
                 # Evaluate queryset to store old group id
                 old_group_qs = list(queryset)
                 queryset.update(group=group or None)

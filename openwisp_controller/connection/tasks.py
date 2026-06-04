@@ -46,6 +46,9 @@ def update_config(self, device_id):
     time.sleep(2)
     try:
         device = Device.objects.select_related("config").get(pk=device_id)
+        if device.is_fully_deactivated():
+            logger.info(f"{device} (pk: {device_id}) is deactivated, skipping update")
+            return
         # abort operation if device shouldn't be updated
         if not device.can_be_updated():
             logger.info(f"{device} (pk: {device_id}) is not going to be updated")

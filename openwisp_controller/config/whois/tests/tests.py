@@ -1013,15 +1013,20 @@ class TestWHOISTransaction(
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_fetch_whois_details_skips_when_deactivated(self, mock_client, mock_info):
+        # Device whose IP changed to 8.8.8.8 but was deactivated before the task ran.
+        # The new-IP lookup must be skipped, and the stale WHOIS row for the old IP
+        # (1.2.3.4) must be cleaned up.
+        self._create_whois_info(ip_address="1.2.3.4")
         whois_obj = self._create_whois_info(ip_address="8.8.8.8")
         device = self._create_device(last_ip=whois_obj.ip_address)
         mock_client.reset_mock()
         device.deactivate()
-        fetch_whois_details(device_pk=device.pk, initial_ip_address="10.0.0.1")
+        fetch_whois_details(device_pk=device.pk, initial_ip_address="1.2.3.4")
         mock_info.assert_called_once_with(
             f"Device {device.pk} is deactivated, skipping WHOIS lookup"
         )
         mock_client.assert_not_called()
+        self.assertEqual(WHOISInfo.objects.filter(ip_address="1.2.3.4").count(), 0)
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)

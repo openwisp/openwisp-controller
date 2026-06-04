@@ -786,6 +786,22 @@ class TestController(
         d.refresh_from_db()
         self.assertIsNotNone(d.config)
 
+    @capture_any_output()
+    def test_register_deactivated_device(self):
+        device = self._create_device_config()
+        device.key = TEST_CONSISTENT_KEY
+        device.save()
+        device.deactivate()
+        original_os = device.os
+        params = self._get_reregistration_payload(
+            device, name=device.name, os="OpenWrt 22.03"
+        )
+        response = self.client.post(self.register_url, params)
+        self.assertContains(response, "error: device deactivated", status_code=403)
+        device.refresh_from_db()
+        self.assertEqual(device.os, original_os)
+        self.assertEqual(device.config.templates.count(), 0)
+
     def test_device_registration_update_hw_info(self):
         d = self._create_device_config()
         d.key = TEST_CONSISTENT_KEY
@@ -1075,9 +1091,37 @@ class TestController(
             self.assertEqual(d.model, params["model"])
 
     def test_deactivated_device_update_info(self):
-        self._test_deactivating_deactivated_device_view(
-            "device_update_info", method="post", data={}
-        )
+        # Inventory metadata updates must be rejected for deactivated devices,
+        # including the transient "deactivating" state (which GetDeviceView does
+        # not exclude on its own).
+        self._create_template(required=True)
+        device = self._create_device_config()
+        url = reverse("controller:device_update_info", args=[device.pk])
+        params = {
+            "key": device.key,
+            "model": "TP-Link TL-WDR4300 v2",
+            "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
+            "system": "Atheros AR9344 rev 3",
+        }
+        device.deactivate()
+        device.refresh_from_db()
+        self.assertEqual(device.config.status, "deactivating")
+        initial = (device.os, device.model, device.system)
+        # payload must differ from current values so a missed block is detectable
+        self.assertNotEqual((params["os"], params["model"], params["system"]), initial)
+
+        with self.subTest("rejected while deactivating"):
+            response = self.client.post(url, params)
+            self.assertEqual(response.status_code, 403)
+            self._check_header(response)
+            device.refresh_from_db()
+            # metadata must be left untouched
+            self.assertEqual((device.os, device.model, device.system), initial)
+
+        with self.subTest("not found once fully deactivated"):
+            device.config.set_status_deactivated()
+            response = self.client.post(url, params)
+            self.assertEqual(response.status_code, 404)
 
     def test_device_update_info_bad_uuid(self):
         d = self._create_device_config()
