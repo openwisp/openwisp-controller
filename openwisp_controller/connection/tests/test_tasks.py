@@ -229,3 +229,26 @@ class TestTransactionTasks(
             command.execute()
         mocked_exec.assert_not_called()
         self.assertFalse(Command.objects.filter(pk=command.pk).exists())
+
+    @mock.patch("paramiko.SSHClient.connect")
+    def test_launch_command_handler_does_not_resurrect_deleted_command(self, *args):
+        # If the command is deleted while execute() runs and execute() then
+        # raises, launch_command's exception handler must not resurrect it.
+        with mock.patch("openwisp_controller.connection.base.models.launch_command"):
+            dc = self._create_device_connection()
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.full_clean()
+            command.save()
+
+        def _delete_then_raise(self):
+            Command.objects.filter(pk=self.pk).delete()
+            raise RuntimeError("boom")
+
+        with mock.patch.object(Command, "execute", _delete_then_raise):
+            tasks.launch_command(command.pk)
+        self.assertFalse(Command.objects.filter(pk=command.pk).exists())
