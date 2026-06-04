@@ -5,13 +5,13 @@ on:
   push:
     branches:
       - master
+      - "gsoc26-*"
   pull_request:
     branches:
       - master
       - "1.1"
       - "1.2"
-      - "gsoc26-x509-certificate-generator-templates"
-      - "gsoc26-mass-commands"
+      - "gsoc26-*"
 
 jobs:
   build:
@@ -100,7 +100,7 @@ jobs:
         with:
           parallel: true
           format: cobertura
-          flag-name: python-${{ matrix.env.env }}
+          flag-name: python-${{ matrix.python-version }}-${{ matrix.django-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
 
