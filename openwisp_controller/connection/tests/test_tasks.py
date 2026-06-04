@@ -4,6 +4,7 @@ from io import StringIO
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
+from django.db import DatabaseError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
@@ -194,3 +195,15 @@ class TestTransactionTasks(
         DeviceConnection.objects.filter(pk=dc.pk).delete()
         dc.connect()
         self.assertFalse(DeviceConnection.objects.filter(pk=dc.pk).exists())
+
+    @mock.patch("paramiko.SSHClient.connect", side_effect=Exception("boom"))
+    def test_connect_reraises_genuine_db_error(self, *args):
+        # Only the deleted-row case is ignored: a real database write failure
+        # while the connection still exists must be re-raised, not swallowed.
+        DeviceConnection = load_model("connection", "DeviceConnection")
+        dc = self._create_device_connection()
+        with mock.patch.object(
+            DeviceConnection, "save", side_effect=DatabaseError("boom")
+        ):
+            with self.assertRaises(DatabaseError):
+                dc.connect()

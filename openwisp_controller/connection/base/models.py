@@ -354,18 +354,24 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
-            # Avoid resurrecting a connection whose row was deleted (e.g. a
-            # background command racing a deletion or test teardown): force an
-            # UPDATE so save() cannot fall back to an INSERT with a dangling
-            # device foreign key, and ignore the error Django raises when there
-            # is no row to update.
+            # Force an UPDATE so save() cannot fall back to an INSERT and
+            # resurrect a connection whose row was deleted (e.g. a background
+            # command racing a deletion or test teardown) with a dangling device
+            # foreign key.
             if self._state.adding:
                 self.save()
             else:
                 try:
                     self.save(force_update=True)
                 except DatabaseError:
-                    pass
+                    # If the row is gone there is nothing to persist, so the
+                    # deletion race is ignored; any other write failure is a
+                    # genuine error that must be logged and re-raised.
+                    if type(self)._base_manager.filter(pk=self.pk).exists():
+                        logger.error(
+                            "Failed to persist connection attempt for %s", self.pk
+                        )
+                        raise
         return self.is_working
 
     def disconnect(self):
