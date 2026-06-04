@@ -367,7 +367,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             # should be deleted based on the new selection.
             #
             # Therefore, we defer deletion of VpnClient objects until the "post_add"
-            # signal is triggered again—after all templates, including the required
+            # signal is triggered again, after all templates, including the required
             # ones, have been fully added. At that point, we can identify and
             # delete VpnClient objects not linked to the final template set.
             instance.vpnclient_set.exclude(

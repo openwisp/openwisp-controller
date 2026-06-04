@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
+from django.core.cache import cache
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
@@ -1347,8 +1348,6 @@ class TestConfigApiTransaction(
         # default one: tests (e.g. whois) call cache.clear() on the default
         # cache and parallel workers share it, so storing sessions there made
         # the session disappear mid-test and produced flaky 401 responses.
-        from django.core.cache import cache
-
         path = reverse("config_api:device_list")
         self.assertEqual(self.client.get(path).status_code, 200)
         cache.clear()

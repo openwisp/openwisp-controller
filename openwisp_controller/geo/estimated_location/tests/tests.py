@@ -242,9 +242,10 @@ class TestEstimatedLocationTransaction(
 
     def _warm_org_geo_settings_cache(self, device):
         # Keep the OrganizationGeoSettings cache warm so the
-        # manage_estimated_locations query count stays deterministic: under a full
-        # suite LocMemCache culling can evict the cached entry between subtests,
-        # adding one geo_organizationgeosettings query and breaking assertNumQueries.
+        # manage_estimated_locations query count stays deterministic: other tests
+        # (e.g. whois) call cache.clear() on the shared cache, which can drop the
+        # cached entry between subtests, adding one geo_organizationgeosettings
+        # query and breaking assertNumQueries.
         EstimatedLocationService.check_estimated_location_enabled(
             device.organization_id
         )
