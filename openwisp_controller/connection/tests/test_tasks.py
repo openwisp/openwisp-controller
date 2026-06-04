@@ -4,6 +4,7 @@ from io import StringIO
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
+from django.db import DatabaseError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
@@ -244,3 +245,73 @@ class TestTransactionTasks(
         )
         self.assertEqual(response.status_code, 201)
         mocked_update_config.assert_not_called()
+
+    @mock.patch("paramiko.SSHClient.connect", side_effect=Exception("boom"))
+    def test_connect_does_not_resurrect_deleted_connection(self, *args):
+        # A background command (launch_command) can run against a connection
+        # whose row was already deleted by a concurrent deletion or test
+        # teardown. connect() records the attempt with save(); it must not
+        # resurrect the deleted row (an INSERT with a dangling device FK),
+        # which used to surface as flaky "FOREIGN KEY constraint failed".
+        DeviceConnection = load_model("connection", "DeviceConnection")
+        dc = self._create_device_connection()
+        DeviceConnection.objects.filter(pk=dc.pk).delete()
+        dc.connect()
+        self.assertFalse(DeviceConnection.objects.filter(pk=dc.pk).exists())
+
+    @mock.patch("paramiko.SSHClient.connect", side_effect=Exception("boom"))
+    def test_connect_reraises_genuine_db_error(self, *args):
+        # Only the deleted-row case is ignored: a real database write failure
+        # while the connection still exists must be re-raised, not swallowed.
+        DeviceConnection = load_model("connection", "DeviceConnection")
+        dc = self._create_device_connection()
+        with mock.patch.object(
+            DeviceConnection, "save", side_effect=DatabaseError("boom")
+        ):
+            with self.assertRaises(DatabaseError):
+                dc.connect()
+
+    @mock.patch("paramiko.SSHClient.connect")
+    def test_execute_skips_deleted_command(self, *args):
+        # A command deleted after being scheduled (e.g. racing a deletion or a
+        # test teardown) must not be sent to the device and must not be
+        # resurrected by its trailing save (whose FK error can corrupt the
+        # live-server DB during selenium tests).
+        with mock.patch("openwisp_controller.connection.base.models.launch_command"):
+            dc = self._create_device_connection()
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.full_clean()
+            command.save()
+        Command.objects.filter(pk=command.pk).delete()
+        with mock.patch.object(command, "_exec_command") as mocked_exec:
+            command.execute()
+        mocked_exec.assert_not_called()
+        self.assertFalse(Command.objects.filter(pk=command.pk).exists())
+
+    @mock.patch("paramiko.SSHClient.connect")
+    def test_launch_command_handler_does_not_resurrect_deleted_command(self, *args):
+        # If the command is deleted while execute() runs and execute() then
+        # raises, launch_command's exception handler must not resurrect it.
+        with mock.patch("openwisp_controller.connection.base.models.launch_command"):
+            dc = self._create_device_connection()
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.full_clean()
+            command.save()
+
+        def _delete_then_raise(self):
+            Command.objects.filter(pk=self.pk).delete()
+            raise RuntimeError("boom")
+
+        with mock.patch.object(Command, "execute", _delete_then_raise):
+            tasks.launch_command(command.pk)
+        self.assertFalse(Command.objects.filter(pk=command.pk).exists())
