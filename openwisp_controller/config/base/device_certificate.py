@@ -90,7 +90,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         """
         ca = self.template.ca
         blueprint = self.template.blueprint_cert
-        # device = self.config.device
+        device = self.config.device
         cert_model = self.__class__.cert.field.related_model
 
         # blueprint property cloning with CA fallback
@@ -110,20 +110,22 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
             extensions = [{"name": "nsCertType", "value": "client", "critical": False}]
 
         # inject MAC and UUID as custom OIDs, prerequisite: #228 in django-x509
-        # mac_oid = "1.3.6.1.4.1.65901.1"
-        # uuid_oid = "1.3.6.1.4.1.65901.2"
-        # extensions.extend([
-        #     {
-        #         "oid": mac_oid,
-        #         "value": f"ASN1:UTF8:string:{device.mac_address}",
-        #         "critical": False
-        #     },
-        #     {
-        #         "oid": uuid_oid,
-        #         "value": f"ASN1:UTF8:string:{device.id}",
-        #         "critical": False
-        #     }
-        # ])
+        mac_oid = "1.3.6.1.4.1.65901.1"
+        uuid_oid = "1.3.6.1.4.1.65901.2"
+        extensions.extend(
+            [
+                {
+                    "oid": mac_oid,
+                    "value": f"ASN1:UTF8:string:{device.mac_address}",
+                    "critical": False,
+                },
+                {
+                    "oid": uuid_oid,
+                    "value": f"ASN1:UTF8:string:{device.id}",
+                    "critical": False,
+                },
+            ]
+        )
         cert = cert_model(
             name=name,
             ca=ca,

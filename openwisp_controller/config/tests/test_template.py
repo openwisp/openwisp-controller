@@ -1262,33 +1262,30 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
                 )
             )
 
-        # uncomment after #228 in django-x509
-        # with self.subTest("Injects custom MAC and UUID OIDs"):
-        #     extensions = generated_cert.extensions
-        #     mac_oid = "1.3.6.1.4.1.65901.1"
-        #     uuid_oid = "1.3.6.1.4.1.65901.2"
-        #     mac_ext = next(
-        #         (
-        #             ext
-        #             for ext in extensions
-        #             if ext.get("oid") == mac_oid
-        #             or ext.get("name") == mac_oid
-        #         ),
-        #         None,
-        #     )
-        #     uuid_ext = next(
-        #         (
-        #             ext
-        #             for ext in extensions
-        #             if ext.get("oid") == uuid_oid
-        #             or ext.get("name") == uuid_oid
-        #         ),
-        #         None,
-        #     )
-        #     self.assertIsNotNone(mac_ext, "MAC OID extension missing")
-        #     self.assertIn(device.mac_address, mac_ext["value"])
-        #     self.assertIsNotNone(uuid_ext, "UUID OID extension missing")
-        #     self.assertIn(str(device.id), uuid_ext["value"])
+        with self.subTest("Injects custom MAC and UUID OIDs"):
+            extensions = generated_cert.extensions
+            mac_oid = "1.3.6.1.4.1.65901.1"
+            uuid_oid = "1.3.6.1.4.1.65901.2"
+            mac_ext = next(
+                (
+                    ext
+                    for ext in extensions
+                    if ext.get("oid") == mac_oid or ext.get("name") == mac_oid
+                ),
+                None,
+            )
+            uuid_ext = next(
+                (
+                    ext
+                    for ext in extensions
+                    if ext.get("oid") == uuid_oid or ext.get("name") == uuid_oid
+                ),
+                None,
+            )
+            self.assertIsNotNone(mac_ext, "MAC OID extension missing")
+            self.assertIn(device.mac_address, mac_ext["value"])
+            self.assertIsNotNone(uuid_ext, "UUID OID extension missing")
+            self.assertIn(str(device.id), uuid_ext["value"])
 
         with self.subTest("Secure Revocation (post_remove)"):
             cert_pk = generated_cert.pk
