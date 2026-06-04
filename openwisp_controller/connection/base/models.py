@@ -4,7 +4,7 @@ import django
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models, transaction
+from django.db import DatabaseError, models, transaction
 from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -33,6 +33,25 @@ from ..signals import is_working_changed
 from ..tasks import auto_add_credentials_to_devices, launch_command
 
 logger = logging.getLogger(__name__)
+
+
+def _save_without_resurrecting(instance):
+    """
+    Save an existing object without recreating it if its row was deleted by a
+    concurrent task. Plain save() may fall back to INSERT when UPDATE affects no
+    rows, so use force_update=True and ignore only the missing-row case.
+    """
+    if instance._state.adding:
+        instance.save()
+        return
+    try:
+        instance.save(force_update=True)
+    except DatabaseError:
+        if instance._meta.model.objects.filter(pk=instance.pk).exists():
+            logger.error(
+                "Failed to persist %s %s", type(instance).__name__, instance.pk
+            )
+            raise
 
 
 class ConnectorMixin(object):
@@ -354,7 +373,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
-            self.save()
+            self._save_without_resurrecting()
         return self.is_working
 
     def disconnect(self):
@@ -376,6 +395,9 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.send_is_working_changed_signal()
         self._initial_is_working = self.is_working
         self._initial_failure_reason = self.failure_reason
+
+    def _save_without_resurrecting(self):
+        _save_without_resurrecting(self)
 
     def send_is_working_changed_signal(self):
         is_working_changed.send(
@@ -516,6 +538,9 @@ class AbstractCommand(TimeStampedEditableModel):
             self._schedule_command()
         return output
 
+    def _save_without_resurrecting(self):
+        _save_without_resurrecting(self)
+
     def _schedule_command(self):
         """
         executes ``launch_command`` celery taks in the background
@@ -533,6 +558,13 @@ class AbstractCommand(TimeStampedEditableModel):
             raise RuntimeError(
                 "This command has already been executed, " "please create a new one."
             )
+        # The command may have been deleted after being scheduled. If so, do not
+        # send it to the device.
+        if (
+            not self._state.adding
+            and not self._meta.model.objects.filter(pk=self.pk).exists()
+        ):
+            return
         exit_code = self._exec_command()
         # if output is None, the commands couldn't execute
         # because the system couldn't connect to the device
@@ -546,7 +578,7 @@ class AbstractCommand(TimeStampedEditableModel):
         else:
             self.status = "success"
         self._clean_sensitive_info()
-        self.save()
+        self._save_without_resurrecting()
 
     def _exec_command(self):
         """

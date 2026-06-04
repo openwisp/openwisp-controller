@@ -81,18 +81,18 @@ def launch_command(command_id):
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
-        command.save()
+        command._save_without_resurrecting()
     except CommandTimeoutException as e:
         command.status = "failed"
         command._add_output(_(f"The command took longer than expected: {e}"))
-        command.save()
+        command._save_without_resurrecting()
     except Exception as e:
         logger.exception(
             f"An exception was raised while executing command {command_id}"
         )
         command.status = "failed"
         command._add_output(_(f"Internal system error: {e}"))
-        command.save()
+        command._save_without_resurrecting()
 
 
 @shared_task(soft_time_limit=3600)
