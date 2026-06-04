@@ -556,6 +556,14 @@ class AbstractCommand(TimeStampedEditableModel):
             raise RuntimeError(
                 "This command has already been executed, " "please create a new one."
             )
+        # The command may have been deleted after being scheduled (e.g. by a
+        # user or by a cascading delete) while this background task was queued:
+        # do not perform the remote action for a command that no longer exists.
+        if (
+            not self._state.adding
+            and not type(self)._base_manager.filter(pk=self.pk).exists()
+        ):
+            return
         exit_code = self._exec_command()
         # if output is None, the commands couldn't execute
         # because the system couldn't connect to the device
