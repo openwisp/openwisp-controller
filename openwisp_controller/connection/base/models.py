@@ -37,13 +37,9 @@ logger = logging.getLogger(__name__)
 
 def _save_without_resurrecting(instance):
     """
-    Persists ``instance`` without resurrecting a row that was deleted
-    concurrently (e.g. a background command racing a deletion or a test
-    teardown). A plain save() would find no row to update and fall back to an
-    INSERT, recreating the row with dangling foreign keys; the resulting
-    IntegrityError can also break the live-server database connection during
-    selenium tests. Force an UPDATE so no INSERT can happen, ignore the case
-    where the row is already gone, and re-raise any other database error.
+    Save an existing object without recreating it if its row was deleted by a
+    concurrent task. Plain save() may fall back to INSERT when UPDATE affects no
+    rows, so use force_update=True and ignore only the missing-row case.
     """
     if instance._state.adding:
         instance.save()
@@ -401,8 +397,6 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         self._initial_failure_reason = self.failure_reason
 
     def _save_without_resurrecting(self):
-        """Delegate to the module-level helper of the same name (kept as a
-        method so callers such as launch_command need no import)."""
         _save_without_resurrecting(self)
 
     def send_is_working_changed_signal(self):
@@ -545,8 +539,6 @@ class AbstractCommand(TimeStampedEditableModel):
         return output
 
     def _save_without_resurrecting(self):
-        """Delegate to the module-level helper of the same name (kept as a
-        method so callers such as launch_command need no import)."""
         _save_without_resurrecting(self)
 
     def _schedule_command(self):
@@ -566,9 +558,8 @@ class AbstractCommand(TimeStampedEditableModel):
             raise RuntimeError(
                 "This command has already been executed, " "please create a new one."
             )
-        # The command may have been deleted after being scheduled (e.g. by a
-        # user or by a cascading delete) while this background task was queued:
-        # do not perform the remote action for a command that no longer exists.
+        # The command may have been deleted after being scheduled. If so, do not
+        # send it to the device.
         if (
             not self._state.adding
             and not self._meta.model.objects.filter(pk=self.pk).exists()

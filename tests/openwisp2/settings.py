@@ -167,10 +167,8 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
     },
-    # Sessions are kept in a dedicated cache so that tests calling
-    # cache.clear() on the default cache (whois tests do, and parallel
-    # workers share the same cache) cannot wipe the authenticated session
-    # mid-test, which caused flaky 401 responses.
+    # Keep sessions outside the default cache because some tests clear it while
+    # parallel workers may still be using authenticated clients.
     "sessions": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": f"{REDIS_URL}/8",
