@@ -130,8 +130,12 @@ class BaseDeviceConnection(
         return Device.objects.filter(pk=self.kwargs["device_id"])
 
 
-class DeviceConnenctionListCreateView(BaseDeviceConnection, ListCreateAPIView):
+class DeviceConnectionListCreateView(BaseDeviceConnection, ListCreateAPIView):
     pagination_class = OpenWispPagination
+
+
+# TODO: remove in version 1.4
+DeviceConnenctionListCreateView = DeviceConnectionListCreateView
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
@@ -149,5 +153,8 @@ command_list_create_view = CommandListCreateView.as_view()
 command_details_view = CommandDetailsView.as_view()
 credential_list_create_view = CredentialListCreateView.as_view()
 credential_detail_view = CredentialDetailView.as_view()
-deviceconnection_list_create_view = DeviceConnenctionListCreateView.as_view()
-deviceconnection_details_view = DeviceConnectionDetailView.as_view()
+deviceconnection_list_create_view = DeviceConnectionListCreateView.as_view()
+deviceconnection_detail_view = DeviceConnectionDetailView.as_view()
+
+# TODO: remove in version 1.4
+deviceconnection_details_view = deviceconnection_detail_view
