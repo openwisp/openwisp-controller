@@ -76,6 +76,8 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     # so re-check here and do not run the external lookup for it.
     if device.is_deactivated():
         logger.info(f"Device {device_pk} is deactivated, skipping WHOIS lookup")
+        if initial_ip_address:
+            delete_whois_record(ip_address=initial_ip_address)
         return
     new_ip_address = device.last_ip
     whois_service = device.whois_service
