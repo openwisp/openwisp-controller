@@ -591,7 +591,6 @@ class AbstractCommand(TimeStampedEditableModel):
         # devices, but the device could be fully deactivated while the task
         # is still pending.
         if self.device.is_fully_deactivated():
-
             self.status = "failed"
             self._add_output("Device is deactivated.")
         else:
