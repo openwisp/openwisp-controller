@@ -94,7 +94,7 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         )
         mocked_sleep.assert_called_once()
 
-    @mock.patch("logging.Logger.info")
+    @mock.patch("openwisp_controller.connection.tasks.logger.info")
     @mock.patch("time.sleep")
     def test_update_config_skipped_for_deactivated_device(
         self, mocked_sleep, mocked_info
