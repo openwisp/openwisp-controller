@@ -166,7 +166,16 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-    }
+    },
+    # Keep sessions outside the default cache because some tests clear it while
+    # parallel workers may still be using authenticated clients.
+    "sessions": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"{REDIS_URL}/8",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    },
 }
 
 if not TESTING:
@@ -177,7 +186,7 @@ else:
     CELERY_BROKER_URL = "memory://"
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+SESSION_CACHE_ALIAS = "sessions"
 
 LOGGING = {
     "version": 1,

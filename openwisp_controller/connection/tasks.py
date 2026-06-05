@@ -46,6 +46,9 @@ def update_config(self, device_id):
     time.sleep(2)
     try:
         device = Device.objects.select_related("config").get(pk=device_id)
+        if device.is_fully_deactivated():
+            logger.info(f"{device} (pk: {device_id}) is deactivated, skipping update")
+            return
         # abort operation if device shouldn't be updated
         if not device.can_be_updated():
             logger.info(f"{device} (pk: {device_id}) is not going to be updated")
@@ -81,18 +84,18 @@ def launch_command(command_id):
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
-        command.save()
+        command._save_without_resurrecting()
     except CommandTimeoutException as e:
         command.status = "failed"
         command._add_output(_(f"The command took longer than expected: {e}"))
-        command.save()
+        command._save_without_resurrecting()
     except Exception as e:
         logger.exception(
             f"An exception was raised while executing command {command_id}"
         )
         command.status = "failed"
         command._add_output(_(f"Internal system error: {e}"))
-        command.save()
+        command._save_without_resurrecting()
 
 
 @shared_task(soft_time_limit=3600)

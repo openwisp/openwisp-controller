@@ -349,40 +349,31 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             return
 
         vpn_client_model = cls.vpn.through
-        # coming from signal
+        # Signals pass a set of template IDs.
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
             templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
                 "created"
             )
-        # coming from admin ModelForm
+        # Admin ModelForms pass template instances.
         else:
             templates = pk_set
 
-        # Check if all templates in pk_set are required templates. If they are,
-        # skip deletion of VpnClient objects at this point.
+        # SortedManyToManyField may clear templates and add required templates
+        # back before the final template set is restored. During that
+        # intermediate state we cannot know which VpnClient objects should be
+        # removed, so deletion is delayed until a later post_add event sees
+        # the final template set.
         if len(pk_set) != templates.filter(required=True).count():
-            # Explanation:
-            # SortedManyToManyField clears all existing templates before adding
-            # new ones. This triggers an m2m_changed signal with the "post_clear"
-            # action, which is handled by the "enforce_required_templates" signal
-            # receiver. That receiver re-adds the required templates.
-            #
-            # Re-adding required templates triggers another m2m_changed signal
-            # with the "post_add" action. At this stage, only required templates
-            # exist in the DB, so we cannot yet determine which VpnClient objects
-            # should be deleted based on the new selection.
-            #
-            # Therefore, we defer deletion of VpnClient objects until the "post_add"
-            # signal is triggered again—after all templates, including the required
-            # ones, have been fully added. At that point, we can identify and
-            # delete VpnClient objects not linked to the final template set.
             instance.vpnclient_set.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
 
         if action == "post_add":
-            for template in templates.filter(type="vpn"):
+            # A single template change can trigger multiple m2m_changed events.
+            # Use the full current template set instead of this event's pk_set so
+            # every attached VPN template has its VpnClient.
+            for template in instance.templates.filter(type="vpn"):
                 # Create VPN client if needed
                 if not vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn, template=template
@@ -915,13 +906,15 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         self._invalidate_backend_instance_cache()
         old_checksum = self.checksum
         self.add_default_templates()
-        if self.device._get_group():
-            self.device.manage_devices_group_templates(
-                device_ids=self.device.id,
-                old_group_ids=None,
-                group_id=self.device.group_id,
+        if self.device._has_group():
+            # Call manage_group_templates directly rather than going through
+            # manage_devices_group_templates, which would skip the device because
+            # it is still marked as deactivated at this point in the activation flow.
+            self.manage_group_templates(
+                self.device.group.templates.all(),
+                self.get_template_model().objects.none(),
             )
-        del self.backend_instance
+        self._invalidate_backend_instance_cache()
         if old_checksum == self.checksum:
             # Accelerate activation if the configuration remains
             # unchanged (i.e. empty configuration)
@@ -1054,6 +1047,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         Config = load_model("config", "Config")
         Template = load_model("config", "Template")
         config = Config.objects.get(pk=instance_id)
+        # All modification operations are blocked on deactivated devices.
+        # Thus, a user cannot edit the backend for device when it is deactivating.
+        # Therefore, it will be safe to block this operation here.
+        if config.is_deactivating_or_deactivated():
+            return
         device_group = config.device.group
         if not device_group:
             return
