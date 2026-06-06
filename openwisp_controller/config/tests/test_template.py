@@ -1426,3 +1426,40 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         queryset = choices.get("pk__in")
         self.assertIsNotNone(queryset)
         self.assertIn(unassigned_cert, queryset)
+
+    def test_certificate_template_context_injection(self):
+        """
+        Verify that Certificate Templates automatically inject their
+        file paths, UUIDs, and PEM payloads into the configuration context.
+        """
+        org = self._create_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="context-injection-test",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        context = config.get_context()
+        prefix = f"cert_{template.pk.hex}"
+        device_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(device_cert, "DeviceCertificate was not created")
+        cert = device_cert.cert
+        self.assertIn(f"{prefix}_path", context)
+        self.assertIn(f"{prefix}_key_path", context)
+        self.assertTrue(
+            context[f"{prefix}_path"].endswith(f"cert-{template.pk.hex}.pem")
+        )
+        self.assertTrue(
+            context[f"{prefix}_key_path"].endswith(f"key-{template.pk.hex}.pem")
+        )
+        self.assertIn(f"{prefix}_uuid", context)
+        self.assertEqual(context[f"{prefix}_uuid"], str(cert.id))
+        self.assertIn(f"{prefix}_pem", context)
+        self.assertIn(f"{prefix}_key", context)
+        self.assertEqual(context[f"{prefix}_pem"], cert.certificate)
+        self.assertEqual(context[f"{prefix}_key"], cert.private_key)
