@@ -505,7 +505,7 @@ function initCommandOverlay($) {
                     </div>
                     <div class="form-row field-modified">
                         <div><label>Modified:</label><div class="readonly">${getFormattedDateTimeString(
-                          response.created,
+                          response.modified,
                         )}</div></div>
                     </div>
                     </fieldset>
