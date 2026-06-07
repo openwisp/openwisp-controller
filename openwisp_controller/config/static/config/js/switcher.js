@@ -1,14 +1,17 @@
 "use strict";
 django.jQuery(function ($) {
   var type_select = $("#id_type"),
-    vpn_specific = $(".field-vpn, .field-auto_cert"),
+    vpn_specific = $(".field-vpn"),
+    cert_specific = $(".field-ca, .field-blueprint_cert"),
+    auto_cert_field = $(".field-auto_cert"),
     gettext =
       window.gettext ||
       function (v) {
         return v;
       },
-    toggle_vpn_specific = function (changed) {
-      if (type_select.val() == "vpn") {
+    toggle_specific_fields = function (changed) {
+      var val = type_select.val();
+      if (val === "vpn") {
         vpn_specific.show();
         if (
           changed === true &&
@@ -35,9 +38,19 @@ django.jQuery(function ($) {
           $(".autovpn").hide();
         }
       }
+      if (val === "cert") {
+        cert_specific.show();
+      } else {
+        cert_specific.hide();
+      }
+      if (val === "vpn" || val === "cert") {
+        auto_cert_field.show();
+      } else {
+        auto_cert_field.hide();
+      }
     };
   type_select.on("change", function () {
-    toggle_vpn_specific(true);
+    toggle_specific_fields(true);
   });
-  toggle_vpn_specific();
+  toggle_specific_fields();
 });

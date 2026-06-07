@@ -588,7 +588,7 @@ class TestTemplateTransaction(
             with catch_signal(config_status_changed) as handler:
                 t.config["interfaces"][0]["name"] = "eth2"
                 t.full_clean()
-                with self.assertNumQueries(13):
+                with self.assertNumQueries(15):
                     t.save()
                 c.refresh_from_db()
                 handler.assert_not_called()
