@@ -1392,7 +1392,10 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             config.devicecertificate_set.count(), 2, "Two certs should be created"
         )
         kept_cert_id = config.devicecertificate_set.get(template=cert_template_1).pk
-        removed_cert_id = config.devicecertificate_set.get(template=cert_template_2).pk
+        removed_dc = config.devicecertificate_set.get(template=cert_template_2)
+        removed_cert_id = removed_dc.pk
+        removed_cert_pk = removed_dc.cert_id
+        removed_cert = Cert.objects.get(pk=removed_cert_pk)
         config.templates.set([cert_template_1], clear=True)
         self.assertEqual(
             config.devicecertificate_set.count(), 1, "Only one cert should remain"
@@ -1404,6 +1407,11 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         self.assertFalse(
             config.devicecertificate_set.filter(pk=removed_cert_id).exists(),
             "The removed template's certificate should have been deleted.",
+        )
+        removed_cert.refresh_from_db()
+        self.assertTrue(
+            removed_cert.revoked,
+            "The removed template's underlying certificate should be revoked.",
         )
 
     def test_get_unassigned_certs_with_null_device_cert(self):

@@ -4,6 +4,7 @@ django.jQuery(function ($) {
     vpn_specific = $(".field-vpn"),
     cert_specific = $(".field-ca, .field-blueprint_cert"),
     auto_cert_field = $(".field-auto_cert"),
+    auto_cert_label = $("label[for='id_auto_cert']"),
     gettext =
       window.gettext ||
       function (v) {
@@ -45,6 +46,17 @@ django.jQuery(function ($) {
       }
       if (val === "vpn" || val === "cert") {
         auto_cert_field.show();
+      } else {
+        auto_cert_field.hide();
+      }
+      if (val === "vpn" || val === "cert") {
+        auto_cert_field.show();
+
+        if (val === "vpn") {
+          auto_cert_label.text(gettext("Automatic tunnel provisioning"));
+        } else if (val === "cert") {
+          auto_cert_label.text(gettext("Automatic certificate provisioning"));
+        }
       } else {
         auto_cert_field.hide();
       }

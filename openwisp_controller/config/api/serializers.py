@@ -75,7 +75,9 @@ class TemplateSerializer(BaseSerializer):
         """
         Display appropriate field name.
         """
-        template_type = self.initial_data.get("type")
+        template_type = self.initial_data.get(
+            "type", getattr(self.instance, "type", None)
+        )
         if template_type == "generic" and value == {}:
             raise serializers.ValidationError(
                 _("The configuration field cannot be empty.")
@@ -105,9 +107,11 @@ class TemplateSerializer(BaseSerializer):
         elif template_type != "cert":
             data["ca"] = None
             data["blueprint_cert"] = None
+            ca = None
+            blueprint_cert = None
 
         # assert structural binding matches between CA and template blueprints
-        if blueprint_cert and ca:
+        if template_type == "cert" and blueprint_cert and ca:
             if blueprint_cert.ca_id != ca.id:
                 raise serializers.ValidationError(
                     {
@@ -435,15 +439,18 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
                 # The value of the organization field is set here to
                 # prevent access of the old value stored in the database
                 # while performing above operations.
-                instance.config.device.organization = validated_data.get("organization")
-                instance.config.templates.clear()
-                Config.enforce_required_templates(
-                    action="post_clear",
-                    instance=instance.config,
-                    sender=instance.config.templates,
-                    pk_set=None,
-                    raw_data=raw_data_for_signal_handlers,
-                )
+                with transaction.atomic():
+                    instance.config.device.organization = validated_data.get(
+                        "organization"
+                    )
+                    instance.config.templates.clear()
+                    Config.enforce_required_templates(
+                        action="post_clear",
+                        instance=instance.config,
+                        sender=instance.config.templates,
+                        pk_set=None,
+                        raw_data=raw_data_for_signal_handlers,
+                    )
         return super().update(instance, validated_data)
 
 

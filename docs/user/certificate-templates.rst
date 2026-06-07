@@ -48,7 +48,7 @@ This will reveal the certificate-specific configuration fields.
     :guilabel:`Certificate Authority` and must not already be bound to a
     device.
 
-:guilabel:`Automatic tunnel provisioning` (``auto_cert``)
+:guilabel:`Automatic certificate provisioning` (``auto_cert``)
     When enabled (which is the default behavior), an X.509 certificate is
     automatically created and signed by the template's CA the moment the
     template is assigned to a device configuration.
@@ -113,10 +113,12 @@ already using a template, certain destructive changes are blocked while
 the template is assigned to *active* or *activating* device
 configurations.
 
-You **cannot** change the following on an actively used template: -
-:guilabel:`Type` (only changing a ``cert`` template to a different type is
-blocked) - :guilabel:`Certificate Authority` - :guilabel:`Blueprint
-Certificate`
+You **cannot** change the following on an actively used template:
+
+- :guilabel:`Type` (only changing a ``cert`` template to a different type
+  is blocked)
+- :guilabel:`Certificate Authority`
+- :guilabel:`Blueprint Certificate`
 
 If you need to update these core parameters, you must first unassign the
 Certificate Template from all affected device configurations (or
