@@ -15,16 +15,6 @@ from .. import settings as app_settings
 
 class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
     _subnet_division_rule_update_queue = dict()
-    # It is used to monitor changes in fields of a SubnetDivisionRule object
-    # An entry is added to the queue from pre_save signal in the following format
-    #
-    # '<rule-uid>: {
-    #   '<field-name>': '<old-value>',
-    # }
-    #
-    # In post_save signal, it is checked whether entry for SubnetDivisionRule object
-    # exists in this queue. If it exists changes are made to related objects.
-
     type = models.CharField(max_length=200, choices=app_settings.SUBNET_DIVISION_TYPES)
     master_subnet = models.ForeignKey(
         swapper.get_model_name("openwisp_ipam", "Subnet"), on_delete=models.CASCADE
@@ -35,8 +25,12 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
     )
     number_of_subnets = models.PositiveSmallIntegerField(
         verbose_name=_("Number of Subnets"),
-        help_text=_("Indicates how many subnets will be created"),
-        validators=[MinValueValidator(1)],
+        help_text=_(
+            "Indicates how many subnets will be created. "
+            "Set to 0 to assign IP addresses directly "
+            "from the main subnet."
+        ),
+        validators=[MinValueValidator(0)],
     )
     size = models.PositiveSmallIntegerField(
         verbose_name=_("Size of subnets"),
@@ -69,6 +63,13 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         return import_string(self.type)
 
     def clean(self):
+        # Auto-fill organization from master subnet
+        if (
+            self.master_subnet_id
+            and self.master_subnet.organization_id is not None
+            and not self.organization_id
+        ):
+            self.organization_id = self.master_subnet.organization_id
         super().clean()
         self._validate_label()
         self._validate_master_subnet_validity()
