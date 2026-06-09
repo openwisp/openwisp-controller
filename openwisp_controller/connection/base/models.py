@@ -467,6 +467,12 @@ class AbstractCommand(TimeStampedEditableModel):
         encoder=DjangoJSONEncoder,
     )
     output = models.TextField(blank=True)
+    batch_command = models.ForeignKey(
+        get_model_name("connection", "BatchCommand"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         verbose_name = _("Command")
@@ -719,3 +725,171 @@ class AbstractCommand(TimeStampedEditableModel):
                 f"arguments property is not applicable in "
                 f'command instance of type "{self.type}"'
             )
+
+
+class AbstractBatchCommand(TimeStampedEditableModel):
+    STATUS_CHOICES = (
+        ("idle", _("idle")),
+        ("in-progress", _("in progress")),
+        ("success", _("completed successfully")),
+        ("failed", _("completed with some failures")),
+        ("cancelled", _("completed with some cancellations")),
+    )
+    organization = models.ForeignKey(
+        get_model_name("openwisp_users", "Organization"),
+        on_delete=models.CASCADE,
+    )
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
+    )
+    command_type = models.CharField(
+        max_length=16,
+        choices=(COMMAND_CHOICES if django.VERSION < (5, 0) else get_command_choices),
+    )
+    command_input = JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
+    group = models.ForeignKey(
+        get_model_name("config", "DeviceGroup"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("device group"),
+    )
+    location = models.ForeignKey(
+        get_model_name("geo", "Location"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("location"),
+    )
+    include_all_devices = models.BooleanField(default=False)
+    total_devices = models.PositiveIntegerField(default=0)
+    successful = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+    cancelled = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        abstract = True
+        verbose_name = _("Batch command operation")
+        verbose_name_plural = _("Batch command operations")
+
+    def clean(self):
+        super().clean()
+        if self.group and self.group.organization != self.organization:
+            raise ValidationError(
+                {
+                    "group": _(
+                        "The organization of the group doesn't match "
+                        "the organization of the batch command operation"
+                    )
+                }
+            )
+        if self.location and self.location.organization != self.organization:
+            raise ValidationError(
+                {
+                    "location": _(
+                        "The organization of the location doesn't match "
+                        "the organization of the batch command operation"
+                    )
+                }
+            )
+        allowed = dict(
+            AbstractCommand.get_org_allowed_commands(
+                organization_id=self.organization_id
+            )
+        )
+        if self.command_type not in allowed:
+            raise ValidationError(
+                {
+                    "command_type": _(
+                        '"{command}" command is not available ' "for this organization"
+                    ).format(command=self.command_type)
+                }
+            )
+        try:
+            jsonschema.Draft4Validator(get_command_schema(self.command_type)).validate(
+                self.command_input
+            )
+        except SchemaError as e:
+            raise ValidationError({"command_input": e.message})
+
+    def resolve_devices(self):
+        Device = load_model("config", "Device")
+        qs = Device.objects.filter(organization=self.organization)
+        if self.group:
+            qs = qs.filter(group=self.group)
+        if self.location:
+            qs = qs.filter(location=self.location)
+        if not self.include_all_devices and not self.group and not self.location:
+            qs = qs.none()
+        return qs
+
+    def launch(self):
+        self.status = "in-progress"
+        self.save()
+        devices = self.resolve_devices()
+        Command = load_model("connection", "Command")
+        count = 0
+        for device in devices.iterator():
+            cmd = Command(
+                device=device,
+                type=self.command_type,
+                input=self.command_input,
+                batch_command=self,
+            )
+            cmd.full_clean()
+            cmd.save()
+            count += 1
+        self.total_devices = count
+        self.save(update_fields=["total_devices"])
+        self.calculate_and_update_status()
+
+    def launch_async(self):
+        self.status = "in-progress"
+        self.save(update_fields=["status"])
+        from ..tasks import launch_batch_command
+
+        transaction.on_commit(lambda: launch_batch_command.delay(self.pk))
+
+    def calculate_and_update_status(self):
+        Command = load_model("connection", "Command")
+        operations = Command.objects.filter(batch_command=self)
+        stats = operations.aggregate(
+            total_operations=models.Count("id"),
+            in_progress=models.Count(
+                models.Case(
+                    models.When(status="in-progress", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            completed=models.Count(
+                models.Case(
+                    models.When(~models.Q(status="in-progress"), then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            successful=models.Count(
+                models.Case(
+                    models.When(status="success", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            failed=models.Count(
+                models.Case(
+                    models.When(status="failed", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+        )
+        self.successful = stats["successful"]
+        self.failed = stats["failed"]
+        if stats["total_operations"] == 0:
+            self.status = "idle"
+        elif stats["in_progress"] > 0:
+            self.status = "in-progress"
+        elif stats["failed"] > 0:
+            self.status = "failed"
+        elif (
+            stats["successful"] > 0 and stats["completed"] == stats["total_operations"]
+        ):
+            self.status = "success"
+        self.save(update_fields=["status", "successful", "failed"])
