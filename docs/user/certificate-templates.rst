@@ -142,6 +142,60 @@ certificate includes two custom ASN.1 Object Identifiers (OIDs):
 These OIDs are appended securely to the certificate in addition to any
 extensions inherited from the :guilabel:`Blueprint Certificate`.
 
+.. _certificate_templates_context:
+
+Using Certificates in Configuration (Context Injection)
+-------------------------------------------------------
+
+To deploy the certificate to the device, administrators must reference the
+automatically generated variables within the template's JSON configuration
+payload.
+
+To prevent variable collisions when multiple Certificate Templates are
+assigned to a single device, OpenWISP namespaces the Jinja2 variables
+using the template's 32-character hexadecimal UUID (the UUID with dashes
+removed).
+
+The following variables are dynamically injected into the configuration
+context:
+
+- ``{{ cert_<template_uuid_hex>_pem }}``: The public certificate.
+- ``{{ cert_<template_uuid_hex>_key }}``: The private key.
+- ``{{ cert_<template_uuid_hex>_uuid }}``: The UUID of the
+  ``DeviceCertificate`` object.
+
+**Workflow Example:**
+
+1. Create a Certificate Template and click **Save and continue editing**
+   to generate its UUID.
+2. Note the UUID from the URL (e.g.,
+   ``d7d20eb8-b3c8-420c-9103-401e7960cfb3``).
+3. Strip the dashes to get the hex string
+   (``d7d20eb8b3c8420c9103401e7960cfb3``).
+4. Add the following JSON payload to write the certificate to the device's
+   filesystem:
+
+.. code-block:: json
+
+    {
+        "files": [
+            {
+                "path": "/etc/ssl/certs/device-cert.pem",
+                "mode": "0600",
+                "contents": "{{ cert_d7d20eb8b3c8420c9103401e7960cfb3_pem }}"
+            },
+            {
+                "path": "/etc/ssl/private/device-key.pem",
+                "mode": "0600",
+                "contents": "{{ cert_d7d20eb8b3c8420c9103401e7960cfb3_key }}"
+            }
+        ]
+    }
+
+When this template is assigned to a device, OpenWISP will automatically
+replace the variables with the exact, unique X.509 certificate and private
+key generated for that specific device.
+
 .. _certificate_templates_api:
 
 Certificate Templates via the REST API
