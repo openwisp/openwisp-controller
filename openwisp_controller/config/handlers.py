@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -6,6 +7,7 @@ from swapper import load_model
 
 from openwisp_controller.config.controller.views import DeviceChecksumView
 
+from . import settings as app_settings
 from . import tasks
 from .signals import config_status_changed, device_registered
 
@@ -41,6 +43,47 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
     notify.send(
         sender=instance, type="device_registered", target=instance, condition=condition
     )
+
+
+@receiver(pre_save, sender=Device, dispatch_uid="capture_old_hardware_properties")
+def capture_old_hardware_properties(sender, instance, **kwargs):
+    """
+    Temporarily caches the old name and mac_address before saving
+    to detect hardware drift in post_save.
+    """
+    if not instance.pk:
+        return
+    update_fields = kwargs.get("update_fields")
+    if update_fields is not None:
+        if "name" not in update_fields and "mac_address" not in update_fields:
+            return
+    try:
+        old_instance = sender.objects.only("name", "mac_address").get(pk=instance.pk)
+        instance._old_name = old_instance.name
+        instance._old_mac = old_instance.mac_address
+    except sender.DoesNotExist:
+        pass
+
+
+@receiver(post_save, sender=Device, dispatch_uid="detect_hardware_drift")
+def detect_hardware_drift(sender, instance, created, **kwargs):
+    """
+    Triggers certificate regeneration if hardware properties (name/mac) change.
+    """
+    if created or not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
+        return
+    update_fields = kwargs.get("update_fields")
+    if update_fields is not None:
+        if "name" not in update_fields and "mac_address" not in update_fields:
+            return
+    name_changed = getattr(instance, "_old_name", instance.name) != instance.name
+    mac_changed = (
+        getattr(instance, "_old_mac", instance.mac_address) != instance.mac_address
+    )
+    if name_changed or mac_changed:
+        transaction.on_commit(
+            lambda: tasks.regenerate_device_certificates_task.delay(str(instance.id))
+        )
 
 
 def devicegroup_change_handler(instance, **kwargs):

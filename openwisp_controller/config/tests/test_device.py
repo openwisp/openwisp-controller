@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
+from openwisp_controller.config.tasks import regenerate_device_certificates_task
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
@@ -25,6 +26,9 @@ TEST_ORG_SHARED_SECRET = "functional_testing_secret"
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
+DeviceCertificate = load_model("config", "DeviceCertificate")
+Cert = load_model("django_x509", "Cert")
+Ca = load_model("django_x509", "Ca")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 _original_context = app_settings.CONTEXT.copy()
 
@@ -652,6 +656,143 @@ class TestDevice(
         device.config.refresh_from_db()
         self.assertEqual(device.config.context, {"ssid": "test"})
         self.assertEqual(device.config.config, {"general": {}})
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_hardware_drift_signal_triggers_on_name_change(self, mocked_task):
+        """Proof that changing the hostname fires the celery task."""
+        org = self._create_org()
+        device = self._create_device(organization=org, name="old-router-name")
+        device.name = "new-router-name"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        mocked_task.assert_called_once_with(str(device.id))
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_hardware_drift_signal_triggers_on_mac_change(self, mocked_task):
+        """Proof that changing the MAC address fires the celery task."""
+        org = self._create_org()
+        device = self._create_device(organization=org, mac_address="00:11:22:33:44:55")
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        mocked_task.assert_called_once_with(str(device.id))
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_hardware_drift_signal_ignores_unrelated_changes(self, mocked_task):
+        """Proof that saving a device without changing name/MAC does nothing."""
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        device.key = "new-management-key"
+        device.save()
+        mocked_task.assert_not_called()
+
+    @mock.patch(
+        "openwisp_controller.config.settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE", False
+    )
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_hardware_drift_setting_disables_regeneration(self, mocked_task):
+        """Proof that the user-configurable setting turns the feature off."""
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        device.name = "another-new-name"
+        device.save()
+        mocked_task.assert_not_called()
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_task_regenerates_and_revokes(self, mocked_task):
+        """Proof that the task physically revokes the old and mints the new."""
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        old_cert_id = device_cert.cert.id
+        self.assertFalse(device_cert.cert.revoked)
+        device.name = "renamed-router"
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        device_cert.refresh_from_db()
+        old_cert = Cert.objects.get(id=old_cert_id)
+        self.assertTrue(old_cert.revoked)
+        self.assertNotEqual(old_cert_id, device_cert.cert.id)
+        self.assertIn("renamed-router", device_cert.cert.common_name)
+        self.assertIn("AA:BB:CC:DD:EE:FF", device_cert.cert.common_name)
+        extensions = device_cert.cert.extensions
+        mac_ext = next(
+            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.1"), None
+        )
+        uuid_ext = next(
+            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.2"), None
+        )
+        self.assertIsNotNone(mac_ext, "MAC Address OID 1.3.6.1.4.1.65901.1 is missing")
+        self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
+        self.assertIsNotNone(uuid_ext, "Device UUID OID 1.3.6.1.4.1.65901.2 is missing")
+        self.assertIn(str(device.id), uuid_ext["value"])
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_regeneration_preserves_blueprint_extensions(self, mocked_task):
+        """Proof that blueprint extensions carry over alongside custom OIDs."""
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        blueprint_cert = Cert(
+            name="enterprise-blueprint",
+            ca=ca,
+            organization=org,
+            common_name="blueprint",
+            extensions=[{"name": "nsCertType", "value": "server", "critical": False}],
+        )
+        blueprint_cert.full_clean()
+        blueprint_cert.save()
+        template = self._create_template(
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            blueprint_cert=blueprint_cert,
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        device_cert.refresh_from_db()
+        extensions = device_cert.cert.extensions
+        ns_ext = next(
+            (ext for ext in extensions if ext.get("name") == "nsCertType"), None
+        )
+        self.assertIsNotNone(
+            ns_ext, "Blueprint extension was lost during regeneration!"
+        )
+        self.assertEqual(ns_ext["value"], "server")
+        self.assertFalse(ns_ext.get("critical", False))
+        mac_ext = next(
+            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.1"), None
+        )
+        self.assertIsNotNone(mac_ext, "MAC Address OID is missing!")
+        self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
 
 
 class TestTransactionDevice(
