@@ -505,7 +505,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             "post_clear",
         ]:
             return
-
         # handle full cleanup if the device configuration profile is being wiped
         if action == "post_clear":
             if instance.is_deactivating_or_deactivated():
@@ -519,7 +518,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                     ).delete()
                 )
             return
-
         # normalize templates across standard M2M sets vs Admin ModelForm querysets
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
@@ -528,14 +526,12 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             )
         else:
             templates = pk_set
-
         # deletes orphaned certificates that are no
         # longer assigned in the templates list.
         if len(pk_set) != templates.filter(required=True).count():
             instance.devicecertificate_set.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
-
         # allocate new DeviceCertificate associations
         # for newly added certificate templates
         if action == "post_add":

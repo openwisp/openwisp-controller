@@ -238,18 +238,23 @@ def regenerate_device_certificates_task(device_id):
         device = Device.objects.get(id=device_id)
     except Device.DoesNotExist:
         return
-    active_device_certs = DeviceCertificate.objects.filter(
-        config__device=device,
-        auto_cert=True,
-        cert__revoked=False,
-        template__type="cert",
-    ).select_related("cert", "config", "template")
-    if not active_device_certs.exists():
-        return
+
     configs_to_update = set()
     certs_regenerated = 0
 
     with transaction.atomic():
+        active_device_certs = (
+            DeviceCertificate.objects.select_for_update()
+            .filter(
+                config__device=device,
+                auto_cert=True,
+                cert__revoked=False,
+                template__type="cert",
+            )
+            .select_related("cert", "config", "template")
+        )
+        if not active_device_certs.exists():
+            return
         for dc in active_device_certs:
             old_cert = dc.cert
             old_cert.revoke()
@@ -260,6 +265,16 @@ def regenerate_device_certificates_task(device_id):
                 extensions = [
                     {"name": "nsCertType", "value": "client", "critical": False}
                 ]
+            ca = dc.template.ca
+            key_length = blueprint.key_length if blueprint else ca.key_length
+            digest = blueprint.digest if blueprint else str(ca.digest)
+            country_code = blueprint.country_code if blueprint else ca.country_code
+            state = blueprint.state if blueprint else ca.state
+            city = blueprint.city if blueprint else ca.city
+            organization_name = (
+                blueprint.organization_name if blueprint else ca.organization_name
+            )
+            email = blueprint.email if blueprint else ca.email
             extensions.extend(
                 [
                     {
@@ -276,8 +291,15 @@ def regenerate_device_certificates_task(device_id):
             )
             new_cert = Cert(
                 name=device.name,
-                ca=old_cert.ca,
+                ca=ca,
                 organization=device.organization,
+                key_length=key_length,
+                digest=digest,
+                country_code=country_code,
+                state=state,
+                city=city,
+                organization_name=organization_name,
+                email=email,
                 common_name=dc._get_common_name(),
                 extensions=extensions,
             )

@@ -109,7 +109,6 @@ class TemplateSerializer(BaseSerializer):
             data["blueprint_cert"] = None
             ca = None
             blueprint_cert = None
-
         # assert structural binding matches between CA and template blueprints
         if template_type == "cert" and blueprint_cert and ca:
             if blueprint_cert.ca_id != ca.id:
@@ -121,7 +120,6 @@ class TemplateSerializer(BaseSerializer):
                         )
                     }
                 )
-
         # apply mutation protections over protected fields
         if (
             self.instance
