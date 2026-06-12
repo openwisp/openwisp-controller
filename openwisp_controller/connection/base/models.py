@@ -563,6 +563,8 @@ class AbstractCommand(TimeStampedEditableModel):
         output = super().save(*args, **kwargs)
         if adding:
             self._schedule_command()
+        if self.batch_command_id and self.status != "in-progress":
+            self.batch_command.calculate_and_update_status()
         return output
 
     def _save_without_resurrecting(self):
@@ -738,6 +740,8 @@ class AbstractBatchCommand(TimeStampedEditableModel):
     organization = models.ForeignKey(
         get_model_name("openwisp_users", "Organization"),
         on_delete=models.CASCADE,
+        blank=True,
+        null=True,
     )
     status = models.CharField(
         max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
@@ -761,7 +765,11 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         null=True,
         verbose_name=_("location"),
     )
-    include_all_devices = models.BooleanField(default=False)
+    devices = models.ManyToManyField(
+        get_model_name("config", "Device"),
+        blank=True,
+        verbose_name=_("devices"),
+    )
     total_devices = models.PositiveIntegerField(default=0)
     successful = models.PositiveIntegerField(default=0)
     failed = models.PositiveIntegerField(default=0)
@@ -769,29 +777,43 @@ class AbstractBatchCommand(TimeStampedEditableModel):
 
     class Meta:
         abstract = True
-        verbose_name = _("Batch command operation")
-        verbose_name_plural = _("Batch command operations")
+        verbose_name = _("Batch command")
+        verbose_name_plural = _("Batch commands")
 
     def clean(self):
         super().clean()
-        if self.group and self.group.organization != self.organization:
-            raise ValidationError(
-                {
-                    "group": _(
-                        "The organization of the group doesn't match "
-                        "the organization of the batch command operation"
+        if self.organization_id:
+            if self.group and self.group.organization != self.organization:
+                raise ValidationError(
+                    {
+                        "group": _(
+                            "The organization of the group doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    }
+                )
+            if self.location and self.location.organization != self.organization:
+                raise ValidationError(
+                    {
+                        "location": _(
+                            "The organization of the location doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    }
+                )
+            if self.pk and self.devices.exists():
+                org_mismatch = self.devices.exclude(
+                    organization=self.organization
+                ).exists()
+                if org_mismatch:
+                    raise ValidationError(
+                        {
+                            "devices": _(
+                                "All devices must belong to the same "
+                                "organization as the batch command."
+                            )
+                        }
                     )
-                }
-            )
-        if self.location and self.location.organization != self.organization:
-            raise ValidationError(
-                {
-                    "location": _(
-                        "The organization of the location doesn't match "
-                        "the organization of the batch command operation"
-                    )
-                }
-            )
         allowed = dict(
             AbstractCommand.get_org_allowed_commands(
                 organization_id=self.organization_id
@@ -813,14 +835,16 @@ class AbstractBatchCommand(TimeStampedEditableModel):
             raise ValidationError({"command_input": e.message})
 
     def resolve_devices(self):
+        if self.pk and self.devices.exists():
+            return self.devices.all()
         Device = load_model("config", "Device")
-        qs = Device.objects.filter(organization=self.organization)
+        qs = Device.objects.all()
+        if self.organization_id:
+            qs = qs.filter(organization=self.organization)
         if self.group:
             qs = qs.filter(group=self.group)
         if self.location:
             qs = qs.filter(location=self.location)
-        if not self.include_all_devices and not self.group and not self.location:
-            qs = qs.none()
         return qs
 
     def launch(self):
