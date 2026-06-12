@@ -1,12 +1,15 @@
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.generics import (
+    GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
+from rest_framework.response import Response
 from swapper import load_model
 
 from openwisp_utils.api.pagination import OpenWispPagination
@@ -17,6 +20,7 @@ from ...mixins import (
     RelatedDeviceProtectedAPIMixin,
 )
 from .serializers import (
+    BatchCommandExecuteSerializer,
     CommandSerializer,
     CredentialSerializer,
     DeviceConnectionSerializer,
@@ -26,6 +30,7 @@ Command = load_model("connection", "Command")
 Device = load_model("config", "Device")
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class BaseCommandView(RelatedDeviceProtectedAPIMixin):
@@ -138,6 +143,33 @@ class DeviceConnectionListCreateView(BaseDeviceConnection, ListCreateAPIView):
 DeviceConnenctionListCreateView = DeviceConnectionListCreateView
 
 
+class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
+    model = BatchCommand
+    queryset = BatchCommand.objects.all()
+    serializer_class = BatchCommandExecuteSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        batch = serializer.save()
+        batch.launch_async()
+        return Response({"batch": str(batch.pk)}, status=status.HTTP_201_CREATED)
+
+    def get(self, request):
+        serializer = self.get_serializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        device_pks = []
+        devices_list = data.pop("devices", None)
+        if devices_list:
+            device_pks = [str(d.pk) for d in devices_list]
+        batch = BatchCommand(**data)
+        if not device_pks:
+            resolved = batch.resolve_devices()
+            device_pks = [str(d.pk) for d in resolved]
+        return Response({"devices": device_pks})
+
+
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -158,3 +190,5 @@ deviceconnection_detail_view = DeviceConnectionDetailView.as_view()
 
 # TODO: remove in version 1.4
 deviceconnection_details_view = deviceconnection_detail_view
+
+batch_command_execute_view = BatchCommandExecuteView.as_view()

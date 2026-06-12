@@ -12,6 +12,7 @@ Command = load_model("connection", "Command")
 DeviceConnection = load_model("connection", "DeviceConnection")
 Credentials = load_model("connection", "Credentials")
 Device = load_model("config", "Device")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
@@ -41,6 +42,10 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
         allow_null=True,
         queryset=DeviceConnection.objects.all(),
         required=False,
+        pk_field=serializers.UUIDField(format="hex_verbose"),
+    )
+    batch_command = serializers.PrimaryKeyRelatedField(
+        read_only=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
 
@@ -115,3 +120,54 @@ class DeviceConnectionSerializer(
             "is_working": {"read_only": True},
         }
         read_only_fields = ("created", "modified")
+
+
+class BatchCommandExecuteSerializer(
+    FilterSerializerByOrgManaged, serializers.ModelSerializer
+):
+    type = serializers.CharField(source="command_type")
+    input = serializers.JSONField(
+        source="command_input", allow_null=True, required=False
+    )
+    devices = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Device.objects.all(),
+        required=False,
+        allow_empty=True,
+        pk_field=serializers.UUIDField(format="hex_verbose"),
+    )
+
+    class Meta:
+        model = BatchCommand
+        fields = (
+            "organization",
+            "type",
+            "input",
+            "devices",
+            "group",
+            "location",
+        )
+        extra_kwargs = {
+            "organization": {"required": False, "allow_null": True},
+        }
+
+    def validate(self, data):
+        if (
+            not data.get("organization")
+            and not self.context["request"].user.is_superuser
+        ):
+            raise serializers.ValidationError(
+                _("Only superusers can execute batch commands without an organization.")
+            )
+        if devices := data.get("devices"):
+            org = data.get("organization")
+            for device in devices:
+                if org and device.organization_id != org.id:
+                    raise serializers.ValidationError(
+                        {
+                            "devices": _(
+                                "All devices must belong to the same organization."
+                            )
+                        }
+                    )
+        return data
