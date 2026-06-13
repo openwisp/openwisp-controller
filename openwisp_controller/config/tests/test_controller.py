@@ -3,8 +3,10 @@ from unittest.mock import patch
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.http.response import Http404
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse, reverse_lazy
 from swapper import load_model
 
@@ -272,11 +274,10 @@ class TestController(
 
     def test_device_checksum_bad_uuid(self):
         d = self._create_device_config()
-        pk = "{}-wrong".format(d.pk)
-        response = self.client.get(
-            reverse("controller:device_checksum", args=[pk]), {"key": d.key}
-        )
-        self.assertEqual(response.status_code, 404)
+        valid = reverse("controller:device_checksum", args=[d.pk])
+        bad = valid.replace(str(d.pk), f"{d.pk}-wrong")
+        resp = self.client.get(bad, {"key": d.key})
+        self.assertEqual(resp.status_code, 404)
 
     def test_device_config_download_requested_signal_is_emitted(self):
         d = self._create_device_config()
@@ -338,10 +339,9 @@ class TestController(
 
     def test_device_download_config_bad_uuid(self):
         d = self._create_device_config()
-        pk = "{}-wrong".format(d.pk)
-        response = self.client.get(
-            reverse("controller:device_download_config", args=[pk]), {"key": d.key}
-        )
+        valid = reverse("controller:device_download_config", args=[d.pk])
+        bad = valid.replace(str(d.pk), f"{d.pk}-wrong")
+        response = self.client.get(bad, {"key": d.key})
         self.assertEqual(response.status_code, 404)
 
     def test_vpn_checksum_requested_signal_is_emitted(self):
@@ -398,10 +398,9 @@ class TestController(
 
     def test_vpn_checksum_bad_uuid(self):
         v = self._create_vpn()
-        pk = "{}-wrong".format(v.pk)
-        response = self.client.get(
-            reverse("controller:vpn_checksum", args=[pk]), {"key": v.key}
-        )
+        valid = reverse("controller:vpn_checksum", args=[v.pk])
+        bad = valid.replace(str(v.pk), f"{v.pk}-wrong")
+        response = self.client.get(bad, {"key": v.key})
         self.assertEqual(response.status_code, 404)
 
     @capture_any_output()
@@ -515,10 +514,9 @@ class TestController(
 
     def test_vpn_download_config_bad_uuid(self):
         v = self._create_vpn()
-        pk = "{}-wrong".format(v.pk)
-        response = self.client.get(
-            reverse("controller:vpn_download_config", args=[pk]), {"key": v.key}
-        )
+        valid_url = reverse("controller:vpn_download_config", args=[v.pk])
+        bad_url = valid_url.replace(str(v.pk), f"{v.pk}-wrong")
+        response = self.client.get(bad_url, {"key": v.key})
         self.assertEqual(response.status_code, 404)
 
     @capture_any_output()
@@ -788,6 +786,22 @@ class TestController(
         d.refresh_from_db()
         self.assertIsNotNone(d.config)
 
+    @capture_any_output()
+    def test_register_deactivated_device(self):
+        device = self._create_device_config()
+        device.key = TEST_CONSISTENT_KEY
+        device.save()
+        device.deactivate()
+        original_os = device.os
+        params = self._get_reregistration_payload(
+            device, name=device.name, os="OpenWrt 22.03"
+        )
+        response = self.client.post(self.register_url, params)
+        self.assertContains(response, "error: device deactivated", status_code=403)
+        device.refresh_from_db()
+        self.assertEqual(device.os, original_os)
+        self.assertEqual(device.config.templates.count(), 0)
+
     def test_device_registration_update_hw_info(self):
         d = self._create_device_config()
         d.key = TEST_CONSISTENT_KEY
@@ -973,10 +987,9 @@ class TestController(
 
     def test_device_report_status_bad_uuid(self):
         d = self._create_device_config()
-        pk = "{}-wrong".format(d.pk)
-        response = self.client.post(
-            reverse("controller:device_report_status", args=[pk]), {"key": d.key}
-        )
+        valid_url = reverse("controller:device_report_status", args=[d.pk])
+        bad_url = valid_url.replace(str(d.pk), f"{d.pk}-wrong")
+        response = self.client.post(bad_url, {"key": d.key})
         self.assertEqual(response.status_code, 404)
 
     @capture_any_output()
@@ -1078,22 +1091,49 @@ class TestController(
             self.assertEqual(d.model, params["model"])
 
     def test_deactivated_device_update_info(self):
-        self._test_deactivating_deactivated_device_view(
-            "device_update_info", method="post", data={}
-        )
+        # Inventory metadata updates must be rejected for deactivated devices,
+        # including the transient "deactivating" state (which GetDeviceView does
+        # not exclude on its own).
+        self._create_template(required=True)
+        device = self._create_device_config()
+        url = reverse("controller:device_update_info", args=[device.pk])
+        params = {
+            "key": device.key,
+            "model": "TP-Link TL-WDR4300 v2",
+            "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
+            "system": "Atheros AR9344 rev 3",
+        }
+        device.deactivate()
+        device.refresh_from_db()
+        self.assertEqual(device.config.status, "deactivating")
+        initial = (device.os, device.model, device.system)
+        # payload must differ from current values so a missed block is detectable
+        self.assertNotEqual((params["os"], params["model"], params["system"]), initial)
+
+        with self.subTest("rejected while deactivating"):
+            response = self.client.post(url, params)
+            self.assertEqual(response.status_code, 403)
+            self._check_header(response)
+            device.refresh_from_db()
+            # metadata must be left untouched
+            self.assertEqual((device.os, device.model, device.system), initial)
+
+        with self.subTest("not found once fully deactivated"):
+            device.config.set_status_deactivated()
+            response = self.client.post(url, params)
+            self.assertEqual(response.status_code, 404)
 
     def test_device_update_info_bad_uuid(self):
         d = self._create_device_config()
-        pk = "{}-wrong".format(d.pk)
         params = {
             "key": d.key,
             "model": "TP-Link TL-WDR4300 v2",
             "os": "OpenWrt 18.06-SNAPSHOT r7312-e60be11330",
             "system": "Atheros AR9344 rev 3",
         }
-        response = self.client.post(
-            reverse("controller:device_update_info", args=[pk]), params
-        )
+        valid_url = reverse("controller:device_update_info", args=[d.pk])
+        bad_url = valid_url.replace(str(d.pk), f"{d.pk}-wrong")
+        response = self.client.post(bad_url, params)
         self.assertEqual(response.status_code, 404)
 
     def test_device_update_info_400(self):
@@ -1513,6 +1553,39 @@ class TestController(
             view.kwargs = {"pk": str(c1.device.pk)}
             cached_device1 = view.get_device()
             self.assertIsNone(cached_device1.management_ip)
+
+    @patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_remove_duplicated_last_ip_no_nplus1_queries(self):
+        # When WHOIS is configured, clearing a duplicate's last_ip runs
+        # process_ip_data_and_location during save(), which reads
+        # device.organization via is_whois_enabled. If organization is not
+        # selected upfront, each duplicate triggers extra SELECTs (N+1).
+        # The marginal cost per duplicate must be a single UPDATE only.
+        def _measure(n):
+            ip = f"192.168.40.{n}"
+            org = self._create_org(name=f"dupes-{n}", shared_secret=f"dupes-secret-{n}")
+            incoming = self._create_device(
+                organization=org,
+                name=f"incoming-{n}",
+                mac_address=f"00:11:22:33:{n:02x}:99",
+                last_ip=ip,
+            )
+            for i in range(n):
+                self._create_device(
+                    organization=org,
+                    name=f"dupe-{n}-{i}",
+                    mac_address=f"00:11:22:33:{n:02x}:{i:02x}",
+                    last_ip=ip,
+                )
+            view = DeviceChecksumView()
+            with CaptureQueriesContext(connection) as ctx:
+                view._remove_duplicated_last_ip(incoming)
+            return len(ctx.captured_queries)
+
+        one = _measure(1)
+        three = _measure(3)
+        # two extra duplicates must add exactly two queries (one UPDATE each)
+        self.assertEqual(three - one, 2)
 
     @patch.object(app_settings, "SHARED_MANAGEMENT_IP_ADDRESS_SPACE", True)
     def test_organization_shares_management_ip_address_space(self):

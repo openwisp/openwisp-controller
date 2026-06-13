@@ -1,16 +1,16 @@
-import collections
 import logging
 
 import django
 import jsonschema
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import DatabaseError, models, transaction
+from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
@@ -33,6 +33,25 @@ from ..signals import is_working_changed
 from ..tasks import auto_add_credentials_to_devices, launch_command
 
 logger = logging.getLogger(__name__)
+
+
+def _save_without_resurrecting(instance):
+    """
+    Save an existing object without recreating it if its row was deleted by a
+    concurrent task. Plain save() may fall back to INSERT when UPDATE affects no
+    rows, so use force_update=True and ignore only the missing-row case.
+    """
+    if instance._state.adding:
+        instance.save()
+        return
+    try:
+        instance.save(force_update=True)
+    except DatabaseError:
+        if instance._meta.model.objects.filter(pk=instance.pk).exists():
+            logger.error(
+                "Failed to persist %s %s", type(instance).__name__, instance.pk
+            )
+            raise
 
 
 class ConnectorMixin(object):
@@ -101,8 +120,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         _("parameters"),
         default=dict,
         help_text=_("global connection parameters"),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
     auto_add = models.BooleanField(
         _("auto add"),
@@ -142,6 +160,10 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         DeviceConnection = load_model("connection", "DeviceConnection")
         Device = load_model("config", "Device")
 
+        # Deactivated devices are intentionally included: attaching credentials
+        # is a database-only operation with no network activity (the connection
+        # cannot be used while the device is deactivated), and having the
+        # credentials ready avoids extra setup when the device is reactivated.
         devices = Device.objects.exclude(config=None)
         if organization_id:
             devices = devices.filter(organization_id=organization_id)
@@ -180,6 +202,9 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
         if not created:
             return
         device = instance.device
+        # Credentials are attached even when the device is deactivated: this only
+        # creates DeviceConnection rows (no network operation) and avoids extra
+        # setup on reactivation. See auto_add_to_devices for the same rationale.
         # select credentials which
         #   - are flagged as auto_add
         #   - belong to the same organization of the device
@@ -245,8 +270,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             "local connection parameters (will override "
             "the global parameters if specified)"
         ),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
     # usability improvements
     is_working = models.BooleanField(null=True, blank=True, default=None)
@@ -268,6 +292,11 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
     def get_working_connection(
         cls, device, connector="openwisp_controller.connection.connectors.ssh.Ssh"
     ):
+        # Deactivated devices are not filtered out here on purpose: a device that
+        # is still "deactivating" needs one last connection so the cleared
+        # configuration can be pushed to it. connect() below refuses fully
+        # deactivated devices, so only the legitimate deactivating push gets
+        # through.
         qs = cls.objects.filter(
             device=device,
             enabled=True,
@@ -347,6 +376,11 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
 
     def connect(self):
         try:
+            # Refuse fully deactivated devices (device deactivated and its config
+            # already "deactivated"). A device that is only "deactivating" is let
+            # through so the final cleared configuration can still be pushed.
+            if self.device.is_fully_deactivated():
+                raise RuntimeError(_("Device is deactivated"))
             self.connector_instance.connect()
         except Exception as e:
             self.is_working = False
@@ -356,7 +390,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             self.failure_reason = ""
         finally:
             self.last_attempt = timezone.now()
-            self.save()
+            self._save_without_resurrecting()
         return self.is_working
 
     def disconnect(self):
@@ -369,7 +403,7 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
                 self.connector_instance.update_config()
             except Exception as e:
                 logger.exception(e)
-            else:
+            finally:
                 self.disconnect()
 
     def save(self, *args, **kwargs):
@@ -379,7 +413,12 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
         self._initial_is_working = self.is_working
         self._initial_failure_reason = self.failure_reason
 
+    def _save_without_resurrecting(self):
+        _save_without_resurrecting(self)
+
     def send_is_working_changed_signal(self):
+        if self.device.is_fully_deactivated():
+            return
         is_working_changed.send(
             sender=self.__class__,
             is_working=self.is_working,
@@ -425,8 +464,7 @@ class AbstractCommand(TimeStampedEditableModel):
     input = JSONField(
         blank=True,
         null=True,
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
     output = models.TextField(blank=True)
 
@@ -465,6 +503,8 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def clean(self):
+        if self.device.is_fully_deactivated():
+            raise ValidationError({"device": _("Device is deactivated.")})
         self._verify_command_type_allowed()
         self._verify_connection()
         try:
@@ -519,6 +559,9 @@ class AbstractCommand(TimeStampedEditableModel):
             self._schedule_command()
         return output
 
+    def _save_without_resurrecting(self):
+        _save_without_resurrecting(self)
+
     def _schedule_command(self):
         """
         executes ``launch_command`` celery taks in the background
@@ -536,20 +579,35 @@ class AbstractCommand(TimeStampedEditableModel):
             raise RuntimeError(
                 "This command has already been executed, " "please create a new one."
             )
-        exit_code = self._exec_command()
-        # if output is None, the commands couldn't execute
-        # because the system couldn't connect to the device
-        if exit_code is None:
+        # The command may have been deleted after being scheduled. If so, do not
+        # send it to the device.
+        if (
+            not self._state.adding
+            and not self._meta.model.objects.filter(pk=self.pk).exists()
+        ):
+            return
+        # Guard against a device that was fully deactivated after the command was
+        # queued. Command.clean() already rejects creation for fully deactivated
+        # devices, but the device could be fully deactivated while the task
+        # is still pending.
+        if self.device.is_fully_deactivated():
             self.status = "failed"
-            self.output = self.connection.failure_reason
-        # one command failed
-        elif exit_code != 0:
-            self.status = "failed"
-        # all commands succeeded
+            self._add_output("Device is deactivated.")
         else:
-            self.status = "success"
+            exit_code = self._exec_command()
+            # if output is None, the commands couldn't execute
+            # because the system couldn't connect to the device
+            if exit_code is None:
+                self.status = "failed"
+                self.output = self.connection.failure_reason
+            # one command failed
+            elif exit_code != 0:
+                self.status = "failed"
+            # all commands succeeded
+            else:
+                self.status = "success"
         self._clean_sensitive_info()
-        self.save()
+        self._save_without_resurrecting()
 
     def _exec_command(self):
         """

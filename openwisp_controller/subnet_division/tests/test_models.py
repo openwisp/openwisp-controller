@@ -815,6 +815,39 @@ class TestSubnetDivisionRule(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
+    def test_device_subnet_division_rule_existing_devices_includes_deactivated(self):
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.config.device.deactivate()
+        self.assertEqual(subnet_query.count(), 0)
+        rule = self._get_device_subdivision_rule()
+        self.config.refresh_from_db()
+        self.assertTrue(self.config.device.is_deactivated())
+        # Subnets are provisioned even for deactivated devices so re-activation
+        # does not require extra provisioning logic.
+        self.assertEqual(subnet_query.count(), rule.number_of_subnets)
+        self.assertEqual(
+            self.ip_query.count(), rule.number_of_subnets * rule.number_of_ips
+        )
+        self.assertGreater(self.config.subnetdivisionindex_set.count(), 0)
+
+    def test_device_subnet_division_rule_provisions_deactivated_on_config_creation(
+        self,
+    ):
+        # A rule already exists; subnets must be provisioned even when the config
+        # is created for a device that is already deactivated.
+        self._get_device_subdivision_rule()
+        device = self._create_device(
+            organization=self.org,
+            name="deactivated-device",
+            mac_address="00:11:22:33:44:66",
+        )
+        device.deactivate()
+        config = self._create_config(device=device)
+        self.assertTrue(config.device.is_deactivated())
+        self.assertGreater(config.subnetdivisionindex_set.count(), 0)
+
     def test_vpn_subnet_division_rule_existing_devices(self):
         subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
             id=self.master_subnet.id

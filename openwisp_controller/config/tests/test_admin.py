@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import os
@@ -653,6 +654,68 @@ class TestAdmin(
             extra_payload={"device_group": group.pk, "apply": True},
         )
 
+    def test_device_export_includes_deactivated_config_status(self):
+        device = self._create_device_config()
+        device.deactivate()
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_export"), {"format": "0"}
+        )
+        self.assertNotContains(response, "error")
+        rows = list(csv.reader(response.content.decode().splitlines()))
+        header = rows[0]
+        status_col = header.index("config_status")
+        self.assertEqual(rows[1][status_col], "deactivated")
+
+    def test_device_import_deactivated_config_status_ignored(self):
+        # config_status is readonly=True in DeviceResource, so importing a
+        # row with config_status=deactivated must NOT create a deactivated device.
+        org = self._get_org(org_name="default")
+        contents = (
+            "name,mac_address,organization,group,model,os,system,notes,last_ip,"
+            "management_ip,config_status,config_backend,config_data,config_context,"
+            "config_templates,created,modified,id,key,organization_id,group_id\n"
+            "test-deactivated,00:11:22:33:44:66,{org_name},,,,,,,,"
+            "deactivated,netjsonconfig.OpenWrt,,,,"
+            "2022-10-17 15:26:51,2022-10-17 15:26:51,"
+            "559871c5-ce3d-4c7e-9176-fb6623d562f3,934d0799b1ce3a454bbb585cda1d7a49,"
+            "{org_id},"
+        ).strip()
+        contents = contents.format(org_name=org.name, org_id=org.id)
+        csv_file = ContentFile(contents)
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_import"),
+            {"format": "0", "import_file": csv_file, "file_name": "test.csv"},
+        )
+        self.assertFalse(response.context["result"].has_errors())
+        confirm_form = response.context["confirm_form"]
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_process_import"), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.get(name="test-deactivated")
+        self.assertFalse(device._is_deactivated)
+        self.assertTrue(device._has_config())
+        self.assertNotEqual(device.config.status, "deactivated")
+
+    def test_change_group_action_skips_deactivated_device(self):
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        org = self._get_org(org_name="default")
+        group = self._create_device_group(name="test-group", organization=org)
+        device = self._create_device(organization=org)
+        device.deactivate()
+        post_data = {
+            "_selected_action": [device.pk],
+            "action": "change_group",
+            "csrfmiddlewaretoken": "test",
+            "apply": True,
+            "device_group": group.pk,
+        }
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertIsNone(device.group)
+
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name="default")
         template = self._create_template(name="template")
@@ -1144,6 +1207,8 @@ class TestAdmin(
     def test_download_device_config(self):
         d = self._create_device(name="download")
         self._create_config(device=d)
+        # use the hex (dashless) form to also cover the legacy UUID format
+        # accepted by the uuid_any path converter
         path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk.hex])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
@@ -1153,7 +1218,7 @@ class TestAdmin(
         device = self._create_device(name="download")
         self._create_config(device=device)
         device.deactivate()
-        path = reverse(f"admin:{self.app_label}_device_download", args=[device.pk.hex])
+        path = reverse(f"admin:{self.app_label}_device_download", args=[device.pk])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1162,6 +1227,24 @@ class TestAdmin(
         d = self._create_device(name="download")
         path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk])
         response = self.client.get(path)
+        self.assertEqual(response.status_code, 404)
+
+    def test_change_view_404_malformed_url(self):
+        # regression test for #682: malformed admin URLs must return 404
+        # instead of raising NoReverseMatch (HTTP 500) in get_extra_context
+        malformed_suffix = (
+            "de8fa775-1134-47b6-adc5-2da3d0626c72/history/1564/"
+            "undefinedadmin/img/icon-deletelink.svg"
+        )
+        for model_name in ("device", "template", "vpn"):
+            with self.subTest(model=model_name):
+                url = f"/admin/{self.app_label}/{model_name}/{malformed_suffix}"
+                response = self.client.get(url, follow=True)
+                self.assertEqual(response.status_code, 404)
+
+    def test_context_view_404_malformed_url(self):
+        url = f"/admin/{self.app_label}/device/not-a-uuid/context.json"
+        response = self.client.get(url, follow=True)
         self.assertEqual(response.status_code, 404)
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
@@ -3017,6 +3100,26 @@ class TestDeviceGroupAdminTransaction(
                 response = self.client.post(path, data, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(len(mocked.call_args_list), 2)
+
+        with self.subTest("Change group skips deactivated devices in signals"):
+            device3 = self._create_device(
+                organization=org1,
+                group=dg1,
+                name="default.test.device3",
+                mac_address="AA:BB:CC:DD:EE:01",
+            )
+            device3.deactivate()
+            data = post_data.copy()
+            data["_selected_action"] = [device1.pk, device3.pk]
+            data["device_group"] = str(dg2.pk)
+            with patch.object(Device, "_send_device_group_changed_signal") as mocked:
+                response = self.client.post(path, data, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(mocked.call_args_list), 1)
+            device1.refresh_from_db()
+            device3.refresh_from_db()
+            self.assertEqual(device1.group_id, dg2.id)
+            self.assertEqual(device3.group_id, dg1.id)
 
         device2.organization = org2
         device2.save()

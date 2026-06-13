@@ -93,7 +93,11 @@ class UpdateLastIpMixin(object):
             where &= Q(organization_id=device.organization_id)
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
-        for dupe in queryset.only("pk", "key", "management_ip"):
+        for dupe in queryset.only("pk", "key", "management_ip", "_is_deactivated"):
+            # Include _is_deactivated in .only() even though it is not referenced
+            # in this loop: dupe.save() triggers signal handlers that call
+            # is_deactivated(), and omitting the field would cause a SELECT
+            # per save (N+1 query).
             dupe.management_ip = ""
             dupe.save(update_fields=["management_ip"])
 
@@ -108,7 +112,12 @@ class UpdateLastIpMixin(object):
             where &= Q(organization_id=device.organization_id)
 
         queryset = self.model.objects.filter(where).exclude(pk=device.pk)
-        for dupe in queryset.only("pk", "key", "last_ip"):
+        # Include _is_deactivated and organization to avoid N+1 queries:
+        # dupe.save() triggers signal handlers that call is_deactivated()
+        # and WHOIS checks that read device.organization.
+        for dupe in queryset.select_related("organization").only(
+            "pk", "key", "last_ip", "_is_deactivated", "organization__id"
+        ):
             dupe.last_ip = ""
             dupe.save(update_fields=["last_ip"])
 
@@ -121,8 +130,9 @@ def get_device_args_rewrite(view):
     # return view.kwargs['pk']
     pk = view.kwargs["pk"]
     try:
-        pk = uuid.UUID(pk)
-    except ValueError:
+        # str(pk) normalizes UUID instances and plain strings
+        pk = uuid.UUID(str(pk))
+    except (ValueError, TypeError):
         return pk
     return pk.hex
 
@@ -133,8 +143,9 @@ def get_vpn_args_rewrite(view):
     """
     pk = view.kwargs["pk"]
     try:
-        pk = uuid.UUID(pk)
-    except ValueError:
+        # str(pk) normalizes UUID instances and plain strings
+        pk = uuid.UUID(str(pk))
+    except (ValueError, TypeError):
         return pk
     return pk.hex
 
@@ -219,6 +230,12 @@ class DeviceUpdateInfoView(CsrfExtemptMixin, GetDeviceView):
         bad_request = forbid_unallowed(request, "POST", "key", device.key)
         if bad_request:
             return bad_request
+        if device.is_deactivated():
+            # Inventory metadata must not be recorded for deactivated devices.
+            # GetDeviceView already returns 404 once the config is fully
+            # "deactivated"; this additionally rejects the transient
+            # "deactivating" state, where the device flag is already set.
+            return ControllerResponse("error: device deactivated", status=403)
         # update device information
         for attr in self.UPDATABLE_FIELDS:
             if attr in request.POST:
@@ -397,7 +414,9 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         # (key is not None only if CONSISTENT_REGISTRATION is enabled)
         new = False
         try:
-            device = self.model.objects.get(key=key)
+            device = self.model.objects.select_related("config").get(key=key)
+            if device.is_deactivated():
+                return ControllerResponse("error: device deactivated", status=403)
             # update device info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:

@@ -6,6 +6,7 @@ from django.db import transaction
 from geoip2 import errors
 from swapper import load_model
 
+from openwisp_controller.config.signals import whois_fetched
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .. import settings as app_settings
@@ -71,6 +72,13 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     except Device.DoesNotExist:
         logger.warning(f"Device {device_pk} not found, skipping WHOIS lookup")
         return
+    # Defense in depth: a device can be deactivated after the task is queued,
+    # so re-check here and do not run the external lookup for it.
+    if device.is_deactivated():
+        logger.info(f"Device {device_pk} is deactivated, skipping WHOIS lookup")
+        if initial_ip_address:
+            delete_whois_record(ip_address=initial_ip_address)
+        return
     new_ip_address = device.last_ip
     whois_service = device.whois_service
     # If there is existing WHOIS older record then it needs to be updated
@@ -85,28 +93,19 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
             fetched_details, whois_obj
         )
         logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
+        transaction.on_commit(
+            lambda: whois_fetched.send(
+                sender=WHOISInfo,
+                whois=whois_obj,
+                updated_fields=update_fields,
+                device=device,
+            )
+        )
         if initial_ip_address:
             transaction.on_commit(
                 # execute synchronously as we're already in a background task
                 lambda: delete_whois_record(ip_address=initial_ip_address)
             )
-        if not device._get_organization__config_settings().estimated_location_enabled:
-            return
-        # the estimated location task should not run if old record is updated
-        # and location related fields are not updated
-        device_location = getattr(device, "devicelocation", None)
-        if (
-            device_location
-            and device_location.location
-            and update_fields
-            and not any(i in update_fields for i in ["address", "coordinates"])
-        ):
-            return
-        transaction.on_commit(
-            lambda: whois_service.trigger_estimated_location_task(
-                ip_address=new_ip_address,
-            )
-        )
 
 
 @shared_task
@@ -122,6 +121,8 @@ def delete_whois_record(ip_address, force=False):
     if force:
         queryset.delete()
     else:
+        # Only delete the WHOIS record if there are no active devices
+        # linked to the same IP address.
         if (
             not Device.objects.filter(_is_deactivated=False)
             .filter(last_ip=ip_address)

@@ -183,7 +183,14 @@ class AbstractDevice(OrgMixin, BaseModel):
         )
 
     def is_deactivated(self):
+        """Return whether deactivation has been initiated."""
         return self._is_deactivated
+
+    def is_fully_deactivated(self):
+        """Return whether the device and its configuration are fully deactivated."""
+        return self.is_deactivated() and (
+            not self._has_config() or self.config.is_deactivated()
+        )
 
     def deactivate(self):
         if self.is_deactivated():
@@ -299,11 +306,10 @@ class AbstractDevice(OrgMixin, BaseModel):
             self._check_changed_fields()
 
     def delete(self, using=None, keep_parents=False, check_deactivated=True):
-        if check_deactivated and (
-            not self.is_deactivated()
-            or (self._has_config() and not self.config.is_deactivated())
-        ):
-            raise PermissionDenied("The device must be deactivated prior to deletion")
+        if check_deactivated and (not self.is_fully_deactivated()):
+            raise PermissionDenied(
+                _("The device must be deactivated prior to deletion")
+            )
         return super().delete(using, keep_parents)
 
     def _check_changed_fields(self):
@@ -338,9 +344,9 @@ class AbstractDevice(OrgMixin, BaseModel):
         if not present_values:
             return
         self.refresh_from_db(fields=present_values.keys())
-        for field in self._changed_checked_fields:
-            setattr(self, f"_initial_{field}", field)
-            setattr(self, field, present_values[field])
+        for field, value in present_values.items():
+            setattr(self, f"_initial_{field}", getattr(self, field))
+            setattr(self, field, value)
 
     def _check_name_changed(self):
         if self._initial_name == models.DEFERRED:
@@ -479,6 +485,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         creates a new config instance to apply group templates
         if group has templates.
         """
+        if self.is_deactivated():
+            # All modification operations are blocked on deactivated devices.
+            # Hence, default config should not be created for deactivated devices.
+            return
         if not (self.group and self.group.templates.exists()):
             return
         config = self.get_temp_config_instance(
@@ -499,6 +509,11 @@ class AbstractDevice(OrgMixin, BaseModel):
             old_group_ids = [old_group_ids]
         for device_id, old_group_id in zip(device_ids, old_group_ids):
             device = Device.objects.get(pk=device_id)
+            if device.is_deactivated():
+                # Skip deactivated devices: their configuration is intentionally
+                # emptied during deactivation, so re-applying group templates
+                # would break that state and trigger a push to the device.
+                continue
             if not hasattr(device, "config"):
                 device.create_default_config()
             config_created = hasattr(device, "config")

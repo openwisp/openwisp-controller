@@ -238,6 +238,33 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertIsNotNone(dc.last_attempt)
         self.assertEqual(dc.failure_reason, "Authentication failed.")
 
+    def test_connect_deactivated_device(self):
+        dc = self._create_device_connection()
+
+        with self.subTest("fully deactivated: connect blocked, signal suppressed"):
+            dc.device.deactivate()
+            self.assertTrue(dc.device.is_fully_deactivated())
+            with catch_signal(is_working_changed) as handler:
+                dc.connect()
+            self.assertEqual(dc.is_working, False)
+            self.assertEqual(dc.failure_reason, "Device is deactivated")
+            handler.assert_not_called()
+
+        with self.subTest("deactivating: connect allowed through"):
+            cred2 = self._create_credentials(name="cred-deactivating")
+            device2 = self._create_device(
+                name="deactivating-device", mac_address="11:22:33:44:55:66"
+            )
+            template = self._create_template(organization=device2.organization)
+            self._create_config(device=device2, templates=[template])
+            dc2 = self._create_device_connection(credentials=cred2, device=device2)
+            dc2.device.deactivate()
+            self.assertEqual(dc2.device.config.status, "deactivating")
+            self.assertEqual(dc2.device.is_fully_deactivated(), False)
+            with mock.patch.object(dc2.connector_instance, "connect") as mocked_conn:
+                dc2.connect()
+            mocked_conn.assert_called_once()
+
     def test_credentials_schema(self):
         # unrecognized parameter
         try:
@@ -348,6 +375,15 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    def test_auto_add_to_new_deactivated_device(self):
+        org = self._get_org()
+        self._create_credentials(auto_add=True, organization=None)
+        device = self._create_device(organization=org, name="deactivated-device")
+        device.deactivate()
+        self._create_config(device=device)
+        device.refresh_from_db()
+        self.assertEqual(device.deviceconnection_set.count(), 1)
 
     def test_auto_add_device_missing_config(self):
         org = Organization.objects.first()
@@ -502,7 +538,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("test extra arg on reboot"):
             command.type = "reboot"
-            command.input = '["test"]'
+            command.input = ["test"]
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
@@ -536,12 +572,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn("input", e.message_dict)
             self.assertEqual(
                 e.message_dict["input"],
-                ["Enter valid JSON.", "'notjson' is not of type 'object'"],
+                ["'notjson' is not of type 'object'"],
             )
 
         with self.subTest("JSON check on arguments"):
             command.type = "change_password"
-            command.input = "[]"
+            command.input = []
             with self.assertRaises(ValidationError) as context_manager:
                 command.full_clean()
             e = context_manager.exception
@@ -577,6 +613,38 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 ["Device has no credentials assigned."],
             )
 
+    def test_command_validation_deactivated_device(self):
+        dc = self._create_device_connection()
+
+        with self.subTest("deactivating device does not block command creation"):
+            dc.device._is_deactivated = True
+            dc.device.save(update_fields=["_is_deactivated"])
+            dc.device.config.set_status_deactivating()
+            device = Device.objects.get(pk=dc.device.pk)
+            command = Command(
+                device=device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.clean()
+
+        with self.subTest("fully deactivated device blocks command creation"):
+            dc.device.config.set_status_deactivated()
+            device = Device.objects.get(pk=dc.device.pk)
+            command = Command(
+                device=device,
+                connection=dc,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            with self.assertRaises(ValidationError) as ctx:
+                command.clean()
+            self.assertIn("device", ctx.exception.message_dict)
+            self.assertEqual(
+                ctx.exception.message_dict["device"], ["Device is deactivated."]
+            )
+
     @tag("skip_prod")
     def test_enabled_command(self):
         self.assertEqual(
@@ -601,7 +669,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertEqual(list(command.arguments), ["newpwd", "newpwd"])
 
         with self.subTest("value error"):
-            command = Command(input='["echo test"]', type="custom")
+            command = Command(input=["echo test"], type="custom")
             with self.assertRaises(TypeError) as context_manager:
                 command.arguments
             self.assertEqual(
@@ -972,7 +1040,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config >= 0.6.0a"):
-            conf.config = '{"dns_servers": []}'
+            conf.config = {"dns_servers": []}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -987,7 +1055,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config < 0.6.0a: exit_code 0"):
-            conf.config = '{"interfaces": [{"name": "eth00","type": "ethernet"}]}'
+            conf.config = {"interfaces": [{"name": "eth00", "type": "ethernet"}]}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 mocked_exec_command.return_value = self._exec_command_return_value(
@@ -1001,7 +1069,7 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             self.assertEqual(conf.status, "modified")
 
         with self.subTest("openwisp_config < 0.6.0a: exit_code 1"):
-            conf.config = '{"radios": []}'
+            conf.config = {"radios": []}
             conf.full_clean()
             with mock.patch(_exec_command_path) as mocked_exec_command:
                 stdin, stdout, stderr = self._exec_command_return_value(
@@ -1163,6 +1231,29 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
         d.refresh_from_db()
         self.assertEqual(d.deviceconnection_set.count(), 1)
         self.assertEqual(d.deviceconnection_set.first().credentials, c)
+
+    @mock.patch.object(DeviceConnection, "update_config")
+    @mock.patch.object(DeviceConnection, "get_working_connection")
+    @mock.patch("time.sleep")
+    def test_deactivating_device_update_config(
+        self, mocked_sleep, mocked_get_working_connection, mocked_update_config
+    ):
+        conf = self._prepare_conf_object()
+        conf.save()
+        mocked_get_working_connection.reset_mock()
+        mocked_update_config.reset_mock()
+        mocked_get_working_connection.return_value = (
+            conf.device.deviceconnection_set.first()
+        )
+        # Deactivate the device
+        conf.device.deactivate()
+        # Ensure that the config status is set to "deactivating" and
+        # update_config is called to apply the empty configuration for deactivated
+        # devices.
+        conf.refresh_from_db()
+        self.assertEqual(conf.status, "deactivating")
+        mocked_get_working_connection.assert_called_once_with(conf.device)
+        mocked_update_config.assert_called_once()
 
     def test_chunk_size(self):
         org = self._get_org()

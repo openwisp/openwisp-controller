@@ -512,6 +512,27 @@ class TestDevice(
             self._create_device(name="test", organization=org, group=device_group)
         handler.assert_not_called()
 
+    def test_manage_devices_group_templates_skips_deactivated_devices(self):
+        org = self._get_org()
+        old_template = self._create_template(name="old-template", organization=org)
+        new_template = self._create_template(name="new-template", organization=org)
+        old_group = self._create_device_group(name="old-group", organization=org)
+        new_group = self._create_device_group(name="new-group", organization=org)
+        old_group.templates.add(old_template)
+        new_group.templates.add(new_template)
+        device = self._create_device(name="test", organization=org, group=old_group)
+        device.deactivate()
+        device.config.refresh_from_db()
+        self.assertEqual(device.config.templates.count(), 0)
+        Device.manage_devices_group_templates(device.pk, old_group.pk, new_group.pk)
+        device.config.refresh_from_db()
+        # Deactivated device config is skipped: adding templates to a cleared
+        # config would misrepresent what has been applied to the device.
+        self.assertEqual(device.config.templates.count(), 0)
+        self.assertNotIn(new_template, device.config.templates.all())
+        # Status must remain "deactivated" — no config push is initiated.
+        self.assertEqual(device.config.status, "deactivated")
+
     def test_device_field_changed_checks(self):
         self._create_device()
         device_group = self._create_device_group()
@@ -540,6 +561,20 @@ class TestDevice(
         # Simulate __init__ being called again on the same instance
         device.__init__()
         self.assertEqual(device._changed_checked_fields.count("last_ip"), 1)
+
+    def test_deferred_fields_populated_correctly(self):
+        device = self._create_device(
+            name="deferred-test",
+            management_ip="10.0.0.1",
+        )
+        # Load the instance with deferred fields omitted
+        device = Device.objects.only("id").get(pk=device.pk)
+        device.management_ip = "10.0.0.55"
+        # Saving the device object will populate the deferred fields
+        device.save()
+        # Ensure `_initial_<field>` contains the actual value, not the field name
+        self.assertEqual(getattr(device, "_initial_management_ip"), "10.0.0.55")
+        self.assertNotEqual(getattr(device, "_initial_management_ip"), "management_ip")
 
     def test_exceed_organization_device_limit(self):
         org = self._get_org()

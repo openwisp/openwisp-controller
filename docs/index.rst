@@ -51,6 +51,7 @@ the OpenWISP architecture.
     user/estimated-location.rst
     user/subnet-division-rules.rst
     user/rest-api.rst
+    user/websocket-api.rst
     user/settings.rst
 
 .. toctree::

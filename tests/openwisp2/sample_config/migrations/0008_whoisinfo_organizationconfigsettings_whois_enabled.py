@@ -2,6 +2,7 @@
 
 import django.utils.timezone
 import model_utils.fields
+from django.contrib.gis.db.models.fields import PointField
 from django.db import migrations, models
 
 import openwisp_utils.fields
@@ -56,6 +57,12 @@ class Migration(migrations.Migration):
                 ),
                 ("cidr", models.CharField(blank=True, help_text="CIDR", max_length=49)),
                 ("details", models.CharField(blank=True, max_length=64, null=True)),
+                (
+                    "coordinates",
+                    PointField(
+                        blank=True, help_text="Coordinates", null=True, srid=4326
+                    ),
+                ),
             ],
             options={
                 "abstract": False,
