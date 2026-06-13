@@ -413,6 +413,8 @@ class TestVpn(BaseTestVpn, TestCase):
         )
         client.full_clean()
         client.save()
+        # Ensure _get_common_name does not mutate device.name
+        self.assertEqual(d.name, device_name)
         # The last 9 characters gets truncated and replaced with unique id
         self.assertIn(
             "{mac_address}-{name}".format(**d.__dict__)[:-9], client._get_common_name()
