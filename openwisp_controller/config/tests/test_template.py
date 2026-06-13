@@ -970,6 +970,30 @@ class TestTemplateTransaction(
             required_template.save()
             mocked_task.assert_not_called()
 
+    def test_standalone_cert_renewal_updates_config_status(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-renewal-test",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = config.devicecertificate_set.first()
+        self.assertIsNotNone(dc)
+        config.status = "applied"
+        config.save(update_fields=["status"])
+        config.refresh_from_db()
+        with mock.patch.object(
+            Config, "update_status_if_checksum_changed"
+        ) as mocked_update:
+            dc.cert.renew()
+            mocked_update.assert_called_once()
+
 
 class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
     """

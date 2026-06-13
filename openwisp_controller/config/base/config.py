@@ -473,13 +473,19 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
 
     @classmethod
     def certificate_updated(cls, instance, created, **kwargs):
+        DeviceCertificate = load_model("config", "DeviceCertificate")
         if created or instance.revoked:
             return
+        configs_to_update = set()
         try:
-            config = instance.vpnclient.config
+            configs_to_update.add(instance.vpnclient.config)
         except ObjectDoesNotExist:
-            return
-        else:
+            pass
+        for dc in DeviceCertificate.objects.filter(cert=instance).select_related(
+            "config"
+        ):
+            configs_to_update.add(dc.config)
+        for config in configs_to_update:
             transaction.on_commit(config.update_status_if_checksum_changed)
 
     @classmethod
