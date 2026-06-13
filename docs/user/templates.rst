@@ -216,7 +216,8 @@ Certificate Templates
 ---------------------
 
 A Certificate Template is a :doc:`Template </controller/user/templates>`
-whose **Type** is set to :guilabel:`Certificate` (``cert``).
+whose **Type** is set to :guilabel:`Certificate` (``cert``). See
+:doc:`/controller/user/certificate-templates` for detailed documentation.
 
 It allows declaring the *Certificate Authority* and an optional *Blueprint
 Certificate* that will be used to issue an X.509 certificate for each

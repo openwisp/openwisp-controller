@@ -37,6 +37,7 @@ the OpenWISP architecture.
     user/intro.rst
     user/device-config-status.rst
     user/templates.rst
+    user/certificate-templates.rst
     user/variables.rst
     user/device-groups.rst
     user/push-operations.rst

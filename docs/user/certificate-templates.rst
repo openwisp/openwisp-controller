@@ -31,8 +31,8 @@ To create a Certificate Template, navigate to the Templates section in the
 OpenWISP admin and set the **Type** to :guilabel:`Certificate` (``cert``).
 This will reveal the certificate-specific configuration fields.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/certificate-template.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/certificate-template.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.4/certificate-templates/certificate-template.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.4/certificate-templates/certificate-template.png
     :alt: Certificate Template admin form
 
 :guilabel:`Certificate Authority` (required)
@@ -161,8 +161,8 @@ context:
 
 - ``{{ cert_<template_uuid_hex>_pem }}``: The public certificate.
 - ``{{ cert_<template_uuid_hex>_key }}``: The private key.
-- ``{{ cert_<template_uuid_hex>_uuid }}``: The UUID of the
-  ``DeviceCertificate`` object.
+- ``{{ cert_<template_uuid_hex>_uuid }}``: The UUID of the generated
+  certificate.
 
 **Workflow Example:**
 
