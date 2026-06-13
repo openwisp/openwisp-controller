@@ -281,6 +281,7 @@ if os.environ.get("SAMPLE_APP", False):
     CONFIG_TEMPLATE_MODEL = "sample_config.Template"
     CONFIG_VPN_MODEL = "sample_config.Vpn"
     CONFIG_VPNCLIENT_MODEL = "sample_config.VpnClient"
+    CONFIG_DEVICECERTIFICATE_MODEL = "sample_config.DeviceCertificate"
     CONFIG_ORGANIZATIONCONFIGSETTINGS_MODEL = "sample_config.OrganizationConfigSettings"
     CONFIG_ORGANIZATIONLIMITS_MODEL = "sample_config.OrganizationLimits"
     CONFIG_WHOISINFO_MODEL = "sample_config.WHOISInfo"

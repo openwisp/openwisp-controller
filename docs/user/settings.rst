@@ -308,9 +308,9 @@ levels of OpenWISP, see `netjsonconfig context: configuration variables
 The default value of the ``auto_cert`` field for new ``Template`` objects.
 
 The ``auto_cert`` field is valid only for templates which have ``type``
-set to ``VPN`` and indicates whether configuration regarding the VPN
-tunnel is provisioned automatically to each device using the template,
-e.g.:
+set to ``VPN`` or ``cert`` and indicates whether configuration regarding
+the VPN tunnel (or the x509 certificate) is provisioned automatically to
+each device using the template, e.g.:
 
 - when using OpenVPN, new `x509 <https://tools.ietf.org/html/rfc5280>`_
   certificates will be generated automatically using the same CA assigned

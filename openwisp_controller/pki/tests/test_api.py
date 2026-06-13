@@ -152,7 +152,7 @@ class TestPkiApi(
     def test_ca_delete_api(self):
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         path = reverse("pki_api:ca_detail", args=[ca1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Ca.objects.count(), 0)
@@ -253,7 +253,7 @@ class TestPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(11):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -264,7 +264,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
         data = {"name": "cert1-change"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -272,7 +272,7 @@ class TestPkiApi(
     def test_cert_delete_api(self):
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(8):
             r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Cert.objects.count(), 0)
@@ -289,7 +289,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name="cert1")
         old_serial_num = cert1.serial_number
         path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             r = self.client.post(path)
         self.assertEqual(r.status_code, 200)
         cert1.refresh_from_db()

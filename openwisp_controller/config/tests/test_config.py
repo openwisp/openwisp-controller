@@ -861,13 +861,13 @@ class TestConfig(
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
         with self.subTest("No changes made to the config object"):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(4):
                 config._check_changes()
 
         with self.subTest("Changes made to the config object"):
             config.templates.add(self._create_template())
             config.config = {"general": {"description": "test"}}
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(5):
                 config._check_changes()
 
     def test_config_get_system_context(self):

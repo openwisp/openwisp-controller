@@ -767,3 +767,38 @@ class TestVpnAdmin(
             backend.select_by_visible_text("OpenVPN")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-auth_token")
+
+
+@tag("selenium_tests")
+class TestTemplateAdmin(
+    SeleniumTestMixin,
+    CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
+    StaticLiveServerTestCase,
+):
+    def test_certificate_fields_visibility(self):
+        """
+        Ensure CA and Blueprint fields are only visible when type is 'cert'.
+        """
+        self.login()
+        self.open(reverse(f"admin:{self.config_app_label}_template_add"))
+
+        # Wait for the Type dropdown to load
+        self.wait_for_presence(By.ID, "id_type")
+
+        with self.subTest("CA and Cert fields should be hidden by default (Generic)"):
+            self.wait_for_invisibility(By.CLASS_NAME, "field-ca")
+            self.wait_for_invisibility(By.CLASS_NAME, "field-blueprint_cert")
+
+        with self.subTest("Changing type to 'Certificate' should show fields"):
+            type_select = Select(self.find_element(by=By.ID, value="id_type"))
+            type_select.select_by_value("cert")
+
+            self.wait_for_visibility(By.CLASS_NAME, "field-ca")
+            self.wait_for_visibility(By.CLASS_NAME, "field-blueprint_cert")
+
+        with self.subTest("Changing type back to 'Generic' should hide fields"):
+            type_select.select_by_value("generic")
+
+            self.wait_for_invisibility(By.CLASS_NAME, "field-ca")
+            self.wait_for_invisibility(By.CLASS_NAME, "field-blueprint_cert")

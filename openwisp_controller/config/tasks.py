@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import requests
@@ -5,10 +6,14 @@ from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
+from django.utils.translation import gettext_lazy as _
+from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
 
+from . import settings as app_settings
 from .utils import handle_error_notification, handle_recovery_notification
 
 logger = logging.getLogger(__name__)
@@ -217,3 +222,110 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(soft_time_limit=1200)
+def regenerate_device_certificates_task(device_id):
+    """
+    Revokes stale certificates and mints fresh ones when hardware drift occurs.
+    """
+    if not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
+        return
+    Device = load_model("config", "Device")
+    DeviceCertificate = load_model("config", "DeviceCertificate")
+    Cert = load_model("django_x509", "Cert")
+    try:
+        device = Device.objects.get(id=device_id)
+    except Device.DoesNotExist:
+        return
+
+    configs_to_update = set()
+    certs_regenerated = 0
+
+    with transaction.atomic():
+        active_device_certs = (
+            DeviceCertificate.objects.select_for_update()
+            .filter(
+                config__device=device,
+                auto_cert=True,
+                cert__revoked=False,
+                template__type="cert",
+            )
+            .select_related("cert", "config", "template")
+        )
+        if not active_device_certs.exists():
+            return
+        for dc in active_device_certs:
+            old_cert = dc.cert
+            old_cert.revoke()
+            blueprint = dc.template.blueprint_cert
+            if blueprint and blueprint.extensions:
+                extensions = copy.deepcopy(blueprint.extensions)
+            else:
+                extensions = [
+                    {"name": "nsCertType", "value": "client", "critical": False}
+                ]
+            ca = dc.template.ca
+            key_length = blueprint.key_length if blueprint else ca.key_length
+            digest = blueprint.digest if blueprint else str(ca.digest)
+            country_code = blueprint.country_code if blueprint else ca.country_code
+            state = blueprint.state if blueprint else ca.state
+            city = blueprint.city if blueprint else ca.city
+            organization_name = (
+                blueprint.organization_name if blueprint else ca.organization_name
+            )
+            email = blueprint.email if blueprint else ca.email
+            extensions.extend(
+                [
+                    {
+                        "oid": "1.3.6.1.4.1.65901.1",
+                        "value": f"ASN1:UTF8:string:{device.mac_address}",
+                        "critical": False,
+                    },
+                    {
+                        "oid": "1.3.6.1.4.1.65901.2",
+                        "value": f"ASN1:UTF8:string:{device.id}",
+                        "critical": False,
+                    },
+                ]
+            )
+            new_cert = Cert(
+                name=device.name,
+                ca=ca,
+                organization=device.organization,
+                key_length=key_length,
+                digest=digest,
+                country_code=country_code,
+                state=state,
+                city=city,
+                organization_name=organization_name,
+                email=email,
+                common_name=dc._get_common_name(),
+                extensions=extensions,
+            )
+            new_cert.full_clean()
+            new_cert.save()
+            dc.cert = new_cert
+            dc.save()
+            configs_to_update.add(dc.config)
+            certs_regenerated += 1
+    for config in configs_to_update:
+        config.update_status_if_checksum_changed()
+    try:
+        message = _(
+            "Hardware drift detected on device {device_name}. "
+            "Successfully regenerated {certs_regenerated} bound X.509 certificate(s)."
+        ).format(device_name=str(device.name), certs_regenerated=certs_regenerated)
+        notify.send(
+            sender=device,
+            target=device,
+            action_object=device,
+            type="generic_message",
+            verb=_("experienced hardware drift"),
+            message=message,
+            level="info",
+        )
+    except (ImportError, Exception) as e:
+        logger.warning(
+            f"Could not push regeneration notification for {device.name}: {e}"
+        )

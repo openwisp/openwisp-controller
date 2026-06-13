@@ -1112,7 +1112,7 @@ You can filter a list of templates based on their backend using the
     GET /api/v1/controller/template/?backend={backend}
 
 You can filter a list of templates based on their type using the ``type``
-(e.g. vpn or generic).
+(e.g. vpn, cert or generic).
 
 .. code-block:: text
 

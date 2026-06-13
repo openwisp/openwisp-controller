@@ -22,7 +22,11 @@ from .base import BaseConfig
 
 logger = logging.getLogger(__name__)
 
-TYPE_CHOICES = (("generic", _("Generic")), ("vpn", _("VPN-client")))
+TYPE_CHOICES = (
+    ("generic", _("Generic")),
+    ("vpn", _("VPN-client")),
+    ("cert", _("Certificate")),
+)
 
 
 def default_auto_cert():
@@ -31,6 +35,18 @@ def default_auto_cert():
     (this avoids to set the exact default value in the database migration)
     """
     return DEFAULT_AUTO_CERT
+
+
+def get_unassigned_certs():
+    Cert = load_model("django_x509", "Cert")
+    DeviceCertificate = load_model("config", "DeviceCertificate")
+    assigned_cert_ids = DeviceCertificate.objects.filter(
+        cert_id__isnull=False
+    ).values_list("cert_id", flat=True)
+    return {
+        "pk__in": Cert.objects.exclude(id__in=assigned_cert_ids),
+        "revoked": False,
+    }
 
 
 class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
@@ -54,6 +70,30 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         blank=True,
         null=True,
         on_delete=models.CASCADE,
+    )
+    ca = models.ForeignKey(
+        get_model_name("django_x509", "Ca"),
+        on_delete=models.CASCADE,
+        verbose_name=_("Certificate Authority"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "The Certificate Authority that will sign certificates generated "
+            "by this template."
+        ),
+    )
+
+    blueprint_cert = models.ForeignKey(
+        get_model_name("django_x509", "Cert"),
+        on_delete=models.SET_NULL,
+        verbose_name=_("Blueprint Certificate"),
+        blank=True,
+        null=True,
+        limit_choices_to=get_unassigned_certs,
+        help_text=_(
+            "Optional: Select an unassigned certificate to copy extensions and "
+            "properties from."
+        ),
     )
     type = models.CharField(
         _("type"),
@@ -90,7 +130,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         help_text=_(
             "whether tunnel specific configuration (cryptographic keys, ip addresses, "
             "etc) should be automatically generated and managed behind the scenes "
-            "for each configuration using this template, valid only for the VPN type"
+            "for each configuration using this template, valid only for the VPN and "
+            "certificate template types"
         ),
     )
     default_values = JSONField(
@@ -212,6 +253,98 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                         f"config {config.pk}: {e}"
                     )
 
+    def _validate_cert_template_changes(self):
+        """
+        Prevents changing cert-specific settings of a certificate template
+        if it is already assigned to active devices.
+        """
+        if self._state.adding:
+            return
+        try:
+            current = self.__class__.objects.get(pk=self.pk)
+        except self.__class__.DoesNotExist:
+            return
+        changing_protected_fields = (
+            current.ca_id != self.ca_id
+            or current.blueprint_cert_id != self.blueprint_cert_id
+            or (current.type == "cert" and self.type != "cert")
+        )
+        if not changing_protected_fields:
+            return
+
+        Config = load_model("config", "Config")
+        if not (
+            Config.objects.filter(templates=self)
+            .exclude(status__in=["deactivating", "deactivated"])
+            .exists()
+        ):
+            return
+
+        message = _(
+            "This template is already assigned to active devices. "
+            "You cannot change the CA or Blueprint Certificate "
+            "on an active template."
+        )
+        errors = {}
+        if current.ca_id != self.ca_id:
+            errors["ca"] = message
+        if current.blueprint_cert_id != self.blueprint_cert_id:
+            errors["blueprint_cert"] = message
+        if current.type == "cert" and self.type != "cert":
+            errors["type"] = _(
+                "This template is already assigned to active devices. "
+                "You cannot change the template type from certificate "
+                "on an active template."
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    def _clean_cert_template(self):
+        """
+        Validates requirements specific to templates of type 'cert'.
+        Clears cert-related fields if the type is not 'cert'.
+        """
+        if self.type == "cert":
+            self._validate_org_relation("ca")
+            self._validate_org_relation("blueprint_cert")
+            if not self.ca:
+                raise ValidationError(
+                    {
+                        "ca": _(
+                            "A Certificate Authority is required when the template "
+                            "type is certificate."
+                        )
+                    }
+                )
+            if self.blueprint_cert and self.blueprint_cert.ca_id != self.ca_id:
+                raise ValidationError(
+                    {
+                        "blueprint_cert": _(
+                            "The selected certificate must match the selected "
+                            "Certificate Authority."
+                        )
+                    }
+                )
+            if self.blueprint_cert_id:
+                DeviceCertificate = load_model("config", "DeviceCertificate")
+                if DeviceCertificate.objects.filter(
+                    cert_id=self.blueprint_cert_id
+                ).exists():
+                    raise ValidationError(
+                        {
+                            "blueprint_cert": _(
+                                "This certificate is already assigned to a device. "
+                                "Please select an unassigned certificate to "
+                                "use as a blueprint."
+                            )
+                        }
+                    )
+            if self.config is None:
+                self.config = {}
+        else:
+            self.ca = None
+            self.blueprint_cert = None
+
     def clean(self, *args, **kwargs):
         """
         * validates org relationship of VPN if present
@@ -220,7 +353,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * clears VPN specific fields if type is not VPN
         * automatically determines configuration if necessary
         * if flagged as required forces it also to be default
+        * prevents mutating cert-specific fields on active cert templates
+        * enforces CA and Blueprint requirements for cert templates
         """
+        self._validate_cert_template_changes()
+        self._clean_cert_template()
         self._validate_org_relation("vpn")
         if not self.default_values:
             self.default_values = {}
@@ -234,7 +371,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             )
         elif self.type != "vpn":
             self.vpn = None
-            self.auto_cert = False
+            if self.type != "cert":
+                self.auto_cert = False
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
@@ -242,7 +380,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         if self.required and not self.default:
             self.default = True
         super().clean(*args, **kwargs)
-        if not self.config:
+        if not self.config and self.type != "cert":
             raise ValidationError(_("The configuration field cannot be empty."))
 
     def get_context(self, system=False):
