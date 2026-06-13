@@ -892,12 +892,12 @@ class AbstractVpnClient(models.Model):
         """
         d = self.config.device
         end = 63 - len(d.mac_address)
-        d.name = d.name[:end]
+        name = d.name[:end]
         unique_slug = shortuuid.ShortUUID().random(length=8)
         cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == "{mac_address}-{name}" and d.name == d.mac_address:
+        if cn_format == "{mac_address}-{name}" and name == d.mac_address:
             cn_format = "{mac_address}"
-        common_name = cn_format.format(**d.__dict__)[:55]
+        common_name = cn_format.format(**{**d.__dict__, "name": name})[:55]
         common_name = f"{common_name}-{unique_slug}"
         return common_name
 
