@@ -111,7 +111,7 @@ class TestConfig(
             self.assertIsInstance(c.backend_instance, OpenWrt)
             self.assertEqual(c.backend_instance.dsa, True)
 
-        with self.subTest("DSA disabed OpenWrt Firmware"):
+        with self.subTest("DSA disabled OpenWrt Firmware"):
             c = Config(
                 backend="netjsonconfig.OpenWrt",
                 device=Device(name="test", os="OpenWrt 19.02.2 r16495-bf0c965af0"),

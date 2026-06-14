@@ -55,7 +55,7 @@ class TestDeviceAdmin(
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
 
         self.assertEqual(Command.objects.count(), 1)
-        # TODO: Selenium tests does not support websocket connections.
+        # TODO: Selenium tests do not support websocket connections.
         # Thus, we need to refresh the page. Remove this when support for
         # websockets is added.
         self.open(path)

@@ -160,7 +160,7 @@ class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
         connected, _ = await admin_communicator.connect()
         assert connected
 
-        # Updating co-ordinates for org1_location should notify org1_user and admin,
+        # Updating coordinates for org1_location should notify org1_user and admin,
         await self._save_location(str(org1_location.pk))
         org1_response = await org1_communicator.receive_json_from(timeout=1)
         assert org1_response["id"] == str(org1_location.pk)
@@ -181,7 +181,7 @@ class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
         connected, _ = await org2_communicator.connect()
         assert connected
 
-        # Updating co-ordinates for org2_location should notify org2_user and admin,
+        # Updating coordinates for org2_location should notify org2_user and admin,
         await self._save_location(str(org2_location.pk))
         org2_response = await org2_communicator.receive_json_from(timeout=1)
         assert org2_response["id"] == str(org2_location.pk)

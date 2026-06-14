@@ -108,10 +108,19 @@ class TestDeviceAdminReadonly(
             # so we just need to ensure it's set as expected
             self.web_driver.execute_script(
                 'django.jQuery(window).on("beforeunload", function(e) {'
+                " sessionStorage.setItem('unsaved_changes_alert', e.returnValue);"
                 " console.warn(e.returnValue); });"
             )
             self.web_driver.refresh()
-            for entry in self.get_browser_logs():
+            alert = self.web_driver.execute_script(
+                "var alert = sessionStorage.getItem('unsaved_changes_alert');"
+                "sessionStorage.removeItem('unsaved_changes_alert');"
+                "return alert;"
+            )
+            if alert and "You haven't saved your changes yet!" in alert:
+                self.fail("Unsaved changes alert displayed without any change")
+
+            for entry in self.get_browser_logs() or []:
                 if (
                     entry["level"] == "WARNING"
                     and "You haven't saved your changes yet!" in entry["message"]

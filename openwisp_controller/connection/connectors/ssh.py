@@ -138,7 +138,7 @@ class Ssh(object):
         """
         Tries to instantiate the SSH connection,
         if the connection fails, it tries again
-        by disabling the new deafult HostKeyAlgorithms
+        by disabling the new default HostKeyAlgorithms
         used by newer versions of Paramiko
         """
         params = self.params
@@ -187,11 +187,11 @@ class Ssh(object):
         # paramiko expects timeout as a float
         timeout = float(timeout)
         logger.info("Executing command: {0}".format(command))
-        # execute commmand
+        # execute command
         try:
             start_cmd = time.perf_counter()
             stdin, stdout, stderr = self.shell.exec_command(command, timeout=timeout)
-        # re-raise socket.timeout to avoid being catched
+        # re-raise socket.timeout to avoid being caught
         # by the subsequent `except Exception as e` block
         except socket.timeout:
             raise socket.timeout()
