@@ -110,6 +110,49 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         else:
             self.fail("ValidationError not raised")
 
+    def test_vpn_template_change_vpn_when_assigned(self):
+        org = self._get_org()
+        vpn1 = self._create_vpn(name="vpn1", organization=org)
+        vpn2 = self._create_vpn(name="vpn2", organization=org)
+        t = self._create_template(
+            name="vpn-template",
+            organization=org,
+            type="vpn",
+            vpn=vpn1,
+            config={}
+        )
+        c = self._create_config(organization=org)
+        c.templates.add(t)
+        
+        # Try changing VPN
+        t.vpn = vpn2
+        try:
+            t.full_clean()
+        except ValidationError as err:
+            self.assertIn("vpn", err.message_dict)
+            self.assertIn("This VPN template is currently assigned to active devices.", err.message_dict["vpn"][0])
+        else:
+            self.fail("ValidationError not raised when changing VPN of an assigned template")
+            
+    def test_vpn_template_change_vpn_when_not_assigned(self):
+        org = self._get_org()
+        vpn1 = self._create_vpn(name="vpn1", organization=org)
+        vpn2 = self._create_vpn(name="vpn2", organization=org)
+        t = self._create_template(
+            name="vpn-template-unassigned",
+            organization=org,
+            type="vpn",
+            vpn=vpn1,
+            config={}
+        )
+        
+        # Try changing VPN
+        t.vpn = vpn2
+        try:
+            t.full_clean()
+        except ValidationError:
+            self.fail("ValidationError raised when changing VPN of an unassigned template")
+
     def test_generic_has_no_vpn(self):
         t = self._create_template(vpn=self._create_vpn())
         self.assertIsNone(t.vpn)

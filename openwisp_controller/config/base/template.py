@@ -235,6 +235,23 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         elif self.type != "vpn":
             self.vpn = None
             self.auto_cert = False
+            
+        if self.pk and self.type == "vpn":
+            try:
+                current = self.__class__.objects.get(pk=self.pk)
+                if current.vpn_id and current.vpn_id != getattr(self.vpn, 'id', None):
+                    if self.config_relations.exists():
+                        raise ValidationError(
+                            {"vpn": _(
+                                "This VPN template is currently assigned to active devices. "
+                                "Changing the VPN server may cause certificate and CA mismatches. "
+                                "Detach the template and re-provision affected devices before "
+                                "changing the VPN server."
+                            )}
+                        )
+            except self.__class__.DoesNotExist:
+                pass
+                
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
