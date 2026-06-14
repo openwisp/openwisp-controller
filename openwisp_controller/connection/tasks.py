@@ -81,6 +81,14 @@ def launch_command(command_id):
         return
     try:
         command.execute()
+        # Todo: Remove once demo is completed
+        if command.batch_command_id:
+            print("****************************")
+            print(f"Device: {command.device.name}")
+            print(f"Status: {command.status}")
+            print("")
+            print(command.output)
+            print("****************************")
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
@@ -96,6 +104,16 @@ def launch_command(command_id):
         command.status = "failed"
         command._add_output(_(f"Internal system error: {e}"))
         command._save_without_resurrecting()
+
+
+@shared_task(bind=True, soft_time_limit=3600)
+def launch_batch_command(self, batch_id):
+    BatchCommand = load_model("connection", "BatchCommand")
+    try:
+        batch = BatchCommand.objects.get(pk=batch_id)
+        batch.create_commands()
+    except ObjectDoesNotExist:
+        logger.warning(f"The BatchCommand object with id {batch_id} not foound")
 
 
 @shared_task(soft_time_limit=3600)

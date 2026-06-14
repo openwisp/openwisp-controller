@@ -40,6 +40,11 @@ def get_api_urls(api_views):
             api_views.deviceconnection_detail_view,
             name="deviceconnection_detail",
         ),
+        path(
+            "api/v1/controller/batch-command/execute/",
+            api_views.batch_command_execute_view,
+            name="batch_command_execute",
+        ),
     ]
 
 

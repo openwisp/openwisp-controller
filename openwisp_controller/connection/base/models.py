@@ -30,7 +30,11 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import auto_add_credentials_to_devices, launch_command
+from ..tasks import (
+    auto_add_credentials_to_devices,
+    launch_batch_command,
+    launch_command,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -467,6 +471,12 @@ class AbstractCommand(TimeStampedEditableModel):
         encoder=DjangoJSONEncoder,
     )
     output = models.TextField(blank=True)
+    batch_command = models.ForeignKey(
+        get_model_name("connection", "BatchCommand"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         verbose_name = _("Command")
@@ -557,6 +567,8 @@ class AbstractCommand(TimeStampedEditableModel):
         output = super().save(*args, **kwargs)
         if adding:
             self._schedule_command()
+        if self.batch_command_id and self.status != "in-progress":
+            self.batch_command.calculate_and_update_status()
         return output
 
     def _save_without_resurrecting(self):
@@ -719,3 +731,222 @@ class AbstractCommand(TimeStampedEditableModel):
                 f"arguments property is not applicable in "
                 f'command instance of type "{self.type}"'
             )
+
+
+class AbstractBatchCommand(TimeStampedEditableModel):
+    STATUS_CHOICES = (
+        ("idle", _("idle")),
+        ("in-progress", _("in progress")),
+        ("success", _("completed successfully")),
+        ("failed", _("completed with some failures")),
+    )
+
+    organization = models.ForeignKey(
+        get_model_name("openwisp_users", "Organization"),
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+    )
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
+    )
+    command_type = models.CharField(
+        max_length=16,
+        choices=(COMMAND_CHOICES if django.VERSION < (5, 0) else get_command_choices),
+    )
+    command_input = JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
+    group = models.ForeignKey(
+        get_model_name("config", "DeviceGroup"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("device group"),
+    )
+    location = models.ForeignKey(
+        get_model_name("geo", "Location"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("location"),
+    )
+    devices = models.ManyToManyField(
+        get_model_name("config", "Device"),
+        blank=True,
+        verbose_name=_("devices"),
+    )
+    execute_all = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+        verbose_name = _("Batch command")
+        verbose_name_plural = _("Batch commands")
+
+    @cached_property
+    def total_devices(self):
+        Command = load_model("connection", "Command")
+        return Command.objects.filter(batch_command=self).count()
+
+    @property
+    def successful(self):
+        Command = load_model("connection", "Command")
+        return Command.objects.filter(batch_command=self, status="success").count()
+
+    @property
+    def failed(self):
+        Command = load_model("connection", "Command")
+        return Command.objects.filter(batch_command=self, status="failed").count()
+
+    def clean(self):
+        super().clean()
+        if self.organization_id:
+            if self.group and self.group.organization != self.organization:
+                raise ValidationError(
+                    {
+                        "group": _(
+                            "The organization of the group doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    }
+                )
+            if self.location and self.location.organization != self.organization:
+                raise ValidationError(
+                    {
+                        "location": _(
+                            "The organization of the location doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    }
+                )
+            if self.pk and self.devices.exists():
+                org_mismatch = self.devices.exclude(
+                    organization=self.organization
+                ).exists()
+                if org_mismatch:
+                    raise ValidationError(
+                        {
+                            "devices": _(
+                                "All devices must belong to the same "
+                                "organization as the batch command."
+                            )
+                        }
+                    )
+        allowed = dict(
+            AbstractCommand.get_org_allowed_commands(
+                organization_id=self.organization_id
+            )
+        )
+        if self.command_type not in allowed:
+            raise ValidationError(
+                {
+                    "command_type": _(
+                        '"{command}" command is not available ' "for this organization"
+                    ).format(command=self.command_type)
+                }
+            )
+        try:
+            jsonschema.Draft4Validator(get_command_schema(self.command_type)).validate(
+                self.command_input
+            )
+        except SchemaError as e:
+            raise ValidationError({"command_input": e.message})
+
+    def resolve_devices(self):
+        if self.pk and self.devices.exists():
+            return self.devices.all()
+        Device = load_model("config", "Device")
+        qs = Device.objects.all()
+        if self.organization_id:
+            qs = qs.filter(organization=self.organization)
+        if self.execute_all:
+            return qs
+        if self.group:
+            qs = qs.filter(group=self.group)
+        if self.location:
+            qs = qs.filter(location=self.location)
+        return qs
+
+    @classmethod
+    def execute(cls, **kwargs):
+        devices_list = kwargs.pop("devices", None)
+        batch = cls(**kwargs)
+        batch.full_clean()
+        batch.save()
+        if devices_list:
+            batch.devices.set(devices_list)
+        batch.status = "in-progress"
+        batch.save(update_fields=["status"])
+        transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
+        return batch
+
+    @classmethod
+    def dry_run(cls, **kwargs):
+        devices_list = kwargs.pop("devices", None)
+        batch = cls(**kwargs)
+        batch.full_clean()
+        if devices_list:
+            return {"devices": list(devices_list)}
+        return {"devices": list(batch.resolve_devices())}
+
+    def create_commands(self):
+        self.status = "in-progress"
+        self.save()
+        Command = load_model("connection", "Command")
+        for device in self.resolve_devices().iterator():
+            command = Command(
+                device=device,
+                type=self.command_type,
+                input=self.command_input,
+                batch_command=self,
+            )
+            try:
+                command.full_clean()
+                command.save()
+            except ValidationError as e:
+                logger.warning(f"Skipping device {device.pk} for batch {self.pk}: {e}")
+        self.calculate_and_update_status()
+
+    def calculate_and_update_status(self):
+        Command = load_model("connection", "Command")
+        operations = Command.objects.filter(batch_command=self)
+        stats = operations.aggregate(
+            total_operations=models.Count("id"),
+            in_progress=models.Count(
+                models.Case(
+                    models.When(status="in-progress", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            completed=models.Count(
+                models.Case(
+                    models.When(~models.Q(status="in-progress"), then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            successful=models.Count(
+                models.Case(
+                    models.When(status="success", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            failed=models.Count(
+                models.Case(
+                    models.When(status="failed", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+        )
+        if stats["total_operations"] == 0:
+            new_status = "idle"
+        elif stats["in_progress"] > 0:
+            new_status = "in-progress"
+        elif stats["failed"] > 0:
+            new_status = "failed"
+        elif (
+            stats["successful"] > 0 and stats["completed"] == stats["total_operations"]
+        ):
+            new_status = "success"
+        else:
+            new_status = self.status
+        if self.status != new_status:
+            self.status = new_status
+            self.save(update_fields=["status"])
