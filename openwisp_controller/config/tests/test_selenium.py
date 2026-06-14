@@ -327,7 +327,7 @@ class TestDeviceAdmin(
             By.CSS_SELECTOR, "#deactivating-warning .messagelist .warning p"
         )
         self.find_element(by=By.CSS_SELECTOR, value="#warning-ack").click()
-        # After accepting the warning, wee need to wait for the animation
+        # After accepting the warning, we need to wait for the animation
         # to complete before trying to interact with the button,
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
@@ -364,7 +364,7 @@ class TestDeviceAdmin(
             By.CSS_SELECTOR, "#deactivating-warning .messagelist .warning p"
         )
         self.find_element(by=By.CSS_SELECTOR, value="#warning-ack").click()
-        # After accepting the warning, wee need to wait for the animation
+        # After accepting the warning, we need to wait for the animation
         # to complete before trying to interact with the button,
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
@@ -630,7 +630,15 @@ class TestDeviceAdminUnsavedChanges(
         return webdriver.Chrome(options=options)
 
     def _is_unsaved_changes_alert_present(self):
-        for entry in self.get_browser_logs():
+        alert = self.web_driver.execute_script(
+            "var alert = sessionStorage.getItem('unsaved_changes_alert');"
+            "sessionStorage.removeItem('unsaved_changes_alert');"
+            "return alert;"
+        )
+        if alert and "You haven't saved your changes yet!" in alert:
+            return True
+
+        for entry in self.get_browser_logs() or []:
             if (
                 entry["level"] == "WARNING"
                 and "You haven't saved your changes yet!" in entry["message"]
@@ -641,6 +649,7 @@ class TestDeviceAdminUnsavedChanges(
     def _override_unsaved_changes_alert(self):
         self.web_driver.execute_script(
             'django.jQuery(window).on("beforeunload", function(e) {'
+            " sessionStorage.setItem('unsaved_changes_alert', e.returnValue);"
             " console.warn(e.returnValue); });"
         )
 

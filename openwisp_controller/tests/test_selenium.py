@@ -89,7 +89,7 @@ class TestDevice(
         # is logged at WARNING level.
         # By checking that there are no WARNING level errors logged in the
         # browser console, we ensure that this issue is not happening.
-        for error in self.get_browser_logs():
+        for error in self.get_browser_logs() or []:
             if error["level"] == "WARNING" and error["message"] not in [
                 "wrong event specified: touchleave"
             ]:
