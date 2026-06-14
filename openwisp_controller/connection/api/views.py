@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -151,23 +152,25 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        batch = serializer.save()
-        batch.launch_async()
-        return Response({"batch": str(batch.pk)}, status=status.HTTP_201_CREATED)
+        try:
+            batch = BatchCommand.execute(**serializer.validated_data)
+        except ValidationError as e:
+            return Response(
+                {"error": str(e.messages[0])}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response({"batch": str(batch.pk)}, status=201)
 
     def get(self, request):
         serializer = self.get_serializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        device_pks = []
-        devices_list = data.pop("devices", None)
-        if devices_list:
-            device_pks = [str(d.pk) for d in devices_list]
-        batch = BatchCommand(**data)
-        if not device_pks:
-            resolved = batch.resolve_devices()
-            device_pks = [str(d.pk) for d in resolved]
-        return Response({"devices": device_pks})
+        try:
+            data = BatchCommand.dry_run(**serializer.validated_data)
+        except ValidationError as e:
+            return Response(
+                {"error": str(e.messages[0])}, status=status.HTTP_400_BAD_REQUEST
+            )
+        data["devices"] = [str(d.pk) for d in data["devices"]]
+        return Response(data)
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):

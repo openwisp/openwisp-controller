@@ -136,6 +136,7 @@ class BatchCommandExecuteSerializer(
         allow_empty=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
+    execute_all = serializers.BooleanField(required=False, default=False)
 
     class Meta:
         model = BatchCommand
@@ -146,21 +147,30 @@ class BatchCommandExecuteSerializer(
             "devices",
             "group",
             "location",
+            "execute_all",
         )
         extra_kwargs = {
             "organization": {"required": False, "allow_null": True},
         }
 
     def validate(self, data):
-        if (
-            not data.get("organization")
-            and not self.context["request"].user.is_superuser
-        ):
+        org = data.get("organization")
+        execute_all = data.get("execute_all", False)
+        devices = data.get("devices")
+        group = data.get("group")
+        location = data.get("location")
+        if not org and not self.context["request"].user.is_superuser:
             raise serializers.ValidationError(
                 _("Only superusers can execute batch commands without an organization.")
             )
-        if devices := data.get("devices"):
-            org = data.get("organization")
+        if not execute_all and not org and not devices and not group and not location:
+            raise serializers.ValidationError(
+                _(
+                    "Specify at least one targeting option "
+                    "or set execute_all to true."
+                )
+            )
+        if devices:
             for device in devices:
                 if org and device.organization_id != org.id:
                     raise serializers.ValidationError(
