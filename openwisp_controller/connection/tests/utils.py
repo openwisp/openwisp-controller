@@ -17,7 +17,7 @@ class SshServer(Server):
     def _run(self, *args, **kwargs):
         """
         Hides 'Bad file descriptor' system issue which
-        does not affect the effectivness of the tests
+        does not affect the effectiveness of the tests
         """
         try:
             return super()._run(*args, **kwargs)
