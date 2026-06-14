@@ -30,7 +30,11 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import auto_add_credentials_to_devices, launch_command
+from ..tasks import (
+    auto_add_credentials_to_devices,
+    launch_batch_command,
+    launch_command,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -735,8 +739,8 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         ("in-progress", _("in progress")),
         ("success", _("completed successfully")),
         ("failed", _("completed with some failures")),
-        ("cancelled", _("completed with some cancellations")),
     )
+
     organization = models.ForeignKey(
         get_model_name("openwisp_users", "Organization"),
         on_delete=models.CASCADE,
@@ -770,15 +774,27 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         blank=True,
         verbose_name=_("devices"),
     )
-    total_devices = models.PositiveIntegerField(default=0)
-    successful = models.PositiveIntegerField(default=0)
-    failed = models.PositiveIntegerField(default=0)
-    cancelled = models.PositiveIntegerField(default=0)
+    execute_all = models.BooleanField(default=False)
 
     class Meta:
         abstract = True
         verbose_name = _("Batch command")
         verbose_name_plural = _("Batch commands")
+
+    @cached_property
+    def total_devices(self):
+        Command = load_model("connection", "Command")
+        return Command.objects.filter(batch_command=self).count()
+
+    @property
+    def successful(self):
+        Command = load_model("connection", "Command")
+        return Command.objects.filter(batch_command=self, status="success").count()
+
+    @property
+    def failed(self):
+        Command = load_model("connection", "Command")
+        return Command.objects.filter(batch_command=self, status="failed").count()
 
     def clean(self):
         super().clean()
@@ -841,38 +857,53 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         qs = Device.objects.all()
         if self.organization_id:
             qs = qs.filter(organization=self.organization)
+        if self.execute_all:
+            return qs
         if self.group:
             qs = qs.filter(group=self.group)
         if self.location:
             qs = qs.filter(location=self.location)
         return qs
 
-    def launch(self):
+    @classmethod
+    def execute(cls, **kwargs):
+        devices_list = kwargs.pop("devices", None)
+        batch = cls(**kwargs)
+        batch.full_clean()
+        batch.save()
+        if devices_list:
+            batch.devices.set(devices_list)
+        batch.status = "in-progress"
+        batch.save(update_fields=["status"])
+        transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
+        return batch
+
+    @classmethod
+    def dry_run(cls, **kwargs):
+        devices_list = kwargs.pop("devices", None)
+        batch = cls(**kwargs)
+        batch.full_clean()
+        if devices_list:
+            return {"devices": list(devices_list)}
+        return {"devices": list(batch.resolve_devices())}
+
+    def create_commands(self):
         self.status = "in-progress"
         self.save()
-        devices = self.resolve_devices()
         Command = load_model("connection", "Command")
-        count = 0
-        for device in devices.iterator():
-            cmd = Command(
+        for device in self.resolve_devices().iterator():
+            command = Command(
                 device=device,
                 type=self.command_type,
                 input=self.command_input,
                 batch_command=self,
             )
-            cmd.full_clean()
-            cmd.save()
-            count += 1
-        self.total_devices = count
-        self.save(update_fields=["total_devices"])
+            try:
+                command.full_clean()
+                command.save()
+            except ValidationError as e:
+                logger.warning(f"Skipping device {device.pk} for batch {self.pk}: {e}")
         self.calculate_and_update_status()
-
-    def launch_async(self):
-        self.status = "in-progress"
-        self.save(update_fields=["status"])
-        from ..tasks import launch_batch_command
-
-        transaction.on_commit(lambda: launch_batch_command.delay(self.pk))
 
     def calculate_and_update_status(self):
         Command = load_model("connection", "Command")
@@ -904,16 +935,18 @@ class AbstractBatchCommand(TimeStampedEditableModel):
                 )
             ),
         )
-        self.successful = stats["successful"]
-        self.failed = stats["failed"]
         if stats["total_operations"] == 0:
-            self.status = "idle"
+            new_status = "idle"
         elif stats["in_progress"] > 0:
-            self.status = "in-progress"
+            new_status = "in-progress"
         elif stats["failed"] > 0:
-            self.status = "failed"
+            new_status = "failed"
         elif (
             stats["successful"] > 0 and stats["completed"] == stats["total_operations"]
         ):
-            self.status = "success"
-        self.save(update_fields=["status", "successful", "failed"])
+            new_status = "success"
+        else:
+            new_status = self.status
+        if self.status != new_status:
+            self.status = new_status
+            self.save(update_fields=["status"])
