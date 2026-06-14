@@ -177,7 +177,7 @@ class BaseSubnetDivisionRuleType(object):
         # check for real existence in DB to workaround
         # this django-import-export bug:
         # https://github.com/django-import-export/django-import-export/issues/1078
-        # TODO: if that issue is ever solved, we can remove the this block below
+        # TODO: if that issue is ever solved, we can remove this block below
         Config = config._meta.model
         if not Config.objects.filter(pk=config.pk).exists():
             raise ObjectDoesNotExist()

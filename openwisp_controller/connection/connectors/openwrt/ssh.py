@@ -11,7 +11,7 @@ class OpenWrt(Ssh):
     def update_config(self):
         try:
             output, exit_code = self.exec_command(
-                # "openwisp_config" for backword compatibility
+                # "openwisp_config" for backward compatibility
                 "(openwisp-config --version || openwisp_config --version) 2>/dev/null"
             )
         except Exception as error:

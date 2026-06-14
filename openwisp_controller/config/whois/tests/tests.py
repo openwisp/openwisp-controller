@@ -1178,7 +1178,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
     def test_whois_device_admin(self):
         def _assert_no_js_errors():
             browser_logs = []
-            for log in self.get_browser_logs():
+            for log in self.get_browser_logs() or []:
                 if self.browser == "chrome" and log["source"] != "console-api":
                     continue
                 elif log["message"] in ["wrong event specified: touchleave"]:

@@ -178,7 +178,7 @@ class TestSubnetDivisionRule(
                 rule.full_clean()
             expected_message_dict = {
                 "number_of_subnets": [
-                    "The master subnet is too small to acommodate "
+                    "The master subnet is too small to accommodate "
                     'the requested "number of subnets" plus the '
                     "reserved subnet, please increase the size of "
                     "the master subnet or decrease the "
@@ -279,7 +279,7 @@ class TestSubnetDivisionRule(
         except ValidationError as e:
             self.assertIn("number_of_subnets", e.message_dict)
             self.assertIn(
-                "The master subnet is too small to acommodate",
+                "The master subnet is too small to accommodate",
                 e.message_dict["number_of_subnets"][0],
             )
         else:
@@ -315,7 +315,7 @@ class TestSubnetDivisionRule(
         except ValidationError as e:
             self.assertIn("number_of_subnets", e.message_dict)
             self.assertIn(
-                "The master subnet is too small to acommodate",
+                "The master subnet is too small to accommodate",
                 e.message_dict["number_of_subnets"][0],
             )
         else:
@@ -495,7 +495,7 @@ class TestSubnetDivisionRule(
         subnet = self._get_master_subnet(
             "10.0.0.0/29", master_subnet=self.master_subnet
         )
-        # The master subnet can acommodate
+        # The master subnet can accommodate
         # this rule only once:
         # A /29 has 4 /31 slots available
         # Minus the reserved subnet = 3
