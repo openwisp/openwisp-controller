@@ -111,9 +111,10 @@ def launch_batch_command(self, batch_id):
     BatchCommand = load_model("connection", "BatchCommand")
     try:
         batch = BatchCommand.objects.get(pk=batch_id)
-        batch.create_commands()
-    except ObjectDoesNotExist:
-        logger.warning(f"The BatchCommand object with id {batch_id} not foound")
+    except BatchCommand.DoesNotExist:
+        logger.warning(f"The BatchCommand object with id {batch_id} has been deleted")
+        return
+    batch.create_commands()
 
 
 @shared_task(soft_time_limit=3600)

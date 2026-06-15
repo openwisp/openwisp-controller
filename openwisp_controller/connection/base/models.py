@@ -888,9 +888,11 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         return {"devices": list(batch.resolve_devices())}
 
     def create_commands(self):
+        Command = load_model("connection", "Command")
+        if Command.objects.filter(batch_command=self).exists():
+            return
         self.status = "in-progress"
         self.save()
-        Command = load_model("connection", "Command")
         for device in self.resolve_devices().iterator():
             command = Command(
                 device=device,
@@ -902,7 +904,10 @@ class AbstractBatchCommand(TimeStampedEditableModel):
                 command.full_clean()
                 command.save()
             except ValidationError as e:
-                logger.warning(f"Skipping device {device.pk} for batch {self.pk}: {e}")
+                command.status = "failed"
+                command.output = str(e)
+                models.Model.save(command)
+                logger.warning(f"Device {device.pk} failed for batch {self.pk}: {e}")
         self.calculate_and_update_status()
 
     def calculate_and_update_status(self):

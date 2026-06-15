@@ -156,7 +156,8 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
             batch = BatchCommand.execute(**serializer.validated_data)
         except ValidationError as e:
             return Response(
-                {"error": str(e.messages[0])}, status=status.HTTP_400_BAD_REQUEST
+                getattr(e, "message_dict", e.messages),
+                status=status.HTTP_400_BAD_REQUEST,
             )
         return Response({"batch": str(batch.pk)}, status=201)
 
@@ -167,7 +168,8 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
             data = BatchCommand.dry_run(**serializer.validated_data)
         except ValidationError as e:
             return Response(
-                {"error": str(e.messages[0])}, status=status.HTTP_400_BAD_REQUEST
+                getattr(e, "message_dict", e.messages),
+                status=status.HTTP_400_BAD_REQUEST,
             )
         data["devices"] = [str(d.pk) for d in data["devices"]]
         return Response(data)
