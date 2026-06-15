@@ -907,7 +907,13 @@ class AbstractBatchCommand(TimeStampedEditableModel):
                 command.status = "failed"
                 command.output = str(e)
                 models.Model.save(command)
-                logger.warning(f"Device {device.pk} failed for batch {self.pk}: {e}")
+                fields = list(getattr(e, "message_dict", {}).keys()) or ["__all__"]
+                logger.warning(
+                    "Command validation failed for batch=%s device=%s fields=%s",
+                    self.pk,
+                    device.pk,
+                    ",".join(fields),
+                )
         self.calculate_and_update_status()
 
     def calculate_and_update_status(self):

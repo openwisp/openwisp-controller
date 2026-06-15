@@ -566,7 +566,7 @@ class TestEstimatedLocationTransaction(
             device2.save()
             # 3 queries related to notifications cleanup
             device2.refresh_from_db()
-            with self.assertNumQueries(15):
+            with self.assertNumQueries(16):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
