@@ -186,7 +186,7 @@ def _config_context(config):
 
 def _vpn_context(config):
     context = {}
-    for vpnclient in config.vpnclient_set.all().select_related("vpn", "cert", "ip"):
+    for vpnclient in config.vpnclient_set.all():
         vpn = vpnclient.vpn
         vpn_id = _pk_hex(vpn)
         context.update(_vpn_server_context(vpn))
