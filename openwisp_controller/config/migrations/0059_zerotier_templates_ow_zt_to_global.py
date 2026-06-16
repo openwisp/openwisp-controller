@@ -1,17 +1,6 @@
-import json
-
 from django.db import migrations
 
-
-def _resolve_config(value):
-    if isinstance(value, str):
-        try:
-            value = json.loads(value) if value else {}
-        except ValueError:
-            value = {}
-    if not isinstance(value, dict):
-        return {}
-    return value
+from . import resolve_config
 
 
 def change_owzt_to_global(apps, schema_editor):
@@ -20,7 +9,7 @@ def change_owzt_to_global(apps, schema_editor):
     for template in Template.objects.filter(
         type="vpn", vpn__backend="openwisp_controller.vpn_backends.ZeroTier"
     ).iterator():
-        config = _resolve_config(template.config)
+        config = resolve_config(template.config)
         for item in config.get("zerotier", []):
             if not isinstance(item, dict):
                 continue

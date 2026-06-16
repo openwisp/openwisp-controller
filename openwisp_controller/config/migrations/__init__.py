@@ -1,9 +1,21 @@
+import json
 import subprocess
 
 from django.contrib.auth.models import Permission
 from swapper import load_model
 
 from ...migrations import create_default_permissions, get_swapped_model
+
+
+def resolve_config(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value) if value else {}
+        except ValueError:
+            value = {}
+    if not isinstance(value, dict):
+        return {}
+    return value
 
 
 def update_vpn_dhparam_length(apps, schema_editor):
