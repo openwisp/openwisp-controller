@@ -881,8 +881,11 @@ class AbstractBatchCommand(TimeStampedEditableModel):
     @classmethod
     def dry_run(cls, **kwargs):
         devices_list = kwargs.pop("devices", None)
+        command_type = kwargs.pop("command_type", None)
         batch = cls(**kwargs)
-        batch.full_clean()
+        if command_type:
+            batch.command_type = command_type
+            batch.full_clean()
         if devices_list:
             return {"devices": list(devices_list)}
         return {"devices": list(batch.resolve_devices())}

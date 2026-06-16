@@ -136,7 +136,13 @@ class BatchCommandExecuteSerializer(
         allow_empty=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
-    execute_all = serializers.BooleanField(required=False, default=False)
+    execute_all = serializers.BooleanField(required=False, default=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        if request and request.method == "GET":
+            self.fields["type"].required = False
 
     class Meta:
         model = BatchCommand
