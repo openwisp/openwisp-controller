@@ -225,7 +225,7 @@ def invalidate_controller_views_cache(organization_id):
 
 
 @shared_task(soft_time_limit=1200)
-def regenerate_device_certificates_task(device_id):
+def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
     """
     Revokes stale certificates and mints fresh ones when hardware drift occurs.
     """
@@ -243,19 +243,23 @@ def regenerate_device_certificates_task(device_id):
     certs_regenerated = 0
 
     with transaction.atomic():
-        active_device_certs = (
-            DeviceCertificate.objects.select_for_update()
-            .filter(
-                config__device=device,
-                auto_cert=True,
-                cert__revoked=False,
-                template__type="cert",
-            )
-            .select_related("cert", "config", "template")
+        qs = DeviceCertificate.objects.select_for_update().filter(
+            config__device=device,
+            auto_cert=True,
+            cert__revoked=False,
+            template__type="cert",
         )
+        if expected_cert_ids:
+            valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
+            qs = qs.filter(cert_id__in=valid_cert_ids)
+        active_device_certs = qs.select_related("cert", "config", "template")
         if not active_device_certs.exists():
             return
+        expected_map = dict(expected_cert_ids) if expected_cert_ids else {}
         for dc in active_device_certs:
+            expected_cert_id = expected_map.get(dc.id)
+            if expected_cert_id is not None and dc.cert_id != expected_cert_id:
+                continue
             old_cert = dc.cert
             old_cert.revoke()
             blueprint = dc.template.blueprint_cert
@@ -292,7 +296,6 @@ def regenerate_device_certificates_task(device_id):
             new_cert = Cert(
                 name=device.name,
                 ca=ca,
-                organization=device.organization,
                 key_length=key_length,
                 digest=digest,
                 country_code=country_code,
@@ -303,6 +306,7 @@ def regenerate_device_certificates_task(device_id):
                 common_name=dc._get_common_name(),
                 extensions=extensions,
             )
+            new_cert = dc._auto_create_cert_extra(new_cert)
             new_cert.full_clean()
             new_cert.save()
             dc.cert = new_cert
@@ -311,21 +315,23 @@ def regenerate_device_certificates_task(device_id):
             certs_regenerated += 1
     for config in configs_to_update:
         config.update_status_if_checksum_changed()
-    try:
-        message = _(
-            "Hardware drift detected on device {device_name}. "
-            "Successfully regenerated {certs_regenerated} bound X.509 certificate(s)."
-        ).format(device_name=str(device.name), certs_regenerated=certs_regenerated)
-        notify.send(
-            sender=device,
-            target=device,
-            action_object=device,
-            type="generic_message",
-            verb=_("experienced hardware drift"),
-            message=message,
-            level="info",
-        )
-    except (ImportError, Exception) as e:
-        logger.warning(
-            f"Could not push regeneration notification for {device.name}: {e}"
-        )
+    if certs_regenerated:
+        try:
+            message = _(
+                "Hardware drift detected on device {device_name}. "
+                "Successfully regenerated {certs_regenerated} "
+                "bound X.509 certificate(s)."
+            ).format(device_name=str(device.name), certs_regenerated=certs_regenerated)
+            notify.send(
+                sender=device,
+                target=device,
+                action_object=device,
+                type="generic_message",
+                verb=_("experienced hardware drift"),
+                message=message,
+                level="info",
+            )
+        except (ImportError, Exception) as e:
+            logger.warning(
+                f"Could not push regeneration notification for {device.name}: {e}"
+            )

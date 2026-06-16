@@ -330,6 +330,24 @@ The objects that are automatically created will also be removed when they
 are not needed anymore (e.g.: when the VPN template is removed from a
 configuration object).
 
+``OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE``
+-----------------------------------------------------------
+
+============ ========
+**type**:    ``bool``
+**default**: ``True``
+============ ========
+
+When a device's name or MAC address changes, OpenWISP automatically
+revokes the existing X.509 client certificates and provisions new ones
+with the updated identity attributes. Set this to ``False`` to disable
+this automatic regeneration.
+
+.. note::
+
+    The regeneration only applies to certificates created via Certificate
+    Templates with ``auto_cert`` enabled.
+
 ``OPENWISP_CONTROLLER_CERT_PATH``
 ---------------------------------
 
@@ -350,13 +368,13 @@ default).
 **default**: ``{mac_address}-{name}``
 ============ ========================
 
-Defines the format of the ``common_name`` attribute of VPN client
-certificates that are automatically created when using VPN templates which
-have ``auto_cert`` set to ``True``. A unique slug generated using
-`shortuuid <https://github.com/skorokithakis/shortuuid/>`_ is appended to
-the common name to introduce uniqueness. Therefore, resulting common names
-will have ``{OPENWISP_CONTROLLER_COMMON_NAME_FORMAT}-{unique-slug}``
-format.
+Defines the format of the ``common_name`` attribute of X.509 client
+certificates that are automatically created when using VPN or Certificate
+Templates which have ``auto_cert`` set to ``True``. A unique slug
+generated using `shortuuid <https://github.com/skorokithakis/shortuuid/>`_
+is appended to the common name to introduce uniqueness. Therefore,
+resulting common names will have
+``{OPENWISP_CONTROLLER_COMMON_NAME_FORMAT}-{unique-slug}`` format.
 
 .. note::
 

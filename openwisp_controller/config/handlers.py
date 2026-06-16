@@ -81,9 +81,21 @@ def detect_hardware_drift(sender, instance, created, **kwargs):
         getattr(instance, "_old_mac", instance.mac_address) != instance.mac_address
     )
     if name_changed or mac_changed:
-        transaction.on_commit(
-            lambda: tasks.regenerate_device_certificates_task.delay(str(instance.id))
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        expected_cert_ids = list(
+            DeviceCertificate.objects.filter(
+                config__device=instance,
+                auto_cert=True,
+                cert__revoked=False,
+                template__type="cert",
+            ).values_list("id", "cert_id")
         )
+        if expected_cert_ids:
+            transaction.on_commit(
+                lambda: tasks.regenerate_device_certificates_task.delay(
+                    str(instance.id), expected_cert_ids
+                )
+            )
 
 
 def devicegroup_change_handler(instance, **kwargs):

@@ -163,6 +163,10 @@ context:
 - ``{{ cert_<template_uuid_hex>_key }}``: The private key.
 - ``{{ cert_<template_uuid_hex>_uuid }}``: The UUID of the generated
   certificate.
+- ``{{ cert_<template_uuid_hex>_path }}``: The file system path where the
+  certificate file will be installed on the device.
+- ``{{ cert_<template_uuid_hex>_key_path }}``: The file system path where
+  the private key file will be installed on the device.
 
 **Workflow Example:**
 

@@ -664,10 +664,16 @@ class TestDevice(
         """Proof that changing the hostname fires the celery task."""
         org = self._create_org()
         device = self._create_device(organization=org, name="old-router-name")
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
         device.name = "new-router-name"
         with self.captureOnCommitCallbacks(execute=True):
             device.save()
-        mocked_task.assert_called_once_with(str(device.id))
+        self.assertEqual(mocked_task.call_count, 1)
 
     @mock.patch(
         "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
@@ -676,10 +682,16 @@ class TestDevice(
         """Proof that changing the MAC address fires the celery task."""
         org = self._create_org()
         device = self._create_device(organization=org, mac_address="00:11:22:33:44:55")
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
         device.mac_address = "AA:BB:CC:DD:EE:FF"
         with self.captureOnCommitCallbacks(execute=True):
             device.save()
-        mocked_task.assert_called_once_with(str(device.id))
+        self.assertEqual(mocked_task.call_count, 1)
 
     @mock.patch(
         "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
@@ -793,6 +805,76 @@ class TestDevice(
         )
         self.assertIsNotNone(mac_ext, "MAC Address OID is missing!")
         self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
+
+    @mock.patch("openwisp_controller.config.tasks.notify.send")
+    def test_regeneration_triggers_toast_notification(self, mock_notify):
+        """Proof that a successful regeneration sends a generic_message toast."""
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "renamed-router"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        mock_notify.assert_called_once()
+        _, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs.get("type"), "generic_message")
+        self.assertEqual(kwargs.get("verb"), "experienced hardware drift")
+        self.assertIn("renamed-router", kwargs.get("message"))
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_regeneration_idempotent_when_duplicate_tasks(self, mocked_task):
+        """Proof that a duplicate task with stale cert IDs does not rotate again."""
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        original_cert_id = device_cert.cert.id
+        self.assertFalse(device_cert.cert.revoked)
+        expected_cert_ids = list(
+            DeviceCertificate.objects.filter(
+                config__device=device,
+                auto_cert=True,
+                cert__revoked=False,
+                template__type="cert",
+            ).values_list("id", "cert_id")
+        )
+        device.name = "renamed-router"
+        device.save()
+        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
+        device_cert.refresh_from_db()
+        first_new_cert_id = device_cert.cert.id
+        self.assertNotEqual(original_cert_id, first_new_cert_id)
+        self.assertFalse(device_cert.cert.revoked)
+        old_cert = Cert.objects.get(id=original_cert_id)
+        self.assertTrue(old_cert.revoked)
+        # Run the same task again with the same stale expected_cert_ids
+        # to simulate a duplicate task that was queued before the first
+        # task completed. The second task should skip because the cert
+        # IDs no longer match.
+        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
+        device_cert.refresh_from_db()
+        self.assertEqual(
+            first_new_cert_id,
+            device_cert.cert.id,
+            "Duplicate task rotated the cert again despite stale expected_cert_ids",
+        )
+        self.assertFalse(device_cert.cert.revoked)
 
 
 class TestTransactionDevice(
