@@ -4,7 +4,22 @@ from django.contrib.auth.models import Permission
 from django.test import tag
 from django.urls.base import reverse
 from django_loci.tests import TestAdminMixin
+from unittest.mock import MagicMock
+from django_loci.base import geocoding_views
 from django_loci.tests.base.test_selenium import BaseTestDeviceAdminSelenium
+from time import sleep
+from selenium.webdriver import ActionChains
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+class MockLocation:
+    def __init__(self, address="Lazio 00185, ITA", latitude=41.898903, longitude=12.512124):
+        self.address = address
+        self.latitude = latitude
+        self.longitude = longitude
+
+geocoding_views.geocode = MagicMock(return_value=MockLocation())
+geocoding_views.reverse_geocode = MagicMock(return_value=MockLocation())
 from selenium.webdriver.common.by import By
 from swapper import load_model
 
@@ -62,6 +77,39 @@ class TestDeviceAdminGeoSelenium(
         )
         self.find_element(by=By.CLASS_NAME, value="select2-results__option").click()
         super()._fill_device_form()
+
+    def test_real_time_update_address_field(self):
+        # Changing the address in tab 1 should update it in tab 0 in real time without a page reload.
+        # We increase the alert check timeout to 10s to prevent TimeoutException on slow CI runs.
+        location = self._create_location()
+        self.login()
+        url = reverse(f"admin:{self.app_label}_location_change", args=[location.id])
+        self.open(url)
+        self.web_driver.switch_to.new_window("tab")
+        tabs = self.web_driver.window_handles
+        self.web_driver.switch_to.window(tabs[-1])
+        self.open(url)
+        address_input = self.find_element(by=By.ID, value="id_address")
+        self.assertEqual(address_input.get_attribute("value"), location.address)
+        self.find_element(
+            by=By.XPATH, value='//a[@class="leaflet-draw-draw-marker"]'
+        ).click()
+        elem = self.find_element(by=By.ID, value="id_geometry-map")
+        ActionChains(self.web_driver).move_to_element(elem).move_by_offset(
+            30, 15
+        ).click().perform()
+        alert = WebDriverWait(self.web_driver, 10).until(EC.alert_is_present())
+        alert.accept()
+        sleep(0.05)
+        new_address = "Lazio 00185, ITA"
+        address_input = self.find_element(by=By.ID, value="id_address")
+        self.assertIn(new_address, address_input.get_attribute("value"))
+        self.wait_for("element_to_be_clickable", by=By.NAME, value="_continue").click()
+        self.web_driver.close()
+        initial_tab = tabs.index(tabs[-1]) - 1
+        self.web_driver.switch_to.window(tabs[initial_tab])
+        address_input = self.find_element(by=By.ID, value="id_address")
+        self.assertIn(new_address, address_input.get_attribute("value"))
 
 
 @tag("selenium_tests")

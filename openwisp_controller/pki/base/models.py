@@ -9,7 +9,24 @@ from openwisp_users.mixins import ShareableOrgMixin
 from ..utils import UnqiueCommonNameMixin
 
 
+# Avoids "DateTimeField received a naive datetime while time zone support is active"
+# warning by returning an aware datetime when USE_TZ is True.
+def default_validity_start():
+    from datetime import datetime, timedelta
+    from django.conf import settings
+    from django.utils import timezone
+    start = datetime.now() - timedelta(days=1)
+    start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    if settings.USE_TZ:
+        return timezone.make_aware(start)
+    return start
+
+
 class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
+    validity_start = models.DateTimeField(
+        blank=True, null=True, default=default_validity_start
+    )
+
     class Meta(BaseCa.Meta):
         abstract = True
         constraints = [
@@ -21,6 +38,9 @@ class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
 
 
 class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
+    validity_start = models.DateTimeField(
+        blank=True, null=True, default=default_validity_start
+    )
     ca = models.ForeignKey(
         get_model_name("django_x509", "Ca"),
         verbose_name=_("CA"),
