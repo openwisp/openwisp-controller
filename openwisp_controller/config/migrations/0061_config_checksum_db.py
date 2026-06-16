@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import migrations, models
+from django.db.models import Prefetch
 from django.utils.module_loading import import_string
 
 from openwisp_controller.config import settings as app_settings
@@ -277,11 +278,20 @@ def populate_checksum_db(apps, schema_editor):
     Config.update_status_if_checksum_changed().
     """
     Config = apps.get_model("config", "Config")
+    VpnClient = apps.get_model("config", "VpnClient")
     chunk_size = 100
     updated_configs = []
     qs = (
-        Config.objects.prefetch_related("vpnclient_set", "templates")
-        .select_related("device", "device__organization__config_settings")
+        Config.objects.prefetch_related(
+            Prefetch(
+                "vpnclient_set",
+                queryset=VpnClient.objects.select_related("vpn", "cert", "ip"),
+            ),
+            "templates",
+        )
+        .select_related(
+            "device", "device__group", "device__organization__config_settings"
+        )
         .filter(checksum_db__isnull=True)
         .iterator(chunk_size=chunk_size)
     )
