@@ -45,6 +45,12 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
     )
 
 
+def _hardware_fields_changed(update_fields):
+    return update_fields is None or (
+        "name" in update_fields or "mac_address" in update_fields
+    )
+
+
 @receiver(pre_save, sender=Device, dispatch_uid="capture_old_hardware_properties")
 def capture_old_hardware_properties(sender, instance, **kwargs):
     """
@@ -53,10 +59,8 @@ def capture_old_hardware_properties(sender, instance, **kwargs):
     """
     if not instance.pk:
         return
-    update_fields = kwargs.get("update_fields")
-    if update_fields is not None:
-        if "name" not in update_fields and "mac_address" not in update_fields:
-            return
+    if not _hardware_fields_changed(kwargs.get("update_fields")):
+        return
     try:
         old_instance = sender.objects.only("name", "mac_address").get(pk=instance.pk)
         instance._old_name = old_instance.name
@@ -72,10 +76,8 @@ def detect_hardware_drift(sender, instance, created, **kwargs):
     """
     if created or not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
         return
-    update_fields = kwargs.get("update_fields")
-    if update_fields is not None:
-        if "name" not in update_fields and "mac_address" not in update_fields:
-            return
+    if not _hardware_fields_changed(kwargs.get("update_fields")):
+        return
     name_changed = getattr(instance, "_old_name", instance.name) != instance.name
     mac_changed = (
         getattr(instance, "_old_mac", instance.mac_address) != instance.mac_address

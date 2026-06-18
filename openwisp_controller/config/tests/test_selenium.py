@@ -22,6 +22,9 @@ from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpn
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Cert = load_model("django_x509", "Cert")
+Ca = load_model("django_x509", "Ca")
+DeviceCertificate = load_model("config", "DeviceCertificate")
+Notification = load_model("openwisp_notifications", "Notification")
 
 
 class SeleniumTestMixin(BaseSeleniumTestMixin):
@@ -485,6 +488,70 @@ class TestDeviceAdmin(
             self.web_driver.execute_script("window.scrollTo(0, 0);")
             self.find_element(by=By.NAME, value="_save").click()
             self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+
+    def test_e2e_certificate_provisioning(self):
+        """
+        End-to-end flow: create CA, create certificate
+        template, assign to device, verify certificate generation.
+        """
+        org = self._get_org()
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        device = self._create_device(organization=org, name="e2e-router")
+        self._create_config(device=device)
+
+        self.login()
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
+        )
+        self.hide_loading_overlay()
+        self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]').click()
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(by=By.NAME, value="_continue").click()
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+        device.config.refresh_from_db()
+        device_cert = DeviceCertificate.objects.get(
+            config=device.config, template=template
+        )
+        self.assertIsNotNone(
+            device_cert.cert, "Certificate was not generated after UI assignment!"
+        )
+        self.assertFalse(device_cert.cert.revoked)
+        self.assertEqual(device_cert.cert.name, "e2e-router")
+
+    def test_hardware_drift_notification(self):
+        org = self._get_org()
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        device = self._create_device(organization=org, name="old-router-name")
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        self.login()
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+        )
+        self.hide_loading_overlay()
+        name_input = self.find_element(by=By.NAME, value="name", wait_for="presence")
+        name_input.clear()
+        name_input.send_keys("renamed-router")
+        # Hide user tools because it covers the save button
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(by=By.NAME, value="_save").click()
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+        self.find_element(by=By.ID, value="openwisp_notifications").click()
+        notification = self.wait_for_visibility(
+            By.CLASS_NAME, "ow-notification-elem", timeout=10
+        )
+        self.assertIn("Hardware drift detected", notification.text)
 
 
 @tag("selenium_tests")

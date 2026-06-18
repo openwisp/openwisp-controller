@@ -1,4 +1,3 @@
-import copy
 import logging
 
 import requests
@@ -233,7 +232,6 @@ def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
         return
     Device = load_model("config", "Device")
     DeviceCertificate = load_model("config", "DeviceCertificate")
-    Cert = load_model("django_x509", "Cert")
     try:
         device = Device.objects.get(id=device_id)
     except Device.DoesNotExist:
@@ -262,51 +260,9 @@ def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
                 continue
             old_cert = dc.cert
             old_cert.revoke()
-            blueprint = dc.template.blueprint_cert
-            if blueprint and blueprint.extensions:
-                extensions = copy.deepcopy(blueprint.extensions)
-            else:
-                extensions = [
-                    {"name": "nsCertType", "value": "client", "critical": False}
-                ]
-            ca = dc.template.ca
-            key_length = blueprint.key_length if blueprint else ca.key_length
-            digest = blueprint.digest if blueprint else str(ca.digest)
-            country_code = blueprint.country_code if blueprint else ca.country_code
-            state = blueprint.state if blueprint else ca.state
-            city = blueprint.city if blueprint else ca.city
-            organization_name = (
-                blueprint.organization_name if blueprint else ca.organization_name
+            new_cert = dc._build_cert(
+                name=device.name, common_name=dc._get_common_name()
             )
-            email = blueprint.email if blueprint else ca.email
-            extensions.extend(
-                [
-                    {
-                        "oid": "1.3.6.1.4.1.65901.1",
-                        "value": f"ASN1:UTF8:string:{device.mac_address}",
-                        "critical": False,
-                    },
-                    {
-                        "oid": "1.3.6.1.4.1.65901.2",
-                        "value": f"ASN1:UTF8:string:{device.id}",
-                        "critical": False,
-                    },
-                ]
-            )
-            new_cert = Cert(
-                name=device.name,
-                ca=ca,
-                key_length=key_length,
-                digest=digest,
-                country_code=country_code,
-                state=state,
-                city=city,
-                organization_name=organization_name,
-                email=email,
-                common_name=dc._get_common_name(),
-                extensions=extensions,
-            )
-            new_cert = dc._auto_create_cert_extra(new_cert)
             new_cert.full_clean()
             new_cert.save()
             dc.cert = new_cert
@@ -314,8 +270,9 @@ def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
             configs_to_update.add(dc.config)
             certs_regenerated += 1
     for config in configs_to_update:
+        config.refresh_from_db()
         config.update_status_if_checksum_changed()
-    if certs_regenerated:
+    if certs_regenerated > 0:
         try:
             message = _(
                 "Hardware drift detected on device {device_name}. "

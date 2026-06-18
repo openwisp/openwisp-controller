@@ -9,6 +9,9 @@ from swapper import get_model_name, load_model
 from openwisp_controller.config import settings as app_settings
 from openwisp_utils.base import TimeStampedEditableModel
 
+MAC_ADDRESS_OID = "1.3.6.1.4.1.65901.1"
+DEVICE_UUID_OID = "1.3.6.1.4.1.65901.2"
+
 
 class AbstractDeviceCertificate(TimeStampedEditableModel):
     config = models.ForeignKey(
@@ -84,63 +87,69 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         common_name = f"{common_name}-{unique_slug}"
         return common_name
 
-    def _auto_create_cert(self, name, common_name):
-        """
-        Automatically creates and assigns a client x509 certificate
-        using Blueprint cloning and custom hardware OID injection.
-        """
+    def _build_cert(self, name, common_name):
+        """Build (but do not save) a Cert instance from template + blueprint."""
         ca = self.template.ca
         blueprint = self.template.blueprint_cert
-        device = self.config.device
         cert_model = self.__class__.cert.field.related_model
 
-        # blueprint property cloning with CA fallback
-        key_length = blueprint.key_length if blueprint else ca.key_length
-        digest = blueprint.digest if blueprint else str(ca.digest)
-        country_code = blueprint.country_code if blueprint else ca.country_code
-        state = blueprint.state if blueprint else ca.state
-        city = blueprint.city if blueprint else ca.city
-        organization_name = (
-            blueprint.organization_name if blueprint else ca.organization_name
+        attrs = self._clone_blueprint_attrs(ca, blueprint)
+        extensions = self._build_extensions(blueprint)
+        cert = cert_model(
+            name=name,
+            ca=ca,
+            common_name=common_name,
+            extensions=extensions,
+            **attrs,
         )
-        email = blueprint.email if blueprint else ca.email
+        return self._auto_create_cert_extra(cert)
 
+    def _clone_blueprint_attrs(self, ca, blueprint):
+        """
+        Extracts base X.509 attributes (such as key length, digest, and
+        location data) from the provided blueprint certificate.
+        """
+        source = blueprint or ca
+        digest = str(source.digest) if not blueprint else source.digest
+        return dict(
+            key_length=source.key_length,
+            digest=digest,
+            country_code=source.country_code,
+            state=source.state,
+            city=source.city,
+            organization_name=source.organization_name,
+            email=source.email,
+        )
+
+    def _build_extensions(self, blueprint):
+        """Compiles the list of X.509 extensions for the new certificate."""
         if blueprint and blueprint.extensions:
             extensions = copy.deepcopy(blueprint.extensions)
         else:
             extensions = [{"name": "nsCertType", "value": "client", "critical": False}]
+        extensions.extend(self._get_hardware_oid_extensions())
+        return extensions
 
-        # inject MAC and UUID as custom OIDs, prerequisite: #228 in django-x509
-        mac_oid = "1.3.6.1.4.1.65901.1"
-        uuid_oid = "1.3.6.1.4.1.65901.2"
-        extensions.extend(
-            [
-                {
-                    "oid": mac_oid,
-                    "value": f"ASN1:UTF8:string:{device.mac_address}",
-                    "critical": False,
-                },
-                {
-                    "oid": uuid_oid,
-                    "value": f"ASN1:UTF8:string:{device.id}",
-                    "critical": False,
-                },
-            ]
-        )
-        cert = cert_model(
-            name=name,
-            ca=ca,
-            key_length=key_length,
-            digest=digest,
-            country_code=country_code,
-            state=state,
-            city=city,
-            organization_name=organization_name,
-            email=email,
-            common_name=common_name,
-            extensions=extensions,
-        )
-        cert = self._auto_create_cert_extra(cert)
+    def _get_hardware_oid_extensions(self):
+        device = self.config.device
+        return [
+            {
+                "oid": MAC_ADDRESS_OID,
+                "value": f"ASN1:UTF8:string:{device.mac_address}",
+                "critical": False,
+            },
+            {
+                "oid": DEVICE_UUID_OID,
+                "value": f"ASN1:UTF8:string:{device.id}",
+                "critical": False,
+            },
+        ]
+
+    def _auto_create_cert(self, name, common_name):
+        """
+        Automatically creates and assigns a client x509 certificate
+        """
+        cert = self._build_cert(name=name, common_name=common_name)
         cert.full_clean()
         cert.save()
         self.cert = cert
