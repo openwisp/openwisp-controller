@@ -185,14 +185,14 @@ class TestApi(TestGeoMixin, TestCase):
         url = "{0}?key={1}".format(reverse(self.url_name, args=[device.pk]), device.key)
         device.deactivate()
 
-        with self.subTest("Test retrieving device co-ordinates"):
+        with self.subTest("Test retrieving device coordinates"):
             response = self.client.get(
                 url,
                 content_type="application/json",
             )
             self.assertEqual(response.status_code, 200)
 
-        with self.subTest("Test updating device co-ordinates"):
+        with self.subTest("Test updating device coordinates"):
             response = self.client.put(
                 url,
                 content_type="application/json",

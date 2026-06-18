@@ -1317,7 +1317,7 @@ class TestAdmin(
 
     def test_preview_device_config_empty_id(self):
         path = reverse(f"admin:{self.app_label}_device_preview")
-        config = json.dumps({"general": {"descripion": "id: {{ id }}"}})
+        config = json.dumps({"general": {"description": "id: {{ id }}"}})
         data = {
             "id": "",
             "name": "test-empty-id",

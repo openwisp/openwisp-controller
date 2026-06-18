@@ -4,6 +4,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import migrations
 from netjsonconfig import channels
 
+from . import resolve_config
+
 
 def hwmode_to_band(radio):
     """
@@ -67,27 +69,28 @@ def band_to_hwmode(radio):
         # 802.11ax and 802.11ad were not supported in OpenWrt < 21.
         # Hence, we ignore "6g" and "60g" values.
         if band == "2g":
-            if radio["protocol"] == "802.11b":
+            if radio.get("protocol") == "802.11b":
                 return "11b"
             else:
                 return "11g"
         elif band == "5g":
             return "11a"
     # Use protocol to infer "hwmode"
-    protocol = radio["protocol"]
+    protocol = radio.get("protocol")
     if protocol in ["802.11a", "802.11b", "802.11g"]:
         # return 11a, 11b or 11g
         return protocol[4:]
     if protocol == "802.11ac":
         return "11a"
     # determine hwmode depending on channel used
-    if radio["channel"] == 0:
+    channel = radio.get("channel")
+    if channel == 0:
         # when using automatic channel selection, we need an
         # additional parameter to determine the frequency band
         return radio.get("hwmode")
-    elif radio["channel"] <= 13:
+    elif channel is not None and channel <= 13:
         return "11g"
-    else:
+    elif channel is not None:
         return "11a"
 
 
@@ -95,11 +98,15 @@ def update_config_for_model(Model, func, field):
     updated_objects = []
     for obj in Model.objects.iterator(chunk_size=100):
         update_obj = False
-        for radio in obj.config.get("radios", []):
+        config = resolve_config(obj.config)
+        for radio in config.get("radios", []):
+            if not isinstance(radio, dict):
+                continue
             if not radio.get(field):
                 radio[field] = func(radio)
                 update_obj = True
         if update_obj:
+            obj.config = config
             updated_objects.append(obj)
         if len(updated_objects) > 100:
             Model.objects.bulk_update(updated_objects, fields=["config"])

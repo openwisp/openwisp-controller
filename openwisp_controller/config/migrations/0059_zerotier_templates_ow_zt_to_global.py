@@ -1,5 +1,7 @@
 from django.db import migrations
 
+from . import resolve_config
+
 
 def change_owzt_to_global(apps, schema_editor):
     Template = apps.get_model("config", "Template")
@@ -7,11 +9,14 @@ def change_owzt_to_global(apps, schema_editor):
     for template in Template.objects.filter(
         type="vpn", vpn__backend="openwisp_controller.vpn_backends.ZeroTier"
     ).iterator():
-        if "zerotier" in template.config:
-            for item in template.config.get("zerotier", []):
-                if item.get("name") == "ow_zt":
-                    item["name"] = "global"
-                    updated_templates.add(template)
+        config = resolve_config(template.config)
+        for item in config.get("zerotier", []):
+            if not isinstance(item, dict):
+                continue
+            if item.get("name") == "ow_zt":
+                item["name"] = "global"
+                template.config = config
+                updated_templates.add(template)
     Template.objects.bulk_update(updated_templates, ["config"])
 
 

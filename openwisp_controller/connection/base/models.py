@@ -107,7 +107,7 @@ class AbstractCredentials(ConnectorMixin, ShareableOrgMixinUniqueName, BaseModel
     """
 
     # Controls the number of objects which can be stored in memory
-    # before commiting them to database during bulk auto add operation.
+    # before committing them to database during bulk auto add operation.
     chunk_size = 1000
 
     connector = models.CharField(
@@ -564,7 +564,7 @@ class AbstractCommand(TimeStampedEditableModel):
 
     def _schedule_command(self):
         """
-        executes ``launch_command`` celery taks in the background
+        executes ``launch_command`` celery tasks in the background
         once changes are committed to the database
         """
         transaction.on_commit(lambda: launch_command.delay(self.pk))

@@ -305,7 +305,7 @@ class TestViews(
 
     def test_get_default_values_same_keys(self):
         self._login()
-        # Atleast 4 templates are required to create enough entropy in database
+        # At least 4 templates are required to create enough entropy in database
         # to make the test fail consistently without patch
         template1 = self._create_template(name="VNI 1", default_values={"vn1": "1"})
         template2 = self._create_template(

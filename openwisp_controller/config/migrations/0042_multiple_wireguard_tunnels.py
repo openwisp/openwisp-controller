@@ -3,6 +3,7 @@
 from django.db import migrations
 
 from ..migrations import get_swapped_model
+from . import resolve_config
 
 
 def get_wireguard_and_vxlan_wireguard_templates(apps):
@@ -13,11 +14,13 @@ def get_wireguard_and_vxlan_wireguard_templates(apps):
 def allow_multiple_wireguard_tunneling(apps, schema_editor):
     templates = get_wireguard_and_vxlan_wireguard_templates(apps).iterator()
     for template in templates:
-        config = template.config
-        interfaces = config["interfaces"]
+        config = resolve_config(template.config)
+        interfaces = config.get("interfaces", [])
         vpn_id = template.vpn.pk.hex
         changed = False
         for interface in interfaces:
+            if not isinstance(interface, dict):
+                continue
             interface_type = interface.get("type", None)
             private_key = interface.get("private_key", None)
             if interface_type != "wireguard" or not private_key:
@@ -38,11 +41,13 @@ def allow_multiple_wireguard_tunneling(apps, schema_editor):
 def disallow_multiple_wireguard_tunneling(apps, schema_editor):
     templates = get_wireguard_and_vxlan_wireguard_templates(apps).iterator()
     for template in templates:
-        config = template.config
-        interfaces = config["interfaces"]
+        config = resolve_config(template.config)
+        interfaces = config.get("interfaces", [])
         vpn_id = template.vpn.pk.hex
         changed = False
         for interface in interfaces:
+            if not isinstance(interface, dict):
+                continue
             interface_type = interface.get("type", None)
             private_key = interface.get("private_key", None)
             if interface_type != "wireguard" or not private_key:

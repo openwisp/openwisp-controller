@@ -280,7 +280,7 @@ class TestDeviceAdmin(
         )
         self.hide_loading_overlay()
         self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]')
-        # Change config backed to
+        # Change config backend to
         config_backend_select = Select(
             self.find_element(by=By.NAME, value="config-0-backend")
         )
@@ -302,7 +302,7 @@ class TestDeviceAdmin(
         # The webpage has two "submit-row" sections, each containing a "Deactivate"
         # button. The first (top) "Deactivate" button is hidden, causing
         # `wait_for_visibility` to fail. To avoid this issue, we use
-        # `wait_for='presence'` instead, ensuring we locat the elements regardless
+        # `wait_for='presence'` instead, ensuring we locate the elements regardless
         # of visibility. We then select the last (visible) button and click it.
         self.find_elements(
             by=By.CSS_SELECTOR,
@@ -327,7 +327,7 @@ class TestDeviceAdmin(
             By.CSS_SELECTOR, "#deactivating-warning .messagelist .warning p"
         )
         self.find_element(by=By.CSS_SELECTOR, value="#warning-ack").click()
-        # After accepting the warning, wee need to wait for the animation
+        # After accepting the warning, we need to wait for the animation
         # to complete before trying to interact with the button,
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
@@ -364,7 +364,7 @@ class TestDeviceAdmin(
             By.CSS_SELECTOR, "#deactivating-warning .messagelist .warning p"
         )
         self.find_element(by=By.CSS_SELECTOR, value="#warning-ack").click()
-        # After accepting the warning, wee need to wait for the animation
+        # After accepting the warning, we need to wait for the animation
         # to complete before trying to interact with the button,
         # otherwise the test may fail due to the button not being fully
         # visible or clickable yet.
@@ -380,7 +380,7 @@ class TestDeviceAdmin(
         config = self._create_config(organization=self._get_org())
         device = config.device
         self.login()
-        # some times the url fetching in js gives unauthorized error
+        # sometimes the url fetching in js gives unauthorized error
         # so we add a wait to allow login to complete
         time.sleep(2)
 

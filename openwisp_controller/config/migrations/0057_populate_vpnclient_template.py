@@ -6,13 +6,19 @@ from django.db import migrations
 
 def populate_vpnclient_template(apps, schema_editor):
     VpnClient = apps.get_model("config", "VpnClient")
+    Config = apps.get_model("config", "Config")
+    Template = apps.get_model("config", "Template")
 
     for vpn_client in VpnClient.objects.iterator():
-        if vpn_client.template is None:
+        if vpn_client.template_id is not None:
+            continue
+        try:
             vpn_client.template = vpn_client.config.templates.get(
                 vpn_id=vpn_client.vpn_id
             )
-            vpn_client.save()
+        except (Config.DoesNotExist, Template.DoesNotExist):
+            continue
+        vpn_client.save()
 
 
 class Migration(migrations.Migration):
