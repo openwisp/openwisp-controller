@@ -1453,7 +1453,10 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         template = self._create_template(
             name="Test-Template", type="cert", ca=ca, organization=org, config={}
         )
-        DeviceCertificate.objects.create(config=config, template=template, cert=None)
+        device_cert = DeviceCertificate.objects.create(
+            config=config, template=template, cert=None, auto_cert=False
+        )
+        self.assertIsNone(device_cert.cert_id)
         choices = get_unassigned_certs()
         queryset = choices.get("pk__in")
         self.assertIsNotNone(queryset)

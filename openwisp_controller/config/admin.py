@@ -121,7 +121,6 @@ class BaseConfigAdmin(BaseAdmin):
                 "preview.js",
                 "unsaved_changes.js",
                 "switcher.js",
-                "template_ui.js",
             )
         ]
 

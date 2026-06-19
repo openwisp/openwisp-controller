@@ -700,8 +700,15 @@ class TestDevice(
         """Proof that saving a device without changing name/MAC does nothing."""
         org = self._create_org()
         device = self._create_device(organization=org)
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
         device.key = "new-management-key"
-        device.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
         mocked_task.assert_not_called()
 
     @mock.patch(
@@ -714,8 +721,38 @@ class TestDevice(
         """Proof that the user-configurable setting turns the feature off."""
         org = self._create_org()
         device = self._create_device(organization=org)
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
         device.name = "another-new-name"
-        device.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        mocked_task.assert_not_called()
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_hardware_drift_partial_save_ignores_dirty_memory(self, mocked_task):
+        """
+        Proof that dirty in-memory fields are
+        not evaluated if not in update_fields.
+        """
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = Ca.objects.create(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save(update_fields=["name"])
         mocked_task.assert_not_called()
 
     @mock.patch(

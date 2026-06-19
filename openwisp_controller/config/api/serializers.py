@@ -441,6 +441,7 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
                     instance.config.device.organization = validated_data.get(
                         "organization"
                     )
+                    DeviceCertificate.objects.filter(config=instance.config).delete()
                     instance.config.templates.clear()
                     Config.enforce_required_templates(
                         action="post_clear",

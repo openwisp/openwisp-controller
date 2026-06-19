@@ -22,7 +22,6 @@ from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpn
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Cert = load_model("django_x509", "Cert")
-Ca = load_model("django_x509", "Ca")
 DeviceCertificate = load_model("config", "DeviceCertificate")
 Notification = load_model("openwisp_notifications", "Notification")
 
@@ -495,7 +494,11 @@ class TestDeviceAdmin(
         template, assign to device, verify certificate generation.
         """
         org = self._get_org()
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(
+            name="test-ca",
+            common_name="test-ca",
+            organization=org,
+        )
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -526,7 +529,11 @@ class TestDeviceAdmin(
 
     def test_hardware_drift_notification(self):
         org = self._get_org()
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(
+            name="hardware-drift-ca",
+            common_name="hardware-drift-ca",
+            organization=org,
+        )
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )

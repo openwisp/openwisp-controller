@@ -51,6 +51,10 @@ def _hardware_fields_changed(update_fields):
     )
 
 
+def _hardware_field_was_saved(update_fields, field_name):
+    return update_fields is None or field_name in update_fields
+
+
 @receiver(pre_save, sender=Device, dispatch_uid="capture_old_hardware_properties")
 def capture_old_hardware_properties(sender, instance, **kwargs):
     """
@@ -78,9 +82,14 @@ def detect_hardware_drift(sender, instance, created, **kwargs):
         return
     if not _hardware_fields_changed(kwargs.get("update_fields")):
         return
-    name_changed = getattr(instance, "_old_name", instance.name) != instance.name
+    update_fields = kwargs.get("update_fields")
+    name_changed = (
+        _hardware_field_was_saved(update_fields, "name")
+        and getattr(instance, "_old_name", instance.name) != instance.name
+    )
     mac_changed = (
-        getattr(instance, "_old_mac", instance.mac_address) != instance.mac_address
+        _hardware_field_was_saved(update_fields, "mac_address")
+        and getattr(instance, "_old_mac", instance.mac_address) != instance.mac_address
     )
     if name_changed or mac_changed:
         DeviceCertificate = load_model("config", "DeviceCertificate")
