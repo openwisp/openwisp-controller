@@ -476,6 +476,7 @@ class AbstractCommand(TimeStampedEditableModel):
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
+        related_name="batch_commands",
     )
 
     class Meta:
@@ -774,7 +775,6 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         blank=True,
         verbose_name=_("devices"),
     )
-    execute_all = models.BooleanField(default=False)
 
     class Meta:
         abstract = True
@@ -783,63 +783,61 @@ class AbstractBatchCommand(TimeStampedEditableModel):
 
     @cached_property
     def total_devices(self):
-        Command = load_model("connection", "Command")
-        return Command.objects.filter(batch_command=self).count()
+        return self.batch_commands.count()
 
     @property
     def successful(self):
-        Command = load_model("connection", "Command")
-        return Command.objects.filter(batch_command=self, status="success").count()
+        return self.batch_commands.filter(status="success").count()
 
     @property
     def failed(self):
-        Command = load_model("connection", "Command")
-        return Command.objects.filter(batch_command=self, status="failed").count()
+        return self.batch_commands.filter(status="failed").count()
+
+    def _validate_org_relations(self):
+        if not self.organization_id:
+            return
+        if self.group and self.group.organization != self.organization:
+            raise ValidationError(
+                {
+                    "group": _(
+                        "The organization of the group doesn't match "
+                        "the organization of the batch command operation"
+                    )
+                }
+            )
+        if self.location and self.location.organization != self.organization:
+            raise ValidationError(
+                {
+                    "location": _(
+                        "The organization of the location doesn't match "
+                        "the organization of the batch command operation"
+                    )
+                }
+            )
+        if self.pk and self.devices.exists():
+            org_mismatch = self.devices.exclude(organization=self.organization).exists()
+            if org_mismatch:
+                raise ValidationError(
+                    {
+                        "devices": _(
+                            "All devices must belong to the same "
+                            "organization as the batch command."
+                        )
+                    }
+                )
 
     def clean(self):
         super().clean()
-        if self.organization_id:
-            if self.group and self.group.organization != self.organization:
-                raise ValidationError(
-                    {
-                        "group": _(
-                            "The organization of the group doesn't match "
-                            "the organization of the batch command operation"
-                        )
-                    }
-                )
-            if self.location and self.location.organization != self.organization:
-                raise ValidationError(
-                    {
-                        "location": _(
-                            "The organization of the location doesn't match "
-                            "the organization of the batch command operation"
-                        )
-                    }
-                )
-            if self.pk and self.devices.exists():
-                org_mismatch = self.devices.exclude(
-                    organization=self.organization
-                ).exists()
-                if org_mismatch:
-                    raise ValidationError(
-                        {
-                            "devices": _(
-                                "All devices must belong to the same "
-                                "organization as the batch command."
-                            )
-                        }
-                    )
+        self._validate_org_relations()
+        Command = load_model("connection", "Command")
         allowed = dict(
-            AbstractCommand.get_org_allowed_commands(
-                organization_id=self.organization_id
-            )
+            Command.get_org_allowed_commands(organization_id=self.organization_id)
         )
         if self.command_type not in allowed:
             raise ValidationError(
                 {
                     "command_type": _(
-                        '"{command}" command is not available ' "for this organization"
+                        '"{command}" command is not available for this organization'
                     ).format(command=self.command_type)
                 }
             )
@@ -851,28 +849,51 @@ class AbstractBatchCommand(TimeStampedEditableModel):
             raise ValidationError({"command_input": e.message})
 
     def resolve_devices(self):
+        """
+        Returns the queryset of devices targeted by this batch command.
+        - Devices explicitly set via M2M relation: returns those directly.
+        - No explicit devices: resolves via organization, group, and location filters.
+        - No filters set: returns all devices (superuser targeting all orgs).
+        """
         if self.pk and self.devices.exists():
-            return self.devices.all()
+            return self.devices.iterator()
         Device = load_model("config", "Device")
         qs = Device.objects.all()
         if self.organization_id:
             qs = qs.filter(organization=self.organization)
-        if self.execute_all:
-            return qs
         if self.group:
             qs = qs.filter(group=self.group)
         if self.location:
-            qs = qs.filter(location=self.location)
+            qs = qs.filter(devicelocation__location=self.location)
         return qs
 
     @classmethod
     def execute(cls, **kwargs):
+        """
+        Creates, validates, and persists the batch command, then schedules
+        execution via a background task.
+        - No devices match the specified criteria: batch is deleted and
+          ValidationError is raised to avoid orphan records.
+        - Explicit device list provided: uses device PKs directly instead
+          of resolving via organization/group/location filters.
+        - Superuser with no organization: targets devices across all orgs.
+        """
         devices_list = kwargs.pop("devices", None)
         batch = cls(**kwargs)
         batch.full_clean()
         batch.save()
         if devices_list:
             batch.devices.set(devices_list)
+            if not batch.devices.exists():
+                batch.delete()
+                raise ValidationError(
+                    _("No devices match the specified criteria."),
+                )
+        elif not batch.resolve_devices().exists():
+            batch.delete()
+            raise ValidationError(
+                _("No devices match the specified criteria."),
+            )
         batch.status = "in-progress"
         batch.save(update_fields=["status"])
         transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
@@ -880,23 +901,40 @@ class AbstractBatchCommand(TimeStampedEditableModel):
 
     @classmethod
     def dry_run(cls, **kwargs):
+        """
+        Returns the devices that would be targeted by this batch command without
+        executing it.
+        - Command type not provided (GET request): skips full clean, only
+          validates organization relations.
+        - Explicit device list provided: returns it directly without resolving
+          via organization/group/location filters.
+        """
         devices_list = kwargs.pop("devices", None)
         command_type = kwargs.pop("command_type", None)
         batch = cls(**kwargs)
         if command_type:
             batch.command_type = command_type
             batch.full_clean()
+        else:
+            batch._validate_org_relations()
         if devices_list:
             return {"devices": list(devices_list)}
         return {"devices": list(batch.resolve_devices())}
 
     def create_commands(self):
-        Command = load_model("connection", "Command")
-        if Command.objects.filter(batch_command=self).exists():
+        """
+        Creates individual Command instances for each device targeted by this batch
+        command.
+        - Commands already exist for this batch: returns early (idempotent guard).
+        - Device validation fails (deactivated, no credentials, wrong org):
+          device is skipped and logged — no Command record is created.
+        """
+        if self.batch_commands.exists():
             return
+        Command = load_model("connection", "Command")
         self.status = "in-progress"
         self.save()
-        for device in self.resolve_devices().iterator():
+        for device in self.resolve_devices():
             command = Command(
                 device=device,
                 type=self.command_type,
@@ -904,25 +942,27 @@ class AbstractBatchCommand(TimeStampedEditableModel):
                 batch_command=self,
             )
             try:
-                command.full_clean()
                 command.save()
             except ValidationError as e:
-                command.status = "failed"
-                command.output = str(e)
-                models.Model.save(command)
-                fields = list(getattr(e, "message_dict", {}).keys()) or ["__all__"]
                 logger.warning(
-                    "Command validation failed for batch=%s device=%s fields=%s",
-                    self.pk,
+                    "Skipping device %s for batch %s: %s",
                     device.pk,
-                    ",".join(fields),
+                    self.pk,
+                    e,
                 )
         self.calculate_and_update_status()
 
     def calculate_and_update_status(self):
-        Command = load_model("connection", "Command")
-        operations = Command.objects.filter(batch_command=self)
-        stats = operations.aggregate(
+        """
+        Calculate batch status based on individual command statuses and update if
+        changed.
+        - No commands exist: status set to "idle".
+        - Commands still running: status set to "in-progress".
+        - Some commands failed: status set to "failed".
+        - All commands completed successfully: status set to "success".
+        - Status unchanged: no database write performed.
+        """
+        stats = self.batch_commands.aggregate(
             total_operations=models.Count("id"),
             in_progress=models.Count(
                 models.Case(

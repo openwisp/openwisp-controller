@@ -82,7 +82,6 @@ class Migration(migrations.Migration):
                         null=True,
                     ),
                 ),
-                ("execute_all", models.BooleanField(default=False)),
                 (
                     "devices",
                     models.ManyToManyField(
@@ -132,6 +131,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
+                related_name="batch_commands",
                 to="sample_connection.batchcommand",
             ),
         ),

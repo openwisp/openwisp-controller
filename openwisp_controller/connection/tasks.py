@@ -81,14 +81,6 @@ def launch_command(command_id):
         return
     try:
         command.execute()
-        # Todo: Remove once demo is completed
-        if command.batch_command_id:
-            print("****************************")
-            print(f"Device: {command.device.name}")
-            print(f"Status: {command.status}")
-            print("")
-            print(command.output)
-            print("****************************")
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
@@ -106,7 +98,7 @@ def launch_command(command_id):
         command._save_without_resurrecting()
 
 
-@shared_task(bind=True, soft_time_limit=3600)
+@shared_task(bind=True, soft_time_limit=app_settings.SSH_COMMAND_TIMEOUT * 1.2)
 def launch_batch_command(self, batch_id):
     BatchCommand = load_model("connection", "BatchCommand")
     try:
