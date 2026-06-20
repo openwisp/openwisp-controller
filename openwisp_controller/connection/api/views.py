@@ -5,6 +5,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.generics import (
     GenericAPIView,
+    ListAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -21,7 +22,9 @@ from ...mixins import (
     RelatedDeviceProtectedAPIMixin,
 )
 from .serializers import (
+    BatchCommandDetailSerializer,
     BatchCommandExecuteSerializer,
+    BatchCommandSerializer,
     CommandSerializer,
     CredentialSerializer,
     DeviceConnectionSerializer,
@@ -152,6 +155,7 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        serializer.validated_data.pop("execute_all", None)
         try:
             batch = BatchCommand.execute(**serializer.validated_data)
         except ValidationError as e:
@@ -164,6 +168,7 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
     def get(self, request):
         serializer = self.get_serializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
+        serializer.validated_data.pop("execute_all", None)
         try:
             data = BatchCommand.dry_run(**serializer.validated_data)
         except ValidationError as e:
@@ -173,6 +178,17 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
             )
         data["devices"] = [str(d.pk) for d in data["devices"]]
         return Response(data)
+
+
+class BatchCommandListView(ProtectedAPIMixin, ListAPIView):
+    queryset = BatchCommand.objects.all().order_by("-created")
+    serializer_class = BatchCommandSerializer
+    pagination_class = OpenWispPagination
+
+
+class BatchCommandDetailView(ProtectedAPIMixin, RetrieveAPIView):
+    queryset = BatchCommand.objects.all()
+    serializer_class = BatchCommandDetailSerializer
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
@@ -195,5 +211,6 @@ deviceconnection_detail_view = DeviceConnectionDetailView.as_view()
 
 # TODO: remove in version 1.4
 deviceconnection_details_view = deviceconnection_detail_view
-
 batch_command_execute_view = BatchCommandExecuteView.as_view()
+batch_command_list_view = BatchCommandListView.as_view()
+batch_command_detail_view = BatchCommandDetailView.as_view()

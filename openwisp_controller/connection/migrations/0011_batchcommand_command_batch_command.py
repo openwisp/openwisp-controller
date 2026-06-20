@@ -57,15 +57,15 @@ class Migration(migrations.Migration):
                         choices=[
                             ("idle", "idle"),
                             ("in-progress", "in progress"),
-                            ("success", "completed successfully"),
-                            ("failed", "completed with some failures"),
+                            ("success", "success"),
+                            ("failed", "failed"),
                         ],
                         default="idle",
                         max_length=12,
                     ),
                 ),
                 (
-                    "command_type",
+                    "type",
                     models.CharField(
                         max_length=16,
                         choices=(
@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "command_input",
+                    "input",
                     models.JSONField(
                         blank=True,
                         encoder=django.core.serializers.json.DjangoJSONEncoder,

@@ -738,8 +738,8 @@ class AbstractBatchCommand(TimeStampedEditableModel):
     STATUS_CHOICES = (
         ("idle", _("idle")),
         ("in-progress", _("in progress")),
-        ("success", _("completed successfully")),
-        ("failed", _("completed with some failures")),
+        ("success", _("success")),
+        ("failed", _("failed")),
     )
 
     organization = models.ForeignKey(
@@ -751,11 +751,11 @@ class AbstractBatchCommand(TimeStampedEditableModel):
     status = models.CharField(
         max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
     )
-    command_type = models.CharField(
+    type = models.CharField(
         max_length=16,
         choices=(COMMAND_CHOICES if django.VERSION < (5, 0) else get_command_choices),
     )
-    command_input = JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
+    input = JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
     group = models.ForeignKey(
         get_model_name("config", "DeviceGroup"),
         on_delete=models.SET_NULL,
@@ -833,27 +833,26 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         allowed = dict(
             Command.get_org_allowed_commands(organization_id=self.organization_id)
         )
-        if self.command_type not in allowed:
+        if self.type not in allowed:
             raise ValidationError(
                 {
-                    "command_type": _(
+                    "type": _(
                         '"{command}" command is not available for this organization'
-                    ).format(command=self.command_type)
+                    ).format(command=self.type)
                 }
             )
         try:
-            jsonschema.Draft4Validator(get_command_schema(self.command_type)).validate(
-                self.command_input
+            jsonschema.Draft4Validator(get_command_schema(self.type)).validate(
+                self.input
             )
         except SchemaError as e:
-            raise ValidationError({"command_input": e.message})
+            raise ValidationError({"input": e.message})
 
     def resolve_devices(self):
         """
-        Returns the queryset of devices targeted by this batch command.
-        - Devices explicitly set via M2M relation: returns those directly.
-        - No explicit devices: resolves via organization, group, and location filters.
-        - No filters set: returns all devices (superuser targeting all orgs).
+        Returns an iterator of devices targeted by this batch command,
+        resolved from explicit M2M devices or filtered by organization,
+        group, and location. Returns an empty iterator if no devices match.
         """
         if self.pk and self.devices.exists():
             return self.devices.iterator()
@@ -865,18 +864,14 @@ class AbstractBatchCommand(TimeStampedEditableModel):
             qs = qs.filter(group=self.group)
         if self.location:
             qs = qs.filter(devicelocation__location=self.location)
-        return qs
+        return qs.iterator()
 
     @classmethod
     def execute(cls, **kwargs):
         """
         Creates, validates, and persists the batch command, then schedules
-        execution via a background task.
-        - No devices match the specified criteria: batch is deleted and
-          ValidationError is raised to avoid orphan records.
-        - Explicit device list provided: uses device PKs directly instead
-          of resolving via organization/group/location filters.
-        - Superuser with no organization: targets devices across all orgs.
+        execution via a background task. Raises ValidationError and deletes
+        the batch if no devices match the criteria.
         """
         devices_list = kwargs.pop("devices", None)
         batch = cls(**kwargs)
@@ -889,7 +884,7 @@ class AbstractBatchCommand(TimeStampedEditableModel):
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
-        elif not batch.resolve_devices().exists():
+        elif not any(batch.resolve_devices()):
             batch.delete()
             raise ValidationError(
                 _("No devices match the specified criteria."),
@@ -902,18 +897,15 @@ class AbstractBatchCommand(TimeStampedEditableModel):
     @classmethod
     def dry_run(cls, **kwargs):
         """
-        Returns the devices that would be targeted by this batch command without
-        executing it.
-        - Command type not provided (GET request): skips full clean, only
-          validates organization relations.
-        - Explicit device list provided: returns it directly without resolving
-          via organization/group/location filters.
+        Returns the devices that would be targeted by this batch command
+        without executing it. Skips full validation when command type is
+        not provided case for GET request.
         """
         devices_list = kwargs.pop("devices", None)
-        command_type = kwargs.pop("command_type", None)
+        cmd_type = kwargs.pop("type", None)
         batch = cls(**kwargs)
-        if command_type:
-            batch.command_type = command_type
+        if cmd_type:
+            batch.type = cmd_type
             batch.full_clean()
         else:
             batch._validate_org_relations()
@@ -923,11 +915,10 @@ class AbstractBatchCommand(TimeStampedEditableModel):
 
     def create_commands(self):
         """
-        Creates individual Command instances for each device targeted by this batch
-        command.
-        - Commands already exist for this batch: returns early (idempotent guard).
-        - Device validation fails (deactivated, no credentials, wrong org):
-          device is skipped and logged — no Command record is created.
+        Creates individual Command instances for each device targeted by
+        this batch command. Returns early if commands already exist
+        (idempotent guard). Devices that fail validation are silently
+        skipped.
         """
         if self.batch_commands.exists():
             return
@@ -937,8 +928,8 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         for device in self.resolve_devices():
             command = Command(
                 device=device,
-                type=self.command_type,
-                input=self.command_input,
+                type=self.type,
+                input=self.input,
                 batch_command=self,
             )
             try:

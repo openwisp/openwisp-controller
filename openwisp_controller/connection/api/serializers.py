@@ -125,10 +125,8 @@ class DeviceConnectionSerializer(
 class BatchCommandExecuteSerializer(
     FilterSerializerByOrgManaged, serializers.ModelSerializer
 ):
-    type = serializers.CharField(source="command_type")
-    input = serializers.JSONField(
-        source="command_input", allow_null=True, required=False
-    )
+    type = serializers.CharField()
+    input = serializers.JSONField(allow_null=True, required=False)
     devices = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Device.objects.all(),
@@ -187,3 +185,37 @@ class BatchCommandExecuteSerializer(
                         }
                     )
         return data
+
+
+class BatchCommandSerializer(BaseSerializer):
+    device_count = serializers.IntegerField(source="devices.count", read_only=True)
+
+    class Meta:
+        model = BatchCommand
+        fields = (
+            "id",
+            "organization",
+            "status",
+            "type",
+            "input",
+            "group",
+            "location",
+            "device_count",
+            "created",
+            "modified",
+        )
+        read_only_fields = (
+            "created",
+            "modified",
+        )
+
+
+class BatchCommandDetailSerializer(BatchCommandSerializer):
+    devices = serializers.PrimaryKeyRelatedField(
+        many=True,
+        read_only=True,
+        pk_field=serializers.UUIDField(format="hex_verbose"),
+    )
+
+    class Meta(BatchCommandSerializer.Meta):
+        fields = BatchCommandSerializer.Meta.fields + ("devices",)
