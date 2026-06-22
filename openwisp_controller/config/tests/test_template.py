@@ -1,4 +1,5 @@
 import uuid
+from collections import OrderedDict
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -13,7 +14,7 @@ from swapper import load_model
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
-from ..base.template import get_unassigned_certs
+from ..base.template import _get_value_for_comparison, get_unassigned_certs
 from ..signals import config_modified, config_status_changed
 from ..tasks import auto_add_template_to_existing_configs
 from ..tasks import logger as task_logger
@@ -970,6 +971,17 @@ class TestTemplateTransaction(
             required_template.save()
             mocked_task.assert_not_called()
 
+    def test_auto_add_template_to_existing_configs_task_timeout(self):
+        template = self._create_template()
+        with mock.patch.object(
+            Template,
+            "_auto_add_to_existing_configs",
+            side_effect=SoftTimeLimitExceeded,
+        ):
+            with mock.patch.object(task_logger, "error") as mocked_error:
+                auto_add_template_to_existing_configs(str(template.pk))
+            mocked_error.assert_called_once()
+
     def test_standalone_cert_renewal_updates_config_status(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
@@ -1461,6 +1473,45 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         queryset = choices.get("pk__in")
         self.assertIsNotNone(queryset)
         self.assertIn(unassigned_cert, queryset)
+
+    def test_get_value_for_comparison(self):
+        self.assertEqual(_get_value_for_comparison({"a": 1}), {"a": 1})
+        od = OrderedDict([("b", 2)])
+        result = _get_value_for_comparison(od)
+        self.assertIsInstance(result, dict)
+        self.assertNotIsInstance(result, OrderedDict)
+        self.assertEqual(result, {"b": 2})
+        result = _get_value_for_comparison(OrderedDict())
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result, {})
+
+    def test_cert_template_config_none(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            blueprint_cert=None,
+            organization=org,
+            config=None,
+            auto_cert=True,
+        )
+        self.assertEqual(template.config, {})
+
+    def test_validate_cert_template_changes_deleted_instance(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        pk = template.pk
+        template.delete()
+        stale = Template(pk=pk, type="cert", ca=ca, organization=org)
+        stale._state.adding = False
+        stale.clean()
 
     def test_certificate_template_context_injection(self):
         """
