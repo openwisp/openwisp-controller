@@ -775,11 +775,27 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         blank=True,
         verbose_name=_("devices"),
     )
+    skipped_devices = models.JSONField(
+        blank=True,
+        null=True,
+        default=dict,
+        verbose_name=_("Skipped devices"),
+        help_text=_(
+            "Maps device UUIDs to validation error messages for devices "
+            "that were skipped during command creation."
+        ),
+    )
 
     class Meta:
         abstract = True
         verbose_name = _("Batch command")
         verbose_name_plural = _("Batch commands")
+
+    def __str__(self):
+        return "{0} ({1})".format(
+            self.type,
+            timezone.localtime(self.created).strftime("%Y-%m-%d %H:%M:%S"),
+        )
 
     @cached_property
     def total_devices(self):
@@ -879,6 +895,7 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         batch.save()
         if devices_list:
             batch.devices.set(devices_list)
+            batch._validate_org_relations()
             if not batch.devices.exists():
                 batch.delete()
                 raise ValidationError(
@@ -910,6 +927,18 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         else:
             batch._validate_org_relations()
         if devices_list:
+            for device in devices_list:
+                if (
+                    batch.organization_id
+                    and device.organization_id != batch.organization_id
+                ):
+                    raise ValidationError(
+                        {
+                            "devices": _(
+                                "All devices must belong to the same organization"
+                            )
+                        }
+                    )
             return {"devices": list(devices_list)}
         return {"devices": list(batch.resolve_devices())}
 
@@ -917,12 +946,13 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         """
         Creates individual Command instances for each device targeted by
         this batch command. Returns early if commands already exist
-        (idempotent guard). Devices that fail validation are silently
-        skipped.
+        (idempotent guard). Devices that fail validation are recorded
+        in skipped_devices and logged.
         """
         if self.batch_commands.exists():
             return
         Command = load_model("connection", "Command")
+        self.skipped_devices = {}
         self.status = "in-progress"
         self.save()
         for device in self.resolve_devices():
@@ -935,12 +965,15 @@ class AbstractBatchCommand(TimeStampedEditableModel):
             try:
                 command.save()
             except ValidationError as e:
+                self.skipped_devices[str(device.pk)] = e.messages
                 logger.warning(
                     "Skipping device %s for batch %s: %s",
                     device.pk,
                     self.pk,
                     e,
                 )
+        if self.skipped_devices:
+            self.save(update_fields=["skipped_devices"])
         self.calculate_and_update_status()
 
     def calculate_and_update_status(self):

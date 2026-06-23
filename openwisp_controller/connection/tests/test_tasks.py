@@ -16,6 +16,7 @@ from .utils import CreateConnectionsMixin
 Command = load_model("connection", "Command")
 DeviceConnection = load_model("connection", "DeviceConnection")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class TestTasks(CreateConnectionsMixin, TestCase):
@@ -315,3 +316,67 @@ class TestTransactionTasks(
         with mock.patch.object(Command, "execute", _delete_then_raise):
             tasks.launch_command(command.pk)
         self.assertFalse(Command.objects.filter(pk=command.pk).exists())
+
+    @mock.patch("logging.Logger.warning")
+    def test_launch_batch_command_skips_deleted_batch(self, mocked_warning):
+        batch_id = uuid.uuid4()
+        tasks.launch_batch_command(batch_id=batch_id)
+        mocked_warning.assert_called_with(
+            f"The BatchCommand object with id {batch_id} has been deleted"
+        )
+
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
+    def test_launch_batch_command_creates_commands(self, mocked_delay):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo 'test'"},
+        )
+        batch.full_clean()
+        batch.save()
+        batch.devices.set([device])
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 1)
+        command = batch.batch_commands.first()
+        self.assertEqual(command.device, device)
+        self.assertEqual(command.type, batch.type)
+        self.assertEqual(command.status, "in-progress")
+        mocked_delay.assert_called_once_with(command.pk)
+
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
+    def test_launch_batch_command_creates_commands_for_multiple_devices(
+        self, mocked_delay
+    ):
+        org = self._get_org()
+        cred = self._create_credentials(organization=org, name="Multi device cred")
+        devices = []
+        for i in range(2):
+            d = self._create_device(
+                name=f"task-dev-{i}",
+                mac_address=f"00:11:22:33:44:{i+0x50:02x}",
+                organization=org,
+            )
+            self._create_config(device=d)
+            self._create_device_connection(device=d, credentials=cred)
+            devices.append(d)
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+        )
+        batch.full_clean()
+        batch.save()
+        batch.devices.set(devices)
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 2)
+        cmd_devices = [c.device for c in batch.batch_commands.all()]
+        for d in devices:
+            self.assertIn(d, cmd_devices)
+        self.assertEqual(batch.status, "in-progress")
+        self.assertEqual(mocked_delay.call_count, 2)

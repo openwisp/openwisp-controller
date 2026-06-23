@@ -4,12 +4,16 @@ import uuid
 
 import django
 import django.core.serializers.json
+import django.db.migrations.operations.special
 import django.db.models.deletion
 import django.utils.timezone
 import model_utils.fields
 from django.db import migrations, models
 
 from openwisp_controller import connection as connection_config
+from openwisp_controller.connection.migrations import (
+    assign_batchcommand_permissions_to_groups,
+)
 
 
 class Migration(migrations.Migration):
@@ -89,6 +93,19 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    "skipped_devices",
+                    models.JSONField(
+                        blank=True,
+                        null=True,
+                        default=dict,
+                        verbose_name="Skipped devices",
+                        help_text=(
+                            "Maps device UUIDs to validation error messages for "
+                            "devices that were skipped during command creation."
+                        ),
+                    ),
+                ),
+                (
                     "group",
                     models.ForeignKey(
                         blank=True,
@@ -134,5 +151,9 @@ class Migration(migrations.Migration):
                 related_name="batch_commands",
                 to="sample_connection.batchcommand",
             ),
+        ),
+        migrations.RunPython(
+            code=assign_batchcommand_permissions_to_groups,
+            reverse_code=django.db.migrations.operations.special.RunPython.noop,
         ),
     ]

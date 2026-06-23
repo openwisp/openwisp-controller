@@ -216,6 +216,10 @@ class BatchCommandDetailSerializer(BatchCommandSerializer):
         read_only=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
+    skipped_devices = serializers.JSONField(read_only=True)
 
     class Meta(BatchCommandSerializer.Meta):
-        fields = BatchCommandSerializer.Meta.fields + ("devices",)
+        fields = BatchCommandSerializer.Meta.fields + (
+            "devices",
+            "skipped_devices",
+        )

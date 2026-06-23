@@ -25,6 +25,9 @@ BatchCommand = load_model("connection", "BatchCommand")
 command_qs = Command.objects.order_by("-created")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 Group = load_model("openwisp_users", "Group")
+DeviceGroup = load_model("config", "DeviceGroup")
+Location = load_model("geo", "Location")
+DeviceLocation = load_model("geo", "DeviceLocation")
 
 
 class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
@@ -926,61 +929,271 @@ class TestBatchCommandsAPI(
         self.assertEqual(response.data["devices"], [str(device.pk)])
         self.assertEqual(response.data["device_count"], 1)
 
+    def test_batch_command_dry_run_endpoint(self):
+        org = self._get_org()
+        device1 = self._create_device(
+            name="dryf-dev1",
+            mac_address="00:11:22:33:44:d1",
+            organization=org,
+        )
+        self._create_config(device=device1)
+        device2 = self._create_device(
+            name="dryf-dev2",
+            mac_address="00:11:22:33:44:d2",
+            organization=org,
+        )
+        self._create_config(device=device2)
+        group = DeviceGroup.objects.create(name="dryf-group", organization=org)
+        device1.group = group
+        device1.save()
+        location = Location.objects.create(
+            name="dryf-loc",
+            type="indoor",
+            organization=org,
+        )
+        DeviceLocation.objects.create(content_object=device2, location=location)
+
+        base_url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("dry run with explicit devices"):
+            url = "{0}?organization={1}&devices={2}".format(
+                base_url,
+                str(org.pk),
+                str(device1.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["devices"], [str(device1.pk)])
+
+        with self.subTest("dry run with group"):
+            url = "{0}?organization={1}&group={2}".format(
+                base_url,
+                str(org.pk),
+                str(group.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertNotIn(str(device2.pk), response.data["devices"])
+
+        with self.subTest("dry run with location"):
+            url = "{0}?organization={1}&location={2}".format(
+                base_url,
+                str(org.pk),
+                str(location.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device2.pk), response.data["devices"])
+            self.assertNotIn(str(device1.pk), response.data["devices"])
+
+        with self.subTest("dry run with group and location"):
+            DeviceLocation.objects.create(content_object=device1, location=location)
+            url = "{0}?organization={1}&group={2}&location={3}".format(
+                base_url,
+                str(org.pk),
+                str(group.pk),
+                str(location.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertNotIn(str(device2.pk), response.data["devices"])
+
+        with self.subTest("dry run org-wide"):
+            url = "{0}?organization={1}".format(base_url, str(org.pk))
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertIn(str(device2.pk), response.data["devices"])
+
     def test_batch_command_execute(self):
         org = self._get_org()
-        device = self._create_device(organization=org)
-        self._create_config(device=device)
-        self._create_device_connection(device=device)
-        payload = {
-            "organization": str(org.pk),
-            "type": "custom",
-            "input": {"command": "echo test"},
-            "devices": [str(device.pk)],
-        }
-        response = self.client.post(
-            reverse("connection_api:batch_command_execute"),
-            data=json.dumps(payload),
-            content_type="application/json",
+        cred = self._create_credentials(name="exec-cred", organization=org)
+        device1 = self._create_device(
+            name="exec-dev1",
+            mac_address="00:11:22:33:44:e1",
+            organization=org,
         )
-        self.assertEqual(response.status_code, 201)
-        self.assertIn("batch", response.data)
-        batch = BatchCommand.objects.get(pk=response.data["batch"])
-        # transaction.on_commit doesn't fire in TestCase; trigger manually
-        batch.create_commands()
-        command = Command.objects.get(batch_command=batch)
-        self.assertEqual(command.device.pk, device.pk)
+        self._create_config(device=device1)
+        self._create_device_connection(device=device1, credentials=cred)
+        device2 = self._create_device(
+            name="exec-dev2",
+            mac_address="00:11:22:33:44:e2",
+            organization=org,
+        )
+        self._create_config(device=device2)
+        self._create_device_connection(device=device2, credentials=cred)
+        group = DeviceGroup.objects.create(name="exec-group", organization=org)
+        device1.group = group
+        device1.save()
+        location = Location.objects.create(
+            name="exec-loc",
+            type="indoor",
+            organization=org,
+        )
+        DeviceLocation.objects.create(content_object=device2, location=location)
+        url = reverse("connection_api:batch_command_execute")
 
-    def test_batch_command_execute_queries(self):
-        org = self._get_org()
-        devices = []
-        for i in range(3):
-            d = self._create_device(
-                name=f"q-dev-{i}",
-                mac_address=f"00:11:22:33:44:{i:02x}",
-                organization=org,
-            )
-            self._create_config(device=d)
-            devices.append(d)
-        payload = {
-            "organization": str(org.pk),
-            "type": "custom",
-            "input": {"command": "echo test"},
-            "devices": [str(d.pk) for d in devices],
-        }
-        with self.assertNumQueries(13):
+        with self.subTest("execute with explicit devices"):
             response = self.client.post(
-                reverse("connection_api:batch_command_execute"),
-                data=json.dumps(payload),
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "devices": [str(device1.pk)],
+                    }
+                ),
                 content_type="application/json",
             )
-        self.assertEqual(response.status_code, 201)
-        self.assertIn("batch", response.data)
-        batch = BatchCommand.objects.get(pk=response.data["batch"])
-        self.assertEqual(batch.devices.count(), 3)
-        self.assertCountEqual(
-            batch.devices.values_list("pk", flat=True),
-            [d.pk for d in devices],
-        )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            command = Command.objects.get(batch_command=batch, device=device1)
+            self.assertEqual(command.device.pk, device1.pk)
+
+        with self.subTest("execute with group"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "group": str(group.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            command = Command.objects.get(batch_command=batch, device=device1)
+            self.assertEqual(command.device.pk, device1.pk)
+
+        with self.subTest("execute with location"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "location": str(location.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            command = Command.objects.get(batch_command=batch, device=device2)
+            self.assertEqual(command.device.pk, device2.pk)
+
+        with self.subTest("execute with group and location"):
+            DeviceLocation.objects.create(content_object=device1, location=location)
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "group": str(group.pk),
+                        "location": str(location.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            command = Command.objects.get(batch_command=batch, device=device1)
+            self.assertEqual(command.device.pk, device1.pk)
+
+        with self.subTest("execute org-wide"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "execute_all": True,
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            self.assertEqual(
+                Command.objects.filter(batch_command=batch).count(),
+                2,
+            )
+
+    def test_batch_command_endpoints_no_of_queries(self):
+        with self.subTest("list queries"):
+            org = self._get_org()
+            devices = []
+            for i in range(2):
+                d = self._create_device(
+                    name=f"q-dev-{i}",
+                    mac_address=f"00:11:22:33:44:{i:02x}",
+                    organization=org,
+                )
+                self._create_config(device=d)
+                devices.append(d)
+            self._create_batch_command(organization=org, devices=devices)
+            url = reverse("connection_api:batch_command_list")
+            with self.assertNumQueries(4):
+                response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+
+        with self.subTest("detail queries"):
+            url = reverse(
+                "connection_api:batch_command_detail",
+                args=[response.data["results"][0]["id"]],
+            )
+            with self.assertNumQueries(4):
+                response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("execute queries"):
+            org = self._get_org()
+            devices = []
+            for i in range(3):
+                d = self._create_device(
+                    name=f"q-exec-{i}",
+                    mac_address=f"00:11:22:33:44:{i+0x10:02x}",
+                    organization=org,
+                )
+                self._create_config(device=d)
+                devices.append(d)
+            payload = {
+                "organization": str(org.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "devices": [str(d.pk) for d in devices],
+            }
+            url = reverse("connection_api:batch_command_execute")
+            with self.assertNumQueries(15):
+                response = self.client.post(
+                    url,
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                )
+            self.assertEqual(response.status_code, 201)
+            self.assertIn("batch", response.data)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            self.assertEqual(batch.devices.count(), 3)
+            self.assertCountEqual(
+                batch.devices.values_list("pk", flat=True),
+                [d.pk for d in devices],
+            )
 
     def test_batch_command_execute_org_has_no_devices(self):
         org = self._get_org()
@@ -990,14 +1203,19 @@ class TestBatchCommandsAPI(
             "input": {"command": "echo test"},
             "execute_all": True,
         }
+        url = reverse("connection_api:batch_command_execute")
         response = self.client.post(
-            reverse("connection_api:batch_command_execute"),
+            url,
             data=json.dumps(payload),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data,
+            ["No devices match the specified criteria."],
+        )
 
-    def test_batch_command_execute_no_org(self):
+    def test_batch_command_no_org_only_allowed_to_superuser(self):
         org = self._get_org()
         self.client.logout()
         operator = self._create_operator(organizations=[org])
@@ -1009,71 +1227,90 @@ class TestBatchCommandsAPI(
             "input": {"command": "echo test"},
             "execute_all": True,
         }
-        response = self.client.post(
-            reverse("connection_api:batch_command_execute"),
-            data=json.dumps(payload),
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertIn(
-            "Only superusers",
-            str(response.data),
-        )
+        url = reverse("connection_api:batch_command_execute")
+        with self.subTest("POST execute without org"):
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Only superusers",
+                str(response.data),
+            )
 
-    def test_batch_command_dry_run(self):
-        org = self._get_org()
-        device = self._create_device(organization=org)
-        self._create_config(device=device)
-        url = "{0}?organization={1}".format(
-            reverse("connection_api:batch_command_execute"), str(org.pk)
-        )
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("devices", response.data)
-        self.assertIn(str(device.pk), response.data["devices"])
+        with self.subTest("GET dry-run without org"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Only superusers",
+                str(response.data),
+            )
 
-    def test_batch_command_list_organization_scoped(self):
+    def test_batch_command_endpoints_organization_scoped(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
-        self._create_batch_command(organization=org)
-        self._create_batch_command(organization=org2)
+        batch_org1 = self._create_batch_command(organization=org)
+        batch_org2 = self._create_batch_command(organization=org2)
         self.client.logout()
         operator = self._create_operator(organizations=[org])
         view_perm = Permission.objects.get(codename="view_batchcommand")
         operator.user_permissions.add(view_perm)
         self.client.force_login(operator)
-        response = self.client.get(reverse("connection_api:batch_command_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["count"], 1)
 
-    def test_batch_command_unauthorized(self):
+        with self.subTest("list scoped to own org"):
+            url = reverse("connection_api:batch_command_list")
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+
+        with self.subTest("detail cross-org"):
+            url = reverse(
+                "connection_api:batch_command_detail",
+                args=[batch_org2.pk],
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("detail own org"):
+            url = reverse(
+                "connection_api:batch_command_detail",
+                args=[batch_org1.pk],
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+    def test_batch_command_endpoints_unauthorized(self):
         self.client.logout()
+        execute_url = reverse("connection_api:batch_command_execute")
+
         with self.subTest("List"):
-            response = self.client.get(reverse("connection_api:batch_command_list"))
+            url = reverse("connection_api:batch_command_list")
+            response = self.client.get(url)
             self.assertEqual(response.status_code, 401)
 
         with self.subTest("Detail"):
-            response = self.client.get(
-                reverse(
-                    "connection_api:batch_command_detail",
-                    args=[uuid.uuid4()],
-                )
+            url = reverse(
+                "connection_api:batch_command_detail",
+                args=[uuid.uuid4()],
             )
+            response = self.client.get(url)
             self.assertEqual(response.status_code, 401)
 
         with self.subTest("Dry run"):
-            response = self.client.get(reverse("connection_api:batch_command_execute"))
+            response = self.client.get(execute_url)
             self.assertEqual(response.status_code, 401)
 
         with self.subTest("Execute"):
             response = self.client.post(
-                reverse("connection_api:batch_command_execute"),
+                execute_url,
                 data=json.dumps({"type": "custom"}),
                 content_type="application/json",
             )
             self.assertEqual(response.status_code, 401)
 
-    def test_batch_command_cross_org_restrictions(self):
+    def test_batch_command_execute_skipped_devices(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
         device_a = self._create_device(
@@ -1090,6 +1327,7 @@ class TestBatchCommandsAPI(
         )
         self._create_config(device=device_b)
         self._create_device_connection(device=device_b)
+        execute_url = reverse("connection_api:batch_command_execute")
 
         with patch.dict(
             ORGANIZATION_ENABLED_COMMANDS,
@@ -1101,7 +1339,7 @@ class TestBatchCommandsAPI(
                 "devices": [str(device_a.pk), str(device_b.pk)],
             }
             response = self.client.post(
-                reverse("connection_api:batch_command_execute"),
+                execute_url,
                 data=json.dumps(payload),
                 content_type="application/json",
             )
@@ -1111,10 +1349,14 @@ class TestBatchCommandsAPI(
             # trigger create_commands() manually
             batch.create_commands()
             batch.refresh_from_db()
+            self.assertIn(str(device_b.pk), batch.skipped_devices)
+            self.assertIn(
+                '"custom" command is not available for this organization',
+                batch.skipped_devices[str(device_b.pk)][0],
+            )
             command_qs = Command.objects.filter(batch_command=batch)
             self.assertTrue(command_qs.filter(device=device_a).exists())
             self.assertFalse(command_qs.filter(device=device_b).exists())
-            # Verify rendering works for created commands
             url = reverse(
                 "connection_api:device_command_list",
                 args=[device_a.pk],
@@ -1124,3 +1366,243 @@ class TestBatchCommandsAPI(
             cmd_data = response.data["results"][0]
             self.assertIn("type", cmd_data)
             self.assertIn("input", cmd_data)
+
+        with self.subTest("skipped: no credentials"):
+            device = self._create_device(
+                name="skip-nc-dev",
+                mac_address="00:11:22:33:44:a1",
+                organization=org,
+            )
+            self._create_config(device=device)
+            response = self.client.post(
+                execute_url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "devices": [str(device.pk)],
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            batch.refresh_from_db()
+            self.assertIn(str(device.pk), batch.skipped_devices)
+            self.assertIn(
+                "Device has no credentials assigned",
+                batch.skipped_devices[str(device.pk)][0],
+            )
+            detail_url = reverse(
+                "connection_api:batch_command_detail",
+                args=[batch.pk],
+            )
+            detail_response = self.client.get(detail_url)
+            self.assertEqual(detail_response.status_code, 200)
+            self.assertIn(str(device.pk), detail_response.data["skipped_devices"])
+
+        with self.subTest("skipped: deactivated device"):
+            device = self._create_device(
+                name="skip-dd-dev",
+                mac_address="00:11:22:33:44:a2",
+                organization=org,
+            )
+            self._create_config(device=device)
+            dd_cred = self._create_credentials(
+                name="skip-dd-cred",
+                organization=org,
+            )
+            self._create_device_connection(device=device, credentials=dd_cred)
+            device.deactivate()
+            response = self.client.post(
+                execute_url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "devices": [str(device.pk)],
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            batch.create_commands()
+            batch.refresh_from_db()
+            self.assertIn(str(device.pk), batch.skipped_devices)
+            self.assertIn(
+                "Device is deactivated",
+                batch.skipped_devices[str(device.pk)][0],
+            )
+            detail_url = reverse(
+                "connection_api:batch_command_detail",
+                args=[batch.pk],
+            )
+            detail_response = self.client.get(detail_url)
+            self.assertEqual(detail_response.status_code, 200)
+            self.assertIn(str(device.pk), detail_response.data["skipped_devices"])
+
+    def test_batch_command_execute_org_mismatched_data_provided(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        device_org2 = self._create_device(
+            name="api-mm-dev",
+            mac_address="00:11:22:33:44:88",
+            organization=org2,
+        )
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("device org mismatch"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "devices": [str(device_org2.pk)],
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                {"devices": ["All devices must belong to the same organization."]},
+            )
+
+        with self.subTest("group org mismatch"):
+            group_org2 = DeviceGroup.objects.create(
+                name="api-mm-group",
+                organization=org2,
+            )
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "group": str(group_org2.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                {
+                    "group": [
+                        (
+                            "The organization of the group doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    ]
+                },
+            )
+
+        with self.subTest("location org mismatch"):
+            location_org2 = Location.objects.create(
+                name="api-mm-loc",
+                type="indoor",
+                organization=org2,
+            )
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "location": str(location_org2.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                {
+                    "location": [
+                        (
+                            "The organization of the location doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    ]
+                },
+            )
+
+    def test_batch_command_dry_run_org_mismatched_data_provided(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        device_org2 = self._create_device(
+            name="dry-mm-dev",
+            mac_address="00:11:22:33:44:78",
+            organization=org2,
+        )
+        base_url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("device org mismatch"):
+            url = "{0}?organization={1}&devices={2}".format(
+                base_url,
+                str(org.pk),
+                str(device_org2.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                {"devices": ["All devices must belong to the same organization."]},
+            )
+
+        with self.subTest("group org mismatch"):
+            group_org2 = DeviceGroup.objects.create(
+                name="dry-mm-group",
+                organization=org2,
+            )
+            url = "{0}?organization={1}&group={2}".format(
+                base_url,
+                str(org.pk),
+                str(group_org2.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                {
+                    "group": [
+                        (
+                            "The organization of the group doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    ]
+                },
+            )
+
+        with self.subTest("location org mismatch"):
+            location_org2 = Location.objects.create(
+                name="dry-mm-loc",
+                type="indoor",
+                organization=org2,
+            )
+            url = "{0}?organization={1}&location={2}".format(
+                base_url,
+                str(org.pk),
+                str(location_org2.pk),
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                {
+                    "location": [
+                        (
+                            "The organization of the location doesn't match "
+                            "the organization of the batch command operation"
+                        )
+                    ]
+                },
+            )
