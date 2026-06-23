@@ -31,8 +31,8 @@ To create a Certificate Template, navigate to the Templates section in the
 OpenWISP admin and set the **Type** to :guilabel:`Certificate` (``cert``).
 This will reveal the certificate-specific configuration fields.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.4/certificate-templates/certificate-template.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.4/certificate-templates/certificate-template.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/certificate-templates/certificate-template.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/certificate-templates/certificate-template.png
     :alt: Certificate Template admin form
 
 :guilabel:`Certificate Authority` (required)
