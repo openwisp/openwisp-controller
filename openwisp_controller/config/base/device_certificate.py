@@ -118,6 +118,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
             state=source.state,
             city=source.city,
             organization_name=source.organization_name,
+            organizational_unit_name=source.organizational_unit_name,
             email=source.email,
         )
 

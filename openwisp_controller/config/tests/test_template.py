@@ -1332,6 +1332,27 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
                 revoked_cert.revoked, "Underlying certificate was not revoked!"
             )
 
+    def test_cert_generation_copies_blueprint_organizational_unit_name(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(
+            ca=ca,
+            organization=org,
+            organizational_unit_name="Network Operations",
+        )
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        cert = config.devicecertificate_set.get(template=template).cert
+        self.assertEqual(cert.organizational_unit_name, "Network Operations")
+
     def test_device_certificate_autocert_save_is_atomic(self):
         """
         Ensure certificate auto-provisioning does not leak Cert rows
