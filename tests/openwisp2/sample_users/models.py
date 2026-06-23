@@ -60,3 +60,6 @@ class Group(BaseGroup, AbstractGroup):
 # only needed for django-organizations~=2.x
 class OrganizationInvitation(AbstractOrganizationInvitation):
     pass
+
+
+from openwisp_users.base.models import ApiKey  # noqa
