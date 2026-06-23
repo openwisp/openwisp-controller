@@ -189,6 +189,7 @@ class BatchCommandExecuteSerializer(
 
 class BatchCommandSerializer(BaseSerializer):
     device_count = serializers.IntegerField(source="devices.count", read_only=True)
+    skipped_devices = serializers.JSONField(read_only=True)
 
     class Meta:
         model = BatchCommand
@@ -201,6 +202,7 @@ class BatchCommandSerializer(BaseSerializer):
             "group",
             "location",
             "device_count",
+            "skipped_devices",
             "created",
             "modified",
         )
@@ -216,10 +218,6 @@ class BatchCommandDetailSerializer(BatchCommandSerializer):
         read_only=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
-    skipped_devices = serializers.JSONField(read_only=True)
 
     class Meta(BatchCommandSerializer.Meta):
-        fields = BatchCommandSerializer.Meta.fields + (
-            "devices",
-            "skipped_devices",
-        )
+        fields = BatchCommandSerializer.Meta.fields + ("devices",)
