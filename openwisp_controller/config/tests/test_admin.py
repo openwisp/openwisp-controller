@@ -8,6 +8,7 @@ from uuid import uuid4
 import django
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.management import call_command
@@ -2359,7 +2360,8 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
-        expected_count = 23
+        ContentType.objects.get_for_model(Device)
+        expected_count = 25
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
@@ -2453,7 +2455,7 @@ class TestTransactionAdmin(
             "Delete</a></p>"
         )
 
-    _deactivated_device_expected_readonly_fields = 22
+    _deactivated_device_expected_readonly_fields = 23
 
     def test_device_with_config_change_deactivate_deactivate(self):
         """

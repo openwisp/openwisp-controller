@@ -512,7 +512,6 @@ class ConfigInline(
                 url = reverse(
                     f"admin:{app_label}_{model_name}_change", args=[dc.cert.id]
                 )
-
                 cert_data.append(
                     {
                         "template_name": dc.template.name,
