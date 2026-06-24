@@ -49,6 +49,7 @@ Vpn = load_model("config", "Vpn")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 User = get_user_model()
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
@@ -1800,6 +1801,32 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[d.pk])
         response = self.client.get(path)
         self.assertContains(response, "last_ip")
+
+    def test_device_certificate_details_visible_in_admin(self):
+        org = self._get_org()
+        ca = self._create_ca(
+            common_name="test-cert-ca",
+            organization=org,
+        )
+        template = self._create_template(
+            name="test-cert-template",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        device = self._create_device(organization=org, name="cert-device")
+        config = self._create_config(device=device)
+        with self.captureOnCommitCallbacks(execute=True):
+            config.templates.add(template)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        response = self.client.get(path)
+        dc = DeviceCertificate.objects.get(config=config)
+        self.assertContains(response, template.name)
+        self.assertContains(response, dc.cert.common_name)
+        self.assertContains(response, str(dc.cert.id))
+        self.assertContains(response, "Active")
+        self.assertContains(response, "View Certificate")
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):

@@ -20,7 +20,7 @@ from django.db.models.functions import Cast
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from django.template.loader import get_template
+from django.template.loader import get_template, render_to_string
 from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, path, reverse
 from django.utils.html import format_html, mark_safe
@@ -61,6 +61,7 @@ Vpn = load_model("config", "Vpn")
 Organization = load_model("openwisp_users", "Organization")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 OrganizationLimits = load_model("config", "OrganizationLimits")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 if "reversion" in settings.INSTALLED_APPS:
     from reversion.admin import VersionAdmin as ModelAdmin
@@ -454,11 +455,12 @@ class ConfigInline(
     model = Config
     form = ConfigForm
     verbose_name_plural = _("Device configuration details")
-    readonly_fields = ["status", "system_context"]
+    readonly_fields = ["status", "system_context", "certificate_details"]
     fields = [
         "backend",
         "status",
         "templates",
+        "certificate_details",
         "system_context",
         "context",
         "config",
@@ -495,6 +497,37 @@ class ConfigInline(
         if db_field.name == "templates" and request.method != "POST":
             kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+    def certificate_details(self, obj):
+        if not obj or not obj.pk:
+            return _("Not available yet.")
+        qs = DeviceCertificate.objects.filter(config=obj).select_related(
+            "cert", "template"
+        )
+        cert_data = []
+        for dc in qs:
+            if dc.cert:
+                app_label = dc.cert._meta.app_label
+                model_name = dc.cert._meta.model_name
+                url = reverse(
+                    f"admin:{app_label}_{model_name}_change", args=[dc.cert.id]
+                )
+
+                cert_data.append(
+                    {
+                        "template_name": dc.template.name,
+                        "uuid": str(dc.cert.id),
+                        "common_name": dc.cert.common_name,
+                        "is_revoked": dc.cert.revoked,
+                        "url": url,
+                        "has_cert": True,
+                    }
+                )
+            else:
+                cert_data.append({"template_name": dc.template.name, "has_cert": False})
+        return render_to_string(
+            "admin/config/device_certificates_table.html", {"certificates": cert_data}
+        )
 
 
 class ChangeDeviceGroupForm(forms.Form):

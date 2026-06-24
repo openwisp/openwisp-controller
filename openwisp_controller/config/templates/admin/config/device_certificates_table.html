@@ -1,0 +1,41 @@
+{% load i18n %}
+<table style="width: 100%; text-align: left; border-collapse: collapse;">
+    <thead>
+        <tr style="border-bottom: 2px solid #ccc;">
+            <th style="padding: 8px;">{% trans "Template" %}</th>
+            <th style="padding: 8px;">{% trans "UUID" %}</th>
+            <th style="padding: 8px;">{% trans "Common Name" %}</th>
+            <th style="padding: 8px;">{% trans "Status" %}</th>
+            <th style="padding: 8px;">{% trans "Action" %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cert in certificates %}
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 8px;">{{ cert.template_name }}</td>
+            <td style="padding: 8px; font-family: monospace;">{{ cert.uuid|default:"-" }}</td>
+            <td style="padding: 8px;">{{ cert.common_name|default:"-" }}</td>
+            <td style="padding: 8px; font-weight: bold;">
+                {% if cert.has_cert %}
+                    {% if cert.is_revoked %}
+                        <span style="color:red">{% trans "Revoked" %}</span>
+                    {% else %}
+                        <span style="color:green">{% trans "Active" %}</span>
+                    {% endif %}
+                {% else %}
+                    {% trans "Pending Generation" %}
+                {% endif %}
+            </td>
+            <td style="padding: 8px;">
+                {% if cert.has_cert %}
+                    <a href="{{ cert.url }}">{% trans "View Certificate" %}</a>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="padding: 8px;">{% trans "No certificates generated." %}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
