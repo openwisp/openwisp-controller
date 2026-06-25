@@ -1177,14 +1177,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_whois_device_admin(self):
         def _assert_no_js_errors():
-            browser_logs = []
-            for log in self.get_browser_logs() or []:
-                if self.browser == "chrome" and log["source"] != "console-api":
-                    continue
-                elif log["message"] in ["wrong event specified: touchleave"]:
-                    continue
-                browser_logs.append(log)
-            self.assertEqual(browser_logs, [])
+            self.assertEqual(self.get_browser_errors(), [])
 
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)
