@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -166,7 +167,10 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
         return Response({"batch": str(batch.pk)}, status=201)
 
     def get(self, request):
-        serializer = self.get_serializer(data=request.query_params)
+        serializer = self.get_serializer(
+            data=request.query_params,
+            dry_run=True,
+        )
         serializer.is_valid(raise_exception=True)
         serializer.validated_data.pop("execute_all", None)
         try:
@@ -181,13 +185,15 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
 
 
 class BatchCommandListView(ProtectedAPIMixin, ListAPIView):
-    queryset = BatchCommand.objects.all().order_by("-created")
+    queryset = BatchCommand.objects.annotate(device_count=Count("devices")).order_by(
+        "-created"
+    )
     serializer_class = BatchCommandSerializer
     pagination_class = OpenWispPagination
 
 
 class BatchCommandDetailView(ProtectedAPIMixin, RetrieveAPIView):
-    queryset = BatchCommand.objects.all()
+    queryset = BatchCommand.objects.annotate(device_count=Count("devices"))
     serializer_class = BatchCommandDetailSerializer
 
 

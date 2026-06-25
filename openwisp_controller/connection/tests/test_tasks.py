@@ -358,7 +358,7 @@ class TestTransactionTasks(
         for i in range(2):
             d = self._create_device(
                 name=f"task-dev-{i}",
-                mac_address=f"00:11:22:33:44:{i+0x50:02x}",
+                mac_address=f"00:11:22:33:44:{i + 0x50:02x}",
                 organization=org,
             )
             self._create_config(device=d)

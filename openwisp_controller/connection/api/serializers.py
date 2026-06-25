@@ -136,11 +136,13 @@ class BatchCommandExecuteSerializer(
     )
     execute_all = serializers.BooleanField(required=False, default=True)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, dry_run=False, **kwargs):
         super().__init__(*args, **kwargs)
-        request = self.context.get("request")
-        if request and request.method == "GET":
+        if dry_run:
+            self._skip_target_validation = True
             self.fields["type"].required = False
+        else:
+            self._skip_target_validation = False
 
     class Meta:
         model = BatchCommand
@@ -167,13 +169,20 @@ class BatchCommandExecuteSerializer(
             raise serializers.ValidationError(
                 _("Only superusers can execute batch commands without an organization.")
             )
-        if not execute_all and not org and not devices and not group and not location:
-            raise serializers.ValidationError(
-                _(
-                    "Specify at least one targeting option "
-                    "or set execute_all to true."
+        if not self._skip_target_validation:
+            if (
+                not execute_all
+                and not org
+                and not devices
+                and not group
+                and not location
+            ):
+                raise serializers.ValidationError(
+                    _(
+                        "Specify at least one targeting option "
+                        "or set execute_all to true."
+                    )
                 )
-            )
         if devices:
             for device in devices:
                 if org and device.organization_id != org.id:
@@ -188,7 +197,7 @@ class BatchCommandExecuteSerializer(
 
 
 class BatchCommandSerializer(BaseSerializer):
-    device_count = serializers.IntegerField(source="devices.count", read_only=True)
+    device_count = serializers.IntegerField(read_only=True)
     skipped_devices = serializers.JSONField(read_only=True)
 
     class Meta:

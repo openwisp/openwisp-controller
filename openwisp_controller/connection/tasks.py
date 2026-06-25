@@ -119,7 +119,7 @@ def launch_batch_command(self, batch_id):
         batch.status = "failed"
         batch.save(update_fields=["status"])
         logger.exception(
-            f"An exception was raised while executing batch command {batch_id}"
+            f"An exception was raised while executing batch " f"command {batch_id}: {e}"
         )
 
 

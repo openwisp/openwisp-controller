@@ -1176,7 +1176,7 @@ class TestBatchCommandsAPI(
                 devices.append(d)
             self._create_batch_command(organization=org, devices=devices)
             url = reverse("connection_api:batch_command_list")
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 1)
@@ -1186,7 +1186,7 @@ class TestBatchCommandsAPI(
                 "connection_api:batch_command_detail",
                 args=[response.data["results"][0]["id"]],
             )
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(3):
                 response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
 
@@ -1196,7 +1196,7 @@ class TestBatchCommandsAPI(
             for i in range(3):
                 d = self._create_device(
                     name=f"q-exec-{i}",
-                    mac_address=f"00:11:22:33:44:{i+0x10:02x}",
+                    mac_address=f"00:11:22:33:44:{i + 0x10:02x}",
                     organization=org,
                 )
                 self._create_config(device=d)

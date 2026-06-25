@@ -895,7 +895,11 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         batch.save()
         if devices_list:
             batch.devices.set(devices_list)
-            batch._validate_org_relations()
+            try:
+                batch._validate_org_relations()
+            except ValidationError:
+                batch.delete()
+                raise
             if not batch.devices.exists():
                 batch.delete()
                 raise ValidationError(
