@@ -16,8 +16,6 @@ logo: "openwisp-logo-black.svg"
 categories:
   - network-management
 roadmap: "https://openwisp.io/docs/dev/general/roadmap-2030.html"
-supports:
-  - id: alias:gdpr
 maintenance:
   type: internal
   contacts:
