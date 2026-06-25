@@ -106,7 +106,21 @@ def launch_batch_command(self, batch_id):
     except BatchCommand.DoesNotExist:
         logger.warning(f"The BatchCommand object with id {batch_id} has been deleted")
         return
-    batch.create_commands()
+    try:
+        batch.create_commands()
+    except SoftTimeLimitExceeded:
+        batch.status = "failed"
+        batch.save(update_fields=["status"])
+        logger.warning(
+            f"SoftTimeLimitExceeded raised in launch_batch_command "
+            f"for batch {batch_id}"
+        )
+    except Exception as e:
+        batch.status = "failed"
+        batch.save(update_fields=["status"])
+        logger.exception(
+            f"An exception was raised while executing batch command {batch_id}"
+        )
 
 
 @shared_task(soft_time_limit=3600)

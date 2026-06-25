@@ -1175,6 +1175,95 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             batch.skipped_devices[str(device.pk)][0],
         )
 
+    def test_batch_command_create_commands_skip_scenarios(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+
+        with self.subTest("org command not allowed"):
+            device_a = self._create_device(
+                name="device-a",
+                mac_address="00:11:22:33:44:aa",
+                organization=org,
+            )
+            self._create_config(device=device_a)
+            self._create_device_connection(device=device_a)
+            device_b = self._create_device(
+                name="device-b",
+                mac_address="00:11:22:33:44:bb",
+                organization=org2,
+            )
+            self._create_config(device=device_b)
+            self._create_device_connection(device=device_b)
+            with mock.patch.dict(
+                ORGANIZATION_ENABLED_COMMANDS,
+                {str(org2.pk): ("reboot",)},
+            ):
+                batch = self._create_batch_command(
+                    organization=org,
+                    devices=[device_a, device_b],
+                )
+                batch.create_commands()
+                batch.refresh_from_db()
+                self.assertIn(str(device_b.pk), batch.skipped_devices)
+                self.assertIn(
+                    '"custom" command is not available for this organization',
+                    batch.skipped_devices[str(device_b.pk)][0],
+                )
+                db_batch = BatchCommand.objects.get(pk=batch.pk)
+                self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
+                command_qs = Command.objects.filter(batch_command=batch)
+                self.assertTrue(command_qs.filter(device=device_a).exists())
+                self.assertFalse(command_qs.filter(device=device_b).exists())
+
+        with self.subTest("mixed skip scenario"):
+            device_ok = self._create_device(
+                name="device-ok",
+                mac_address="00:11:22:33:44:01",
+                organization=org,
+            )
+            self._create_config(device=device_ok)
+            ok_cred = self._create_credentials(name="device-ok-cred", organization=org)
+            self._create_device_connection(device=device_ok, credentials=ok_cred)
+            device_no_creds = self._create_device(
+                name="device-no-creds",
+                mac_address="00:11:22:33:44:02",
+                organization=org,
+            )
+            self._create_config(device=device_no_creds)
+            device_deactivated = self._create_device(
+                name="device-deactivated",
+                mac_address="00:11:22:33:44:03",
+                organization=org,
+            )
+            self._create_config(device=device_deactivated)
+            dd_cred = self._create_credentials(name="device-dd-cred", organization=org)
+            self._create_device_connection(
+                device=device_deactivated, credentials=dd_cred
+            )
+            device_deactivated.deactivate()
+            batch = self._create_batch_command(
+                organization=org,
+                devices=[device_ok, device_no_creds, device_deactivated],
+            )
+            batch.create_commands()
+            batch.refresh_from_db()
+            command_qs = Command.objects.filter(batch_command=batch)
+            self.assertEqual(command_qs.count(), 1)
+            self.assertTrue(command_qs.filter(device=device_ok).exists())
+            self.assertIn(str(device_no_creds.pk), batch.skipped_devices)
+            self.assertIn(
+                "Device has no credentials assigned",
+                batch.skipped_devices[str(device_no_creds.pk)][0],
+            )
+            self.assertIn(str(device_deactivated.pk), batch.skipped_devices)
+            self.assertIn(
+                "Device is deactivated",
+                batch.skipped_devices[str(device_deactivated.pk)][0],
+            )
+            self.assertNotIn(str(device_ok.pk), batch.skipped_devices)
+            db_batch = BatchCommand.objects.get(pk=batch.pk)
+            self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
+
     def test_batch_command_resolve_devices(self):
         org = self._get_org()
         device1 = self._create_device(
