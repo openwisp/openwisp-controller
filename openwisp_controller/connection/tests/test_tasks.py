@@ -432,6 +432,7 @@ class TestTransactionTasks(
         device = self._create_device(organization=org)
         self._create_config(device=device)
         device.deactivate()
+        device.config.set_status_deactivated()
         batch = BatchCommand(
             organization=org,
             type="custom",

@@ -125,7 +125,6 @@ class DeviceConnectionSerializer(
 class BatchCommandExecuteSerializer(
     FilterSerializerByOrgManaged, serializers.ModelSerializer
 ):
-    type = serializers.CharField()
     input = serializers.JSONField(allow_null=True, required=False)
     devices = serializers.PrimaryKeyRelatedField(
         many=True,

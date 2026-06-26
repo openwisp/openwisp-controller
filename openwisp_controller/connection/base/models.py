@@ -15,6 +15,7 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
 from openwisp_controller.config.base.base import BaseModel
+from openwisp_users.mixins import ValidateOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
 from ...base import ShareableOrgMixinUniqueName
@@ -734,7 +735,7 @@ class AbstractCommand(TimeStampedEditableModel):
             )
 
 
-class AbstractBatchCommand(TimeStampedEditableModel):
+class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     STATUS_CHOICES = (
         ("idle", _("idle")),
         ("in-progress", _("in progress")),
@@ -809,27 +810,23 @@ class AbstractBatchCommand(TimeStampedEditableModel):
     def failed(self):
         return self.batch_commands.filter(status="failed").count()
 
+    @staticmethod
+    def _validate_device_org(device, organization_id):
+        if organization_id and device.organization_id != organization_id:
+            raise ValidationError(
+                {
+                    "devices": _(
+                        "All devices must belong to the same "
+                        "organization as the batch command."
+                    )
+                }
+            )
+
     def _validate_org_relations(self):
         if not self.organization_id:
             return
-        if self.group and self.group.organization != self.organization:
-            raise ValidationError(
-                {
-                    "group": _(
-                        "The organization of the group doesn't match "
-                        "the organization of the batch command operation"
-                    )
-                }
-            )
-        if self.location and self.location.organization != self.organization:
-            raise ValidationError(
-                {
-                    "location": _(
-                        "The organization of the location doesn't match "
-                        "the organization of the batch command operation"
-                    )
-                }
-            )
+        self._validate_org_relation("group", field_error="group")
+        self._validate_org_relation("location", field_error="location")
         if self.pk and self.devices.exists():
             org_mismatch = self.devices.exclude(organization=self.organization).exists()
             if org_mismatch:
@@ -891,27 +888,22 @@ class AbstractBatchCommand(TimeStampedEditableModel):
         """
         devices_list = kwargs.pop("devices", None)
         batch = cls(**kwargs)
-        batch.full_clean()
-        batch.save()
-        if devices_list:
-            batch.devices.set(devices_list)
-            try:
+        with transaction.atomic():
+            batch.full_clean()
+            batch.save()
+            if devices_list:
+                batch.devices.set(devices_list)
                 batch._validate_org_relations()
-            except ValidationError:
-                batch.delete()
-                raise
-            if not batch.devices.exists():
-                batch.delete()
+                if not batch.devices.exists():
+                    raise ValidationError(
+                        _("No devices match the specified criteria."),
+                    )
+            elif not any(batch.resolve_devices()):
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
-        elif not any(batch.resolve_devices()):
-            batch.delete()
-            raise ValidationError(
-                _("No devices match the specified criteria."),
-            )
-        batch.status = "in-progress"
-        batch.save(update_fields=["status"])
+            batch.status = "in-progress"
+            batch.save(update_fields=["status"])
         transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
         return batch
 
@@ -932,17 +924,7 @@ class AbstractBatchCommand(TimeStampedEditableModel):
             batch._validate_org_relations()
         if devices_list:
             for device in devices_list:
-                if (
-                    batch.organization_id
-                    and device.organization_id != batch.organization_id
-                ):
-                    raise ValidationError(
-                        {
-                            "devices": _(
-                                "All devices must belong to the same organization"
-                            )
-                        }
-                    )
+                cls._validate_device_org(device, batch.organization_id)
             return {"devices": list(devices_list)}
         return {"devices": list(batch.resolve_devices())}
 
@@ -967,9 +949,15 @@ class AbstractBatchCommand(TimeStampedEditableModel):
                 batch_command=self,
             )
             try:
-                command.save()
-            except ValidationError as e:
-                self.skipped_devices[str(device.pk)] = e.messages
+                # Validate before the atomic block so errors like
+                # ValidationError don't create/rollback
+                command.full_clean()
+                with transaction.atomic():
+                    command.save()
+            except Exception as e:
+                self.skipped_devices[str(device.pk)] = (
+                    e.messages if hasattr(e, "messages") else [str(e)]
+                )
                 logger.warning(
                     "Skipping device %s for batch %s: %s",
                     device.pk,

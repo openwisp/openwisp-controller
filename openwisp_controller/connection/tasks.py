@@ -98,7 +98,7 @@ def launch_command(command_id):
         command._save_without_resurrecting()
 
 
-@shared_task(bind=True, soft_time_limit=app_settings.SSH_COMMAND_TIMEOUT * 1.2)
+@shared_task(bind=True)
 def launch_batch_command(self, batch_id):
     BatchCommand = load_model("connection", "BatchCommand")
     try:
@@ -108,13 +108,6 @@ def launch_batch_command(self, batch_id):
         return
     try:
         batch.create_commands()
-    except SoftTimeLimitExceeded:
-        batch.status = "failed"
-        batch.save(update_fields=["status"])
-        logger.warning(
-            f"SoftTimeLimitExceeded raised in launch_batch_command "
-            f"for batch {batch_id}"
-        )
     except Exception as e:
         batch.status = "failed"
         batch.save(update_fields=["status"])

@@ -1105,7 +1105,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 batch.clean()
             self.assertIn("group", ctx.exception.message_dict)
             self.assertIn(
-                "The organization of the group doesn't match",
+                "Please ensure that the organization of this Batch command "
+                "and the organization of the related Device Group match",
                 ctx.exception.message_dict["group"][0],
             )
 
@@ -1125,7 +1126,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 batch.clean()
             self.assertIn("location", ctx.exception.message_dict)
             self.assertIn(
-                "The organization of the location doesn't match",
+                "Please ensure that the organization of this Batch command "
+                "and the organization of the related location match",
                 ctx.exception.message_dict["location"][0],
             )
 
@@ -1553,7 +1555,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 )
             self.assertIn("group", ctx.exception.message_dict)
             self.assertIn(
-                "The organization of the group doesn't match",
+                "Please ensure that the organization of this Batch command "
+                "and the organization of the related Device Group match",
                 ctx.exception.message_dict["group"][0],
             )
 
@@ -1572,7 +1575,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 )
             self.assertIn("location", ctx.exception.message_dict)
             self.assertIn(
-                "The organization of the location doesn't match",
+                "Please ensure that the organization of this Batch command "
+                "and the organization of the related location match",
                 ctx.exception.message_dict["location"][0],
             )
 
@@ -1611,7 +1615,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 )
             self.assertIn("group", ctx.exception.message_dict)
             self.assertIn(
-                "The organization of the group doesn't match",
+                "Please ensure that the organization of this Batch command "
+                "and the organization of the related Device Group match",
                 ctx.exception.message_dict["group"][0],
             )
 
@@ -1630,7 +1635,8 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 )
             self.assertIn("location", ctx.exception.message_dict)
             self.assertIn(
-                "The organization of the location doesn't match",
+                "Please ensure that the organization of this Batch command "
+                "and the organization of the related location match",
                 ctx.exception.message_dict["location"][0],
             )
 

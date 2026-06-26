@@ -1208,7 +1208,7 @@ class TestBatchCommandsAPI(
                 "devices": [str(d.pk) for d in devices],
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(15):
+            with self.assertNumQueries(17):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1659,8 +1659,8 @@ class TestBatchCommandsAPI(
                 {
                     "group": [
                         (
-                            "The organization of the group doesn't match "
-                            "the organization of the batch command operation"
+                            "Please ensure that the organization of this Batch command "
+                            "and the organization of the related Device Group match."
                         )
                     ]
                 },
@@ -1690,8 +1690,8 @@ class TestBatchCommandsAPI(
                 {
                     "location": [
                         (
-                            "The organization of the location doesn't match "
-                            "the organization of the batch command operation"
+                            "Please ensure that the organization of this Batch command "
+                            "and the organization of the related location match."
                         )
                     ]
                 },
@@ -1737,8 +1737,8 @@ class TestBatchCommandsAPI(
                 {
                     "group": [
                         (
-                            "The organization of the group doesn't match "
-                            "the organization of the batch command operation"
+                            "Please ensure that the organization of this Batch command "
+                            "and the organization of the related Device Group match."
                         )
                     ]
                 },
@@ -1762,8 +1762,8 @@ class TestBatchCommandsAPI(
                 {
                     "location": [
                         (
-                            "The organization of the location doesn't match "
-                            "the organization of the batch command operation"
+                            "Please ensure that the organization of this Batch command "
+                            "and the organization of the related location match."
                         )
                     ]
                 },
