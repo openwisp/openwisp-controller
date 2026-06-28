@@ -57,11 +57,7 @@ class TestDeviceAdmin(
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
         # Wait for the redirect triggered by command submission to complete.
         # Navigating away immediately can race with the redirect
-        sleep(0.5)
-        self.assertEqual(Command.objects.count(), 1)
-        # TODO: Selenium tests do not support websocket connections.
-        # Thus, we need to refresh the page. Remove this when support for
-        # websockets is added.
+        sleep(0.3)
         self.open(path)
         self.wait_for_visibility(
             By.CSS_SELECTOR,

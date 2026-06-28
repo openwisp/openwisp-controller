@@ -1300,6 +1300,222 @@ class TestBatchCommandsAPI(
                 str(response.data),
             )
 
+    def test_batch_command_operator_endpoints_on_managed_org(self):
+        org = self._get_org()
+        self._create_credentials(name="op-cred", organization=org)
+        device = self._create_device(
+            name="op-dev",
+            mac_address="00:11:22:33:44:01",
+            organization=org,
+        )
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        self.client.logout()
+        operator = self._create_operator(organizations=[org])
+        operator.user_permissions.add(
+            Permission.objects.get(codename="add_batchcommand"),
+            Permission.objects.get(codename="view_batchcommand"),
+        )
+        self.client.force_login(operator)
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("execute"):
+            payload = {
+                "organization": str(org.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "devices": [str(device.pk)],
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertIn("batch", response.data)
+
+        with self.subTest("dry-run"):
+            response = self.client.get(
+                url,
+                data={"organization": str(org.pk)},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("devices", response.data)
+
+        with self.subTest("execute_all"):
+            payload = {
+                "organization": str(org.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "execute_all": True,
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertIn("batch", response.data)
+
+    def test_batch_command_administrator_endpoints_on_managed_org(self):
+        org = self._get_org()
+        self._create_credentials(name="admin-cred", organization=org)
+        device = self._create_device(
+            name="admin-dev",
+            mac_address="00:11:22:33:44:02",
+            organization=org,
+        )
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        self.client.logout()
+        administrator = self._create_administrator(organizations=[org])
+        self.client.force_login(administrator)
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("execute"):
+            payload = {
+                "organization": str(org.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "devices": [str(device.pk)],
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertIn("batch", response.data)
+
+        with self.subTest("dry-run"):
+            response = self.client.get(
+                url,
+                data={"organization": str(org.pk)},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("devices", response.data)
+
+        with self.subTest("execute_all"):
+            payload = {
+                "organization": str(org.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "execute_all": True,
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertIn("batch", response.data)
+
+    def test_batch_command_operator_endpoints_on_non_managed_org(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        self._create_credentials(name="op-nm-cred", organization=org1)
+        device = self._create_device(
+            name="op-nm-dev",
+            mac_address="00:11:22:33:44:03",
+            organization=org1,
+        )
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        self.client.logout()
+        operator = self._create_operator(organizations=[org1])
+        operator.user_permissions.add(
+            Permission.objects.get(codename="add_batchcommand"),
+            Permission.objects.get(codename="view_batchcommand"),
+        )
+        self.client.force_login(operator)
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("execute"):
+            payload = {
+                "organization": str(org2.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "devices": [str(device.pk)],
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+
+        with self.subTest("dry-run"):
+            response = self.client.get(
+                url,
+                data={"organization": str(org2.pk)},
+            )
+            self.assertEqual(response.status_code, 400)
+
+        with self.subTest("execute_all"):
+            payload = {
+                "organization": str(org2.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "execute_all": True,
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+
+    def test_batch_command_administrator_endpoints_on_non_managed_org(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        self._create_credentials(name="admin-nm-cred", organization=org1)
+        device = self._create_device(
+            name="admin-nm-dev",
+            mac_address="00:11:22:33:44:04",
+            organization=org1,
+        )
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        self.client.logout()
+        administrator = self._create_administrator(organizations=[org1])
+        self.client.force_login(administrator)
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("execute"):
+            payload = {
+                "organization": str(org2.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "devices": [str(device.pk)],
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+
+        with self.subTest("dry-run"):
+            response = self.client.get(
+                url,
+                data={"organization": str(org2.pk)},
+            )
+            self.assertEqual(response.status_code, 400)
+
+        with self.subTest("execute_all"):
+            payload = {
+                "organization": str(org2.pk),
+                "type": "custom",
+                "input": {"command": "echo test"},
+                "execute_all": True,
+            }
+            response = self.client.post(
+                url,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+
     def test_batch_command_endpoints_organization_scoped(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
