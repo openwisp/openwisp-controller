@@ -105,10 +105,10 @@ devices immediately lose their cryptographic access.
 
 **On certificate renewal:** When an administrator triggers renewal of a
 standalone certificate through the PKI endpoint (e.g.,
-``/controller/cert/<pk>/renew/``), the ``Cert.renew()`` method generates a
-new serial number, updates the validity dates, and regenerates the
-certificate and private key. The existing ``certificate_updated`` signal
-handler (registered in ``config/apps.py``) detects the
+``/api/v1/controller/cert/{id}/renew/``), the ``Cert.renew()`` method
+generates a new serial number, updates the validity dates, and regenerates
+the certificate and private key. The existing ``certificate_updated``
+signal handler (registered in ``config/apps.py``) detects the
 ``DeviceCertificate`` relationship and calls
 :meth:`~openwisp_controller.config.base.config.Config.update_status_if_checksum_changed`
 on the associated device configuration, ensuring the device pulls the
@@ -239,8 +239,8 @@ The Certificate Template architecture is fully supported by the
   deployed template will return a ``400 Bad Request``.
 
 Additionally, you can trigger the automated creation and revocation
-lifecycle by patching the ``config.templates`` array on the :ref:`Device
-endpoint <rest_device_patch>`.
+lifecycle by patching the ``config.templates`` array on the ``PATCH
+/api/v1/controller/device/{id}/`` endpoint.
 
 .. _certificate_templates_limitations:
 

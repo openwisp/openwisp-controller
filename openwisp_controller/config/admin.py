@@ -498,6 +498,7 @@ class ConfigInline(
             kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
+    @admin.display(description=_("Certificate details"))
     def certificate_details(self, obj):
         if not obj or not obj.pk:
             return _("Not available yet.")

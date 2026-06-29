@@ -325,6 +325,15 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                         )
                     }
                 )
+            if self.blueprint_cert and self.blueprint_cert.revoked:
+                raise ValidationError(
+                    {
+                        "blueprint_cert": _(
+                            "Please select a non-revoked certificate to use as "
+                            "a blueprint."
+                        )
+                    }
+                )
             if self.blueprint_cert_id:
                 DeviceCertificate = load_model("config", "DeviceCertificate")
                 if DeviceCertificate.objects.filter(
