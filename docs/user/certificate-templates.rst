@@ -103,6 +103,26 @@ relationship is deleted. Crucially, the underlying X.509 certificate is
 ``auto_cert=True``). This ensures that compromised or decommissioned
 devices immediately lose their cryptographic access.
 
+**On certificate renewal:** When an administrator triggers renewal of a
+standalone certificate through the PKI endpoint (e.g.,
+``/controller/cert/<pk>/renew/``), the ``Cert.renew()`` method generates a
+new serial number, updates the validity dates, and regenerates the
+certificate and private key. The existing ``certificate_updated`` signal
+handler (registered in ``config/apps.py``) detects the
+``DeviceCertificate`` relationship and calls
+:meth:`~openwisp_controller.config.base.config.Config.update_status_if_checksum_changed`
+on the associated device configuration, ensuring the device pulls the
+renewed certificate on its next check-in.
+
+**On device property changes (hardware drift):** When a device's
+**hostname** or **MAC address** is modified, OpenWISP automatically
+detects the change and triggers an asynchronous task. The task revokes the
+existing certificate and generates a new one with the updated Common Name
+and custom OID values. A ``generic_message`` notification is sent to the
+admin informing them of the regeneration. This behavior can be disabled by
+setting :ref:`OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE
+<OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE>` to ``False``.
+
 .. _certificate_templates_active_lock:
 
 Active Template Mutation Lock
@@ -221,3 +241,50 @@ The Certificate Template architecture is fully supported by the
 Additionally, you can trigger the automated creation and revocation
 lifecycle by patching the ``config.templates`` array on the :ref:`Device
 endpoint <rest_device_patch>`.
+
+.. _certificate_templates_limitations:
+
+Supported Options and Limitations
+---------------------------------
+
+**Blueprint fields that are cloned**
+
+When a blueprint certificate is specified, the following properties are
+copied to each newly generated certificate:
+
+- ``key_length``
+- ``digest``
+- ``country_code``, ``state``, ``city``
+- ``organization_name``, ``organizational_unit_name``
+- ``email``
+- Extensions (custom OIDs and named extensions like ``nsCertType``)
+
+If no blueprint certificate is provided, these properties fall back to the
+defaults of the selected Certificate Authority.
+
+**Custom OID injection**
+
+Every auto-generated certificate automatically receives two custom ASN.1
+Object Identifiers that uniquely identify the device (see
+:ref:`certificate_templates_oid_extensions`). These are appended in
+addition to any extensions inherited from the blueprint.
+
+**Out of scope**
+
+The following features are **not** managed by certificate templates:
+
+- **Subject Alternative Names (SAN):** SAN extensions are not
+  automatically injected. If a SAN is required, it must be included in the
+  blueprint certificate's extensions and will be copied to generated
+  certificates.
+- **OCSP / CRL distribution points:** These must be configured at the CA
+  level in ``django-x509`` and are not managed per-template.
+- **Let's Encrypt / ACME integration:** Automated ACME or public CA
+  enrollment is not supported. Certificate Templates are designed for
+  private CAs managed within OpenWISP's PKI module.
+- **Certificate expiration management:** Auto-renewal upon expiry is not
+  built in; renewal must be triggered manually through the admin or API
+  endpoint.
+- **Non-``auto_cert`` certificates:** If ``auto_cert`` is disabled, no
+  certificate is automatically generated on template assignment. The
+  administrator is responsible for manual provisioning.
