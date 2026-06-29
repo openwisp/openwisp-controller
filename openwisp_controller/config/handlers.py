@@ -61,6 +61,8 @@ def capture_old_hardware_properties(sender, instance, **kwargs):
     Temporarily caches the old name and mac_address before saving
     to detect hardware drift in post_save.
     """
+    if kwargs.get("raw"):
+        return
     if not instance.pk:
         return
     if not _hardware_fields_changed(kwargs.get("update_fields")):
@@ -78,6 +80,8 @@ def detect_hardware_drift(sender, instance, created, **kwargs):
     """
     Triggers certificate regeneration if hardware properties (name/mac) change.
     """
+    if kwargs.get("raw"):
+        return
     if created or not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
         return
     if not _hardware_fields_changed(kwargs.get("update_fields")):

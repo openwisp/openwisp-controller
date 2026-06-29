@@ -93,6 +93,9 @@ class TemplateSerializer(BaseSerializer):
         blueprint_cert = data.get(
             "blueprint_cert", getattr(self.instance, "blueprint_cert", None)
         )
+        cert_fields_provided = (
+            "ca" in data or "blueprint_cert" in data or "type" in data
+        )
         # cert templates must have a CA
         if template_type == "cert" and not ca:
             raise serializers.ValidationError(
@@ -121,11 +124,7 @@ class TemplateSerializer(BaseSerializer):
                     }
                 )
         # apply mutation protections over protected fields
-        if (
-            self.instance
-            and self.instance.pk
-            and ("ca" in data or "blueprint_cert" in data or "type" in data)
-        ):
+        if self.instance and self.instance.pk and cert_fields_provided:
             # only enforce locks if the template is assigned
             # to active/activating devices
             if (

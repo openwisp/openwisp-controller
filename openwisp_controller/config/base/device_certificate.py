@@ -110,6 +110,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         location data) from the provided blueprint certificate.
         """
         source = blueprint or ca
+        # Normalized so both CA and blueprint digests are safely cast to strings
         digest = str(source.digest) if not blueprint else source.digest
         return dict(
             key_length=source.key_length,

@@ -986,6 +986,7 @@ class TestDevice(
         dc.refresh_from_db()
         self.assertEqual(dc.cert_id, cert.id)
 
+    @mock.patch.object(app_settings, "COMMON_NAME_FORMAT", "{mac_address}-{name}")
     def test_device_certificate_common_name_format_fallback(self):
         org = self._create_org()
         mac = "00:11:22:33:44:55"
