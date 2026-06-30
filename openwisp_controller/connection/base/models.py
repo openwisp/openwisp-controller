@@ -809,7 +809,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
 
     @cached_property
     def total_devices(self):
-        return self.batch_commands.count()
+        return self.batch_commands.count() + len(self.skipped_devices or {})
 
     @property
     def successful(self):
