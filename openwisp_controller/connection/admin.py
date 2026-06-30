@@ -1,17 +1,20 @@
+import json
 from datetime import timedelta
 
 import reversion
 import swapper
 from django import forms
 from django.contrib import admin
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import path, resolve
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 
 from openwisp_users.multitenancy import MultitenantOrgFilter
-from openwisp_utils.admin import TimeReadonlyAdminMixin
+from openwisp_utils.admin import ReadOnlyAdmin, TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
@@ -21,6 +24,7 @@ from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 Credentials = swapper.load_model("connection", "Credentials")
 DeviceConnection = swapper.load_model("connection", "DeviceConnection")
 Command = swapper.load_model("connection", "Command")
+BatchCommand = swapper.load_model("connection", "BatchCommand")
 
 
 class CredentialsForm(forms.ModelForm):
@@ -215,3 +219,205 @@ DeviceAdmin.conditional_inlines += [
     CommandInline,
 ]
 DeviceAdmin.add_reversion_following(follow=["deviceconnection_set"])
+
+
+class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
+    ordering = ("-created",)
+    list_display = [
+        "id",
+        "organization_display",
+        "status",
+        "type",
+        "created",
+        "total_devices",
+    ]
+    list_filter = [MultitenantOrgFilter, "status", "type"]
+    list_select_related = ("organization",)
+    search_fields = ["id"]
+    change_form_template = (
+        "admin/connection/batch_command/batch_command_change_form.html"
+    )
+    device_commands_per_page = 20
+    exclude = ("devices",)
+    fields = [
+        "organization_display",
+        "total_devices",
+        "colored_status",
+        "type",
+        "formatted_input",
+        "group",
+        "location",
+        "display_skipped_devices",
+        "created",
+        "modified",
+    ]
+
+    class Media:
+        css = {
+            "all": [
+                "admin/css/changelists.css",
+                "admin/css/ow-filters.css",
+                "connection/css/batch-command.css",
+            ]
+        }
+        js = [
+            "admin/js/ow-filter.js",
+            "connection/js/batch-command.js",
+        ]
+
+    def get_readonly_fields(self, request, obj=None):
+        return self.fields or []
+
+    def organization_display(self, obj):
+        if obj.organization:
+            return obj.organization.name
+        return _("All")
+
+    organization_display.short_description = _("organization")
+    organization_display.admin_order_field = "organization"
+
+    def colored_status(self, obj):
+        css_class = f"command-status {obj.status}"
+        return format_html(
+            '<span class="{0}">{1}</span>',
+            css_class,
+            obj.get_status_display(),
+        )
+
+    colored_status.short_description = _("status")
+
+    def formatted_input(self, obj):
+        if not obj.input:
+            return "-"
+        return obj.input.get("command", obj.input)
+
+    formatted_input.short_description = _("input")
+
+    def display_skipped_devices(self, obj):
+        if not obj.skipped_devices:
+            return "-"
+        Device = swapper.load_model("config", "Device")
+        count = len(obj.skipped_devices)
+        lines = [str(count)]
+        for pk_str, errors in obj.skipped_devices.items():
+            device = Device.objects.filter(pk=pk_str).first()
+            name = device.name if device else _("Deleted ({})").format(pk_str)
+            lines.append(format_html("{}: {}", name, ", ".join(errors)))
+        return format_html(
+            '<div class="skipped-devices-list">{}</div>',
+            format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines)),
+        )
+
+    display_skipped_devices.short_description = _("Skipped devices")
+
+    def _build_filter_specs(self, request, current_status):
+        filter_specs = []
+        params = request.GET.copy()
+
+        def _make_choice(current_value, display, param_name, value):
+            q = params.copy()
+            q.pop(param_name, None)
+            if value:
+                q[param_name] = value
+            qs = q.urlencode()
+            query_string = f"?{qs}" if qs else ""
+            return {
+                "display": display,
+                "selected": current_value == value,
+                "query_string": query_string,
+            }
+
+        status_choices = []
+        for status_value, display_name in (
+            (("", _("All")),) + Command.STATUS_CHOICES + (("skipped", _("Skipped")),)
+        ):
+            status_choices.append(
+                _make_choice(current_status, display_name, "status", status_value)
+            )
+
+        class StatusFilter:
+            title = _("status")
+            choices = status_choices
+
+        filter_specs.append(StatusFilter())
+        return filter_specs
+
+    def _paginate_commands(self, items, page_param, per_page=None):
+        per_page = per_page or self.device_commands_per_page
+        paginator = Paginator(list(items), per_page)
+        page_number = page_param or 1
+        try:
+            page_obj = paginator.page(page_number)
+        except (PageNotAnInteger, EmptyPage):
+            page_obj = paginator.page(1)
+        return page_obj, paginator, page_obj.object_list
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            Device = swapper.load_model("config", "Device")
+            commands_qs = Command.objects.filter(batch_command=obj).select_related(
+                "device"
+            )
+            search_query = request.GET.get("q", "")
+            if search_query:
+                commands_qs = commands_qs.filter(device__name__icontains=search_query)
+            current_status = request.GET.get("status", "")
+            if current_status and current_status != "skipped":
+                commands_qs = commands_qs.filter(status=current_status)
+            rows = []
+            for cmd in commands_qs:
+                rows.append(
+                    {
+                        "device_name": cmd.device.name,
+                        "device_pk": cmd.device.pk,
+                        "status": cmd.status,
+                        "status_display": cmd.get_status_display(),
+                        "output": (cmd.output or "").lstrip(),
+                        "created": cmd.created,
+                        "is_skipped": False,
+                    }
+                )
+            if obj.skipped_devices and current_status in ("", "skipped"):
+                for pk_str, errors in obj.skipped_devices.items():
+                    device = Device.objects.filter(pk=pk_str).first()
+                    name = device.name if device else _("Deleted ({})").format(pk_str)
+                    if search_query and search_query.lower() not in name.lower():
+                        continue
+                    rows.append(
+                        {
+                            "device_name": name,
+                            "device_pk": pk_str,
+                            "status": "skipped",
+                            "status_display": _("Skipped"),
+                            "output": ", ".join(errors),
+                            "created": None,
+                            "is_skipped": True,
+                        }
+                    )
+
+            def _sort_key(row):
+                priority = {"success": 0, "failed": 1, "skipped": 2}
+                return (priority.get(row["status"], 99), row["device_name"].lower())
+
+            rows.sort(key=_sort_key)
+            filter_specs = self._build_filter_specs(request, current_status)
+            page_obj, paginator, commands = self._paginate_commands(
+                rows, request.GET.get("page", 1)
+            )
+            extra_context.update(
+                {
+                    "commands": commands,
+                    "page_obj": page_obj,
+                    "paginator": paginator,
+                    "filter_specs": filter_specs,
+                    "has_active_filters": any(
+                        request.GET.get(param) for param in ["status"]
+                    ),
+                }
+            )
+        return super().change_view(request, object_id, extra_context=extra_context)
+
+
+admin.site.register(BatchCommand, BatchCommandAdmin)
