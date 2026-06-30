@@ -46,7 +46,7 @@ class TestAdmin(BaseTestAdmin):
 
 class TestTransactionAdmin(BaseTestTransactionAdmin):
     app_label = "sample_config"
-    _deactivated_device_expected_readonly_fields = 24
+    _deactivated_device_expected_readonly_fields = 23
 
 
 class TestDeviceGroupAdmin(BaseTestDeviceGroupAdmin):
