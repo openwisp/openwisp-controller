@@ -1825,7 +1825,6 @@ class TestAdmin(
         dc = DeviceCertificate.objects.get(config=config)
         self.assertContains(response, template.name)
         self.assertContains(response, dc.cert.common_name)
-        self.assertContains(response, str(dc.cert.id))
         self.assertContains(response, "Active")
         self.assertContains(response, "View Certificate")
 
@@ -2361,7 +2360,7 @@ class TestAdmin(
         for i in range(count):
             self._create_template(name=f"template-{i}")
         ContentType.objects.get_for_model(Device)
-        expected_count = 25
+        expected_count = 24
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
@@ -2455,7 +2454,7 @@ class TestTransactionAdmin(
             "Delete</a></p>"
         )
 
-    _deactivated_device_expected_readonly_fields = 23
+    _deactivated_device_expected_readonly_fields = 22
 
     def test_device_with_config_change_deactivate_deactivate(self):
         """

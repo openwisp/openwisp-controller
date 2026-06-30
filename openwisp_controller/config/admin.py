@@ -455,12 +455,11 @@ class ConfigInline(
     model = Config
     form = ConfigForm
     verbose_name_plural = _("Device configuration details")
-    readonly_fields = ["status", "system_context", "certificate_details"]
+    readonly_fields = ["status", "system_context"]
     fields = [
         "backend",
         "status",
         "templates",
-        "certificate_details",
         "system_context",
         "context",
         "config",
@@ -497,37 +496,6 @@ class ConfigInline(
         if db_field.name == "templates" and request.method != "POST":
             kwargs["queryset"] = Template.objects.none()
         return super().formfield_for_manytomany(db_field, request, **kwargs)
-
-    @admin.display(description=_("Certificate details"))
-    def certificate_details(self, obj):
-        if not obj or not obj.pk:
-            return _("Not available yet.")
-        qs = DeviceCertificate.objects.filter(config=obj).select_related(
-            "cert", "template"
-        )
-        cert_data = []
-        for dc in qs:
-            if dc.cert:
-                app_label = dc.cert._meta.app_label
-                model_name = dc.cert._meta.model_name
-                url = reverse(
-                    f"admin:{app_label}_{model_name}_change", args=[dc.cert.id]
-                )
-                cert_data.append(
-                    {
-                        "template_name": dc.template.name,
-                        "uuid": str(dc.cert.id),
-                        "common_name": dc.cert.common_name,
-                        "is_revoked": dc.cert.revoked,
-                        "url": url,
-                        "has_cert": True,
-                    }
-                )
-            else:
-                cert_data.append({"template_name": dc.template.name, "has_cert": False})
-        return render_to_string(
-            "admin/config/device_certificates_table.html", {"certificates": cert_data}
-        )
 
 
 class ChangeDeviceGroupForm(forms.Form):
@@ -957,6 +925,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                     "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
                 }
             )
+            if hasattr(device, "config") and device.config:
+                self._add_certificate_details(ctx, device.config)
             if device.is_deactivated():
                 ctx["additional_buttons"].append(
                     {
@@ -993,6 +963,33 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         if data := get_whois_info(pk):
             ctx["device_whois_details"] = data
         return ctx
+
+    def _add_certificate_details(self, ctx, config):
+        qs = DeviceCertificate.objects.filter(config=config).select_related(
+            "cert", "template"
+        )
+        cert_data = []
+        for dc in qs:
+            if dc.cert:
+                app_label = dc.cert._meta.app_label
+                model_name = dc.cert._meta.model_name
+                url = reverse(
+                    f"admin:{app_label}_{model_name}_change", args=[dc.cert.id]
+                )
+                cert_data.append(
+                    {
+                        "template_name": dc.template.name,
+                        "common_name": dc.cert.common_name,
+                        "is_revoked": dc.cert.revoked,
+                        "url": url,
+                        "has_cert": True,
+                    }
+                )
+            else:
+                cert_data.append({"template_name": dc.template.name, "has_cert": False})
+        ctx["certificate_details"] = render_to_string(
+            "admin/config/device_certificates_table.html", {"certificates": cert_data}
+        )
 
     def add_view(self, request, form_url="", extra_context=None):
         extra_context = self.get_extra_context()
