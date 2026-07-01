@@ -48,13 +48,13 @@ class ConfigConfig(AppConfig):
         self.register_notification_types()
         self.add_ignore_notification_widget()
         self.connect_related_changes_handlers()
-        self.register_cache_dependencies()
+        self.connect_cache_dependencies()
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
         connect_whois_handlers()
 
-    def register_cache_dependencies(self):
+    def connect_cache_dependencies(self):
         """
         Wires the declarative cache-invalidation dependencies.
 
@@ -79,7 +79,8 @@ class ConfigConfig(AppConfig):
         self.vpn_model.register_cache_dependencies()
 
         dependencies = [
-            # DeviceChecksumView caches are invalidated when a device is created, updated, deleted or when its config is deactivated.
+            # DeviceChecksumView caches are invalidated when a device is created,
+            # updated, deleted or when its config is deactivated.
             CacheDependency(
                 source=self.device_model,
                 signal="post_save",
@@ -145,9 +146,7 @@ class ConfigConfig(AppConfig):
         ]
         for dependency in dependencies:
             dependency.connect(
-                dispatch_uid=dependency.build_dispatch_uid(
-                    "cache_invalidation.view_group"
-                )
+                dispatch_uid=dependency.build_dispatch_uid("cache_invalidation.app")
             )
 
     def __setmodels__(self):
@@ -354,7 +353,7 @@ class ConfigConfig(AppConfig):
         Connects signal handlers that react to a change in one object by
         propagating side effects to related objects. These are intentionally
         kept out of the declarative cache-invalidation engine (see
-        ``register_cache_dependencies``) because they do more than invalidate a
+        ``connect_cache_dependencies``) because they do more than invalidate a
         cached value:
 
         * clearing a device's management IP when its config is deactivated;

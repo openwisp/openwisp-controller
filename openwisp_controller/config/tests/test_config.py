@@ -575,12 +575,12 @@ class TestConfig(
         self.assertEqual(config.status, "deactivating")
         # VpnClient is deleted on deactivation; cert is auto-revoked.
         self.assertEqual(config.vpnclient_set.count(), 0)
-        # Un-revoke the cert so certificate_updated() bypasses the early
+        # Un-revoke the cert so _resolve_cert_dependency() bypasses the early
         # "if revoked: return" guard and hits the ObjectDoesNotExist path.
         cert.revoked = False
         cert.save()
-        # Config status must not change: certificate_updated() returns early
-        # because the VpnClient was deleted during deactivation.
+        # Config status must not change: _resolve_cert_dependency() returns
+        # early because the VpnClient was deleted during deactivation.
         config.refresh_from_db()
         self.assertEqual(config.status, "deactivating")
 
