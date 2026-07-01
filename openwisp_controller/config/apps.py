@@ -2,13 +2,7 @@ from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Case, Count, When
-from django.db.models.signals import (
-    m2m_changed,
-    post_delete,
-    post_save,
-    pre_delete,
-    pre_save,
-)
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.urls import register_converter
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.types import (
@@ -53,11 +47,108 @@ class ConfigConfig(AppConfig):
         self.connect_signals()
         self.register_notification_types()
         self.add_ignore_notification_widget()
-        self.enable_cache_invalidation()
+        self.connect_related_changes_handlers()
+        self.register_cache_dependencies()
         self.register_dashboard_charts()
         self.register_menu_groups()
         self.notification_cache_update()
         connect_whois_handlers()
+
+    def register_cache_dependencies(self):
+        """
+        Wires the declarative cache-invalidation dependencies.
+
+        Models that own a cached value declare their related-change
+        dependencies in ``get_cache_dependencies`` (see
+        ``CacheInvalidationMixin``).
+        Caches that are not owned by a model (controller view caches and device
+        group caches) are declared here. Connecting all of them in one place
+        replaces the cache-invalidation ``signal.connect()`` calls that were
+        previously scattered across the codebase.
+        """
+        from .base.base import CacheDependency
+        from .controller.views import DeviceChecksumView
+        from .handlers import (
+            devicegroup_delete_handler,
+            invalidate_devicegroup_cache_change_handler,
+            organization_disabled_handler,
+        )
+
+        # Model-owned checksum caches (declared on the models themselves).
+        self.config_model.register_cache_dependencies()
+        self.vpn_model.register_cache_dependencies()
+
+        dependencies = [
+            # DeviceChecksumView caches are invalidated when a device is created, updated, deleted or when its config is deactivated.
+            CacheDependency(
+                source=self.device_model,
+                signal="post_save",
+                on_create=True,
+                on_commit=False,
+                target=DeviceChecksumView.invalidate_get_device_cache,
+            ),
+            CacheDependency(
+                source=self.device_model,
+                signal="pre_delete",
+                on_commit=False,
+                target=DeviceChecksumView.invalidate_get_device_cache,
+            ),
+            CacheDependency(
+                signal_obj=config_deactivated,
+                name="config_deactivated",
+                on_commit=False,
+                target=(
+                    DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated
+                ),
+            ),
+            # When an organization is disabled, all its devices are deactivated,
+            # so we need to invalidate the controller view caches for all objects.
+            CacheDependency(
+                source=self.org_model,
+                signal="pre_save",
+                on_commit=False,
+                target=organization_disabled_handler,
+            ),
+            # Invalidate the DeviceGroupCommonName cache when a device's group,
+            # a device group, or a certificate changes.
+            CacheDependency(
+                signal_obj=device_group_changed,
+                name="device_group_changed",
+                source=self.device_model,
+                on_commit=False,
+                target=invalidate_devicegroup_cache_change_handler,
+            ),
+            CacheDependency(
+                source=self.devicegroup_model,
+                signal="post_save",
+                on_commit=False,
+                target=invalidate_devicegroup_cache_change_handler,
+            ),
+            CacheDependency(
+                source=self.cert_model,
+                signal="post_save",
+                on_commit=False,
+                target=invalidate_devicegroup_cache_change_handler,
+            ),
+            CacheDependency(
+                source=self.devicegroup_model,
+                signal="post_delete",
+                on_commit=False,
+                target=devicegroup_delete_handler,
+            ),
+            CacheDependency(
+                source=self.cert_model,
+                signal="post_delete",
+                on_commit=False,
+                target=devicegroup_delete_handler,
+            ),
+        ]
+        for dependency in dependencies:
+            dependency.connect(
+                dispatch_uid=dependency.build_dispatch_uid(
+                    "cache_invalidation.view_group"
+                )
+            )
 
     def __setmodels__(self):
         self.device_model = load_model("config", "Device")
@@ -125,11 +216,6 @@ class ConfigConfig(AppConfig):
             sender=self.vpn_model,
             dispatch_uid="vpn.post_delete",
         )
-        post_save.connect(
-            self.config_model.certificate_updated,
-            sender=self.cert_model,
-            dispatch_uid="cert_update_invalidate_checksum_cache",
-        )
         group_templates_changed.connect(
             handlers.devicegroup_templates_change_handler,
             sender=self.devicegroup_model,
@@ -149,11 +235,6 @@ class ConfigConfig(AppConfig):
             self.template_model.pre_save_handler,
             sender=self.template_model,
             dispatch_uid="template_pre_save_handler",
-        )
-        pre_save.connect(
-            handlers.organization_disabled_handler,
-            sender=self.org_model,
-            dispatch_uid="organization_disabled_pre_save_clear_device_checksum_cache",
         )
         post_save.connect(
             self.template_model.post_save_handler,
@@ -268,76 +349,32 @@ class ConfigConfig(AppConfig):
                 obj_notification_widget,
             )
 
-    def enable_cache_invalidation(self):
+    def connect_related_changes_handlers(self):
         """
-        Triggers the cache invalidation for the
-        device config checksum (view and model method)
-        """
-        from .controller.views import DeviceChecksumView, GetVpnView
-        from .handlers import (
-            device_cache_invalidation_handler,
-            devicegroup_change_handler,
-            devicegroup_delete_handler,
-            vpn_server_change_handler,
-        )
+        Connects signal handlers that react to a change in one object by
+        propagating side effects to related objects. These are intentionally
+        kept out of the declarative cache-invalidation engine (see
+        ``register_cache_dependencies``) because they do more than invalidate a
+        cached value:
 
-        post_save.connect(
-            DeviceChecksumView.invalidate_get_device_cache,
-            sender=self.device_model,
-            dispatch_uid="invalidate_get_device_cache",
-        )
+        * clearing a device's management IP when its config is deactivated;
+        * re-applying group templates when a device's group changes
+          (``devicegroup_change_handler``);
+        * refreshing the configs of a VPN server's clients when the server
+          changes. ``vpn_server_change_handler`` emits ``config_modified`` for
+          each client, which in turn invalidates that client Config's checksum
+          cache.
+        """
+        from .handlers import devicegroup_change_handler, vpn_server_change_handler
+
         config_deactivated.connect(
             self.device_model.config_deactivated_clear_management_ip,
             dispatch_uid="config_deactivated_clear_management_ip",
         )
-        config_deactivated.connect(
-            DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated,
-            dispatch_uid="config_deactivated_invalidate_get_device_cache",
-        )
-        # VPN cache invalidation
-        post_save.connect(
-            GetVpnView.invalidate_get_vpn_cache,
-            sender=self.vpn_model,
-            dispatch_uid="invalidate_get_vpn_cache",
-        )
-        pre_delete.connect(
-            GetVpnView.invalidate_get_vpn_cache,
-            sender=self.vpn_model,
-            dispatch_uid="vpn_server_pre_delete_invalidate_get_vpn_cache",
-        )
-        vpn_server_modified.connect(
-            GetVpnView.invalidate_get_vpn_cache,
-            dispatch_uid="vpn_server_modified_invalidate_get_vpn_cache",
-        )
         device_group_changed.connect(
             devicegroup_change_handler,
             sender=self.device_model,
-            dispatch_uid="invalidate_devicegroup_cache_on_device_change",
-        )
-        post_save.connect(
-            devicegroup_change_handler,
-            sender=self.devicegroup_model,
-            dispatch_uid="invalidate_devicegroup_cache_on_devicegroup_change",
-        )
-        post_save.connect(
-            devicegroup_change_handler,
-            sender=self.cert_model,
-            dispatch_uid="invalidate_devicegroup_cache_on_certificate_change",
-        )
-        post_delete.connect(
-            devicegroup_delete_handler,
-            sender=self.devicegroup_model,
-            dispatch_uid="invalidate_devicegroup_cache_on_devicegroup_delete",
-        )
-        post_delete.connect(
-            devicegroup_delete_handler,
-            sender=self.cert_model,
-            dispatch_uid="invalidate_devicegroup_cache_on_certificate_delete",
-        )
-        pre_delete.connect(
-            device_cache_invalidation_handler,
-            sender=self.device_model,
-            dispatch_uid="device.invalidate_cache",
+            dispatch_uid="manage_devicegroup_templates_on_device_change",
         )
         vpn_server_modified.connect(
             vpn_server_change_handler,

@@ -6,18 +6,33 @@ from copy import deepcopy
 from cache_memoize import cache_memoize
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models
+from django.db import models, transaction
 from django.db.models import JSONField
+from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from netjsonconfig.exceptions import ValidationError as SchemaError
+from swapper import load_model
 
 from openwisp_utils.base import TimeStampedEditableModel
 
 from .. import settings as app_settings
 
 logger = logging.getLogger(__name__)
+
+# Maps the string names used in declarations to the actual Django signals.
+_MODEL_SIGNALS = {
+    "post_save": post_save,
+    "post_delete": post_delete,
+    "pre_delete": pre_delete,
+    "pre_save": pre_save,
+}
+
+
+def _default_resolve(instance, **kwargs):
+    """Default resolver: act on the instance that emitted the signal."""
+    return [instance]
 
 
 def get_cached_args_rewrite(instance):
@@ -92,6 +107,226 @@ class ConfigChecksumCacheMixin(ChecksumCacheMixin):
     def invalidate_checksum_cache(self):
         super().invalidate_checksum_cache()
         self.invalidate_configuration_cache()
+
+
+class CacheDependency:
+    """
+    Declarative description of a related change that must invalidate a cache.
+
+    This is the single, generic mechanism used across the config app to keep
+    cached values (configuration checksums, controller view caches, device
+    group caches) in sync when a *related* object changes.
+
+    A dependency is wired to a Django signal by :meth:`connect`. When the
+    signal fires, :attr:`resolve` returns the objects whose cache must be
+    invalidated and :attr:`target` is applied to each of them. ``target`` is
+    either the name of a method to call on each resolved object, or a callable
+    invoked with the resolved object.
+
+    Parameters
+    ----------
+    target:
+        Either a method name (``str``) invoked on each resolved object, or a
+        callable ``target(obj)``. Reusing the existing action methods (e.g.
+        ``update_status_if_checksum_changed``, ``invalidate_checksum_cache``)
+        and view classmethods keeps behavior identical.
+    resolve:
+        Callable ``resolve(instance, **signal_kwargs)`` returning an iterable
+        of the objects ``target`` must act on. Defaults to acting on the
+        instance that emitted the signal (``[instance]``).
+    source:
+        The signal sender. Either a swappable model label (e.g.
+        ``"django_x509.Cert"``) resolved lazily via ``swapper.load_model``, a
+        model class, or ``None`` (any sender). Ignored when ``signal_obj`` is a
+        custom signal that does not filter by sender.
+    signal:
+        One of ``post_save``, ``post_delete``, ``pre_delete``, ``pre_save``.
+        Ignored when ``signal_obj`` is provided.
+    signal_obj:
+        A custom Django ``Signal`` instance (e.g. ``config_deactivated``) to
+        connect to instead of one of the model signals above.
+    track_fields:
+        Optional iterable of source field names whose *value* must actually
+        change for the dependency to fire. Enabling this registers a
+        ``pre_save`` handler that snapshots the old values so the ``post_save``
+        handler can compare them, mirroring the manual ``save()`` change
+        detection that some models used to perform.
+    on_create:
+        Whether to act when ``post_save`` reports ``created=True``
+        (default ``False``).
+    on_commit:
+        Whether to defer ``target`` to ``transaction.on_commit``
+        (default ``True``, matching the existing handlers).
+    """
+
+    _SNAPSHOT_ATTR = "_cache_dependency_snapshots"
+
+    def __init__(
+        self,
+        *,
+        target,
+        resolve=_default_resolve,
+        source=None,
+        signal="post_save",
+        signal_obj=None,
+        name=None,
+        track_fields=None,
+        on_create=False,
+        on_commit=True,
+    ):
+        self.target = target
+        self.resolve = resolve
+        self.source = source
+        self.signal_name = signal
+        self.signal_obj = signal_obj
+        self.name = name
+        self.track_fields = list(track_fields) if track_fields else None
+        self.on_create = on_create
+        self.on_commit = on_commit
+        self._uid = None
+
+    @property
+    def signal(self):
+        if self.signal_obj is not None:
+            return self.signal_obj
+        return _MODEL_SIGNALS[self.signal_name]
+
+    @property
+    def sender(self):
+        if isinstance(self.source, str):
+            app_label, model_name = self.source.split(".")
+            return load_model(app_label, model_name)
+        return self.source
+
+    def build_dispatch_uid(self, prefix):
+        """
+        Builds a descriptive, order-independent ``dispatch_uid``.
+
+        Deriving the uid from the sender, signal and target keeps it stable when
+        the surrounding dependency list is reordered and makes it readable in
+        tracebacks. ``name`` disambiguates custom signals, which have no natural
+        name of their own.
+        """
+        sender = self.sender
+        sender_label = sender._meta.label_lower if sender is not None else "any"
+        if self.signal_obj is not None:
+            signal_label = self.name or "signal"
+        else:
+            signal_label = self.signal_name
+        target_label = (
+            self.target if isinstance(self.target, str) else self.target.__name__
+        )
+        return f"{prefix}.{sender_label}.{signal_label}.{target_label}"
+
+    def connect(self, dispatch_uid):
+        """Connect this dependency's handler to its signal."""
+        self._uid = dispatch_uid
+        if self.track_fields:
+            pre_save.connect(
+                self._snapshot_handler,
+                sender=self.sender,
+                dispatch_uid=f"{dispatch_uid}.snapshot",
+                weak=False,
+            )
+        self.signal.connect(
+            self._handler,
+            sender=self.sender,
+            dispatch_uid=dispatch_uid,
+            weak=False,
+        )
+
+    def disconnect(self):
+        """Disconnect this dependency's handlers (useful for test isolation)."""
+        if self._uid is None:
+            return
+        if self.track_fields:
+            pre_save.disconnect(
+                sender=self.sender, dispatch_uid=f"{self._uid}.snapshot"
+            )
+        self.signal.disconnect(sender=self.sender, dispatch_uid=self._uid)
+
+    def _snapshot_handler(self, sender, instance, **kwargs):
+        """Store the old values of ``track_fields`` before the instance saves."""
+        if instance._state.adding or instance.pk is None:
+            return
+        try:
+            old = sender._default_manager.only(*self.track_fields).get(pk=instance.pk)
+        except sender.DoesNotExist:
+            return
+        snapshots = instance.__dict__.setdefault(self._SNAPSHOT_ATTR, {})
+        snapshots[self._uid] = {
+            field: getattr(old, field) for field in self.track_fields
+        }
+
+    def _tracked_fields_changed(self, instance):
+        snapshots = getattr(instance, self._SNAPSHOT_ATTR, None) or {}
+        old = snapshots.get(self._uid)
+        if old is None:
+            # No snapshot (e.g. on creation) -> nothing to compare against.
+            return False
+        return any(
+            old.get(field) != getattr(instance, field) for field in self.track_fields
+        )
+
+    def _should_skip(self, instance, **kwargs):
+        if (
+            self.signal is post_save
+            and kwargs.get("created", False)
+            and not self.on_create
+        ):
+            return True
+        if self.track_fields and not self._tracked_fields_changed(instance):
+            return True
+        return False
+
+    def _apply(self, objects):
+        for obj in objects:
+            if obj is None:
+                continue
+            if callable(self.target):
+                self.target(obj)
+            else:
+                getattr(obj, self.target)()
+
+    def _handler(self, sender, instance, **kwargs):
+        if self._should_skip(instance, **kwargs):
+            return
+        objects = self.resolve(instance, **kwargs)
+        if not objects:
+            return
+        objects = list(objects)
+        if self.on_commit:
+            transaction.on_commit(lambda: self._apply(objects))
+        else:
+            self._apply(objects)
+
+
+class CacheInvalidationMixin:
+    """
+    Lets a cache-owning model declare, in one place, which related changes
+    invalidate its cached value(s).
+
+    Subclasses override :meth:`get_cache_dependencies` to return a list of
+    :class:`CacheDependency`, and ``AppConfig.ready()`` calls
+    :meth:`register_cache_dependencies` to wire the Django signals. Adding a new
+    related-field dependency is then a matter of appending a declaration,
+    instead of scattering ``signal.connect()`` calls across the app.
+
+    The declarations are returned by a classmethod (rather than held in a class
+    attribute) so they can reference the model's own private classmethods, which
+    do not exist yet while the class body is being evaluated.
+    """
+
+    @classmethod
+    def get_cache_dependencies(cls):
+        """Returns the list of :class:`CacheDependency` for this model."""
+        return []
+
+    @classmethod
+    def register_cache_dependencies(cls):
+        prefix = f"cache_invalidation.{cls._meta.label_lower}"
+        for dependency in cls.get_cache_dependencies():
+            dependency.connect(dispatch_uid=dependency.build_dispatch_uid(prefix))
 
 
 class BaseModel(TimeStampedEditableModel):

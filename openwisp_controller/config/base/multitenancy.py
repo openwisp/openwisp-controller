@@ -12,7 +12,6 @@ from openwisp_utils.fields import FallbackBooleanChoiceField
 
 from .. import settings as app_settings
 from ..exceptions import OrganizationDeviceLimitExceeded
-from ..tasks import bulk_invalidate_config_get_cached_checksum
 
 
 class AbstractOrganizationConfigSettings(UUIDModel):
@@ -72,19 +71,6 @@ class AbstractOrganizationConfigSettings(UUIDModel):
                 }
             )
         return super().clean()
-
-    def save(
-        self, force_insert=False, force_update=False, using=None, update_fields=None
-    ):
-        context_changed = False
-        if not self._state.adding:
-            db_instance = self.__class__.objects.only("context").get(id=self.id)
-            context_changed = db_instance.context != self.context
-        super().save(force_insert, force_update, using, update_fields)
-        if context_changed:
-            bulk_invalidate_config_get_cached_checksum.delay(
-                {"device__organization_id": str(self.organization_id)}
-            )
 
 
 class AbstractOrganizationLimits(models.Model):

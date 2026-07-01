@@ -4,8 +4,6 @@ from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
-from openwisp_controller.config.controller.views import DeviceChecksumView
-
 from . import tasks
 from .signals import config_status_changed, device_registered
 
@@ -44,17 +42,36 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
 
 
 def devicegroup_change_handler(instance, **kwargs):
+    """
+    Manages group templates when a device's group changes. Device group
+    cache invalidation is handled declaratively via CacheDependency (see
+    ``Config.register_cache_dependencies``).
+    """
     if type(instance) is list:
         # changes group templates for multiple devices
         devicegroup_templates_change_handler(instance, **kwargs)
         return
     if instance._state.adding or ("created" in kwargs and kwargs["created"] is True):
         return
-    model_name = instance._meta.model_name
-    if model_name == Device._meta.model_name:
-        # remove old group templates and apply new group templates
-        devicegroup_templates_change_handler(instance, **kwargs)
-    tasks.invalidate_devicegroup_cache_change.delay(instance.id, model_name)
+    # this handler is only connected to device_group_changed (sender=Device),
+    # so instance is always a Device here: remove old group templates and
+    # apply the new ones
+    devicegroup_templates_change_handler(instance, **kwargs)
+
+
+def invalidate_devicegroup_cache_change_handler(instance, **kwargs):
+    """
+    Invalidates the ``DeviceGroupCommonName`` cache when a device's group,
+    a device group, or a certificate changes. Used as a ``CacheDependency``
+    target (see ``Config.register_cache_dependencies``).
+    """
+    if isinstance(instance, list):
+        # device_group_changed currently only emits single instances; mirror the
+        # previous handler, which skipped cache invalidation for the bulk path.
+        return
+    tasks.invalidate_devicegroup_cache_change.delay(
+        instance.id, instance._meta.model_name
+    )
 
 
 def devicegroup_delete_handler(instance, **kwargs):
@@ -64,12 +81,6 @@ def devicegroup_delete_handler(instance, **kwargs):
     if isinstance(instance, Cert):
         kwargs["common_name"] = instance.common_name
     tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)
-
-
-def device_cache_invalidation_handler(instance, **kwargs):
-    view = DeviceChecksumView()
-    setattr(view, "kwargs", {"pk": str(instance.pk)})
-    view.get_device.invalidate(view)
 
 
 def config_backend_change_handler(instance, **kwargs):

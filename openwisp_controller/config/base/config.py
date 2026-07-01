@@ -26,7 +26,13 @@ from ..signals import (
 )
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
-from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
+from .base import (
+    BaseConfig,
+    CacheDependency,
+    CacheInvalidationMixin,
+    ChecksumCacheMixin,
+    get_cached_args_rewrite,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +46,7 @@ class TemplatesThrough(object):
         return _("Relationship with {0}").format(self.template.name)
 
 
-class AbstractConfig(ChecksumCacheMixin, BaseConfig):
+class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
     """
     Abstract model implementing the
     NetJSON DeviceConfiguration object
@@ -167,6 +173,72 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         self.refresh_from_db(fields=["checksum_db"])
         return self.checksum_db
+
+    @classmethod
+    def _resolve_cert_dependency(cls, cert, **kwargs):
+        """
+        Returns the Config whose checksum depends on this client certificate.
+
+        Mirrors the previous ``certificate_updated`` handler: a revoked
+        certificate or a certificate not linked to a VpnClient does not affect
+        any configuration.
+        """
+        if cert.revoked:
+            return []
+        try:
+            return [cert.vpnclient.config]
+        except ObjectDoesNotExist:
+            return []
+
+    @classmethod
+    def _bulk_invalidate_configs(cls, filters):
+        """Bulk-recompute the checksums of the configs matching ``filters``."""
+        from ..tasks import bulk_invalidate_config_get_cached_checksum
+
+        bulk_invalidate_config_get_cached_checksum.delay(filters)
+
+    @classmethod
+    def _invalidate_configs_in_group(cls, group):
+        """Bulk-recompute checksums of configs in a group (context change)."""
+        cls._bulk_invalidate_configs({"device__group_id": str(group.id)})
+
+    @classmethod
+    def _invalidate_configs_in_org(cls, org_config_settings):
+        """Bulk-recompute checksums of an org's configs (context change)."""
+        cls._bulk_invalidate_configs(
+            {"device__organization_id": str(org_config_settings.organization_id)}
+        )
+
+    @classmethod
+    def get_cache_dependencies(cls):
+        return [
+            # A client certificate's content (re-issue / key change) feeds into
+            # Config.get_vpn_context(); recompute the owning Config's checksum.
+            CacheDependency(
+                source="django_x509.Cert",
+                signal="post_save",
+                resolve=cls._resolve_cert_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+            # Group-level configuration variables feed into Config.get_context();
+            # recompute checksums of all configs in the group when they change.
+            CacheDependency(
+                source="config.DeviceGroup",
+                signal="post_save",
+                track_fields=["context"],
+                on_commit=False,
+                target=cls._invalidate_configs_in_group,
+            ),
+            # Organization-level configuration variables feed into
+            # Config.get_context(); recompute checksums of all org configs.
+            CacheDependency(
+                source="config.OrganizationConfigSettings",
+                signal="post_save",
+                track_fields=["context"],
+                on_commit=False,
+                target=cls._invalidate_configs_in_org,
+            ),
+        ]
 
     @classmethod
     def bulk_invalidate_get_cached_checksum(cls, query_params):
@@ -463,17 +535,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                 instance.templates.add(
                     *required_templates.order_by("name").values_list("pk", flat=True)
                 )
-
-    @classmethod
-    def certificate_updated(cls, instance, created, **kwargs):
-        if created or instance.revoked:
-            return
-        try:
-            config = instance.vpnclient.config
-        except ObjectDoesNotExist:
-            return
-        else:
-            transaction.on_commit(config.update_status_if_checksum_changed)
 
     @classmethod
     def register_context_function(cls, func):

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
 from django.db.transaction import atomic
@@ -11,6 +11,7 @@ from swapper import load_model
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from ..base.base import CacheDependency
 from ..base.base import logger as base_config_logger
 from ..signals import config_backend_changed, config_modified, config_status_changed
 from .utils import (
@@ -22,6 +23,7 @@ from .utils import (
 
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
+DeviceGroup = load_model("config", "DeviceGroup")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
@@ -1018,3 +1020,80 @@ class TestTransactionConfig(
         config.refresh_from_db()
         config._invalidate_backend_instance_cache()
         self.assertEqual(config.checksum, config.checksum_db)
+
+
+class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestCase):
+    """
+    Unit tests for the declarative cache-invalidation engine
+    (``CacheDependency``) that centralizes cache/checksum invalidation
+    (issue #1095).
+    """
+
+    def _connect(self, **kwargs):
+        dependency = CacheDependency(**kwargs)
+        dependency.connect(dispatch_uid="test.cache_dependency")
+        self.addCleanup(dependency.disconnect)
+        return dependency
+
+    def test_target_invoked_on_related_change(self):
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        # creation is skipped by default (on_create=False)
+        group = self._create_device_group()
+        target.assert_not_called()
+        # an update fires the dependency with the resolved object
+        group.name = "renamed"
+        group.save()
+        target.assert_called_once_with(group)
+
+    def test_on_create_opt_in(self):
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            on_create=True,
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        group = self._create_device_group()
+        target.assert_called_once_with(group)
+
+    def test_track_fields_fires_only_on_value_change(self):
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            track_fields=["context"],
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        group = self._create_device_group(context={"a": "1"})
+        target.assert_not_called()
+        with self.subTest("save without changing tracked field"):
+            group.name = "renamed"
+            group.save()
+            target.assert_not_called()
+        with self.subTest("save changing tracked field"):
+            group.context = {"a": "2"}
+            group.save()
+            target.assert_called_once_with(group)
+
+    def test_target_as_method_name(self):
+        # a string target is invoked as a method on each resolved object
+        dependency = CacheDependency(
+            source="config.DeviceGroup",
+            signal="post_save",
+            resolve=lambda instance, **kwargs: [instance],
+            target="some_method",
+        )
+        obj = Mock()
+        dependency._apply([obj])
+        obj.some_method.assert_called_once_with()

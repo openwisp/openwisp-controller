@@ -475,6 +475,18 @@ class TestController(
             response = self.client.get(url, {"key": vpn.key})
         self.assertEqual(response.content.decode(), vpn.checksum)
 
+    def test_vpn_cache_invalidation_on_delete(self):
+        vpn = self._create_vpn()
+        view = VpnChecksumView()
+        view.kwargs = {"pk": str(vpn.pk)}
+        # warm up the view cache
+        self.assertEqual(view.get_vpn(), vpn)
+        key = view.get_vpn.get_cache_key(view)
+        self.assertEqual(cache.get(key), vpn)
+        # deleting the VPN must invalidate the cached view object
+        vpn.delete()
+        self.assertEqual(cache.get(key), None)
+
     def test_vpn_download_config(self):
         v = self._create_vpn()
         url = reverse("controller:vpn_download_config", args=[v.pk])
