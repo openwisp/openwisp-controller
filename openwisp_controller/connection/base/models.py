@@ -771,6 +771,17 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         null=True,
         verbose_name=_("location"),
     )
+    label = models.CharField(
+        max_length=64,
+        verbose_name=_("label"),
+        help_text=_("A short label to identify this batch command."),
+    )
+    notes = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("notes"),
+        help_text=_("Optional notes about this batch command."),
+    )
     devices = models.ManyToManyField(
         get_model_name("config", "Device"),
         blank=True,
@@ -793,10 +804,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         verbose_name_plural = _("Batch commands")
 
     def __str__(self):
-        return "{0} ({1})".format(
-            self.type,
-            timezone.localtime(self.created).strftime("%Y-%m-%d %H:%M:%S"),
-        )
+        return self.label
 
     @cached_property
     def total_devices(self):
@@ -916,9 +924,13 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         """
         devices_list = kwargs.pop("devices", None)
         cmd_type = kwargs.pop("type", None)
+        kwargs.pop("label", None)
+        kwargs.pop("notes", None)
         batch = cls(**kwargs)
         if cmd_type:
             batch.type = cmd_type
+            if not batch.label:
+                batch.label = "dry-run"
             batch.full_clean()
         else:
             batch._validate_org_relations()

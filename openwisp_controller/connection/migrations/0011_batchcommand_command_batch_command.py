@@ -130,6 +130,23 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    "label",
+                    models.CharField(
+                        help_text=("A short label to identify this batch command."),
+                        max_length=64,
+                        verbose_name="label",
+                    ),
+                ),
+                (
+                    "notes",
+                    models.TextField(
+                        blank=True,
+                        default="",
+                        verbose_name="notes",
+                        help_text="Optional notes about this batch command.",
+                    ),
+                ),
+                (
                     "organization",
                     models.ForeignKey(
                         blank=True,

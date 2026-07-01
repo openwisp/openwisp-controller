@@ -335,6 +335,7 @@ class TestTransactionTasks(
             organization=org,
             type="custom",
             input={"command": "echo 'test'"},
+            label="test-label",
         )
         batch.full_clean()
         batch.save()
@@ -368,6 +369,7 @@ class TestTransactionTasks(
             organization=org,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         batch.full_clean()
         batch.save()
@@ -394,6 +396,7 @@ class TestTransactionTasks(
             organization=org,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         batch.full_clean()
         batch.save()
@@ -414,6 +417,7 @@ class TestTransactionTasks(
             organization=org,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         batch.full_clean()
         batch.save()
@@ -437,6 +441,7 @@ class TestTransactionTasks(
             organization=org,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         batch.full_clean()
         batch.save()
@@ -458,6 +463,7 @@ class TestTransactionTasks(
             organization=org,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         batch.full_clean()
         batch.save()

@@ -977,6 +977,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             organization=organization,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         devices = kwargs.pop("devices", None)
         opts.update(kwargs)
@@ -992,11 +993,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
     def test_batch_command_str(self):
         org = self._get_org()
         batch = self._create_batch_command(organization=org)
-        expected = "{0} ({1})".format(
-            batch.type,
-            timezone.localtime(batch.created).strftime("%Y-%m-%d %H:%M:%S"),
-        )
-        self.assertEqual(str(batch), expected)
+        self.assertEqual(str(batch), "test-label")
 
     def test_batch_command_total_devices_successful_failed(self):
         org = self._get_org()
@@ -1074,6 +1071,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=org,
                     type="custom",
                     input={"command": "echo test"},
+                    label="test-label",
                 )
                 with self.assertRaises(ValidationError) as ctx:
                     batch.clean()
@@ -1088,6 +1086,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="change_password",
                 input="not_an_object",
+                label="test-label",
             )
             with self.assertRaises(ValidationError) as ctx:
                 batch.clean()
@@ -1099,11 +1098,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
                 group=group,
             )
             with self.assertRaises(ValidationError) as ctx:
                 batch.clean()
-            self.assertIn("group", ctx.exception.message_dict)
+                self.assertIn("group", ctx.exception.message_dict)
             self.assertIn(
                 "Please ensure that the organization of this Batch command "
                 "and the organization of the related Device Group match",
@@ -1120,11 +1120,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
                 location=location,
             )
             with self.assertRaises(ValidationError) as ctx:
                 batch.clean()
-            self.assertIn("location", ctx.exception.message_dict)
+                self.assertIn("location", ctx.exception.message_dict)
             self.assertIn(
                 "Please ensure that the organization of this Batch command "
                 "and the organization of the related location match",
@@ -1424,6 +1425,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=empty_org,
                     type="custom",
                     input={"command": "echo test"},
+                    label="test-label",
                 )
             self.assertIn(
                 "No devices match",
@@ -1463,6 +1465,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
                 devices=[device1],
             )
             batch.create_commands()
@@ -1474,6 +1477,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
                 group=group,
             )
             batch.create_commands()
@@ -1485,6 +1489,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
                 location=location,
             )
             batch.create_commands()
@@ -1497,6 +1502,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
                 group=group,
                 location=location,
             )
@@ -1509,6 +1515,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 type="custom",
                 input={"command": "echo test"},
+                label="test-label",
             )
             batch.create_commands()
             self.assertEqual(batch.batch_commands.count(), 2)
@@ -1533,6 +1540,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=org,
                     type="custom",
                     input={"command": "echo test"},
+                    label="test-label",
                     devices=[device_org2],
                 )
             self.assertIn("devices", ctx.exception.message_dict)
@@ -1551,6 +1559,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=org,
                     type="custom",
                     input={"command": "echo test"},
+                    label="test-label",
                     group=group_org2,
                 )
             self.assertIn("group", ctx.exception.message_dict)
@@ -1571,6 +1580,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=org,
                     type="custom",
                     input={"command": "echo test"},
+                    label="test-label",
                     location=location_org2,
                 )
             self.assertIn("location", ctx.exception.message_dict)

@@ -140,6 +140,7 @@ class BatchCommandExecuteSerializer(
         if dry_run:
             self._skip_target_validation = True
             self.fields["type"].required = False
+            self.fields["label"].required = False
         else:
             self._skip_target_validation = False
 
@@ -149,6 +150,8 @@ class BatchCommandExecuteSerializer(
             "organization",
             "type",
             "input",
+            "label",
+            "notes",
             "devices",
             "group",
             "location",
@@ -207,6 +210,8 @@ class BatchCommandSerializer(BaseSerializer):
             "status",
             "type",
             "input",
+            "label",
+            "notes",
             "group",
             "location",
             "device_count",

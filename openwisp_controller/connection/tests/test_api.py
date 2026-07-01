@@ -880,6 +880,7 @@ class TestBatchCommandsAPI(
             organization=organization,
             type="custom",
             input={"command": "echo test"},
+            label="test-label",
         )
         devices = kwargs.pop("devices", None)
         opts.update(kwargs)
@@ -1061,6 +1062,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "devices": [str(device1.pk)],
                     }
                 ),
@@ -1082,6 +1084,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "group": str(group.pk),
                     }
                 ),
@@ -1103,6 +1106,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "location": str(location.pk),
                     }
                 ),
@@ -1125,6 +1129,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "group": str(group.pk),
                         "location": str(location.pk),
                     }
@@ -1147,6 +1152,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "execute_all": True,
                     }
                 ),
@@ -1205,6 +1211,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(d.pk) for d in devices],
             }
             url = reverse("connection_api:batch_command_execute")
@@ -1229,6 +1236,7 @@ class TestBatchCommandsAPI(
             "organization": str(org.pk),
             "type": "custom",
             "input": {"command": "echo test"},
+            "label": "test-label",
             "execute_all": True,
         }
         url = reverse("connection_api:batch_command_execute")
@@ -1254,6 +1262,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "execute_all": True,
             }
             response = self.client.post(
@@ -1277,6 +1286,7 @@ class TestBatchCommandsAPI(
         payload = {
             "type": "custom",
             "input": {"command": "echo test"},
+            "label": "test-label",
             "execute_all": True,
         }
         url = reverse("connection_api:batch_command_execute")
@@ -1324,6 +1334,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(device.pk)],
             }
             response = self.client.post(
@@ -1347,6 +1358,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "execute_all": True,
             }
             response = self.client.post(
@@ -1377,6 +1389,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(device.pk)],
             }
             response = self.client.post(
@@ -1400,6 +1413,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "execute_all": True,
             }
             response = self.client.post(
@@ -1435,6 +1449,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org2.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(device.pk)],
             }
             response = self.client.post(
@@ -1456,6 +1471,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org2.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "execute_all": True,
             }
             response = self.client.post(
@@ -1486,6 +1502,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org2.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(device.pk)],
             }
             response = self.client.post(
@@ -1507,6 +1524,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org2.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "execute_all": True,
             }
             response = self.client.post(
@@ -1622,6 +1640,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(device.pk)],
             }
             response = self.client.post(
@@ -1679,6 +1698,7 @@ class TestBatchCommandsAPI(
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "execute_all": True,
             }
             response = self.client.post(
@@ -1714,6 +1734,7 @@ class TestBatchCommandsAPI(
             payload = {
                 "type": "custom",
                 "input": {"command": "echo test"},
+                "label": "test-label",
                 "devices": [str(device_a.pk), str(device_b.pk)],
             }
             response = self.client.post(
@@ -1759,6 +1780,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "devices": [str(device.pk)],
                     }
                 ),
@@ -1801,6 +1823,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "devices": [str(device.pk)],
                     }
                 ),
@@ -1841,6 +1864,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "devices": [str(device_org2.pk)],
                     }
                 ),
@@ -1864,6 +1888,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "group": str(group_org2.pk),
                     }
                 ),
@@ -1895,6 +1920,7 @@ class TestBatchCommandsAPI(
                         "organization": str(org.pk),
                         "type": "custom",
                         "input": {"command": "echo test"},
+                        "label": "test-label",
                         "location": str(location_org2.pk),
                     }
                 ),
