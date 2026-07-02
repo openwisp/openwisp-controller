@@ -2,6 +2,7 @@ from copy import deepcopy
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.db.transaction import atomic
 from django.test import TestCase
 from django.test.testcases import TransactionTestCase
@@ -1175,3 +1176,122 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         obj = Mock()
         dependency._apply([obj])
         obj.some_method.assert_called_once_with()
+
+    def test_snapshot_uses_initial_values_when_all_tracked_fields_available(self):
+        dependency = CacheDependency(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["name", "organization_id"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.initial"
+        device = self._create_device(name="device-initial")
+        old_name = device._initial_name
+        old_org_id = device._initial_organization_id
+        # Emulate pre_save state where current values may differ from initial ones.
+        device.name = "device-updated"
+
+        with patch.object(
+            dependency,
+            "_snapshot_track_fields_from_initial_values",
+            wraps=dependency._snapshot_track_fields_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_track_fields_from_db",
+            wraps=dependency._snapshot_track_fields_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(Device, device)
+
+        initial_spy.assert_called_once_with(
+            device, fields=["name", "organization_id"]
+        )
+        db_spy.assert_not_called()
+        snapshot = device._cache_dependency_snapshots[dependency._uid]
+        self.assertEqual(snapshot["name"], old_name)
+        self.assertEqual(snapshot["organization_id"], old_org_id)
+
+    def test_snapshot_falls_back_to_db_when_initial_fields_are_missing(self):
+        dependency = CacheDependency(
+            source="config.DeviceGroup",
+            signal="post_save",
+            track_fields=["context"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.db_fallback"
+        group = self._create_device_group(context={"a": "1"})
+
+        with patch.object(
+            dependency,
+            "_snapshot_track_fields_from_initial_values",
+            wraps=dependency._snapshot_track_fields_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_track_fields_from_db",
+            wraps=dependency._snapshot_track_fields_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(DeviceGroup, group)
+
+        initial_spy.assert_called_once_with(group, fields=["context"])
+        db_spy.assert_called_once()
+        snapshot = group._cache_dependency_snapshots[dependency._uid]
+        self.assertEqual(snapshot["context"], {"a": "1"})
+
+    def test_snapshot_falls_back_to_db_when_initial_fields_are_deferred(self):
+        dependency = CacheDependency(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["name", "organization_id"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.deferred"
+        device = self._create_device(name="device-deferred")
+        deferred_device = Device.objects.only("id").get(pk=device.pk)
+        self.assertEqual(deferred_device._initial_name, models.DEFERRED)
+        self.assertEqual(deferred_device._initial_organization_id, models.DEFERRED)
+
+        with patch.object(
+            dependency,
+            "_snapshot_track_fields_from_initial_values",
+            wraps=dependency._snapshot_track_fields_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_track_fields_from_db",
+            wraps=dependency._snapshot_track_fields_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(Device, deferred_device)
+
+        initial_spy.assert_called_once_with(
+            deferred_device, fields=["name", "organization_id"]
+        )
+        db_spy.assert_not_called()
+        snapshot = deferred_device._cache_dependency_snapshots[dependency._uid]
+        self.assertEqual(snapshot["name"], models.DEFERRED)
+        self.assertEqual(snapshot["organization_id"], models.DEFERRED)
+
+    def test_snapshot_skips_when_update_fields_excludes_tracked_fields(self):
+        dependency = CacheDependency(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["os", "organization_id"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.skip_irrelevant_update_fields"
+        device = self._create_device(os="OpenWrt 22.03")
+
+        with patch.object(
+            dependency,
+            "_snapshot_track_fields_from_initial_values",
+            wraps=dependency._snapshot_track_fields_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_track_fields_from_db",
+            wraps=dependency._snapshot_track_fields_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(
+                Device, device, update_fields={"management_ip", "last_ip"}
+            )
+
+        initial_spy.assert_not_called()
+        db_spy.assert_not_called()
+        snapshots = getattr(device, dependency._SNAPSHOT_ATTR, {})
+        self.assertNotIn(dependency._uid, snapshots)

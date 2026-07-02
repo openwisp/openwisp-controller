@@ -4,7 +4,7 @@ import logging
 from copy import deepcopy
 
 from cache_memoize import cache_memoize
-from django.core.exceptions import ValidationError
+from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
 from django.db.models import JSONField
@@ -249,14 +249,79 @@ class CacheDependency:
         """Store the old values of ``track_fields`` before the instance saves."""
         if instance._state.adding or instance.pk is None:
             return
-        try:
-            old = sender._default_manager.only(*self.track_fields).get(pk=instance.pk)
-        except sender.DoesNotExist:
+        fields = self._get_fields_to_track(instance, **kwargs)
+        if not fields:
+            return
+        snapshot, db_fields = self._snapshot_track_fields_from_initial_values(
+            instance, fields=fields
+        )
+        if db_fields:
+            db_snapshot = self._snapshot_track_fields_from_db(
+                sender, instance, fields=db_fields
+            )
+            if db_snapshot is None:
+                return
+            snapshot.update(db_snapshot)
+        if snapshot is None:
             return
         snapshots = instance.__dict__.setdefault(self._SNAPSHOT_ATTR, {})
-        snapshots[self._uid] = {
-            field: getattr(old, field) for field in self.track_fields
-        }
+        snapshots[self._uid] = snapshot
+
+    def _get_fields_to_track(self, instance, **kwargs):
+        fields = list(self.track_fields or [])
+        if not fields:
+            return fields
+        update_fields = kwargs.get("update_fields")
+        # Full save: all tracked fields could have changed.
+        if update_fields is None:
+            return fields
+        # save(update_fields=[...]) narrows the set of potentially changed fields.
+        # Expand names to include both field.name and field.attname so a tracked
+        # field like ``organization_id`` matches ``organization`` updates.
+        expanded = set(update_fields)
+        for name in list(update_fields):
+            try:
+                model_field = instance._meta.get_field(name)
+            except FieldDoesNotExist:
+                continue
+            expanded.add(model_field.name)
+            expanded.add(model_field.attname)
+        return [field for field in fields if field in expanded]
+
+    def _snapshot_track_fields_from_initial_values(self, instance, fields=None):
+        """
+        Returns a tuple ``(snapshot, db_fields)`` where ``snapshot`` contains
+        values obtained from ``_initial_<field>`` attrs (or ``models.DEFERRED``
+        for still deferred fields), while ``db_fields`` contains unresolved
+        fields which must be fetched from DB.
+        """
+        fields = fields or self.track_fields or []
+        if not fields:
+            return dict(), []
+        deferred_fields = instance.get_deferred_fields()
+        snapshot = dict()
+        db_fields = []
+        missing = object()
+        for field in fields:
+            attr = f"_initial_{field}"
+            value = getattr(instance, attr, missing)
+            if value is not missing and value != models.DEFERRED:
+                snapshot[field] = value
+            elif field in deferred_fields:
+                snapshot[field] = models.DEFERRED
+            else:
+                db_fields.append(field)
+        return snapshot, db_fields
+
+    def _snapshot_track_fields_from_db(self, sender, instance, fields=None):
+        fields = fields or self.track_fields or []
+        if not fields:
+            return dict()
+        try:
+            old = sender._default_manager.only(*fields).get(pk=instance.pk)
+        except sender.DoesNotExist:
+            return None
+        return {field: getattr(old, field) for field in fields}
 
     def _tracked_fields_changed(self, instance):
         snapshots = getattr(instance, self._SNAPSHOT_ATTR, None) or {}
@@ -264,9 +329,15 @@ class CacheDependency:
         if old is None:
             # No snapshot (e.g. on creation) -> nothing to compare against.
             return False
-        return any(
-            old.get(field) != getattr(instance, field) for field in self.track_fields
-        )
+        deferred_fields = instance.get_deferred_fields()
+        for field, old_value in old.items():
+            if field in deferred_fields:
+                continue
+            if old_value == models.DEFERRED:
+                return True
+            if old_value != getattr(instance, field):
+                return True
+        return False
 
     def _should_skip(self, instance, **kwargs):
         if (
