@@ -224,16 +224,17 @@ DeviceAdmin.add_reversion_following(follow=["deviceconnection_set"])
 class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     ordering = ("-created",)
     list_display = [
-        "id",
+        "label",
         "organization_display",
-        "status",
+        "colored_status",
         "type",
+        "affected_devices",
         "created",
-        "total_devices",
     ]
+    list_display_links = ["label"]
     list_filter = [MultitenantOrgFilter, "status", "type"]
     list_select_related = ("organization",)
-    search_fields = ["id"]
+    search_fields = ["label"]
     change_form_template = (
         "admin/connection/batch_command/batch_command_change_form.html"
     )
@@ -241,7 +242,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     exclude = ("devices",)
     fields = [
         "organization_display",
-        "total_devices",
+        "label",
+        "notes",
+        "affected_devices",
         "colored_status",
         "type",
         "formatted_input",
@@ -292,6 +295,11 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         return obj.input.get("command", obj.input)
 
     formatted_input.short_description = _("input")
+
+    def affected_devices(self, obj):
+        return obj.affected_devices
+
+    affected_devices.short_description = _("affected devices")
 
     def display_skipped_devices(self, obj):
         if not obj.skipped_devices:
