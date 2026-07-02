@@ -518,11 +518,10 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
 
     def test_vpn_server_change_invalidates_device_cache(self):
         device, vpn, template = self._create_wireguard_vpn_template()
-        with catch_signal(
-            vpn_server_modified
-        ) as mocked_vpn_server_modified, catch_signal(
-            config_modified
-        ) as mocked_config_modified:
+        with (
+            catch_signal(vpn_server_modified) as mocked_vpn_server_modified,
+            catch_signal(config_modified) as mocked_config_modified,
+        ):
             vpn.host = "localhost"
             vpn.save(update_fields=["host"])
         mocked_vpn_server_modified.assert_called_once_with(
@@ -556,6 +555,49 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         self.assertNotEqual(config.checksum_db, old_checksum_db)
         self.assertEqual(config.checksum_db, config.checksum)
         self.assertEqual(config.status, "modified")
+
+    def test_ca_renew_invalidates_vpn_checksum(self):
+        vpn = self._create_vpn()
+        with catch_signal(vpn_server_modified) as mocked:
+            vpn.ca.renew()
+            # vpn_server_modified fires via the CacheDependency,
+            # which cascades to client config invalidation
+            self.assertTrue(mocked.called)
+
+    def test_cert_renew_invalidates_vpn_checksum(self):
+        vpn = self._create_vpn()
+        with catch_signal(vpn_server_modified) as mocked:
+            vpn.cert.renew()
+            self.assertTrue(mocked.called)
+
+    def test_ca_renew_cascades_to_client_config(self):
+        vpn = self._create_vpn()
+        vpn_template = self._create_template(
+            name="vpn-template", type="vpn", vpn=vpn, config={}
+        )
+        device = self._create_device_config()
+        device.config.templates.add(vpn_template)
+        config = Config.objects.get(pk=device.config.pk)
+        old_checksum_db = config.checksum_db
+        self.assertEqual(old_checksum_db, config.checksum)
+        vpn.ca.renew()
+        config = Config.objects.get(pk=device.config.pk)
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
+    def test_cert_renew_cascades_to_client_config(self):
+        vpn = self._create_vpn()
+        vpn_template = self._create_template(
+            name="vpn-template", type="vpn", vpn=vpn, config={}
+        )
+        device = self._create_device_config()
+        device.config.templates.add(vpn_template)
+        config = Config.objects.get(pk=device.config.pk)
+        self.assertEqual(config.checksum_db, config.checksum)
+        with catch_signal(vpn_server_modified) as mocked_vpn_server_modified:
+            vpn.cert.renew()
+        mocked_vpn_server_modified.assert_called_once()
 
 
 class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
@@ -856,10 +898,11 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             success_response.status_code = 200
             success_response.raise_for_status = mock.Mock()
 
-            with mock.patch(
-                "openwisp_controller.config.tasks.logger.info"
-            ) as mocked_logger, mock.patch(
-                "requests.post", return_value=success_response
+            with (
+                mock.patch(
+                    "openwisp_controller.config.tasks.logger.info"
+                ) as mocked_logger,
+                mock.patch("requests.post", return_value=success_response),
             ):
                 vpn.save()
                 vpn_client.refresh_from_db()
@@ -877,8 +920,9 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             fail_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
                 "Not Found"
             )
-            with mock.patch("logging.Logger.warning") as mocked_logger, mock.patch(
-                "requests.post", return_value=fail_response
+            with (
+                mock.patch("logging.Logger.warning") as mocked_logger,
+                mock.patch("requests.post", return_value=fail_response),
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
@@ -1892,18 +1936,22 @@ class TestZeroTierTransaction(
         mock_error.reset_mock()
         mock_requests.reset_mock()
 
-        with self.subTest(
-            "Test zerotier configuration update "
-            "with retry mechanism (recoverable errors)"
-        ), mock.patch("celery.app.task.Task.request") as mock_task_request:
+        with (
+            self.subTest(
+                "Test zerotier configuration update "
+                "with retry mechanism (recoverable errors)"
+            ),
+            mock.patch("celery.app.task.Task.request") as mock_task_request,
+        ):
             max_retries = API_TASK_RETRY_OPTIONS.get("max_retries")
             mock_task_request.called_directly = False
             config = vpn.get_config()["zerotier"][0]
             config.update({"private": True})
 
-            with self.subTest(
-                "Test update when max retry limit is not reached"
-            ), self.assertRaises(Retry):
+            with (
+                self.subTest("Test update when max retry limit is not reached"),
+                self.assertRaises(Retry),
+            ):
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
@@ -1954,9 +2002,10 @@ class TestZeroTierTransaction(
             # During the last attempt, the task will give up
             # retrying and raise a 'RequestException',
             # which will be handled and logged as an error
-            with self.subTest(
-                "Test update when max retry limit is reached"
-            ), self.assertRaises(RequestException):
+            with (
+                self.subTest("Test update when max retry limit is reached"),
+                self.assertRaises(RequestException),
+            ):
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)

@@ -326,6 +326,15 @@ class AbstractVpn(
     def _send_vpn_modified_signal(self):
         vpn_server_modified.send(sender=self.__class__, instance=self)
 
+    def handle_related_change(self):
+        """
+        Invalidates the VPN checksum and emits ``vpn_server_modified`` so that
+        client configs are recomputed. Called by :class:`CacheDependency` when
+        a related object (e.g. server CA/Cert) changes content.
+        """
+        self.invalidate_checksum_cache()
+        self._send_vpn_modified_signal()
+
     @classmethod
     def _invalidate_vpn_view_cache(cls, vpn):
         """
@@ -335,6 +344,18 @@ class AbstractVpn(
         from ..controller.views import GetVpnView
 
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+    @classmethod
+    def _resolve_ca_dependency(cls, ca, **kwargs):
+        """Return VPNs whose server CA is ``ca``."""
+        vpn_model = cls
+        return list(vpn_model.objects.filter(ca_id=ca.pk))
+
+    @classmethod
+    def _resolve_server_cert_dependency(cls, cert, **kwargs):
+        """Return VPNs whose server certificate is ``cert``."""
+        vpn_model = cls
+        return list(vpn_model.objects.filter(cert_id=cert.pk))
 
     @classmethod
     def get_cache_dependencies(cls):
@@ -361,6 +382,25 @@ class AbstractVpn(
                 name="vpn_server_modified",
                 on_commit=False,
                 target=cls._invalidate_vpn_view_cache,
+            ),
+            # When the server CA content changes (e.g. via renew()), the VPN's
+            # generated configuration changes; invalidate the VPN checksum and
+            # cascade to client configs.
+            CacheDependency(
+                source="django_x509.Ca",
+                signal="post_save",
+                track_fields=["certificate", "private_key"],
+                resolve=cls._resolve_ca_dependency,
+                target="handle_related_change",
+            ),
+            # When the server certificate content changes (e.g. via renew()),
+            # same cascade as above.
+            CacheDependency(
+                source="django_x509.Cert",
+                signal="post_save",
+                track_fields=["certificate", "private_key"],
+                resolve=cls._resolve_server_cert_dependency,
+                target="handle_related_change",
             ),
         ]
 

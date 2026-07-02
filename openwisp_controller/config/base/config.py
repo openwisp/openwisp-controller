@@ -217,6 +217,11 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             return []
 
     @classmethod
+    def _resolve_template_dependency(cls, template, **kwargs):
+        """Return configs that use ``template`` (captured before cascade delete)."""
+        return list(cls.objects.filter(templates=template))
+
+    @classmethod
     def get_cache_dependencies(cls):
         return [
             # A client certificate's content (re-issue / key change) feeds into
@@ -255,6 +260,16 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 track_fields=["context"],
                 on_commit=False,
                 target=cls._invalidate_configs_in_org,
+            ),
+            # When a template is deleted, Django removes through-table
+            # rows without emitting m2m_changed. Capture the affected configs
+            # during pre_delete (while through rows still exist) and recompute
+            # their checksums on commit (after the cascade completes).
+            CacheDependency(
+                source="config.Template",
+                signal="pre_delete",
+                resolve=cls._resolve_template_dependency,
+                target="update_status_if_checksum_changed",
             ),
         ]
 

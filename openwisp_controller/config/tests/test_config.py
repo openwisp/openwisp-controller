@@ -1082,6 +1082,23 @@ class TestTransactionConfig(
         config._invalidate_backend_instance_cache()
         self.assertEqual(config.checksum, config.checksum_db)
 
+    def test_deleting_template_invalidates_config_checksum(self):
+        template = self._create_template(
+            name="test-template",
+            config={"interfaces": [{"name": "eth0", "type": "ethernet"}]},
+        )
+        config = self._create_config(device=self._create_device())
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        template.delete()
+        config = Config.objects.get(pk=config.pk)
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
 
 class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestCase):
     """
