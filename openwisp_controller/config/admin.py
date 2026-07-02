@@ -1109,8 +1109,8 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "required",
         "created",
     ]
-    search_fields = ["name"]
     multitenant_shared_relations = ("vpn", "ca", "blueprint_cert")
+    search_fields = ["name", "notes"]
     fields = [
         "name",
         "organization",
@@ -1123,6 +1123,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "tags",
         "default",
         "required",
+        "notes",
         "system_context",
         "default_values",
         "config",

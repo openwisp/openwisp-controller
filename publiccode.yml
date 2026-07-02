@@ -2,55 +2,135 @@
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/italia/publiccode.yml
 
-publiccodeYmlVersion: "0.3"
+publiccodeYmlVersion: "0.5"
 name: OpenWISP Controller
 url: "https://github.com/openwisp/openwisp-controller"
+applicationSuite: OpenWISP
 developmentStatus: stable
 platforms:
-  - linux
+  - web
 softwareType: standalone/web
-releaseDate: "2022-04-29"
-softwareVersion: 1.0.0
-logo: "openwisp.org.svg"
+releaseDate: "2026-04-09"
+softwareVersion: "1.2.3"
+logo: "openwisp-logo-black.svg"
 categories:
   - network-management
+roadmap: "https://openwisp.io/docs/dev/general/roadmap-2030.html"
 maintenance:
-  type: community
+  type: internal
   contacts:
     - name: Federico Capoano
       email: f.capoano@openwisp.io
+      affiliation: OpenWISP
     - name: Marco Cappellacci
       email: marco.cappellacci@uniurb.it
+      affiliation: OpenWISP
 legal:
   license: GPL-3.0-only
   mainCopyrightOwner: OpenWISP
-  repoOwner: OpenWISP
+organisation:
+  uri: "https://openwisp.org"
+  name: OpenWISP
 localisation:
   localisationReady: true
   availableLanguages:
     - en
-it:
-  piattaforme:
-    spid: false
+    - it
+dependsOn:
+  open:
+    - name: Python
+      versionMin: "3.10"
+    - name: Django
+    - name: OpenSSL
+    - name: Redis
+    - name: PostgreSQL
+      optional: true
+    - name: PostGIS
+      optional: true
+    - name: GDAL
+    - name: GEOS
+    - name: PROJ
 description:
   en:
-    genericName: Network Management System
-    documentation: "http://openwisp.io/docs/"
-    shortDescription: A Hackable Network Management System for the 21st Century
+    localisedName: OpenWISP Controller
+    documentation: "https://openwisp.io/docs/stable/controller/"
+    shortDescription: >
+      Leveraging Linux OpenWrt, OpenWISP is an open-source solution
+      for efficient IT network deployment, monitoring & management.
     longDescription: >
-      OpenWISP is a software platform designed to ease and automate the
-      management of networks, with a special focus on wireless networks, mainly
-      used in public wifi, mesh networks, community networks and IoT scenarios.
+      OpenWISP Controller is the OpenWISP module for automating the
+      configuration and lifecycle management of network devices, especially
+      OpenWrt based routers and access points. It provides a web interface and
+      REST APIs for device adoption, provisioning, configuration templates,
+      variables, device groups, HTTP resources and push operations.
 
-      OpenWISP 2, launched in December 2016, is the new generation of the
-      software which is gradually replacing OpenWISP 1 and aims to build an
-      ecosystem of applications and tools that make it easy for developers to
-      build custom networking applications in order to bring innovation in the
-      network infrastructure of communities that most need it.
+      It also automates management VPN provisioning and PKI workflows, including
+      OpenVPN, WireGuard, VXLAN over WireGuard, ZeroTier, X.509 certificate
+      authorities and certificates. The controller can connect to devices with
+      SSH and SNMP, execute shell commands, track geographic location, allocate
+      subnets and IP addresses through the optional subnet division app, and
+      integrate with other OpenWISP modules for monitoring, firmware upgrades,
+      topology, IPAM, notifications and RADIUS.
+
+      Most production deployments are installed through Ansible OpenWISP or
+      Docker OpenWISP. See the [OpenWISP Quick Start Guide](https://openwisp.io/docs/stable/user/quickstart.html)
+      for the recommended installation path. [Commercial support](https://openwisp.org/commercial-support/)
+      is available for organizations that need professional assistance with
+      deployment, operation and maintenance.
     videos:
-      - "https://www.youtube.com/watch?v=MY097Y2cPQ0"
-      - "https://www.youtube.com/watch?v=n531yTtJimU&t=4s"
+      - "https://www.youtube.com/watch?v=jFlQg64aZAk&t=22s"
     features:
-      - Network Management & Automation
-      - Special focus on wireless networks (public wifi, mesh networks, community networks, IoT)
-      - Allows to build custom applications
+      - Centralized network device configuration management
+      - Automated device adoption and provisioning
+      - Reusable configuration templates, variables, device groups and template tags
+      - Web interface and REST API for network automation
+      - Pull and push configuration updates over HTTP and SSH
+      - Management VPN provisioning with OpenVPN, WireGuard, VXLAN over WireGuard and ZeroTier
+      - X.509 certificate authority and certificate management
+      - SSH and SNMP connection backends with extensible protocol support
+      - Remote shell command execution
+      - Geographic device data and estimated location
+      - Optional subnet and IP address auto-provisioning
+      - Integration with the broader OpenWISP network management ecosystem
+  it:
+    localisedName: OpenWISP Controller
+    documentation: "https://openwisp.io/docs/stable/controller/"
+    shortDescription: >
+      Soluzione open source basata su OpenWrt per distribuire, configurare e
+      gestire reti IT in modo efficiente.
+    longDescription: >
+      OpenWISP Controller è il modulo OpenWISP per automatizzare la
+      configurazione e la gestione del ciclo di vita dei dispositivi di rete,
+      in particolare router e access point basati su OpenWrt. Fornisce
+      un'interfaccia web e API REST per adozione dei dispositivi, provisioning,
+      template di configurazione, variabili, gruppi di dispositivi, risorse HTTP
+      e operazioni push.
+
+      Automatizza inoltre il provisioning di VPN di gestione e i flussi PKI,
+      inclusi OpenVPN, WireGuard, VXLAN su WireGuard, ZeroTier, autorità di
+      certificazione X.509 e certificati. Il controller può connettersi ai
+      dispositivi tramite SSH e SNMP, eseguire comandi shell, gestire dati
+      geografici, allocare subnet e indirizzi IP tramite l'app opzionale di
+      suddivisione delle subnet e integrarsi con altri moduli OpenWISP per
+      monitoraggio, aggiornamenti firmware, topologia, IPAM, notifiche e RADIUS.
+
+      La maggior parte delle installazioni in produzione viene distribuita con
+      Ansible OpenWISP o Docker OpenWISP. Consulta la [guida rapida di OpenWISP](https://openwisp.io/docs/stable/user/quickstart.html)
+      per il percorso di installazione consigliato. È disponibile [supporto commerciale](https://openwisp.org/commercial-support/)
+      per le organizzazioni che necessitano di assistenza professionale per
+      distribuzione, esercizio e manutenzione.
+    videos:
+      - "https://www.youtube.com/watch?v=jFlQg64aZAk&t=22s"
+    features:
+      - Gestione centralizzata della configurazione dei dispositivi di rete
+      - Adozione e provisioning automatizzati dei dispositivi
+      - Template di configurazione, variabili, gruppi di dispositivi e tag riutilizzabili
+      - Interfaccia web e API REST per l'automazione di rete
+      - Aggiornamenti di configurazione pull e push tramite HTTP e SSH
+      - Provisioning di VPN di gestione con OpenVPN, WireGuard, VXLAN su WireGuard e ZeroTier
+      - Gestione di autorità di certificazione e certificati X.509
+      - Backend di connessione SSH e SNMP con supporto per protocolli estensibili
+      - Esecuzione remota di comandi shell
+      - Dati geografici dei dispositivi e posizione stimata
+      - Provisioning opzionale di subnet e indirizzi IP
+      - Integrazione con l'ecosistema OpenWISP per la gestione delle reti

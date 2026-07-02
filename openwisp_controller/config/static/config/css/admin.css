@@ -196,8 +196,9 @@ input.readonly {
 #device_form #id_system {
   width: 610px;
 }
-#device_form #id_notes {
-  height: 42px;
+#device_form #id_notes,
+#template_form #id_notes {
+  height: 73px;
 }
 #config-group .field-status .help div {
   white-space: pre;

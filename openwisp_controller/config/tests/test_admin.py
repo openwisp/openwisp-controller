@@ -442,6 +442,24 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertIn("Preview", str(response.content))
 
+    def test_template_notes_after_required(self):
+        t = self._create_template(organization=self._get_org())
+        path = reverse(f"admin:{self.app_label}_template_change", args=[t.pk])
+        self._login()
+        response = self.client.get(path)
+        fields = response.context["adminform"].model_admin.fields
+        self.assertEqual(fields[fields.index("required") + 1], "notes")
+
+    def test_template_search_notes(self):
+        t = self._create_template(
+            name="admin-search-template", notes="template searchable notes"
+        )
+        path = reverse(f"admin:{self.app_label}_template_changelist")
+        response = self.client.get(path, {"q": "template searchable notes"})
+        self.assertContains(response, t.name)
+        response = self.client.get(path, {"q": "ZERO-RESULTS-PLEASE"})
+        self.assertNotContains(response, t.name)
+
     def test_vpn_preview_button(self):
         v = self._create_vpn(organization=self._get_org())
         path = reverse(f"admin:{self.app_label}_vpn_change", args=[v.pk])

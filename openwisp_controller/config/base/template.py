@@ -122,6 +122,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "be required for every device in the system)"
         ),
     )
+    notes = models.TextField(blank=True, help_text=_("internal notes"))
     # auto_cert naming kept for backward compatibility
     auto_cert = models.BooleanField(
         _("automatic tunnel provisioning"),

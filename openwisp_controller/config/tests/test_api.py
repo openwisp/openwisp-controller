@@ -661,10 +661,12 @@ class TestConfigApi(
         data = self._template_data
         data["organization"] = org.pk
         data["required"] = True
+        data["notes"] = "internal template notes"
         r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(Template.objects.count(), initial_count + 1)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["organization"], org.pk)
+        self.assertEqual(r.data["notes"], "internal template notes")
 
     def test_template_create_of_vpn_type(self):
         org = self._get_org()
@@ -740,7 +742,7 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data["count"], 1)
-            self.assertEqual(len(data["results"][0]), 15)
+            self.assertEqual(len(data["results"][0]), 16)
             self.assertEqual(data["results"][0]["id"], str(template.pk))
             self.assertEqual(data["results"][0]["name"], str(template.name))
             self.assertEqual(
@@ -750,6 +752,7 @@ class TestConfigApi(
             self.assertEqual(data["results"][0]["backend"], template.backend)
             self.assertEqual(data["results"][0]["default"], template.default)
             self.assertEqual(data["results"][0]["required"], template.required)
+            self.assertEqual(data["results"][0]["notes"], template.notes)
             if template.vpn:
                 self.assertEqual(data["results"][0]["vpn"], template.vpn.pk)
 
@@ -836,10 +839,11 @@ class TestConfigApi(
     def test_template_patch_api(self):
         t1 = self._create_template(name="t1")
         path = reverse("config_api:template_detail", args=[t1.pk])
-        data = dict(name="New t1")
+        data = dict(name="New t1", notes="updated template notes")
         r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "New t1")
+        self.assertEqual(r.data["notes"], "updated template notes")
 
     def test_template_download_api(self):
         t1 = self._create_template(name="t1")
