@@ -538,6 +538,25 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
             device=device,
         )
 
+    def test_vpn_server_change_updates_client_checksum_db(self):
+        # the WireGuard client renders the VPN host as the peer
+        # "endpoint_host", so changing the VPN host alters the client
+        # configuration
+        device, vpn, _ = self._create_wireguard_vpn_template()
+        config = Config.objects.get(pk=device.config.pk)
+        old_checksum_db = config.checksum_db
+        # sanity check: the stored checksum initially matches the
+        # freshly computed checksum for the client configuration
+        self.assertEqual(old_checksum_db, config.checksum)
+        # change a VPN server field that is part of the client configuration
+        vpn.host = "changed.example.com"
+        vpn.save(update_fields=["host"])
+        config = Config.objects.get(pk=device.config.pk)
+        # the client's stored checksum must reflect the new VPN server context
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
 
 class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
     def test_wireguard_config_creation(self):

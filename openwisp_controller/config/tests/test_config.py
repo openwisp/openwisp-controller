@@ -24,6 +24,7 @@ from .utils import (
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
@@ -1009,6 +1010,66 @@ class TestTransactionConfig(
             self.assertNotEqual(config.get_cached_checksum(), old_checksum)
             config.refresh_from_db()
             self.assertEqual(config.status, "modified")
+
+    def test_device_os_change_updates_config_checksum(self):
+        org = self._get_org()
+        device = self._create_device(
+            name="test", organization=org, os="OpenWrt 19.07.0"
+        )
+        config = self._create_config(
+            device=device,
+            backend="netjsonconfig.OpenWrt",
+            config={
+                "interfaces": [
+                    {
+                        "name": "eth0",
+                        "type": "ethernet",
+                        "addresses": [{"proto": "dhcp", "family": "ipv4"}],
+                    }
+                ]
+            },
+        )
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        # changing the OS toggles DSA (disabled on 19.x, enabled on 21.x),
+        # which changes the rendered configuration
+        device.os = "OpenWrt 21.02.0"
+        device.save()
+        config = Config.objects.get(pk=config.pk)
+        self.assertEqual(config.status, "modified")
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+
+    def test_device_org_change_updates_config_checksum(self):
+        org1 = self._get_org()
+        OrganizationConfigSettings.objects.create(
+            organization=org1, context={"interface_type": "ethernet"}
+        )
+        org2 = self._create_org(name="org2", slug="org2")
+        OrganizationConfigSettings.objects.create(
+            organization=org2, context={"interface_type": "virtual"}
+        )
+        device = self._create_device(name="test", organization=org1)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        # changing the organization changes the org-level context,
+        # which changes the rendered configuration
+        device.organization = org2
+        device.save()
+        config = Config.objects.get(pk=config.pk)
+        self.assertEqual(config.status, "modified")
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
 
     def test_checksum_db_accounts_for_vpnclient(self):
         vpn = self._create_wireguard_vpn()

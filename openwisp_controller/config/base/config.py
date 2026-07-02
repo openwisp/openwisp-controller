@@ -210,6 +210,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         )
 
     @classmethod
+    def _resolve_device_dependency(cls, device, **kwargs):
+        try:
+            return [device.config]
+        except ObjectDoesNotExist:
+            return []
+
+    @classmethod
     def get_cache_dependencies(cls):
         return [
             # A client certificate's content (re-issue / key change) feeds into
@@ -218,6 +225,17 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 source="django_x509.Cert",
                 signal="post_save",
                 resolve=cls._resolve_cert_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+            # Device.os feeds into Config._should_use_dsa(), and
+            # Device.organization_id determines the organization-level
+            # configuration context; recompute the owning Config's checksum
+            # when either changes.
+            CacheDependency(
+                source="config.Device",
+                signal="post_save",
+                track_fields=["os", "organization_id"],
+                resolve=cls._resolve_device_dependency,
                 target="update_status_if_checksum_changed",
             ),
             # Group-level configuration variables feed into Config.get_context();

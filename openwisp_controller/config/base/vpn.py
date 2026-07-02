@@ -1101,10 +1101,15 @@ class AbstractVpnClient(models.Model):
     @classmethod
     def invalidate_clients_cache(cls, vpn):
         """
-        Invalidate checksum cache for clients that uses this VPN server
+        Recomputes the stored checksum of clients that use this VPN server.
+
+        Changing a VPN server field (e.g. host, keys, subnet) alters the
+        context of every client configuration. Recompute each client's
+        checksum so that ``Config.checksum_db`` reflects the new VPN server
+        context, set its status to "modified" and emit ``config_modified``.
         """
         for client in vpn.vpnclient_set.iterator():
-            # invalidate cache for device
-            client.config._send_config_modified_signal(
-                action="related_template_changed"
-            )
+            config = client.config
+            # keep the historical signal action for this related change
+            config._config_modified_action = "related_template_changed"
+            config.update_status_if_checksum_changed()
