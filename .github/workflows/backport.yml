@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   backport-on-push:
-    if: github.event_name == 'push'
+    if: >
+      github.repository == 'openwisp/openwisp-controller' &&
+      github.event_name == 'push'
     uses: openwisp/openwisp-utils/.github/workflows/reusable-backport.yml@master
     with:
       commit_sha: ${{ github.sha }}
@@ -27,6 +29,7 @@ jobs:
 
   backport-on-comment:
     if: >
+      github.repository == 'openwisp/openwisp-controller' &&
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       github.event.issue.pull_request.merged_at != null &&
