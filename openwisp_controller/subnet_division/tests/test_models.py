@@ -5,7 +5,6 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
 from django.urls import reverse
-from openwisp_utils.tests import catch_signal
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import (
@@ -13,6 +12,7 @@ from openwisp_controller.config.tests.utils import (
     TestWireguardVpnMixin,
 )
 from openwisp_controller.subnet_division.rule_types.vpn import VpnSubnetDivisionRuleType
+from openwisp_utils.tests import catch_signal
 
 from .. import tasks
 from ..signals import subnet_provisioned
