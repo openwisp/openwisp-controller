@@ -1843,8 +1843,13 @@ class TestAdmin(
         dc = DeviceCertificate.objects.get(config=config)
         self.assertContains(response, template.name)
         self.assertContains(response, dc.cert.common_name)
+        self.assertContains(response, dc.cert.ca.name)
+        self.assertContains(response, dc.cert.key_length)
+        self.assertContains(response, dc.cert.digest)
+        self.assertContains(response, "Validity End")
         self.assertContains(response, "Active")
-        self.assertContains(response, "View Certificate")
+        self.assertContains(response, "result_list")
+        self.assertContains(response, '<a href="/admin/pki/cert/')
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):

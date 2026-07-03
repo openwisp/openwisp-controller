@@ -966,8 +966,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
 
     def _add_certificate_details(self, ctx, config):
         qs = DeviceCertificate.objects.filter(config=config).select_related(
-            "cert", "template"
-        )
+            "cert__ca", "template"
+        )[:51]
         cert_data = []
         for dc in qs:
             if dc.cert:
@@ -980,6 +980,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                     {
                         "template_name": dc.template.name,
                         "common_name": dc.cert.common_name,
+                        "ca_name": dc.cert.ca.name if dc.cert.ca else "-",
+                        "key_length": dc.cert.key_length,
+                        "digest": dc.cert.digest,
+                        "created": dc.cert.created,
+                        "validity_end": dc.cert.validity_end,
                         "is_revoked": dc.cert.revoked,
                         "url": url,
                         "has_cert": True,
@@ -987,8 +992,21 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                 )
             else:
                 cert_data.append({"template_name": dc.template.name, "has_cert": False})
+        has_more = len(cert_data) > 50
+        if has_more:
+            cert_data = cert_data[:50]
+        cert_model = DeviceCertificate.cert.field.related_model
+        cert_list_url = reverse(
+            f"admin:{cert_model._meta.app_label}"
+            f"_{cert_model._meta.model_name}_changelist"
+        )
         ctx["certificate_details"] = render_to_string(
-            "admin/config/device_certificates_table.html", {"certificates": cert_data}
+            "admin/config/device_certificates_table.html",
+            {
+                "certificates": cert_data,
+                "has_more": has_more,
+                "cert_list_url": cert_list_url,
+            },
         )
 
     def add_view(self, request, form_url="", extra_context=None):
