@@ -1849,7 +1849,11 @@ class TestAdmin(
         self.assertContains(response, "Validity End")
         self.assertContains(response, "Active")
         self.assertContains(response, "result_list")
-        self.assertContains(response, '<a href="/admin/pki/cert/')
+        cert_url = reverse(
+            f"admin:{dc.cert._meta.app_label}_{dc.cert._meta.model_name}_change",
+            args=[dc.cert.id],
+        )
+        self.assertContains(response, cert_url)
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):
