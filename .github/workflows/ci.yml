@@ -72,6 +72,8 @@ jobs:
           pip install -U pip wheel setuptools
           pip install -U -r requirements-test.txt
           pip install -U -e .
+          # TODO: Remove before merging 
+          pip install --no-cache-dir --no-deps --force-reinstall https://github.com/openwisp/django-x509/tarball/issues/236-renew-signals
           pip install ${{ matrix.django-version }}
 
       - name: Start redis
