@@ -43,9 +43,11 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
 
     @classmethod
     def post_provision_handler(cls, instance, provisioned, **kwargs):
-        super().post_provision_handler(instance, provisioned, **kwargs)
         # Assign the first provisioned IP address to the VPNClient
-        # only when subnets and IPs have been provisioned
+        # only when subnets and IPs have been provisioned, and do so
+        # *before* calling the superclass handler: it computes and caches
+        # the Config checksum, which needs instance.ip already set so
+        # the "ip_address_<vpn_pk>" template variable is resolved.
         if provisioned and provisioned["ip_addresses"]:
             # Delete any previously assigned IP address
             if instance.ip:
@@ -53,6 +55,7 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
             instance.ip = provisioned["ip_addresses"][0]
             instance.full_clean()
             instance.save()
+        super().post_provision_handler(instance, provisioned, **kwargs)
 
     @classmethod
     def destroy_provisioned_subnets_ips(cls, instance, **kwargs):
