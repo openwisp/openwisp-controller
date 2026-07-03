@@ -39,6 +39,7 @@ from .base import (
     CacheDependency,
     CacheInvalidationMixin,
     ConfigChecksumCacheMixin,
+    _resolve_pk_snapshot,
 )
 
 logger = logging.getLogger(__name__)
@@ -370,10 +371,15 @@ class AbstractVpn(
                 on_commit=False,
                 target=cls._invalidate_vpn_view_cache,
             ),
+            # Deferred to commit so a concurrent request cannot repopulate the
+            # cache with a VPN that is about to be (or was just) deleted.
+            # ``post_delete`` + ``_resolve_pk_snapshot`` because Django clears
+            # ``instance.pk`` on deleted instances before the deferred
+            # on_commit callback runs (see ``_resolve_pk_snapshot``).
             CacheDependency(
                 source="config.Vpn",
-                signal="pre_delete",
-                on_commit=False,
+                signal="post_delete",
+                resolve=_resolve_pk_snapshot,
                 target=cls._invalidate_vpn_view_cache,
             ),
             # A change to the VPN server configuration (e.g. via related objects)
@@ -395,7 +401,7 @@ class AbstractVpn(
             ),
             # When the server certificate is renewed, same cascade as above.
             CacheDependency(
-                source="pki.Cert",
+                source="django_x509.Cert",
                 signal_obj=x509_renewed,
                 name="x509_renewed",
                 resolve=cls._resolve_server_cert_dependency,

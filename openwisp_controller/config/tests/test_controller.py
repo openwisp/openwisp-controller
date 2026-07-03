@@ -184,7 +184,8 @@ class TestController(
             self.assertEqual(obj.os, "test_cache")
 
         with self.subTest("test cache invalidation on device delete"):
-            d.delete(check_deactivated=False)
+            with self.captureOnCommitCallbacks(execute=True):
+                d.delete(check_deactivated=False)
             with self.assertNumQueries(1):
                 with self.assertRaises(Http404):
                     view.get_device()
@@ -484,7 +485,8 @@ class TestController(
         key = view.get_vpn.get_cache_key(view)
         self.assertEqual(cache.get(key), vpn)
         # deleting the VPN must invalidate the cached view object
-        vpn.delete()
+        with self.captureOnCommitCallbacks(execute=True):
+            vpn.delete()
         self.assertEqual(cache.get(key), None)
 
     def test_vpn_download_config(self):

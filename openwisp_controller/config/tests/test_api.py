@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
 from django.core.cache import cache
+from django.http.response import Http404
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
@@ -16,6 +17,7 @@ from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
+from ..controller.views import DeviceChecksumView, VpnChecksumView
 from ..signals import group_templates_changed
 from .utils import (
     CreateConfigTemplateMixin,
@@ -1486,6 +1488,32 @@ class TestConfigApiTransaction(
         VpnClient.objects.filter(cert=cert).delete()
         response = self.client.get(path, data={"org": org.slug})
         self.assertEqual(response.status_code, 404)
+
+    def test_device_and_vpn_view_cache_invalidate_on_organization_delete(self):
+        """
+        Regression test for the Device and Vpn delete CacheDependency
+        declarations (``ConfigConfig.connect_cache_dependencies`` and
+        ``Vpn.get_cache_dependencies``): both are deferred to commit
+        (``post_delete`` + default ``on_commit=True``) and must keep working
+        when triggered as part of a larger Organization cascade delete, where
+        Django clears each deleted instance's pk before the on_commit
+        callback runs.
+        """
+        _, org, _ = self._get_devicegroup_org_cert()
+        device = Device.objects.get(organization=org)
+        vpn = Vpn.objects.get(organization=org)
+        device_view = DeviceChecksumView()
+        device_view.kwargs = {"pk": str(device.pk)}
+        self.assertEqual(device_view.get_device(), device)
+        vpn_view = VpnChecksumView()
+        vpn_view.kwargs = {"pk": str(vpn.pk)}
+        self.assertEqual(vpn_view.get_vpn(), vpn)
+
+        org.delete()
+        with self.assertRaises(Http404):
+            device_view.get_device()
+        with self.assertRaises(Http404):
+            vpn_view.get_vpn()
 
     def test_devicegroup_templates_change(self):
         org = self._get_org()

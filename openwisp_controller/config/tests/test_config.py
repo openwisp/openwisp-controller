@@ -929,6 +929,50 @@ class TestConfig(
                 self.assertTrue(d.config.templates.filter(pk=t2.pk).exists())
                 self.assertFalse(d.config.templates.filter(pk=t1.pk).exists())
 
+    def test_devicegroup_context_change_defers_checksum_invalidation_to_commit(self):
+        """
+        Regression test for the DeviceGroup CacheDependency (deferred to
+        commit, default on_commit=True): the Celery task recomputing the
+        group's configs must be enqueued only after the transaction that
+        changed the group's context has committed, otherwise a worker
+        picking up the task can read the DB before the commit and wrongly
+        conclude the context did not change.
+        """
+        device_group = self._create_device_group(context={"interface_type": "eth0"})
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".bulk_invalidate_config_get_cached_checksum.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                device_group.context = {"interface_type": "eth1"}
+                device_group.full_clean()
+                device_group.save()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                {"device__group_id": str(device_group.id)}
+            )
+
+    def test_organization_context_change_defers_checksum_invalidation_to_commit(self):
+        """
+        Same as the DeviceGroup regression test above, but for the
+        OrganizationConfigSettings CacheDependency.
+        """
+        org_settings = OrganizationConfigSettings.objects.create(
+            organization=self._get_org(), context={"interface_type": "eth0"}
+        )
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".bulk_invalidate_config_get_cached_checksum.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                org_settings.context = {"interface_type": "eth1"}
+                org_settings.full_clean()
+                org_settings.save()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                {"device__organization_id": str(org_settings.organization_id)}
+            )
+
 
 class TestTransactionConfig(
     CreateConfigTemplateMixin,

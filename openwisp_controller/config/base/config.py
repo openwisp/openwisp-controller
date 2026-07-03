@@ -275,7 +275,6 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 source="config.DeviceGroup",
                 signal="post_save",
                 track_fields=["context"],
-                on_commit=False,
                 target=cls._invalidate_configs_in_group,
             ),
             # Organization-level configuration variables feed into
@@ -284,7 +283,6 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 source="config.OrganizationConfigSettings",
                 signal="post_save",
                 track_fields=["context"],
-                on_commit=False,
                 target=cls._invalidate_configs_in_org,
             ),
             # When a template is deleted, Django removes through-table

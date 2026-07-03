@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 from copy import deepcopy
+from types import SimpleNamespace
 
 from cache_memoize import cache_memoize
 from django.core.exceptions import FieldDoesNotExist, ValidationError
@@ -33,6 +34,20 @@ _MODEL_SIGNALS = {
 def _default_resolve(instance, **kwargs):
     """Default resolver: act on the instance that emitted the signal."""
     return [instance]
+
+
+def _resolve_pk_snapshot(instance, **kwargs):
+    """
+    Resolver for delete-triggered dependencies deferred via ``on_commit``.
+
+    Django's ``Collector.delete()`` sets ``instance.pk`` to ``None`` on every
+    deleted instance immediately after ``pre_delete``/``post_delete`` signals
+    fire, well before an ``on_commit`` callback actually runs. Returning
+    ``[instance]`` here would hand the deferred callback a ``None`` pk. This
+    returns a disposable object exposing only the pk value, captured now
+    while it's still valid.
+    """
+    return [SimpleNamespace(pk=instance.pk)]
 
 
 def get_cached_args_rewrite(instance):

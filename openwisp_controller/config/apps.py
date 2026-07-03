@@ -66,7 +66,7 @@ class ConfigConfig(AppConfig):
         replaces the cache-invalidation ``signal.connect()`` calls that were
         previously scattered across the codebase.
         """
-        from .base.base import CacheDependency
+        from .base.base import CacheDependency, _resolve_pk_snapshot
         from .controller.views import DeviceChecksumView
         from .handlers import (
             devicegroup_delete_handler,
@@ -88,10 +88,15 @@ class ConfigConfig(AppConfig):
                 on_commit=False,
                 target=DeviceChecksumView.invalidate_get_device_cache,
             ),
+            # Deferred to commit so a concurrent request cannot repopulate the
+            # cache with a device that is about to be (or was just) deleted.
+            # ``post_delete`` + ``_resolve_pk_snapshot`` because Django clears
+            # ``instance.pk`` on deleted instances before the deferred
+            # on_commit callback runs (see ``_resolve_pk_snapshot``).
             CacheDependency(
                 source=self.device_model,
-                signal="pre_delete",
-                on_commit=False,
+                signal="post_delete",
+                resolve=_resolve_pk_snapshot,
                 target=DeviceChecksumView.invalidate_get_device_cache,
             ),
             CacheDependency(
