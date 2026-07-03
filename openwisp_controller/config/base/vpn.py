@@ -15,6 +15,7 @@ from django.db import models, transaction
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from django_x509.signals import x509_renewed
 from swapper import get_model_name
 
 from openwisp_utils.base import KeyField
@@ -383,22 +384,20 @@ class AbstractVpn(
                 on_commit=False,
                 target=cls._invalidate_vpn_view_cache,
             ),
-            # When the server CA content changes (e.g. via renew()), the VPN's
-            # generated configuration changes; invalidate the VPN checksum and
-            # cascade to client configs.
+            # When the server CA is renewed, the VPN's generated configuration
+            # changes; invalidate the VPN checksum and cascade to client configs.
             CacheDependency(
-                source="django_x509.Ca",
-                signal="post_save",
-                track_fields=["certificate", "private_key"],
+                source="pki.Ca",
+                signal_obj=x509_renewed,
+                name="x509_renewed",
                 resolve=cls._resolve_ca_dependency,
                 target="handle_related_change",
             ),
-            # When the server certificate content changes (e.g. via renew()),
-            # same cascade as above.
+            # When the server certificate is renewed, same cascade as above.
             CacheDependency(
-                source="django_x509.Cert",
-                signal="post_save",
-                track_fields=["certificate", "private_key"],
+                source="pki.Cert",
+                signal_obj=x509_renewed,
+                name="x509_renewed",
                 resolve=cls._resolve_server_cert_dependency,
                 target="handle_related_change",
             ),

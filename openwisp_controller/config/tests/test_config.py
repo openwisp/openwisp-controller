@@ -1202,9 +1202,7 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         ) as db_spy:
             dependency._snapshot_handler(Device, device)
 
-        initial_spy.assert_called_once_with(
-            device, fields=["name", "organization_id"]
-        )
+        initial_spy.assert_called_once_with(device, fields=["name", "organization_id"])
         db_spy.assert_not_called()
         snapshot = device._cache_dependency_snapshots[dependency._uid]
         self.assertEqual(snapshot["name"], old_name)
