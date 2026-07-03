@@ -481,6 +481,113 @@ Get Command Details
 
     GET /api/v1/controller/device/{device_id}/command/{command_id}/
 
+.. _controller_batch_command_api:
+
+Dry-Run Batch Command
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/execute/
+
+Returns the list of devices that would be targeted without executing
+anything. Useful for previewing which devices are affected.
+
+**Query Parameters:**
+
+================ =================================================
+Parameter        Description
+================ =================================================
+``organization`` Organization UUID (optional)
+``type``         Command type (optional for dry-run)
+``input``        Input data for the command (optional for dry-run)
+``devices``      Comma-separated device UUIDs (optional)
+``group``        Device group UUID (optional)
+``location``     Location UUID (optional)
+``execute_all``  Set to ``true`` to target all devices (optional)
+================ =================================================
+
+Execute a Batch Command
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    POST /api/v1/controller/batch-command/execute/
+
+Creates and executes a batch command on the targeted devices.
+
+**Request Parameters:**
+
+================ ================================================
+Parameter        Description
+================ ================================================
+``organization`` Organization UUID (optional for superusers)
+``type``         Type of command to execute (**required**)
+``input``        Input data for the command (**required**)
+``label``        A short label to identify this batch command
+                 (**required**)
+``notes``        Optional notes (optional)
+``devices``      List of device UUIDs (optional)
+``group``        Device group UUID (optional)
+``location``     Location UUID (optional)
+``execute_all``  Set to ``true`` to target all devices (optional)
+================ ================================================
+
+**Available Command Types:**
+
+See :ref:`controller_execute_command_api` for available command types and
+input formats.
+
+**Example payload:**
+
+.. code-block:: json
+
+    {
+        "organization": "org-uuid",
+        "type": "custom",
+        "input": {"command": "uptime"},
+        "label": "Check uptime",
+        "execute_all": true
+    }
+
+**Example request:**
+
+.. code-block:: shell
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/batch-command/execute/ \
+        -H 'authorization: Bearer yoursecretauthtoken' \
+        -H 'content-type: application/json' \
+        -d '{
+                "organization": "org-uuid",
+                "type": "custom",
+                "input": {"command": "uptime"},
+                "label": "Check uptime",
+                "execute_all": true
+            }'
+
+**Response:** ``201 Created`` with the batch command UUID.
+
+List Batch Commands
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/
+
+Returns a paginated list of batch commands with device count and skipped
+device information.
+
+Get Batch Command Detail
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/{id}/
+
+Returns detailed information about a batch command, including the list of
+targeted devices.
+
 List Device Groups
 ~~~~~~~~~~~~~~~~~~
 
