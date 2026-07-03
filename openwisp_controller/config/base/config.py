@@ -218,7 +218,33 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
 
     @classmethod
     def _resolve_template_dependency(cls, template, **kwargs):
-        """Return configs that use ``template`` (captured before cascade delete)."""
+        """
+        Return configs that use ``template`` (captured before cascade delete).
+
+        Skipped when the delete originates from an Organization (e.g.
+        ``org.delete()``): a config using one of that organization's own
+        templates is necessarily in the same organization and will be
+        cascade-deleted in the same transaction, so there is nothing left
+        to invalidate.
+
+        Note this check only excludes an Organization origin, it does not
+        require the origin to be the Template itself. Template also cascades
+        from ``Vpn`` (``vpn`` FK, ``on_delete=CASCADE``): deleting a VPN
+        removes its VPN-type templates with ``origin`` set to the ``Vpn``
+        instance, not ``Template``. ``Config.templates`` is a many-to-many
+        field, so the configs using those templates are *not* deleted by
+        that cascade and still need their checksum recomputed. Narrowing
+        this to "only run when origin is Template" would silently skip that
+        case and leave those configs with a stale cached checksum.
+        """
+        origin = kwargs.get("origin")
+        if origin is not None:
+            Organization = load_model("openwisp_users", "Organization")
+            origin_model = (
+                origin.model if isinstance(origin, models.QuerySet) else type(origin)
+            )
+            if issubclass(origin_model, Organization):
+                return []
         return list(cls.objects.filter(templates=template))
 
     @classmethod

@@ -1100,6 +1100,58 @@ class TestTransactionConfig(
         self.assertEqual(config.checksum_db, config.checksum)
         self.assertEqual(config.status, "modified")
 
+    def test_bulk_deleting_templates_invalidates_config_checksum(self):
+        template1 = self._create_template(
+            name="test-template1",
+            config={"interfaces": [{"name": "eth0", "type": "ethernet"}]},
+        )
+        template2 = self._create_template(
+            name="test-template2",
+            config={"interfaces": [{"name": "eth1", "type": "ethernet"}]},
+        )
+        config1 = self._create_config(device=self._create_device(name="device1"))
+        config1.templates.add(template1)
+        config2 = self._create_config(
+            device=self._create_device(name="device2", mac_address="00:11:22:33:44:66")
+        )
+        config2.templates.add(template2)
+        for config in (config1, config2):
+            config.set_status_applied()
+        config1.refresh_from_db()
+        config2.refresh_from_db()
+        old_checksum_db1 = config1.checksum_db
+        old_checksum_db2 = config2.checksum_db
+        self.assertEqual(config1.status, "applied")
+        self.assertEqual(config2.status, "applied")
+        # bulk delete via a queryset, not per-instance .delete() calls
+        Template.objects.filter(pk__in=[template1.pk, template2.pk]).delete()
+        config1 = Config.objects.get(pk=config1.pk)
+        config2 = Config.objects.get(pk=config2.pk)
+        self.assertNotEqual(config1.checksum_db, old_checksum_db1)
+        self.assertEqual(config1.checksum_db, config1.checksum)
+        self.assertEqual(config1.status, "modified")
+        self.assertNotEqual(config2.checksum_db, old_checksum_db2)
+        self.assertEqual(config2.checksum_db, config2.checksum)
+        self.assertEqual(config2.status, "modified")
+
+    def test_deleting_vpn_invalidates_config_checksum(self):
+        device, vpn, _ = self._create_wireguard_vpn_template()
+        config = device.config
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        # deleting the VPN cascades to delete its VPN-type template
+        # (Template.vpn is on_delete=CASCADE); the config using that
+        # template is not deleted (Config.templates is a many-to-many
+        # field), so its checksum must still be recomputed.
+        vpn.delete()
+        self.assertEqual(Template.objects.count(), 0)
+        config = Config.objects.get(pk=config.pk)
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
 
 class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestCase):
     """
