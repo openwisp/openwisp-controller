@@ -387,7 +387,7 @@ class AbstractVpn(
             # When the server CA is renewed, the VPN's generated configuration
             # changes; invalidate the VPN checksum and cascade to client configs.
             CacheDependency(
-                source="pki.Ca",
+                source="django_x509.Ca",
                 signal_obj=x509_renewed,
                 name="x509_renewed",
                 resolve=cls._resolve_ca_dependency,
