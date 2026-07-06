@@ -18,6 +18,7 @@ from openwisp_utils.admin import ReadOnlyAdmin, TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
+from .filters import GroupFilter, LocationFilter
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
@@ -222,7 +223,6 @@ DeviceAdmin.add_reversion_following(follow=["deviceconnection_set"])
 
 
 class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
-    ordering = ("-created",)
     list_display = [
         "label",
         "organization_display",
@@ -231,10 +231,23 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         "affected_devices",
         "created",
     ]
-    list_display_links = ["label"]
-    list_filter = [MultitenantOrgFilter, "status", "type"]
+    ordering = ("-created",)
+    list_filter = [
+        MultitenantOrgFilter,
+        "status",
+        "type",
+        GroupFilter,
+        LocationFilter,
+    ]
     list_select_related = ("organization",)
-    search_fields = ["label"]
+    search_fields = [
+        "label",
+        "notes",
+        "organization__name",
+        "devices__name",
+        "location__name",
+        "group__name",
+    ]
     change_form_template = (
         "admin/connection/batch_command/batch_command_change_form.html"
     )
@@ -244,13 +257,25 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         "organization_display",
         "label",
         "notes",
-        "affected_devices",
         "colored_status",
         "type",
         "formatted_input",
+        "affected_devices",
         "group",
         "location",
         "display_skipped_devices",
+        "created",
+        "modified",
+    ]
+    readonly_fields = [
+        "organization_display",
+        "colored_status",
+        "type",
+        "formatted_input",
+        "affected_devices",
+        "display_skipped_devices",
+        "group",
+        "location",
         "created",
         "modified",
     ]
@@ -263,13 +288,18 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 "connection/css/batch-command.css",
             ]
         }
-        js = [
-            "admin/js/ow-filter.js",
-            "connection/js/batch-command.js",
-        ]
 
     def get_readonly_fields(self, request, obj=None):
-        return self.fields or []
+        fields = super().get_readonly_fields(request, obj)
+        return fields + list(self.__class__.readonly_fields)
+
+    def _get_commands(self, request, obj):
+        qs = Command.objects.filter(batch_command=obj).select_related("device")
+        if not request.user.is_superuser:
+            qs = qs.filter(
+                device__organization_id__in=request.user.organizations_managed
+            )
+        return qs
 
     def organization_display(self, obj):
         if obj.organization:
@@ -305,10 +335,12 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         if not obj.skipped_devices:
             return "-"
         Device = swapper.load_model("config", "Device")
-        count = len(obj.skipped_devices)
+        pks = list(obj.skipped_devices.keys())
+        devices = {str(d.pk): d for d in Device.objects.filter(pk__in=pks)}
+        count = len(pks)
         lines = [str(count)]
         for pk_str, errors in obj.skipped_devices.items():
-            device = Device.objects.filter(pk=pk_str).first()
+            device = devices.get(pk_str)
             name = device.name if device else _("Deleted ({})").format(pk_str)
             lines.append(format_html("{}: {}", name, ", ".join(errors)))
         return format_html(
@@ -318,7 +350,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     display_skipped_devices.short_description = _("Skipped devices")
 
-    def _build_filter_specs(self, request, current_status):
+    def _build_filter_specs(self, request, obj, current_status):
         filter_specs = []
         params = request.GET.copy()
 
@@ -365,9 +397,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         obj = self.get_object(request, object_id)
         if obj:
             Device = swapper.load_model("config", "Device")
-            commands_qs = Command.objects.filter(batch_command=obj).select_related(
-                "device"
-            )
+            commands_qs = self._get_commands(request, obj)
             search_query = request.GET.get("q", "")
             if search_query:
                 commands_qs = commands_qs.filter(device__name__icontains=search_query)
@@ -388,8 +418,10 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                     }
                 )
             if obj.skipped_devices and current_status in ("", "skipped"):
+                pks = list(obj.skipped_devices.keys())
+                devices = {str(d.pk): d for d in Device.objects.filter(pk__in=pks)}
                 for pk_str, errors in obj.skipped_devices.items():
-                    device = Device.objects.filter(pk=pk_str).first()
+                    device = devices.get(pk_str)
                     name = device.name if device else _("Deleted ({})").format(pk_str)
                     if search_query and search_query.lower() not in name.lower():
                         continue
@@ -410,7 +442,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 return (priority.get(row["status"], 99), row["device_name"].lower())
 
             rows.sort(key=_sort_key)
-            filter_specs = self._build_filter_specs(request, current_status)
+            filter_specs = self._build_filter_specs(request, obj, current_status)
             page_obj, paginator, commands = self._paginate_commands(
                 rows, request.GET.get("page", 1)
             )
