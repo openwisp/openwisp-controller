@@ -242,10 +242,6 @@ li.commands:not(.recent) {
 .command-status.in-progress {
   color: var(--body-quiet-color);
 }
-.command-status.skipped {
-  color: var(--body-quiet-color);
-  opacity: 0.7;
-}
 .command-status {
   font-weight: bold;
 }
