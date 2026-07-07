@@ -283,7 +283,7 @@ def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
                 message=message,
                 level="info",
             )
-        except (ImportError, Exception) as e:
+        except Exception as e:
             logger.warning(
                 f"Could not push regeneration notification for {device.name}: {e}"
             )
