@@ -20,7 +20,11 @@ from .. import settings as app_settings
 from ..exceptions import ZeroTierIdentityGenerationError
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
-from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
+from ..tasks import (
+    create_vpn_dh,
+    invalidate_vpn_server_devices_cache_change,
+    trigger_vpn_server_endpoint,
+)
 from .utils import (
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
@@ -1577,7 +1581,6 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
         device, vpn, template = self._create_zerotier_vpn_template()
         config = device.config
         pk = vpn.pk.hex
-
         # Set up a device config that references the VPN name context variable
         # so the checksum depends on Vpn.name
         config.config = {
@@ -1590,18 +1593,19 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
             ]
         }
         config.save()
-
         old_checksum_db = config.checksum_db
+        with mock.patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_vpn_server_devices_cache_change.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                vpn.name = "updated-zerotier-vpn"
+                vpn.save()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(vpn.id)
 
-        vpn.name = "updated-zerotier-vpn"
-        vpn.save()
-
-        # transaction.on_commit does not execute callbacks in TestCase,
-        # so trigger the invalidation chain manually
-        from ..tasks import invalidate_vpn_server_devices_cache_change
-
+        # Trigger the actual cache invalidation to verify checksum changes
         invalidate_vpn_server_devices_cache_change(vpn.pk)
-
         config.refresh_from_db()
         # Invalidate cached backend_instance so checksum recomputes fresh
         config._invalidate_backend_instance_cache()
