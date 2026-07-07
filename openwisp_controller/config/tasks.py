@@ -241,12 +241,7 @@ def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
     certs_regenerated = 0
 
     with transaction.atomic():
-        qs = DeviceCertificate.objects.select_for_update().filter(
-            config__device=device,
-            auto_cert=True,
-            cert__revoked=False,
-            template__type="cert",
-        )
+        qs = DeviceCertificate.active_auto_certs_for(device).select_for_update()
         if expected_cert_ids:
             valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
             qs = qs.filter(cert_id__in=valid_cert_ids)

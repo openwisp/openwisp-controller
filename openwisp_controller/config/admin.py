@@ -965,9 +965,11 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         return ctx
 
     def _add_certificate_details(self, ctx, config):
-        qs = DeviceCertificate.objects.filter(config=config).select_related(
-            "cert__ca", "template"
-        )[:51]
+        qs = (
+            DeviceCertificate.objects.filter(config=config)
+            .select_related("cert__ca", "template")
+            .order_by("created")[:51]
+        )
         cert_data = []
         for dc in qs:
             if dc.cert:

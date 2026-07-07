@@ -46,11 +46,6 @@ django.jQuery(function ($) {
       }
       if (val === "vpn" || val === "cert") {
         auto_cert_field.show();
-      } else {
-        auto_cert_field.hide();
-      }
-      if (val === "vpn" || val === "cert") {
-        auto_cert_field.show();
 
         if (val === "vpn") {
           auto_cert_label.text(gettext("Automatic tunnel provisioning"));

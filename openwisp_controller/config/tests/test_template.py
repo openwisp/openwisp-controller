@@ -1534,6 +1534,23 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         stale._state.adding = False
         stale.clean()
 
+    def test_validate_cert_template_changes_type_mutation(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.type = "generic"
+        with self.assertRaises(ValidationError) as ctx:
+            template.clean()
+        self.assertIn("type", ctx.exception.error_dict)
+
     def test_certificate_template_context_injection(self):
         """
         Verify that Certificate Templates automatically inject their

@@ -98,12 +98,9 @@ def detect_hardware_drift(sender, instance, created, **kwargs):
     if name_changed or mac_changed:
         DeviceCertificate = load_model("config", "DeviceCertificate")
         expected_cert_ids = list(
-            DeviceCertificate.objects.filter(
-                config__device=instance,
-                auto_cert=True,
-                cert__revoked=False,
-                template__type="cert",
-            ).values_list("id", "cert_id")
+            DeviceCertificate.active_auto_certs_for(instance).values_list(
+                "id", "cert_id"
+            )
         )
         if expected_cert_ids:
             transaction.on_commit(

@@ -164,6 +164,15 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         return cert
 
     @classmethod
+    def active_auto_certs_for(cls, device):
+        return cls.objects.filter(
+            config__device=device,
+            auto_cert=True,
+            cert__revoked=False,
+            template__type="cert",
+        )
+
+    @classmethod
     def post_delete(cls, instance, **kwargs):
         """
         Receiver of ``post_delete`` signal.
