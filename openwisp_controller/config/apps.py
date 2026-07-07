@@ -134,18 +134,18 @@ class ConfigConfig(AppConfig):
                 on_commit=False,
                 target=invalidate_devicegroup_cache_change_handler,
             ),
-            # We cannot use on_commit for DeviceGroup.post_delete because
-            # the delete operation will cascade the rows related to DeviceGroup
-            # and we won't be able to query the related objects required for invalidation.
+            # `on_commit` cannot be used here because by the time the transaction
+            # commits, the cascading delete has already removed the related rows
+            # needed to determine which cache entries to invalidate.
             CacheDependency(
                 source=self.devicegroup_model,
                 signal="post_delete",
                 on_commit=False,
                 target=devicegroup_delete_handler,
             ),
-            # We cannot use on_commit for Cert.post_delete because the delete operation
-            # will cascade the rows related to Cert and we won't be able to query the
-            # related objects required for invalidation.
+            # `on_commit` cannot be used here because by the time the transaction
+            # commits, the cascading delete has already removed the related rows
+            # needed to determine which cache entries to invalidate.
             CacheDependency(
                 source=self.cert_model,
                 signal="post_delete",
