@@ -1289,16 +1289,16 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
 
         with patch.object(
             dependency,
-            "_snapshot_track_fields_from_initial_values",
-            wraps=dependency._snapshot_track_fields_from_initial_values,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
         ) as initial_spy, patch.object(
             dependency,
-            "_snapshot_track_fields_from_db",
-            wraps=dependency._snapshot_track_fields_from_db,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
         ) as db_spy:
             dependency._snapshot_handler(Device, device)
 
-        initial_spy.assert_called_once_with(device, fields=["name", "organization_id"])
+        initial_spy.assert_called_once_with(device)
         db_spy.assert_not_called()
         snapshot = device._cache_dependency_snapshots[dependency._uid]
         self.assertEqual(snapshot["name"], old_name)
@@ -1316,17 +1316,17 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
 
         with patch.object(
             dependency,
-            "_snapshot_track_fields_from_initial_values",
-            wraps=dependency._snapshot_track_fields_from_initial_values,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
         ) as initial_spy, patch.object(
             dependency,
-            "_snapshot_track_fields_from_db",
-            wraps=dependency._snapshot_track_fields_from_db,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
         ) as db_spy:
             dependency._snapshot_handler(DeviceGroup, group)
 
-        initial_spy.assert_called_once_with(group, fields=["context"])
-        db_spy.assert_called_once()
+        initial_spy.assert_called_once_with(group)
+        db_spy.assert_called_once_with(DeviceGroup, group)
         snapshot = group._cache_dependency_snapshots[dependency._uid]
         self.assertEqual(snapshot["context"], {"a": "1"})
 
@@ -1345,18 +1345,16 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
 
         with patch.object(
             dependency,
-            "_snapshot_track_fields_from_initial_values",
-            wraps=dependency._snapshot_track_fields_from_initial_values,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
         ) as initial_spy, patch.object(
             dependency,
-            "_snapshot_track_fields_from_db",
-            wraps=dependency._snapshot_track_fields_from_db,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
         ) as db_spy:
             dependency._snapshot_handler(Device, deferred_device)
 
-        initial_spy.assert_called_once_with(
-            deferred_device, fields=["name", "organization_id"]
-        )
+        initial_spy.assert_called_once_with(deferred_device)
         db_spy.assert_not_called()
         snapshot = deferred_device._cache_dependency_snapshots[dependency._uid]
         self.assertEqual(snapshot["name"], models.DEFERRED)
@@ -1374,12 +1372,12 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
 
         with patch.object(
             dependency,
-            "_snapshot_track_fields_from_initial_values",
-            wraps=dependency._snapshot_track_fields_from_initial_values,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
         ) as initial_spy, patch.object(
             dependency,
-            "_snapshot_track_fields_from_db",
-            wraps=dependency._snapshot_track_fields_from_db,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
         ) as db_spy:
             dependency._snapshot_handler(
                 Device, device, update_fields={"management_ip", "last_ip"}

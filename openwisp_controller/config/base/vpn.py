@@ -319,11 +319,14 @@ class AbstractVpn(
             "private_key",
             "network_id",
         ]
-        current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
+        current = self._meta.model.objects.only("name", *attrs).get(pk=self.pk)
         for attr in attrs:
             if getattr(self, attr) != getattr(current, attr):
                 self._send_vpn_modified_after_save = True
                 break
+        if not self._send_vpn_modified_after_save and self._is_backend_type("zerotier"):
+            if self.name != current.name:
+                self._send_vpn_modified_after_save = True
 
     def _send_vpn_modified_signal(self):
         vpn_server_modified.send(sender=self.__class__, instance=self)
@@ -368,7 +371,6 @@ class AbstractVpn(
                 source="config.Vpn",
                 signal="post_save",
                 on_create=True,
-                on_commit=False,
                 target=cls._invalidate_vpn_view_cache,
             ),
             # Deferred to commit so a concurrent request cannot repopulate the
@@ -387,7 +389,6 @@ class AbstractVpn(
             CacheDependency(
                 signal_obj=vpn_server_modified,
                 name="vpn_server_modified",
-                on_commit=False,
                 target=cls._invalidate_vpn_view_cache,
             ),
             # When the server CA is renewed, the VPN's generated configuration

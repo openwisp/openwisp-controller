@@ -1535,6 +1535,80 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
                 context_manager.exception.message_dict, expected_error_dict
             )
 
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_name_change_sends_signal(
+        self, mock_requests, mock_subprocess
+    ):
+        mock_requests.get.side_effect = [
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+        ]
+        self._set_subprocess_mock(mock_subprocess)
+        device, vpn, template = self._create_zerotier_vpn_template()
+
+        with catch_signal(vpn_server_modified) as handler:
+            vpn.name = "updated-zerotier-vpn"
+            vpn.save()
+
+        handler.assert_called_once()
+        self.assertEqual(handler.call_args[1]["instance"].pk, vpn.pk)
+
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_name_change_updates_client_checksum(
+        self, mock_requests, mock_subprocess
+    ):
+        mock_requests.get.side_effect = [
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+        ]
+        self._set_subprocess_mock(mock_subprocess)
+        device, vpn, template = self._create_zerotier_vpn_template()
+        config = device.config
+        pk = vpn.pk.hex
+
+        # Set up a device config that references the VPN name context variable
+        # so the checksum depends on Vpn.name
+        config.config = {
+            "files": [
+                {
+                    "path": "/tmp/test",
+                    "mode": "0644",
+                    "contents": "{{ network_name_" + pk + " }}",
+                }
+            ]
+        }
+        config.save()
+
+        old_checksum_db = config.checksum_db
+
+        vpn.name = "updated-zerotier-vpn"
+        vpn.save()
+
+        # transaction.on_commit does not execute callbacks in TestCase,
+        # so trigger the invalidation chain manually
+        from ..tasks import invalidate_vpn_server_devices_cache_change
+
+        invalidate_vpn_server_devices_cache_change(vpn.pk)
+
+        config.refresh_from_db()
+        # Invalidate cached backend_instance so checksum recomputes fresh
+        config._invalidate_backend_instance_cache()
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
 
 class TestZeroTierTransaction(
     BaseTestVpn, TestZeroTierVpnMixin, TestWireguardVpnMixin, TransactionTestCase

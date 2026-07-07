@@ -85,7 +85,6 @@ class ConfigConfig(AppConfig):
                 source=self.device_model,
                 signal="post_save",
                 on_create=True,
-                on_commit=False,
                 target=DeviceChecksumView.invalidate_get_device_cache,
             ),
             # Deferred to commit so a concurrent request cannot repopulate the
@@ -102,7 +101,6 @@ class ConfigConfig(AppConfig):
             CacheDependency(
                 signal_obj=config_deactivated,
                 name="config_deactivated",
-                on_commit=False,
                 target=(
                     DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated
                 ),
@@ -136,12 +134,18 @@ class ConfigConfig(AppConfig):
                 on_commit=False,
                 target=invalidate_devicegroup_cache_change_handler,
             ),
+            # We cannot use on_commit for DeviceGroup.post_delete because
+            # the delete operation will cascade the rows related to DeviceGroup
+            # and we won't be able to query the related objects required for invalidation.
             CacheDependency(
                 source=self.devicegroup_model,
                 signal="post_delete",
                 on_commit=False,
                 target=devicegroup_delete_handler,
             ),
+            # We cannot use on_commit for Cert.post_delete because the delete operation
+            # will cascade the rows related to Cert and we won't be able to query the
+            # related objects required for invalidation.
             CacheDependency(
                 source=self.cert_model,
                 signal="post_delete",
