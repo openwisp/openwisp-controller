@@ -450,7 +450,7 @@ class TestTransactionTasks(
         batch.refresh_from_db()
         self.assertEqual(batch.batch_commands.count(), 0)
         self.assertIn(str(device.pk), batch.skipped_devices)
-        self.assertEqual(batch.status, "idle")
+        self.assertEqual(batch.status, "failed")
         mocked_delay.assert_not_called()
 
     @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")

@@ -133,7 +133,7 @@ class BatchCommandExecuteSerializer(
         allow_empty=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
-    execute_all = serializers.BooleanField(required=False, default=True)
+    execute_all = serializers.BooleanField(required=False, default=False)
 
     def __init__(self, *args, dry_run=False, **kwargs):
         super().__init__(*args, **kwargs)

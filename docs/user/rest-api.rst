@@ -495,17 +495,18 @@ anything. Useful for previewing which devices are affected.
 
 **Query Parameters:**
 
-================ =================================================
+================ ========================================================
 Parameter        Description
-================ =================================================
+================ ========================================================
 ``organization`` Organization UUID (optional)
 ``type``         Command type (optional for dry-run)
 ``input``        Input data for the command (optional for dry-run)
-``devices``      Comma-separated device UUIDs (optional)
+``devices``      Repeated ``devices`` query parameter, each a device UUID
+                 (optional)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
 ``execute_all``  Set to ``true`` to target all devices (optional)
-================ =================================================
+================ ========================================================
 
 Execute a Batch Command
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -518,12 +519,13 @@ Creates and executes a batch command on the targeted devices.
 
 **Request Parameters:**
 
-================ ================================================
+================ ========================================================
 Parameter        Description
-================ ================================================
+================ ========================================================
 ``organization`` Organization UUID (optional for superusers)
 ``type``         Type of command to execute (**required**)
-``input``        Input data for the command (**required**)
+``input``        Input data for the command (**conditionally required** —
+                 depends on command type)
 ``label``        A short label to identify this batch command
                  (**required**)
 ``notes``        Optional notes (optional)
@@ -531,7 +533,7 @@ Parameter        Description
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
 ``execute_all``  Set to ``true`` to target all devices (optional)
-================ ================================================
+================ ========================================================
 
 **Available Command Types:**
 

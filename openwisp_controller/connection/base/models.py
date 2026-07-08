@@ -950,10 +950,13 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         if self.batch_commands.exists():
             return
         Command = load_model("connection", "Command")
+        Device = load_model("config", "Device")
         self.skipped_devices = {}
         self.status = "in-progress"
         self.save()
+        device_pks = []
         for device in self.resolve_devices():
+            device_pks.append(device.pk)
             command = Command(
                 device=device,
                 type=self.type,
@@ -976,6 +979,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                     self.pk,
                     e,
                 )
+        if not self.devices.exists() and device_pks:
+            self.devices.set(Device.objects.filter(pk__in=device_pks))
         if self.skipped_devices:
             self.save(update_fields=["skipped_devices"])
         self.calculate_and_update_status()
@@ -1018,7 +1023,10 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             ),
         )
         if stats["total_operations"] == 0:
-            new_status = "idle"
+            if self.skipped_devices:
+                new_status = "failed"
+            else:
+                new_status = "idle"
         elif stats["in_progress"] > 0:
             new_status = "in-progress"
         elif stats["failed"] > 0:
