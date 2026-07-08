@@ -1440,6 +1440,39 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
                 expected_error_dict, context_manager.exception.message_dict
             )
 
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_network_name_independent_of_vpn_name(self, mock_requests):
+        mock_requests.get.side_effect = [
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [self._get_mock_response(200)]
+        template = self._create_template(
+            name="test-zerotier-template",
+            type="vpn",
+            vpn=self._create_zerotier_vpn(name="original-name"),
+            organization=self._get_org(),
+        )
+        pk = template.vpn.pk.hex
+        network_name_key = f"network_name_{pk}"
+        original_context = template.get_context()
+        original_network_name = original_context[network_name_key]
+        self.assertEqual(
+            original_network_name,
+            template.vpn.config.get("zerotier", [{}])[0].get("name"),
+        )
+        vpn = template.vpn
+        vpn.name = "renamed-vpn"
+        mock_requests.reset_mock()
+        mock_requests.get.side_effect = [
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        vpn.full_clean()
+        vpn.save()
+        template.vpn.refresh_from_db()
+        updated_context = template.get_context()
+        self.assertEqual(updated_context[network_name_key], original_network_name)
+        self.assertNotEqual(updated_context[network_name_key], template.vpn.name)
+
     def test_zerotier_change_vpn_backend_with_vpnclient(self):
         vpn = self._create_vpn(name="new", backend=self._BACKENDS["openvpn"])
         subnet = self._create_subnet(
