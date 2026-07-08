@@ -176,6 +176,12 @@ class CacheDependency:
 
     _SNAPSHOT_ATTR = "_cache_dependency_snapshots"
 
+    # Every connected dependency (model-owned or app-level) registers itself
+    # here, keyed by its dispatch_uid, so the whole invalidation graph can be
+    # introspected at runtime (see ``get_registered_dependencies`` and the
+    # ``print_cache_dependencies`` management command).
+    _registry = {}
+
     def __init__(
         self,
         *,
@@ -249,6 +255,7 @@ class CacheDependency:
             dispatch_uid=dispatch_uid,
             weak=False,
         )
+        CacheDependency._registry[dispatch_uid] = self
 
     def disconnect(self):
         """Disconnect this dependency's handlers (useful for test isolation)."""
@@ -259,6 +266,71 @@ class CacheDependency:
                 sender=self.sender, dispatch_uid=f"{self._uid}.snapshot"
             )
         self.signal.disconnect(sender=self.sender, dispatch_uid=self._uid)
+        CacheDependency._registry.pop(self._uid, None)
+
+    @classmethod
+    def get_registered_dependencies(cls):
+        """Returns all connected dependencies, sorted by ``dispatch_uid``."""
+        return [cls._registry[uid] for uid in sorted(cls._registry)]
+
+    def describe(self):
+        """Returns a plain dict describing this dependency for introspection."""
+        sender = self.sender
+        if self.signal_obj is not None:
+            signal = self.name or "custom"
+        else:
+            signal = self.signal_name
+        target = (
+            self.target if isinstance(self.target, str) else self.target.__qualname__
+        )
+        if self.resolve is _default_resolve:
+            resolve = "instance"
+        else:
+            resolve = self.resolve.__name__
+        return {
+            "source": sender._meta.label_lower if sender is not None else "any",
+            "signal": signal,
+            "target": target,
+            "resolve": resolve,
+            "track_fields": self.track_fields,
+            "on_create": self.on_create,
+            "on_commit": self.on_commit,
+            "dispatch_uid": self._uid,
+        }
+
+    @classmethod
+    def render_registered(cls, fmt="text"):
+        """
+        Returns a string describing every connected cache dependency.
+
+        ``fmt`` is either ``"text"`` (human-readable, grouped by source and
+        signal) or ``"json"`` (a machine-readable list of ``describe()`` dicts).
+        """
+        dependencies = cls.get_registered_dependencies()
+        if fmt == "json":
+            return json.dumps([dep.describe() for dep in dependencies], indent=2)
+        if not dependencies:
+            return "No cache dependencies are registered."
+        lines = []
+        last_group = None
+        for dep in dependencies:
+            info = dep.describe()
+            group = (info["source"], info["signal"])
+            if group != last_group:
+                if last_group is not None:
+                    lines.append("")
+                lines.append(f"{info['source']} ({info['signal']})")
+                last_group = group
+            lines.append(f"  target: {info['target']}")
+            details = f"    resolve: {info['resolve']}"
+            if info["track_fields"]:
+                details += f"   track_fields: {', '.join(info['track_fields'])}"
+            details += (
+                f"   on_create: {info['on_create']}   on_commit: {info['on_commit']}"
+            )
+            lines.append(details)
+            lines.append(f"    uid: {info['dispatch_uid']}")
+        return "\n".join(lines)
 
     def _snapshot_handler(self, sender, instance, **kwargs):
         """Store the old values of ``track_fields`` before the instance saves."""

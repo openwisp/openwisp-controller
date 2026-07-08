@@ -1,7 +1,10 @@
+import json
 from copy import deepcopy
+from io import StringIO
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.db import models
 from django.db.transaction import atomic
 from django.test import TestCase
@@ -1387,3 +1390,67 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         db_spy.assert_not_called()
         snapshots = getattr(device, dependency._SNAPSHOT_ATTR, {})
         self.assertNotIn(dependency._uid, snapshots)
+
+    def test_registry_tracks_connect_and_disconnect(self):
+        uid = "test.cache_dependency.registry"
+        dependency = CacheDependency(
+            source="config.DeviceGroup", signal="post_save", target=Mock()
+        )
+        self.assertNotIn(uid, CacheDependency._registry)
+        dependency.connect(dispatch_uid=uid)
+        self.assertIs(CacheDependency._registry[uid], dependency)
+        dependency.disconnect()
+        self.assertNotIn(uid, CacheDependency._registry)
+
+    def test_registry_includes_core_dependencies(self):
+        # the app-level and model-owned dependencies are wired at app startup
+        targets = {
+            dep.describe()["target"]
+            for dep in CacheDependency.get_registered_dependencies()
+        }
+        self.assertIn("update_status_if_checksum_changed", targets)
+        self.assertIn("DeviceChecksumView.invalidate_get_device_cache", targets)
+        self.assertIn("AbstractVpn._invalidate_vpn_view_cache", targets)
+
+    def test_describe_reports_dependency_attributes(self):
+        dependency = self._connect(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["os", "organization_id"],
+            resolve=Config._resolve_device_dependency,
+            target="update_status_if_checksum_changed",
+        )
+        info = dependency.describe()
+        self.assertEqual(info["source"], Device._meta.label_lower)
+        self.assertEqual(info["signal"], "post_save")
+        self.assertEqual(info["target"], "update_status_if_checksum_changed")
+        self.assertEqual(info["resolve"], "_resolve_device_dependency")
+        self.assertEqual(info["track_fields"], ["os", "organization_id"])
+        self.assertEqual(info["on_commit"], True)
+        self.assertEqual(info["dispatch_uid"], "test.cache_dependency")
+
+    def test_print_cache_dependencies_text(self):
+        out = StringIO()
+        call_command("print_cache_dependencies", stdout=out)
+        output = out.getvalue()
+        self.assertIn("update_status_if_checksum_changed", output)
+        self.assertIn("on_commit", output)
+        self.assertIn("uid:", output)
+
+    def test_print_cache_dependencies_json(self):
+        out = StringIO()
+        call_command("print_cache_dependencies", format="json", stdout=out)
+        data = json.loads(out.getvalue())
+        self.assertGreater(len(data), 0)
+        expected_keys = {
+            "source",
+            "signal",
+            "target",
+            "resolve",
+            "track_fields",
+            "on_create",
+            "on_commit",
+            "dispatch_uid",
+        }
+        for item in data:
+            self.assertEqual(set(item.keys()), expected_keys)
