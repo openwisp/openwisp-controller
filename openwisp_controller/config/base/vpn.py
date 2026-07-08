@@ -1152,10 +1152,18 @@ class AbstractVpnClient(models.Model):
         Changing a VPN server field (e.g. host, keys, subnet) alters the
         context of every client configuration. Recompute each client's
         checksum so that ``Config.checksum_db`` reflects the new VPN server
-        context, set its status to "modified" and emit ``config_modified``.
+        context, set its status to "modified" and emit ``config_modified``
+        with action ``"related_template_changed"``.
+
+        As with ``Config.update_status_if_checksum_changed()`` elsewhere,
+        ``config_modified`` is only emitted when the checksum actually
+        changed, not unconditionally for every client of the VPN server.
         """
         for client in vpn.vpnclient_set.iterator():
             config = client.config
             # keep the historical signal action for this related change
             config._config_modified_action = "related_template_changed"
-            config.update_status_if_checksum_changed()
+            if not config.update_status_if_checksum_changed():
+                # no change: undo the action set above so it does not
+                # linger on this (otherwise throwaway) config instance
+                config._config_modified_action = "config_changed"

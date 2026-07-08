@@ -560,6 +560,18 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         self.assertEqual(config.checksum_db, config.checksum)
         self.assertEqual(config.status, "modified")
 
+    def test_invalidate_clients_cache_no_checksum_change(self):
+        # config_modified must not be emitted for a client whose checksum
+        # did not actually change (unlike the old, unconditional behavior)
+        device, vpn, _ = self._create_wireguard_vpn_template()
+        config = Config.objects.get(pk=device.config.pk)
+        old_checksum_db = config.checksum_db
+        with catch_signal(config_modified) as mocked_config_modified:
+            VpnClient.invalidate_clients_cache(vpn)
+        mocked_config_modified.assert_not_called()
+        config = Config.objects.get(pk=device.config.pk)
+        self.assertEqual(config.checksum_db, old_checksum_db)
+
     def test_ca_renew_invalidates_vpn_checksum(self):
         vpn = self._create_vpn()
         with catch_signal(vpn_server_modified) as mocked:

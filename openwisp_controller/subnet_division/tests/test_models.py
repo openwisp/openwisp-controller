@@ -363,8 +363,13 @@ class TestSubnetDivisionRule(
         )
         index_count = index_queryset.count()
         subnet_count = subnet_queryset.count()
-        rule.label = new_rule_label
-        rule.save()
+        with patch.object(Config, "bulk_invalidate_get_cached_checksum") as mocked:
+            rule.label = new_rule_label
+            rule.save()
+        # Regression test: renaming a rule's label rewrites the keywords of
+        # its SubnetDivisionIndex entries, which feed Config.get_context();
+        # the affected configs' checksums must be invalidated accordingly.
+        mocked.assert_called_once_with({"id__in": [self.config.id]})
         rule.refresh_from_db()
 
         self.assertEqual(rule.label, new_rule_label)
@@ -405,8 +410,13 @@ class TestSubnetDivisionRule(
         )
 
         new_number_of_ips = rule.number_of_ips + 2
-        rule.number_of_ips = new_number_of_ips
-        rule.save()
+        with patch.object(Config, "bulk_invalidate_get_cached_checksum") as mocked:
+            rule.number_of_ips = new_number_of_ips
+            rule.save()
+        # Regression test: provisioning extra IPs creates new
+        # SubnetDivisionIndex entries, which feed Config.get_context();
+        # the affected configs' checksums must be invalidated accordingly.
+        mocked.assert_called_once_with({"id__in": {self.config.id}})
         rule.refresh_from_db()
 
         self.assertEqual(rule.number_of_ips, new_number_of_ips)

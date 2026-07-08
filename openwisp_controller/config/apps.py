@@ -369,9 +369,9 @@ class ConfigConfig(AppConfig):
         * re-applying group templates when a device's group changes
           (``devicegroup_change_handler``);
         * refreshing the configs of a VPN server's clients when the server
-          changes. ``vpn_server_change_handler`` emits ``config_modified`` for
-          each client, which in turn invalidates that client Config's checksum
-          cache.
+          changes. ``vpn_server_change_handler`` recomputes each client's
+          checksum and emits ``config_modified`` for it, but only when that
+          checksum actually changed.
         """
         from .handlers import devicegroup_change_handler, vpn_server_change_handler
 

@@ -38,6 +38,13 @@ def update_subnet_division_index(rule_id):
         )
         index.save()
 
+    config_ids = (
+        division_rule.subnetdivisionindex_set.filter(config_id__isnull=False)
+        .values_list("config_id", flat=True)
+        .distinct()
+    )
+    Config.bulk_invalidate_get_cached_checksum({"id__in": list(config_ids)})
+
 
 @shared_task
 def update_subnet_name_description(rule_id):
@@ -74,6 +81,8 @@ def provision_extra_ips(rule_id, old_number_of_ips):
     def _create_ipaddress_and_subnetdivision_index_objects(ips, indexes):
         IpAddress.objects.bulk_create(ips)
         SubnetDivisionIndex.objects.bulk_create(indexes)
+        config_ids = {index.config_id for index in indexes}
+        Config.bulk_invalidate_get_cached_checksum({"id__in": config_ids})
 
     generated_ips = []
     generated_indexes = []

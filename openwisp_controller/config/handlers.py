@@ -43,9 +43,12 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
 
 def devicegroup_change_handler(instance, **kwargs):
     """
-    Manages group templates when a device's group changes. Device group
-    cache invalidation is handled declaratively via CacheDependency (see
-    ``Config.register_cache_dependencies``).
+    Manages group templates when a device's group changes.
+
+    Cache invalidation for the device group change is handled separately
+    by ``invalidate_devicegroup_cache_change_handler``, declared as a
+    ``CacheDependency`` target in
+    ``ConfigConfig.connect_cache_dependencies`` (see ``config/apps.py``).
     """
     if type(instance) is list:
         # changes group templates for multiple devices
@@ -63,7 +66,8 @@ def invalidate_devicegroup_cache_change_handler(instance, **kwargs):
     """
     Invalidates the ``DeviceGroupCommonName`` cache when a device's group,
     a device group, or a certificate changes. Used as a ``CacheDependency``
-    target (see ``Config.register_cache_dependencies``).
+    target (see ``ConfigConfig.connect_cache_dependencies`` in
+    ``config/apps.py``).
     """
     if isinstance(instance, list):
         # device_group_changed currently only emits single instances; mirror the
