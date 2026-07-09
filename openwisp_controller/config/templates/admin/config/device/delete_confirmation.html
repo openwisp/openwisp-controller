@@ -1,0 +1,80 @@
+{% extends "admin/delete_confirmation.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'config/css/device-delete-confirmation.css' %}" />
+{% endblock extrastyle %}
+
+{% block content %}
+{% if perms_lacking %}
+    <p>{% blocktranslate with escaped_object=object %}Deleting the {{ object_name }} '{{ escaped_object }}' would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktranslate %}</p>
+    <ul>
+    {% for obj in perms_lacking %}
+        <li>{{ obj }}</li>
+    {% endfor %}
+    </ul>
+{% elif protected %}
+    <p>{% blocktranslate with escaped_object=object %}Deleting the {{ object_name }} '{{ escaped_object }}' would require deleting the following protected related objects:{% endblocktranslate %}</p>
+    <ul>
+    {% for obj in protected %}
+        <li>{{ obj }}</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    {% if deactivating_warning %}
+    <div id="deactivating-warning">
+        <ul class="messagelist">
+            <li class="warning">
+                <p>
+                  <strong>
+                    {% translate 'Warning: Device is not fully deactivated.' %}
+                  </strong>
+                </p>
+                <p>
+                  {% blocktranslate %}
+                  This device is still in the process of being deactivated,
+                  meaning its configuration is still present on the device.
+                  {% endblocktranslate %}
+                </p>
+                <p>
+                  {% blocktranslate %}
+                  To ensure its configuration is removed, please
+                  wait until its status changes to
+                  <strong>"deactivated"</strong>.<br>
+                  If you proceed now, the device will be deleted,
+                  but its configuration will remain active.
+                  {% endblocktranslate %}
+                </p>
+                <span>
+                    <button class="danger-btn" id="warning-ack">{% translate 'I understand the risks, delete the device' %}</button>
+                    <button class="button cancel-link">{% translate 'No, take me back' %}</button>
+                </span>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+    <div id="delete-confirm-container" {% if deactivating_warning %}style="display:none;"{% endif %}>
+        <p>{% blocktranslate with escaped_object=object %}Are you sure you want to delete the {{ object_name }}
+            "{{ escaped_object }}"? All of the following related items will be deleted:{% endblocktranslate %}</p>
+        {% include "admin/includes/object_delete_summary.html" %}
+        <h2>{% translate "Objects" %}</h2>
+        <ul id="deleted-objects">{{ deleted_objects|unordered_list }}</ul>
+        <form method="post">{% csrf_token %}
+            <div>
+                <input type="hidden" name="post" value="yes">
+                {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+                {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+                <input type="submit" value="{% translate 'Yes, I’m sure' %}">
+                {% if deactivating_warning %}<input type="hidden" name="force_delete" value="false">{% endif %}
+                <a href="#" class="button cancel-link">{% translate "No, take me back" %}</a>
+            </div>
+        </form>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script type="text/javascript" src="{% static 'config/js/device-delete-confirmation.js' %}"></script>
+{% endblock %}

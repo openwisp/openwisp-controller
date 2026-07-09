@@ -1,0 +1,399 @@
+:root {
+  --djnjc-preview-success: #adffa6;
+  --djnjc-preview-error: #ff7277;
+  --djnjc-preview-close-bg: #772299;
+  --djnjc-preview-close-hover: #9e47c1;
+  --djnjc-previewlink-bg: #778898;
+  --djnjc-previewlink-hover: #576a7c;
+}
+a.button:focus,
+a.jsoneditor-exit:focus {
+  text-decoration: none;
+}
+.djnjc-preformatted,
+.field-config .vLargeTextField,
+.jsoneditor .vLargeTextField {
+  font-size: 1em;
+  font-family:
+    "Bitstream Vera Sans Mono", "Monaco", "Droid Sans Mono", "DejaVu Sans Mono",
+    "Ubuntu Mono", "Courier New", Courier, monospace;
+  color: var(--ow-color-fg-lightest);
+  overflow: auto;
+  background-color: var(--ow-color-fg-darker);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  padding: 20px;
+  line-height: 25px;
+}
+.jsoneditor .vLargeTextField {
+  color: var(--ow-color-fg-darker);
+  background-color: var(--ow-color-white);
+  padding: 15px;
+}
+.vLargeTextField.jsoneditor-raw {
+  min-width: 100%;
+  min-height: 500px;
+  box-sizing: border-box;
+}
+input.readonly {
+  border: 1px solid var(--ow-overlay-5) !important;
+  background-color: var(--ow-overlay-7);
+}
+.djnjc-overlay {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  width: 100%;
+  height: 100%;
+  background: var(--ow-overlay-90);
+}
+.djnjc-overlay .inner {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 0;
+}
+.djnjc-overlay.loading {
+  display: flex;
+  background: var(--ow-overlay-light-75);
+  align-items: center;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  background-color: var(--ow-overlay-90);
+  margin: 0 auto;
+  border-radius: 100%;
+  -webkit-animation: sk-scaleout 1s infinite ease-in-out;
+  animation: sk-scaleout 1s infinite ease-in-out;
+}
+#loading-overlay,
+#tabs-container {
+  display: none;
+}
+#device_form #loading-overlay {
+  display: flex;
+}
+#device_form #tabs-container {
+  display: block;
+}
+#loading-overlay p {
+  text-align: center;
+  width: 100%;
+  padding: 0 25px;
+}
+
+@-webkit-keyframes sk-scaleout {
+  0% {
+    -webkit-transform: scale(0);
+  }
+  100% {
+    -webkit-transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes sk-scaleout {
+  0% {
+    -webkit-transform: scale(0);
+    transform: scale(0);
+  }
+  100% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+.djnjc-overlay .djnjc-preformatted {
+  margin: 0;
+  padding: 40px 60px 20px;
+  background-color: transparent;
+  color: var(--djnjc-preview-success);
+  line-height: 1.5em;
+}
+.djnjc-preformatted.error {
+  color: var(--djnjc-preview-error);
+}
+.djnjc-overlay .close,
+.djnjc-overlay .close:focus,
+.djnjc-overlay .close:active {
+  position: absolute;
+  right: 3%;
+  top: 1.5%;
+  font-weight: bold;
+  font-size: 15px;
+  background-color: var(--djnjc-preview-close-bg);
+  color: var(--ow-color-white);
+  padding: 5px 8px;
+  border-radius: 5px;
+  text-decoration: none;
+}
+.djnjc-overlay .close:hover {
+  background-color: var(--djnjc-preview-close-hover);
+}
+.errors.field-templates li,
+.errorlist.nonfield li {
+  white-space: pre-line;
+  word-break: break-all;
+}
+.form-row select {
+  background-color: var(--ow-color-white);
+}
+.form-row input[disabled],
+.form-row select[disabled] {
+  background-color: var(--ow-color-fg-light);
+}
+
+/* hide vpn specific fields by default */
+.field-vpn,
+.field-auto_cert {
+  display: none;
+}
+#container .help {
+  margin-top: 3px;
+  font-size: 13px;
+}
+#container .help a,
+#netjsonconfig-hint a,
+#netjsonconfig-hint-advancedmode a {
+  text-decoration: underline;
+  vertical-align: initial;
+}
+#netjsonconfig-hint,
+#netjsonconfig-hint-advancedmode {
+  width: auto;
+}
+#container ul.sortedm2m-items {
+  height: auto;
+  min-height: auto;
+}
+#container .sortedm2m-container {
+  margin-right: 0;
+}
+#container .sortedm2m-container .help {
+  margin-bottom: 20px;
+  color: var(--ow-color-fg-darker);
+  font-weight: bold;
+}
+#main ul.sortedm2m li {
+  padding: 3px 0;
+}
+#main ul.sortedm2m li input {
+  margin-right: 2px;
+}
+.field-templates .add-related {
+  position: relative;
+  bottom: -2px;
+  left: -12px;
+}
+#template_form #id_tags {
+  width: 261px;
+}
+#device_form #id_model,
+#device_form #id_os,
+#device_form #id_system {
+  width: 610px;
+}
+#device_form #id_notes,
+#template_form #id_notes {
+  height: 73px;
+}
+#config-group .field-status .help div {
+  white-space: pre;
+  color: var(--ow-color-fg-dark);
+}
+div.change-form #device_form div.inline-group.tab-content > fieldset.module > h2,
+div.change-form
+  #device_form
+  div.inline-group.tab-content
+  > .tabular
+  > fieldset.module
+  > h2,
+div.change-form #device_form > div > fieldset.module.aligned,
+div.change-form #device_form > div > div.inline-group {
+  display: none;
+}
+.change-form
+  #device_form
+  div.inline-group.tab-content
+  > fieldset.module
+  > div.inline-related
+  > h3 {
+  padding: 1em;
+}
+.change-form
+  #device_form
+  div.inline-group.tab-content
+  > fieldset.module
+  > div.inline-related:nth-of-type(1)
+  > h3 {
+  margin-top: -1em;
+}
+.change-form #device_form div.inline-group.tab-content > .tabular {
+  margin-top: -1em;
+}
+#main .tab-content .inline-related > h3 {
+  background: var(--ow-color-fg-ghost);
+  word-spacing: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  font-weight: normal;
+}
+ul.tabs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0;
+}
+ul.tabs li {
+  display: inline-block;
+  margin-right: 3px;
+}
+ul.tabs a,
+ul.tabs a:hover,
+ul.tabs a:focus {
+  display: inline-block;
+  padding: 12px 14px;
+  color: var(--ow-color-fg-darker);
+  background: var(--ow-overlay-5);
+  border-radius: 3px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  font-size: 15px;
+  word-spacing: -0.1px;
+}
+ul.tabs a:hover,
+ul.tabs a:focus {
+  color: var(--ow-color-black);
+  background: var(--ow-overlay-10);
+}
+ul.tabs a.current,
+ul.tabs a.current:hover,
+ul.tabs a.current:focus {
+  background: var(--ow-color-fg-ghost);
+  color: var(--ow-color-black);
+  border: 1px solid var(--ow-overlay-10);
+  border-bottom: 0 none;
+  border-color: var(--ow-overlay-25);
+  cursor: default;
+  position: relative;
+  z-index: 9;
+  font-weight: bold;
+}
+div.tabs-divider {
+  margin-top: -4px;
+  border-top: 1px solid var(--hairline-color);
+}
+.tab-content {
+  display: none;
+  padding: 1em 0 0em 0em !important;
+}
+.tab-content.current {
+  display: block !important;
+}
+.tabs-loading {
+  text-align: center;
+  padding: 17em 0;
+  font-size: 16px;
+}
+ul.tabs li:first-child .button.current {
+  background-color: var(--body-bg);
+}
+
+/*
+Prevents the overflow of large text in system
+defined variables such as `secret`
+*/
+.form-row.field-system_context div {
+  max-width: 51.25em;
+  word-wrap: break-word;
+}
+.form-row.field-system_context .readonly {
+  padding: 0;
+}
+.form-row.field-system_context pre {
+  margin: 0;
+  padding: 0;
+}
+.form-row.field-system_context p:first-child {
+  margin-top: 0;
+}
+.form-row.field-system_context p:last-child {
+  margin-top: 0;
+}
+.submit-row .previewlink {
+  background: var(--djnjc-previewlink-bg);
+}
+.submit-row .previewlink:hover,
+.submit-row .previewlink:focus {
+  background: var(--djnjc-previewlink-hover);
+}
+#system-context {
+  overflow: hidden;
+}
+#system-context div {
+  margin-bottom: 5px;
+}
+.hide-sc {
+  height: 182px;
+}
+button.system-context {
+  padding: 6px 12px;
+  display: none;
+}
+button.show-sc {
+  display: block;
+  margin-top: 10px;
+}
+.form-row.field-location .related-lookup {
+  text-indent: 0;
+}
+.form-row .related-lookup,
+#main .form-row.field-location .item-label {
+  position: relative;
+  bottom: -6px;
+}
+#main .form-row.field-location .item-label {
+  bottom: -7px;
+}
+#main .field-management_ip .readonly {
+  padding: 7px 0px;
+  display: inline-block;
+}
+#edit_management_ip {
+  margin-left: 7px;
+  opacity: 0.8;
+  cursor: pointer;
+}
+.form-row.field-error_reason .readonly {
+  font-family: monospace;
+  line-height: 1.5em;
+  white-space: pre;
+  max-height: 10em;
+  padding: 0.5em;
+  overflow: auto;
+  background-color: var(--ow-color-primary-light);
+}
+
+@media (max-width: 767px) {
+  ul.tabs li {
+    display: block;
+  }
+  ul.tabs a,
+  ul.tabs a:hover,
+  ul.tabs a:focus {
+    display: block;
+    border-radius: 0;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    border: 1px solid var(--ow-overlay-10) !important;
+    border-radius: 0;
+    text-align: center;
+  }
+  div.tabs-divider {
+    display: none;
+  }
+}

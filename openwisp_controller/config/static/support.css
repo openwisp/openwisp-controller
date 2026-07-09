@@ -1,0 +1,4 @@
+.help.icon {
+  mask-image: url(http://localhost:8000/media/support.png);
+  -webkit-mask-image: url(http://localhost:8000/media/support.png);
+}

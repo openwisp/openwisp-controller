@@ -1,0 +1,315 @@
+import logging
+from ipaddress import ip_network
+from operator import attrgetter
+
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import connection, transaction
+from django.dispatch import Signal
+from django.utils.translation import gettext_lazy as _
+from netaddr import IPNetwork
+from openwisp_notifications.signals import notify
+from swapper import load_model
+
+from ..signals import subnet_provisioned
+
+logger = logging.getLogger(__name__)
+
+Subnet = load_model("openwisp_ipam", "Subnet")
+IpAddress = load_model("openwisp_ipam", "IpAddress")
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
+SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
+VpnClient = load_model("config", "VpnClient")
+
+
+class BaseSubnetDivisionRuleType(object):
+    provision_signal = None
+    provision_sender = None
+    provision_dispatch_uid = None
+
+    destroyer_signal = None
+    destroyer_sender = None
+    destroyer_dispatch_uid = None
+
+    organization_id_path = None
+    subnet_path = None
+    config_path = "config"
+
+    @classmethod
+    def validate_rule_type(cls):
+        assert issubclass(cls, BaseSubnetDivisionRuleType)
+
+        assert isinstance(cls.provision_signal, Signal)
+        assert isinstance(cls.provision_dispatch_uid, str)
+        cls.provision_sender = load_model(*cls.provision_sender)
+
+        assert isinstance(cls.destroyer_signal, Signal)
+        assert isinstance(cls.destroyer_dispatch_uid, str)
+        cls.destroyer_sender = load_model(*cls.destroyer_sender)
+
+        assert isinstance(cls.organization_id_path, str)
+        assert isinstance(cls.subnet_path, str)
+
+    @classmethod
+    def provision_receiver(cls, instance, **kwargs):
+        def _provision_receiver():
+            # If any of following operations fail, the database transaction
+            # should fail/rollback.
+
+            # This method is also called by "provision_for_existing_objects"
+            # which passes the "rule" keyword argument. In such case,
+            # provisioning should be only triggered for received rule.
+            if "rule" in kwargs:
+                rules = [kwargs["rule"]]
+            else:
+                try:
+                    rules = cls.get_subnet_division_rules(instance)
+                except (AttributeError, ObjectDoesNotExist):
+                    return
+            for rule in rules:
+                provisioned = cls.create_subnets_ips(instance, rule, **kwargs)
+                cls.post_provision_handler(instance, provisioned, **kwargs)
+                cls.subnet_provisioned_signal_emitter(instance, provisioned)
+
+        if not cls.should_create_subnets_ips(instance, **kwargs):
+            return
+
+        transaction.on_commit(_provision_receiver)
+
+    @classmethod
+    def destroyer_receiver(cls, instance, **kwargs):
+        cls.destroy_provisioned_subnets_ips(instance, **kwargs)
+
+    @classmethod
+    def post_provision_handler(cls, instance, provisioned, **kwargs):
+        """
+        Hook for post-provisioning actions on subnets and IP addresses.
+
+        This method is intended to be extended by subclasses of rule types
+        to perform custom operations after subnets and IPs are provisioned.
+
+        Subnet provisioning is executed asynchronously in Celery workers.
+        If the device configuration references variables provided by the
+        subnet division rule, the current checksum may have been computed
+        using variable names instead of their provisioned values. In such cases,
+        `Config.checksum_db` (which tracks persisted configuration changes)
+        must be updated to reflect the actual provisioned values, and the
+        checksum cache invalidated to avoid stale data.
+
+        :param instance: The object that triggered the provisioning.
+        :param provisioned: Dictionary containing provisioned subnets and IPs,
+            or None if no provisioning occurred.
+        """
+        if not provisioned:
+            return
+        config = cls.get_config(instance)
+        config._invalidate_backend_instance_cache()
+        current_checksum = config.checksum
+        if current_checksum != config.checksum_db:
+            # Update checksum using the UPDATE query to avoid sending
+            # unnecessary signals that may be triggered by `save()` method.
+            config._update_checksum_db(current_checksum)
+            config.invalidate_checksum_cache()
+
+    @staticmethod
+    def subnet_provisioned_signal_emitter(instance, provisioned):
+        subnet_provisioned.send(
+            sender=SubnetDivisionRule, instance=instance, provisioned=provisioned
+        )
+
+    @classmethod
+    def should_create_subnets_ips(cls, instance, **kwargs):
+        """
+        return a boolean value whether subnets and IPs should
+        be provisioned for "instance" object
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def provision_for_existing_objects(cls, rule_obj):
+        """
+        Contains logic to trigger provisioning for existing objects
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def create_subnets_ips(cls, instance, division_rule, **kwargs):
+        try:
+            config = cls.get_config(instance)
+        except (AttributeError, ObjectDoesNotExist):
+            return
+
+        master_subnet = division_rule.master_subnet
+        max_subnet = cls.get_max_subnet(master_subnet, division_rule)
+        generated_indexes = []
+        generated_subnets = cls.create_subnets(
+            config, division_rule, max_subnet, generated_indexes
+        )
+        generated_ips = cls.create_ips(
+            config, division_rule, generated_subnets, generated_indexes
+        )
+        SubnetDivisionIndex.objects.bulk_create(generated_indexes)
+        return {"subnets": generated_subnets, "ip_addresses": generated_ips}
+
+    @classmethod
+    def get_organization(cls, instance):
+        return attrgetter(cls.organization_id_path)(instance)
+
+    @classmethod
+    def get_subnet(cls, instance):
+        return attrgetter(cls.subnet_path)(instance)
+
+    @classmethod
+    def get_subnet_division_rules(cls, instance):
+        rule_type = f"{cls.__module__}.{cls.__name__}"
+        organization_id = cls.get_organization(instance)
+        subnet = cls.get_subnet(instance)
+        return subnet.subnetdivisionrule_set.filter(
+            organization_id__in=(organization_id, None),
+            type=rule_type,
+        ).iterator()
+
+    @classmethod
+    def get_config(cls, instance):
+        if cls.config_path == "self":
+            config = instance
+        else:
+            config = attrgetter(cls.config_path)(instance)
+        # check for real existence in DB to workaround
+        # this django-import-export bug:
+        # https://github.com/django-import-export/django-import-export/issues/1078
+        # TODO: if that issue is ever solved, we can remove this block below
+        Config = config._meta.model
+        if not Config.objects.filter(pk=config.pk).exists():
+            raise ObjectDoesNotExist()
+        return config
+
+    @staticmethod
+    def get_max_subnet(master_subnet, division_rule):
+        # Only PostgreSQL supports ordering queryset using the "subnet"
+        # field. If the project is using any other database backend, then
+        # "created" field is used for ordering the queryset.
+        order_field = "-subnet" if connection.vendor == "postgresql" else "-created"
+        try:
+            max_subnet = (
+                # Get the highest subnet created for this master_subnet
+                Subnet.objects.filter(master_subnet_id=master_subnet.id)
+                .order_by(order_field)
+                .first()
+                .subnet
+            )
+        except AttributeError:
+            # If there is no existing subnet, create a reserved subnet
+            # and use it as starting point
+            required_subnet = next(
+                IPNetwork(str(master_subnet.subnet)).subnet(
+                    prefixlen=division_rule.size
+                )
+            )
+            subnet_obj = Subnet(
+                name=f"Reserved Subnet {required_subnet}",
+                subnet=str(required_subnet),
+                description=_("Automatically generated reserved subnet."),
+                master_subnet_id=master_subnet.id,
+                organization_id=master_subnet.organization_id,
+            )
+            subnet_obj.full_clean()
+            subnet_obj.save()
+            max_subnet = subnet_obj.subnet
+        return max_subnet
+
+    @staticmethod
+    def create_subnets(config, division_rule, max_subnet, generated_indexes):
+        master_subnet = division_rule.master_subnet
+        required_subnet = IPNetwork(str(max_subnet)).next()
+        generated_subnets = []
+
+        for subnet_id in range(1, division_rule.number_of_subnets + 1):
+            if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
+                notify.send(
+                    sender=config,
+                    type="generic_message",
+                    target=config.device,
+                    action_object=master_subnet,
+                    level="error",
+                    message=_(
+                        "Failed to provision subnets for"
+                        " [{notification.target}]({notification.target_link})"
+                    ),
+                    description=_(
+                        "The [{notification.action_object}]({notification.action_link})"
+                        " subnet has run out of space."
+                    ),
+                )
+                logger.info(f"Cannot create more subnets of {master_subnet}")
+                break
+            subnet_obj = Subnet(
+                name=f"{division_rule.label}_subnet{subnet_id}",
+                subnet=str(required_subnet),
+                description=_(
+                    f"Automatically generated using {division_rule.label} rule."
+                ),
+                master_subnet_id=master_subnet.id,
+                organization_id=division_rule.organization_id,
+            )
+            subnet_obj.full_clean()
+            generated_subnets.append(subnet_obj)
+            generated_indexes.append(
+                SubnetDivisionIndex(
+                    keyword=f"{division_rule.label}_subnet{subnet_id}",
+                    subnet_id=subnet_obj.id,
+                    rule_id=division_rule.id,
+                    config=config,
+                )
+            )
+            required_subnet = required_subnet.next()
+        Subnet.objects.bulk_create(generated_subnets)
+        return generated_subnets
+
+    @staticmethod
+    def create_ips(config, division_rule, generated_subnets, generated_indexes):
+        generated_ips = []
+        for subnet_obj in generated_subnets:
+            # don't assign first ip address of a subnet,
+            # unless the rule is designed to use the whole
+            # address space of the subnet
+            if subnet_obj.subnet.num_addresses != division_rule.number_of_ips:
+                index_start = 1
+                index_end = division_rule.number_of_ips + 1
+            # this allows handling /32, /128 or cases in which
+            # the number of requested ip addresses matches exactly
+            # what is available in the subnet
+            else:
+                index_start = 0
+                index_end = division_rule.number_of_ips
+            # generate IPs and indexes accordingly
+            for ip_index in range(index_start, index_end):
+                ip_obj = IpAddress(
+                    subnet_id=subnet_obj.id,
+                    ip_address=str(subnet_obj.subnet[ip_index]),
+                )
+                ip_obj.full_clean()
+                generated_ips.append(ip_obj)
+                # ensure human friendly labels (starting from 1 instead of 0)
+                keyword_index = ip_index if index_start == 1 else ip_index + 1
+                generated_indexes.append(
+                    SubnetDivisionIndex(
+                        keyword=f"{subnet_obj.name}_ip{keyword_index}",
+                        subnet_id=subnet_obj.id,
+                        ip_id=ip_obj.id,
+                        rule_id=division_rule.id,
+                        config=config,
+                    )
+                )
+        IpAddress.objects.bulk_create(generated_ips)
+        return generated_ips
+
+    @classmethod
+    def destroy_provisioned_subnets_ips(cls, instance, **kwargs):
+        # Deleting related subnets automatically deletes related IpAddress
+        # and SubnetDivisionIndex objects
+        config = cls.get_config(instance)
+        rule_type = f"{cls.__module__}.{cls.__name__}"
+        subnet_ids = config.subnetdivisionindex_set.filter(
+            rule__type=rule_type
+        ).values_list("subnet_id")
+        Subnet.objects.filter(id__in=subnet_ids).delete()

@@ -1,0 +1,20 @@
+#deactivating-warning .warning p {
+  margin-top: 0px;
+}
+#deactivating-warning .messagelist button {
+  font-size: 15px;
+  vertical-align: middle;
+  line-height: inherit !important;
+  padding: 0.625rem 1rem;
+}
+#deactivating-warning .messagelist button + button {
+  margin-left: 10px;
+}
+#main ul.messagelist li.warning ul li {
+  display: list-item;
+  padding: 0px;
+  background: inherit;
+}
+ul.messagelist li {
+  font-size: unset;
+}

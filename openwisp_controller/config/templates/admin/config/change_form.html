@@ -1,0 +1,96 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+{% load i18n admin_modify %}
+
+{% block extrastyle %}
+{{ block.super }}
+{% if CONFIG_BACKEND_FIELD_SHOWN is False %}
+<style type="text/css">
+.form-row.field-backend{ display: none }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block extrahead %}
+    {% if device_whois_details %}
+        {{ device_whois_details|json_script:"device-whois-details" }}
+    {% endif %}
+    <script>
+    {% if OPENWISP_CONTROLLER_API_HOST %}
+        const owControllerApiHost = new URL('{{ OPENWISP_CONTROLLER_API_HOST }}');
+    {% else %}
+        const owControllerApiHost = window.location;
+    {% endif %}
+        const owCommandApiEndpoint = '{{ commands_api_endpoint | safe }}';
+    {% if device_whois_details %}
+        const deviceWHOISDetails = JSON.parse(
+            document.getElementById("device-whois-details").textContent
+        );
+    {% endif %}
+    </script>
+   {{ block.super}}
+{% endblock extrahead %}
+
+{% block object-tools-items %}
+<li>
+    {% if download_url %}
+    <a href="{{ download_url }}" class="downloadlink">{% trans "Download configuration" %}</a>
+    {% endif %}
+</li>
+{{ block.super }}
+{% endblock %}
+
+{% block submit_buttons_top %}{% submit_row %}{% endblock %}
+{% block submit_buttons_bottom %}{% submit_row %}{% endblock %}
+
+{% block field_sets %}
+{% if not add %}
+<div id="loading-overlay" class="djnjc-overlay loading">
+    <div class="spinner"></div>
+</div>
+
+<div id="tabs-container">
+    <ul class="tabs">
+        <li>
+            <a class="button" href="#overview-group">{% trans 'Overview' %}</a>
+        </li>
+    </ul>
+    <div class="tabs-divider"></div>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
+{% block content %}
+<div class="{% if not add %}change-form{% else %}add-form{% endif %}">
+    {{ block.super }}
+    <div class="djnjc-overlay">
+        <div class="inner"></div>
+    </div>
+
+    {% block default_templates_js %}
+    {% if default_templates %}
+    <script>
+        // enable default templates - do not remove this comment
+        {% for template in default_templates %}
+        django.jQuery('input.sortedm2m[value={{ template }}]').prop('checked', true);
+        {% endfor %}
+    </script>
+    {% endif %}
+    {% if relevant_template_url %}
+    <script>
+        // enable default templates - do not remove this comment
+        (function ($) {
+            $(document).ready( function () {
+                window._relevantTemplateUrl = "{{ relevant_template_url | safe }}";
+                window.bindDefaultTemplateLoading();
+            })
+        }) (django.jQuery);
+    </script>
+    {% endif %}
+    <script>
+        window.staticUrl = "{% get_static_prefix %}";
+    </script>
+    {% endblock %}
+</div>
+{% endblock %}

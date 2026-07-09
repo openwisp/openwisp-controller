@@ -1,0 +1,11 @@
+{% load i18n %}
+{% if advanced_mode %}
+<input class="button json-editor-btn-edit advanced-mode" type="button" value="{% trans 'Advanced mode (raw JSON)' %}">
+{% endif %}
+{% if netjsonconfig_hint %}
+<label id="netjsonconfig-hint">
+    Want to learn to use the advanced mode? Consult the
+    <a href="http://netjsonconfig.openwisp.org/en/stable/general/basics.html"
+       target="_blank">netjsonconfig documentation</a>.
+</label>
+{% endif %}

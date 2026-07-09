@@ -1,0 +1,82 @@
+from openwisp_controller.geo.api.views import (
+    DeviceCoordinatesView as BaseDeviceCoordinatesView,
+)
+from openwisp_controller.geo.api.views import (
+    DeviceLocationView as BaseDeviceLocationView,
+)
+from openwisp_controller.geo.api.views import (
+    FloorPlanDetailView as BaseFloorPlanDetailView,
+)
+from openwisp_controller.geo.api.views import (
+    FloorPlanListCreateView as BaseFloorPlanListCreateView,
+)
+from openwisp_controller.geo.api.views import (
+    GeoJsonLocationList as BaseGeoJsonLocationList,
+)
+from openwisp_controller.geo.api.views import (
+    IndoorCoordinatesList as BaseIndoorCoordinatesList,
+)
+from openwisp_controller.geo.api.views import (
+    LocationDetailView as BaseLocationDetailView,
+)
+from openwisp_controller.geo.api.views import (
+    LocationDeviceList as BaseLocationDeviceList,
+)
+from openwisp_controller.geo.api.views import (
+    LocationListCreateView as BaseLocationListCreateView,
+)
+from openwisp_controller.geo.api.views import (
+    OrganizationGeoSettingsView as BaseOrganizationGeoSettingsView,
+)
+
+
+class DeviceCoordinatesView(BaseDeviceCoordinatesView):
+    pass
+
+
+class DeviceLocationView(BaseDeviceLocationView):
+    pass
+
+
+class GeoJsonLocationList(BaseGeoJsonLocationList):
+    pass
+
+
+class LocationDeviceList(BaseLocationDeviceList):
+    pass
+
+
+class FloorPlanListCreateView(BaseFloorPlanListCreateView):
+    pass
+
+
+class FloorPlanDetailView(BaseFloorPlanDetailView):
+    pass
+
+
+class LocationListCreateView(BaseLocationListCreateView):
+    pass
+
+
+class LocationDetailView(BaseLocationDetailView):
+    pass
+
+
+class IndoorCoordinatesList(BaseIndoorCoordinatesList):
+    pass
+
+
+class OrganizationGeoSettingsView(BaseOrganizationGeoSettingsView):
+    pass
+
+
+device_coordinates = DeviceCoordinatesView.as_view()
+device_location = DeviceLocationView.as_view()
+geojson = GeoJsonLocationList.as_view()
+location_device_list = LocationDeviceList.as_view()
+list_floorplan = FloorPlanListCreateView.as_view()
+indoor_coordinates_list = IndoorCoordinatesList.as_view()
+detail_floorplan = FloorPlanDetailView.as_view()
+list_location = LocationListCreateView.as_view()
+detail_location = LocationDetailView.as_view()
+organization_geo_settings = OrganizationGeoSettingsView.as_view()

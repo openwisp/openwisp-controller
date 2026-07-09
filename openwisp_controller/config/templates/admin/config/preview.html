@@ -1,0 +1,15 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div id="content-main">
+    <div>
+        <a class="close" href="#">&times; {% trans 'Close' %}</a>
+        {% if not error %}
+        <pre class="djnjc-preformatted">{{ output }}</pre>
+        {% else %}
+        <pre class="djnjc-preformatted error">{{ error }}</pre>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

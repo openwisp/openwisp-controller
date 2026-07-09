@@ -1,0 +1,81 @@
+from django.utils.translation import gettext_lazy as _
+from openwisp_notifications.signals import notify
+from swapper import load_model
+
+MESSAGE_MAP = {
+    "estimated_location_error": {
+        "level": "error",
+        "type": "estimated_location_info",
+        "message": _(
+            "Unable to create estimated location for device "
+            "[{notification.target}]({notification.target_link}). "
+            "Please assign/create a location manually."
+        ),
+        "description": _("Multiple devices found for IP: {ip_address}"),
+    },
+    "estimated_location_created": {
+        "type": "estimated_location_info",
+        "level": "info",
+        "message": _(
+            "Estimated location [{notification.actor}]({notification.actor_link})"
+            " for device"
+            " [{notification.target}]({notification.target_link})"
+            " {notification.verb} successfully."
+        ),
+        "description": _("Geographic coordinates inferred from IP: {ip_address}"),
+    },
+    "estimated_location_updated": {
+        "type": "estimated_location_info",
+        "level": "info",
+        "message": _(
+            "Estimated location [{notification.actor}]({notification.actor_link})"
+            " for device"
+            " [{notification.target}]({notification.target_link})"
+            " updated successfully."
+        ),
+        "description": _("Geographic coordinates updated for IP: {ip_address}"),
+    },
+}
+
+
+def send_estimated_location_notification(device, notify_type, actor=None):
+    Device = load_model("config", "Device")
+    if not isinstance(device, Device):
+        device = Device.objects.filter(pk=device).first()
+        if not device:
+            return
+    notify_details = MESSAGE_MAP[notify_type]
+    notify.send(
+        sender=actor or device,
+        target=device,
+        action_object=device,
+        ip_address=device.last_ip,
+        **notify_details,
+    )
+
+
+def get_device_location_notification_target_url(obj, field, absolute_url=True):
+    # importing here to avoid "AppRegistryNotReady"
+    from openwisp_notifications.utils import _get_object_link
+
+    url = _get_object_link(obj._related_object(field), absolute_url)
+    return f"{url}#devicelocation-group"
+
+
+def get_location_defaults_from_whois(whois_obj):
+    """
+    Create default location data from a WHOISInfo object.
+
+    Args:
+        whois_obj: WHOISInfo instance with WHOIS data
+
+    Returns:
+        dict: Default values for creating an estimated Location instance
+    """
+    return {
+        "name": whois_obj._location_name,
+        "type": "outdoor",
+        "is_mobile": False,
+        "geometry": whois_obj.coordinates,
+        "address": whois_obj.formatted_address,
+    }

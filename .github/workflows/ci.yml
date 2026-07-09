@@ -1,0 +1,115 @@
+---
+name: OpenWISP Controller CI Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+      - "1.1"
+      - "1.2"
+      - "gsoc26-x509-certificate-generator-templates"
+      - "gsoc26-mass-commands"
+
+jobs:
+  build:
+    name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+        django-version:
+          - django~=4.2.0
+          - django~=5.1.0
+          - django~=5.2.0
+        exclude:
+          # Python 3.13 supported only in Django >=5.1.3
+          - python-version: "3.13"
+            django-version: django~=4.2.0
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache APT packages
+        uses: actions/cache@v6
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: |
+            apt-${{ runner.os }}-
+
+      - name: Disable man page auto-update
+        run: |
+          echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
+          sudo dpkg-reconfigure man-db
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            **/requirements*.txt
+
+      - name: Install Dependencies
+        id: deps
+        run: |
+          sudo apt update
+          sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
+            libgeos-dev libspatialite-dev spatialite-bin \
+            libsqlite3-mod-spatialite
+          sudo npm install -g prettier
+          pip install -U pip wheel setuptools
+          pip install -U -r requirements-test.txt
+          pip install -U -e .
+          pip install ${{ matrix.django-version }}
+
+      - name: Start redis
+        if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
+        run: docker compose up -d redis
+
+      - name: QA checks
+        run: ./run-qa-checks
+
+      - name: Tests
+        if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
+        run: ./runtests
+        env:
+          SELENIUM_HEADLESS: 1
+          GECKO_LOG: 1
+
+      - name: Show gecko web driver log on failures
+        if: ${{ failure() }}
+        run: |
+          [ -f geckodriver.log ] && cat geckodriver.log \
+            || echo "there is no gecko web driver log to show"
+
+      - name: Upload Coverage
+        if: ${{ success() }}
+        uses: coverallsapp/github-action@v2
+        with:
+          parallel: true
+          format: cobertura
+          flag-name: python-${{ matrix.env.env }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-error: false
+
+  coveralls:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@v2
+        with:
+          parallel-finished: true
+          fail-on-error: false

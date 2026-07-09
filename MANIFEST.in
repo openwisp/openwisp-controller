@@ -1,0 +1,10 @@
+include LICENSE
+include README.rst
+include CHANGES.rst
+include requirements.txt
+recursive-include openwisp_controller *
+recursive-exclude * *.pyc
+recursive-exclude * *.swp
+recursive-exclude * __pycache__
+recursive-exclude * *.db
+recursive-exclude * local_settings.py
