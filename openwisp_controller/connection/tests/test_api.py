@@ -1482,6 +1482,28 @@ class TestBatchCommandsAPI(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
 
+    def test_shared_batch_command_does_not_expose_other_tenant_data(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        device_org2 = self._create_device(organization=org2)
+        batch = self._create_batch_command(organization=None, devices=[device_org2])
+        batch.skipped_devices = {str(device_org2.pk): ["sensitive tenant data"]}
+        batch.save(update_fields=["skipped_devices"])
+        self.client.logout()
+        operator = self._create_operator(organizations=[org])
+        operator.user_permissions.add(Permission.objects.get(codename="view_batchcommand"))
+        self.client.force_login(operator)
+        list_response = self.client.get(reverse("connection_api:batch_command_list"))
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn(str(device_org2.pk), json.dumps(list_response.data))
+        self.assertNotIn("sensitive tenant data", json.dumps(list_response.data))
+        detail_response = self.client.get(
+            reverse("connection_api:batch_command_detail", args=[batch.pk])
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertNotIn(str(device_org2.pk), json.dumps(detail_response.data))
+        self.assertNotIn("sensitive tenant data", json.dumps(detail_response.data))
+
     def test_batch_command_endpoints_unauthorized(self):
         self.client.logout()
         execute_url = reverse("connection_api:batch_command_execute")
@@ -2015,6 +2037,45 @@ class TestBatchCommandsAPITransaction(
                 content_type="application/json",
             )
             self.assertEqual(response.status_code, 400)
+
+    def test_batch_command_change_password_input_is_not_exposed(self):
+        org = self._get_org()
+        cred = self._create_credentials(name="batch-pwd-cred", organization=org)
+        device = self._create_device(
+            name="batch-pwd-dev",
+            mac_address="00:11:22:33:44:91",
+            organization=org,
+        )
+        self._create_config(device=device)
+        self._create_device_connection(device=device, credentials=cred)
+        password = "SuperSecret123"
+        response = self.client.post(
+            reverse("connection_api:batch_command_execute"),
+            data=json.dumps(
+                {
+                    "organization": str(org.pk),
+                    "type": "change_password",
+                    "input": {
+                        "password": password,
+                        "confirm_password": password,
+                    },
+                    "label": "change password",
+                    "devices": [str(device.pk)],
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        batch = BatchCommand.objects.get(pk=response.data["batch"])
+        self.assertNotIn(password, json.dumps(batch.input))
+        list_response = self.client.get(reverse("connection_api:batch_command_list"))
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn(password, json.dumps(list_response.data))
+        detail_response = self.client.get(
+            reverse("connection_api:batch_command_detail", args=[batch.pk])
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertNotIn(password, json.dumps(detail_response.data))
 
     def test_batch_command_execute_skipped_devices(self):
         org = self._get_org()
