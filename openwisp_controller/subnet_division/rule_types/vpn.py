@@ -52,7 +52,8 @@ class VpnSubnetDivisionRuleType(BaseSubnetDivisionRuleType):
                 instance.ip.delete()
             instance.ip = provisioned["ip_addresses"][0]
             instance.full_clean()
-            instance.save()
+            # "ip" is the only field VpnClient allows updating after creation
+            instance.save(update_fields=["ip"])
 
     @classmethod
     def destroy_provisioned_subnets_ips(cls, instance, **kwargs):

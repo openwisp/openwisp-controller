@@ -272,19 +272,34 @@ class TestVpn(BaseTestVpn, TestCase):
             _assert_vpn_client_cert(cert, vpnclient, 0, 0)
 
         with self.subTest(
-            'Test VpnClient post_delete handler when "auto_cert" field is set to "False"'  # noqa
+            'Changing "auto_cert" after creation is rejected (immutability)'
         ):
             t = self._create_template(
                 name="vpn-test-2", type="vpn", vpn=vpn, auto_cert=True
             )
             c.templates.add(t)
             vpnclient = c.vpnclient_set.first()
-            cert = vpnclient.cert
-            # Set auto_cert field to false
             vpnclient.auto_cert = False
+            with self.assertRaises(ValidationError) as context_manager:
+                vpnclient.full_clean()
+            self.assertIn("auto_cert", context_manager.exception.message_dict)
+            c.templates.remove(t)
+
+        with self.subTest(
+            'Test VpnClient post_delete handler when "auto_cert" field is set to "False"'  # noqa
+        ):
+            t = self._create_template(
+                name="vpn-test-3", type="vpn", vpn=vpn, auto_cert=False
+            )
+            cert = self._create_cert(name="manual-cert", ca=vpn.ca, organization=org)
+            vpnclient = VpnClient(
+                config=c, vpn=vpn, template=t, cert=cert, auto_cert=False
+            )
             vpnclient.full_clean()
             vpnclient.save()
-            _assert_vpn_client_cert(cert, vpnclient, 1, 0)
+            vpnclient.delete()
+            # the certificate must not be revoked because auto_cert is False
+            self.assertEqual(Cert.objects.filter(pk=cert.pk, revoked=False).count(), 1)
 
     def test_vpn_client_get_common_name(self):
         vpn = self._create_vpn()
@@ -493,6 +508,79 @@ class TestVpn(BaseTestVpn, TestCase):
             message_dict = context_manager.exception.message_dict
             self.assertIn("ca", message_dict)
             self.assertIn("CA is required with this VPN backend", message_dict["ca"])
+
+    def _create_vpn_client_via_template(self):
+        vpn = self._create_vpn()
+        template = self._create_template(
+            name="vpn-immutability", type="vpn", vpn=vpn, auto_cert=True
+        )
+        config = self._create_config(device=self._create_device())
+        config.templates.add(template)
+        return config.vpnclient_set.select_related("vpn", "cert", "config").first()
+
+    def test_vpn_client_creation_allowed(self):
+        client = self._create_vpn_client_via_template()
+        self.assertIsNotNone(client)
+        self.assertIsNotNone(client.cert)
+        self.assertTrue(client.auto_cert)
+
+    def test_vpn_client_noop_save_allowed(self):
+        client = self._create_vpn_client_via_template()
+        cert_count = Cert.objects.count()
+        client.full_clean()
+        client.save()
+        self.assertEqual(VpnClient.objects.count(), 1)
+        self.assertEqual(Cert.objects.count(), cert_count)
+
+    def test_vpn_client_immutable_after_creation(self):
+        client = self._create_vpn_client_via_template()
+        vpn2 = self._create_vpn(name="immutability-vpn2", ca=client.vpn.ca)
+        for field, value in (
+            ("auto_cert", False),
+            ("vpn", vpn2),
+            ("public_key", "changed-key"),
+            ("secret", "changed-secret"),
+            ("vni", 42),
+        ):
+            with self.subTest(field=field):
+                client.refresh_from_db()
+                setattr(client, field, value)
+                with self.assertRaises(ValidationError) as context_manager:
+                    client.full_clean()
+                self.assertIn(field, context_manager.exception.message_dict)
+
+    def test_vpn_client_direct_save_rejected(self):
+        # save() without full_clean() must also enforce immutability
+        client = self._create_vpn_client_via_template()
+        client.auto_cert = False
+        with self.assertRaises(ValidationError):
+            client.save()
+        client.refresh_from_db()
+        self.assertTrue(client.auto_cert)
+
+    def test_vpn_client_ip_update_allowed(self):
+        # internal machinery (subnet_division) must be able to
+        # reassign the provisioned IP after creation
+        client = self._create_vpn_client_via_template()
+        subnet = Subnet(name="immutability-subnet", subnet="10.99.0.0/24")
+        subnet.full_clean()
+        subnet.save()
+        ip = subnet.request_ip()
+        client.ip = ip
+        client.full_clean()
+        client.save(update_fields=["ip"])
+        client.refresh_from_db()
+        self.assertEqual(client.ip, ip)
+
+    def test_vpn_client_delete_recreate_flow(self):
+        client = self._create_vpn_client_via_template()
+        config, template = client.config, client.template
+        config.templates.remove(template)
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        config.templates.add(template)
+        new_client = config.vpnclient_set.first()
+        self.assertIsNotNone(new_client)
+        self.assertNotEqual(new_client.pk, client.pk)
 
 
 class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
