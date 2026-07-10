@@ -8,7 +8,8 @@ permissions: {}
 
 jobs:
   check:
-    if: |
+    if: >
+      github.repository == 'openwisp/openwisp-controller' &&
       github.event.review.state == 'approved' &&
       (github.event.review.author_association == 'OWNER' ||
         github.event.review.author_association == 'MEMBER' ||

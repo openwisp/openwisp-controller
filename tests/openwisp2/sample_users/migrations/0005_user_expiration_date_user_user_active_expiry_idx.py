@@ -42,4 +42,11 @@ class Migration(migrations.Migration):
                 fields=["is_active", "expiration_date"], name="user_active_expiry_idx"
             ),
         ),
+        migrations.AlterField(
+            model_name="organizationuser",
+            name="is_admin",
+            field=models.BooleanField(
+                default=False, verbose_name="Organization manager"
+            ),
+        ),
     ]

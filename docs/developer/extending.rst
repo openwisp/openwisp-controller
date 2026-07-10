@@ -545,21 +545,22 @@ resort to monkey patching, you can proceed as follows:
 
 .. code-block:: python
 
-    from openwisp_controller.connection.admin import (
-        CredentialsAdmin as BaseCredentialsAdmin,
-    )
     from django.contrib import admin
     from swapper import load_model
 
-    Credentials = load_model("openwisp_controller", "Credentials")
+    from openwisp_controller.connection.admin import (
+        CredentialsAdmin as BaseCredentialsAdmin,
+    )
+
+    Credentials = load_model("connection", "Credentials")
 
     admin.site.unregister(Credentials)
 
 
-    @admin.register(Device)
+    @admin.register(Credentials)
     class CredentialsAdmin(BaseCredentialsAdmin):
-        pass
         # add your changes here
+        pass
 
 ``sample_geo``
 ++++++++++++++

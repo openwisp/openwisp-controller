@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   pypi-publish:
+    if: github.repository == 'openwisp/openwisp-controller'
     name: Release Python Package on Pypi.org
     runs-on: ubuntu-latest
     environment:
