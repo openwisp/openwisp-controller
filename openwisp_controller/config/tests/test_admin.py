@@ -1841,19 +1841,19 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
         response = self.client.get(path)
         dc = DeviceCertificate.objects.get(config=config)
-        self.assertContains(response, template.name)
-        self.assertContains(response, dc.cert.common_name)
-        self.assertContains(response, dc.cert.ca.name)
-        self.assertContains(response, dc.cert.key_length)
-        self.assertContains(response, dc.cert.digest)
-        self.assertContains(response, "Validity End")
-        self.assertContains(response, "Active")
-        self.assertContains(response, "result_list")
         cert_url = reverse(
             f"admin:{dc.cert._meta.app_label}_{dc.cert._meta.model_name}_change",
             args=[dc.cert.id],
         )
+        self.assertContains(response, template.name)
+        self.assertContains(response, dc.cert.common_name)
         self.assertContains(response, cert_url)
+        self.assertContains(response, dc.cert.ca.name)
+        self.assertContains(response, dc.cert.key_length)
+        self.assertContains(response, dc.cert.digest)
+        self.assertContains(response, "Valid Until")
+        self.assertContains(response, "Active")
+        self.assertContains(response, "From")
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):

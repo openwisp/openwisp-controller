@@ -1,21 +1,24 @@
 {% load i18n %}
-<div class="results">
-    <table id="result_list">
+<fieldset class="module">
+    <h2>{% trans "Certificates" %}</h2>
+    <table>
         <thead>
             <tr>
-                <th scope="col"><div class="text"><span>{% trans "Template" %}</span></div><div class="clear"></div></th>
-                <th scope="col"><div class="text"><span>{% trans "Status" %}</span></div><div class="clear"></div></th>
-                <th scope="col"><div class="text"><span>{% trans "Common Name" %}</span></div><div class="clear"></div></th>
-                <th scope="col"><div class="text"><span>{% trans "CA" %}</span></div><div class="clear"></div></th>
-                <th scope="col"><div class="text"><span>{% trans "Key / Digest" %}</span></div><div class="clear"></div></th>
-                <th scope="col"><div class="text"><span>{% trans "Created" %}</span></div><div class="clear"></div></th>
-                <th scope="col"><div class="text"><span>{% trans "Validity End" %}</span></div><div class="clear"></div></th>
+                <th>{% trans "Common Name" %}</th>
+                <th>{% trans "CA" %}</th>
+                <th>{% trans "From" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Key / Digest" %}</th>
+                <th>{% trans "Valid Until" %}</th>
+                <th>{% trans "Created" %}</th>
             </tr>
         </thead>
         <tbody>
             {% for cert in certificates %}
             <tr class="{% cycle 'row1' 'row2' %}">
-                <td>{% if cert.has_cert %}<a href="{{ cert.url }}">{{ cert.template_name }}</a>{% else %}{{ cert.template_name }}{% endif %}</td>
+                <td>{% if cert.has_cert %}<a href="{{ cert.url }}">{{ cert.common_name }}</a>{% else %}{{ cert.common_name|default:"-" }}{% endif %}</td>
+                <td>{{ cert.ca_name|default:"-" }}</td>
+                <td>{{ cert.template_name }}</td>
                 <td>
                     {% if cert.has_cert %}
                         {% if cert.is_revoked %}
@@ -27,11 +30,9 @@
                         {% trans "Pending Generation" %}
                     {% endif %}
                 </td>
-                <td>{{ cert.common_name|default:"-" }}</td>
-                <td>{{ cert.ca_name|default:"-" }}</td>
                 <td>{{ cert.key_length|default:"-" }} / {{ cert.digest|default:"-" }}</td>
-                <td>{{ cert.created|default:"-" }}</td>
                 <td>{{ cert.validity_end|default:"-" }}</td>
+                <td>{{ cert.created|default:"-" }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="7">{% trans "No certificates generated." %}</td></tr>
@@ -45,4 +46,4 @@
             {% endif %}
         </tbody>
     </table>
-</div>
+</fieldset>
