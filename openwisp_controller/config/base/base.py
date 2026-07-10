@@ -226,7 +226,10 @@ class CacheDependency:
         Deriving the uid from the sender, signal and target keeps it stable when
         the surrounding dependency list is reordered and makes it readable in
         tracebacks. ``name`` disambiguates custom signals, which have no natural
-        name of their own.
+        name of their own. The resolver, tracked fields and timing are also
+        encoded so two dependencies that share sender/signal/target but differ
+        in those attributes cannot collide and silently overwrite each other in
+        ``CacheDependency._registry``.
         """
         sender = self.sender
         sender_label = sender._meta.label_lower if sender is not None else "any"
@@ -237,7 +240,17 @@ class CacheDependency:
         target_label = (
             self.target if isinstance(self.target, str) else self.target.__name__
         )
-        return f"{prefix}.{sender_label}.{signal_label}.{target_label}"
+        resolve_label = (
+            "instance" if self.resolve is _default_resolve else self.resolve.__name__
+        )
+        parts = [prefix, sender_label, signal_label, target_label, resolve_label]
+        if self.track_fields:
+            parts.append("+".join(self.track_fields))
+        if self.on_create:
+            parts.append("oncreate")
+        if not self.on_commit:
+            parts.append("immediate")
+        return ".".join(parts)
 
     def connect(self, dispatch_uid):
         """Connect this dependency's handler to its signal."""
@@ -310,7 +323,7 @@ class CacheDependency:
         if fmt == "json":
             return json.dumps([dep.describe() for dep in dependencies], indent=2)
         if not dependencies:
-            return "No cache dependencies are registered."
+            return _("No cache dependencies are registered.")
         lines = []
         last_group = None
         for dep in dependencies:
@@ -321,15 +334,16 @@ class CacheDependency:
                     lines.append("")
                 lines.append(f"{info['source']} ({info['signal']})")
                 last_group = group
-            lines.append(f"  target: {info['target']}")
-            details = f"    resolve: {info['resolve']}"
+            lines.append(f"  {_('target')}: {info['target']}")
+            details = f"    {_('resolve')}: {info['resolve']}"
             if info["track_fields"]:
-                details += f"   track_fields: {', '.join(info['track_fields'])}"
+                details += f"   {_('track_fields')}: {', '.join(info['track_fields'])}"
             details += (
-                f"   on_create: {info['on_create']}   on_commit: {info['on_commit']}"
+                f"   {_('on_create')}: {info['on_create']}"
+                f"   {_('on_commit')}: {info['on_commit']}"
             )
             lines.append(details)
-            lines.append(f"    uid: {info['dispatch_uid']}")
+            lines.append(f"    {_('uid')}: {info['dispatch_uid']}")
         return "\n".join(lines)
 
     def _snapshot_handler(self, sender, instance, **kwargs):
@@ -337,14 +351,24 @@ class CacheDependency:
         if instance._state.adding or instance.pk is None:
             return
         if not self._may_track_fields_change(instance, **kwargs):
+            # A previous save may have left a snapshot on this instance; drop it
+            # so it cannot bleed into this save(update_fields=...) comparison.
+            self._discard_snapshot(instance)
             return
         snapshot = self._snapshot_from_initial_values(instance)
         if snapshot is None:
             snapshot = self._snapshot_from_db(sender, instance)
             if snapshot is None:
+                self._discard_snapshot(instance)
                 return
         snapshots = instance.__dict__.setdefault(self._SNAPSHOT_ATTR, {})
         snapshots[self._uid] = snapshot
+
+    def _discard_snapshot(self, instance):
+        """Remove this dependency's stored snapshot from ``instance`` if any."""
+        snapshots = getattr(instance, self._SNAPSHOT_ATTR, None)
+        if snapshots is not None:
+            snapshots.pop(self._uid, None)
 
     def _may_track_fields_change(self, instance, **kwargs):
         """
@@ -391,7 +415,9 @@ class CacheDependency:
 
     def _tracked_fields_changed(self, instance):
         snapshots = getattr(instance, self._SNAPSHOT_ATTR, None) or {}
-        old = snapshots.get(self._uid)
+        # Consume the snapshot: a reused instance saved again (e.g. with
+        # ``update_fields``) must not compare against this stale snapshot.
+        old = snapshots.pop(self._uid, None)
         if old is None:
             # No snapshot (e.g. on creation) -> nothing to compare against.
             return False

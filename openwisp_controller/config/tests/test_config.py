@@ -1,7 +1,8 @@
 import json
+import uuid
 from copy import deepcopy
 from io import StringIO
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -15,8 +16,10 @@ from swapper import load_model
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from .. import tasks
 from ..base.base import CacheDependency
 from ..base.base import logger as base_config_logger
+from ..handlers import invalidate_devicegroup_cache_change_handler
 from ..signals import config_backend_changed, config_modified, config_status_changed
 from .utils import (
     CreateConfigTemplateMixin,
@@ -582,8 +585,11 @@ class TestConfig(
         self.assertEqual(config.vpnclient_set.count(), 0)
         # Un-revoke the cert so _resolve_cert_dependency() bypasses the early
         # "if revoked: return" guard and hits the ObjectDoesNotExist path.
+        # The Cert CacheDependency defers to transaction.on_commit, which
+        # TestCase does not fire unless captured.
         cert.revoked = False
-        cert.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            cert.save()
         # Config status must not change: _resolve_cert_dependency() returns
         # early because the VpnClient was deleted during deactivation.
         config.refresh_from_db()
@@ -1264,6 +1270,32 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
             group.save()
             target.assert_called_once_with(group)
 
+    def test_snapshot_not_reused_across_saves(self):
+        """
+        A snapshot from a prior save must be consumed so a later
+        save(update_fields=...) that excludes the tracked field cannot compare
+        against the stale snapshot and fire the target a second time.
+        """
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            track_fields=["context"],
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        group = self._create_device_group(context={"a": "1"})
+        group.context = {"a": "2"}
+        group.save()
+        target.assert_called_once_with(group)
+        # a subsequent save that does not touch the tracked field must not
+        # re-fire the target because of a leftover snapshot
+        target.reset_mock()
+        group.name = "renamed"
+        group.save(update_fields=["name"])
+        target.assert_not_called()
+
     def test_target_as_method_name(self):
         # a string target is invoked as a method on each resolved object
         dependency = CacheDependency(
@@ -1454,3 +1486,15 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         }
         for item in data:
             self.assertEqual(set(item.keys()), expected_keys)
+
+    def test_invalidate_devicegroup_cache_change_handler_bulk_list(self):
+        device_id1, device_id2 = uuid.uuid4(), uuid.uuid4()
+        with patch.object(tasks.invalidate_devicegroup_cache_change, "delay") as delay:
+            invalidate_devicegroup_cache_change_handler([device_id1, device_id2])
+        self.assertEqual(delay.call_count, 2)
+        delay.assert_has_calls(
+            [
+                call(device_id1, Device._meta.model_name),
+                call(device_id2, Device._meta.model_name),
+            ]
+        )

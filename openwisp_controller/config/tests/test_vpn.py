@@ -553,7 +553,10 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         self.assertEqual(old_checksum_db, config.checksum)
         # change a VPN server field that is part of the client configuration
         vpn.host = "changed.example.com"
-        vpn.save(update_fields=["host"])
+        # select_related on the client queryset keeps this bounded: dropping
+        # it reintroduces the per-client N+1 and increases the query count.
+        with self.assertNumQueries(25):
+            vpn.save(update_fields=["host"])
         config = Config.objects.get(pk=device.config.pk)
         # the client's stored checksum must reflect the new VPN server context
         self.assertNotEqual(config.checksum_db, old_checksum_db)
@@ -567,7 +570,10 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         config = Config.objects.get(pk=device.config.pk)
         old_checksum_db = config.checksum_db
         with catch_signal(config_modified) as mocked_config_modified:
-            VpnClient.invalidate_clients_cache(vpn)
+            # select_related on the client queryset keeps this bounded: dropping
+            # it reintroduces the per-client N+1 and increases the query count.
+            with self.assertNumQueries(19):
+                VpnClient.invalidate_clients_cache(vpn)
         mocked_config_modified.assert_not_called()
         config = Config.objects.get(pk=device.config.pk)
         self.assertEqual(config.checksum_db, old_checksum_db)
@@ -586,7 +592,12 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
             vpn.cert.renew()
             self.assertTrue(mocked.called)
 
-    def test_ca_renew_cascades_to_client_config(self):
+    def _setup_vpn_client_config(self):
+        """
+        Creates a VPN server, a VPN template and a client device/config using
+        it, then returns ``(vpn, config, old_checksum_db)`` with the client
+        config's stored checksum captured and asserted to be up to date.
+        """
         vpn = self._create_vpn()
         vpn_template = self._create_template(
             name="vpn-template", type="vpn", vpn=vpn, config={}
@@ -596,21 +607,22 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         config = Config.objects.get(pk=device.config.pk)
         old_checksum_db = config.checksum_db
         self.assertEqual(old_checksum_db, config.checksum)
+        return vpn, config, old_checksum_db
+
+    def test_ca_renew_cascades_to_client_config(self):
+        vpn, config, old_checksum_db = self._setup_vpn_client_config()
         vpn.ca.renew()
-        config = Config.objects.get(pk=device.config.pk)
+        config = Config.objects.get(pk=config.pk)
         self.assertNotEqual(config.checksum_db, old_checksum_db)
         self.assertEqual(config.checksum_db, config.checksum)
         self.assertEqual(config.status, "modified")
 
     def test_cert_renew_cascades_to_client_config(self):
-        vpn = self._create_vpn()
-        vpn_template = self._create_template(
-            name="vpn-template", type="vpn", vpn=vpn, config={}
-        )
-        device = self._create_device_config()
-        device.config.templates.add(vpn_template)
-        config = Config.objects.get(pk=device.config.pk)
-        self.assertEqual(config.checksum_db, config.checksum)
+        # Only the signal is asserted here, unlike the CA-renew counterpart:
+        # a client's OpenVPN config embeds the server's <ca> certificate, not
+        # the server's own certificate, so renewing the server cert does not
+        # change the client's rendered config or its checksum.
+        vpn, _, _ = self._setup_vpn_client_config()
         with catch_signal(vpn_server_modified) as mocked_vpn_server_modified:
             vpn.cert.renew()
         mocked_vpn_server_modified.assert_called_once()

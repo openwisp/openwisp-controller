@@ -1159,7 +1159,9 @@ class AbstractVpnClient(models.Model):
         ``config_modified`` is only emitted when the checksum actually
         changed, not unconditionally for every client of the VPN server.
         """
-        for client in vpn.vpnclient_set.iterator():
+        for client in vpn.vpnclient_set.select_related(
+            "config", "config__device", "config__device__group"
+        ).iterator():
             config = client.config
             # keep the historical signal action for this related change
             config._config_modified_action = "related_template_changed"

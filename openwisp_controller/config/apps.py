@@ -119,19 +119,16 @@ class ConfigConfig(AppConfig):
                 signal_obj=device_group_changed,
                 name="device_group_changed",
                 source=self.device_model,
-                on_commit=False,
                 target=invalidate_devicegroup_cache_change_handler,
             ),
             CacheDependency(
                 source=self.devicegroup_model,
                 signal="post_save",
-                on_commit=False,
                 target=invalidate_devicegroup_cache_change_handler,
             ),
             CacheDependency(
                 source=self.cert_model,
                 signal="post_save",
-                on_commit=False,
                 target=invalidate_devicegroup_cache_change_handler,
             ),
             # `on_commit` cannot be used here because by the time the transaction

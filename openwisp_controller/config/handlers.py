@@ -70,8 +70,10 @@ def invalidate_devicegroup_cache_change_handler(instance, **kwargs):
     ``config/apps.py``).
     """
     if isinstance(instance, list):
-        # device_group_changed currently only emits single instances; mirror the
-        # previous handler, which skipped cache invalidation for the bulk path.
+        for device_id in instance:
+            tasks.invalidate_devicegroup_cache_change.delay(
+                device_id, Device._meta.model_name
+            )
         return
     tasks.invalidate_devicegroup_cache_change.delay(
         instance.id, instance._meta.model_name
