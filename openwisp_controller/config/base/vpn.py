@@ -831,6 +831,11 @@ class AbstractVpnClient(models.Model):
         db_index=True,
     )
     _auto_ip_stopper_funcs = []
+    # Fields which the internal provisioning machinery may legitimately
+    # update after creation (subnet_division reassigns the provisioned IP
+    # asynchronously); every other field is immutable once persisted:
+    # to change a VPN client, remove the VPN template and add it again.
+    _updatable_fields = ("ip",)
 
     class Meta:
         abstract = True
@@ -867,14 +872,55 @@ class AbstractVpnClient(models.Model):
             unique_checks.append((self.__class__, ("vpn", "vni")))
         return unique_checks, date_checks
 
+    def clean(self):
+        super().clean()
+        self._check_immutable_fields()
+
+    def _check_immutable_fields(self):
+        """Raises ValidationError if fields of a persisted instance changed.
+
+        VPN clients are immutable: they are created when a VPN template
+        is applied to a configuration and deleted when it is removed;
+        allowing updates would desynchronize the provisioned artifacts
+        (certificate, IP, keys) from the VPN server.
+        """
+        if self._state.adding:
+            return
+        current = self._meta.model.objects.filter(pk=self.pk).first()
+        if current is None:
+            return
+        changed_fields = [
+            field.name
+            for field in self._meta.concrete_fields
+            if not field.primary_key
+            and field.name not in self._updatable_fields
+            and getattr(self, field.attname) != getattr(current, field.attname)
+        ]
+        if changed_fields:
+            raise ValidationError(
+                {
+                    field: _(
+                        "VPN clients cannot be modified after creation. "
+                        "To change this VPN client, remove the VPN template "
+                        "and add it again."
+                    )
+                    for field in changed_fields
+                }
+            )
+
     def save(self, *args, **kwargs):
         """Performs automatic provisioning if ``auto_cert`` is True."""
-        if self.auto_cert:
-            self._auto_x509()
-            self._auto_ip()
-            self._auto_wireguard()
-            self._auto_vxlan()
-            self._auto_secret()
+        if self._state.adding:
+            if self.auto_cert:
+                self._auto_x509()
+                self._auto_ip()
+                self._auto_wireguard()
+                self._auto_vxlan()
+                self._auto_secret()
+        else:
+            # not called automatically by save(): enforce immutability
+            # also for direct ORM saves which skip full_clean()
+            self._check_immutable_fields()
         super().save(*args, **kwargs)
 
     def _auto_x509(self):
