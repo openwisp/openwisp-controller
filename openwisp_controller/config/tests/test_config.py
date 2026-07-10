@@ -1057,6 +1057,20 @@ class TestConfig(
                 common_name=common_name,
             )
 
+    def test_shared_cert_delete_task_invalidates_devicegroup_wildcard_cache(self):
+        cert = self._create_cert(organization=None)
+        common_name = cert.common_name
+        with patch(
+            "openwisp_controller.config.api.views.DeviceGroupCommonName"
+            ".certificate_delete_invalidates_cache"
+        ) as mocked_invalidate:
+            tasks.invalidate_devicegroup_cache_delete(
+                cert.id,
+                Cert._meta.model_name,
+                common_name=common_name,
+            )
+        mocked_invalidate.assert_called_once_with(common_name, None)
+
 
 class TestTransactionConfig(
     CreateConfigTemplateMixin,
