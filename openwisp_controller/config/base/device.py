@@ -30,7 +30,13 @@ class AbstractDevice(OrgMixin, BaseModel):
     physical properties of a network device
     """
 
-    _changed_checked_fields = ["name", "group_id", "management_ip", "organization_id"]
+    _changed_checked_fields = [
+        "name",
+        "mac_address",
+        "group_id",
+        "management_ip",
+        "organization_id",
+    ]
 
     name = models.CharField(
         max_length=64,
@@ -360,6 +366,17 @@ class AbstractDevice(OrgMixin, BaseModel):
 
             if self._has_config():
                 self.config.set_status_modified()
+
+        self._initial_name = self.name
+
+    def _check_mac_address_changed(self):
+        if self._initial_mac_address == models.DEFERRED:
+            return
+        if self._initial_mac_address != self.mac_address:
+            if self._has_config():
+                self.config.set_status_modified()
+
+        self._initial_mac_address = self.mac_address
 
     def _check_group_id_changed(self):
         if self._initial_group_id == models.DEFERRED:

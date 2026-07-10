@@ -1,5 +1,5 @@
-from django.db import transaction
-from django.db.models.signals import post_save, pre_save
+from django.db import models, transaction
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -45,34 +45,14 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
     )
 
 
+def _field_was_saved(update_fields, field_name):
+    return update_fields is None or field_name in update_fields
+
+
 def _hardware_fields_changed(update_fields):
     return update_fields is None or (
         "name" in update_fields or "mac_address" in update_fields
     )
-
-
-def _hardware_field_was_saved(update_fields, field_name):
-    return update_fields is None or field_name in update_fields
-
-
-@receiver(pre_save, sender=Device, dispatch_uid="capture_old_hardware_properties")
-def capture_old_hardware_properties(sender, instance, **kwargs):
-    """
-    Temporarily caches the old name and mac_address before saving
-    to detect hardware drift in post_save.
-    """
-    if kwargs.get("raw"):
-        return
-    if not instance.pk:
-        return
-    if not _hardware_fields_changed(kwargs.get("update_fields")):
-        return
-    try:
-        old_instance = sender.objects.only("name", "mac_address").get(pk=instance.pk)
-        instance._old_name = old_instance.name
-        instance._old_mac = old_instance.mac_address
-    except sender.DoesNotExist:
-        pass
 
 
 @receiver(post_save, sender=Device, dispatch_uid="detect_hardware_drift")
@@ -87,13 +67,17 @@ def detect_hardware_drift(sender, instance, created, **kwargs):
     if not _hardware_fields_changed(kwargs.get("update_fields")):
         return
     update_fields = kwargs.get("update_fields")
+    initial_name = getattr(instance, "_initial_name", instance.name)
+    initial_mac = getattr(instance, "_initial_mac_address", instance.mac_address)
     name_changed = (
-        _hardware_field_was_saved(update_fields, "name")
-        and getattr(instance, "_old_name", instance.name) != instance.name
+        _field_was_saved(update_fields, "name")
+        and initial_name is not models.DEFERRED
+        and initial_name != instance.name
     )
     mac_changed = (
-        _hardware_field_was_saved(update_fields, "mac_address")
-        and getattr(instance, "_old_mac", instance.mac_address) != instance.mac_address
+        _field_was_saved(update_fields, "mac_address")
+        and initial_mac is not models.DEFERRED
+        and initial_mac != instance.mac_address
     )
     if name_changed or mac_changed:
         DeviceCertificate = load_model("config", "DeviceCertificate")
