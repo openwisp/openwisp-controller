@@ -332,18 +332,19 @@ class CacheDependency:
             if group != last_group:
                 if last_group is not None:
                     lines.append("")
-                lines.append(f"{info['source']} ({info['signal']})")
+                lines.append("{0} ({1})".format(info["source"], info["signal"]))
                 last_group = group
-            lines.append(f"  {_('target')}: {info['target']}")
-            details = f"    {_('resolve')}: {info['resolve']}"
+            lines.append("  " + _("target: {target}").format(target=info["target"]))
+            details = "    " + _("resolve: {resolve}").format(resolve=info["resolve"])
             if info["track_fields"]:
-                details += f"   {_('track_fields')}: {', '.join(info['track_fields'])}"
-            details += (
-                f"   {_('on_create')}: {info['on_create']}"
-                f"   {_('on_commit')}: {info['on_commit']}"
+                details += _("   track_fields: {fields}").format(
+                    fields=", ".join(info["track_fields"])
+                )
+            details += _("   on_create: {on_create}   on_commit: {on_commit}").format(
+                on_create=info["on_create"], on_commit=info["on_commit"]
             )
             lines.append(details)
-            lines.append(f"    {_('uid')}: {info['dispatch_uid']}")
+            lines.append("    " + _("uid: {uid}").format(uid=info["dispatch_uid"]))
         return "\n".join(lines)
 
     def _snapshot_handler(self, sender, instance, **kwargs):

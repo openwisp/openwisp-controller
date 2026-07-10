@@ -35,6 +35,7 @@ OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
+Cert = load_model("django_x509", "Cert")
 
 
 class TestConfig(
@@ -980,6 +981,55 @@ class TestConfig(
                 mocked_delay.assert_not_called()
             mocked_delay.assert_called_once_with(
                 {"device__organization_id": str(org_settings.organization_id)}
+            )
+
+    def test_devicegroup_delete_invalidates_cache_deferred_to_commit(self):
+        """
+        Regression test for the DeviceGroup post_delete CacheDependency
+        (config/apps.py), which targets ``devicegroup_delete_handler``: the
+        Celery task invalidating the DeviceGroupCommonName cache must be
+        enqueued only after the deleting transaction has committed,
+        otherwise a concurrent request can repopulate the cache from a
+        device group that is about to be deleted, leaving it stale after
+        commit.
+        """
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org)
+        device_group_id = device_group.id
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_devicegroup_cache_delete.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                device_group.delete()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                device_group_id,
+                DeviceGroup._meta.model_name,
+                organization_id=org.id,
+            )
+
+    def test_cert_delete_invalidates_devicegroup_cache_deferred_to_commit(self):
+        """
+        Same as above, but for the Cert post_delete CacheDependency, which
+        also targets ``devicegroup_delete_handler``.
+        """
+        org = self._get_org()
+        cert = self._create_cert(organization=org)
+        cert_id = cert.id
+        common_name = cert.common_name
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_devicegroup_cache_delete.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                cert.delete()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                cert_id,
+                Cert._meta.model_name,
+                common_name=common_name,
+                organization_slug=org.slug,
             )
 
 

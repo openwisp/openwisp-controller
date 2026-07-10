@@ -115,7 +115,7 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
         )
     elif model_name == Cert._meta.model_name:
         DeviceGroupCommonName.certificate_delete_invalidates_cache(
-            kwargs["organization_id"], kwargs["common_name"]
+            kwargs["common_name"], kwargs["organization_slug"]
         )
 
 

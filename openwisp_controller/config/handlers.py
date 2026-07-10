@@ -81,12 +81,39 @@ def invalidate_devicegroup_cache_change_handler(instance, **kwargs):
 
 
 def devicegroup_delete_handler(instance, **kwargs):
+    """
+    Invalidates the ``DeviceGroupCommonName`` cache when a device group or a
+    certificate is deleted. Used as a ``CacheDependency`` target (see
+    ``ConfigConfig.connect_cache_dependencies`` in ``config/apps.py``).
+
+    Runs synchronously (the ``CacheDependency`` is declared with
+    ``on_commit=False``) so it still receives the live ``instance``. Only the
+    task enqueue itself is deferred to ``transaction.on_commit()``, so a
+    concurrent request cannot repopulate the cache from a row that is about
+    to be (or was just) deleted.
+
+    For a deleted ``Cert``, ``common_name`` and the organization's ``slug``
+    are captured here rather than looked up by the deferred task: in an
+    organization-cascade delete, the ``Organization`` row itself is also
+    gone by the time the task would run, so it must not depend on a
+    post-commit database lookup to resolve the org's slug.
+    """
     kwargs = {}
     model_name = instance._meta.model_name
-    kwargs["organization_id"] = instance.organization_id
     if isinstance(instance, Cert):
+        organization = instance.organization
+        if not instance.common_name or organization is None:
+            return
         kwargs["common_name"] = instance.common_name
-    tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)
+        kwargs["organization_slug"] = organization.slug
+    else:
+        kwargs["organization_id"] = instance.organization_id
+    instance_id = instance.id
+    transaction.on_commit(
+        lambda: tasks.invalidate_devicegroup_cache_delete.delay(
+            instance_id, model_name, **kwargs
+        )
+    )
 
 
 def config_backend_change_handler(instance, **kwargs):

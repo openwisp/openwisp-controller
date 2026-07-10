@@ -131,18 +131,18 @@ class ConfigConfig(AppConfig):
                 signal="post_save",
                 target=invalidate_devicegroup_cache_change_handler,
             ),
-            # `on_commit` cannot be used here because by the time the transaction
-            # commits, the cascading delete has already removed the related rows
-            # needed to determine which cache entries to invalidate.
+            # Kept synchronous (on_commit=False) so devicegroup_delete_handler
+            # still receives the live instance and can read organization_id
+            # before Django clears instance.pk post-delete. The handler
+            # itself defers the actual task enqueue via transaction.on_commit().
             CacheDependency(
                 source=self.devicegroup_model,
                 signal="post_delete",
                 on_commit=False,
                 target=devicegroup_delete_handler,
             ),
-            # `on_commit` cannot be used here because by the time the transaction
-            # commits, the cascading delete has already removed the related rows
-            # needed to determine which cache entries to invalidate.
+            # Same as above: kept synchronous so the handler can also read
+            # common_name before Django clears instance.pk post-delete.
             CacheDependency(
                 source=self.cert_model,
                 signal="post_delete",
