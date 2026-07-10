@@ -7,6 +7,7 @@ from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
 from openwisp_controller.config.tasks import regenerate_device_certificates_task
+from openwisp_controller.pki.tests.utils import TestPkiMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
@@ -38,6 +39,7 @@ class TestDevice(
     CreateConfigTemplateMixin,
     AssertNumQueriesSubTestMixin,
     CreateDeviceGroupMixin,
+    TestPkiMixin,
     TestCase,
 ):
     """
@@ -665,7 +667,7 @@ class TestDevice(
         """Proof that changing the hostname fires the celery task."""
         org = self._create_org()
         device = self._create_device(organization=org, name="old-router-name")
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -683,7 +685,7 @@ class TestDevice(
         """Proof that changing the MAC address fires the celery task."""
         org = self._create_org()
         device = self._create_device(organization=org, mac_address="00:11:22:33:44:55")
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -701,7 +703,7 @@ class TestDevice(
         """Proof that saving a device without changing name/MAC does nothing."""
         org = self._create_org()
         device = self._create_device(organization=org)
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -722,7 +724,7 @@ class TestDevice(
         """Proof that the user-configurable setting turns the feature off."""
         org = self._create_org()
         device = self._create_device(organization=org)
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -745,7 +747,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="old-name", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -765,7 +767,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -805,7 +807,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         blueprint_cert = Cert(
             name="enterprise-blueprint",
             ca=ca,
@@ -851,7 +853,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -875,7 +877,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
@@ -917,7 +919,7 @@ class TestDevice(
     def test_device_certificate_str_pending_generation(self):
         org = self._create_org()
         device = self._create_device(organization=org)
-        ca = Ca.objects.create(name="ca", organization=org)
+        ca = self._create_ca(name="ca", organization=org)
         template = self._create_template(
             type="cert", ca=ca, organization=org, config={}
         )
@@ -929,7 +931,7 @@ class TestDevice(
 
     def test_cert_used_as_blueprint_blocked(self):
         org = self._get_org()
-        ca = Ca.objects.create(name="ca", organization=org)
+        ca = self._create_ca(name="ca", organization=org)
         blueprint = Cert(
             name="bp",
             ca=ca,
@@ -960,7 +962,7 @@ class TestDevice(
 
     def test_device_certificate_auto_x509_early_return(self):
         org = self._get_org()
-        ca = Ca.objects.create(name="ca", organization=org)
+        ca = self._create_ca(name="ca", organization=org)
         cert = Cert(
             name="pre",
             ca=ca,
@@ -991,7 +993,7 @@ class TestDevice(
         org = self._create_org()
         mac = "00:11:22:33:44:55"
         device = self._create_device(organization=org, name=mac, mac_address=mac)
-        ca = Ca.objects.create(name="ca", organization=org)
+        ca = self._create_ca(name="ca", organization=org)
         template = self._create_template(
             type="cert", ca=ca, organization=org, config={}
         )
@@ -1028,7 +1030,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="test-device", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template1 = self._create_template(
             name="cert-1",
             organization=org,
@@ -1062,7 +1064,7 @@ class TestDevice(
         device = self._create_device(
             organization=org, name="old-name", mac_address="00:11:22:33:44:55"
         )
-        ca = Ca.objects.create(name="test-ca", organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
         template = self._create_template(
             organization=org, type="cert", ca=ca, auto_cert=True
         )
