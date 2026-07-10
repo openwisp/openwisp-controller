@@ -1032,6 +1032,31 @@ class TestConfig(
                 organization_slug=org.slug,
             )
 
+    def test_shared_cert_delete_invalidates_devicegroup_wildcard_cache(self):
+        """
+        A Cert with organization=None ("shared" cert, usable across
+        multiple organizations) is still reachable via the no-org (``""``)
+        DeviceGroupCommonName cache key: ``get_device_group`` only filters
+        by organization when one is explicitly requested. Deleting the cert
+        must still invalidate that wildcard entry, even though there is no
+        organization_slug to also invalidate an org-scoped entry.
+        """
+        cert = self._create_cert(organization=None)
+        cert_id = cert.id
+        common_name = cert.common_name
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_devicegroup_cache_delete.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                cert.delete()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                cert_id,
+                Cert._meta.model_name,
+                common_name=common_name,
+            )
+
 
 class TestTransactionConfig(
     CreateConfigTemplateMixin,

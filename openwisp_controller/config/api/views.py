@@ -273,11 +273,12 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls._invalidate_from_queryset(qs)
 
     @classmethod
-    def certificate_delete_invalidates_cache(cls, common_name, organization_slug):
+    def certificate_delete_invalidates_cache(cls, common_name, organization_slug=None):
         if not common_name:
             return
         cls.get_device_group.invalidate(cls, "", common_name)
-        cls.get_device_group.invalidate(cls, organization_slug, common_name)
+        if organization_slug:
+            cls.get_device_group.invalidate(cls, organization_slug, common_name)
 
 
 template_list = TemplateListCreateView.as_view()

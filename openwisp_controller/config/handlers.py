@@ -96,16 +96,21 @@ def devicegroup_delete_handler(instance, **kwargs):
     are captured here rather than looked up by the deferred task: in an
     organization-cascade delete, the ``Organization`` row itself is also
     gone by the time the task would run, so it must not depend on a
-    post-commit database lookup to resolve the org's slug.
+    post-commit database lookup to resolve the org's slug. A ``Cert`` can
+    have no organization at all (a cert shared across organizations), in
+    which case only the no-org cache entry is invalidated: ``get_device_group``
+    only filters by organization when one is explicitly requested, so a
+    shared cert can still populate (and needs to invalidate) that entry.
     """
     kwargs = {}
     model_name = instance._meta.model_name
     if isinstance(instance, Cert):
-        organization = instance.organization
-        if not instance.common_name or organization is None:
+        if not instance.common_name:
             return
         kwargs["common_name"] = instance.common_name
-        kwargs["organization_slug"] = organization.slug
+        organization = instance.organization
+        if organization is not None:
+            kwargs["organization_slug"] = organization.slug
     else:
         kwargs["organization_id"] = instance.organization_id
     instance_id = instance.id
