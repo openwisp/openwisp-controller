@@ -118,7 +118,7 @@ def provision_extra_ips(rule_id, old_number_of_ips):
                 SubnetDivisionIndex(
                     keyword=f"{division_rule.label}_subnet{subnet.id}_ip{ip_id}",
                     subnet_id=subnet.id,
-                    ip_id=ip.id,
+                    ip=ip,
                     rule_id=division_rule.id,
                     config_id=index.config_id,
                 )

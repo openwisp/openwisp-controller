@@ -256,7 +256,7 @@ class BaseSubnetDivisionRuleType(object):
             generated_indexes.append(
                 SubnetDivisionIndex(
                     keyword=f"{division_rule.label}_subnet{subnet_id}",
-                    subnet_id=subnet_obj.id,
+                    subnet=subnet_obj,
                     rule_id=division_rule.id,
                     config=config,
                 )
@@ -294,8 +294,8 @@ class BaseSubnetDivisionRuleType(object):
                 generated_indexes.append(
                     SubnetDivisionIndex(
                         keyword=f"{subnet_obj.name}_ip{keyword_index}",
-                        subnet_id=subnet_obj.id,
-                        ip_id=ip_obj.id,
+                        subnet=subnet_obj,
+                        ip=ip_obj,
                         rule_id=division_rule.id,
                         config=config,
                     )

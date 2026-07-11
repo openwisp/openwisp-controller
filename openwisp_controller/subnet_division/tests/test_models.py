@@ -1050,6 +1050,48 @@ class TestSubnetDivisionRule(
             e.message_dict.get("master_subnet", []),
         )
 
+    def test_subnet_division_index_integrity(self):
+        rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+
+        # Verify initial indexes have non-NULL subnet_id and ip_id
+        # (if they are IP indexes)
+        indexes = rule.subnetdivisionindex_set.all()
+        self.assertTrue(indexes.exists())
+        initial_count = indexes.count()
+        for index in indexes:
+            self.assertIsNotNone(
+                index.subnet_id,
+                f"SubnetDivisionIndex {index.keyword} has NULL subnet_id",
+            )
+            if "_ip" in index.keyword:
+                self.assertIsNotNone(
+                    index.ip_id,
+                    f"SubnetDivisionIndex {index.keyword} has NULL ip_id",
+                )
+
+        # Update number of IPs to trigger tasks.provision_extra_ips
+        rule.number_of_ips = rule.number_of_ips + 2
+        rule.save()
+        rule.refresh_from_db()
+
+        # Verify count increased and all indexes, including new ones,
+        # have non-NULL subnet_id and ip_id
+        new_indexes = rule.subnetdivisionindex_set.all()
+        self.assertEqual(
+            new_indexes.count(), initial_count + (rule.number_of_subnets * 2)
+        )
+        for index in new_indexes:
+            self.assertIsNotNone(
+                index.subnet_id,
+                f"SubnetDivisionIndex {index.keyword} has NULL subnet_id after update",
+            )
+            if "_ip" in index.keyword:
+                self.assertIsNotNone(
+                    index.ip_id,
+                    f"SubnetDivisionIndex {index.keyword} has NULL ip_id after update",
+                )
+
 
 class TestOpenVPNSubnetDivisionRule(
     SubnetDivisionTestMixin,
