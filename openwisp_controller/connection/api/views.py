@@ -156,7 +156,6 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.validated_data.pop("execute_all", None)
         try:
             batch = BatchCommand.execute(**serializer.validated_data)
         except ValidationError as e:
@@ -172,7 +171,6 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
             dry_run=True,
         )
         serializer.is_valid(raise_exception=True)
-        serializer.validated_data.pop("execute_all", None)
         try:
             data = BatchCommand.dry_run(**serializer.validated_data)
         except ValidationError as e:

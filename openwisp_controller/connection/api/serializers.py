@@ -1,3 +1,5 @@
+import uuid
+
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -195,12 +197,71 @@ class BatchCommandExecuteSerializer(
                             )
                         }
                     )
+        # DRF's many=True injects [] for QueryDict even when key is
+        # absent remove it so model can distinguish omitted vs explicit [].
+        elif "devices" not in self.initial_data and "devices" in data:
+            data.pop("devices")
         return data
 
 
 class BatchCommandSerializer(BaseSerializer):
     device_count = serializers.IntegerField(read_only=True)
     skipped_devices = serializers.JSONField(read_only=True)
+    organization = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+        pk_field=serializers.UUIDField(format="hex_verbose"),
+    )
+    group = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+        allow_null=True,
+        pk_field=serializers.UUIDField(format="hex_verbose"),
+    )
+    location = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+        allow_null=True,
+        pk_field=serializers.UUIDField(format="hex_verbose"),
+    )
+
+    def _redact_skipped_devices(self, data, request):
+        skipped = data.get("skipped_devices", {})
+        if not skipped:
+            return
+        device_pks = list(skipped.keys())
+        device_org_map = dict(
+            Device.objects.filter(pk__in=device_pks).values_list(
+                "pk", "organization__name"
+            )
+        )
+        user_org_ids = set(str(org) for org in request.user.organizations_managed)
+        user_org_device_uuids = set(
+            str(pk)
+            for pk, in Device.objects.filter(
+                pk__in=device_pks, organization_id__in=user_org_ids
+            ).values_list("pk", flat=True)
+        )
+        redacted = {}
+        for device_pk, errors in skipped.items():
+            if device_pk in user_org_device_uuids:
+                redacted[device_pk] = errors
+            else:
+                org_name = device_org_map.get(
+                    uuid.UUID(device_pk), "some other organization"
+                )
+                redacted[f"{org_name} device"] = [
+                    f"restricted to {org_name} managers and users"
+                ]
+        data["skipped_devices"] = redacted
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if (
+            instance.organization_id is None
+            and request
+            and not request.user.is_superuser
+        ):
+            self._redact_skipped_devices(data, request)
+        return data
 
     class Meta:
         model = BatchCommand
@@ -231,6 +292,26 @@ class BatchCommandDetailSerializer(BatchCommandSerializer):
         read_only=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if (
+            instance.organization_id is None
+            and request
+            and not request.user.is_superuser
+        ):
+            user_org_ids = set(str(org) for org in request.user.organizations_managed)
+            device_uuids = data.get("devices", [])
+            if device_uuids:
+                visible_uuids = set(
+                    str(pk)
+                    for pk, in Device.objects.filter(
+                        pk__in=device_uuids, organization_id__in=user_org_ids
+                    ).values_list("pk", flat=True)
+                )
+                data["devices"] = [u for u in device_uuids if u in visible_uuids]
+        return data
 
     class Meta(BatchCommandSerializer.Meta):
         fields = BatchCommandSerializer.Meta.fields + ("devices",)

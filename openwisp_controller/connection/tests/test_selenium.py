@@ -67,3 +67,4 @@ class TestDeviceAdmin(
                 " #tabs-container li.recent-commands"
             ),
         )
+        self.assertEqual(Command.objects.count(), 1)

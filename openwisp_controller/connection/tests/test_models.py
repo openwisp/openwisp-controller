@@ -972,24 +972,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             command.refresh_from_db()
             self.assertIn(command.connection, [dc1, dc2])
 
-    def _create_batch_command(self, organization, **kwargs):
-        opts = dict(
-            organization=organization,
-            type="custom",
-            input={"command": "echo test"},
-            label="test-label",
-        )
-        devices = kwargs.pop("devices", None)
-        opts.update(kwargs)
-        batch = BatchCommand(**opts)
-        batch.full_clean()
-        batch.save()
-        if devices is not None:
-            if not isinstance(devices, (list, tuple)):
-                devices = [devices]
-            batch.devices.set(devices)
-        return batch
-
     def test_batch_command_str(self):
         org = self._get_org()
         batch = self._create_batch_command(organization=org)
@@ -1103,7 +1085,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             )
             with self.assertRaises(ValidationError) as ctx:
                 batch.clean()
-                self.assertIn("group", ctx.exception.message_dict)
+            self.assertIn("group", ctx.exception.message_dict)
             self.assertIn(
                 "Please ensure that the organization of this Batch command "
                 "and the organization of the related Device Group match",
@@ -1125,7 +1107,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             )
             with self.assertRaises(ValidationError) as ctx:
                 batch.clean()
-                self.assertIn("location", ctx.exception.message_dict)
+            self.assertIn("location", ctx.exception.message_dict)
             self.assertIn(
                 "Please ensure that the organization of this Batch command "
                 "and the organization of the related location match",

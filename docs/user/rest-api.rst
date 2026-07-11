@@ -465,7 +465,7 @@ command type being executed.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/command/ \
-        -H 'authorization: Bearer yoursecretauthtoken' \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: application/json' \
         -d '{
                 "type": "custom",
@@ -495,18 +495,20 @@ anything. Useful for previewing which devices are affected.
 
 **Query Parameters:**
 
-================ ========================================================
+================ =========================================================
 Parameter        Description
-================ ========================================================
+================ =========================================================
 ``organization`` Organization UUID (optional)
 ``type``         Command type (optional for dry-run)
-``input``        Input data for the command (optional for dry-run)
+``input``        JSON input data for the command (optional for dry-run).
+                 Encode as a URL-encoded JSON object, e.g.
+                 ``?type=custom&input=%7B%22command%22%3A%22uptime%22%7D``
 ``devices``      Repeated ``devices`` query parameter, each a device UUID
                  (optional)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
 ``execute_all``  Set to ``true`` to target all devices (optional)
-================ ========================================================
+================ =========================================================
 
 Execute a Batch Command
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -558,7 +560,7 @@ input formats.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/batch-command/execute/ \
-        -H 'authorization: Bearer yoursecretauthtoken' \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: application/json' \
         -d '{
                 "organization": "org-uuid",
@@ -934,7 +936,7 @@ organization.
 
     curl -X PUT \
         'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
-        -H 'authorization: Bearer <token>' \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: application/json' \
         -d '{"estimated_location_enabled": true}'
 
@@ -953,7 +955,7 @@ partial update to the resource at the same endpoint path.
 
     curl -X PATCH \
         'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
-        -H 'authorization: Bearer <token>' \
+        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
         -H 'content-type: application/json' \
         -d '{"estimated_location_enabled": true}'
 

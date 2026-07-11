@@ -895,11 +895,20 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         the batch if no devices match the criteria.
         """
         devices_list = kwargs.pop("devices", None)
+        execute_all = kwargs.pop("execute_all", False)
         batch = cls(**kwargs)
         with transaction.atomic():
             batch.full_clean()
             batch.save()
-            if devices_list:
+            if execute_all:
+                Device = load_model("config", "Device")
+                qs = Device.objects.filter(organization=batch.organization)
+                batch.devices.set(qs)
+                if not batch.devices.exists():
+                    raise ValidationError(
+                        _("No devices match the specified criteria."),
+                    )
+            elif devices_list is not None:
                 batch.devices.set(devices_list)
                 batch._validate_org_relations()
                 if not batch.devices.exists():
@@ -910,8 +919,6 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
-            batch.status = "in-progress"
-            batch.save(update_fields=["status"])
         transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
         return batch
 
@@ -923,6 +930,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         not provided case for GET request.
         """
         devices_list = kwargs.pop("devices", None)
+        execute_all = kwargs.pop("execute_all", False)
         cmd_type = kwargs.pop("type", None)
         kwargs.pop("label", None)
         kwargs.pop("notes", None)
@@ -934,26 +942,36 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             batch.full_clean()
         else:
             batch._validate_org_relations()
-        if devices_list:
+        if execute_all:
+            Device = load_model("config", "Device")
+            qs = Device.objects.filter(organization=batch.organization)
+            return {"devices": [str(d.pk) for d in qs]}
+        if devices_list is not None:
             for device in devices_list:
                 cls._validate_device_org(device, batch.organization_id)
             return {"devices": list(devices_list)}
         return {"devices": list(batch.resolve_devices())}
 
+    def _clean_sensitive_info(self):
+        if self.type == "change_password":
+            self.input = {"password": "********"}
+
     def create_commands(self):
         """
         Creates individual Command instances for each device targeted by
-        this batch command. Returns early if commands already exist
-        (idempotent guard). Devices that fail validation are recorded
-        in skipped_devices and logged.
+        this batch command. Uses an atomic status transition to guard
+        against concurrent re-invocation. Devices that fail validation
+        are recorded in skipped_devices and logged.
         """
-        if self.batch_commands.exists():
+        updated = self.__class__.objects.filter(pk=self.pk, status="idle").update(
+            status="in-progress"
+        )
+        if not updated:
             return
+        self.refresh_from_db(fields=["status"])
         Command = load_model("connection", "Command")
         Device = load_model("config", "Device")
         self.skipped_devices = {}
-        self.status = "in-progress"
-        self.save()
         device_pks = []
         for device in self.resolve_devices():
             device_pks.append(device.pk)
@@ -984,6 +1002,9 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         if self.skipped_devices:
             self.save(update_fields=["skipped_devices"])
         self.calculate_and_update_status()
+        self._clean_sensitive_info()
+        if self.type == "change_password":
+            self.save(update_fields=["input"])
 
     def calculate_and_update_status(self):
         """

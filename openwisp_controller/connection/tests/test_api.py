@@ -875,24 +875,6 @@ class TestBatchCommandsAPI(
         super().setUp()
         self._login()
 
-    def _create_batch_command(self, organization, **kwargs):
-        opts = dict(
-            organization=organization,
-            type="custom",
-            input={"command": "echo test"},
-            label="test-label",
-        )
-        devices = kwargs.pop("devices", None)
-        opts.update(kwargs)
-        batch = BatchCommand(**opts)
-        batch.full_clean()
-        batch.save()
-        if devices is not None:
-            if not isinstance(devices, (list, tuple)):
-                devices = [devices]
-            batch.devices.set(devices)
-        return batch
-
     def test_batch_command_list(self):
         org = self._get_org()
         url = reverse("connection_api:batch_command_list")
@@ -1026,6 +1008,16 @@ class TestBatchCommandsAPI(
             self.assertIn(str(device1.pk), response.data["devices"])
             self.assertIn(str(device2.pk), response.data["devices"])
 
+        with self.subTest("dry run with type and input"):
+            url = (
+                "{0}?organization={1}&type=custom"
+                "&input=%7B%22command%22%3A%22uptime%22%7D"
+            ).format(base_url, str(org.pk))
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertIn(str(device2.pk), response.data["devices"])
+
     def test_batch_command_endpoints_no_of_queries(self):
         with self.subTest("list queries"):
             org = self._get_org()
@@ -1073,7 +1065,7 @@ class TestBatchCommandsAPI(
                 "devices": [str(d.pk) for d in devices],
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(17):
+            with self.assertNumQueries(16):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1110,7 +1102,7 @@ class TestBatchCommandsAPI(
                 "group": str(group.pk),
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(13):
+            with self.assertNumQueries(12):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1137,7 +1129,7 @@ class TestBatchCommandsAPI(
                 "execute_all": True,
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(11):
+            with self.assertNumQueries(12):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1491,18 +1483,28 @@ class TestBatchCommandsAPI(
         batch.save(update_fields=["skipped_devices"])
         self.client.logout()
         operator = self._create_operator(organizations=[org])
-        operator.user_permissions.add(Permission.objects.get(codename="view_batchcommand"))
+        operator.user_permissions.add(
+            Permission.objects.get(codename="view_batchcommand")
+        )
         self.client.force_login(operator)
         list_response = self.client.get(reverse("connection_api:batch_command_list"))
         self.assertEqual(list_response.status_code, 200)
         self.assertNotIn(str(device_org2.pk), json.dumps(list_response.data))
         self.assertNotIn("sensitive tenant data", json.dumps(list_response.data))
+        self.assertIn("org2 device", json.dumps(list_response.data))
+        self.assertIn(
+            "restricted to org2 managers and users", json.dumps(list_response.data)
+        )
         detail_response = self.client.get(
             reverse("connection_api:batch_command_detail", args=[batch.pk])
         )
         self.assertEqual(detail_response.status_code, 200)
         self.assertNotIn(str(device_org2.pk), json.dumps(detail_response.data))
         self.assertNotIn("sensitive tenant data", json.dumps(detail_response.data))
+        self.assertIn("org2 device", json.dumps(detail_response.data))
+        self.assertIn(
+            "restricted to org2 managers and users", json.dumps(detail_response.data)
+        )
 
     def test_batch_command_endpoints_unauthorized(self):
         self.client.logout()
@@ -1950,6 +1952,49 @@ class TestBatchCommandsAPITransaction(
             self.assertEqual(response.status_code, 201)
             batch = BatchCommand.objects.get(pk=response.data["batch"])
 
+            self.assertEqual(
+                Command.objects.filter(batch_command=batch).count(),
+                2,
+            )
+            self.assertEqual(batch.skipped_devices, {})
+
+        with self.subTest("execute with empty devices list"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "devices": [],
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.data,
+                ["No devices match the specified criteria."],
+            )
+
+        with self.subTest("execute with empty devices list and execute_all"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "devices": [],
+                        "execute_all": True,
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
             self.assertEqual(
                 Command.objects.filter(batch_command=batch).count(),
                 2,
