@@ -1,12 +1,13 @@
 from django.core.management.base import BaseCommand
+from django.utils.translation import gettext_lazy as _
 
 from openwisp_controller.config.base.cache import CacheDependency
 
 
 class Command(BaseCommand):
-    help = (
-        "Prints every cache dependency wired in the project, so the whole cache"
-        " invalidation graph can be inspected at a glance."
+    help = _(
+        "Prints every cache dependency wired in the project, so the whole"
+        " cache invalidation graph can be inspected at a glance."
     )
 
     def add_arguments(self, parser):
@@ -14,7 +15,7 @@ class Command(BaseCommand):
             "--format",
             choices=["text", "json"],
             default="text",
-            help="Output format (default: text).",
+            help=_("Output format (default: text)."),
         )
 
     def handle(self, *args, **options):
