@@ -34,13 +34,8 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
 )
-from .base import (
-    BaseConfig,
-    CacheDependency,
-    CacheInvalidationMixin,
-    ConfigChecksumCacheMixin,
-    _resolve_pk_snapshot,
-)
+from .base import BaseConfig, ConfigChecksumCacheMixin
+from .cache import CacheDependency, CacheInvalidationMixin, _resolve_pk_snapshot
 
 logger = logging.getLogger(__name__)
 

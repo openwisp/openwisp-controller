@@ -430,7 +430,7 @@ overrides ``get_cache_dependencies()`` to return a list of
 
 .. code-block:: python
 
-    from openwisp_controller.config.base.base import (
+    from openwisp_controller.config.base.cache import (
         CacheDependency,
         CacheInvalidationMixin,
     )

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from openwisp_controller.config.base.base import CacheDependency
+from openwisp_controller.config.base.cache import CacheDependency
 
 
 class Command(BaseCommand):

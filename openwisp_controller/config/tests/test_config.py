@@ -17,8 +17,8 @@ from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
 from .. import tasks
-from ..base.base import CacheDependency
 from ..base.base import logger as base_config_logger
+from ..base.cache import CacheDependency
 from ..handlers import invalidate_devicegroup_cache_change_handler
 from ..signals import config_backend_changed, config_modified, config_status_changed
 from .utils import (

@@ -66,7 +66,7 @@ class ConfigConfig(AppConfig):
         replaces the cache-invalidation ``signal.connect()`` calls that were
         previously scattered across the codebase.
         """
-        from .base.base import CacheDependency, _resolve_pk_snapshot
+        from .base.cache import CacheDependency, _resolve_pk_snapshot
         from .controller.views import DeviceChecksumView
         from .handlers import (
             devicegroup_delete_handler,

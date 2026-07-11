@@ -26,13 +26,8 @@ from ..signals import (
 )
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
-from .base import (
-    BaseConfig,
-    CacheDependency,
-    CacheInvalidationMixin,
-    ChecksumCacheMixin,
-    get_cached_args_rewrite,
-)
+from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
+from .cache import CacheDependency, CacheInvalidationMixin
 
 logger = logging.getLogger(__name__)
 
