@@ -253,14 +253,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 resolve=cls._resolve_cert_dependency,
                 target="update_status_if_checksum_changed",
             ),
-            # Device.os feeds into Config._should_use_dsa(), and
-            # Device.organization_id determines the organization-level
-            # configuration context; recompute the owning Config's checksum
-            # when either changes.
+            # Device.os feeds into Config._should_use_dsa(); Device.group_id
+            # and Device.organization_id determine group/org-level context.
+            # Recompute the owning Config's checksum when any of them changes.
             CacheDependency(
                 source="config.Device",
                 signal="post_save",
-                track_fields=["os", "organization_id"],
+                track_fields=["os", "group_id", "organization_id"],
                 resolve=cls._resolve_device_dependency,
                 target="update_status_if_checksum_changed",
             ),

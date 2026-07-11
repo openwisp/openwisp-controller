@@ -476,8 +476,8 @@ the resolver, any tracked fields, and the dispatch UID of each dependency:
 
     config.device (post_save)
       target: update_status_if_checksum_changed
-        resolve: _resolve_device_dependency   track_fields: os, organization_id   on_create: False   on_commit: True
-        uid: cache_invalidation.config.config.config.device.post_save.update_status_if_checksum_changed._resolve_device_dependency.os+organization_id
+        resolve: _resolve_device_dependency   track_fields: os, group_id, organization_id   on_create: False   on_commit: True
+        uid: cache_invalidation.config.config.config.device.post_save.update_status_if_checksum_changed._resolve_device_dependency.os+group_id+organization_id
 
     config.template (pre_delete)
       target: update_status_if_checksum_changed

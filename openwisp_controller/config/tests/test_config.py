@@ -1214,6 +1214,36 @@ class TestTransactionConfig(
         self.assertNotEqual(config.checksum_db, old_checksum_db)
         self.assertEqual(config.checksum_db, config.checksum)
 
+    def test_device_group_change_updates_config_checksum(self):
+        org = self._get_org()
+        group1 = DeviceGroup(
+            name="group1", organization=org, context={"interface_type": "ethernet"}
+        )
+        group1.full_clean()
+        group1.save()
+        group2 = DeviceGroup(
+            name="group2", organization=org, context={"interface_type": "virtual"}
+        )
+        group2.full_clean()
+        group2.save()
+        device = self._create_device(name="test", organization=org, group=group1)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        device.group = group2
+        device.save()
+        config = Config.objects.get(pk=config.pk)
+        self.assertEqual(config.status, "modified")
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+
     def test_checksum_db_accounts_for_vpnclient(self):
         vpn = self._create_wireguard_vpn()
         vpn_template = self._create_template(
@@ -1488,7 +1518,7 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         dependency = CacheDependency(
             source="config.Device",
             signal="post_save",
-            track_fields=["os", "organization_id"],
+            track_fields=["os", "group_id", "organization_id"],
             target=Mock(),
         )
         dependency._uid = "test.cache_dependency.snapshot.skip_irrelevant_update_fields"
@@ -1537,7 +1567,7 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         dependency = self._connect(
             source="config.Device",
             signal="post_save",
-            track_fields=["os", "organization_id"],
+            track_fields=["os", "group_id", "organization_id"],
             resolve=Config._resolve_device_dependency,
             target="update_status_if_checksum_changed",
         )
@@ -1546,7 +1576,7 @@ class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, Tes
         self.assertEqual(info["signal"], "post_save")
         self.assertEqual(info["target"], "update_status_if_checksum_changed")
         self.assertEqual(info["resolve"], "_resolve_device_dependency")
-        self.assertEqual(info["track_fields"], ["os", "organization_id"])
+        self.assertEqual(info["track_fields"], ["os", "group_id", "organization_id"])
         self.assertEqual(info["on_commit"], True)
         self.assertEqual(info["dispatch_uid"], "test.cache_dependency")
 
