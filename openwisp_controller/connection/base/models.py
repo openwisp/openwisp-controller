@@ -800,8 +800,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
 
     class Meta:
         abstract = True
-        verbose_name = _("Batch command")
-        verbose_name_plural = _("Batch commands")
+        verbose_name = _("Mass command")
+        verbose_name_plural = _("Mass commands")
 
     def __str__(self):
         return self.label
@@ -902,7 +902,10 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             batch.save()
             if execute_all:
                 Device = load_model("config", "Device")
-                qs = Device.objects.filter(organization=batch.organization)
+                if batch.organization:
+                    qs = Device.objects.filter(organization=batch.organization)
+                else:
+                    qs = Device.objects.all()
                 batch.devices.set(qs)
                 if not batch.devices.exists():
                     raise ValidationError(
@@ -944,8 +947,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             batch._validate_org_relations()
         if execute_all:
             Device = load_model("config", "Device")
-            qs = Device.objects.filter(organization=batch.organization)
-            return {"devices": [str(d.pk) for d in qs]}
+            if batch.organization:
+                qs = Device.objects.filter(organization=batch.organization)
+            else:
+                qs = Device.objects.all()
+            return {"devices": list(qs)}
         if devices_list is not None:
             for device in devices_list:
                 cls._validate_device_org(device, batch.organization_id)

@@ -483,8 +483,8 @@ Get Command Details
 
 .. _controller_batch_command_api:
 
-Dry-Run Batch Command
-~~~~~~~~~~~~~~~~~~~~~
+Dry-Run Mass Command
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -510,8 +510,8 @@ Parameter        Description
 ``execute_all``  Set to ``true`` to target all devices (optional)
 ================ =========================================================
 
-Execute a Batch Command
-~~~~~~~~~~~~~~~~~~~~~~~
+Execute a Mass Command
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -572,8 +572,8 @@ input formats.
 
 **Response:** ``201 Created`` with the batch command UUID.
 
-List Batch Commands
-~~~~~~~~~~~~~~~~~~~
+List Mass Commands
+~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -582,8 +582,8 @@ List Batch Commands
 Returns a paginated list of batch commands with device count and skipped
 device information.
 
-Get Batch Command Detail
-~~~~~~~~~~~~~~~~~~~~~~~~
+Get Mass Command Detail
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 

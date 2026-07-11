@@ -1217,6 +1217,102 @@ class TestBatchCommandsAPI(
                 str(response.data),
             )
 
+    def test_superuser_batch_command_execute_all_without_org(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        device1 = self._create_device(
+            name="super-org-dev1",
+            mac_address="00:11:22:33:44:81",
+            organization=org,
+        )
+        self._create_config(device=device1)
+        device2 = self._create_device(
+            name="super-org-dev2",
+            mac_address="00:11:22:33:44:82",
+            organization=org2,
+        )
+        self._create_config(device=device2)
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("execute_all=True targets all devices"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "execute_all": True,
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            self.assertEqual(batch.devices.count(), 2)
+
+        with self.subTest("execute_all=False with explicit devices"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "execute_all": False,
+                        "devices": [str(device1.pk), str(device2.pk)],
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            self.assertEqual(batch.devices.count(), 2)
+
+        with self.subTest("execute_all=False with no targeting options rejected"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "execute_all": False,
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Specify at least one targeting option",
+                str(response.data),
+            )
+
+        with self.subTest("dry-run execute_all=True targets all devices"):
+            response = self.client.get(f"{url}?execute_all=true")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertIn(str(device2.pk), response.data["devices"])
+
+        with self.subTest("dry-run execute_all=False with explicit devices"):
+            response = self.client.get(
+                f"{url}?execute_all=false"
+                f"&devices={str(device1.pk)}&devices={str(device2.pk)}"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertIn(str(device2.pk), response.data["devices"])
+
+        with self.subTest(
+            "dry-run execute_all=False with no targeting options rejected"
+        ):
+            response = self.client.get(f"{url}?execute_all=false")
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Specify at least one targeting option",
+                str(response.data),
+            )
+
     def test_batch_command_operator_endpoints_on_managed_org(self):
         org = self._get_org()
         self._create_credentials(name="op-cred", organization=org)
@@ -1701,7 +1797,7 @@ class TestBatchCommandsAPI(
                 {
                     "group": [
                         (
-                            "Please ensure that the organization of this Batch command "
+                            "Please ensure that the organization of this Mass command "
                             "and the organization of the related Device Group match."
                         )
                     ]
@@ -1733,7 +1829,7 @@ class TestBatchCommandsAPI(
                 {
                     "location": [
                         (
-                            "Please ensure that the organization of this Batch command "
+                            "Please ensure that the organization of this Mass command "
                             "and the organization of the related location match."
                         )
                     ]
@@ -1780,7 +1876,7 @@ class TestBatchCommandsAPI(
                 {
                     "group": [
                         (
-                            "Please ensure that the organization of this Batch command "
+                            "Please ensure that the organization of this Mass command "
                             "and the organization of the related Device Group match."
                         )
                     ]
@@ -1805,7 +1901,7 @@ class TestBatchCommandsAPI(
                 {
                     "location": [
                         (
-                            "Please ensure that the organization of this Batch command "
+                            "Please ensure that the organization of this Mass command "
                             "and the organization of the related location match."
                         )
                     ]

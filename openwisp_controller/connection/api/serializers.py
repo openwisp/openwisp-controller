@@ -139,12 +139,10 @@ class BatchCommandExecuteSerializer(
 
     def __init__(self, *args, dry_run=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dry_run = dry_run
         if dry_run:
-            self._skip_target_validation = True
             self.fields["type"].required = False
             self.fields["label"].required = False
-        else:
-            self._skip_target_validation = False
 
     class Meta:
         model = BatchCommand
@@ -165,28 +163,36 @@ class BatchCommandExecuteSerializer(
 
     def validate(self, data):
         org = data.get("organization")
-        execute_all = data.get("execute_all", False)
         devices = data.get("devices")
         group = data.get("group")
         location = data.get("location")
+        # For dry-run (GET), default to execute_all=True when no
+        # targeting options are provided so a bare GET returns all
+        # devices without erroring. When any targeting option is
+        # given, respect the user's explicit execute_all value.
+        if (
+            self.dry_run
+            and "execute_all" not in self.initial_data
+            and not org
+            and not devices
+            and not group
+            and not location
+        ):
+            execute_all = True
+            data["execute_all"] = True
+        else:
+            execute_all = data.get("execute_all", False)
         if not org and not self.context["request"].user.is_superuser:
             raise serializers.ValidationError(
                 _("Only superusers can execute batch commands without an organization.")
             )
-        if not self._skip_target_validation:
-            if (
-                not execute_all
-                and not org
-                and not devices
-                and not group
-                and not location
-            ):
-                raise serializers.ValidationError(
-                    _(
-                        "Specify at least one targeting option "
-                        "or set execute_all to true."
-                    )
+        if not execute_all and not org and not devices and not group and not location:
+            raise serializers.ValidationError(
+                _(
+                    "Specify at least one targeting option "
+                    "or set execute_all to true."
                 )
+            )
         if devices:
             for device in devices:
                 if org and device.organization_id != org.id:

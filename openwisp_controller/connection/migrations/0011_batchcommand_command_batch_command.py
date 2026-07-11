@@ -157,8 +157,8 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "verbose_name": "Batch command",
-                "verbose_name_plural": "Batch commands",
+                "verbose_name": "Mass command",
+                "verbose_name_plural": "Mass commands",
                 "abstract": False,
                 "swappable": "CONNECTION_BATCHCOMMAND_MODEL",
             },
