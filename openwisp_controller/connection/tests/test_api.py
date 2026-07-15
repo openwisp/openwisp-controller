@@ -1102,7 +1102,7 @@ class TestBatchCommandsAPI(
                 "group": str(group.pk),
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(12):
+            with self.assertNumQueries(15):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1126,10 +1126,9 @@ class TestBatchCommandsAPI(
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(12):
+            with self.assertNumQueries(13):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1144,7 +1143,6 @@ class TestBatchCommandsAPI(
             "type": "custom",
             "input": {"command": "echo test"},
             "label": "test-label",
-            "execute_all": True,
         }
         url = reverse("connection_api:batch_command_execute")
         response = self.client.post(
@@ -1170,7 +1168,6 @@ class TestBatchCommandsAPI(
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             response = self.client.post(
                 url,
@@ -1194,7 +1191,6 @@ class TestBatchCommandsAPI(
             "type": "custom",
             "input": {"command": "echo test"},
             "label": "test-label",
-            "execute_all": True,
         }
         url = reverse("connection_api:batch_command_execute")
         with self.subTest("POST execute without org"):
@@ -1217,7 +1213,7 @@ class TestBatchCommandsAPI(
                 str(response.data),
             )
 
-    def test_superuser_batch_command_execute_all_without_org(self):
+    def test_superuser_batch_command_execute_without_org(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
         device1 = self._create_device(
@@ -1234,7 +1230,7 @@ class TestBatchCommandsAPI(
         self._create_config(device=device2)
         url = reverse("connection_api:batch_command_execute")
 
-        with self.subTest("execute_all=True targets all devices"):
+        with self.subTest("execute targets all devices globally"):
             response = self.client.post(
                 url,
                 data=json.dumps(
@@ -1242,7 +1238,6 @@ class TestBatchCommandsAPI(
                         "type": "custom",
                         "input": {"command": "echo test"},
                         "label": "test-label",
-                        "execute_all": True,
                     }
                 ),
                 content_type="application/json",
@@ -1251,7 +1246,7 @@ class TestBatchCommandsAPI(
             batch = BatchCommand.objects.get(pk=response.data["batch"])
             self.assertEqual(batch.devices.count(), 2)
 
-        with self.subTest("execute_all=False with explicit devices"):
+        with self.subTest("execute with explicit devices"):
             response = self.client.post(
                 url,
                 data=json.dumps(
@@ -1259,7 +1254,6 @@ class TestBatchCommandsAPI(
                         "type": "custom",
                         "input": {"command": "echo test"},
                         "label": "test-label",
-                        "execute_all": False,
                         "devices": [str(device1.pk), str(device2.pk)],
                     }
                 ),
@@ -1269,49 +1263,19 @@ class TestBatchCommandsAPI(
             batch = BatchCommand.objects.get(pk=response.data["batch"])
             self.assertEqual(batch.devices.count(), 2)
 
-        with self.subTest("execute_all=False with no targeting options rejected"):
-            response = self.client.post(
-                url,
-                data=json.dumps(
-                    {
-                        "type": "custom",
-                        "input": {"command": "echo test"},
-                        "label": "test-label",
-                        "execute_all": False,
-                    }
-                ),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 400)
-            self.assertIn(
-                "Specify at least one targeting option",
-                str(response.data),
-            )
-
-        with self.subTest("dry-run execute_all=True targets all devices"):
-            response = self.client.get(f"{url}?execute_all=true")
+        with self.subTest("dry-run targets all devices"):
+            response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertIn(str(device1.pk), response.data["devices"])
             self.assertIn(str(device2.pk), response.data["devices"])
 
-        with self.subTest("dry-run execute_all=False with explicit devices"):
+        with self.subTest("dry-run with explicit devices"):
             response = self.client.get(
-                f"{url}?execute_all=false"
-                f"&devices={str(device1.pk)}&devices={str(device2.pk)}"
+                f"{url}?devices={str(device1.pk)}&devices={str(device2.pk)}"
             )
             self.assertEqual(response.status_code, 200)
             self.assertIn(str(device1.pk), response.data["devices"])
             self.assertIn(str(device2.pk), response.data["devices"])
-
-        with self.subTest(
-            "dry-run execute_all=False with no targeting options rejected"
-        ):
-            response = self.client.get(f"{url}?execute_all=false")
-            self.assertEqual(response.status_code, 400)
-            self.assertIn(
-                "Specify at least one targeting option",
-                str(response.data),
-            )
 
     def test_batch_command_operator_endpoints_on_managed_org(self):
         org = self._get_org()
@@ -1356,13 +1320,12 @@ class TestBatchCommandsAPI(
             self.assertEqual(response.status_code, 200)
             self.assertIn("devices", response.data)
 
-        with self.subTest("execute_all"):
+        with self.subTest("execute org-wide"):
             payload = {
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             response = self.client.post(
                 url,
@@ -1411,13 +1374,12 @@ class TestBatchCommandsAPI(
             self.assertEqual(response.status_code, 200)
             self.assertIn("devices", response.data)
 
-        with self.subTest("execute_all"):
+        with self.subTest("execute org-wide"):
             payload = {
                 "organization": str(org.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             response = self.client.post(
                 url,
@@ -1469,13 +1431,12 @@ class TestBatchCommandsAPI(
             )
             self.assertEqual(response.status_code, 400)
 
-        with self.subTest("execute_all"):
+        with self.subTest("execute org-wide"):
             payload = {
                 "organization": str(org2.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             response = self.client.post(
                 url,
@@ -1522,13 +1483,12 @@ class TestBatchCommandsAPI(
             )
             self.assertEqual(response.status_code, 400)
 
-        with self.subTest("execute_all"):
+        with self.subTest("execute org-wide"):
             payload = {
                 "organization": str(org2.pk),
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             response = self.client.post(
                 url,
@@ -1734,7 +1694,6 @@ class TestBatchCommandsAPI(
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "execute_all": True,
             }
             response = self.client.post(
                 url,
@@ -1770,7 +1729,12 @@ class TestBatchCommandsAPI(
             self.assertEqual(response.status_code, 400)
             self.assertEqual(
                 response.data,
-                {"devices": ["All devices must belong to the same organization."]},
+                {
+                    "devices": [
+                        "All devices must belong to the same "
+                        "organization as the batch command."
+                    ]
+                },
             )
 
         with self.subTest("group org mismatch"):
@@ -1856,7 +1820,12 @@ class TestBatchCommandsAPI(
             self.assertEqual(response.status_code, 400)
             self.assertEqual(
                 response.data,
-                {"devices": ["All devices must belong to the same organization."]},
+                {
+                    "devices": [
+                        "All devices must belong to the same "
+                        "organization as the batch command."
+                    ]
+                },
             )
 
         with self.subTest("group org mismatch"):
@@ -2040,7 +2009,6 @@ class TestBatchCommandsAPITransaction(
                         "type": "custom",
                         "input": {"command": "echo test"},
                         "label": "test-label",
-                        "execute_all": True,
                     }
                 ),
                 content_type="application/json",
@@ -2074,7 +2042,7 @@ class TestBatchCommandsAPITransaction(
                 ["No devices match the specified criteria."],
             )
 
-        with self.subTest("execute with empty devices list and execute_all"):
+        with self.subTest("execute org-wide for superuser"):
             response = self.client.post(
                 url,
                 data=json.dumps(
@@ -2083,8 +2051,6 @@ class TestBatchCommandsAPITransaction(
                         "type": "custom",
                         "input": {"command": "echo test"},
                         "label": "test-label",
-                        "devices": [],
-                        "execute_all": True,
                     }
                 ),
                 content_type="application/json",
@@ -2096,24 +2062,6 @@ class TestBatchCommandsAPITransaction(
                 2,
             )
             self.assertEqual(batch.skipped_devices, {})
-
-        with self.subTest("execute with no targeting options"):
-            response = self.client.post(
-                url,
-                data=json.dumps(
-                    {
-                        "type": "custom",
-                        "input": {"command": "echo test"},
-                        "label": "test-label",
-                    }
-                ),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 400)
-            self.assertIn(
-                "Specify at least one targeting option",
-                str(response.data),
-            )
 
         with self.subTest("execute with empty label"):
             response = self.client.post(

@@ -830,6 +830,13 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                 }
             )
 
+    @classmethod
+    def _validate_devices_org(cls, devices, organization_id):
+        if not devices:
+            return
+        for device in devices:
+            cls._validate_device_org(device, organization_id)
+
     def _validate_org_relations(self):
         if not self.organization_id:
             return
@@ -891,34 +898,20 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     def execute(cls, **kwargs):
         """
         Creates, validates, and persists the batch command, then schedules
-        execution via a background task. Raises ValidationError and deletes
-        the batch if no devices match the criteria.
+        execution via a background task. Raises ValidationError if no
+        devices match the criteria.
         """
         devices_list = kwargs.pop("devices", None)
-        execute_all = kwargs.pop("execute_all", False)
         batch = cls(**kwargs)
         with transaction.atomic():
             batch.full_clean()
             batch.save()
-            if execute_all:
-                Device = load_model("config", "Device")
-                if batch.organization:
-                    qs = Device.objects.filter(organization=batch.organization)
-                else:
-                    qs = Device.objects.all()
-                batch.devices.set(qs)
-                if not batch.devices.exists():
-                    raise ValidationError(
-                        _("No devices match the specified criteria."),
-                    )
-            elif devices_list is not None:
+            if devices_list is not None:
                 batch.devices.set(devices_list)
                 batch._validate_org_relations()
-                if not batch.devices.exists():
-                    raise ValidationError(
-                        _("No devices match the specified criteria."),
-                    )
-            elif not any(batch.resolve_devices()):
+            else:
+                batch.devices.set(list(batch.resolve_devices()))
+            if not batch.devices.exists():
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
@@ -933,7 +926,6 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         not provided case for GET request.
         """
         devices_list = kwargs.pop("devices", None)
-        execute_all = kwargs.pop("execute_all", False)
         cmd_type = kwargs.pop("type", None)
         kwargs.pop("label", None)
         kwargs.pop("notes", None)
@@ -945,16 +937,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             batch.full_clean()
         else:
             batch._validate_org_relations()
-        if execute_all:
-            Device = load_model("config", "Device")
-            if batch.organization:
-                qs = Device.objects.filter(organization=batch.organization)
-            else:
-                qs = Device.objects.all()
-            return {"devices": list(qs)}
+        cls._validate_devices_org(devices_list, batch.organization_id)
         if devices_list is not None:
-            for device in devices_list:
-                cls._validate_device_org(device, batch.organization_id)
             return {"devices": list(devices_list)}
         return {"devices": list(batch.resolve_devices())}
 

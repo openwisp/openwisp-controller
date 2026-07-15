@@ -135,7 +135,6 @@ class BatchCommandExecuteSerializer(
         allow_empty=True,
         pk_field=serializers.UUIDField(format="hex_verbose"),
     )
-    execute_all = serializers.BooleanField(required=False, default=False)
 
     def __init__(self, *args, dry_run=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -155,7 +154,6 @@ class BatchCommandExecuteSerializer(
             "devices",
             "group",
             "location",
-            "execute_all",
         )
         extra_kwargs = {
             "organization": {"required": False, "allow_null": True},
@@ -163,49 +161,13 @@ class BatchCommandExecuteSerializer(
 
     def validate(self, data):
         org = data.get("organization")
-        devices = data.get("devices")
-        group = data.get("group")
-        location = data.get("location")
-        # For dry-run (GET), default to execute_all=True when no
-        # targeting options are provided so a bare GET returns all
-        # devices without erroring. When any targeting option is
-        # given, respect the user's explicit execute_all value.
-        if (
-            self.dry_run
-            and "execute_all" not in self.initial_data
-            and not org
-            and not devices
-            and not group
-            and not location
-        ):
-            execute_all = True
-            data["execute_all"] = True
-        else:
-            execute_all = data.get("execute_all", False)
         if not org and not self.context["request"].user.is_superuser:
             raise serializers.ValidationError(
                 _("Only superusers can execute batch commands without an organization.")
             )
-        if not execute_all and not org and not devices and not group and not location:
-            raise serializers.ValidationError(
-                _(
-                    "Specify at least one targeting option "
-                    "or set execute_all to true."
-                )
-            )
-        if devices:
-            for device in devices:
-                if org and device.organization_id != org.id:
-                    raise serializers.ValidationError(
-                        {
-                            "devices": _(
-                                "All devices must belong to the same organization."
-                            )
-                        }
-                    )
         # DRF's many=True injects [] for QueryDict even when key is
-        # absent remove it so model can distinguish omitted vs explicit [].
-        elif "devices" not in self.initial_data and "devices" in data:
+        # absent; remove it so model can distinguish omitted vs explicit [].
+        if "devices" not in self.initial_data and "devices" in data:
             data.pop("devices")
         return data
 
