@@ -1,3 +1,4 @@
+import json
 import uuid
 from contextlib import redirect_stderr
 from io import StringIO
@@ -413,22 +414,39 @@ class TestTransactionTasks(
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
-        batch = BatchCommand(
-            organization=org,
-            type="custom",
-            input={"command": "echo test"},
-            label="test-label",
-        )
-        batch.full_clean()
-        batch.save()
-        with redirect_stderr(StringIO()) as stderr:
-            tasks.launch_batch_command(batch_id=batch.pk)
-            self.assertIn(
-                f"An exception was raised while executing batch " f"command {batch.pk}",
-                stderr.getvalue(),
+
+        with self.subTest("custom command"):
+            batch = BatchCommand(
+                organization=org,
+                type="custom",
+                input={"command": "echo test"},
+                label="test-label",
             )
-        batch.refresh_from_db()
-        self.assertEqual(batch.status, "failed")
+            batch.full_clean()
+            batch.save()
+            with redirect_stderr(StringIO()) as stderr:
+                tasks.launch_batch_command(batch_id=batch.pk)
+                self.assertIn(
+                    f"An exception was raised while executing batch command {batch.pk}",
+                    stderr.getvalue(),
+                )
+            batch.refresh_from_db()
+            self.assertEqual(batch.status, "failed")
+
+        with self.subTest("change_password input is cleaned up"):
+            password = "SuperSecret123"
+            batch = BatchCommand(
+                organization=org,
+                type="change_password",
+                input={"password": password, "confirm_password": password},
+                label="test-pwd",
+            )
+            batch.full_clean()
+            batch.save()
+            tasks.launch_batch_command(batch_id=batch.pk)
+            batch.refresh_from_db()
+            self.assertEqual(batch.status, "failed")
+            self.assertNotIn(password, json.dumps(batch.input))
 
     @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
     def test_launch_batch_command_all_devices_skipped(self, mocked_delay):

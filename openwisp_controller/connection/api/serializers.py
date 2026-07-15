@@ -203,7 +203,7 @@ class BatchCommandSerializer(BaseSerializer):
         user_org_ids = set(str(org) for org in request.user.organizations_managed)
         user_org_device_uuids = set(
             str(pk)
-            for pk, in Device.objects.filter(
+            for pk in Device.objects.filter(
                 pk__in=device_pks, organization_id__in=user_org_ids
             ).values_list("pk", flat=True)
         )
@@ -215,13 +215,19 @@ class BatchCommandSerializer(BaseSerializer):
                 org_name = device_org_map.get(
                     uuid.UUID(device_pk), "some other organization"
                 )
-                redacted[f"{org_name} device"] = [
-                    f"restricted to {org_name} managers and users"
+                redacted[_("{org_name} device").format(org_name=org_name)] = [
+                    _("restricted to {org_name} managers and users").format(
+                        org_name=org_name
+                    )
                 ]
         data["skipped_devices"] = redacted
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        # The raw password is visible in API responses between
+        # when the batch is saved and when the Celery task runs _clean_sensitive_info().
+        if instance.type == "change_password":
+            data["input"] = {"password": "********"}
         request = self.context.get("request")
         if (
             instance.organization_id is None
@@ -274,7 +280,7 @@ class BatchCommandDetailSerializer(BatchCommandSerializer):
             if device_uuids:
                 visible_uuids = set(
                     str(pk)
-                    for pk, in Device.objects.filter(
+                    for pk in Device.objects.filter(
                         pk__in=device_uuids, organization_id__in=user_org_ids
                     ).values_list("pk", flat=True)
                 )

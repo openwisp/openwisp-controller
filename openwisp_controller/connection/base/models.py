@@ -977,7 +977,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                 command.full_clean()
                 with transaction.atomic():
                     command.save()
-            except Exception as e:
+            except ValidationError as e:
                 self.skipped_devices[str(device.pk)] = (
                     e.messages if hasattr(e, "messages") else [str(e)]
                 )
@@ -1006,48 +1006,52 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         - All commands completed successfully: status set to "success".
         - Status unchanged: no database write performed.
         """
-        stats = self.batch_commands.aggregate(
-            total_operations=models.Count("id"),
-            in_progress=models.Count(
-                models.Case(
-                    models.When(status="in-progress", then=1),
-                    output_field=models.IntegerField(),
-                )
-            ),
-            completed=models.Count(
-                models.Case(
-                    models.When(~models.Q(status="in-progress"), then=1),
-                    output_field=models.IntegerField(),
-                )
-            ),
-            successful=models.Count(
-                models.Case(
-                    models.When(status="success", then=1),
-                    output_field=models.IntegerField(),
-                )
-            ),
-            failed=models.Count(
-                models.Case(
-                    models.When(status="failed", then=1),
-                    output_field=models.IntegerField(),
-                )
-            ),
-        )
-        if stats["total_operations"] == 0:
-            if self.skipped_devices:
+        with transaction.atomic():
+            batch = self.__class__.objects.select_for_update().get(pk=self.pk)
+            stats = batch.batch_commands.aggregate(
+                total_operations=models.Count("id"),
+                in_progress=models.Count(
+                    models.Case(
+                        models.When(status="in-progress", then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+                completed=models.Count(
+                    models.Case(
+                        models.When(~models.Q(status="in-progress"), then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+                successful=models.Count(
+                    models.Case(
+                        models.When(status="success", then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+                failed=models.Count(
+                    models.Case(
+                        models.When(status="failed", then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+            )
+            if stats["total_operations"] == 0:
+                if batch.skipped_devices:
+                    new_status = "failed"
+                else:
+                    new_status = "idle"
+            elif stats["in_progress"] > 0:
+                new_status = "in-progress"
+            elif stats["failed"] > 0:
                 new_status = "failed"
+            elif (
+                stats["successful"] > 0
+                and stats["completed"] == stats["total_operations"]
+                and not batch.skipped_devices
+            ):
+                new_status = "success"
             else:
-                new_status = "idle"
-        elif stats["in_progress"] > 0:
-            new_status = "in-progress"
-        elif stats["failed"] > 0:
-            new_status = "failed"
-        elif (
-            stats["successful"] > 0 and stats["completed"] == stats["total_operations"]
-        ):
-            new_status = "success"
-        else:
-            new_status = self.status
-        if self.status != new_status:
-            self.status = new_status
-            self.save(update_fields=["status"])
+                new_status = batch.status
+            if batch.status != new_status:
+                batch.status = new_status
+                batch.save(update_fields=["status"])

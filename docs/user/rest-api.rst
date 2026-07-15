@@ -507,7 +507,6 @@ Parameter        Description
                  (optional)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
-``execute_all``  Set to ``true`` to target all devices (optional)
 ================ =========================================================
 
 Execute a Mass Command
@@ -534,7 +533,6 @@ Parameter        Description
 ``devices``      List of device UUIDs (optional)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
-``execute_all``  Set to ``true`` to target all devices (optional)
 ================ ========================================================
 
 **Available Command Types:**
@@ -550,8 +548,7 @@ input formats.
         "organization": "org-uuid",
         "type": "custom",
         "input": {"command": "uptime"},
-        "label": "Check uptime",
-        "execute_all": true
+        "label": "Check uptime"
     }
 
 **Example request:**
@@ -566,8 +563,7 @@ input formats.
                 "organization": "org-uuid",
                 "type": "custom",
                 "input": {"command": "uptime"},
-                "label": "Check uptime",
-                "execute_all": true
+                "label": "Check uptime"
             }'
 
 **Response:** ``201 Created`` with the batch command UUID.

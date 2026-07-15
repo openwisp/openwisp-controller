@@ -163,7 +163,7 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
                 getattr(e, "message_dict", e.messages),
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response({"batch": str(batch.pk)}, status=201)
+        return Response({"batch": str(batch.pk)}, status=status.HTTP_201_CREATED)
 
     def get(self, request):
         serializer = self.get_serializer(

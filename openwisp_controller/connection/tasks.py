@@ -108,11 +108,15 @@ def launch_batch_command(self, batch_id):
         return
     try:
         batch.create_commands()
-    except Exception as e:
+    except Exception:
+        batch._clean_sensitive_info()
         batch.status = "failed"
-        batch.save(update_fields=["status"])
+        update_fields = ["status"]
+        if batch.type == "change_password":
+            update_fields.append("input")
+        batch.save(update_fields=update_fields)
         logger.exception(
-            f"An exception was raised while executing batch " f"command {batch_id}: {e}"
+            f"An exception was raised while executing batch command {batch_id}"
         )
 
 
