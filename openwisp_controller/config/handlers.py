@@ -5,8 +5,6 @@ from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
-from openwisp_controller.config.controller.views import DeviceChecksumView
-
 from . import settings as app_settings
 from . import tasks
 from .signals import config_status_changed, device_registered

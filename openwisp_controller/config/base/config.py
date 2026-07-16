@@ -193,9 +193,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         except ObjectDoesNotExist:
             pass
         DeviceCertificate = load_model("config", "DeviceCertificate")
-        for dc in DeviceCertificate.objects.filter(cert=cert).select_related(
-            "config"
-        ):
+        for dc in DeviceCertificate.objects.filter(cert=cert).select_related("config"):
             configs.add(dc.config)
         return list(configs)
 
