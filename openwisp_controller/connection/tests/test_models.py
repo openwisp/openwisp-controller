@@ -1718,6 +1718,22 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             batch2.refresh_from_db()
             self.assertEqual(batch2.status, "success")
 
+        with self.subTest("all success with skipped shows failed"):
+            batch3 = self._create_batch_command(organization=org)
+            batch3.skipped_devices = {str(device.pk): ["no credentials"]}
+            batch3.save(update_fields=["skipped_devices"])
+            Command.objects.create(
+                batch_command=batch3,
+                device=device,
+                connection=dc,
+                type=batch3.type,
+                input={"command": "echo test"},
+                status="success",
+            )
+            batch3.calculate_and_update_status()
+            batch3.refresh_from_db()
+            self.assertEqual(batch3.status, "failed")
+
         with self.subTest("no change shows no extra save"):
             initial_modified = batch2.modified
             batch2.calculate_and_update_status()

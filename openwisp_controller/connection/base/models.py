@@ -883,9 +883,9 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         group, and location. Returns an empty iterator if no devices match.
         """
         if self.pk and self.devices.exists():
-            return self.devices.iterator()
+            return self.devices.select_related("config").iterator()
         Device = load_model("config", "Device")
-        qs = Device.objects.all()
+        qs = Device.objects.select_related("config")
         if self.organization_id:
             qs = qs.filter(organization=self.organization)
         if self.group:
@@ -1047,11 +1047,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             elif (
                 stats["successful"] > 0
                 and stats["completed"] == stats["total_operations"]
-                and not batch.skipped_devices
             ):
-                new_status = "success"
-            else:
-                new_status = batch.status
+                if batch.skipped_devices:
+                    new_status = "failed"
+                else:
+                    new_status = "success"
             if batch.status != new_status:
                 batch.status = new_status
                 batch.save(update_fields=["status"])

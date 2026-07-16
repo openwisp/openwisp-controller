@@ -189,10 +189,28 @@ class BatchCommandListView(ProtectedAPIMixin, ListAPIView):
     serializer_class = BatchCommandSerializer
     pagination_class = OpenWispPagination
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not self.request.user.is_superuser:
+            # TODO: remove this filter once openwisp-users supports
+            # showing shared objects as read-only to non-superusers.
+            # See: https://github.com/openwisp/openwisp-controller/issues/1439
+            qs = qs.filter(organization__isnull=False)
+        return qs
+
 
 class BatchCommandDetailView(ProtectedAPIMixin, RetrieveAPIView):
     queryset = BatchCommand.objects.annotate(device_count=Count("devices"))
     serializer_class = BatchCommandDetailSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not self.request.user.is_superuser:
+            # TODO: remove this filter once openwisp-users supports
+            # showing shared objects as read-only to non-superusers.
+            # See: https://github.com/openwisp/openwisp-controller/issues/1439
+            qs = qs.filter(organization__isnull=False)
+        return qs
 
 
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):

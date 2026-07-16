@@ -504,7 +504,8 @@ Parameter        Description
                  Encode as a URL-encoded JSON object, e.g.
                  ``?type=custom&input=%7B%22command%22%3A%22uptime%22%7D``
 ``devices``      Repeated ``devices`` query parameter, each a device UUID
-                 (optional)
+                 (optional; when provided, ``group`` and ``location`` are
+                 ignored)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
 ================ =========================================================
@@ -530,7 +531,8 @@ Parameter        Description
 ``label``        A short label to identify this batch command
                  (**required**)
 ``notes``        Optional notes (optional)
-``devices``      List of device UUIDs (optional)
+``devices``      List of device UUIDs (optional; when provided, ``group``
+                 and ``location`` are ignored)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
 ================ ========================================================

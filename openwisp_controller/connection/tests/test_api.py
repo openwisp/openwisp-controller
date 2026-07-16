@@ -1530,37 +1530,36 @@ class TestBatchCommandsAPI(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
 
-    def test_shared_batch_command_does_not_expose_other_tenant_data(self):
+    def test_shared_batch_command_hidden_from_non_superuser(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
         device_org2 = self._create_device(organization=org2)
         batch = self._create_batch_command(organization=None, devices=[device_org2])
-        batch.skipped_devices = {str(device_org2.pk): ["sensitive tenant data"]}
-        batch.save(update_fields=["skipped_devices"])
         self.client.logout()
         operator = self._create_operator(organizations=[org])
         operator.user_permissions.add(
             Permission.objects.get(codename="view_batchcommand")
         )
         self.client.force_login(operator)
-        list_response = self.client.get(reverse("connection_api:batch_command_list"))
-        self.assertEqual(list_response.status_code, 200)
-        self.assertNotIn(str(device_org2.pk), json.dumps(list_response.data))
-        self.assertNotIn("sensitive tenant data", json.dumps(list_response.data))
-        self.assertIn("org2 device", json.dumps(list_response.data))
-        self.assertIn(
-            "restricted to org2 managers and users", json.dumps(list_response.data)
-        )
-        detail_response = self.client.get(
-            reverse("connection_api:batch_command_detail", args=[batch.pk])
-        )
-        self.assertEqual(detail_response.status_code, 200)
-        self.assertNotIn(str(device_org2.pk), json.dumps(detail_response.data))
-        self.assertNotIn("sensitive tenant data", json.dumps(detail_response.data))
-        self.assertIn("org2 device", json.dumps(detail_response.data))
-        self.assertIn(
-            "restricted to org2 managers and users", json.dumps(detail_response.data)
-        )
+
+        with self.subTest("list hides org-wide batch"):
+            url = reverse("connection_api:batch_command_list")
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 0)
+
+        with self.subTest("detail returns 404 for org-wide batch"):
+            url = reverse("connection_api:batch_command_detail", args=[batch.pk])
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("superuser still sees org-wide batch"):
+            self.client.logout()
+            self._login()
+            url = reverse("connection_api:batch_command_list")
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
 
     def test_batch_command_endpoints_unauthorized(self):
         self.client.logout()
