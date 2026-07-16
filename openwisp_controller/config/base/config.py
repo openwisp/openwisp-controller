@@ -182,15 +182,22 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         Returns the Config whose checksum depends on this client certificate.
 
         Mirrors the previous ``certificate_updated`` handler: a revoked
-        certificate or a certificate not linked to a VpnClient does not affect
-        any configuration.
+        certificate or a certificate not linked to a VpnClient or
+        DeviceCertificate does not affect any configuration.
         """
         if cert.revoked:
             return []
+        configs = set()
         try:
-            return [cert.vpnclient.config]
+            configs.add(cert.vpnclient.config)
         except ObjectDoesNotExist:
-            return []
+            pass
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        for dc in DeviceCertificate.objects.filter(cert=cert).select_related(
+            "config"
+        ):
+            configs.add(dc.config)
+        return list(configs)
 
     @classmethod
     def _bulk_invalidate_configs(cls, filters):
