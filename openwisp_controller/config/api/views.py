@@ -40,7 +40,6 @@ DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 VpnClient = load_model("config", "VpnClient")
 Cert = load_model("django_x509", "Cert")
-Organization = load_model("openwisp_users", "Organization")
 
 
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
@@ -274,14 +273,12 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls._invalidate_from_queryset(qs)
 
     @classmethod
-    def certificate_delete_invalidates_cache(cls, organization_id, common_name):
-        try:
-            assert common_name
-            org_slug = Organization.objects.only("slug").get(id=organization_id).slug
-        except (AssertionError, Organization.DoesNotExist):
+    def certificate_delete_invalidates_cache(cls, common_name, organization_slug=None):
+        if not common_name:
             return
         cls.get_device_group.invalidate(cls, "", common_name)
-        cls.get_device_group.invalidate(cls, org_slug, common_name)
+        if organization_slug:
+            cls.get_device_group.invalidate(cls, organization_slug, common_name)
 
 
 template_list = TemplateListCreateView.as_view()

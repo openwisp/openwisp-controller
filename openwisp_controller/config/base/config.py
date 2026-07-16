@@ -27,6 +27,7 @@ from ..signals import (
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
+from .cache import CacheDependency, CacheInvalidationMixin
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class TemplatesThrough(object):
         return _("Relationship with {0}").format(self.template.name)
 
 
-class AbstractConfig(ChecksumCacheMixin, BaseConfig):
+class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
     """
     Abstract model implementing the
     NetJSON DeviceConfiguration object
@@ -174,6 +175,128 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         self.refresh_from_db(fields=["checksum_db"])
         return self.checksum_db
+
+    @classmethod
+    def _resolve_cert_dependency(cls, cert, **kwargs):
+        """
+        Returns the Config whose checksum depends on this client certificate.
+
+        Mirrors the previous ``certificate_updated`` handler: a revoked
+        certificate or a certificate not linked to a VpnClient does not affect
+        any configuration.
+        """
+        if cert.revoked:
+            return []
+        try:
+            return [cert.vpnclient.config]
+        except ObjectDoesNotExist:
+            return []
+
+    @classmethod
+    def _bulk_invalidate_configs(cls, filters):
+        """Bulk-recompute the checksums of the configs matching ``filters``."""
+        from ..tasks import bulk_invalidate_config_get_cached_checksum
+
+        bulk_invalidate_config_get_cached_checksum.delay(filters)
+
+    @classmethod
+    def _invalidate_configs_in_group(cls, group):
+        """Bulk-recompute checksums of configs in a group (context change)."""
+        cls._bulk_invalidate_configs({"device__group_id": str(group.id)})
+
+    @classmethod
+    def _invalidate_configs_in_org(cls, org_config_settings):
+        """Bulk-recompute checksums of an org's configs (context change)."""
+        cls._bulk_invalidate_configs(
+            {"device__organization_id": str(org_config_settings.organization_id)}
+        )
+
+    @classmethod
+    def _resolve_device_dependency(cls, device, **kwargs):
+        try:
+            return [device.config]
+        except ObjectDoesNotExist:
+            return []
+
+    @classmethod
+    def _resolve_template_dependency(cls, template, **kwargs):
+        """
+        Return configs that use ``template`` (captured before cascade delete).
+
+        Skipped when the delete originates from an Organization (e.g.
+        ``org.delete()``): a config using one of that organization's own
+        templates is necessarily in the same organization and will be
+        cascade-deleted in the same transaction, so there is nothing left
+        to invalidate.
+
+        Note this check only excludes an Organization origin, it does not
+        require the origin to be the Template itself. Template also cascades
+        from ``Vpn`` (``vpn`` FK, ``on_delete=CASCADE``): deleting a VPN
+        removes its VPN-type templates with ``origin`` set to the ``Vpn``
+        instance, not ``Template``. ``Config.templates`` is a many-to-many
+        field, so the configs using those templates are *not* deleted by
+        that cascade and still need their checksum recomputed. Narrowing
+        this to "only run when origin is Template" would silently skip that
+        case and leave those configs with a stale cached checksum.
+        """
+        origin = kwargs.get("origin")
+        if origin is not None:
+            Organization = load_model("openwisp_users", "Organization")
+            origin_model = (
+                origin.model if isinstance(origin, models.QuerySet) else type(origin)
+            )
+            if issubclass(origin_model, Organization):
+                return []
+        return list(cls.objects.filter(templates=template))
+
+    @classmethod
+    def get_cache_dependencies(cls):
+        return [
+            # A client certificate's content (re-issue / key change) feeds into
+            # Config.get_vpn_context(); recompute the owning Config's checksum.
+            CacheDependency(
+                source="django_x509.Cert",
+                signal="post_save",
+                resolve=cls._resolve_cert_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+            # Device.os feeds into Config._should_use_dsa(); Device.group_id
+            # and Device.organization_id determine group/org-level context.
+            # Recompute the owning Config's checksum when any of them changes.
+            CacheDependency(
+                source="config.Device",
+                signal="post_save",
+                track_fields=["os", "group_id", "organization_id"],
+                resolve=cls._resolve_device_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+            # Group-level configuration variables feed into Config.get_context();
+            # recompute checksums of all configs in the group when they change.
+            CacheDependency(
+                source="config.DeviceGroup",
+                signal="post_save",
+                track_fields=["context"],
+                target=cls._invalidate_configs_in_group,
+            ),
+            # Organization-level configuration variables feed into
+            # Config.get_context(); recompute checksums of all org configs.
+            CacheDependency(
+                source="config.OrganizationConfigSettings",
+                signal="post_save",
+                track_fields=["context"],
+                target=cls._invalidate_configs_in_org,
+            ),
+            # When a template is deleted, Django removes through-table
+            # rows without emitting m2m_changed. Capture the affected configs
+            # during pre_delete (while through rows still exist) and recompute
+            # their checksums on commit (after the cascade completes).
+            CacheDependency(
+                source="config.Template",
+                signal="pre_delete",
+                resolve=cls._resolve_template_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+        ]
 
     @classmethod
     def bulk_invalidate_get_cached_checksum(cls, query_params):

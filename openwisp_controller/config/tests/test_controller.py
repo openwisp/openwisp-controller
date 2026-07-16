@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.http.response import Http404
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse, reverse_lazy
 from swapper import load_model
@@ -89,35 +89,6 @@ class TestController(
         response = method(url, {"key": obj.key})
         self.assertEqual(response.status_code, 404)
 
-    def _test_deactivating_deactivated_device_view(
-        self, url_name, method="get", data=None
-    ):
-        data = data or {}
-        device = self._create_device_config()
-        config = device.config
-        # The endpoint returns 200 when config.status is modified
-        config.set_status_modified()
-        path = reverse(f"controller:{url_name}", args=[device.pk])
-        payload = {"key": device.key, **data}
-        response = getattr(self.client, method)(path, payload)
-        self.assertEqual(response.status_code, 200)
-
-        # The endpoint returns 200 when config.status is deactivating
-        config.set_status_deactivating()
-        path = reverse("controller:device_checksum", args=[device.pk])
-        response = self.client.get(path, {"key": device.key})
-        self.assertEqual(response.status_code, 200)
-        config.refresh_from_db()
-        self.assertEqual(config.status, "deactivating")
-
-        # The endpoint returns 404 when config.status is deactivated
-        config.set_status_deactivated()
-        path = reverse("controller:device_checksum", args=[device.pk])
-        response = self.client.get(path, {"key": device.key})
-        self.assertEqual(response.status_code, 404)
-        config.refresh_from_db()
-        self.assertEqual(config.status, "deactivated")
-
     def test_device_checksum(self):
         d = self._create_device_config()
         c = d.config
@@ -137,128 +108,6 @@ class TestController(
         d.refresh_from_db()
         self.assertIsNotNone(d.last_ip)
         self.assertIsNone(d.management_ip)
-
-    def test_device_get_object_cached(self):
-        d = self._create_device_config()
-        view = DeviceChecksumView()
-        view.kwargs = {"pk": str(d.pk)}
-        logger = controller_views_logger
-
-        with self.subTest("check cache set"):
-            with patch("django.core.cache.cache.set") as mock:
-                self.assertEqual(view.get_device(), d)
-                mock.assert_called_once()
-
-        with self.subTest("check cache get"):
-            with patch("django.core.cache.cache.get", return_value=d) as mock:
-                view.get_device()
-                mock.assert_called_once()
-
-        with self.subTest("ensure DB is hit when cache is clear"):
-            with patch.object(logger, "debug") as mocked_debug:
-                with self.assertNumQueries(1):
-                    self.assertEqual(view.get_device(), d)
-                    mocked_debug.assert_called_once()
-
-        with self.subTest("ensure DB is NOT hit when cache is present"):
-            with patch.object(logger, "debug") as mocked_debug:
-                with self.assertNumQueries(0):
-                    self.assertEqual(view.get_device(), d)
-                    mocked_debug.assert_not_called()
-
-        with self.subTest("test manual invalidation"):
-            with patch.object(logger, "debug") as mocked_debug:
-                with self.assertNumQueries(1):
-                    view.get_device.invalidate(view)
-                    self.assertEqual(view.get_device(), d)
-                    mocked_debug.assert_called_once()
-
-        with self.subTest("test automatic cache invalidation"):
-            with patch.object(logger, "debug") as mocked_debug:
-                d.os = "test_cache"
-                d.save()
-                mocked_debug.assert_called_once()
-
-            with self.assertNumQueries(1):
-                obj = view.get_device()
-            self.assertEqual(obj.os, "test_cache")
-
-        with self.subTest("test cache invalidation on device delete"):
-            d.delete(check_deactivated=False)
-            with self.assertNumQueries(1):
-                with self.assertRaises(Http404):
-                    view.get_device()
-
-    def test_get_cached_checksum(self):
-        d = self._create_device_config()
-        # avoid cache to be invalidated by the update of the addresses
-        d.last_ip = "127.0.0.1"
-        d.management_ip = "10.0.0.2"
-        d.save()
-
-        url = reverse("controller:device_checksum", args=[d.pk])
-
-        with self.subTest("first request does not return value from cache"):
-            with self.assertNumQueries(3):
-                with patch.object(
-                    controller_views_logger, "debug"
-                ) as mocked_view_debug:
-                    with patch.object(
-                        base_config_logger, "debug"
-                    ) as mocked_config_debug:
-                        self.client.get(
-                            url, {"key": d.key, "management_ip": "10.0.0.2"}
-                        )
-                        self.assertEqual(mocked_config_debug.call_count, 0)
-                    self.assertEqual(mocked_view_debug.call_count, 1)
-
-        with self.subTest("update_last_ip updates the cache"):
-            with self.assertNumQueries(3):
-                with patch.object(
-                    controller_views_logger, "debug"
-                ) as mocked_view_debug:
-                    with patch.object(
-                        base_config_logger, "debug"
-                    ) as mocked_config_debug:
-                        self.client.get(
-                            url, {"key": d.key, "management_ip": "10.0.0.3"}
-                        )
-                        mocked_config_debug.assert_not_called()
-                    mocked_view_debug.assert_called_once_with(
-                        f"invalidated view cache for device ID {d.pk.hex}"
-                    )
-            view = DeviceChecksumView()
-            view.kwargs = {"pk": str(d.pk)}
-            key = view.get_device.get_cache_key(view)
-            d.refresh_from_db()
-            cached_device = cache.get(key)
-            self.assertEqual(cached_device, d)
-            self.assertEqual(cached_device.management_ip, "10.0.0.3")
-
-        with self.subTest("second request returns value from cache"):
-            with self.assertNumQueries(0):
-                with patch.object(
-                    controller_views_logger, "debug"
-                ) as mocked_view_debug:
-                    with patch.object(
-                        base_config_logger, "debug"
-                    ) as mocked_config_debug:
-                        self.client.get(
-                            url, {"key": d.key, "management_ip": "10.0.0.3"}
-                        )
-                        mocked_config_debug.assert_not_called()
-                    mocked_view_debug.assert_not_called()
-
-        with self.subTest("ensure cache invalidation works"):
-            old_checksum = d.config.checksum
-            with patch.object(base_config_logger, "debug") as mocked_debug:
-                d.config.config["general"]["timezone"] = "Europe/Rome"
-                d.config.full_clean()
-                d.config.save()
-                del d.config.backend_instance
-                self.assertNotEqual(d.config.checksum, old_checksum)
-                self.assertEqual(d.config.get_cached_checksum(), d.config.checksum)
-                mocked_debug.assert_called_once()
 
     def test_device_checksum_requested_signal_is_emitted(self):
         d = self._create_device_config()
@@ -290,9 +139,6 @@ class TestController(
                 instance=d,
                 request=response.wsgi_request,
             )
-
-    def test_device_config_deactivated_checksum(self):
-        self._test_deactivating_deactivated_device_view("device_checksum")
 
     @capture_any_output()
     def test_device_checksum_400(self):
@@ -333,9 +179,6 @@ class TestController(
         d.refresh_from_db()
         self.assertIsNotNone(d.last_ip)
         self.assertIsNone(d.management_ip)
-
-    def test_deactivated_device_download_config(self):
-        self._test_deactivating_deactivated_device_view("device_download_config")
 
     def test_device_download_config_bad_uuid(self):
         d = self._create_device_config()
@@ -452,65 +295,18 @@ class TestController(
                 view.get_vpn.invalidate(view)
                 mock.assert_called_once()
 
-    def test_vpn_checksum_cache_invalidation_handler(self):
+    def test_vpn_cache_invalidation_on_delete(self):
         vpn = self._create_vpn()
-        url = reverse("controller:vpn_checksum", args=[vpn.pk])
-        # Warm up the cache
-        with self.assertNumQueries(1):
-            response = self.client.get(url, {"key": vpn.key})
-        self.assertEqual(response.content.decode(), vpn.checksum)
-
-        # Cache works are expected
-        with self.assertNumQueries(0):
-            response = self.client.get(url, {"key": vpn.key})
-        self.assertEqual(response.content.decode(), vpn.checksum)
-
-        # Change VPN config to trigger invalidation
-        vpn.config["openvpn"][0]["proto"] = "tcp-server"
-        vpn.full_clean()
-        vpn.save()
-
-        del vpn.backend_instance
-        with self.assertNumQueries(1):
-            response = self.client.get(url, {"key": vpn.key})
-        self.assertEqual(response.content.decode(), vpn.checksum)
-
-    def test_vpn_download_config(self):
-        v = self._create_vpn()
-        url = reverse("controller:vpn_download_config", args=[v.pk])
-        # First request will populate the cache
-        with self.assertNumQueries(1), patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate:
-            response = self.client.get(url, {"key": v.key})
-            mocked_generate.assert_called_once()
-        self.assertEqual(
-            response["Content-Disposition"], "attachment; filename=test.tar.gz"
-        )
-        self._check_header(response)
-
-        with self.subTest("Second request will return cached config"):
-            with patch.object(Vpn, "generate") as mocked_generate:
-                response = self.client.get(url, {"key": v.key})
-                mocked_generate.assert_not_called()
-            self.assertEqual(
-                response["Content-Disposition"], "attachment; filename=test.tar.gz"
-            )
-            self._check_header(response)
-
-        with self.subTest("Changing Vpn configuration will invalidate cache"):
-            v.config["wireguard"][0]["port"] = "51821"
-            v.full_clean()
-            v.save()
-            with self.assertNumQueries(1), patch.object(
-                Vpn, "generate", return_value=v.generate()
-            ) as mocked_generate:
-                response = self.client.get(url, {"key": v.key})
-                mocked_generate.assert_called_once()
-            self.assertEqual(
-                response["Content-Disposition"], "attachment; filename=test.tar.gz"
-            )
-            self._check_header(response)
+        view = VpnChecksumView()
+        view.kwargs = {"pk": str(vpn.pk)}
+        # warm up the view cache
+        self.assertEqual(view.get_vpn(), vpn)
+        key = view.get_vpn.get_cache_key(view)
+        self.assertEqual(cache.get(key), vpn)
+        # deleting the VPN must invalidate the cached view object
+        with self.captureOnCommitCallbacks(execute=True):
+            vpn.delete()
+        self.assertEqual(cache.get(key), None)
 
     def test_vpn_download_config_bad_uuid(self):
         v = self._create_vpn()
@@ -979,11 +775,6 @@ class TestController(
             d.config.refresh_from_db()
             self.assertEqual(d.config.status, "error")
             self.assertEqual(d.config.error_reason, error_reason)
-
-    def test_deactivated_device_report_status(self):
-        self._test_deactivating_deactivated_device_view(
-            "device_report_status", method="post", data={"status": "applied"}
-        )
 
     def test_device_report_status_bad_uuid(self):
         d = self._create_device_config()
@@ -1503,57 +1294,6 @@ class TestController(
         ).count()
         self.assertEqual(count, 0)
 
-    @patch.object(app_settings, "SHARED_MANAGEMENT_IP_ADDRESS_SPACE", False)
-    def test_ip_fields_not_duplicated(self):
-        org1 = self._get_org()
-        c1 = self._create_config(organization=org1)
-        d2 = self._create_device(
-            organization=org1, name="testdup", mac_address="00:11:22:33:66:77"
-        )
-        c2 = self._create_config(device=d2)
-        org2 = self._create_org(name="org2", shared_secret="123456")
-        c3 = self._create_config(organization=org2)
-        with self.assertNumQueries(6):
-            self.client.get(
-                reverse("controller:device_checksum", args=[c3.device.pk]),
-                {"key": c3.device.key, "management_ip": "192.168.1.99"},
-            )
-        with self.assertNumQueries(6):
-            self.client.get(
-                reverse("controller:device_checksum", args=[c1.device.pk]),
-                {"key": c1.device.key, "management_ip": "192.168.1.99"},
-            )
-        with self.assertNumQueries(0):
-            # repeat the request to test the checksum view cache interaction
-            self.client.get(
-                reverse("controller:device_checksum", args=[c1.device.pk]),
-                {"key": c1.device.key, "management_ip": "192.168.1.99"},
-            )
-        # triggers more queries because devices with conflicting addresses
-        # need to be updated, luckily it does not happen often
-        with self.assertNumQueries(8):
-            self.client.get(
-                reverse("controller:device_checksum", args=[c2.device.pk]),
-                {"key": c2.device.key, "management_ip": "192.168.1.99"},
-            )
-        c1.refresh_from_db()
-        c2.refresh_from_db()
-        c3.refresh_from_db()
-        # device previously having the IP now won't have it anymore
-        self.assertNotEqual(c1.device.last_ip, c2.device.last_ip)
-        self.assertNotEqual(c1.device.management_ip, c2.device.management_ip)
-        self.assertIsNone(c1.device.management_ip)
-        self.assertEqual(c2.device.management_ip, "192.168.1.99")
-        # other organization is not affected
-        self.assertEqual(c3.device.last_ip, "127.0.0.1")
-        self.assertEqual(c3.device.management_ip, "192.168.1.99")
-
-        with self.subTest("test interaction with DeviceChecksumView caching"):
-            view = DeviceChecksumView()
-            view.kwargs = {"pk": str(c1.device.pk)}
-            cached_device1 = view.get_device()
-            self.assertIsNone(cached_device1.management_ip)
-
     @patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_remove_duplicated_last_ip_no_nplus1_queries(self):
         # When WHOIS is configured, clearing a duplicate's last_ip runs
@@ -1663,3 +1403,295 @@ class TestController(
             handler.assert_called_once_with(
                 sender=Device, signal=device_registered, instance=device, is_new=True
             )
+
+
+class TestControllerTransaction(
+    TestRegistrationMixin,
+    CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
+    TransactionTestCase,
+):
+    """
+    TransactionTestCase variant for tests that exercise cache
+    invalidation handlers deferred to ``transaction.on_commit``.
+    """
+
+    def _check_header(self, response):
+        self.assertEqual(response["X-Openwisp-Controller"], "true")
+
+    def _test_deactivating_deactivated_device_view(
+        self, url_name, method="get", data=None
+    ):
+        data = data or {}
+        device = self._create_device_config()
+        config = device.config
+        # The endpoint returns 200 when config.status is modified
+        config.set_status_modified()
+        path = reverse(f"controller:{url_name}", args=[device.pk])
+        payload = {"key": device.key, **data}
+        response = getattr(self.client, method)(path, payload)
+        self.assertEqual(response.status_code, 200)
+
+        # The endpoint returns 200 when config.status is deactivating
+        config.set_status_deactivating()
+        path = reverse("controller:device_checksum", args=[device.pk])
+        response = self.client.get(path, {"key": device.key})
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertEqual(config.status, "deactivating")
+
+        # The endpoint returns 404 when config.status is deactivated
+        config.set_status_deactivated()
+        path = reverse("controller:device_checksum", args=[device.pk])
+        response = self.client.get(path, {"key": device.key})
+        self.assertEqual(response.status_code, 404)
+        config.refresh_from_db()
+        self.assertEqual(config.status, "deactivated")
+
+    def test_device_config_deactivated_checksum(self):
+        self._test_deactivating_deactivated_device_view("device_checksum")
+
+    def test_deactivated_device_download_config(self):
+        self._test_deactivating_deactivated_device_view("device_download_config")
+
+    def test_deactivated_device_report_status(self):
+        self._test_deactivating_deactivated_device_view(
+            "device_report_status", method="post", data={"status": "applied"}
+        )
+
+    def test_device_get_object_cached(self):
+        d = self._create_device_config()
+        view = DeviceChecksumView()
+        view.kwargs = {"pk": str(d.pk)}
+        logger = controller_views_logger
+
+        with self.subTest("check cache set"):
+            with patch("django.core.cache.cache.set") as mock:
+                self.assertEqual(view.get_device(), d)
+                mock.assert_called_once()
+
+        with self.subTest("check cache get"):
+            with patch("django.core.cache.cache.get", return_value=d) as mock:
+                view.get_device()
+                mock.assert_called_once()
+
+        with self.subTest("ensure DB is hit when cache is clear"):
+            with patch.object(logger, "debug") as mocked_debug:
+                with self.assertNumQueries(1):
+                    self.assertEqual(view.get_device(), d)
+                    mocked_debug.assert_called_once()
+
+        with self.subTest("ensure DB is NOT hit when cache is present"):
+            with patch.object(logger, "debug") as mocked_debug:
+                with self.assertNumQueries(0):
+                    self.assertEqual(view.get_device(), d)
+                    mocked_debug.assert_not_called()
+
+        with self.subTest("test manual invalidation"):
+            with patch.object(logger, "debug") as mocked_debug:
+                with self.assertNumQueries(1):
+                    view.get_device.invalidate(view)
+                    self.assertEqual(view.get_device(), d)
+                    mocked_debug.assert_called_once()
+
+        with self.subTest("test automatic cache invalidation"):
+            with patch.object(logger, "debug") as mocked_debug:
+                d.os = "test_cache"
+                d.save()
+                mocked_debug.assert_called_once()
+
+            with self.assertNumQueries(1):
+                obj = view.get_device()
+            self.assertEqual(obj.os, "test_cache")
+
+        with self.subTest("test cache invalidation on device delete"):
+            d.delete(check_deactivated=False)
+            with self.assertNumQueries(1):
+                with self.assertRaises(Http404):
+                    view.get_device()
+
+    def test_get_cached_checksum(self):
+        d = self._create_device_config()
+        # avoid cache to be invalidated by the update of the addresses
+        d.last_ip = "127.0.0.1"
+        d.management_ip = "10.0.0.2"
+        d.save()
+
+        url = reverse("controller:device_checksum", args=[d.pk])
+
+        with self.subTest("first request does not return value from cache"):
+            with self.assertNumQueries(3):
+                with patch.object(
+                    controller_views_logger, "debug"
+                ) as mocked_view_debug:
+                    with patch.object(
+                        base_config_logger, "debug"
+                    ) as mocked_config_debug:
+                        self.client.get(
+                            url, {"key": d.key, "management_ip": "10.0.0.2"}
+                        )
+                        self.assertEqual(mocked_config_debug.call_count, 0)
+                    self.assertEqual(mocked_view_debug.call_count, 1)
+
+        with self.subTest("update_last_ip updates the cache"):
+            with self.assertNumQueries(3):
+                with patch.object(
+                    controller_views_logger, "debug"
+                ) as mocked_view_debug:
+                    with patch.object(
+                        base_config_logger, "debug"
+                    ) as mocked_config_debug:
+                        self.client.get(
+                            url, {"key": d.key, "management_ip": "10.0.0.3"}
+                        )
+                        mocked_config_debug.assert_not_called()
+                    mocked_view_debug.assert_called_once_with(
+                        f"invalidated view cache for device ID {d.pk.hex}"
+                    )
+            view = DeviceChecksumView()
+            view.kwargs = {"pk": str(d.pk)}
+            key = view.get_device.get_cache_key(view)
+            d.refresh_from_db()
+            cached_device = cache.get(key)
+            self.assertEqual(cached_device, d)
+            self.assertEqual(cached_device.management_ip, "10.0.0.3")
+
+        with self.subTest("second request returns value from cache"):
+            with self.assertNumQueries(0):
+                with patch.object(
+                    controller_views_logger, "debug"
+                ) as mocked_view_debug:
+                    with patch.object(
+                        base_config_logger, "debug"
+                    ) as mocked_config_debug:
+                        self.client.get(
+                            url, {"key": d.key, "management_ip": "10.0.0.3"}
+                        )
+                        mocked_config_debug.assert_not_called()
+                    mocked_view_debug.assert_not_called()
+
+        with self.subTest("ensure cache invalidation works"):
+            old_checksum = d.config.checksum
+            with patch.object(base_config_logger, "debug") as mocked_debug:
+                d.config.config["general"]["timezone"] = "Europe/Rome"
+                d.config.full_clean()
+                d.config.save()
+                del d.config.backend_instance
+                self.assertNotEqual(d.config.checksum, old_checksum)
+                self.assertEqual(d.config.get_cached_checksum(), d.config.checksum)
+                mocked_debug.assert_called_once()
+
+    @patch.object(app_settings, "SHARED_MANAGEMENT_IP_ADDRESS_SPACE", False)
+    def test_ip_fields_not_duplicated(self):
+        org1 = self._get_org()
+        c1 = self._create_config(organization=org1)
+        d2 = self._create_device(
+            organization=org1, name="testdup", mac_address="00:11:22:33:66:77"
+        )
+        c2 = self._create_config(device=d2)
+        org2 = self._create_org(name="org2", shared_secret="123456")
+        c3 = self._create_config(organization=org2)
+        with self.assertNumQueries(6):
+            self.client.get(
+                reverse("controller:device_checksum", args=[c3.device.pk]),
+                {"key": c3.device.key, "management_ip": "192.168.1.99"},
+            )
+        with self.assertNumQueries(6):
+            self.client.get(
+                reverse("controller:device_checksum", args=[c1.device.pk]),
+                {"key": c1.device.key, "management_ip": "192.168.1.99"},
+            )
+        with self.assertNumQueries(0):
+            # repeat the request to test the checksum view cache interaction
+            self.client.get(
+                reverse("controller:device_checksum", args=[c1.device.pk]),
+                {"key": c1.device.key, "management_ip": "192.168.1.99"},
+            )
+        # triggers more queries because devices with conflicting addresses
+        # need to be updated, luckily it does not happen often
+        with self.assertNumQueries(8):
+            self.client.get(
+                reverse("controller:device_checksum", args=[c2.device.pk]),
+                {"key": c2.device.key, "management_ip": "192.168.1.99"},
+            )
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        # device previously having the IP now won't have it anymore
+        self.assertNotEqual(c1.device.last_ip, c2.device.last_ip)
+        self.assertNotEqual(c1.device.management_ip, c2.device.management_ip)
+        self.assertIsNone(c1.device.management_ip)
+        self.assertEqual(c2.device.management_ip, "192.168.1.99")
+        # other organization is not affected
+        self.assertEqual(c3.device.last_ip, "127.0.0.1")
+        self.assertEqual(c3.device.management_ip, "192.168.1.99")
+
+        with self.subTest("test interaction with DeviceChecksumView caching"):
+            view = DeviceChecksumView()
+            view.kwargs = {"pk": str(c1.device.pk)}
+            cached_device1 = view.get_device()
+            self.assertIsNone(cached_device1.management_ip)
+
+    def test_vpn_checksum_cache_invalidation_handler(self):
+        vpn = self._create_vpn()
+        url = reverse("controller:vpn_checksum", args=[vpn.pk])
+        # Warm up the cache
+        with self.assertNumQueries(1):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+        # Cache works are expected
+        with self.assertNumQueries(0):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+        # Change VPN config to trigger invalidation
+        vpn.config["openvpn"][0]["proto"] = "tcp-server"
+        vpn.full_clean()
+        vpn.save()
+
+        del vpn.backend_instance
+        with self.assertNumQueries(1):
+            response = self.client.get(url, {"key": vpn.key})
+        self.assertEqual(response.content.decode(), vpn.checksum)
+
+    def test_vpn_download_config(self):
+        v = self._create_vpn()
+        url = reverse("controller:vpn_download_config", args=[v.pk])
+        # First request will populate the cache
+        with (
+            self.assertNumQueries(1),
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+        ):
+            response = self.client.get(url, {"key": v.key})
+            mocked_generate.assert_called_once()
+        self.assertEqual(
+            response["Content-Disposition"], "attachment; filename=test.tar.gz"
+        )
+        self._check_header(response)
+
+        with self.subTest("Second request will return cached config"):
+            with patch.object(Vpn, "generate") as mocked_generate:
+                response = self.client.get(url, {"key": v.key})
+                mocked_generate.assert_not_called()
+            self.assertEqual(
+                response["Content-Disposition"], "attachment; filename=test.tar.gz"
+            )
+            self._check_header(response)
+
+        with self.subTest("Changing Vpn configuration will invalidate cache"):
+            v.config["wireguard"][0]["port"] = "51821"
+            v.full_clean()
+            v.save()
+            with (
+                self.assertNumQueries(1),
+                patch.object(
+                    Vpn, "generate", return_value=v.generate()
+                ) as mocked_generate,
+            ):
+                response = self.client.get(url, {"key": v.key})
+                mocked_generate.assert_called_once()
+            self.assertEqual(
+                response["Content-Disposition"], "attachment; filename=test.tar.gz"
+            )
+            self._check_header(response)

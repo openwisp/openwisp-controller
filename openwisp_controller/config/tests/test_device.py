@@ -389,57 +389,6 @@ class TestDevice(
             config.get_context()["variable_type"], "global-context-variable"
         )
 
-    def test_changing_org_variable_invalidates_cache(self):
-        org = self._get_org()
-        config_settings = OrganizationConfigSettings.objects.create(
-            organization=org, context={}
-        )
-        config = self._create_config(organization=org)
-        template = self._create_template(
-            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
-            default_values={"interface_type": "ethernet"},
-        )
-        config.templates.add(template)
-        old_checksum = config.get_cached_checksum()
-
-        # Changing OrganizationConfigSettings.context should invalidate the cache
-        # and a new checksum should be returned in the following request.
-        config_settings.context = {"interface_type": "virtual"}
-        config_settings.full_clean()
-        config_settings.save()
-
-        # Config.backend_instance is a "cached_property", hence deleting
-        # the attribute is required for testing.
-        del config.backend_instance
-
-        new_checksum = config.get_cached_checksum()
-        self.assertNotEqual(old_checksum, new_checksum)
-
-    def test_changing_group_variable_invalidates_cache(self):
-        org = self._get_org()
-        device_group = self._create_device_group(organization=org, context={})
-        device = self._create_device(organization=org, group=device_group)
-        config = self._create_config(device=device)
-        template = self._create_template(
-            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
-            default_values={"interface_type": "ethernet"},
-        )
-        config.templates.add(template)
-        old_checksum = config.get_cached_checksum()
-
-        # Changing DeviceGroup.context should invalidate the cache
-        # and a new checksum should be returned in the following request.
-        device_group.context = {"interface_type": "virtual"}
-        device_group.full_clean()
-        device_group.save()
-
-        # Config.backend_instance is a "cached_property", hence deleting
-        # the attribute is required for testing.
-        del config.backend_instance
-
-        new_checksum = config.get_cached_checksum()
-        self.assertNotEqual(old_checksum, new_checksum)
-
     def test_management_ip_changed_not_emitted_on_creation(self):
         with catch_signal(management_ip_changed) as handler:
             self._create_device(organization=self._get_org())
@@ -539,25 +488,6 @@ class TestDevice(
         self.assertNotIn(new_template, device.config.templates.all())
         # Status must remain "deactivated" — no config push is initiated.
         self.assertEqual(device.config.status, "deactivated")
-
-    def test_device_field_changed_checks(self):
-        self._create_device()
-        device_group = self._create_device_group()
-        with self.subTest("Deferred fields remained deferred"):
-            device = Device.objects.only("id", "created").first()
-            device._check_changed_fields()
-
-        with self.subTest("Deferred fields becomes non-deferred"):
-            device.name = "new-name"
-            device.management_ip = "10.0.0.1"
-            device.group_id = device_group.id
-            device.organization_id = self._create_org().id
-            # assigning a random ip to last_ip
-            device.last_ip = "172.217.22.14"
-            # Another query is generated due to "config.set_status_modified"
-            # on name change
-            with self.assertNumQueries(3):
-                device._check_changed_fields()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_changed_checked_fields_no_duplicates(self):
@@ -1090,6 +1020,80 @@ class TestTransactionDevice(
     CreateDeviceGroupMixin,
     TransactionTestCase,
 ):
+    def test_device_field_changed_checks(self):
+        self._create_device()
+        device_group = self._create_device_group()
+        with self.subTest("Deferred fields remained deferred"):
+            device = Device.objects.only("id", "created").first()
+            device._check_changed_fields()
+
+        with self.subTest("Deferred fields becomes non-deferred"):
+            device.name = "new-name"
+            device.management_ip = "10.0.0.1"
+            device.group_id = device_group.id
+            device.organization_id = self._create_org().id
+            # assigning a random ip to last_ip
+            device.last_ip = "172.217.22.14"
+            # Changing group_id fires device_group_changed, which has two
+            # transaction.on_commit-deferred handlers: the devicegroup cache
+            # invalidation (the one this test guards) and the unrelated
+            # template-propagation task (devicegroup_templates_change_handler).
+            # Both run for real here because TransactionTestCase commits
+            # instead of rolling back, so their combined queries are counted.
+            with self.assertNumQueries(6):
+                device._check_changed_fields()
+
+    def test_changing_org_variable_invalidates_cache(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(
+            organization=org, context={}
+        )
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+
+        # Changing OrganizationConfigSettings.context should invalidate the cache
+        # and a new checksum should be returned in the following request.
+        config_settings.context = {"interface_type": "virtual"}
+        config_settings.full_clean()
+        config_settings.save()
+
+        # Config.backend_instance is a "cached_property", hence deleting
+        # the attribute is required for testing.
+        del config.backend_instance
+
+        new_checksum = config.get_cached_checksum()
+        self.assertNotEqual(old_checksum, new_checksum)
+
+    def test_changing_group_variable_invalidates_cache(self):
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org, context={})
+        device = self._create_device(organization=org, group=device_group)
+        config = self._create_config(device=device)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+
+        # Changing DeviceGroup.context should invalidate the cache
+        # and a new checksum should be returned in the following request.
+        device_group.context = {"interface_type": "virtual"}
+        device_group.full_clean()
+        device_group.save()
+
+        # Config.backend_instance is a "cached_property", hence deleting
+        # the attribute is required for testing.
+        del config.backend_instance
+
+        new_checksum = config.get_cached_checksum()
+        self.assertNotEqual(old_checksum, new_checksum)
+
     def test_deactivating_device_with_config(self):
         self._create_template(required=True)
         self._create_template(name="Default", default=True)

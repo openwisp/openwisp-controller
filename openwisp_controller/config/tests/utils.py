@@ -177,6 +177,7 @@ class TestWireguardVpnMixin(CreateIpamModelsMixin):
             vpn=vpn,
             organization=org1,
             auto_cert=auto_cert,
+            config={},
         )
         device = self._create_device_config()
         device.config.templates.add(template)

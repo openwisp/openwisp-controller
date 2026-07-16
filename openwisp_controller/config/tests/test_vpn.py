@@ -20,7 +20,11 @@ from .. import settings as app_settings
 from ..exceptions import ZeroTierIdentityGenerationError
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import config_modified, vpn_peers_changed, vpn_server_modified
-from ..tasks import create_vpn_dh, trigger_vpn_server_endpoint
+from ..tasks import (
+    create_vpn_dh,
+    invalidate_vpn_server_devices_cache_change,
+    trigger_vpn_server_endpoint,
+)
 from .utils import (
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
@@ -518,11 +522,10 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
 
     def test_vpn_server_change_invalidates_device_cache(self):
         device, vpn, template = self._create_wireguard_vpn_template()
-        with catch_signal(
-            vpn_server_modified
-        ) as mocked_vpn_server_modified, catch_signal(
-            config_modified
-        ) as mocked_config_modified:
+        with (
+            catch_signal(vpn_server_modified) as mocked_vpn_server_modified,
+            catch_signal(config_modified) as mocked_config_modified,
+        ):
             vpn.host = "localhost"
             vpn.save(update_fields=["host"])
         mocked_vpn_server_modified.assert_called_once_with(
@@ -537,6 +540,92 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
             config=device.config,
             device=device,
         )
+
+    def test_vpn_server_change_updates_client_checksum_db(self):
+        # the WireGuard client renders the VPN host as the peer
+        # "endpoint_host", so changing the VPN host alters the client
+        # configuration
+        device, vpn, _ = self._create_wireguard_vpn_template()
+        config = Config.objects.get(pk=device.config.pk)
+        old_checksum_db = config.checksum_db
+        # sanity check: the stored checksum initially matches the
+        # freshly computed checksum for the client configuration
+        self.assertEqual(old_checksum_db, config.checksum)
+        # change a VPN server field that is part of the client configuration
+        vpn.host = "changed.example.com"
+        # select_related on the client queryset keeps this bounded: dropping
+        # it reintroduces the per-client N+1 and increases the query count.
+        with self.assertNumQueries(25):
+            vpn.save(update_fields=["host"])
+        config = Config.objects.get(pk=device.config.pk)
+        # the client's stored checksum must reflect the new VPN server context
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
+    def test_invalidate_clients_cache_no_checksum_change(self):
+        # config_modified must not be emitted for a client whose checksum
+        # did not actually change (unlike the old, unconditional behavior)
+        device, vpn, _ = self._create_wireguard_vpn_template()
+        config = Config.objects.get(pk=device.config.pk)
+        old_checksum_db = config.checksum_db
+        with catch_signal(config_modified) as mocked_config_modified:
+            # select_related on the client queryset keeps this bounded: dropping
+            # it reintroduces the per-client N+1 and increases the query count.
+            with self.assertNumQueries(19):
+                VpnClient.invalidate_clients_cache(vpn)
+        mocked_config_modified.assert_not_called()
+        config = Config.objects.get(pk=device.config.pk)
+        self.assertEqual(config.checksum_db, old_checksum_db)
+
+    def test_ca_renew_invalidates_vpn_checksum(self):
+        vpn = self._create_vpn()
+        with catch_signal(vpn_server_modified) as mocked:
+            vpn.ca.renew()
+            # vpn_server_modified fires via the CacheDependency,
+            # which cascades to client config invalidation
+            self.assertTrue(mocked.called)
+
+    def test_cert_renew_invalidates_vpn_checksum(self):
+        vpn = self._create_vpn()
+        with catch_signal(vpn_server_modified) as mocked:
+            vpn.cert.renew()
+            self.assertTrue(mocked.called)
+
+    def _setup_vpn_client_config(self):
+        """
+        Creates a VPN server, a VPN template and a client device/config using
+        it, then returns ``(vpn, config, old_checksum_db)`` with the client
+        config's stored checksum captured and asserted to be up to date.
+        """
+        vpn = self._create_vpn()
+        vpn_template = self._create_template(
+            name="vpn-template", type="vpn", vpn=vpn, config={}
+        )
+        device = self._create_device_config()
+        device.config.templates.add(vpn_template)
+        config = Config.objects.get(pk=device.config.pk)
+        old_checksum_db = config.checksum_db
+        self.assertEqual(old_checksum_db, config.checksum)
+        return vpn, config, old_checksum_db
+
+    def test_ca_renew_cascades_to_client_config(self):
+        vpn, config, old_checksum_db = self._setup_vpn_client_config()
+        vpn.ca.renew()
+        config = Config.objects.get(pk=config.pk)
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
+    def test_cert_renew_cascades_to_client_config(self):
+        # Only the signal is asserted here, unlike the CA-renew counterpart:
+        # a client's OpenVPN config embeds the server's <ca> certificate, not
+        # the server's own certificate, so renewing the server cert does not
+        # change the client's rendered config or its checksum.
+        vpn, _, _ = self._setup_vpn_client_config()
+        with catch_signal(vpn_server_modified) as mocked_vpn_server_modified:
+            vpn.cert.renew()
+        mocked_vpn_server_modified.assert_called_once()
 
 
 class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
@@ -837,10 +926,11 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             success_response.status_code = 200
             success_response.raise_for_status = mock.Mock()
 
-            with mock.patch(
-                "openwisp_controller.config.tasks.logger.info"
-            ) as mocked_logger, mock.patch(
-                "requests.post", return_value=success_response
+            with (
+                mock.patch(
+                    "openwisp_controller.config.tasks.logger.info"
+                ) as mocked_logger,
+                mock.patch("requests.post", return_value=success_response),
             ):
                 vpn.save()
                 vpn_client.refresh_from_db()
@@ -858,8 +948,9 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             fail_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
                 "Not Found"
             )
-            with mock.patch("logging.Logger.warning") as mocked_logger, mock.patch(
-                "requests.post", return_value=fail_response
+            with (
+                mock.patch("logging.Logger.warning") as mocked_logger,
+                mock.patch("requests.post", return_value=fail_response),
             ):
                 post_save.send(
                     instance=vpn_client, sender=vpn_client._meta.model, created=False
@@ -1472,6 +1563,80 @@ class TestZeroTier(BaseTestVpn, TestZeroTierVpnMixin, TestCase):
                 context_manager.exception.message_dict, expected_error_dict
             )
 
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_name_change_sends_signal(
+        self, mock_requests, mock_subprocess
+    ):
+        mock_requests.get.side_effect = [
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+        ]
+        self._set_subprocess_mock(mock_subprocess)
+        device, vpn, template = self._create_zerotier_vpn_template()
+
+        with catch_signal(vpn_server_modified) as handler:
+            vpn.name = "updated-zerotier-vpn"
+            vpn.save()
+
+        handler.assert_called_once()
+        self.assertEqual(handler.call_args[1]["instance"].pk, vpn.pk)
+
+    @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
+    @mock.patch(_ZT_SERVICE_REQUESTS)
+    def test_zerotier_vpn_name_change_updates_client_checksum(
+        self, mock_requests, mock_subprocess
+    ):
+        mock_requests.get.side_effect = [
+            self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
+        ]
+        mock_requests.post.side_effect = [
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+            self._get_mock_response(200),
+        ]
+        self._set_subprocess_mock(mock_subprocess)
+        device, vpn, template = self._create_zerotier_vpn_template()
+        config = device.config
+        pk = vpn.pk.hex
+        # Set up a device config that references the VPN name context variable
+        # so the checksum depends on Vpn.name
+        config.config = {
+            "files": [
+                {
+                    "path": "/tmp/test",
+                    "mode": "0644",
+                    "contents": "{{ network_name_" + pk + " }}",
+                }
+            ]
+        }
+        config.save()
+        old_checksum_db = config.checksum_db
+        with mock.patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_vpn_server_devices_cache_change.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                vpn.name = "updated-zerotier-vpn"
+                vpn.save()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(vpn.id)
+
+        # Trigger the actual cache invalidation to verify checksum changes
+        invalidate_vpn_server_devices_cache_change(vpn.pk)
+        config.refresh_from_db()
+        # Invalidate cached backend_instance so checksum recomputes fresh
+        config._invalidate_backend_instance_cache()
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
 
 class TestZeroTierTransaction(
     BaseTestVpn, TestZeroTierVpnMixin, TestWireguardVpnMixin, TransactionTestCase
@@ -1873,18 +2038,22 @@ class TestZeroTierTransaction(
         mock_error.reset_mock()
         mock_requests.reset_mock()
 
-        with self.subTest(
-            "Test zerotier configuration update "
-            "with retry mechanism (recoverable errors)"
-        ), mock.patch("celery.app.task.Task.request") as mock_task_request:
+        with (
+            self.subTest(
+                "Test zerotier configuration update "
+                "with retry mechanism (recoverable errors)"
+            ),
+            mock.patch("celery.app.task.Task.request") as mock_task_request,
+        ):
             max_retries = API_TASK_RETRY_OPTIONS.get("max_retries")
             mock_task_request.called_directly = False
             config = vpn.get_config()["zerotier"][0]
             config.update({"private": True})
 
-            with self.subTest(
-                "Test update when max retry limit is not reached"
-            ), self.assertRaises(Retry):
+            with (
+                self.subTest("Test update when max retry limit is not reached"),
+                self.assertRaises(Retry),
+            ):
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)
@@ -1935,9 +2104,10 @@ class TestZeroTierTransaction(
             # During the last attempt, the task will give up
             # retrying and raise a 'RequestException',
             # which will be handled and logged as an error
-            with self.subTest(
-                "Test update when max retry limit is reached"
-            ), self.assertRaises(RequestException):
+            with (
+                self.subTest("Test update when max retry limit is reached"),
+                self.assertRaises(RequestException),
+            ):
                 mock_requests.get.side_effect = [
                     # For node status
                     self._get_mock_response(200, response=self._TEST_ZT_NODE_CONFIG)

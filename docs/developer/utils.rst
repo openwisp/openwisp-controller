@@ -407,3 +407,93 @@ updates a ``WHOISInfo`` record.
 This signal is emitted when a WHOIS lookup is not triggered because the
 lookup conditions were not met (for example, an up-to-date WHOIS record
 already exists).
+
+.. _cache_invalidation:
+
+Cache Invalidation
+------------------
+
+OpenWISP Controller caches expensive values such as the configuration
+checksum of devices and VPN servers, and the controller view responses.
+When a *related* object changes (for example a certificate is renewed, a
+device group context is edited, or a template is deleted) the cached value
+can become stale and must be invalidated.
+
+This is handled by a declarative engine built around the
+``CacheDependency`` class. Instead of scattering ``signal.connect()``
+calls across the codebase, each model that owns a cached value declares,
+in one place, which related changes invalidate it.
+
+A model that owns a cache mixes in ``CacheInvalidationMixin`` and
+overrides ``get_cache_dependencies()`` to return a list of
+``CacheDependency`` objects:
+
+.. code-block:: python
+
+    from openwisp_controller.config.base.cache import (
+        CacheDependency,
+        CacheInvalidationMixin,
+    )
+
+
+    class AbstractConfig(CacheInvalidationMixin, ...):
+        @classmethod
+        def get_cache_dependencies(cls):
+            return [
+                # recompute the owning Config checksum when its client
+                # certificate changes
+                CacheDependency(
+                    source="django_x509.Cert",
+                    signal="post_save",
+                    resolve=cls._resolve_cert_dependency,
+                    target="update_status_if_checksum_changed",
+                ),
+            ]
+
+These declarations are wired at startup by
+``register_cache_dependencies()``. Caches that are not owned by a model
+(the controller view caches and the device group cache) are declared
+instead in the ``AppConfig``, in
+``ConfigConfig.connect_cache_dependencies()``.
+
+.. _print_cache_dependencies:
+
+``print_cache_dependencies``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Because dependencies are declared in more than one place, this management
+command prints every cache dependency wired in the running project, so the
+whole invalidation graph can be inspected at a glance:
+
+.. code-block:: bash
+
+    python manage.py print_cache_dependencies
+
+The output is grouped by source and signal, and reports the target action,
+the resolver, any tracked fields, and the dispatch UID of each dependency:
+
+.. code-block:: text
+
+    config.device (post_save)
+      target: update_status_if_checksum_changed
+        resolve: _resolve_device_dependency   track_fields: os, group_id, organization_id   on_create: False   on_commit: True
+        uid: cache_invalidation.config.config.config.device.post_save.update_status_if_checksum_changed._resolve_device_dependency.os+group_id+organization_id
+
+    config.template (pre_delete)
+      target: update_status_if_checksum_changed
+        resolve: _resolve_template_dependency   on_create: False   on_commit: True
+        uid: cache_invalidation.config.config.config.template.pre_delete.update_status_if_checksum_changed._resolve_template_dependency
+
+Pass ``--format json`` for machine-readable output (useful, for example,
+in a CI check that the wiring has not silently drifted):
+
+.. code-block:: bash
+
+    python manage.py print_cache_dependencies --format json
+
+.. note::
+
+    This engine invalidates caches automatically when related objects
+    change. You still need to run ``clear_cache`` manually after editing
+    the :ref:`OPENWISP_CONTROLLER_CONTEXT <context_setting>` setting,
+    because those system-wide variables are not tied to any model change.

@@ -1,7 +1,12 @@
+import json
+import uuid
 from copy import deepcopy
-from unittest.mock import patch
+from io import StringIO
+from unittest.mock import Mock, call, patch
 
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.db import models
 from django.db.transaction import atomic
 from django.test import TestCase
 from django.test.testcases import TransactionTestCase
@@ -11,7 +16,10 @@ from swapper import load_model
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from .. import tasks
 from ..base.base import logger as base_config_logger
+from ..base.cache import CacheDependency
+from ..handlers import invalidate_devicegroup_cache_change_handler
 from ..signals import config_backend_changed, config_modified, config_status_changed
 from .utils import (
     CreateConfigTemplateMixin,
@@ -22,9 +30,12 @@ from .utils import (
 
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
+DeviceGroup = load_model("config", "DeviceGroup")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
+Cert = load_model("django_x509", "Cert")
 
 
 class TestConfig(
@@ -573,12 +584,15 @@ class TestConfig(
         self.assertEqual(config.status, "deactivating")
         # VpnClient is deleted on deactivation; cert is auto-revoked.
         self.assertEqual(config.vpnclient_set.count(), 0)
-        # Un-revoke the cert so certificate_updated() bypasses the early
+        # Un-revoke the cert so _resolve_cert_dependency() bypasses the early
         # "if revoked: return" guard and hits the ObjectDoesNotExist path.
+        # The Cert CacheDependency defers to transaction.on_commit, which
+        # TestCase does not fire unless captured.
         cert.revoked = False
-        cert.save()
-        # Config status must not change: certificate_updated() returns early
-        # because the VpnClient was deleted during deactivation.
+        with self.captureOnCommitCallbacks(execute=True):
+            cert.save()
+        # Config status must not change: _resolve_cert_dependency() returns
+        # early because the VpnClient was deleted during deactivation.
         config.refresh_from_db()
         self.assertEqual(config.status, "deactivating")
 
@@ -925,6 +939,138 @@ class TestConfig(
                 self.assertTrue(d.config.templates.filter(pk=t2.pk).exists())
                 self.assertFalse(d.config.templates.filter(pk=t1.pk).exists())
 
+    def test_devicegroup_context_change_defers_checksum_invalidation_to_commit(self):
+        """
+        Regression test for the DeviceGroup CacheDependency (deferred to
+        commit, default on_commit=True): the Celery task recomputing the
+        group's configs must be enqueued only after the transaction that
+        changed the group's context has committed, otherwise a worker
+        picking up the task can read the DB before the commit and wrongly
+        conclude the context did not change.
+        """
+        device_group = self._create_device_group(context={"interface_type": "eth0"})
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".bulk_invalidate_config_get_cached_checksum.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                device_group.context = {"interface_type": "eth1"}
+                device_group.full_clean()
+                device_group.save()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                {"device__group_id": str(device_group.id)}
+            )
+
+    def test_organization_context_change_defers_checksum_invalidation_to_commit(self):
+        """
+        Same as the DeviceGroup regression test above, but for the
+        OrganizationConfigSettings CacheDependency.
+        """
+        org_settings = OrganizationConfigSettings.objects.create(
+            organization=self._get_org(), context={"interface_type": "eth0"}
+        )
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".bulk_invalidate_config_get_cached_checksum.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                org_settings.context = {"interface_type": "eth1"}
+                org_settings.full_clean()
+                org_settings.save()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                {"device__organization_id": str(org_settings.organization_id)}
+            )
+
+    def test_devicegroup_delete_invalidates_cache_deferred_to_commit(self):
+        """
+        Regression test for the DeviceGroup post_delete CacheDependency
+        (config/apps.py), which targets ``devicegroup_delete_handler``: the
+        Celery task invalidating the DeviceGroupCommonName cache must be
+        enqueued only after the deleting transaction has committed,
+        otherwise a concurrent request can repopulate the cache from a
+        device group that is about to be deleted, leaving it stale after
+        commit.
+        """
+        org = self._get_org()
+        device_group = self._create_device_group(organization=org)
+        device_group_id = device_group.id
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_devicegroup_cache_delete.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                device_group.delete()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                device_group_id,
+                DeviceGroup._meta.model_name,
+                organization_id=org.id,
+            )
+
+    def test_cert_delete_invalidates_devicegroup_cache_deferred_to_commit(self):
+        """
+        Same as above, but for the Cert post_delete CacheDependency, which
+        also targets ``devicegroup_delete_handler``.
+        """
+        org = self._get_org()
+        cert = self._create_cert(organization=org)
+        cert_id = cert.id
+        common_name = cert.common_name
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_devicegroup_cache_delete.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                cert.delete()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                cert_id,
+                Cert._meta.model_name,
+                common_name=common_name,
+                organization_slug=org.slug,
+            )
+
+    def test_shared_cert_delete_invalidates_devicegroup_wildcard_cache(self):
+        """
+        A Cert with organization=None ("shared" cert, usable across
+        multiple organizations) is still reachable via the no-org (``""``)
+        DeviceGroupCommonName cache key: ``get_device_group`` only filters
+        by organization when one is explicitly requested. Deleting the cert
+        must still invalidate that wildcard entry, even though there is no
+        organization_slug to also invalidate an org-scoped entry.
+        """
+        cert = self._create_cert(organization=None)
+        cert_id = cert.id
+        common_name = cert.common_name
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".invalidate_devicegroup_cache_delete.delay"
+        ) as mocked_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                cert.delete()
+                mocked_delay.assert_not_called()
+            mocked_delay.assert_called_once_with(
+                cert_id,
+                Cert._meta.model_name,
+                common_name=common_name,
+            )
+
+    def test_shared_cert_delete_task_invalidates_devicegroup_wildcard_cache(self):
+        cert = self._create_cert(organization=None)
+        common_name = cert.common_name
+        with patch(
+            "openwisp_controller.config.api.views.DeviceGroupCommonName"
+            ".certificate_delete_invalidates_cache"
+        ) as mocked_invalidate:
+            tasks.invalidate_devicegroup_cache_delete(
+                cert.id,
+                Cert._meta.model_name,
+                common_name=common_name,
+            )
+        mocked_invalidate.assert_called_once_with(common_name, None)
+
 
 class TestTransactionConfig(
     CreateConfigTemplateMixin,
@@ -1008,6 +1154,96 @@ class TestTransactionConfig(
             config.refresh_from_db()
             self.assertEqual(config.status, "modified")
 
+    def test_device_os_change_updates_config_checksum(self):
+        org = self._get_org()
+        device = self._create_device(
+            name="test", organization=org, os="OpenWrt 19.07.0"
+        )
+        config = self._create_config(
+            device=device,
+            backend="netjsonconfig.OpenWrt",
+            config={
+                "interfaces": [
+                    {
+                        "name": "eth0",
+                        "type": "ethernet",
+                        "addresses": [{"proto": "dhcp", "family": "ipv4"}],
+                    }
+                ]
+            },
+        )
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        # changing the OS toggles DSA (disabled on 19.x, enabled on 21.x),
+        # which changes the rendered configuration
+        device.os = "OpenWrt 21.02.0"
+        device.save()
+        config = Config.objects.get(pk=config.pk)
+        self.assertEqual(config.status, "modified")
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+
+    def test_device_org_change_updates_config_checksum(self):
+        org1 = self._get_org()
+        OrganizationConfigSettings.objects.create(
+            organization=org1, context={"interface_type": "ethernet"}
+        )
+        org2 = self._create_org(name="org2", slug="org2")
+        OrganizationConfigSettings.objects.create(
+            organization=org2, context={"interface_type": "virtual"}
+        )
+        device = self._create_device(name="test", organization=org1)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        # changing the organization changes the org-level context,
+        # which changes the rendered configuration
+        device.organization = org2
+        device.save()
+        config = Config.objects.get(pk=config.pk)
+        self.assertEqual(config.status, "modified")
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+
+    def test_device_group_change_updates_config_checksum(self):
+        org = self._get_org()
+        group1 = DeviceGroup(
+            name="group1", organization=org, context={"interface_type": "ethernet"}
+        )
+        group1.full_clean()
+        group1.save()
+        group2 = DeviceGroup(
+            name="group2", organization=org, context={"interface_type": "virtual"}
+        )
+        group2.full_clean()
+        group2.save()
+        device = self._create_device(name="test", organization=org, group=group1)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        device.group = group2
+        device.save()
+        config = Config.objects.get(pk=config.pk)
+        self.assertEqual(config.status, "modified")
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+
     def test_checksum_db_accounts_for_vpnclient(self):
         vpn = self._create_wireguard_vpn()
         vpn_template = self._create_template(
@@ -1018,3 +1254,366 @@ class TestTransactionConfig(
         config.refresh_from_db()
         config._invalidate_backend_instance_cache()
         self.assertEqual(config.checksum, config.checksum_db)
+
+    def test_deleting_template_invalidates_config_checksum(self):
+        template = self._create_template(
+            name="test-template",
+            config={"interfaces": [{"name": "eth0", "type": "ethernet"}]},
+        )
+        config = self._create_config(device=self._create_device())
+        config.templates.add(template)
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        template.delete()
+        config = Config.objects.get(pk=config.pk)
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
+    def test_bulk_deleting_templates_invalidates_config_checksum(self):
+        template1 = self._create_template(
+            name="test-template1",
+            config={"interfaces": [{"name": "eth0", "type": "ethernet"}]},
+        )
+        template2 = self._create_template(
+            name="test-template2",
+            config={"interfaces": [{"name": "eth1", "type": "ethernet"}]},
+        )
+        config1 = self._create_config(device=self._create_device(name="device1"))
+        config1.templates.add(template1)
+        config2 = self._create_config(
+            device=self._create_device(name="device2", mac_address="00:11:22:33:44:66")
+        )
+        config2.templates.add(template2)
+        for config in (config1, config2):
+            config.set_status_applied()
+        config1.refresh_from_db()
+        config2.refresh_from_db()
+        old_checksum_db1 = config1.checksum_db
+        old_checksum_db2 = config2.checksum_db
+        self.assertEqual(config1.status, "applied")
+        self.assertEqual(config2.status, "applied")
+        # bulk delete via a queryset, not per-instance .delete() calls
+        Template.objects.filter(pk__in=[template1.pk, template2.pk]).delete()
+        config1 = Config.objects.get(pk=config1.pk)
+        config2 = Config.objects.get(pk=config2.pk)
+        self.assertNotEqual(config1.checksum_db, old_checksum_db1)
+        self.assertEqual(config1.checksum_db, config1.checksum)
+        self.assertEqual(config1.status, "modified")
+        self.assertNotEqual(config2.checksum_db, old_checksum_db2)
+        self.assertEqual(config2.checksum_db, config2.checksum)
+        self.assertEqual(config2.status, "modified")
+
+    def test_deleting_vpn_invalidates_config_checksum(self):
+        device, vpn, _ = self._create_wireguard_vpn_template()
+        config = device.config
+        config.set_status_applied()
+        config.refresh_from_db()
+        old_checksum_db = config.checksum_db
+        self.assertEqual(config.status, "applied")
+        # deleting the VPN cascades to delete its VPN-type template
+        # (Template.vpn is on_delete=CASCADE); the config using that
+        # template is not deleted (Config.templates is a many-to-many
+        # field), so its checksum must still be recomputed.
+        vpn.delete()
+        self.assertEqual(Template.objects.count(), 0)
+        config = Config.objects.get(pk=config.pk)
+        self.assertNotEqual(config.checksum_db, old_checksum_db)
+        self.assertEqual(config.checksum_db, config.checksum)
+        self.assertEqual(config.status, "modified")
+
+
+class TestCacheDependency(CreateConfigTemplateMixin, CreateDeviceGroupMixin, TestCase):
+    """
+    Unit tests for the declarative cache-invalidation engine
+    (``CacheDependency``) that centralizes cache/checksum invalidation
+    (issue #1095).
+    """
+
+    def _connect(self, **kwargs):
+        dependency = CacheDependency(**kwargs)
+        dependency.connect(dispatch_uid="test.cache_dependency")
+        self.addCleanup(dependency.disconnect)
+        return dependency
+
+    def test_target_invoked_on_related_change(self):
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        # creation is skipped by default (on_create=False)
+        group = self._create_device_group()
+        target.assert_not_called()
+        # an update fires the dependency with the resolved object
+        group.name = "renamed"
+        group.save()
+        target.assert_called_once_with(group)
+
+    def test_on_create_opt_in(self):
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            on_create=True,
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        group = self._create_device_group()
+        target.assert_called_once_with(group)
+
+    def test_track_fields_fires_only_on_value_change(self):
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            track_fields=["context"],
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        group = self._create_device_group(context={"a": "1"})
+        target.assert_not_called()
+        with self.subTest("save without changing tracked field"):
+            group.name = "renamed"
+            group.save()
+            target.assert_not_called()
+        with self.subTest("save changing tracked field"):
+            group.context = {"a": "2"}
+            group.save()
+            target.assert_called_once_with(group)
+
+    def test_snapshot_not_reused_across_saves(self):
+        """
+        A snapshot from a prior save must be consumed so a later
+        save(update_fields=...) that excludes the tracked field cannot compare
+        against the stale snapshot and fire the target a second time.
+        """
+        target = Mock()
+        self._connect(
+            source="config.DeviceGroup",
+            signal="post_save",
+            track_fields=["context"],
+            on_commit=False,
+            resolve=lambda instance, **kwargs: [instance],
+            target=target,
+        )
+        group = self._create_device_group(context={"a": "1"})
+        group.context = {"a": "2"}
+        group.save()
+        target.assert_called_once_with(group)
+        # a subsequent save that does not touch the tracked field must not
+        # re-fire the target because of a leftover snapshot
+        target.reset_mock()
+        group.name = "renamed"
+        group.save(update_fields=["name"])
+        target.assert_not_called()
+
+    def test_target_as_method_name(self):
+        # a string target is invoked as a method on each resolved object
+        dependency = CacheDependency(
+            source="config.DeviceGroup",
+            signal="post_save",
+            resolve=lambda instance, **kwargs: [instance],
+            target="some_method",
+        )
+        obj = Mock()
+        dependency._apply([obj])
+        obj.some_method.assert_called_once_with()
+
+    def test_snapshot_uses_initial_values_when_all_tracked_fields_available(self):
+        dependency = CacheDependency(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["name", "organization_id"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.initial"
+        device = self._create_device(name="device-initial")
+        old_name = device._initial_name
+        old_org_id = device._initial_organization_id
+        # Emulate pre_save state where current values may differ from initial ones.
+        device.name = "device-updated"
+
+        with patch.object(
+            dependency,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(Device, device)
+
+        initial_spy.assert_called_once_with(device)
+        db_spy.assert_not_called()
+        snapshot = device._cache_dependency_snapshots[dependency._uid]
+        self.assertEqual(snapshot["name"], old_name)
+        self.assertEqual(snapshot["organization_id"], old_org_id)
+
+    def test_snapshot_falls_back_to_db_when_initial_fields_are_missing(self):
+        dependency = CacheDependency(
+            source="config.DeviceGroup",
+            signal="post_save",
+            track_fields=["context"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.db_fallback"
+        group = self._create_device_group(context={"a": "1"})
+
+        with patch.object(
+            dependency,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(DeviceGroup, group)
+
+        initial_spy.assert_called_once_with(group)
+        db_spy.assert_called_once_with(DeviceGroup, group)
+        snapshot = group._cache_dependency_snapshots[dependency._uid]
+        self.assertEqual(snapshot["context"], {"a": "1"})
+
+    def test_snapshot_falls_back_to_db_when_initial_fields_are_deferred(self):
+        dependency = CacheDependency(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["name", "organization_id"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.deferred"
+        device = self._create_device(name="device-deferred")
+        deferred_device = Device.objects.only("id").get(pk=device.pk)
+        self.assertEqual(deferred_device._initial_name, models.DEFERRED)
+        self.assertEqual(deferred_device._initial_organization_id, models.DEFERRED)
+
+        with patch.object(
+            dependency,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(Device, deferred_device)
+
+        initial_spy.assert_called_once_with(deferred_device)
+        db_spy.assert_not_called()
+        snapshot = deferred_device._cache_dependency_snapshots[dependency._uid]
+        self.assertEqual(snapshot["name"], models.DEFERRED)
+        self.assertEqual(snapshot["organization_id"], models.DEFERRED)
+
+    def test_snapshot_skips_when_update_fields_excludes_tracked_fields(self):
+        dependency = CacheDependency(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["os", "group_id", "organization_id"],
+            target=Mock(),
+        )
+        dependency._uid = "test.cache_dependency.snapshot.skip_irrelevant_update_fields"
+        device = self._create_device(os="OpenWrt 22.03")
+
+        with patch.object(
+            dependency,
+            "_snapshot_from_initial_values",
+            wraps=dependency._snapshot_from_initial_values,
+        ) as initial_spy, patch.object(
+            dependency,
+            "_snapshot_from_db",
+            wraps=dependency._snapshot_from_db,
+        ) as db_spy:
+            dependency._snapshot_handler(
+                Device, device, update_fields={"management_ip", "last_ip"}
+            )
+
+        initial_spy.assert_not_called()
+        db_spy.assert_not_called()
+        snapshots = getattr(device, dependency._SNAPSHOT_ATTR, {})
+        self.assertNotIn(dependency._uid, snapshots)
+
+    def test_registry_tracks_connect_and_disconnect(self):
+        uid = "test.cache_dependency.registry"
+        dependency = CacheDependency(
+            source="config.DeviceGroup", signal="post_save", target=Mock()
+        )
+        self.assertNotIn(uid, CacheDependency._registry)
+        dependency.connect(dispatch_uid=uid)
+        self.assertIs(CacheDependency._registry[uid], dependency)
+        dependency.disconnect()
+        self.assertNotIn(uid, CacheDependency._registry)
+
+    def test_registry_includes_core_dependencies(self):
+        # the app-level and model-owned dependencies are wired at app startup
+        targets = {
+            dep.describe()["target"]
+            for dep in CacheDependency.get_registered_dependencies()
+        }
+        self.assertIn("update_status_if_checksum_changed", targets)
+        self.assertIn("DeviceChecksumView.invalidate_get_device_cache", targets)
+        self.assertIn("AbstractVpn._invalidate_vpn_view_cache", targets)
+
+    def test_describe_reports_dependency_attributes(self):
+        dependency = self._connect(
+            source="config.Device",
+            signal="post_save",
+            track_fields=["os", "group_id", "organization_id"],
+            resolve=Config._resolve_device_dependency,
+            target="update_status_if_checksum_changed",
+        )
+        info = dependency.describe()
+        self.assertEqual(info["source"], Device._meta.label_lower)
+        self.assertEqual(info["signal"], "post_save")
+        self.assertEqual(info["target"], "update_status_if_checksum_changed")
+        self.assertEqual(info["resolve"], "_resolve_device_dependency")
+        self.assertEqual(info["track_fields"], ["os", "group_id", "organization_id"])
+        self.assertEqual(info["on_commit"], True)
+        self.assertEqual(info["dispatch_uid"], "test.cache_dependency")
+
+    def test_print_cache_dependencies_text(self):
+        out = StringIO()
+        call_command("print_cache_dependencies", stdout=out)
+        output = out.getvalue()
+        self.assertIn("update_status_if_checksum_changed", output)
+        self.assertIn("on_commit", output)
+        self.assertIn("uid:", output)
+
+    def test_print_cache_dependencies_json(self):
+        out = StringIO()
+        call_command("print_cache_dependencies", format="json", stdout=out)
+        data = json.loads(out.getvalue())
+        self.assertGreater(len(data), 0)
+        expected_keys = {
+            "source",
+            "signal",
+            "target",
+            "resolve",
+            "track_fields",
+            "on_create",
+            "on_commit",
+            "dispatch_uid",
+        }
+        for item in data:
+            self.assertEqual(set(item.keys()), expected_keys)
+
+    def test_invalidate_devicegroup_cache_change_handler_bulk_list(self):
+        device_id1, device_id2 = uuid.uuid4(), uuid.uuid4()
+        with patch.object(tasks.invalidate_devicegroup_cache_change, "delay") as delay:
+            invalidate_devicegroup_cache_change_handler([device_id1, device_id2])
+        self.assertEqual(delay.call_count, 2)
+        delay.assert_has_calls(
+            [
+                call(device_id1, Device._meta.model_name),
+                call(device_id2, Device._meta.model_name),
+            ]
+        )

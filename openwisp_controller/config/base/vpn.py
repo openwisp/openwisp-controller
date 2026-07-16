@@ -15,6 +15,7 @@ from django.db import models, transaction
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from django_x509.signals import x509_renewed
 from swapper import get_model_name
 
 from openwisp_utils.base import KeyField
@@ -34,6 +35,7 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_update_member,
 )
 from .base import BaseConfig, ConfigChecksumCacheMixin
+from .cache import CacheDependency, CacheInvalidationMixin, _resolve_pk_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,12 @@ def _peer_cache_key(vpn):
     return str(vpn.pk)
 
 
-class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseConfig):
+class AbstractVpn(
+    CacheInvalidationMixin,
+    ConfigChecksumCacheMixin,
+    ShareableOrgMixinUniqueName,
+    BaseConfig,
+):
     """
     Abstract VPN model
     """
@@ -307,14 +314,96 @@ class AbstractVpn(ConfigChecksumCacheMixin, ShareableOrgMixinUniqueName, BaseCon
             "private_key",
             "network_id",
         ]
-        current = self._meta.model.objects.only(*attrs).get(pk=self.pk)
+        current = self._meta.model.objects.only("name", *attrs).get(pk=self.pk)
         for attr in attrs:
             if getattr(self, attr) != getattr(current, attr):
                 self._send_vpn_modified_after_save = True
                 break
+        if not self._send_vpn_modified_after_save and self._is_backend_type("zerotier"):
+            if self.name != current.name:
+                self._send_vpn_modified_after_save = True
 
     def _send_vpn_modified_signal(self):
         vpn_server_modified.send(sender=self.__class__, instance=self)
+
+    def handle_related_change(self):
+        """
+        Invalidates the VPN checksum and emits ``vpn_server_modified`` so that
+        client configs are recomputed. Called by :class:`CacheDependency` when
+        a related object (e.g. server CA/Cert) changes content.
+        """
+        self.invalidate_checksum_cache()
+        self._send_vpn_modified_signal()
+
+    @classmethod
+    def _invalidate_vpn_view_cache(cls, vpn):
+        """
+        Invalidates the ``GetVpnView`` cache for a VPN server. Imported lazily
+        to avoid a circular import between models and ``controller.views``.
+        """
+        from ..controller.views import GetVpnView
+
+        GetVpnView.invalidate_get_vpn_cache(vpn)
+
+    @classmethod
+    def _resolve_ca_dependency(cls, ca, **kwargs):
+        """Return VPNs whose server CA is ``ca``."""
+        vpn_model = cls
+        return list(vpn_model.objects.filter(ca_id=ca.pk))
+
+    @classmethod
+    def _resolve_server_cert_dependency(cls, cert, **kwargs):
+        """Return VPNs whose server certificate is ``cert``."""
+        vpn_model = cls
+        return list(vpn_model.objects.filter(cert_id=cert.pk))
+
+    @classmethod
+    def get_cache_dependencies(cls):
+        return [
+            # The VPN server's own change (create or update) invalidates its
+            # controller view cache.
+            CacheDependency(
+                source="config.Vpn",
+                signal="post_save",
+                on_create=True,
+                target=cls._invalidate_vpn_view_cache,
+            ),
+            # Deferred to commit so a concurrent request cannot repopulate the
+            # cache with a VPN that is about to be (or was just) deleted.
+            # ``post_delete`` + ``_resolve_pk_snapshot`` because Django clears
+            # ``instance.pk`` on deleted instances before the deferred
+            # on_commit callback runs (see ``_resolve_pk_snapshot``).
+            CacheDependency(
+                source="config.Vpn",
+                signal="post_delete",
+                resolve=_resolve_pk_snapshot,
+                target=cls._invalidate_vpn_view_cache,
+            ),
+            # A change to the VPN server configuration (e.g. via related objects)
+            # emits ``vpn_server_modified`` and must invalidate the view cache.
+            CacheDependency(
+                signal_obj=vpn_server_modified,
+                name="vpn_server_modified",
+                target=cls._invalidate_vpn_view_cache,
+            ),
+            # When the server CA is renewed, the VPN's generated configuration
+            # changes; invalidate the VPN checksum and cascade to client configs.
+            CacheDependency(
+                source="django_x509.Ca",
+                signal_obj=x509_renewed,
+                name="x509_renewed",
+                resolve=cls._resolve_ca_dependency,
+                target="handle_related_change",
+            ),
+            # When the server certificate is renewed, same cascade as above.
+            CacheDependency(
+                source="django_x509.Cert",
+                signal_obj=x509_renewed,
+                name="x509_renewed",
+                resolve=cls._resolve_server_cert_dependency,
+                target="handle_related_change",
+            ),
+        ]
 
     @classmethod
     def dhparam(cls, length):
@@ -1053,10 +1142,25 @@ class AbstractVpnClient(models.Model):
     @classmethod
     def invalidate_clients_cache(cls, vpn):
         """
-        Invalidate checksum cache for clients that uses this VPN server
+        Recomputes the stored checksum of clients that use this VPN server.
+
+        Changing a VPN server field (e.g. host, keys, subnet) alters the
+        context of every client configuration. Recompute each client's
+        checksum so that ``Config.checksum_db`` reflects the new VPN server
+        context, set its status to "modified" and emit ``config_modified``
+        with action ``"related_template_changed"``.
+
+        As with ``Config.update_status_if_checksum_changed()`` elsewhere,
+        ``config_modified`` is only emitted when the checksum actually
+        changed, not unconditionally for every client of the VPN server.
         """
-        for client in vpn.vpnclient_set.iterator():
-            # invalidate cache for device
-            client.config._send_config_modified_signal(
-                action="related_template_changed"
-            )
+        for client in vpn.vpnclient_set.select_related(
+            "config", "config__device", "config__device__group"
+        ).iterator():
+            config = client.config
+            # keep the historical signal action for this related change
+            config._config_modified_action = "related_template_changed"
+            if not config.update_status_if_checksum_changed():
+                # no change: undo the action set above so it does not
+                # linger on this (otherwise throwaway) config instance
+                config._config_modified_action = "config_changed"

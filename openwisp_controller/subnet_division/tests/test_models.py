@@ -23,6 +23,7 @@ Subnet = load_model("openwisp_ipam", "Subnet")
 IpAddress = load_model("openwisp_ipam", "IpAddress")
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
+Config = load_model("config", "Config")
 VpnClient = load_model("config", "VpnClient")
 Device = load_model("config", "Device")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
@@ -61,6 +62,35 @@ class BaseSubnetDivisionRule:
             self.assertIn(f"{rule.label}_subnet{subnet_id}", context)
             for ip_id in range(1, rule.number_of_ips + 1):
                 self.assertIn(f"{rule.label}_subnet{subnet_id}_ip{ip_id}", context)
+
+    def test_vpn_client_ip_resolved_before_checksum_cached(self):
+        """
+        Regression test: VpnSubnetDivisionRuleType.post_provision_handler
+        used to call super().post_provision_handler() (which computes and
+        caches the Config checksum) before assigning the provisioned IP
+        address to the VpnClient. This left the "ip_address_<vpn_pk>"
+        template variable unresolved in the cached checksum.
+        """
+        self._get_vpn_subdivision_rule()
+        # "config={}" makes Template.clean() auto-generate the wireguard
+        # client config via Vpn.auto_client(), which is what embeds the
+        # "{{ip_address_<vpn_pk>}}" placeholder that must be resolved.
+        wireguard_template = self._create_template(
+            name="wireguard-auto-client",
+            type="vpn",
+            vpn=self.vpn_server,
+            organization=self.org,
+            auto_cert=True,
+            config={},
+        )
+        self.config.templates.add(wireguard_template)
+        vpnclient = self.config.vpnclient_set.get(vpn=self.vpn_server)
+        self.assertNotEqual(vpnclient.ip, None)
+        ip_address_key = f"ip_address_{self.vpn_server.pk.hex}"
+        context = self.config.get_context()
+        self.assertEqual(context[ip_address_key], vpnclient.ip.ip_address)
+        refreshed_config = Config.objects.get(pk=self.config.pk)
+        self.assertEqual(refreshed_config.checksum_db, refreshed_config.checksum)
 
 
 class TestSubnetDivisionRule(
@@ -333,8 +363,13 @@ class TestSubnetDivisionRule(
         )
         index_count = index_queryset.count()
         subnet_count = subnet_queryset.count()
-        rule.label = new_rule_label
-        rule.save()
+        with patch.object(Config, "bulk_invalidate_get_cached_checksum") as mocked:
+            rule.label = new_rule_label
+            rule.save()
+        # Regression test: renaming a rule's label rewrites the keywords of
+        # its SubnetDivisionIndex entries, which feed Config.get_context();
+        # the affected configs' checksums must be invalidated accordingly.
+        mocked.assert_called_once_with({"id__in": [self.config.id]})
         rule.refresh_from_db()
 
         self.assertEqual(rule.label, new_rule_label)
@@ -375,8 +410,13 @@ class TestSubnetDivisionRule(
         )
 
         new_number_of_ips = rule.number_of_ips + 2
-        rule.number_of_ips = new_number_of_ips
-        rule.save()
+        with patch.object(Config, "bulk_invalidate_get_cached_checksum") as mocked:
+            rule.number_of_ips = new_number_of_ips
+            rule.save()
+        # Regression test: provisioning extra IPs creates new
+        # SubnetDivisionIndex entries, which feed Config.get_context();
+        # the affected configs' checksums must be invalidated accordingly.
+        mocked.assert_called_once_with({"id__in": {self.config.id}})
         rule.refresh_from_db()
 
         self.assertEqual(rule.number_of_ips, new_number_of_ips)
