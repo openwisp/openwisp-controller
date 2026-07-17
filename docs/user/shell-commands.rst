@@ -196,15 +196,20 @@ organization.
 
 **Targeting options:**
 
-You can target devices using any combination of the following:
-
 - ``devices``: Explicit list of device UUIDs.
-- ``group``: All devices belonging to a device group.
-- ``location``: All devices at a specific location.
+- ``group``: Device group UUID.
+- ``location``: Location UUID.
+
+If ``devices`` is provided, ``group`` and ``location`` are ignored.
+Otherwise, ``group`` and ``location`` can be used together to narrow the
+target set within the organization.
 
 If no targeting options are provided, the command targets all devices in
 the organization. If ``devices`` is provided as an empty list, the request
 is rejected because no devices match.
+
+For superusers, ``organization`` is set automatically when ``group`` or
+``location`` is provided.
 
 Refer to the :ref:`Batch Command API <controller_batch_command_api>`
 documentation for the available endpoints, request parameters, and

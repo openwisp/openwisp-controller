@@ -498,7 +498,8 @@ anything. Useful for previewing which devices are affected.
 ================ =========================================================
 Parameter        Description
 ================ =========================================================
-``organization`` Organization UUID (optional)
+``organization`` Organization UUID (optional for superusers; set
+                 automatically when ``group`` or ``location`` is provided)
 ``type``         Command type (optional for dry-run)
 ``input``        JSON input data for the command (optional for dry-run).
                  Encode as a URL-encoded JSON object, e.g.
@@ -521,10 +522,11 @@ Creates and executes a batch command on the targeted devices.
 
 **Request Parameters:**
 
-================ ========================================================
+================ =========================================================
 Parameter        Description
-================ ========================================================
-``organization`` Organization UUID (optional for superusers)
+================ =========================================================
+``organization`` Organization UUID (optional for superusers; set
+                 automatically when ``group`` or ``location`` is provided)
 ``type``         Type of command to execute (**required**)
 ``input``        Input data for the command (**conditionally required** —
                  depends on command type)
@@ -535,7 +537,7 @@ Parameter        Description
                  and ``location`` are ignored)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
-================ ========================================================
+================ =========================================================
 
 **Available Command Types:**
 
