@@ -1277,6 +1277,59 @@ class TestBatchCommandsAPI(
             self.assertIn(str(device1.pk), response.data["devices"])
             self.assertIn(str(device2.pk), response.data["devices"])
 
+    def test_superuser_org_auto_set_from_group_and_location(self):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        url = reverse("connection_api:batch_command_execute")
+
+        with self.subTest("from group"):
+            group = DeviceGroup.objects.create(name="infer-group", organization=org)
+            group.device_set.add(device)
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "infer-group",
+                        "group": str(group.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            self.assertEqual(batch.organization, org)
+            self.assertEqual(batch.devices.count(), 1)
+            self.assertIn(device.pk, batch.devices.values_list("pk", flat=True))
+
+        with self.subTest("from location"):
+            location = Location.objects.create(
+                name="infer-location",
+                organization=org,
+                geometry="POINT (12.0 44.0)",
+            )
+            DeviceLocation.objects.create(content_object=device, location=location)
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "infer-location",
+                        "location": str(location.pk),
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 201)
+            batch = BatchCommand.objects.get(pk=response.data["batch"])
+            self.assertEqual(batch.organization, org)
+            self.assertEqual(batch.devices.count(), 1)
+            self.assertIn(device.pk, batch.devices.values_list("pk", flat=True))
+
     def test_batch_command_operator_endpoints_on_managed_org(self):
         org = self._get_org()
         self._create_credentials(name="op-cred", organization=org)

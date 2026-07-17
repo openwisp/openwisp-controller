@@ -856,6 +856,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
 
     def clean(self):
         super().clean()
+        if not self.organization_id:
+            if self.group_id:
+                self.organization = self.group.organization
+            elif self.location_id:
+                self.organization = self.location.organization
         self._validate_org_relations()
         Command = load_model("connection", "Command")
         allowed = dict(
