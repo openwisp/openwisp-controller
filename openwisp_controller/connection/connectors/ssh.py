@@ -5,6 +5,7 @@ from io import BytesIO, StringIO
 
 import paramiko
 from django.utils.functional import cached_property
+from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaError
@@ -61,7 +62,20 @@ class Ssh(object):
         self._params = params
         self.addresses = addresses
         self.shell = paramiko.SSHClient()
-        self.shell.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.shell.set_missing_host_key_policy(self._get_missing_host_key_policy())
+
+    def _get_missing_host_key_policy(self):
+        # The default AutoAddPolicy blindly trusts unknown host keys, which
+        # exposes the configuration push -- and the device secrets it carries
+        # (WiFi passwords, VPN private keys, ...) -- to a man-in-the-middle on
+        # the management path. Operators can enforce host-key verification by
+        # setting OPENWISP_SSH_MISSING_HOST_KEY_POLICY to a stricter policy
+        # (e.g. "paramiko.RejectPolicy"); in that case the known host keys are
+        # loaded so trusted devices can still be verified.
+        policy_class = import_string(app_settings.SSH_MISSING_HOST_KEY_POLICY)
+        if not issubclass(policy_class, paramiko.AutoAddPolicy):
+            self.shell.load_system_host_keys()
+        return policy_class()
 
     @classmethod
     def validate(cls, params):

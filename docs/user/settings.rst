@@ -3,6 +3,26 @@ Settings
 
 .. include:: /partials/settings-note.rst
 
+``OPENWISP_SSH_MISSING_HOST_KEY_POLICY``
+----------------------------------------
+
+============ ==========================
+**type**:    ``str``
+**default**: ``paramiko.AutoAddPolicy``
+============ ==========================
+
+Dotted path to the `paramiko missing host key policy
+<https://docs.paramiko.org/en/stable/api/client.html#paramiko.client.MissingHostKeyPolicy>`_
+used when establishing SSH connections to devices.
+
+The default ``paramiko.AutoAddPolicy`` accepts unknown device host keys
+automatically, which is convenient but leaves the configuration push (and
+the device secrets it carries) exposed to a man-in-the-middle on the
+management network. Set this to a stricter policy (for example
+``paramiko.RejectPolicy``) to enforce host key verification; in that case
+the system known hosts are loaded so that trusted device host keys can
+still be verified.
+
 ``OPENWISP_SSH_AUTH_TIMEOUT``
 -----------------------------
 
