@@ -5,14 +5,10 @@ from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
-from django.utils.translation import gettext_lazy as _
-from openwisp_notifications.signals import notify
 from swapper import load_model
 
 from openwisp_utils.tasks import OpenwispCeleryTask
 
-from . import settings as app_settings
 from .utils import handle_error_notification, handle_recovery_notification
 
 logger = logging.getLogger(__name__)
@@ -225,65 +221,5 @@ def invalidate_controller_views_cache(organization_id):
 
 @shared_task(soft_time_limit=1200)
 def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
-    """
-    Revokes stale certificates and mints fresh ones when hardware drift occurs.
-    """
-    if not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
-        return
-    Device = load_model("config", "Device")
     DeviceCertificate = load_model("config", "DeviceCertificate")
-    try:
-        device = Device.objects.get(id=device_id)
-    except Device.DoesNotExist:
-        return
-
-    configs_to_update = set()
-    certs_regenerated = 0
-
-    with transaction.atomic():
-        qs = DeviceCertificate.active_auto_certs_for(device).select_for_update()
-        if expected_cert_ids:
-            valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
-            qs = qs.filter(cert_id__in=valid_cert_ids)
-        active_device_certs = qs.select_related("cert", "config", "template")
-        if not active_device_certs.exists():
-            return
-        expected_map = dict(expected_cert_ids) if expected_cert_ids else {}
-        for dc in active_device_certs:
-            expected_cert_id = expected_map.get(dc.id)
-            if expected_cert_id is not None and dc.cert_id != expected_cert_id:
-                continue
-            old_cert = dc.cert
-            old_cert.revoke()
-            new_cert = dc._build_cert(
-                name=device.name, common_name=dc._get_common_name()
-            )
-            new_cert.full_clean()
-            new_cert.save()
-            dc.cert = new_cert
-            dc.save()
-            configs_to_update.add(dc.config)
-            certs_regenerated += 1
-    for config in configs_to_update:
-        config.refresh_from_db()
-        config.update_status_if_checksum_changed()
-    if certs_regenerated > 0:
-        try:
-            message = _(
-                "Hardware drift detected on device {device_name}. "
-                "Successfully regenerated {certs_regenerated} "
-                "bound X.509 certificate(s)."
-            ).format(device_name=str(device.name), certs_regenerated=certs_regenerated)
-            notify.send(
-                sender=device,
-                target=device,
-                action_object=device,
-                type="generic_message",
-                verb=_("experienced hardware drift"),
-                message=message,
-                level="info",
-            )
-        except Exception as e:
-            logger.warning(
-                f"Could not push regeneration notification for {device.name}: {e}"
-            )
+    DeviceCertificate.regenerate_certificates(device_id, expected_cert_ids)

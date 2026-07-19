@@ -1109,6 +1109,8 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         and exposes them as UUID-namespaced variables for the configuration engine.
         """
         cert_context = collections.OrderedDict()
+        if not any(t.type == "cert" for t in self.templates.all()):
+            return cert_context
         for dc in self.devicecertificate_set.select_related(
             "template", "cert"
         ).order_by("created"):

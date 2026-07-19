@@ -300,6 +300,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             else:
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
+        update_fields = kwargs.get("update_fields")
         super().save(*args, **kwargs)
         if app_settings.WHOIS_CONFIGURED:
             self._check_last_ip(creating=state_adding)
@@ -309,7 +310,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         # after performing the save operation. Hence, the actual value
         # is stored in the "state_adding" variable.
         if not state_adding:
-            self._check_changed_fields()
+            self._check_changed_fields(update_fields=update_fields)
 
     def delete(self, using=None, keep_parents=False, check_deactivated=True):
         if check_deactivated and (not self.is_fully_deactivated()):
@@ -318,13 +319,13 @@ class AbstractDevice(OrgMixin, BaseModel):
             )
         return super().delete(using, keep_parents)
 
-    def _check_changed_fields(self):
+    def _check_changed_fields(self, update_fields=None):
         self._get_initial_values_for_checked_fields()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
             method = getattr(self, f"_check_{field}_changed", None)
             if callable(method):
-                method()
+                method(update_fields=update_fields)
 
     def _is_deferred(self, field):
         """
@@ -354,7 +355,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             setattr(self, f"_initial_{field}", getattr(self, field))
             setattr(self, field, value)
 
-    def _check_name_changed(self):
+    def _check_name_changed(self, update_fields=None):
         if self._initial_name == models.DEFERRED:
             return
 
@@ -367,18 +368,20 @@ class AbstractDevice(OrgMixin, BaseModel):
             if self._has_config():
                 self.config.set_status_modified()
 
-        self._initial_name = self.name
+        if update_fields is None or "name" in update_fields:
+            self._initial_name = self.name
 
-    def _check_mac_address_changed(self):
+    def _check_mac_address_changed(self, update_fields=None):
         if self._initial_mac_address == models.DEFERRED:
             return
         if self._initial_mac_address != self.mac_address:
             if self._has_config():
                 self.config.set_status_modified()
 
-        self._initial_mac_address = self.mac_address
+        if update_fields is None or "mac_address" in update_fields:
+            self._initial_mac_address = self.mac_address
 
-    def _check_group_id_changed(self):
+    def _check_group_id_changed(self, update_fields=None):
         if self._initial_group_id == models.DEFERRED:
             return
 
@@ -387,7 +390,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self, self.group_id, self._initial_group_id
             )
 
-    def _check_management_ip_changed(self):
+    def _check_management_ip_changed(self, update_fields=None):
         if self._initial_management_ip == models.DEFERRED:
             return
         if self.management_ip != self._initial_management_ip:
@@ -398,9 +401,10 @@ class AbstractDevice(OrgMixin, BaseModel):
                 instance=self,
             )
 
-        self._initial_management_ip = self.management_ip
+        if update_fields is None or "management_ip" in update_fields:
+            self._initial_management_ip = self.management_ip
 
-    def _check_organization_id_changed(self):
+    def _check_organization_id_changed(self, update_fields=None):
         """
         Returns "True" if the device's organization has changed.
         """

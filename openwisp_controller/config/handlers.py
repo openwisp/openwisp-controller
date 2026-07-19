@@ -53,10 +53,11 @@ def _hardware_fields_changed(update_fields):
     )
 
 
-@receiver(post_save, sender=Device, dispatch_uid="detect_hardware_drift")
-def detect_hardware_drift(sender, instance, created, **kwargs):
+@receiver(post_save, sender=Device, dispatch_uid="detect_device_property_change")
+def detect_device_property_change(sender, instance, created, **kwargs):
     """
-    Triggers certificate regeneration if hardware properties (name/mac) change.
+    Triggers certificate regeneration if device identity fields
+    (name, MAC address) change.
     """
     if kwargs.get("raw"):
         return

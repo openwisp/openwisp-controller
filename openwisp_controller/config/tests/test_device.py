@@ -590,429 +590,6 @@ class TestDevice(
         self.assertEqual(device.config.context, {"ssid": "test"})
         self.assertEqual(device.config.config, {"general": {}})
 
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_hardware_drift_signal_triggers_on_name_change(self, mocked_task):
-        """Proof that changing the hostname fires the celery task."""
-        org = self._create_org()
-        device = self._create_device(organization=org, name="old-router-name")
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.name = "new-router-name"
-        with self.captureOnCommitCallbacks(execute=True):
-            device.save()
-        self.assertEqual(mocked_task.call_count, 1)
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_hardware_drift_signal_triggers_on_mac_change(self, mocked_task):
-        """Proof that changing the MAC address fires the celery task."""
-        org = self._create_org()
-        device = self._create_device(organization=org, mac_address="00:11:22:33:44:55")
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.mac_address = "AA:BB:CC:DD:EE:FF"
-        with self.captureOnCommitCallbacks(execute=True):
-            device.save()
-        self.assertEqual(mocked_task.call_count, 1)
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_hardware_drift_signal_ignores_unrelated_changes(self, mocked_task):
-        """Proof that saving a device without changing name/MAC does nothing."""
-        org = self._create_org()
-        device = self._create_device(organization=org)
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.key = "new-management-key"
-        with self.captureOnCommitCallbacks(execute=True):
-            device.save()
-        mocked_task.assert_not_called()
-
-    @mock.patch(
-        "openwisp_controller.config.settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE", False
-    )
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_hardware_drift_setting_disables_regeneration(self, mocked_task):
-        """Proof that the user-configurable setting turns the feature off."""
-        org = self._create_org()
-        device = self._create_device(organization=org)
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.name = "another-new-name"
-        with self.captureOnCommitCallbacks(execute=True):
-            device.save()
-        mocked_task.assert_not_called()
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_hardware_drift_partial_save_ignores_dirty_memory(self, mocked_task):
-        """
-        Proof that dirty in-memory fields are
-        not evaluated if not in update_fields.
-        """
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="old-name", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.mac_address = "AA:BB:CC:DD:EE:FF"
-        with self.captureOnCommitCallbacks(execute=True):
-            device.save(update_fields=["name"])
-        mocked_task.assert_not_called()
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_task_regenerates_and_revokes(self, mocked_task):
-        """Proof that the task physically revokes the old and mints the new."""
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device_cert = DeviceCertificate.objects.get(config=config, template=template)
-        old_cert_id = device_cert.cert.id
-        self.assertFalse(device_cert.cert.revoked)
-        device.name = "renamed-router"
-        device.mac_address = "AA:BB:CC:DD:EE:FF"
-        device.save()
-        regenerate_device_certificates_task(str(device.id))
-        device_cert.refresh_from_db()
-        old_cert = Cert.objects.get(id=old_cert_id)
-        self.assertTrue(old_cert.revoked)
-        self.assertNotEqual(old_cert_id, device_cert.cert.id)
-        self.assertIn("renamed-router", device_cert.cert.common_name)
-        self.assertIn("AA:BB:CC:DD:EE:FF", device_cert.cert.common_name)
-        extensions = device_cert.cert.extensions
-        mac_ext = next(
-            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.1"), None
-        )
-        uuid_ext = next(
-            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.2"), None
-        )
-        self.assertIsNotNone(mac_ext, "MAC Address OID 1.3.6.1.4.1.65901.1 is missing")
-        self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
-        self.assertIsNotNone(uuid_ext, "Device UUID OID 1.3.6.1.4.1.65901.2 is missing")
-        self.assertIn(str(device.id), uuid_ext["value"])
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_regeneration_preserves_blueprint_extensions(self, mocked_task):
-        """Proof that blueprint extensions carry over alongside custom OIDs."""
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        blueprint_cert = Cert(
-            name="enterprise-blueprint",
-            ca=ca,
-            organization=org,
-            common_name="blueprint",
-            extensions=[{"name": "nsCertType", "value": "server", "critical": False}],
-        )
-        blueprint_cert.full_clean()
-        blueprint_cert.save()
-        template = self._create_template(
-            organization=org,
-            type="cert",
-            ca=ca,
-            auto_cert=True,
-            blueprint_cert=blueprint_cert,
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device_cert = DeviceCertificate.objects.get(config=config, template=template)
-        device.mac_address = "AA:BB:CC:DD:EE:FF"
-        device.save()
-        regenerate_device_certificates_task(str(device.id))
-        device_cert.refresh_from_db()
-        extensions = device_cert.cert.extensions
-        ns_ext = next(
-            (ext for ext in extensions if ext.get("name") == "nsCertType"), None
-        )
-        self.assertIsNotNone(
-            ns_ext, "Blueprint extension was lost during regeneration!"
-        )
-        self.assertEqual(ns_ext["value"], "server")
-        self.assertFalse(ns_ext.get("critical", False))
-        mac_ext = next(
-            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.1"), None
-        )
-        self.assertIsNotNone(mac_ext, "MAC Address OID is missing!")
-        self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
-
-    @mock.patch("openwisp_controller.config.tasks.notify.send")
-    def test_regeneration_triggers_toast_notification(self, mock_notify):
-        """Proof that a successful regeneration sends a generic_message toast."""
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.name = "renamed-router"
-        device.save()
-        regenerate_device_certificates_task(str(device.id))
-        mock_notify.assert_called_once()
-        _, kwargs = mock_notify.call_args
-        self.assertEqual(kwargs.get("type"), "generic_message")
-        self.assertEqual(kwargs.get("verb"), "experienced hardware drift")
-        self.assertIn("renamed-router", kwargs.get("message"))
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_regeneration_idempotent_when_duplicate_tasks(self, mocked_task):
-        """Proof that a duplicate task with stale cert IDs does not rotate again."""
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device_cert = DeviceCertificate.objects.get(config=config, template=template)
-        original_cert_id = device_cert.cert.id
-        self.assertFalse(device_cert.cert.revoked)
-        expected_cert_ids = list(
-            DeviceCertificate.objects.filter(
-                config__device=device,
-                auto_cert=True,
-                cert__revoked=False,
-                template__type="cert",
-            ).values_list("id", "cert_id")
-        )
-        device.name = "renamed-router"
-        device.save()
-        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
-        device_cert.refresh_from_db()
-        first_new_cert_id = device_cert.cert.id
-        self.assertNotEqual(original_cert_id, first_new_cert_id)
-        self.assertFalse(device_cert.cert.revoked)
-        old_cert = Cert.objects.get(id=original_cert_id)
-        self.assertTrue(old_cert.revoked)
-        # Run the same task again with the same stale expected_cert_ids
-        # to simulate a duplicate task that was queued before the first
-        # task completed. The second task should skip because the cert
-        # IDs no longer match.
-        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
-        device_cert.refresh_from_db()
-        self.assertEqual(
-            first_new_cert_id,
-            device_cert.cert.id,
-            "Duplicate task rotated the cert again despite stale expected_cert_ids",
-        )
-        self.assertFalse(device_cert.cert.revoked)
-
-    def test_device_certificate_str_pending_generation(self):
-        org = self._create_org()
-        device = self._create_device(organization=org)
-        ca = self._create_ca(name="ca", organization=org)
-        template = self._create_template(
-            type="cert", ca=ca, organization=org, config={}
-        )
-        config = self._create_config(device=device)
-        dc = DeviceCertificate.objects.create(
-            config=config, template=template, cert=None, auto_cert=False
-        )
-        self.assertIn("Pending Generation", str(dc))
-
-    def test_cert_used_as_blueprint_blocked(self):
-        org = self._get_org()
-        ca = self._create_ca(name="ca", organization=org)
-        blueprint = Cert(
-            name="bp",
-            ca=ca,
-            organization=org,
-            common_name="bp",
-            key_length="2048",
-            digest="sha256",
-        )
-        blueprint.full_clean()
-        blueprint.save()
-        self._create_template(
-            name="bp-tmpl",
-            type="cert",
-            ca=ca,
-            blueprint_cert=blueprint,
-            organization=org,
-            config={},
-        )
-        template = self._create_template(
-            name="dc-tmpl", type="cert", ca=ca, organization=org, config={}
-        )
-        device = self._create_device(organization=org)
-        config = self._create_config(device=device)
-        dc = DeviceCertificate(config=config, template=template, cert=blueprint)
-        with self.assertRaises(ValidationError) as ctx:
-            dc.full_clean()
-        self.assertIn("cert", ctx.exception.message_dict)
-
-    def test_device_certificate_auto_x509_early_return(self):
-        org = self._get_org()
-        ca = self._create_ca(name="ca", organization=org)
-        cert = Cert(
-            name="pre",
-            ca=ca,
-            organization=org,
-            common_name="pre",
-            key_length="2048",
-            digest="sha256",
-        )
-        cert.full_clean()
-        cert.save()
-        template = self._create_template(
-            type="cert", ca=ca, organization=org, config={}
-        )
-        device = self._create_device(organization=org)
-        config = self._create_config(device=device)
-        dc = DeviceCertificate.objects.create(
-            config=config, template=template, cert=cert, auto_cert=True
-        )
-        dc.refresh_from_db()
-        self.assertEqual(dc.cert_id, cert.id)
-        self.assertFalse(dc.cert.revoked)
-        dc._auto_x509()
-        dc.refresh_from_db()
-        self.assertEqual(dc.cert_id, cert.id)
-
-    @mock.patch.object(app_settings, "COMMON_NAME_FORMAT", "{mac_address}-{name}")
-    def test_device_certificate_common_name_format_fallback(self):
-        org = self._create_org()
-        mac = "00:11:22:33:44:55"
-        device = self._create_device(organization=org, name=mac, mac_address=mac)
-        ca = self._create_ca(name="ca", organization=org)
-        template = self._create_template(
-            type="cert", ca=ca, organization=org, config={}
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        dc = DeviceCertificate.objects.get(config=config, template=template)
-        cn = dc.cert.common_name
-        self.assertFalse(cn.startswith(f"{mac}-{mac}"))
-        self.assertTrue(cn.startswith(mac))
-
-    def test_device_certificate_post_delete_object_does_not_exist(self):
-        dc = mock.MagicMock(spec=DeviceCertificate)
-        dc.cert = mock.MagicMock()
-        dc.cert.revoke.side_effect = ObjectDoesNotExist
-        dc.auto_cert = True
-        DeviceCertificate.post_delete(sender=DeviceCertificate, instance=dc)
-
-    def test_regeneration_task_setting_disabled(self):
-        with mock.patch.object(
-            app_settings, "REGENERATE_CERTS_ON_HARDWARE_CHANGE", False
-        ):
-            result = regenerate_device_certificates_task(str(uuid.uuid4()))
-        self.assertIsNone(result)
-
-    def test_regeneration_task_device_does_not_exist(self):
-        result = regenerate_device_certificates_task(str(uuid.uuid4()))
-        self.assertIsNone(result)
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_regeneration_task_expected_cert_id_mismatch(self, mocked_delay):
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="test-device", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        template1 = self._create_template(
-            name="cert-1",
-            organization=org,
-            type="cert",
-            ca=ca,
-            auto_cert=True,
-        )
-        template2 = self._create_template(
-            name="cert-2",
-            organization=org,
-            type="cert",
-            ca=ca,
-            auto_cert=True,
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template1, template2)
-        dc1 = DeviceCertificate.objects.get(config=config, template=template1)
-        dc2 = DeviceCertificate.objects.get(config=config, template=template2)
-        expected_cert_ids = [(dc1.id, dc2.cert_id), (dc2.id, dc1.cert_id)]
-        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
-        dc1.refresh_from_db()
-        dc2.refresh_from_db()
-        self.assertFalse(dc1.cert.revoked)
-        self.assertFalse(dc2.cert.revoked)
-
-    @mock.patch(
-        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
-    )
-    def test_regeneration_task_notification_failure(self, mocked_delay):
-        org = self._create_org()
-        device = self._create_device(
-            organization=org, name="old-name", mac_address="00:11:22:33:44:55"
-        )
-        ca = self._create_ca(name="test-ca", organization=org)
-        template = self._create_template(
-            organization=org, type="cert", ca=ca, auto_cert=True
-        )
-        config = self._create_config(device=device)
-        config.templates.add(template)
-        device.name = "new-name"
-        device.save()
-        with mock.patch(
-            "openwisp_controller.config.tasks.notify.send",
-            side_effect=ImportError("test notification failure"),
-        ) as mock_notify:
-            with mock.patch(
-                "openwisp_controller.config.tasks.logger.warning"
-            ) as mock_warn:
-                regenerate_device_certificates_task(str(device.id))
-        mock_notify.assert_called_once()
-        mock_warn.assert_called_once()
-
 
 class TestTransactionDevice(
     CreateConfigTemplateMixin,
@@ -1165,3 +742,435 @@ class TestTransactionDevice(
         device.refresh_from_db()
         self.assertEqual(device._has_config(), False)
         self.assertEqual(device.is_deactivated(), False)
+
+
+class TestDeviceCertificateSignalTrigger(
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestPkiMixin,
+    TestCase,
+):
+    """Tests for the signal that triggers certificate regeneration
+    when device identity fields (name, MAC address) change."""
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_signal_triggers_on_name_change(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(organization=org, name="old-router-name")
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "new-router-name"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        self.assertEqual(mocked_task.call_count, 1)
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_signal_triggers_on_mac_address_change(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(organization=org, mac_address="00:11:22:33:44:55")
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        self.assertEqual(mocked_task.call_count, 1)
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_signal_ignores_unrelated_changes(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.key = "new-management-key"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        mocked_task.assert_not_called()
+
+    @mock.patch(
+        "openwisp_controller.config.settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE", False
+    )
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_setting_disables_regeneration(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "another-new-name"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save()
+        mocked_task.assert_not_called()
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_partial_save_ignores_dirty_memory(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save(update_fields=["name"])
+        mocked_task.assert_not_called()
+
+
+class TestDeviceCertificateRegenerationTask(
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestPkiMixin,
+    TestCase,
+):
+    """Tests for the certificate regeneration task."""
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_regenerates_and_revokes(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        old_cert_id = device_cert.cert.id
+        self.assertFalse(device_cert.cert.revoked)
+        device.name = "renamed-router"
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        device_cert.refresh_from_db()
+        old_cert = Cert.objects.get(id=old_cert_id)
+        self.assertTrue(old_cert.revoked)
+        self.assertNotEqual(old_cert_id, device_cert.cert.id)
+        self.assertIn("renamed-router", device_cert.cert.common_name)
+        self.assertIn("AA:BB:CC:DD:EE:FF", device_cert.cert.common_name)
+        extensions = device_cert.cert.extensions
+        mac_ext = next(
+            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.1"), None
+        )
+        uuid_ext = next(
+            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.2"), None
+        )
+        self.assertIsNotNone(mac_ext, "MAC Address OID 1.3.6.1.4.1.65901.1 is missing")
+        self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
+        self.assertIsNotNone(uuid_ext, "Device UUID OID 1.3.6.1.4.1.65901.2 is missing")
+        self.assertIn(str(device.id), uuid_ext["value"])
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_preserves_blueprint_extensions(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        blueprint_cert = Cert(
+            name="enterprise-blueprint",
+            ca=ca,
+            organization=org,
+            common_name="blueprint",
+            extensions=[{"name": "nsCertType", "value": "server", "critical": False}],
+        )
+        blueprint_cert.full_clean()
+        blueprint_cert.save()
+        template = self._create_template(
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            blueprint_cert=blueprint_cert,
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        device.mac_address = "AA:BB:CC:DD:EE:FF"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        device_cert.refresh_from_db()
+        extensions = device_cert.cert.extensions
+        ns_ext = next(
+            (ext for ext in extensions if ext.get("name") == "nsCertType"), None
+        )
+        self.assertIsNotNone(ns_ext)
+        self.assertEqual(ns_ext["value"], "server")
+        self.assertFalse(ns_ext.get("critical", False))
+        mac_ext = next(
+            (ext for ext in extensions if ext.get("oid") == "1.3.6.1.4.1.65901.1"), None
+        )
+        self.assertIsNotNone(mac_ext)
+        self.assertIn("AA:BB:CC:DD:EE:FF", mac_ext["value"])
+
+    @mock.patch("openwisp_controller.config.base.device_certificate.notify.send")
+    def test_triggers_toast_notification(self, mock_notify):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "renamed-router"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        mock_notify.assert_called_once()
+        _, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs.get("type"), "generic_message")
+        self.assertEqual(kwargs.get("verb"), "device identity fields changed")
+        self.assertIn("renamed-router", kwargs.get("message"))
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_idempotent_when_duplicate_tasks(self, mocked_task):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-router-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        original_cert_id = device_cert.cert.id
+        self.assertFalse(device_cert.cert.revoked)
+        expected_cert_ids = list(
+            DeviceCertificate.objects.filter(
+                config__device=device,
+                auto_cert=True,
+                cert__revoked=False,
+                template__type="cert",
+            ).values_list("id", "cert_id")
+        )
+        device.name = "renamed-router"
+        device.save()
+        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
+        device_cert.refresh_from_db()
+        first_new_cert_id = device_cert.cert.id
+        self.assertNotEqual(original_cert_id, first_new_cert_id)
+        self.assertFalse(device_cert.cert.revoked)
+        old_cert = Cert.objects.get(id=original_cert_id)
+        self.assertTrue(old_cert.revoked)
+        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
+        device_cert.refresh_from_db()
+        self.assertEqual(
+            first_new_cert_id,
+            device_cert.cert.id,
+        )
+        self.assertFalse(device_cert.cert.revoked)
+
+    def test_setting_disabled(self):
+        with mock.patch.object(
+            app_settings, "REGENERATE_CERTS_ON_HARDWARE_CHANGE", False
+        ):
+            result = regenerate_device_certificates_task(str(uuid.uuid4()))
+        self.assertIsNone(result)
+
+    def test_device_does_not_exist(self):
+        result = regenerate_device_certificates_task(str(uuid.uuid4()))
+        self.assertIsNone(result)
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_expected_cert_id_mismatch(self, mocked_delay):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="test-device", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template1 = self._create_template(
+            name="cert-1",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        template2 = self._create_template(
+            name="cert-2",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template1, template2)
+        dc1 = DeviceCertificate.objects.get(config=config, template=template1)
+        dc2 = DeviceCertificate.objects.get(config=config, template=template2)
+        expected_cert_ids = [(dc1.id, dc2.cert_id), (dc2.id, dc1.cert_id)]
+        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
+        dc1.refresh_from_db()
+        dc2.refresh_from_db()
+        self.assertFalse(dc1.cert.revoked)
+        self.assertFalse(dc2.cert.revoked)
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_notification_failure(self, mocked_delay):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "new-name"
+        device.save()
+        with mock.patch(
+            "openwisp_controller.config.base.device_certificate.notify.send",
+            side_effect=ImportError("test notification failure"),
+        ) as mock_notify:
+            with mock.patch(
+                "openwisp_controller.config.base.device_certificate.logger.warning"
+            ) as mock_warn:
+                regenerate_device_certificates_task(str(device.id))
+        mock_notify.assert_called_once()
+        mock_warn.assert_called_once()
+
+
+class TestDeviceCertificateModel(
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestPkiMixin,
+    TestCase,
+):
+    """Tests for the DeviceCertificate model."""
+
+    def test_str_pending_generation(self):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        ca = self._create_ca(name="ca", organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        config = self._create_config(device=device)
+        dc = DeviceCertificate.objects.create(
+            config=config, template=template, cert=None, auto_cert=False
+        )
+        self.assertIn("Pending Generation", str(dc))
+
+    def test_cert_used_as_blueprint_blocked(self):
+        org = self._get_org()
+        ca = self._create_ca(name="ca", organization=org)
+        blueprint = Cert(
+            name="bp",
+            ca=ca,
+            organization=org,
+            common_name="bp",
+            key_length="2048",
+            digest="sha256",
+        )
+        blueprint.full_clean()
+        blueprint.save()
+        self._create_template(
+            name="bp-tmpl",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        template = self._create_template(
+            name="dc-tmpl", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        dc = DeviceCertificate(config=config, template=template, cert=blueprint)
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("cert", ctx.exception.message_dict)
+
+    def test_auto_x509_early_return(self):
+        org = self._get_org()
+        ca = self._create_ca(name="ca", organization=org)
+        cert = Cert(
+            name="pre",
+            ca=ca,
+            organization=org,
+            common_name="pre",
+            key_length="2048",
+            digest="sha256",
+        )
+        cert.full_clean()
+        cert.save()
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        dc = DeviceCertificate.objects.create(
+            config=config, template=template, cert=cert, auto_cert=True
+        )
+        dc.refresh_from_db()
+        self.assertEqual(dc.cert_id, cert.id)
+        self.assertFalse(dc.cert.revoked)
+        dc._auto_x509()
+        dc.refresh_from_db()
+        self.assertEqual(dc.cert_id, cert.id)
+
+    @mock.patch.object(app_settings, "COMMON_NAME_FORMAT", "{mac_address}-{name}")
+    def test_common_name_format_fallback(self):
+        org = self._create_org()
+        mac = "00:11:22:33:44:55"
+        device = self._create_device(organization=org, name=mac, mac_address=mac)
+        ca = self._create_ca(name="ca", organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        cn = dc.cert.common_name
+        self.assertFalse(cn.startswith(f"{mac}-{mac}"))
+        self.assertTrue(cn.startswith(mac))
+
+    def test_post_delete_object_does_not_exist(self):
+        dc = mock.MagicMock(spec=DeviceCertificate)
+        dc.cert = mock.MagicMock()
+        dc.cert.revoke.side_effect = ObjectDoesNotExist
+        dc.auto_cert = True
+        DeviceCertificate.post_delete(sender=DeviceCertificate, instance=dc)

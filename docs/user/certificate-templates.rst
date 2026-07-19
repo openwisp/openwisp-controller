@@ -28,8 +28,9 @@ Setting Up a Certificate Template
 ---------------------------------
 
 To create a Certificate Template, navigate to the Templates section in the
-OpenWISP admin and set the **Type** to :guilabel:`Certificate` (``cert``).
-This will reveal the certificate-specific configuration fields.
+OpenWISP admin and set the **Type** to :guilabel:`Certificate generator`
+(``cert``). This will reveal the certificate-specific configuration
+fields.
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/certificate-templates/certificate-template.png
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/certificate-templates/certificate-template.png
@@ -114,13 +115,13 @@ signal handler (registered in ``config/apps.py``) detects the
 on the associated device configuration, ensuring the device pulls the
 renewed certificate on its next check-in.
 
-**On device property changes (hardware drift):** When a device's
-**hostname** or **MAC address** is modified, OpenWISP automatically
-detects the change and triggers an asynchronous task. The task revokes the
-existing certificate and generates a new one with the updated Common Name
-and custom OID values. A ``generic_message`` notification is sent to the
-admin informing them of the regeneration. This behavior can be disabled by
-setting :ref:`OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE
+**On device property changes :** When a device's **hostname** or **MAC
+address** is modified, OpenWISP automatically detects the change and
+triggers an asynchronous task. The task revokes the existing certificate
+and generates a new one with the updated Common Name and custom OID
+values. A ``generic_message`` notification is sent to the admin informing
+them of the regeneration. This behavior can be disabled by setting
+:ref:`OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE
 <OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE>` to ``False``.
 
 .. _certificate_templates_active_lock:

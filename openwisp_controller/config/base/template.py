@@ -6,7 +6,7 @@ from copy import copy
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
-from django.db.models import JSONField
+from django.db.models import JSONField, Prefetch
 from django.utils.translation import gettext_lazy as _
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import get_model_name, load_model
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 TYPE_CHOICES = (
     ("generic", _("Generic")),
     ("vpn", _("VPN-client")),
-    ("cert", _("Certificate")),
+    ("cert", _("Certificate generator")),
 )
 
 
@@ -82,7 +82,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "by this template."
         ),
     )
-
     blueprint_cert = models.ForeignKey(
         get_model_name("django_x509", "Cert"),
         on_delete=models.SET_NULL,
@@ -146,6 +145,37 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         ),
         encoder=DjangoJSONEncoder,
     )
+    _changed_checked_fields = [
+        "ca_id",
+        "blueprint_cert_id",
+        "type",
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._set_initial_values_for_changed_checked_fields()
+
+    def _is_deferred(self, field):
+        return field in self.get_deferred_fields()
+
+    def _set_initial_values_for_changed_checked_fields(self):
+        for field in self._changed_checked_fields:
+            if self._is_deferred(field):
+                setattr(self, f"_initial_{field}", models.DEFERRED)
+            else:
+                setattr(self, f"_initial_{field}", getattr(self, field))
+
+    def _get_initial_value_or_fallback(self, field):
+        initial = getattr(self, f"_initial_{field}", None)
+        if initial == models.DEFERRED:
+            try:
+                return getattr(
+                    self.__class__.objects.only(field).get(pk=self.pk), field
+                )
+            except self.__class__.DoesNotExist:
+                return None
+        return initial
+
     __template__ = True
 
     class Meta:
@@ -202,9 +232,16 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         # use atomic to ensure any code bound to
         # be executed via transaction.on_commit
         # is executed after the whole block
+        DeviceCertificate = load_model("config", "DeviceCertificate")
         with transaction.atomic():
             for config in (
                 self.config_relations.prefetch_related(
+                    Prefetch(
+                        "devicecertificate_set",
+                        queryset=DeviceCertificate.objects.select_related(
+                            "template", "cert"
+                        ).order_by("created"),
+                    ),
                     "vpnclient_set",
                     "templates",
                 )
@@ -261,14 +298,15 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         """
         if self._state.adding:
             return
-        try:
-            current = self.__class__.objects.get(pk=self.pk)
-        except self.__class__.DoesNotExist:
-            return
+        initial_ca_id = self._get_initial_value_or_fallback("ca_id")
+        initial_blueprint_cert_id = self._get_initial_value_or_fallback(
+            "blueprint_cert_id"
+        )
+        initial_type = self._get_initial_value_or_fallback("type")
         changing_protected_fields = (
-            current.ca_id != self.ca_id
-            or current.blueprint_cert_id != self.blueprint_cert_id
-            or (current.type == "cert" and self.type != "cert")
+            initial_ca_id != self.ca_id
+            or initial_blueprint_cert_id != self.blueprint_cert_id
+            or (initial_type == "cert" and self.type != "cert")
         )
         if not changing_protected_fields:
             return
@@ -287,11 +325,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             "on an active template."
         )
         errors = {}
-        if current.ca_id != self.ca_id:
+        if initial_ca_id != self.ca_id:
             errors["ca"] = message
-        if current.blueprint_cert_id != self.blueprint_cert_id:
+        if initial_blueprint_cert_id != self.blueprint_cert_id:
             errors["blueprint_cert"] = message
-        if current.type == "cert" and self.type != "cert":
+        if initial_type == "cert" and self.type != "cert":
             errors["type"] = _(
                 "This template is already assigned to active devices. "
                 "You cannot change the template type from certificate "

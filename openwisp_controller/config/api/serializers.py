@@ -86,89 +86,10 @@ class TemplateSerializer(BaseSerializer):
         return value
 
     def validate(self, data):
-        """
-        Explicitly validate certificate template fields and locks for the API.
-        """
         template_type = data.get("type", getattr(self.instance, "type", "generic"))
-        ca = data.get("ca", getattr(self.instance, "ca", None))
-        blueprint_cert = data.get(
-            "blueprint_cert", getattr(self.instance, "blueprint_cert", None)
-        )
-        cert_fields_provided = (
-            "ca" in data or "blueprint_cert" in data or "type" in data
-        )
-        # cert templates must have a CA
-        if template_type == "cert" and not ca:
-            raise serializers.ValidationError(
-                {
-                    "ca": _(
-                        "A Certificate Authority is required when "
-                        "the template type is certificate."
-                    )
-                }
-            )
-        # clear certificate-specific fields if the template is not a certificate
-        elif template_type != "cert":
+        if template_type != "cert":
             data["ca"] = None
             data["blueprint_cert"] = None
-            ca = None
-            blueprint_cert = None
-        # assert structural binding matches between CA and template blueprints
-        if template_type == "cert" and blueprint_cert and ca:
-            if blueprint_cert.ca_id != ca.id:
-                raise serializers.ValidationError(
-                    {
-                        "blueprint_cert": _(
-                            "The selected certificate must match "
-                            "the selected Certificate Authority."
-                        )
-                    }
-                )
-        # apply mutation protections over protected fields
-        if self.instance and self.instance.pk and cert_fields_provided:
-            # only enforce locks if the template is assigned
-            # to active/activating devices
-            if (
-                Config.objects.filter(templates=self.instance)
-                .exclude(status__in=["deactivating", "deactivated"])
-                .exists()
-            ):
-                # block changing a certificate template to a generic template
-                if self.instance.type == "cert" and template_type != "cert":
-                    raise serializers.ValidationError(
-                        {
-                            "type": _(
-                                "This template is already assigned to active devices. "
-                                "You cannot change the template type from certificate "
-                                "on an active template."
-                            )
-                        }
-                    )
-                # block altering the assigned Certificate Authority
-                if "ca" in data and data["ca"] != self.instance.ca:
-                    raise serializers.ValidationError(
-                        {
-                            "ca": _(
-                                "This template is already assigned to active devices. "
-                                "You cannot change the CA or Blueprint Certificate "
-                                "on an active template."
-                            )
-                        }
-                    )
-                # block altering the assigned Blueprint Certificate
-                if (
-                    "blueprint_cert" in data
-                    and data["blueprint_cert"] != self.instance.blueprint_cert
-                ):
-                    raise serializers.ValidationError(
-                        {
-                            "blueprint_cert": _(
-                                "This template is already assigned to active devices. "
-                                "You cannot change the CA or Blueprint Certificate "
-                                "on an active template."
-                            )
-                        }
-                    )
         return super().validate(data)
 
 
@@ -426,30 +347,32 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
         raw_data_for_signal_handlers = {
             "organization": validated_data.get("organization", instance.organization)
         }
+        if (
+            validated_data.get("organization")
+            and instance.organization != validated_data.get("organization")
+            and instance._has_config()
+        ):
+            # config.device.organization is used for validating
+            # the organization of templates. It is also used for adding
+            # default and required templates configured for an organization.
+            # The value of the organization field is set here to
+            # prevent access of the old value stored in the database
+            # while performing above operations.
+            with transaction.atomic():
+                instance.config.device.organization = validated_data.get("organization")
+                DeviceCertificate.objects.filter(config=instance.config).delete()
+                instance.config.templates.clear()
+                Config.enforce_required_templates(
+                    action="post_clear",
+                    instance=instance.config,
+                    sender=instance.config.templates,
+                    pk_set=None,
+                    raw_data=raw_data_for_signal_handlers,
+                )
+
         if config_data:
             self._update_config(instance, config_data)
 
-        elif instance._has_config() and validated_data.get("organization"):
-            if instance.organization != validated_data.get("organization"):
-                # config.device.organization is used for validating
-                # the organization of templates. It is also used for adding
-                # default and required templates configured for an organization.
-                # The value of the organization field is set here to
-                # prevent access of the old value stored in the database
-                # while performing above operations.
-                with transaction.atomic():
-                    instance.config.device.organization = validated_data.get(
-                        "organization"
-                    )
-                    DeviceCertificate.objects.filter(config=instance.config).delete()
-                    instance.config.templates.clear()
-                    Config.enforce_required_templates(
-                        action="post_clear",
-                        instance=instance.config,
-                        sender=instance.config.templates,
-                        pk_set=None,
-                        raw_data=raw_data_for_signal_handlers,
-                    )
         return super().update(instance, validated_data)
 
 

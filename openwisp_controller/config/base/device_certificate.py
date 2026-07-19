@@ -1,13 +1,21 @@
-import copy
+import logging
 
-import shortuuid
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
+from openwisp_notifications.signals import notify
 from swapper import get_model_name, load_model
 
 from openwisp_controller.config import settings as app_settings
+from openwisp_controller.config.utils import (
+    copy_ca_attributes,
+    generate_common_name,
+    get_client_extensions,
+    revoke_device_cert,
+)
 from openwisp_utils.base import TimeStampedEditableModel
+
+logger = logging.getLogger(__name__)
 
 MAC_ADDRESS_OID = "1.3.6.1.4.1.65901.1"
 DEVICE_UUID_OID = "1.3.6.1.4.1.65901.2"
@@ -73,19 +81,9 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
 
     def _get_common_name(self):
         """
-        Returns a unique common name for a new certificate, mirroring VPN client logic.
+        Returns the common name for a new certificate.
         """
-        d = self.config.device
-        end = 63 - len(d.mac_address)
-        truncated_name = d.name[:end]
-        unique_slug = shortuuid.ShortUUID().random(length=8)
-        cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == "{mac_address}-{name}" and truncated_name == d.mac_address:
-            cn_format = "{mac_address}"
-        format_dict = {**d.__dict__, "name": truncated_name}
-        common_name = cn_format.format(**format_dict)[:55]
-        common_name = f"{common_name}-{unique_slug}"
-        return common_name
+        return generate_common_name(self.config.device)
 
     def _build_cert(self, name, common_name):
         """Build (but do not save) a Cert instance from template + blueprint."""
@@ -93,8 +91,10 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         blueprint = self.template.blueprint_cert
         cert_model = self.__class__.cert.field.related_model
 
-        attrs = self._clone_blueprint_attrs(ca, blueprint)
-        extensions = self._build_extensions(blueprint)
+        attrs = copy_ca_attributes(ca, blueprint)
+        extensions = get_client_extensions(
+            blueprint, hardware_oids=self._get_hardware_oid_extensions()
+        )
         cert = cert_model(
             name=name,
             ca=ca,
@@ -103,33 +103,6 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
             **attrs,
         )
         return self._auto_create_cert_extra(cert)
-
-    def _clone_blueprint_attrs(self, ca, blueprint):
-        """
-        Extracts base X.509 attributes (such as key length, digest, and
-        location data) from the provided blueprint certificate.
-        """
-        source = blueprint or ca
-        digest = str(source.digest)
-        return dict(
-            key_length=source.key_length,
-            digest=digest,
-            country_code=source.country_code,
-            state=source.state,
-            city=source.city,
-            organization_name=source.organization_name,
-            organizational_unit_name=source.organizational_unit_name,
-            email=source.email,
-        )
-
-    def _build_extensions(self, blueprint):
-        """Compiles the list of X.509 extensions for the new certificate."""
-        if blueprint and blueprint.extensions:
-            extensions = copy.deepcopy(blueprint.extensions)
-        else:
-            extensions = [{"name": "nsCertType", "value": "client", "critical": False}]
-        extensions.extend(self._get_hardware_oid_extensions())
-        return extensions
 
     def _get_hardware_oid_extensions(self):
         device = self.config.device
@@ -178,8 +151,72 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         Receiver of ``post_delete`` signal.
         Automatically revokes the certificate when the template is unassigned.
         """
+        revoke_device_cert(instance)
+
+    @classmethod
+    def regenerate_certificates(cls, device_id, expected_cert_ids=None):
+        """
+        Revokes stale certificates and mints fresh ones when
+        device identity fields change.
+        """
+        if not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
+            return
+        Device = load_model("config", "Device")
         try:
-            if instance.cert and instance.auto_cert:
-                instance.cert.revoke()
-        except ObjectDoesNotExist:
-            pass
+            device = Device.objects.get(id=device_id)
+        except Device.DoesNotExist:
+            return
+
+        configs_to_update = set()
+        certs_regenerated = 0
+
+        with transaction.atomic():
+            qs = cls.active_auto_certs_for(device).select_for_update()
+            if expected_cert_ids:
+                valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
+                qs = qs.filter(cert_id__in=valid_cert_ids)
+            active_device_certs = qs.select_related("cert", "config", "template")
+            if not active_device_certs.exists():
+                return
+            expected_map = dict(expected_cert_ids) if expected_cert_ids else {}
+            for dc in active_device_certs:
+                expected_cert_id = expected_map.get(dc.id)
+                if expected_cert_id is not None and dc.cert_id != expected_cert_id:
+                    continue
+                old_cert = dc.cert
+                old_cert.revoke()
+                new_cert = dc._build_cert(
+                    name=device.name, common_name=dc._get_common_name()
+                )
+                new_cert.full_clean()
+                new_cert.save()
+                dc.cert = new_cert
+                dc.save()
+                configs_to_update.add(dc.config)
+                certs_regenerated += 1
+        for config in configs_to_update:
+            config.refresh_from_db()
+            config.update_status_if_checksum_changed()
+        if certs_regenerated > 0:
+            try:
+                message = _(
+                    "Device identity fields changed on device {device_name}. "
+                    "Successfully regenerated {certs_regenerated} "
+                    "bound X.509 certificate(s)."
+                ).format(
+                    device_name=str(device.name),
+                    certs_regenerated=certs_regenerated,
+                )
+                notify.send(
+                    sender=device,
+                    target=device,
+                    action_object=device,
+                    type="generic_message",
+                    verb=_("device identity fields changed"),
+                    message=message,
+                    level="info",
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Could not push regeneration notification for {device.name}: {e}"
+                )

@@ -527,11 +527,11 @@ class TestDeviceAdmin(
         self.assertFalse(device_cert.cert.revoked)
         self.assertEqual(device_cert.cert.name, "e2e-router")
 
-    def test_hardware_drift_notification(self):
+    def test_device_property_change_notification(self):
         org = self._get_org()
         ca = self._create_ca(
-            name="hardware-drift-ca",
-            common_name="hardware-drift-ca",
+            name="device-change-ca",
+            common_name="device-change-ca",
             organization=org,
         )
         template = self._create_template(
@@ -558,7 +558,7 @@ class TestDeviceAdmin(
         notification = self.wait_for_visibility(
             By.CLASS_NAME, "ow-notification-elem", timeout=10
         )
-        self.assertIn("Hardware drift detected", notification.text)
+        self.assertIn("device property change detected", notification.text)
 
 
 @tag("selenium_tests")
@@ -864,7 +864,9 @@ class TestTemplateAdmin(
             self.wait_for_invisibility(By.CLASS_NAME, "field-ca")
             self.wait_for_invisibility(By.CLASS_NAME, "field-blueprint_cert")
 
-        with self.subTest("Changing type to 'Certificate' should show fields"):
+        with self.subTest(
+            "Changing type to 'Certificate generator' should show fields"
+        ):
             type_select = Select(self.find_element(by=By.ID, value="id_type"))
             type_select.select_by_value("cert")
 
