@@ -558,7 +558,7 @@ class TestDeviceAdmin(
         notification = self.wait_for_visibility(
             By.CLASS_NAME, "ow-notification-elem", timeout=10
         )
-        self.assertIn("device property change detected", notification.text)
+        self.assertIn("device identity fields changed", notification.text)
 
 
 @tag("selenium_tests")
