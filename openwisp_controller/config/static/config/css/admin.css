@@ -6,6 +6,7 @@
   --djnjc-previewlink-bg: #778898;
   --djnjc-previewlink-hover: #576a7c;
 }
+
 a.button:focus,
 a.jsoneditor-exit:focus {
   text-decoration: none;
@@ -396,4 +397,30 @@ button.show-sc {
   div.tabs-divider {
     display: none;
   }
+}
+#certificate-group th[data-tooltip] {
+  position: relative;
+}
+#certificate-group th[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #333;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 10000;
+  line-height: 1.4;
+  margin-top: 5px;
+}
+#certificate-group th[data-tooltip]:hover::before {
+  content: "";
+  position: absolute;
+  top: calc(100% - 5px);
+  left: 12px;
+  border: 5px solid transparent;
+  border-bottom-color: #333;
 }

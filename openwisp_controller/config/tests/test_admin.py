@@ -1850,10 +1850,9 @@ class TestAdmin(
         self.assertContains(response, cert_url)
         self.assertContains(response, dc.cert.ca.name)
         self.assertContains(response, dc.cert.key_length)
-        self.assertContains(response, dc.cert.digest)
-        self.assertContains(response, "Valid Until")
-        self.assertContains(response, "Active")
-        self.assertContains(response, "From")
+        self.assertContains(response, dc.cert.digest.upper())
+        self.assertContains(response, "VALIDITY END")
+        self.assertContains(response, "icon-no.svg")
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):

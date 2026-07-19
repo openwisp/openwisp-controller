@@ -1,48 +1,68 @@
-{% load i18n %}
-<fieldset class="module">
-    <table>
+{% load i18n static %}
+<div class="results">
+    <table id="result_list" style="width: 100%;">
         <thead>
-            <tr>
-                <th>{% trans "Common Name" %}</th>
+            <tr style="background-color: var(--darkened-bg, #f8f8f8);">
+                <th>{% trans "NAME" %}</th>
+                <th data-tooltip="{% trans 'indicates which templates generated the x509 certificate' %}">
+                    <span>
+                        {% trans "TEMPLATE" %} <img src="{% static 'admin/img/icon-unknown.svg' %}" alt="?">
+                    </span>
+                </th>
                 <th>{% trans "CA" %}</th>
-                <th>{% trans "From" %}</th>
-                <th>{% trans "Status" %}</th>
-                <th>{% trans "Key / Digest" %}</th>
-                <th>{% trans "Valid Until" %}</th>
-                <th>{% trans "Created" %}</th>
+                <th>{% trans "KEY LENGTH" %}</th>
+                <th>{% trans "DIGEST ALGORITHM" %}</th>
+                <th>{% trans "VALIDITY END" %}</th>
+                <th>{% trans "REVOKED" %}</th>
+                <th>{% trans "CREATED" %}</th>
+                <th>{% trans "MODIFIED" %}</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody> 
             {% for cert in certificates %}
             <tr class="{% cycle 'row1' 'row2' %}">
-                <td>{% if cert.has_cert %}<a href="{{ cert.url }}">{{ cert.common_name }}</a>{% else %}{{ cert.common_name|default:"-" }}{% endif %}</td>
-                <td>{{ cert.ca_name|default:"-" }}</td>
+                <th class="field-name" scope="row">
+                    {% if cert.has_cert %}
+                        <a href="{{ cert.url }}" style="text-decoration: none;">{{ cert.common_name }}</a>
+                    {% else %}
+                        {{ cert.common_name|default:"-" }}
+                    {% endif %}
+                </th> 
                 <td>{{ cert.template_name }}</td>
+                <td>
+                    {% if cert.ca_url %}
+                        <a href="{{ cert.ca_url }}" target="_blank" style="text-decoration: none;">{{ cert.ca_name }}</a>
+                    {% else %}
+                        {{ cert.ca_name|default:"-" }}
+                    {% endif %}
+                </td>
+                <td>{{ cert.key_length_display|default:"-" }}</td>
+                <td>{{ cert.digest|default:"-"|upper }}</td>
+                <td>{{ cert.validity_end|default:"-" }}</td>
                 <td>
                     {% if cert.has_cert %}
                         {% if cert.is_revoked %}
-                            <span style="color:red;font-weight:bold">{% trans "Revoked" %}</span>
+                            <img src="{% static 'admin/img/icon-yes.svg' %}" alt="True">
                         {% else %}
-                            <span style="color:green;font-weight:bold">{% trans "Active" %}</span>
+                            <img src="{% static 'admin/img/icon-no.svg' %}" alt="False">
                         {% endif %}
                     {% else %}
                         {% trans "Pending Generation" %}
                     {% endif %}
                 </td>
-                <td>{{ cert.key_length|default:"-" }} / {{ cert.digest|default:"-" }}</td>
-                <td>{{ cert.validity_end|default:"-" }}</td>
                 <td>{{ cert.created|default:"-" }}</td>
+                <td>{{ cert.modified|default:"-" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="7">{% trans "No certificates generated." %}</td></tr>
+            <tr><td colspan="9">{% trans "No certificates generated." %}</td></tr>
             {% endfor %}
             {% if has_more %}
             <tr>
-                <td colspan="7" style="text-align:center;padding:8px;">
+                <td colspan="9" style="text-align:center;padding:8px;">
                     <a href="{{ cert_list_url }}" class="button">{% trans "View all certificates in certificate admin" %} &raquo;</a>
                 </td>
             </tr>
             {% endif %}
         </tbody>
     </table>
-</fieldset>
+</div>

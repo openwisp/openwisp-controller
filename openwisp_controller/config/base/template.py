@@ -319,16 +319,18 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         ):
             return
 
-        message = _(
-            "This template is already assigned to active devices. "
-            "You cannot change the CA or Blueprint Certificate "
-            "on an active template."
-        )
         errors = {}
         if initial_ca_id != self.ca_id:
-            errors["ca"] = message
+            errors["ca"] = _(
+                "This template is already assigned to active devices. "
+                "You cannot change the CA on an active template."
+            )
         if initial_blueprint_cert_id != self.blueprint_cert_id:
-            errors["blueprint_cert"] = message
+            errors["blueprint_cert"] = _(
+                "This template is already assigned to active devices. "
+                "You cannot change the Blueprint Certificate "
+                "on an active template."
+            )
         if initial_type == "cert" and self.type != "cert":
             errors["type"] = _(
                 "This template is already assigned to active devices. "

@@ -978,14 +978,26 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                 url = reverse(
                     f"admin:{app_label}_{model_name}_change", args=[dc.cert.id]
                 )
+                ca_url = None
+                if dc.cert.ca:
+                    ca_app = dc.cert.ca._meta.app_label
+                    ca_model = dc.cert.ca._meta.model_name
+                    ca_url = reverse(
+                        f"admin:{ca_app}_{ca_model}_change", args=[dc.cert.ca.id]
+                    )
+                key_length_display = dc.cert.key_length
+                if hasattr(dc.cert, "get_key_length_display"):
+                    key_length_display = dc.cert.get_key_length_display()
                 cert_data.append(
                     {
                         "template_name": dc.template.name,
                         "common_name": dc.cert.common_name,
                         "ca_name": dc.cert.ca.name if dc.cert.ca else "-",
-                        "key_length": dc.cert.key_length,
+                        "ca_url": ca_url,
+                        "key_length_display": key_length_display,
                         "digest": dc.cert.digest,
                         "created": dc.cert.created,
+                        "modified": getattr(dc.cert, "modified", None),
                         "validity_end": dc.cert.validity_end,
                         "is_revoked": dc.cert.revoked,
                         "url": url,
