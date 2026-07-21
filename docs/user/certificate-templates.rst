@@ -32,8 +32,8 @@ OpenWISP admin and set the **Type** to :guilabel:`Certificate generator`
 (``cert``). This will reveal the certificate-specific configuration
 fields.
 
-.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/certificate-templates/certificate-template.png
-    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/certificate-templates/certificate-template.png
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.4/certificate-templates/certificate-template.png
+    :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/1.4/certificate-templates/certificate-template.png
     :alt: Certificate Template admin form
 
 :guilabel:`Certificate Authority` (required)
@@ -111,9 +111,9 @@ generates a new serial number, updates the validity dates, and regenerates
 the certificate and private key. The existing ``certificate_updated``
 signal handler (registered in ``config/apps.py``) detects the
 ``DeviceCertificate`` relationship and calls
-:meth:`~openwisp_controller.config.base.config.Config.update_status_if_checksum_changed`
-on the associated device configuration, ensuring the device pulls the
-renewed certificate on its next check-in.
+``Config.update_status_if_checksum_changed`` on the associated device
+configuration, ensuring the device pulls the renewed certificate on its
+next check-in.
 
 **On device property changes :** When a device's **hostname** or **MAC
 address** is modified, OpenWISP automatically detects the change and

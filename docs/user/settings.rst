@@ -330,6 +330,8 @@ The objects that are automatically created will also be removed when they
 are not needed anymore (e.g.: when the VPN template is removed from a
 configuration object).
 
+.. _openwisp_controller_regenerate_certs_on_hardware_change:
+
 ``OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE``
 -----------------------------------------------------------
 
@@ -359,6 +361,8 @@ this automatic regeneration.
 The file system path where x509 certificate will be installed when
 downloaded on routers when ``auto_cert`` is being used (enabled by
 default).
+
+.. _openwisp_controller_common_name_format:
 
 ``OPENWISP_CONTROLLER_COMMON_NAME_FORMAT``
 ------------------------------------------
