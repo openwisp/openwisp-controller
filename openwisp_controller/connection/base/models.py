@@ -742,7 +742,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         ("success", _("success")),
         ("failed", _("failed")),
     )
-
+    # Mass commands targeting all devices in the system are valid and allowed.
+    # Only superusers can initiate system-wide mass commands.
     organization = models.ForeignKey(
         get_model_name("openwisp_users", "Organization"),
         on_delete=models.CASCADE,
