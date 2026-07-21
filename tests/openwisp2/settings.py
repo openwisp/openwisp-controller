@@ -1,6 +1,8 @@
 import os
 import sys
 
+from celery.schedules import crontab
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
 TESTING = os.environ.get("TESTING", False) or sys.argv[1:2] == ["test"]
@@ -184,6 +186,13 @@ else:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = "memory://"
+
+CELERY_BEAT_SCHEDULE = {
+    "cleanup-unreferenced-whois-records": {
+        "task": "openwisp_controller.config.whois.tasks.cleanup_unreferenced_whois_records",
+        "schedule": crontab(hour=2, minute=0),
+    }
+}
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "sessions"

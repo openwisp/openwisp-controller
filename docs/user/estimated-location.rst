@@ -113,11 +113,24 @@ If two devices share the same IP and are assigned to the same location,
 and one of them updates its last IP, the system will create a new
 estimated location for that device.
 
-When multiple devices with the same IP already have a location assigned
-but the locations differ, the system will send a notification to network
-administrators asking to manually resolve the ambiguity.
-
 When WHOIS records are updated as described in :ref:`the WHOIS Lookup
 section <controller_whois_auto_management>`, any related estimated
 location will also be updated, if needed and only if the estimated
 location has not been manually modified to increase precision.
+
+Notifications
+-------------
+
+Notifications are created in the following cases:
+
+- A new estimated location is created for the first time.
+- When multiple devices with the same IP have different locations
+  assigned, administrators are notified and encouraged to manually resolve
+  the ambiguity.
+- WHOIS data indicates a different geographic area, unless the estimated
+  location has been manually refined.
+
+On mobile ISP connections, where IP addresses can change frequently, changes
+to the public IP address or ISP do not generate a notification when the
+estimated geographic area is unchanged. Estimated locations are updated
+silently in that case.

@@ -84,6 +84,12 @@ Launch celery worker (for background jobs):
 
     celery -A openwisp2 worker -l info
 
+Launch celery beat (for periodic jobs):
+
+.. code-block:: shell
+
+    celery -A openwisp2 beat -l info
+
 Launch development server:
 
 .. code-block:: shell

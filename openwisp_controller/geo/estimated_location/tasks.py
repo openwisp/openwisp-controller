@@ -1,6 +1,7 @@
 import logging
 
 from celery import shared_task
+from django.db import transaction
 from swapper import load_model
 
 from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _handle_attach_existing_location(
-    device, device_location, ip_address, existing_device_location
+    device, device_location, ip_address, existing_device_location, whois_obj
 ):
     """
     Helper function to:
@@ -22,7 +23,6 @@ def _handle_attach_existing_location(
     3. Create a new estimated location for the device using WHOIS data.
     """
     Device = load_model("config", "Device")
-    WHOISInfo = load_model("config", "WHOISInfo")
 
     current_location = device_location.location
     attached_devices_exists = None
@@ -52,11 +52,12 @@ def _handle_attach_existing_location(
             device=device,
             notify_type="estimated_location_updated",
             actor=existing_location,
+            ip_address=ip_address,
+            whois=whois_obj,
         )
         return
     # If existing devices with same last_ip do not have any location
     # then we create a new location based on WHOIS data.
-    whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
     if not whois_obj or not whois_obj.coordinates:
         logger.warning(
             f"Coordinates not available for {device.pk} for IP: {ip_address}."
@@ -84,7 +85,7 @@ def _handle_attach_existing_location(
     # of device is shared.
     estimated_location_service = EstimatedLocationService(device)
     estimated_location_service._create_or_update_estimated_location(
-        location_defaults, attached_devices_exists
+        location_defaults, attached_devices_exists, whois_obj
     )
     logger.info(
         f"Estimated location saved successfully for {device.pk} for IP: {ip_address}"
@@ -110,24 +111,36 @@ def manage_estimated_locations(device_pk, ip_address):
     to the user to resolve the conflict manually.
     """
     Device = load_model("config", "Device")
-    DeviceLocation = load_model("geo", "DeviceLocation")
+    WHOISInfo = load_model("config", "WHOISInfo")
 
     try:
-        device = Device.objects.select_related("devicelocation__location").get(
-            pk=device_pk
-        )
+        with transaction.atomic():
+            device = (
+                Device.objects.select_for_update()
+                .select_related("devicelocation__location")
+                .get(pk=device_pk)
+            )
+            if device.is_deactivated() or device.last_ip != ip_address:
+                logger.info(
+                    f"Device {device_pk} no longer needs estimated location "
+                    f"for {ip_address}"
+                )
+                return
+            if not EstimatedLocationService.check_estimated_location_enabled(
+                device.organization_id
+            ):
+                return
+            whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
+            _manage_estimated_location(device, ip_address, whois_obj)
     except Device.DoesNotExist:
         logger.warning(
             f"Device {device_pk} not found, skipping manage_estimated_locations"
         )
-        return
-    # Defense in depth: a device can be deactivated after the task is queued,
-    # so re-check here.
-    if device.is_deactivated():
-        logger.info(
-            f"Device {device_pk} is deactivated, skipping estimated location task"
-        )
-        return
+
+
+def _manage_estimated_location(device, ip_address, whois_obj):
+    Device = load_model("config", "Device")
+    DeviceLocation = load_model("geo", "DeviceLocation")
     devices_with_location = list(
         # "devicelocation" and "devicelocation__location" must be in only() to
         # prevent Django from deferring them, which would conflict with
@@ -139,14 +152,16 @@ def manage_estimated_locations(device_pk, ip_address):
         .select_related("devicelocation__location")
         .filter(
             organization_id=device.organization_id,
+            _is_deactivated=False,
             last_ip=ip_address,
             devicelocation__location__isnull=False,
         )
         # evaluated to LIMIT query, we need to know if there's more than 1 result
-        .exclude(pk=device.pk)[:2]
+        .exclude(pk=device.pk)
     )
     # multiple devices can have same last_ip in cases like usage of proxy
-    if len(devices_with_location) > 1:
+    location_ids = {item.devicelocation.location_id for item in devices_with_location}
+    if len(location_ids) > 1:
         send_estimated_location_notification(
             device=device, notify_type="estimated_location_error"
         )
@@ -169,10 +184,10 @@ def manage_estimated_locations(device_pk, ip_address):
         except IndexError:
             existing_device_location = None
         _handle_attach_existing_location(
-            device, device_location, ip_address, existing_device_location
+            device, device_location, ip_address, existing_device_location, whois_obj
         )
     else:
         logger.info(
-            f"Non Estimated location already set for {device_pk}. Update"
+            f"Non Estimated location already set for {device.pk}. Update"
             f" location manually as per IP: {ip_address}"
         )

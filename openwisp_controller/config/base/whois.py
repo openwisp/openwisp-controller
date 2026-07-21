@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from openwisp_utils.base import TimeStampedEditableModel
 
 from ..whois.service import WHOISService
-from ..whois.tasks import delete_whois_record
 
 
 class AbstractWHOISInfo(TimeStampedEditableModel):
@@ -57,6 +56,12 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         help_text=_("Coordinates"),
         srid=4326,
     )
+    unreferenced_since = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        db_index=True,
+    )
 
     class Meta:
         abstract = True
@@ -98,12 +103,13 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
     @staticmethod
     def device_whois_info_delete_handler(instance, **kwargs):
         """
-        Delete WHOIS information for a device when the last IP address is removed or
-        when device is deleted.
+        Flag WHOIS information as unreferenced when a device is deleted.
         """
         last_ip = instance.last_ip
-        if last_ip and instance._get_organization__config_settings().whois_enabled:
-            transaction.on_commit(lambda: delete_whois_record.delay(last_ip))
+        if last_ip:
+            transaction.on_commit(
+                lambda: WHOISService.reconcile_whois_references([last_ip])
+            )
 
     # this method is kept here instead of in OrganizationConfigSettings because
     # currently the caching is used only for WHOIS feature

@@ -1,8 +1,11 @@
 import logging
+from datetime import timedelta
 
 from celery import shared_task
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Exists, OuterRef
+from django.utils import timezone
 from geoip2 import errors
 from swapper import load_model
 
@@ -59,7 +62,7 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     base=WHOISCeleryRetryTask,
     **app_settings.API_TASK_RETRY_OPTIONS,
 )
-def fetch_whois_details(self, device_pk, initial_ip_address):
+def fetch_whois_details(self, device_pk, ip_address):
     """
     Fetches the WHOIS details of the given IP address
     and creates/updates the WHOIS record.
@@ -67,32 +70,43 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
 
-    try:
-        device = Device.objects.select_related("devicelocation").get(pk=device_pk)
-    except Device.DoesNotExist:
+    device = Device.objects.filter(pk=device_pk).first()
+    if not device:
         logger.warning(f"Device {device_pk} not found, skipping WHOIS lookup")
         return
-    # Defense in depth: a device can be deactivated after the task is queued,
-    # so re-check here and do not run the external lookup for it.
-    if device.is_deactivated():
-        logger.info(f"Device {device_pk} is deactivated, skipping WHOIS lookup")
-        if initial_ip_address:
-            delete_whois_record(ip_address=initial_ip_address)
-        return
-    new_ip_address = device.last_ip
     whois_service = device.whois_service
+    if (
+        device.is_deactivated()
+        or device.last_ip != ip_address
+        or not whois_service.is_valid_public_ip_address(ip_address)
+        or not whois_service.is_whois_enabled
+    ):
+        logger.info(f"Device {device_pk} no longer needs WHOIS lookup for {ip_address}")
+        return
     # If there is existing WHOIS older record then it needs to be updated
-    whois_obj = WHOISInfo.objects.filter(ip_address=new_ip_address).first()
+    whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
     if whois_obj and not whois_service.is_older(whois_obj.modified):
         return
     # WARNING: execute HTTP requests before transaction lock is acquired
-    fetched_details = whois_service.process_whois_details(new_ip_address)
+    fetched_details = whois_service.process_whois_details(ip_address)
 
     with transaction.atomic():
+        device = Device.objects.select_for_update().filter(pk=device_pk).first()
+        if (
+            not device
+            or device.is_deactivated()
+            or device.last_ip != ip_address
+            or not device.whois_service.is_whois_enabled
+        ):
+            return
+        whois_obj = (
+            WHOISInfo.objects.select_for_update().filter(ip_address=ip_address).first()
+        )
         whois_obj, update_fields = whois_service._create_or_update_whois(
             fetched_details, whois_obj
         )
-        logger.info(f"Successfully fetched WHOIS details for {new_ip_address}.")
+        WHOISInfo.objects.filter(pk=whois_obj.pk).update(unreferenced_since=None)
+        logger.info(f"Successfully fetched WHOIS details for {ip_address}.")
         transaction.on_commit(
             lambda: whois_fetched.send(
                 sender=WHOISInfo,
@@ -101,11 +115,28 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
                 device=device,
             )
         )
-        if initial_ip_address:
-            transaction.on_commit(
-                # execute synchronously as we're already in a background task
-                lambda: delete_whois_record(ip_address=initial_ip_address)
-            )
+
+
+@shared_task
+def cleanup_unreferenced_whois_records():
+    """Delete expired WHOIS cache records that have no active device reference."""
+    Device = load_model("config", "Device")
+    WHOISInfo = load_model("config", "WHOISInfo")
+    active_devices = Device.objects.filter(
+        _is_deactivated=False, last_ip=OuterRef("ip_address")
+    )
+    now = timezone.now()
+    referenced = WHOISInfo.objects.filter(Exists(active_devices))
+    referenced.update(unreferenced_since=None)
+    WHOISInfo.objects.filter(
+        ~Exists(active_devices), unreferenced_since__isnull=True
+    ).update(unreferenced_since=now)
+    cutoff = now - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS)
+    deleted, _ = WHOISInfo.objects.filter(
+        ~Exists(active_devices), unreferenced_since__lte=cutoff
+    ).delete()
+    logger.info("Deleted %d expired unreferenced WHOIS record(s).", deleted)
+    return deleted
 
 
 @shared_task
@@ -115,17 +146,11 @@ def delete_whois_record(ip_address, force=False):
     This is used when the device is deleted or its last IP address is changed.
     'force' parameter is used to delete the record without checking for linked devices.
     """
-    Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
     queryset = WHOISInfo.objects.filter(ip_address=ip_address)
     if force:
         queryset.delete()
     else:
-        # Only delete the WHOIS record if there are no active devices
-        # linked to the same IP address.
-        if (
-            not Device.objects.filter(_is_deactivated=False)
-            .filter(last_ip=ip_address)
-            .exists()
-        ):
-            queryset.delete()
+        from .service import WHOISService
+
+        WHOISService.reconcile_whois_references([ip_address])

@@ -66,21 +66,25 @@ class EstimatedLocationService:
         # Do not re-derive estimated location for deactivated devices.
         if self.device.is_deactivated():
             return
-        try:
-            current_app.send_task(
-                "whois_estimated_location_task",
-                kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
-            )
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error(
-                "Failed to enqueue estimated location task for device %s ip %s: %s",
-                getattr(self.device, "pk", None),
-                ip_address,
-                exc,
-            )
+
+        def enqueue():
+            try:
+                current_app.send_task(
+                    "whois_estimated_location_task",
+                    kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
+                )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.error(
+                    "Failed to enqueue estimated location task for device %s ip %s: %s",
+                    getattr(self.device, "pk", None),
+                    ip_address,
+                    exc,
+                )
+
+        transaction.on_commit(enqueue)
 
     def _create_or_update_estimated_location(
-        self, location_defaults, attached_devices_exists
+        self, location_defaults, attached_devices_exists, whois
     ):
         """
         Create or update estimated location for the device based on the
@@ -111,11 +115,13 @@ class EstimatedLocationService:
                 device_location.full_clean()
                 device_location.save()
 
-            send_estimated_location_notification(
-                device=self.device,
-                notify_type="estimated_location_created",
-                actor=current_location,
-            )
+                send_estimated_location_notification(
+                    device=self.device,
+                    notify_type="estimated_location_created",
+                    actor=current_location,
+                    ip_address=whois.ip_address,
+                    whois=whois,
+                )
         elif current_location.is_estimated:
             update_fields = []
             for attr, value in location_defaults.items():
@@ -132,5 +138,7 @@ class EstimatedLocationService:
                     device=self.device,
                     notify_type="estimated_location_updated",
                     actor=current_location,
+                    ip_address=whois.ip_address,
+                    whois=whois,
                 )
         return current_location

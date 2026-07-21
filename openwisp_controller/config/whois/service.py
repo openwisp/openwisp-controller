@@ -66,6 +66,33 @@ class WHOISService:
 
         return WHOISInfo.objects.filter(ip_address=ip_address)
 
+    @classmethod
+    def reconcile_whois_references(cls, ip_addresses):
+        """Keep the orphan timestamp aligned with active device references."""
+        Device = load_model("config", "Device")
+        WHOISInfo = load_model("config", "WHOISInfo")
+        ip_addresses = {
+            ip_address
+            for ip_address in ip_addresses
+            if cls.is_valid_public_ip_address(ip_address)
+        }
+        if not ip_addresses:
+            return
+        active_ips = set(
+            Device.objects.filter(
+                _is_deactivated=False, last_ip__in=ip_addresses
+            ).values_list("last_ip", flat=True)
+        )
+        if active_ips:
+            WHOISInfo.objects.filter(ip_address__in=active_ips).update(
+                unreferenced_since=None
+            )
+        orphaned_ips = ip_addresses - active_ips
+        if orphaned_ips:
+            WHOISInfo.objects.filter(
+                ip_address__in=orphaned_ips, unreferenced_since__isnull=True
+            ).update(unreferenced_since=timezone.now())
+
     @staticmethod
     def is_older(dt):
         """
@@ -218,11 +245,14 @@ class WHOISService:
             return
         new_ip = self.device.last_ip
         initial_ip = self.device._initial_last_ip
+        transaction.on_commit(
+            lambda: self.reconcile_whois_references([initial_ip, new_ip])
+        )
         if force_lookup or self._need_whois_lookup(new_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    initial_ip_address=initial_ip,
+                    ip_address=new_ip,
                 )
             )
         elif self.is_whois_enabled and self.is_valid_public_ip_address(new_ip):
@@ -249,7 +279,7 @@ class WHOISService:
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    initial_ip_address=None,
+                    ip_address=ip_address,
                 )
             )
 
