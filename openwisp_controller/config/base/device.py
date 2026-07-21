@@ -359,7 +359,8 @@ class AbstractDevice(OrgMixin, BaseModel):
         if self._initial_name == models.DEFERRED:
             return
 
-        if self._initial_name != self.name:
+        field_saved = update_fields is None or "name" in update_fields
+        if field_saved and self._initial_name != self.name:
             device_name_changed.send(
                 sender=self.__class__,
                 instance=self,
@@ -368,17 +369,18 @@ class AbstractDevice(OrgMixin, BaseModel):
             if self._has_config():
                 self.config.set_status_modified()
 
-        if update_fields is None or "name" in update_fields:
+        if field_saved:
             self._initial_name = self.name
 
     def _check_mac_address_changed(self, update_fields=None):
         if self._initial_mac_address == models.DEFERRED:
             return
-        if self._initial_mac_address != self.mac_address:
+        field_saved = update_fields is None or "mac_address" in update_fields
+        if field_saved and self._initial_mac_address != self.mac_address:
             if self._has_config():
                 self.config.set_status_modified()
 
-        if update_fields is None or "mac_address" in update_fields:
+        if field_saved:
             self._initial_mac_address = self.mac_address
 
     def _check_group_id_changed(self, update_fields=None):
