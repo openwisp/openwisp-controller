@@ -354,6 +354,7 @@ Once you have created the models, add the following to your
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"
+    CONNECTION_BATCHCOMMAND_MODEL = "sample_connection.BatchCommand"
     SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = "sample_subnet_division.SubnetDivisionRule"
     SUBNET_DIVISION_SUBNETDIVISIONINDEX_MODEL = "sample_subnet_division.SubnetDivisionIndex"
 
