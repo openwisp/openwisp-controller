@@ -210,7 +210,7 @@ config of a device,
 
     curl -X PATCH \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "config": {
@@ -225,7 +225,7 @@ the/their {id} from the config of a device,
 
     curl -X PATCH \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "config": {
@@ -240,7 +240,7 @@ from the config of a device,
 
     curl -X PATCH \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'cache-control: no-cache' \
         -H 'content-type: application/json' \
         -H 'postman-token: b3f6a1cc-ff13-5eba-e460-8f394e485801' \
@@ -465,7 +465,7 @@ command type being executed.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/command/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "type": "custom",
@@ -561,7 +561,7 @@ input formats.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/batch-command/execute/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "organization": "org-uuid",
@@ -714,7 +714,7 @@ You can create ``DeviceLocation`` object by using primary keys of existing
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
             "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
@@ -746,7 +746,7 @@ single request.
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "location": {
@@ -797,7 +797,7 @@ demonstrates creating both ``Location`` and ``FloorPlan`` objects.
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F 'location.name=Via del Corso' \
         -F 'location.address=Via del Corso, Roma, Italia' \
@@ -827,7 +827,7 @@ plan for that location using this endpoint.
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F location=f0cb5762-3711-4791-95b6-c2f6656249fa \
         -F floorplan.floor=1 \
@@ -936,7 +936,7 @@ organization.
 
     curl -X PUT \
         'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{"estimated_location_enabled": true}'
 
@@ -955,7 +955,7 @@ partial update to the resource at the same endpoint path.
 
     curl -X PATCH \
         'http://127.0.0.1:8000/api/v1/controller/organization/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/geo-settings/' \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{"estimated_location_enabled": true}'
 
@@ -1018,7 +1018,7 @@ in a single request.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F 'name=Via del Corso' \
         -F 'address=Via del Corso, Roma, Italia' \

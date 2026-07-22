@@ -125,6 +125,13 @@ class DeviceConnectionSerializer(
 class BatchCommandExecuteSerializer(
     FilterSerializerByOrgManaged, serializers.ModelSerializer
 ):
+    """
+    Parses batch command input.
+
+    It does not save data, so it does not need ValidatedModelSerializer.
+    BatchCommand.execute() and dry_run() validate the model.
+    """
+
     input = serializers.JSONField(allow_null=True, required=False)
     devices = serializers.PrimaryKeyRelatedField(
         many=True,
