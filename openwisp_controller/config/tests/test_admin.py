@@ -1727,6 +1727,38 @@ class TestAdmin(
             response, 'value="openwisp_controller.vpn_backends.OpenVpn" selected'
         )
 
+    def test_delete_cert_in_use_is_blocked(self):
+        # regression test for issue #1419: deleting a certificate that is
+        # still assigned to a VPN client must be blocked from the admin,
+        # otherwise the device configuration is left corrupted.
+        from django.contrib.admin.sites import site as admin_site
+        from django.test import RequestFactory
+
+        org = self._get_org()
+        vpn = self._create_vpn()
+        config = self._create_config(organization=org)
+        vpn_template = self._create_template(
+            name="vpn-1419", type="vpn", vpn=vpn, auto_cert=True
+        )
+        config.templates.add(vpn_template)
+        vpnclient = config.vpnclient_set.first()
+        cert = vpnclient.cert
+        self.assertIsNotNone(cert)
+
+        User = get_user_model()
+        try:
+            admin = User.objects.get(username="admin")
+        except User.DoesNotExist:
+            admin = User.objects.create_superuser("admin", "admin@test.org", "tester")
+        request = RequestFactory().get("/")
+        request.user = admin
+        cert_admin = admin_site._registry[Cert]
+        _, _, _, protected = cert_admin.get_deleted_objects([cert], request)
+        self.assertTrue(
+            any("remove the VPN template" in str(p) for p in protected),
+            f"cert in use should be protected from deletion, got: {protected}",
+        )
+
     def test_vpn_clients_deleted(self):
         def _update_template(templates):
             params.update(
