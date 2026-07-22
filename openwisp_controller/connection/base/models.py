@@ -14,6 +14,7 @@ from jsonschema.exceptions import ValidationError as SchemaError
 from swapper import get_model_name, load_model
 
 from openwisp_controller.config.base.base import BaseModel
+from openwisp_users.mixins import ValidateOrgMixin
 from openwisp_utils.base import TimeStampedEditableModel
 
 from ...base import ShareableOrgMixinUniqueName
@@ -29,7 +30,11 @@ from ..commands import (
 )
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
-from ..tasks import auto_add_credentials_to_devices, launch_command
+from ..tasks import (
+    auto_add_credentials_to_devices,
+    launch_batch_command,
+    launch_command,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -459,6 +464,13 @@ class AbstractCommand(TimeStampedEditableModel):
         encoder=DjangoJSONEncoder,
     )
     output = models.TextField(blank=True)
+    batch_command = models.ForeignKey(
+        get_model_name("connection", "BatchCommand"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="batch_commands",
+    )
 
     class Meta:
         verbose_name = _("Command")
@@ -549,6 +561,8 @@ class AbstractCommand(TimeStampedEditableModel):
         output = super().save(*args, **kwargs)
         if adding:
             self._schedule_command()
+        if self.batch_command_id and self.status != "in-progress":
+            self.batch_command.calculate_and_update_status()
         return output
 
     def _save_without_resurrecting(self):
@@ -711,3 +725,331 @@ class AbstractCommand(TimeStampedEditableModel):
                 f"arguments property is not applicable in "
                 f'command instance of type "{self.type}"'
             )
+
+
+class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
+    STATUS_CHOICES = (
+        ("idle", _("idle")),
+        ("in-progress", _("in progress")),
+        ("success", _("success")),
+        ("failed", _("failed")),
+    )
+    # Mass commands targeting all devices in the system are valid and allowed.
+    # Only superusers can initiate system-wide mass commands.
+    organization = models.ForeignKey(
+        get_model_name("openwisp_users", "Organization"),
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+    )
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
+    )
+    type = models.CharField(
+        max_length=16,
+        choices=(COMMAND_CHOICES if django.VERSION < (5, 0) else get_command_choices),
+    )
+    input = JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
+    group = models.ForeignKey(
+        get_model_name("config", "DeviceGroup"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("device group"),
+    )
+    location = models.ForeignKey(
+        get_model_name("geo", "Location"),
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("location"),
+    )
+    label = models.CharField(
+        max_length=64,
+        verbose_name=_("label"),
+        help_text=_("A short label to identify this batch command."),
+    )
+    notes = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("notes"),
+        help_text=_("Optional notes about this batch command."),
+    )
+    devices = models.ManyToManyField(
+        get_model_name("config", "Device"),
+        blank=True,
+        verbose_name=_("devices"),
+    )
+    skipped_devices = models.JSONField(
+        blank=True,
+        null=True,
+        default=dict,
+        verbose_name=_("Skipped devices"),
+        help_text=_(
+            "Maps device UUIDs to validation error messages for devices "
+            "that were skipped during command creation."
+        ),
+    )
+
+    class Meta:
+        abstract = True
+        verbose_name = _("Mass command")
+        verbose_name_plural = _("Mass commands")
+
+    def __str__(self):
+        return self.label
+
+    @cached_property
+    def total_devices(self):
+        return self.batch_commands.count()
+
+    @property
+    def successful(self):
+        return self.batch_commands.filter(status="success").count()
+
+    @property
+    def failed(self):
+        return self.batch_commands.filter(status="failed").count()
+
+    @staticmethod
+    def _validate_device_org(device, organization_id):
+        if organization_id and device.organization_id != organization_id:
+            raise ValidationError(
+                {
+                    "devices": _(
+                        "All devices must belong to the same "
+                        "organization as the batch command."
+                    )
+                }
+            )
+
+    @classmethod
+    def _validate_devices_org(cls, devices, organization_id):
+        if not devices:
+            return
+        for device in devices:
+            cls._validate_device_org(device, organization_id)
+
+    def _validate_org_relations(self):
+        if not self.organization_id:
+            return
+        self._validate_org_relation("group", field_error="group")
+        self._validate_org_relation("location", field_error="location")
+        if self.pk and self.devices.exists():
+            org_mismatch = self.devices.exclude(organization=self.organization).exists()
+            if org_mismatch:
+                raise ValidationError(
+                    {
+                        "devices": _(
+                            "All devices must belong to the same "
+                            "organization as the batch command."
+                        )
+                    }
+                )
+
+    def clean(self):
+        super().clean()
+        if not self.organization_id:
+            if self.group_id:
+                self.organization = self.group.organization
+            elif self.location_id:
+                self.organization = self.location.organization
+        self._validate_org_relations()
+        Command = load_model("connection", "Command")
+        allowed = dict(
+            Command.get_org_allowed_commands(organization_id=self.organization_id)
+        )
+        if self.type not in allowed:
+            raise ValidationError(
+                {
+                    "type": _(
+                        '"{command}" command is not available for this organization'
+                    ).format(command=self.type)
+                }
+            )
+        try:
+            jsonschema.Draft4Validator(get_command_schema(self.type)).validate(
+                self.input
+            )
+        except SchemaError as e:
+            raise ValidationError({"input": e.message})
+
+    def resolve_devices(self):
+        """
+        Returns an iterator of devices targeted by this batch command,
+        resolved from explicit M2M devices or filtered by organization,
+        group, and location. Returns an empty iterator if no devices match.
+        """
+        if self.pk and self.devices.exists():
+            return self.devices.select_related("config").iterator()
+        Device = load_model("config", "Device")
+        qs = Device.objects.select_related("config")
+        if self.organization_id:
+            qs = qs.filter(organization=self.organization)
+        if self.group:
+            qs = qs.filter(group=self.group)
+        if self.location:
+            qs = qs.filter(devicelocation__location=self.location)
+        return qs.iterator()
+
+    @classmethod
+    def execute(cls, **kwargs):
+        """
+        Creates, validates, and persists the batch command, then schedules
+        execution via a background task. Raises ValidationError if no
+        devices match the criteria.
+        """
+        devices_list = kwargs.pop("devices", None)
+        batch = cls(**kwargs)
+        with transaction.atomic():
+            batch.full_clean()
+            batch.save()
+            if devices_list is not None:
+                batch.devices.set(devices_list)
+                batch._validate_org_relations()
+            else:
+                batch.devices.set(list(batch.resolve_devices()))
+            if not batch.devices.exists():
+                raise ValidationError(
+                    _("No devices match the specified criteria."),
+                )
+        transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
+        return batch
+
+    @classmethod
+    def dry_run(cls, **kwargs):
+        """
+        Returns the devices that would be targeted by this batch command
+        without executing it. Skips full validation when command type is
+        not provided case for GET request.
+        """
+        devices_list = kwargs.pop("devices", None)
+        cmd_type = kwargs.pop("type", None)
+        kwargs.pop("label", None)
+        kwargs.pop("notes", None)
+        batch = cls(**kwargs)
+        if cmd_type:
+            batch.type = cmd_type
+            if not batch.label:
+                batch.label = "dry-run"
+            batch.full_clean()
+        else:
+            batch._validate_org_relations()
+        cls._validate_devices_org(devices_list, batch.organization_id)
+        if devices_list is not None:
+            return {"devices": list(devices_list)}
+        return {"devices": list(batch.resolve_devices())}
+
+    def _clean_sensitive_info(self):
+        if self.type == "change_password":
+            self.input = {"password": "********"}
+
+    def create_commands(self):
+        """
+        Creates individual Command instances for each device targeted by
+        this batch command. Uses an atomic status transition to guard
+        against concurrent re-invocation. Devices that fail validation
+        are recorded in skipped_devices and logged.
+        """
+        updated = self.__class__.objects.filter(pk=self.pk, status="idle").update(
+            status="in-progress"
+        )
+        if not updated:
+            return
+        self.refresh_from_db(fields=["status"])
+        Command = load_model("connection", "Command")
+        Device = load_model("config", "Device")
+        self.skipped_devices = {}
+        device_pks = []
+        for device in self.resolve_devices():
+            device_pks.append(device.pk)
+            command = Command(
+                device=device,
+                type=self.type,
+                input=self.input,
+                batch_command=self,
+            )
+            try:
+                # Validate before the atomic block so errors like
+                # ValidationError don't create/rollback
+                command.full_clean()
+                with transaction.atomic():
+                    command.save()
+            except ValidationError as e:
+                self.skipped_devices[str(device.pk)] = (
+                    e.messages if hasattr(e, "messages") else [str(e)]
+                )
+                logger.warning(
+                    "Skipping device %s for batch %s: %s",
+                    device.pk,
+                    self.pk,
+                    e,
+                )
+        if not self.devices.exists() and device_pks:
+            self.devices.set(Device.objects.filter(pk__in=device_pks))
+        if self.skipped_devices:
+            self.save(update_fields=["skipped_devices"])
+        self.calculate_and_update_status()
+        self._clean_sensitive_info()
+        if self.type == "change_password":
+            self.save(update_fields=["input"])
+
+    def calculate_and_update_status(self):
+        """
+        Calculate batch status based on individual command statuses and update if
+        changed.
+        - No commands exist: status set to "idle".
+        - Commands still running: status set to "in-progress".
+        - Some commands failed: status set to "failed".
+        - All commands completed successfully: status set to "success".
+        - Status unchanged: no database write performed.
+        """
+        with transaction.atomic():
+            batch = self.__class__.objects.select_for_update().get(pk=self.pk)
+            stats = batch.batch_commands.aggregate(
+                total_operations=models.Count("id"),
+                in_progress=models.Count(
+                    models.Case(
+                        models.When(status="in-progress", then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+                completed=models.Count(
+                    models.Case(
+                        models.When(~models.Q(status="in-progress"), then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+                successful=models.Count(
+                    models.Case(
+                        models.When(status="success", then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+                failed=models.Count(
+                    models.Case(
+                        models.When(status="failed", then=1),
+                        output_field=models.IntegerField(),
+                    )
+                ),
+            )
+            if stats["total_operations"] == 0:
+                if batch.skipped_devices:
+                    new_status = "failed"
+                else:
+                    new_status = "idle"
+            elif stats["in_progress"] > 0:
+                new_status = "in-progress"
+            elif stats["failed"] > 0:
+                new_status = "failed"
+            elif (
+                stats["successful"] > 0
+                and stats["completed"] == stats["total_operations"]
+            ):
+                if batch.skipped_devices:
+                    new_status = "failed"
+                else:
+                    new_status = "success"
+            if batch.status != new_status:
+                batch.status = new_status
+                batch.save(update_fields=["status"])

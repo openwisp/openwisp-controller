@@ -1,12 +1,18 @@
+from django.core.exceptions import ValidationError
+from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.generics import (
+    GenericAPIView,
+    ListAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
+from rest_framework.response import Response
 from swapper import load_model
 
 from openwisp_utils.api.pagination import OpenWispPagination
@@ -17,6 +23,9 @@ from ...mixins import (
     RelatedDeviceProtectedAPIMixin,
 )
 from .serializers import (
+    BatchCommandDetailSerializer,
+    BatchCommandExecuteSerializer,
+    BatchCommandSerializer,
     CommandSerializer,
     CredentialSerializer,
     DeviceConnectionSerializer,
@@ -26,6 +35,7 @@ Command = load_model("connection", "Command")
 Device = load_model("config", "Device")
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class BaseCommandView(RelatedDeviceProtectedAPIMixin):
@@ -138,6 +148,71 @@ class DeviceConnectionListCreateView(BaseDeviceConnection, ListCreateAPIView):
 DeviceConnenctionListCreateView = DeviceConnectionListCreateView
 
 
+class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
+    model = BatchCommand
+    queryset = BatchCommand.objects.all()
+    serializer_class = BatchCommandExecuteSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            batch = BatchCommand.execute(**serializer.validated_data)
+        except ValidationError as e:
+            return Response(
+                getattr(e, "message_dict", e.messages),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({"batch": str(batch.pk)}, status=status.HTTP_201_CREATED)
+
+    def get(self, request):
+        serializer = self.get_serializer(
+            data=request.query_params,
+            dry_run=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            data = BatchCommand.dry_run(**serializer.validated_data)
+        except ValidationError as e:
+            return Response(
+                getattr(e, "message_dict", e.messages),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        data["devices"] = [str(d.pk) for d in data["devices"]]
+        return Response(data)
+
+
+class BatchCommandListView(ProtectedAPIMixin, ListAPIView):
+    queryset = BatchCommand.objects.annotate(device_count=Count("devices")).order_by(
+        "-created"
+    )
+    serializer_class = BatchCommandSerializer
+    pagination_class = OpenWispPagination
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not self.request.user.is_superuser:
+            # TODO: remove this filter once openwisp-users supports
+            # showing shared objects as read-only to non-superusers.
+            # See: https://github.com/openwisp/openwisp-controller/issues/1439
+            qs = qs.filter(organization__isnull=False)
+        return qs
+
+
+class BatchCommandDetailView(ProtectedAPIMixin, RetrieveAPIView):
+    queryset = BatchCommand.objects.annotate(device_count=Count("devices"))
+    serializer_class = BatchCommandDetailSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not self.request.user.is_superuser:
+            # TODO: remove this filter once openwisp-users supports
+            # showing shared objects as read-only to non-superusers.
+            # See: https://github.com/openwisp/openwisp-controller/issues/1439
+            qs = qs.filter(organization__isnull=False)
+        return qs
+
+
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -149,6 +224,9 @@ class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIV
         return obj
 
 
+batch_command_execute_view = BatchCommandExecuteView.as_view()
+batch_command_list_view = BatchCommandListView.as_view()
+batch_command_detail_view = BatchCommandDetailView.as_view()
 command_list_create_view = CommandListCreateView.as_view()
 command_details_view = CommandDetailsView.as_view()
 credential_list_create_view = CredentialListCreateView.as_view()
