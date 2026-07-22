@@ -28,7 +28,7 @@ class DeviceCertificateDeviceFilter(AutocompleteFilter):
     def __init__(self, request, params, model, model_admin):
         """Limits selected device labels to devices visible to the user."""
         self._request = request
-        self._device_admin = model_admin.admin_site.get_model_admin(Device)
+        self._device_admin = model_admin.admin_site._registry[Device]
         super().__init__(request, params, model, model_admin)
 
     def get_autocomplete_url(self, request, model_admin):

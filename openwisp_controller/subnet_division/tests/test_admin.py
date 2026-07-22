@@ -4,8 +4,8 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
-from openwisp_controller.config.tests.test_admin import TestDeviceAdminMixin
 from openwisp_controller.config.tests.utils import (
+    TestDeviceAdminMixin,
     TestVpnX509Mixin,
     TestWireguardVpnMixin,
 )

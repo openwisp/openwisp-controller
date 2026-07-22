@@ -3,7 +3,6 @@ import json
 import channels.layers
 import swapper
 from asgiref.sync import async_to_sync
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Case, Count, Sum, When
 from django.db.models.signals import post_delete, post_save
@@ -42,8 +41,6 @@ class GeoConfig(LociConfig):
         self.register_menu_groups()
         self.connect_receivers()
         register_estimated_location_notification_types()
-        if getattr(settings, "TESTING", False):
-            self._add_params_to_test_config()
 
     def connect_receivers(self):
         post_save.connect(
@@ -72,30 +69,6 @@ class GeoConfig(LociConfig):
             whois_lookup_skipped_handler,
             dispatch_uid="whois_lookup_skipped_estimated_location_handler",
         )
-
-    def _add_params_to_test_config(self):
-        """
-        this methods adds the management fields of DeviceLocationInline
-        to the parameters used in config.tests.test_admin.TestAdmin
-        this hack is needed for the following reasons:
-            - avoids breaking config.tests.test_admin.TestAdmin
-            - avoids adding logic of geo app in config, this
-              way config doesn't know anything about geo, keeping
-              complexity down to a sane level
-        """
-        from ..config.tests.test_admin import TestAdmin as TestConfigAdmin
-        from .tests.test_admin_inline import TestAdminInline
-
-        params = TestAdminInline._get_params()
-        delete_keys = []
-        # delete unnecessary fields
-        # leave only management fields
-        for key in params.keys():
-            if "_FORMS" not in key:
-                delete_keys.append(key)
-        for key in delete_keys:
-            del params[key]
-        TestConfigAdmin._additional_params.update(params)
 
     def register_dashboard_charts(self):
         register_dashboard_chart(

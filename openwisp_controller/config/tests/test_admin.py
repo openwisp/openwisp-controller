@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import django
+from django.contrib import admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -26,7 +27,6 @@ from openwisp_utils.tests import (
 )
 
 from ...geo.tests.utils import TestGeoMixin
-from ...pki.admin import CertAdmin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from ..signals import (
@@ -43,6 +43,7 @@ from .utils import (
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
+    TestDeviceAdminMixin,
     TestVpnX509Mixin,
 )
 
@@ -60,47 +61,6 @@ User = get_user_model()
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 Group = load_model("openwisp_users", "Group")
-
-
-class TestDeviceAdminMixin:
-    _device_params = {
-        "name": "test-device",
-        "hardware_id": "1234",
-        "mac_address": CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
-        "key": CreateConfigTemplateMixin.TEST_KEY,
-        "model": "",
-        "os": "",
-        "notes": "",
-        "config-0-id": "",
-        "config-0-device": "",
-        "config-0-backend": "netjsonconfig.OpenWrt",
-        "config-0-templates": "",
-        "config-0-config": json.dumps({}),
-        "config-0-context": "",
-        "config-TOTAL_FORMS": 1,
-        "config-INITIAL_FORMS": 0,
-        "config-MIN_NUM_FORMS": 0,
-        "config-MAX_NUM_FORMS": 1,
-        # openwisp_controller.connection
-        "deviceconnection_set-TOTAL_FORMS": 0,
-        "deviceconnection_set-INITIAL_FORMS": 0,
-        "deviceconnection_set-MIN_NUM_FORMS": 0,
-        "deviceconnection_set-MAX_NUM_FORMS": 1000,
-        "command_set-TOTAL_FORMS": 0,
-        "command_set-INITIAL_FORMS": 0,
-        "command_set-MIN_NUM_FORMS": 0,
-        "command_set-MAX_NUM_FORMS": 1000,
-    }
-    # WARNING - WATCHOUT
-    # this class attribute is changed dynamically
-    # by other apps which add inlines to DeviceAdmin
-    _additional_params = {}
-
-    def _get_device_params(self, org):
-        p = self._device_params.copy()
-        p.update(self._additional_params)
-        p["organization"] = org.pk
-        return p
 
 
 class TestImportExportMixin:
@@ -300,34 +260,6 @@ class TestAdmin(
     object_model = Device
     object_location_model = DeviceLocation
     maxDiff = None
-    _device_params = {
-        "name": "test-device",
-        "hardware_id": "1234",
-        "mac_address": CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
-        "key": CreateConfigTemplateMixin.TEST_KEY,
-        "model": "",
-        "os": "",
-        "notes": "",
-        "config-0-id": "",
-        "config-0-device": "",
-        "config-0-backend": "netjsonconfig.OpenWrt",
-        "config-0-templates": "",
-        "config-0-config": json.dumps({}),
-        "config-0-context": "",
-        "config-TOTAL_FORMS": 1,
-        "config-INITIAL_FORMS": 0,
-        "config-MIN_NUM_FORMS": 0,
-        "config-MAX_NUM_FORMS": 1,
-        # openwisp_controller.connection
-        "deviceconnection_set-TOTAL_FORMS": 0,
-        "deviceconnection_set-INITIAL_FORMS": 0,
-        "deviceconnection_set-MIN_NUM_FORMS": 0,
-        "deviceconnection_set-MAX_NUM_FORMS": 1000,
-        "command_set-TOTAL_FORMS": 0,
-        "command_set-INITIAL_FORMS": 0,
-        "command_set-MIN_NUM_FORMS": 0,
-        "command_set-MAX_NUM_FORMS": 1000,
-    }
 
     def setUp(self):
         self.client.force_login(self._get_admin())
@@ -1913,7 +1845,8 @@ class TestAdmin(
         self.assertContains(response, device_1.name)
         self.assertContains(response, cert_1.name)
         self.assertNotContains(response, cert_2.name)
-        self.assertIs(CertAdmin.list_filter[1], DeviceCertificateDeviceFilter)
+        cert_admin = admin.site._registry[Cert]
+        self.assertIs(cert_admin.list_filter[1], DeviceCertificateDeviceFilter)
 
     def test_certificate_admin_device_filter_multitenancy(self):
         org_1 = self._create_org(name="organization-1", slug="organization-1")
@@ -1956,8 +1889,8 @@ class TestAdmin(
         response = self.client.get(
             reverse("admin:autocomplete"),
             {
-                "app_label": "config",
-                "model_name": "config",
+                "app_label": Config._meta.app_label,
+                "model_name": Config._meta.model_name,
                 "field_name": "device",
                 "term": "certificate-device",
             },
