@@ -196,6 +196,7 @@ organization.
 
 **Targeting options:**
 
+- ``organization``: All devices in an organization.
 - ``devices``: Explicit list of device UUIDs.
 - ``group``: Device group UUID.
 - ``location``: Location UUID.
@@ -205,8 +206,8 @@ Otherwise, ``group`` and ``location`` can be used together to narrow the
 target set within the organization.
 
 If no targeting options are provided, the command targets all devices in
-the organization. If ``devices`` is provided as an empty list, the request
-is rejected because no devices match.
+the organization. Superusers can omit ``organization`` to target all
+devices across organizations.
 
 For superusers, ``organization`` is set automatically when ``group`` or
 ``location`` is provided.
