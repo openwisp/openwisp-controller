@@ -1851,7 +1851,11 @@ class TestAdmin(
         self.assertContains(response, dc.cert.ca.name)
         self.assertContains(response, dc.cert.key_length)
         self.assertContains(response, dc.cert.digest.upper())
-        self.assertContains(response, "VALIDITY END")
+        self.assertContains(response, "Validity End")
+        self.assertContains(
+            response,
+            'aria-label="The template which generated the X.509 certificate"',
+        )
         self.assertContains(response, "icon-no.svg")
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
