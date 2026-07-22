@@ -1,4 +1,13 @@
 from openwisp_controller.connection.api.views import (
+    BatchCommandDetailView as BaseBatchCommandDetailView,
+)
+from openwisp_controller.connection.api.views import (
+    BatchCommandExecuteView as BaseBatchCommandExecuteView,
+)
+from openwisp_controller.connection.api.views import (
+    BatchCommandListView as BaseBatchCommandListView,
+)
+from openwisp_controller.connection.api.views import (
     CommandDetailsView as BaseCommandDetailsView,
 )
 from openwisp_controller.connection.api.views import (
@@ -42,9 +51,24 @@ class DeviceConnectionDetailView(BaseDeviceConnectionDetailView):
     pass
 
 
+class BatchCommandExecuteView(BaseBatchCommandExecuteView):
+    pass
+
+
+class BatchCommandListView(BaseBatchCommandListView):
+    pass
+
+
+class BatchCommandDetailView(BaseBatchCommandDetailView):
+    pass
+
+
 command_list_create_view = CommandListCreateView.as_view()
 command_details_view = CommandDetailsView.as_view()
 credential_list_create_view = CredentialListCreateView.as_view()
 credential_detail_view = CredentialDetailView.as_view()
 deviceconnection_list_create_view = DeviceConnectionListCreateView.as_view()
 deviceconnection_detail_view = DeviceConnectionDetailView.as_view()
+batch_command_execute_view = BatchCommandExecuteView.as_view()
+batch_command_list_view = BatchCommandListView.as_view()
+batch_command_detail_view = BatchCommandDetailView.as_view()

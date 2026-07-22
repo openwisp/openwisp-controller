@@ -65,6 +65,7 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
                 "output": command.output,
                 "device": str(command.device_id),
                 "connection": str(command.connection_id),
+                "batch_command": None,
             },
         }
 

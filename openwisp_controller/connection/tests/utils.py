@@ -11,6 +11,7 @@ from .. import settings as app_settings
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
 Command = load_model("connection", "Command")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class SshServer(Server):
@@ -117,6 +118,24 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         dc.full_clean()
         dc.save()
         return dc
+
+    def _create_batch_command(self, organization, **kwargs):
+        opts = dict(
+            organization=organization,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
+        devices = kwargs.pop("devices", None)
+        opts.update(kwargs)
+        batch = BatchCommand(**opts)
+        batch.full_clean()
+        batch.save()
+        if devices is not None:
+            if not isinstance(devices, (list, tuple)):
+                devices = [devices]
+            batch.devices.set(devices)
+        return batch
 
 
 class CreateCommandMixin(CreateConnectionsMixin):

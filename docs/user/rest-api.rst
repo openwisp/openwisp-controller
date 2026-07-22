@@ -210,7 +210,7 @@ config of a device,
 
     curl -X PATCH \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "config": {
@@ -225,7 +225,7 @@ the/their {id} from the config of a device,
 
     curl -X PATCH \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "config": {
@@ -240,7 +240,7 @@ from the config of a device,
 
     curl -X PATCH \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'cache-control: no-cache' \
         -H 'content-type: application/json' \
         -H 'postman-token: b3f6a1cc-ff13-5eba-e460-8f394e485801' \
@@ -465,7 +465,7 @@ command type being executed.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/device/76b7d9cc-4ffd-4a43-b1b0-8f8befd1a7c0/command/ \
-        -H 'authorization: Bearer yoursecretauthtoken' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "type": "custom",
@@ -480,6 +480,117 @@ Get Command Details
 .. code-block:: text
 
     GET /api/v1/controller/device/{device_id}/command/{command_id}/
+
+.. _controller_batch_command_api:
+
+Dry-Run Mass Command
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/execute/
+
+Returns the list of devices that would be targeted without executing
+anything. Useful for previewing which devices are affected.
+
+**Query Parameters:**
+
+================ =========================================================
+Parameter        Description
+================ =========================================================
+``organization`` Organization UUID (optional for superusers; set
+                 automatically when ``group`` or ``location`` is provided)
+``type``         Command type (optional for dry-run)
+``input``        JSON input data for the command (optional for dry-run).
+                 Encode as a URL-encoded JSON object, e.g.
+                 ``?type=custom&input=%7B%22command%22%3A%22uptime%22%7D``
+``devices``      Repeated ``devices`` query parameter, each a device UUID
+                 (optional; when provided, ``group`` and ``location`` are
+                 ignored)
+``group``        Device group UUID (optional)
+``location``     Location UUID (optional)
+================ =========================================================
+
+Execute a Mass Command
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    POST /api/v1/controller/batch-command/execute/
+
+Creates and executes a batch command on the targeted devices.
+
+**Request Parameters:**
+
+================ =========================================================
+Parameter        Description
+================ =========================================================
+``organization`` Organization UUID (optional for superusers; set
+                 automatically when ``group`` or ``location`` is provided)
+``type``         Type of command to execute (**required**)
+``input``        Input data for the command (**conditionally required** —
+                 depends on command type)
+``label``        A short label to identify this batch command
+                 (**required**)
+``notes``        Optional notes (optional)
+``devices``      List of device UUIDs (optional; when provided, ``group``
+                 and ``location`` are ignored)
+``group``        Device group UUID (optional)
+``location``     Location UUID (optional)
+================ =========================================================
+
+**Available Command Types:**
+
+See :ref:`controller_execute_command_api` for available command types and
+input formats.
+
+**Example payload:**
+
+.. code-block:: json
+
+    {
+        "organization": "org-uuid",
+        "type": "custom",
+        "input": {"command": "uptime"},
+        "label": "Check uptime"
+    }
+
+**Example request:**
+
+.. code-block:: shell
+
+    curl -X POST \
+        http://127.0.0.1:8000/api/v1/controller/batch-command/execute/ \
+        -H 'authorization: Bearer <token>' \
+        -H 'content-type: application/json' \
+        -d '{
+                "organization": "org-uuid",
+                "type": "custom",
+                "input": {"command": "uptime"},
+                "label": "Check uptime"
+            }'
+
+**Response:** ``201 Created`` with the batch command UUID.
+
+List Mass Commands
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/
+
+Returns a paginated list of batch commands with device count and skipped
+device information.
+
+Get Mass Command Detail
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/{id}/
+
+Returns detailed information about a batch command, including the list of
+targeted devices.
 
 List Device Groups
 ~~~~~~~~~~~~~~~~~~
@@ -603,7 +714,7 @@ You can create ``DeviceLocation`` object by using primary keys of existing
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
             "location": "f0cb5762-3711-4791-95b6-c2f6656249fa",
@@ -635,7 +746,7 @@ single request.
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
                 "location": {
@@ -686,7 +797,7 @@ demonstrates creating both ``Location`` and ``FloorPlan`` objects.
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F 'location.name=Via del Corso' \
         -F 'location.address=Via del Corso, Roma, Italia' \
@@ -716,7 +827,7 @@ plan for that location using this endpoint.
 
     curl -X PUT \
         http://127.0.0.1:8000/api/v1/controller/device/8a85cc23-bad5-4c7e-b9f4-ffe298defb5c/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F location=f0cb5762-3711-4791-95b6-c2f6656249fa \
         -F floorplan.floor=1 \
@@ -907,7 +1018,7 @@ in a single request.
 
     curl -X POST \
         http://127.0.0.1:8000/api/v1/controller/location/ \
-        -H 'authorization: Bearer dc8d497838d4914c9db9aad9b6ec66f6c36ff46b' \
+        -H 'authorization: Bearer <token>' \
         -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
         -F 'name=Via del Corso' \
         -F 'address=Via del Corso, Roma, Italia' \

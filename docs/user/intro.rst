@@ -70,6 +70,9 @@ e.g.:
 
 - Sending configuration updates.
 - :doc:`Executing shell commands <shell-commands>`.
+- :doc:`Executing mass commands <shell-commands>`: Run a command on
+  multiple devices at once, see the :ref:`batch command API
+  <controller_batch_command_api>` for details.
 - Perform firmware upgrades via the additional :doc:`firmware upgrade
   module </firmware-upgrader/index>`.
 
