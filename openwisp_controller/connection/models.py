@@ -1,6 +1,11 @@
 import swapper
 
-from .base.models import AbstractCommand, AbstractCredentials, AbstractDeviceConnection
+from .base.models import (
+    AbstractBatchCommand,
+    AbstractCommand,
+    AbstractCredentials,
+    AbstractDeviceConnection,
+)
 
 
 class Credentials(AbstractCredentials):
@@ -19,3 +24,9 @@ class Command(AbstractCommand):
     class Meta(AbstractCommand.Meta):
         abstract = False
         swappable = swapper.swappable_setting("connection", "Command")
+
+
+class BatchCommand(AbstractBatchCommand):
+    class Meta(AbstractBatchCommand.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting("connection", "BatchCommand")
