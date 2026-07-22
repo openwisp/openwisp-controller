@@ -26,6 +26,7 @@ from openwisp_utils.tests import (
 )
 
 from ...geo.tests.utils import TestGeoMixin
+from ...pki.admin import CertAdmin
 from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
 from ..signals import (
@@ -33,6 +34,10 @@ from ..signals import (
     device_name_changed,
     group_templates_changed,
     management_ip_changed,
+)
+from ..x509_admin import (
+    DeviceCertificateDeviceFilter,
+    get_device_certificate_changelist_url,
 )
 from .utils import (
     CreateConfigTemplateMixin,
@@ -1857,6 +1862,114 @@ class TestAdmin(
             'aria-label="The template which generated the X.509 certificate"',
         )
         self.assertContains(response, "icon-no.svg")
+
+    def test_device_certificate_changelist_url(self):
+        device = self._create_device()
+        cert_model = DeviceCertificate.cert.field.related_model
+        expected_url = reverse(
+            f"admin:{cert_model._meta.app_label}"
+            f"_{cert_model._meta.model_name}_changelist"
+        )
+        self.assertEqual(
+            get_device_certificate_changelist_url(device.id),
+            f"{expected_url}?devicecertificate__config__device={device.id}",
+        )
+
+    def test_certificate_admin_filter_by_device(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="certificate-template",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        device_1 = self._create_device(
+            organization=org,
+            name="certificate-device-1",
+            mac_address="00:11:22:33:44:56",
+        )
+        device_2 = self._create_device(
+            organization=org,
+            name="certificate-device-2",
+            mac_address="00:11:22:33:44:57",
+        )
+        config_1 = self._create_config(device=device_1)
+        config_2 = self._create_config(device=device_2)
+        config_1.templates.add(template)
+        config_2.templates.add(template)
+        cert_1 = DeviceCertificate.objects.get(config=config_1).cert
+        cert_2 = DeviceCertificate.objects.get(config=config_2).cert
+        response = self.client.get(get_device_certificate_changelist_url(device_1.id))
+        self.assertContains(
+            response,
+            'name="devicecertificate__config__device"',
+        )
+        self.assertContains(
+            response,
+            f'data-ajax--url="{reverse("admin:autocomplete")}"',
+        )
+        self.assertContains(response, device_1.name)
+        self.assertContains(response, cert_1.name)
+        self.assertNotContains(response, cert_2.name)
+        self.assertIs(CertAdmin.list_filter[1], DeviceCertificateDeviceFilter)
+
+    def test_certificate_admin_device_filter_multitenancy(self):
+        org_1 = self._create_org(name="organization-1", slug="organization-1")
+        org_2 = self._create_org(name="organization-2", slug="organization-2")
+        ca_1 = self._create_ca(name="ca-1", organization=org_1)
+        ca_2 = self._create_ca(name="ca-2", organization=org_2)
+        template_1 = self._create_template(
+            name="certificate-template-1",
+            organization=org_1,
+            type="cert",
+            ca=ca_1,
+            auto_cert=True,
+        )
+        template_2 = self._create_template(
+            name="certificate-template-2",
+            organization=org_2,
+            type="cert",
+            ca=ca_2,
+            auto_cert=True,
+        )
+        device_1 = self._create_device(
+            organization=org_1,
+            name="certificate-device-1",
+            mac_address="00:11:22:33:44:56",
+        )
+        device_2 = self._create_device(
+            organization=org_2,
+            name="certificate-device-2",
+            mac_address="00:11:22:33:44:57",
+        )
+        config_1 = self._create_config(device=device_1)
+        config_2 = self._create_config(device=device_2)
+        config_1.templates.add(template_1)
+        config_2.templates.add(template_2)
+        cert_2 = DeviceCertificate.objects.get(config=config_2).cert
+        org_1_admin = self._create_administrator(
+            organizations=[org_1], username="organization-1-admin"
+        )
+        self.client.force_login(org_1_admin)
+        response = self.client.get(
+            reverse("admin:autocomplete"),
+            {
+                "app_label": "config",
+                "model_name": "config",
+                "field_name": "device",
+                "term": "certificate-device",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["results"],
+            [{"id": str(device_1.pk), "text": device_1.name}],
+        )
+        response = self.client.get(get_device_certificate_changelist_url(device_2.id))
+        self.assertNotContains(response, device_2.name)
+        self.assertNotContains(response, cert_2.name)
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):

@@ -20,7 +20,7 @@ from django.db.models.functions import Cast
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from django.template.loader import get_template, render_to_string
+from django.template.loader import get_template
 from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, path, reverse
 from django.utils.html import format_html, mark_safe
@@ -49,6 +49,7 @@ from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
+from .x509_admin import get_device_certificate_details, register_cert_admin_filter
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
@@ -61,7 +62,7 @@ Vpn = load_model("config", "Vpn")
 Organization = load_model("openwisp_users", "Organization")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 OrganizationLimits = load_model("config", "OrganizationLimits")
-DeviceCertificate = load_model("config", "DeviceCertificate")
+register_cert_admin_filter()
 
 if "reversion" in settings.INSTALLED_APPS:
     from reversion.admin import VersionAdmin as ModelAdmin
@@ -926,7 +927,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                 }
             )
             if hasattr(device, "config") and device.config:
-                self._add_certificate_details(ctx, device.config)
+                ctx["certificate_details"] = get_device_certificate_details(
+                    device.config
+                )
             if device.is_deactivated():
                 ctx["additional_buttons"].append(
                     {
@@ -963,84 +966,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         if data := get_whois_info(pk):
             ctx["device_whois_details"] = data
         return ctx
-
-    def _add_certificate_details(self, ctx, config):
-        qs = (
-            DeviceCertificate.objects.filter(config=config)
-            .select_related("cert__ca", "template")
-            .order_by("created")[:51]
-        )
-        cert_data = []
-        for dc in qs:
-            if dc.cert:
-                app_label = dc.cert._meta.app_label
-                model_name = dc.cert._meta.model_name
-                url = reverse(
-                    f"admin:{app_label}_{model_name}_change", args=[dc.cert.id]
-                )
-                ca_url = None
-                if dc.cert.ca:
-                    ca_app = dc.cert.ca._meta.app_label
-                    ca_model = dc.cert.ca._meta.model_name
-                    ca_url = reverse(
-                        f"admin:{ca_app}_{ca_model}_change", args=[dc.cert.ca.id]
-                    )
-                key_length_display = dc.cert.key_length
-                if hasattr(dc.cert, "get_key_length_display"):
-                    key_length_display = dc.cert.get_key_length_display()
-                template_app = dc.template._meta.app_label
-                template_model = dc.template._meta.model_name
-                template_url = reverse(
-                    f"admin:{template_app}_{template_model}_change",
-                    args=[dc.template.id],
-                )
-                cert_data.append(
-                    {
-                        "template_name": dc.template.name,
-                        "template_url": template_url,
-                        "common_name": dc.cert.common_name,
-                        "ca_name": dc.cert.ca.name if dc.cert.ca else "-",
-                        "ca_url": ca_url,
-                        "key_length_display": key_length_display,
-                        "digest": dc.cert.digest,
-                        "created": dc.cert.created,
-                        "modified": getattr(dc.cert, "modified", None),
-                        "validity_end": dc.cert.validity_end,
-                        "is_revoked": dc.cert.revoked,
-                        "url": url,
-                        "has_cert": True,
-                    }
-                )
-            else:
-                template_app = dc.template._meta.app_label
-                template_model = dc.template._meta.model_name
-                template_url = reverse(
-                    f"admin:{template_app}_{template_model}_change",
-                    args=[dc.template.id],
-                )
-                cert_data.append(
-                    {
-                        "template_name": dc.template.name,
-                        "template_url": template_url,
-                        "has_cert": False,
-                    }
-                )
-        has_more = len(cert_data) > 50
-        if has_more:
-            cert_data = cert_data[:50]
-        cert_model = DeviceCertificate.cert.field.related_model
-        cert_list_url = reverse(
-            f"admin:{cert_model._meta.app_label}"
-            f"_{cert_model._meta.model_name}_changelist"
-        )
-        ctx["certificate_details"] = render_to_string(
-            "admin/config/device_certificates_table.html",
-            {
-                "certificates": cert_data,
-                "has_more": has_more,
-                "cert_list_url": cert_list_url,
-            },
-        )
 
     def add_view(self, request, form_url="", extra_context=None):
         extra_context = self.get_extra_context()
