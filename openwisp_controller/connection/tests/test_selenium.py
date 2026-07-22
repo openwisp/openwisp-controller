@@ -1,3 +1,5 @@
+from time import sleep
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls import reverse
@@ -53,13 +55,12 @@ class TestDeviceAdmin(
             by=By.CSS_SELECTOR, value='button.ow-command-btn[data-command="reboot"]'
         ).click()
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
-
-        self.assertEqual(Command.objects.count(), 1)
-        # TODO: Selenium tests do not support websocket connections.
-        # Thus, we need to refresh the page. Remove this when support for
-        # websockets is added.
+        # Wait for the redirect triggered by command submission to complete.
+        # Navigating away immediately can race with the redirect
+        sleep(0.3)
         self.open(path)
         self.wait_for_visibility(
             By.CSS_SELECTOR,
             "#tabs-container li.recent.commands",
         )
+        self.assertEqual(Command.objects.count(), 1)

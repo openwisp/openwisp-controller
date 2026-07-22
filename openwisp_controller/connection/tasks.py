@@ -98,6 +98,28 @@ def launch_command(command_id):
         command._save_without_resurrecting()
 
 
+@shared_task(bind=True)
+def launch_batch_command(self, batch_id):
+    BatchCommand = load_model("connection", "BatchCommand")
+    try:
+        batch = BatchCommand.objects.get(pk=batch_id)
+    except BatchCommand.DoesNotExist:
+        logger.warning(f"The BatchCommand object with id {batch_id} has been deleted")
+        return
+    try:
+        batch.create_commands()
+    except Exception:
+        batch._clean_sensitive_info()
+        batch.status = "failed"
+        update_fields = ["status"]
+        if batch.type == "change_password":
+            update_fields.append("input")
+        batch.save(update_fields=update_fields)
+        logger.exception(
+            f"An exception was raised while executing batch command {batch_id}"
+        )
+
+
 @shared_task(soft_time_limit=3600)
 def auto_add_credentials_to_devices(credential_id, organization_id):
     Credentials = load_model("connection", "Credentials")
