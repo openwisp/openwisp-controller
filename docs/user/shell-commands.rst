@@ -182,3 +182,36 @@ How to register or unregister commands
 
 Refer to :ref:`registering_unregistering_commands` in the developer
 documentation.
+
+.. _mass_commands:
+
+Mass Commands
+-------------
+
+Mass commands allow you to execute a command on multiple devices
+simultaneously, rather than issuing commands one device at a time. This is
+useful for rebooting all devices in a group, changing passwords across
+multiple devices, or running diagnostics on all devices in an
+organization.
+
+**Targeting options:**
+
+- ``organization``: All devices in an organization.
+- ``devices``: Explicit list of device UUIDs.
+- ``group``: Device group UUID.
+- ``location``: Location UUID.
+
+If ``devices`` is provided, ``group`` and ``location`` are ignored.
+Otherwise, ``group`` and ``location`` can be used together to narrow the
+target set within the organization.
+
+If no targeting options are provided, the command targets all devices in
+the organization. Superusers can omit ``organization`` to target all
+devices across organizations.
+
+For superusers, ``organization`` is set automatically when ``group`` or
+``location`` is provided.
+
+Refer to the :ref:`Batch Command API <controller_batch_command_api>`
+documentation for the available endpoints, request parameters, and
+examples.
