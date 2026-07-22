@@ -988,9 +988,16 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                 key_length_display = dc.cert.key_length
                 if hasattr(dc.cert, "get_key_length_display"):
                     key_length_display = dc.cert.get_key_length_display()
+                template_app = dc.template._meta.app_label
+                template_model = dc.template._meta.model_name
+                template_url = reverse(
+                    f"admin:{template_app}_{template_model}_change",
+                    args=[dc.template.id],
+                )
                 cert_data.append(
                     {
                         "template_name": dc.template.name,
+                        "template_url": template_url,
                         "common_name": dc.cert.common_name,
                         "ca_name": dc.cert.ca.name if dc.cert.ca else "-",
                         "ca_url": ca_url,
@@ -1005,7 +1012,19 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                     }
                 )
             else:
-                cert_data.append({"template_name": dc.template.name, "has_cert": False})
+                template_app = dc.template._meta.app_label
+                template_model = dc.template._meta.model_name
+                template_url = reverse(
+                    f"admin:{template_app}_{template_model}_change",
+                    args=[dc.template.id],
+                )
+                cert_data.append(
+                    {
+                        "template_name": dc.template.name,
+                        "template_url": template_url,
+                        "has_cert": False,
+                    }
+                )
         has_more = len(cert_data) > 50
         if has_more:
             cert_data = cert_data[:50]

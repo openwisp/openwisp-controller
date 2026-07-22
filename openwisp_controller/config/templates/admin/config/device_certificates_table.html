@@ -23,12 +23,18 @@
             <tr class="{% cycle 'row1' 'row2' %}">
                 <th class="field-name" scope="row">
                     {% if cert.has_cert %}
-                        <a href="{{ cert.url }}" style="text-decoration: none;">{{ cert.common_name }}</a>
+                        <a href="{{ cert.url }}" target="_blank" style="text-decoration: none;">{{ cert.common_name }}</a>
                     {% else %}
                         {{ cert.common_name|default:"-" }}
                     {% endif %}
                 </th> 
-                <td>{{ cert.template_name }}</td>
+                <td>
+                    {% if cert.template_url %}
+                        <a href="{{ cert.template_url }}" target="_blank" style="text-decoration: none;">{{ cert.template_name }}</a>
+                    {% else %}
+                        {{ cert.template_name }}
+                    {% endif %}
+                </td>
                 <td>
                     {% if cert.ca_url %}
                         <a href="{{ cert.ca_url }}" target="_blank" style="text-decoration: none;">{{ cert.ca_name }}</a>
