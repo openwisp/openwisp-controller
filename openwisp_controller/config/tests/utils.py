@@ -9,6 +9,7 @@ from unittest import mock
 from uuid import uuid4
 
 from django.db.utils import DEFAULT_DB_ALIAS
+from django.urls import reverse
 from openwisp_ipam.tests import CreateModelsMixin as CreateIpamModelsMixin
 from swapper import load_model
 
@@ -416,3 +417,44 @@ class CreateDeviceGroupMixin(TestOrganizationMixin):
         device_group.full_clean()
         device_group.save()
         return device_group
+
+
+class TestDeviceAdminMixin:
+    _device_params = {
+        "name": "test-device",
+        "hardware_id": "1234",
+        "mac_address": CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
+        "key": CreateConfigTemplateMixin.TEST_KEY,
+        "model": "",
+        "os": "",
+        "notes": "",
+        "config-0-id": "",
+        "config-0-device": "",
+        "config-0-backend": "netjsonconfig.OpenWrt",
+        "config-0-templates": "",
+        "config-0-config": "{}",
+        "config-0-context": "",
+        "config-TOTAL_FORMS": 1,
+        "config-INITIAL_FORMS": 0,
+        "config-MIN_NUM_FORMS": 0,
+        "config-MAX_NUM_FORMS": 1,
+        "deviceconnection_set-TOTAL_FORMS": 0,
+        "deviceconnection_set-INITIAL_FORMS": 0,
+        "deviceconnection_set-MIN_NUM_FORMS": 0,
+        "deviceconnection_set-MAX_NUM_FORMS": 1000,
+        "command_set-TOTAL_FORMS": 0,
+        "command_set-INITIAL_FORMS": 0,
+        "command_set-MIN_NUM_FORMS": 0,
+        "command_set-MAX_NUM_FORMS": 1000,
+    }
+
+    def _get_device_params(self, org):
+        params = self._device_params.copy()
+        url = reverse(f"admin:{Device._meta.app_label}_{Device._meta.model_name}_add")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        for inline_admin_formset in response.context["inline_admin_formsets"]:
+            for field in inline_admin_formset.formset.management_form:
+                params.setdefault(field.html_name, field.value())
+        params["organization"] = org.pk
+        return params

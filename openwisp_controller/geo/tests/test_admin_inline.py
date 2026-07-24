@@ -6,7 +6,7 @@ from django.urls import reverse
 from django_loci.tests.base.test_admin_inline import BaseTestAdminInline
 from swapper import load_model
 
-from ...config.tests.test_admin import TestAdmin as TestConfigAdmin
+from ...config.tests.utils import TestDeviceAdminMixin
 from .utils import TestGeoMixin
 
 Device = load_model("config", "Device")
@@ -14,18 +14,10 @@ Location = load_model("geo", "Location")
 FloorPlan = load_model("geo", "FloorPlan")
 DeviceLocation = load_model("geo", "DeviceLocation")
 
-# ConfigInline management fields
-_device_params = TestConfigAdmin._device_params.copy()
-_device_params["config-TOTAL_FORMS"] = 0
-_delete_keys = []
-for key in _device_params.keys():
-    if "config-0-" in key:
-        _delete_keys.append(key)
-for key in _delete_keys:
-    del _device_params[key]
 
-
-class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
+class TestAdminInline(
+    TestDeviceAdminMixin, TestGeoMixin, BaseTestAdminInline, TestCase
+):
     app_label = "geo"
     object_model = Device
     location_model = Location
@@ -45,8 +37,13 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
     @property
     def params(self):
         params = self.__class__._get_params()
-        params.update(_device_params)
-        params["organization"] = self.organization.pk
+        device_params = self._device_params.copy()
+        device_params["config-TOTAL_FORMS"] = 0
+        device_params["organization"] = self.organization.pk
+        for key in list(device_params):
+            if key.startswith("config-0-"):
+                del device_params[key]
+        params.update(device_params)
         return params
 
     @mock.patch("openwisp_controller.config.settings.HARDWARE_ID_AS_NAME", False)
@@ -77,5 +74,4 @@ class TestAdminInline(TestGeoMixin, BaseTestAdminInline, TestCase):
         self.assertEqual(loc.name, params["name"])
 
 
-del TestConfigAdmin
 del BaseTestAdminInline
