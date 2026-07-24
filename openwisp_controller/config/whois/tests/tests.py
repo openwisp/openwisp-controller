@@ -1085,6 +1085,40 @@ class TestWHOISTransaction(
 
         mock_client.assert_not_called()
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_fetch_whois_details_accepts_equivalent_ipv6(self, mock_client):
+        raw_ip = "2606:4700:4700:0:0:0:0:1111"
+        canonical_ip = "2606:4700:4700::1111"
+        whois = self._create_whois_info(ip_address=canonical_ip)
+        org = self._get_org()
+        org.config_settings.whois_enabled = False
+        org.config_settings.save()
+        device = self._create_device(last_ip=raw_ip)
+        org.config_settings.whois_enabled = True
+        org.config_settings.save()
+        cache.delete(WHOISService.get_cache_key(org.pk))
+        WHOISInfo.objects.filter(pk=whois.pk).update(
+            modified=timezone.now()
+            - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1)
+        )
+        mock_client.return_value.city.return_value = self._mocked_client_response()
+        fetch_whois_details(device_pk=device.pk, ip_address=raw_ip)
+        mock_client.return_value.city.assert_called_once_with(ip_address=canonical_ip)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_reconcile_whois_references_normalizes_ipv6(self):
+        raw_ip = "2606:4700:4700:0:0:0:0:1111"
+        canonical_ip = "2606:4700:4700::1111"
+        whois = self._create_whois_info(ip_address=canonical_ip)
+        org = self._get_org()
+        org.config_settings.whois_enabled = False
+        org.config_settings.save()
+        self._create_device(last_ip=raw_ip)
+        WHOISService.reconcile_whois_references([raw_ip])
+        whois.refresh_from_db()
+        self.assertIsNone(whois.unreferenced_since)
+
     def test_send_whois_task_notification_with_invalid_device_pk(self):
         invalid_pk = uuid4()
         result = send_whois_task_notification(

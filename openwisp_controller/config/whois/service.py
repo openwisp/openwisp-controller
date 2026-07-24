@@ -58,6 +58,13 @@ class WHOISService:
             return False
 
     @staticmethod
+    def normalize_ip_address(ip):
+        try:
+            return str(ip_addr(ip)) if ip else ip
+        except ValueError:
+            return ip
+
+    @staticmethod
     def _get_whois_info_from_db(ip_address):
         """
         For getting existing WHOISInfo for given IP from db if present.
@@ -72,7 +79,7 @@ class WHOISService:
         Device = load_model("config", "Device")
         WHOISInfo = load_model("config", "WHOISInfo")
         ip_addresses = {
-            ip_address
+            cls.normalize_ip_address(ip_address)
             for ip_address in ip_addresses
             if cls.is_valid_public_ip_address(ip_address)
         }
@@ -243,8 +250,8 @@ class WHOISService:
         # below, so estimated location is not triggered for a deactivated device.
         if self.device.is_deactivated():
             return
-        new_ip = self.device.last_ip
-        initial_ip = self.device._initial_last_ip
+        new_ip = self.normalize_ip_address(self.device.last_ip)
+        initial_ip = self.normalize_ip_address(self.device._initial_last_ip)
         transaction.on_commit(
             lambda: self.reconcile_whois_references([initial_ip, new_ip])
         )
@@ -269,7 +276,7 @@ class WHOISService:
         # Do not refresh WHOIS data for deactivated devices.
         if self.device.is_deactivated():
             return
-        ip_address = self.device.last_ip
+        ip_address = self.normalize_ip_address(self.device.last_ip)
         if not self.is_valid_public_ip_address(ip_address):
             return
         if not self.is_whois_enabled:

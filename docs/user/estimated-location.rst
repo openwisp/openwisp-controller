@@ -130,7 +130,5 @@ Notifications are created in the following cases:
 - WHOIS data indicates a different geographic area, unless the estimated
   location has been manually refined.
 
-On mobile ISP connections, where IP addresses can change frequently, changes
-to the public IP address or ISP do not generate a notification when the
-estimated geographic area is unchanged. Estimated locations are updated
-silently in that case.
+If a device's public IP address changes but its location stays the same,
+the system updates the location silently without sending a notification.

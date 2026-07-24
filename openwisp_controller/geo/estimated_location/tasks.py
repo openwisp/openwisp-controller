@@ -4,6 +4,7 @@ from celery import shared_task
 from django.db import transaction
 from swapper import load_model
 
+from openwisp_controller.config.whois.service import WHOISService
 from openwisp_controller.geo.estimated_location.service import EstimatedLocationService
 from openwisp_controller.geo.estimated_location.utils import (
     get_location_defaults_from_whois,
@@ -112,15 +113,21 @@ def manage_estimated_locations(device_pk, ip_address):
     """
     Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
-
+    normalize_ip = WHOISService.normalize_ip_address
+    ip_address = normalize_ip(ip_address)
     try:
         with transaction.atomic():
+            # DeviceLocation and Location are optional, so lock only the Device row.
+            # (PostgreSQL cannot lock nullable joined rows).
             device = (
-                Device.objects.select_for_update()
+                Device.objects.select_for_update(of=("self",))
                 .select_related("devicelocation__location")
                 .get(pk=device_pk)
             )
-            if device.is_deactivated() or device.last_ip != ip_address:
+            if (
+                device.is_deactivated()
+                or normalize_ip(device.last_ip) != ip_address
+            ):
                 logger.info(
                     f"Device {device_pk} no longer needs estimated location "
                     f"for {ip_address}"

@@ -7,6 +7,7 @@ from uuid import uuid4
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db.models.query import QuerySet
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -286,6 +287,17 @@ class TestEstimatedLocationTransaction(
         EstimatedLocationService.check_estimated_location_enabled(
             device.organization_id
         )
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_manage_estimated_locations_locks_only_device(self):
+        whois = self._create_whois_info()
+        device = self._create_device(last_ip=whois.ip_address)
+        select_for_update = QuerySet.select_for_update
+        with mock.patch.object(
+            QuerySet, "select_for_update", autospec=True, side_effect=select_for_update
+        ) as mocked_select_for_update:
+            manage_estimated_locations(device.pk, device.last_ip)
+        mocked_select_for_update.assert_any_call(mock.ANY, of=("self",))
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")

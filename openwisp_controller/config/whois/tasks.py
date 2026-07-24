@@ -69,15 +69,16 @@ def fetch_whois_details(self, device_pk, ip_address):
     """
     Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
-
+    normalize_ip = WHOISService.normalize_ip_address
     device = Device.objects.filter(pk=device_pk).first()
     if not device:
         logger.warning(f"Device {device_pk} not found, skipping WHOIS lookup")
         return
     whois_service = device.whois_service
+    ip_address = normalize_ip(ip_address)
     if (
         device.is_deactivated()
-        or device.last_ip != ip_address
+        or normalize_ip(device.last_ip) != ip_address
         or not whois_service.is_valid_public_ip_address(ip_address)
         or not whois_service.is_whois_enabled
     ):
@@ -95,7 +96,7 @@ def fetch_whois_details(self, device_pk, ip_address):
         if (
             not device
             or device.is_deactivated()
-            or device.last_ip != ip_address
+            or normalize_ip(device.last_ip) != ip_address
             or not device.whois_service.is_whois_enabled
         ):
             return
