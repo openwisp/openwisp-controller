@@ -1,15 +1,18 @@
+from datetime import timedelta
 from ipaddress import ip_address, ip_network
 
 from django.contrib.gis.db.models import PointField
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
 
 from openwisp_utils.base import TimeStampedEditableModel
 
+from .. import settings as app_settings
 from ..whois.service import WHOISService
 
 
@@ -126,6 +129,29 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
                 ip_address__in=orphaned_ips, unreferenced_since__isnull=True
             ).update(unreferenced_since=timezone.now())
 
+    @classmethod
+    def cleanup_unreferenced_records(cls):
+        """Update reference timestamps and delete expired unreferenced WHOIS records."""
+        Device = load_model("config", "Device")
+        active_devices = Device.objects.filter(
+            _is_deactivated=False, last_ip=OuterRef("ip_address")
+        )
+        now = timezone.now()
+        # If an inactive (unreferenced) WHOIS record now has an active device, flag it as referenced.
+        cls.objects.filter(
+            Exists(active_devices), unreferenced_since__isnull=False
+        ).update(unreferenced_since=None)
+        # Flag unreferenced WHOIS records so that they can be removed later.
+        cls.objects.filter(
+            ~Exists(active_devices), unreferenced_since__isnull=True
+        ).update(unreferenced_since=now)
+        cutoff = now - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS)
+        # Delete WHOIS records that have been unreferenced for at least WHOIS_REFRESH_THRESHOLD_DAYS.
+        deleted, _ = cls.objects.filter(
+            ~Exists(active_devices), unreferenced_since__lte=cutoff
+        ).delete()
+        return deleted
+
     @staticmethod
     def device_whois_info_delete_handler(instance, **kwargs):
         """
@@ -133,8 +159,9 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         """
         last_ip = instance.last_ip
         if last_ip:
+            WHOISInfo = load_model("config", "WHOISInfo")
             transaction.on_commit(
-                lambda: instance._meta.model.update_reference_state([last_ip])
+                lambda: WHOISInfo.update_reference_state([last_ip])
             )
 
     # this method is kept here instead of in OrganizationConfigSettings because

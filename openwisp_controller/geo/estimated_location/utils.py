@@ -2,6 +2,7 @@ from hashlib import sha256
 from unicodedata import normalize
 
 from django.core.cache import cache
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
@@ -83,23 +84,24 @@ def send_estimated_location_notification(
         device = Device.objects.filter(pk=device).first()
         if not device:
             return
-    cache_key = None
-    if whois and notify_type in {
-        "estimated_location_created",
-        "estimated_location_updated",
-    }:
-        cache_key = _get_notification_cache_key(device, whois)
-        timeout = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS * 24 * 3600
-        if not cache.add(cache_key, True, timeout=timeout):
-            return
     notify_details = MESSAGE_MAP[notify_type]
-    notify.send(
-        sender=actor or device,
-        target=device,
-        action_object=device,
-        ip_address=ip_address or device.last_ip,
-        **notify_details,
-    )
+    def send_notification():
+        if whois and notify_type in {
+            "estimated_location_created",
+            "estimated_location_updated",
+        }:
+            cache_key = _get_notification_cache_key(device, whois)
+            timeout = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS * 24 * 3600
+            if not cache.add(cache_key, True, timeout=timeout):
+                return
+        notify.send(
+            sender=actor or device,
+            target=device,
+            action_object=device,
+            ip_address=ip_address or device.last_ip,
+            **notify_details,
+        )
+    transaction.on_commit(send_notification)
 
 
 def get_device_location_notification_target_url(obj, field, absolute_url=True):

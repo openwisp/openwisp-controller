@@ -6,7 +6,8 @@ from ..signals import device_activated, device_deactivated
 
 
 def reconcile_device_whois_references(sender, instance, **kwargs):
-    instance._meta.model.update_reference_state([instance.last_ip])
+    WHOISInfo = load_model("config", "WHOISInfo")
+    WHOISInfo.update_reference_state([instance.last_ip])
 
 
 def connect_whois_handlers():

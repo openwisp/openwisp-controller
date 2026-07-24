@@ -7,6 +7,7 @@ from uuid import uuid4
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db import transaction
 from django.db.models.query import QuerySet
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
@@ -153,17 +154,42 @@ class TestEstimatedLocation(
         device = self._create_device(last_ip=ip_a)
         mock_notify.reset_mock()
 
-        send_estimated_location_notification(
-            device, "estimated_location_created", whois=whois_a, ip_address=ip_a
-        )
-        send_estimated_location_notification(
-            device, "estimated_location_updated", whois=whois_b, ip_address=ip_b
-        )
-        send_estimated_location_notification(
-            device, "estimated_location_updated", whois=whois_c, ip_address=ip_c
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            send_estimated_location_notification(
+                device, "estimated_location_created", whois=whois_a, ip_address=ip_a
+            )
+            send_estimated_location_notification(
+                device, "estimated_location_updated", whois=whois_b, ip_address=ip_b
+            )
+            send_estimated_location_notification(
+                device, "estimated_location_updated", whois=whois_c, ip_address=ip_c
+            )
 
         self.assertEqual(mock_notify.call_count, 2)
+
+    @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
+    def test_notification_is_sent_only_after_transaction_commit(
+        self, mock_notify
+    ):
+        whois = self._create_whois_info()
+        device = self._create_device(last_ip=whois.ip_address)
+        cache.clear()
+        with transaction.atomic():
+            send_estimated_location_notification(
+                device,
+                "estimated_location_created",
+                whois=whois,
+            )
+            transaction.set_rollback(True)
+        mock_notify.assert_not_called()
+        with self.captureOnCommitCallbacks(execute=True):
+            with transaction.atomic():
+                send_estimated_location_notification(
+                    device,
+                    "estimated_location_created",
+                    whois=whois,
+                )
+        mock_notify.assert_called_once()
 
     location_model = Location
 
@@ -737,8 +763,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
-        side_effect=TestEstimatedLocationMixin.run_task,
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task"
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_unchanged_whois_data_no_location_recreation(self, mock_client, _):
@@ -815,6 +840,7 @@ class TestEstimatedLocationTransaction(
     def test_estimated_location_notification(
         self, mock_client, mock_error, mock_info, _
     ):
+        cache.clear()
         def _verify_notification(device, messages, notify_level="info"):
             notification_qs = _notification_qs()
             self.assertEqual(notification_qs.count(), 1)
@@ -836,6 +862,7 @@ class TestEstimatedLocationTransaction(
             mocked_response = self._mocked_client_response()
             mock_client.return_value.city.return_value = mocked_response
             device1 = self._create_device(last_ip="172.217.22.10")
+            manage_estimated_locations(device1.pk, device1.last_ip)
             messages = ["Estimated location", "created successfully"]
             _verify_notification(device1, messages)
 
@@ -847,6 +874,7 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
+            manage_estimated_locations(device2.pk, device2.last_ip)
             messages = ["Estimated location", "updated successfully"]
             _verify_notification(device2, messages)
 
@@ -859,6 +887,7 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:77",
                 last_ip=device2.last_ip,
             )
+            manage_estimated_locations(device3.pk, device3.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device3.pk}"
                 f" for IP: {device3.last_ip}"

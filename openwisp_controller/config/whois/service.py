@@ -233,7 +233,7 @@ class WHOISService:
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    ip_address=new_ip,
+                    initial_ip_address=new_ip,
                 )
             )
         elif self.is_whois_enabled and self.is_valid_public_ip_address(new_ip):
@@ -260,7 +260,7 @@ class WHOISService:
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    ip_address=ip_address,
+                    initial_ip_address=ip_address,
                 )
             )
 

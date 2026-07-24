@@ -1040,7 +1040,7 @@ class TestWHOISTransaction(
     @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
     def test_fetch_whois_details_device_not_found(self, mock_warn):
         invalid_pk = uuid4()
-        fetch_whois_details(device_pk=invalid_pk, ip_address="10.0.0.1")
+        fetch_whois_details(device_pk=invalid_pk, initial_ip_address="10.0.0.1")
         mock_warn.assert_called_once_with(
             f"Device {invalid_pk} not found, skipping WHOIS lookup"
         )
@@ -1053,7 +1053,9 @@ class TestWHOISTransaction(
         device = self._create_device(last_ip=whois_obj.ip_address)
         mock_client.reset_mock()
         device.deactivate()
-        fetch_whois_details(device_pk=device.pk, ip_address=whois_obj.ip_address)
+        fetch_whois_details(
+            device_pk=device.pk, initial_ip_address=whois_obj.ip_address
+        )
         mock_info.assert_called_once_with(
             f"Device {device.pk} no longer needs WHOIS lookup "
             f"for {whois_obj.ip_address}"
@@ -1066,7 +1068,9 @@ class TestWHOISTransaction(
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)
         mock_client.return_value.city.return_value = self._mocked_client_response()
-        fetch_whois_details(device_pk=device.pk, ip_address=device.last_ip)
+        fetch_whois_details(
+            device_pk=device.pk, initial_ip_address=device.last_ip
+        )
         mock_client.assert_not_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
@@ -1081,7 +1085,7 @@ class TestWHOISTransaction(
         device.save()
         mock_client.reset_mock()
 
-        fetch_whois_details(device_pk=device.pk, ip_address=old_ip)
+        fetch_whois_details(device_pk=device.pk, initial_ip_address=old_ip)
 
         mock_client.assert_not_called()
 
@@ -1103,7 +1107,7 @@ class TestWHOISTransaction(
             - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1)
         )
         mock_client.return_value.city.return_value = self._mocked_client_response()
-        fetch_whois_details(device_pk=device.pk, ip_address=raw_ip)
+        fetch_whois_details(device_pk=device.pk, initial_ip_address=raw_ip)
         mock_client.return_value.city.assert_called_once_with(ip_address=canonical_ip)
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)

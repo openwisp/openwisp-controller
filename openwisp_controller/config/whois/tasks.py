@@ -1,11 +1,8 @@
 import logging
-from datetime import timedelta
 
 from celery import shared_task
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Exists, OuterRef
-from django.utils import timezone
 from geoip2 import errors
 from swapper import load_model
 
@@ -56,13 +53,12 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
         return super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
-# device_pk is used when task fails to report for which device failure occurred
 @shared_task(
     bind=True,
     base=WHOISCeleryRetryTask,
     **app_settings.API_TASK_RETRY_OPTIONS,
 )
-def fetch_whois_details(self, device_pk, ip_address):
+def fetch_whois_details(self, device_pk, initial_ip_address):
     """
     Fetches the WHOIS details of the given IP address
     and creates/updates the WHOIS record.
@@ -75,7 +71,7 @@ def fetch_whois_details(self, device_pk, ip_address):
         return
     whois_service = device.whois_service
     normalize_ip = whois_service.normalize_ip_address
-    ip_address = normalize_ip(ip_address)
+    ip_address = normalize_ip(initial_ip_address)
     if (
         device.is_deactivated()
         or normalize_ip(device.last_ip) != ip_address
@@ -121,21 +117,8 @@ def fetch_whois_details(self, device_pk, ip_address):
 @shared_task
 def cleanup_unreferenced_whois_records():
     """Delete expired WHOIS cache records that have no active device reference."""
-    Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
-    active_devices = Device.objects.filter(
-        _is_deactivated=False, last_ip=OuterRef("ip_address")
-    )
-    now = timezone.now()
-    referenced = WHOISInfo.objects.filter(Exists(active_devices))
-    referenced.update(unreferenced_since=None)
-    WHOISInfo.objects.filter(
-        ~Exists(active_devices), unreferenced_since__isnull=True
-    ).update(unreferenced_since=now)
-    cutoff = now - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS)
-    deleted, _ = WHOISInfo.objects.filter(
-        ~Exists(active_devices), unreferenced_since__lte=cutoff
-    ).delete()
+    deleted = WHOISInfo.cleanup_unreferenced_records()
     logger.info("Deleted %d expired unreferenced WHOIS record(s).", deleted)
     return deleted
 

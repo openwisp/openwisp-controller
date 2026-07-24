@@ -145,26 +145,19 @@ def manage_estimated_locations(device_pk, ip_address):
 def _manage_estimated_location(device, ip_address, whois_obj):
     Device = load_model("config", "Device")
     DeviceLocation = load_model("geo", "DeviceLocation")
-    devices_with_location = list(
-        # "devicelocation" and "devicelocation__location" must be in only() to
-        # prevent Django from deferring them, which would conflict with
-        # select_related(). Django raises FieldError if a relation field is
-        # both deferred and traversed via select_related.
-        Device.objects.only(
-            "id", "name", "last_ip", "devicelocation", "devicelocation__location"
-        )
-        .select_related("devicelocation__location")
-        .filter(
-            organization_id=device.organization_id,
-            _is_deactivated=False,
-            last_ip=ip_address,
-            devicelocation__location__isnull=False,
-        )
-        # evaluated to LIMIT query, we need to know if there's more than 1 result
-        .exclude(pk=device.pk)
+    devices_with_location = Device.objects.filter(
+        organization_id=device.organization_id,
+        _is_deactivated=False,
+        last_ip=ip_address,
+        devicelocation__location__isnull=False,
+    ).exclude(pk=device.pk)
+    # Two IDs are enough to detect whether devices behind a proxy disagree.
+    location_ids = list(
+        devices_with_location.values_list(
+            "devicelocation__location_id", flat=True
+        ).distinct()[:2]
     )
     # multiple devices can have same last_ip in cases like usage of proxy
-    location_ids = {item.devicelocation.location_id for item in devices_with_location}
     if len(location_ids) > 1:
         send_estimated_location_notification(
             device=device, notify_type="estimated_location_error"
@@ -179,14 +172,17 @@ def _manage_estimated_location(device, ip_address, whois_obj):
         device_location = DeviceLocation(content_object=device)
     current_location = device_location.location
     if not current_location or current_location.is_estimated:
-        # existing device location
-        try:
-            existing_device_location = getattr(
-                devices_with_location[0], "devicelocation", None
+        existing_device_location = None
+        if location_ids:
+            # Ambiguity has been ruled out, so retrieve only the shared location.
+            existing_device_location = (
+                DeviceLocation.objects.select_related("location")
+                .filter(
+                    content_object__in=devices_with_location,
+                    location_id=location_ids[0],
+                )
+                .first()
             )
-        # no existing device location
-        except IndexError:
-            existing_device_location = None
         _handle_attach_existing_location(
             device, device_location, ip_address, existing_device_location, whois_obj
         )
