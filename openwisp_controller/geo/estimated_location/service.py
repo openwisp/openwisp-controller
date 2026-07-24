@@ -7,7 +7,10 @@ from swapper import load_model
 
 from openwisp_controller.config import settings as config_app_settings
 
-from .utils import send_estimated_location_notification
+from .utils import (
+    get_location_defaults_from_whois,
+    send_estimated_location_notification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +85,123 @@ class EstimatedLocationService:
                 )
 
         transaction.on_commit(enqueue)
+
+    def update_from_whois(self, ip_address, whois):
+        """Create, update, or share an estimated location from WHOIS data."""
+        Device = load_model("config", "Device")
+        DeviceLocation = load_model("geo", "DeviceLocation")
+        devices_with_location = Device.objects.filter(
+            organization_id=self.device.organization_id,
+            _is_deactivated=False,
+            last_ip=ip_address,
+            devicelocation__location__isnull=False,
+        ).exclude(pk=self.device.pk)
+        # Two IDs are enough to detect whether devices behind a proxy disagree.
+        location_ids = list(
+            devices_with_location.values_list(
+                "devicelocation__location_id", flat=True
+            ).distinct()[:2]
+        )
+        if len(location_ids) > 1:
+            send_estimated_location_notification(
+                device=self.device, notify_type="estimated_location_error"
+            )
+            logger.error(
+                "Multiple devices with locations found with same "
+                f"last_ip {ip_address}. Please resolve the conflict manually."
+            )
+            return
+        if not (device_location := getattr(self.device, "devicelocation", None)):
+            device_location = DeviceLocation(content_object=self.device)
+        current_location = device_location.location
+        if not current_location or current_location.is_estimated:
+            existing_device_location = None
+            if location_ids:
+                # Ambiguity has been ruled out, so retrieve only the shared location.
+                existing_device_location = (
+                    DeviceLocation.objects.select_related("location")
+                    .filter(
+                        content_object__in=devices_with_location,
+                        location_id=location_ids[0],
+                    )
+                    .first()
+                )
+            self._handle_attach_existing_location(
+                device_location, ip_address, existing_device_location, whois
+            )
+        else:
+            logger.info(
+                f"Non Estimated location already set for {self.device.pk}. Update"
+                f" location manually as per IP: {ip_address}"
+            )
+
+    def _handle_attach_existing_location(
+        self, device_location, ip_address, existing_device_location, whois
+    ):
+        """Attach a shared location or create or update an estimated location."""
+        Device = load_model("config", "Device")
+        current_location = device_location.location
+        attached_devices_exists = None
+        if current_location is not None:
+            attached_devices_exists = (
+                Device.objects.filter(devicelocation__location_id=current_location.pk)
+                .exclude(pk=self.device.pk)
+                .exists()
+            )
+        if (
+            existing_device_location
+            and existing_device_location.location != device_location.location
+        ):
+            existing_location = existing_device_location.location
+            device_location.location = existing_location
+            device_location.full_clean()
+            device_location.save()
+            logger.info(
+                f"Estimated location saved successfully for {self.device.pk}"
+                f" for IP: {ip_address}"
+            )
+            # Delete the previous estimated location only when this device did
+            # not share it.
+            if attached_devices_exists is False:
+                current_location.delete()
+            send_estimated_location_notification(
+                device=self.device,
+                notify_type="estimated_location_updated",
+                actor=existing_location,
+                ip_address=ip_address,
+                whois=whois,
+            )
+            return
+        # No peer location is available, so derive an estimated location from WHOIS.
+        if not whois or not whois.coordinates:
+            logger.warning(
+                f"Coordinates not available for {self.device.pk} for IP: {ip_address}."
+                " Estimated location cannot be determined."
+            )
+            return
+        location_defaults = {
+            **get_location_defaults_from_whois(whois),
+            "organization_id": self.device.organization_id,
+        }
+        # Do not replace a shared estimated location with equivalent WHOIS data.
+        if (
+            attached_devices_exists
+            and current_location
+            and current_location.geometry == location_defaults.get("geometry")
+            and current_location.name == location_defaults.get("name")
+        ):
+            logger.debug(
+                f"Estimated location unchanged for {self.device.pk}"
+                f" for IP: {ip_address}, keeping existing location"
+            )
+            return
+        self._create_or_update_estimated_location(
+            location_defaults, attached_devices_exists, whois
+        )
+        logger.info(
+            f"Estimated location saved successfully for {self.device.pk}"
+            f" for IP: {ip_address}"
+        )
 
     def _create_or_update_estimated_location(
         self, location_defaults, attached_devices_exists, whois

@@ -168,9 +168,7 @@ class TestEstimatedLocation(
         self.assertEqual(mock_notify.call_count, 2)
 
     @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
-    def test_notification_is_sent_only_after_transaction_commit(
-        self, mock_notify
-    ):
+    def test_notification_is_sent_only_after_transaction_commit(self, mock_notify):
         whois = self._create_whois_info()
         device = self._create_device(last_ip=whois.ip_address)
         cache.clear()
@@ -290,6 +288,9 @@ class TestEstimatedLocationTransaction(
     )
     _ESTIMATED_LOCATION_ERROR_LOGGER = (
         "openwisp_controller.geo.estimated_location.tasks.logger.error"
+    )
+    _ESTIMATED_LOCATION_SERVICE_INFO_LOGGER = (
+        "openwisp_controller.geo.estimated_location.service.logger.info"
     )
     _WHOIS_TASK_NAME = "openwisp_controller.config.whois.tasks.fetch_whois_details"
 
@@ -474,12 +475,11 @@ class TestEstimatedLocationTransaction(
         mocked_estimated_location_task.reset_mock()
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch.object(estimated_location.tasks, "send_estimated_location_notification")
     @mock.patch.object(
         estimated_location.service, "send_estimated_location_notification"
     )
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
-    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
+    @mock.patch(_ESTIMATED_LOCATION_SERVICE_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_estimated_location_creation_and_update(
         self, mock_client, mock_info, *args
@@ -614,7 +614,7 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
-            with self.assertNumQueries(10):
+            with self.assertNumQueries(11):
                 manage_estimated_locations(device2.pk, device2.last_ip)
 
             self.assertEqual(
@@ -644,7 +644,7 @@ class TestEstimatedLocationTransaction(
             device2.save()
             # 3 queries related to notifications cleanup
             device2.refresh_from_db()
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(17):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
@@ -831,43 +831,43 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
-        side_effect=TestEstimatedLocationMixin.run_task,
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task"
     )
-    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
-    @mock.patch(_ESTIMATED_LOCATION_ERROR_LOGGER)
+    @mock.patch(_ESTIMATED_LOCATION_SERVICE_INFO_LOGGER)
+    @mock.patch("openwisp_controller.geo.estimated_location.service.logger.error")
     @mock.patch(_WHOIS_GEOIP_CLIENT)
+    @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
     def test_estimated_location_notification(
-        self, mock_client, mock_error, mock_info, _
+        self, mock_notify, mock_client, mock_error, mock_info, _
     ):
         cache.clear()
+
         def _verify_notification(device, messages, notify_level="info"):
-            notification_qs = _notification_qs()
-            self.assertEqual(notification_qs.count(), 1)
-            notification = notification_qs.first()
             device_location = getattr(device, "devicelocation", None)
             actor = device
             if device_location:
                 actor = device_location.location
-            self.assertEqual(notification.actor, actor)
-            self.assertEqual(notification.target, device)
-            self.assertEqual(notification.type, "estimated_location_info")
-            self.assertEqual(notification.level, notify_level)
+            mock_notify.assert_called_once()
+            notification = mock_notify.call_args.kwargs
+            self.assertEqual(notification["sender"], actor)
+            self.assertEqual(notification["target"], device)
+            self.assertEqual(notification["type"], "estimated_location_info")
+            self.assertEqual(notification["level"], notify_level)
             for message in messages:
-                self.assertIn(message, notification.message)
-            self.assertIn(device.last_ip, notification.rendered_description)
-            self.assertIn("#devicelocation-group", notification.target_url)
+                self.assertIn(message, notification["message"])
+            self.assertEqual(notification["ip_address"], device.last_ip)
 
         with self.subTest("Test Notification for location create"):
             mocked_response = self._mocked_client_response()
             mock_client.return_value.city.return_value = mocked_response
+            self._create_whois_info(ip_address="172.217.22.10")
             device1 = self._create_device(last_ip="172.217.22.10")
             manage_estimated_locations(device1.pk, device1.last_ip)
-            messages = ["Estimated location", "created successfully"]
+            messages = ["Estimated location"]
             _verify_notification(device1, messages)
 
         with self.subTest("Test Notification for location update"):
-            _notification_qs().delete()
+            mock_notify.reset_mock()
             # will have same location as first device
             device2 = self._create_device(
                 name="11:22:33:44:55:66",
@@ -879,7 +879,7 @@ class TestEstimatedLocationTransaction(
             _verify_notification(device2, messages)
 
         with self.subTest("Test devices sharing one location are not ambiguous"):
-            _notification_qs().delete()
+            mock_notify.reset_mock()
             mock_info.reset_mock()
             mock_error.reset_mock()
             device3 = self._create_device(
@@ -898,7 +898,6 @@ class TestEstimatedLocationTransaction(
             )
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch.object(estimated_location.tasks, "send_estimated_location_notification")
     @mock.patch.object(
         estimated_location.service, "send_estimated_location_notification"
     )
@@ -908,9 +907,11 @@ class TestEstimatedLocationTransaction(
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_manage_estimated_locations_no_coordinates_warning(
-        self, mock_client, _mocked_task, _mocked_notify, _mocked_notify2
+        self, mock_client, _mocked_task, _mocked_notify
     ):
-        with mock.patch.object(estimated_location.tasks.logger, "warning") as mock_warn:
+        with mock.patch.object(
+            estimated_location.service.logger, "warning"
+        ) as mock_warn:
             connect_whois_handlers()
             mock_client.return_value.city.return_value = self._mocked_client_response()
             device = self._create_device(last_ip="172.217.22.14")

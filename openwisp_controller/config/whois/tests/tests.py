@@ -1068,9 +1068,7 @@ class TestWHOISTransaction(
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)
         mock_client.return_value.city.return_value = self._mocked_client_response()
-        fetch_whois_details(
-            device_pk=device.pk, initial_ip_address=device.last_ip
-        )
+        fetch_whois_details(device_pk=device.pk, initial_ip_address=device.last_ip)
         mock_client.assert_not_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)

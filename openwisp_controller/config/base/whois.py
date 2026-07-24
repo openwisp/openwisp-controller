@@ -137,7 +137,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             _is_deactivated=False, last_ip=OuterRef("ip_address")
         )
         now = timezone.now()
-        # If an inactive (unreferenced) WHOIS record now has an active device, flag it as referenced.
+        # If an inactive WHOIS record now has an active device, flag it as referenced.
         cls.objects.filter(
             Exists(active_devices), unreferenced_since__isnull=False
         ).update(unreferenced_since=None)
@@ -146,7 +146,8 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
             ~Exists(active_devices), unreferenced_since__isnull=True
         ).update(unreferenced_since=now)
         cutoff = now - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS)
-        # Delete WHOIS records that have been unreferenced for at least WHOIS_REFRESH_THRESHOLD_DAYS.
+        # Delete WHOIS records that have been unreferenced for at least
+        # WHOIS_REFRESH_THRESHOLD_DAYS.
         deleted, _ = cls.objects.filter(
             ~Exists(active_devices), unreferenced_since__lte=cutoff
         ).delete()
@@ -160,9 +161,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         last_ip = instance.last_ip
         if last_ip:
             WHOISInfo = load_model("config", "WHOISInfo")
-            transaction.on_commit(
-                lambda: WHOISInfo.update_reference_state([last_ip])
-            )
+            transaction.on_commit(lambda: WHOISInfo.update_reference_state([last_ip]))
 
     # this method is kept here instead of in OrganizationConfigSettings because
     # currently the caching is used only for WHOIS feature

@@ -85,6 +85,7 @@ def send_estimated_location_notification(
         if not device:
             return
     notify_details = MESSAGE_MAP[notify_type]
+
     def send_notification():
         if whois and notify_type in {
             "estimated_location_created",
@@ -101,6 +102,7 @@ def send_estimated_location_notification(
             ip_address=ip_address or device.last_ip,
             **notify_details,
         )
+
     transaction.on_commit(send_notification)
 
 
