@@ -4,7 +4,9 @@ from django.contrib.gis.db.models import PointField
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from swapper import load_model
 
 from openwisp_utils.base import TimeStampedEditableModel
 
@@ -20,10 +22,8 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
     id = None
     # Using ip_address as primary key to avoid redundant lookups
     # and storage of duplicate WHOIS information per IP address.
-    # Whenever a device's last ip address changes, data related to
-    # previous IP address is deleted. If any device still has the
-    # previous IP address, they will trigger the lookup again
-    # ensuring latest WHOIS information is always available.
+    # When a device's last IP address changes, data for the previous IP
+    # is retained temporarily in case a device returns to it later.
     ip_address = models.GenericIPAddressField(db_index=True, primary_key=True)
     isp = models.CharField(
         max_length=100,
@@ -100,6 +100,32 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
                 )
         return super().clean()
 
+    @classmethod
+    def update_reference_state(cls, ip_addresses):
+        """Flag WHOIS IPs as referenced or record when they became unreferenced."""
+        Device = load_model("config", "Device")
+        ip_addresses = {
+            WHOISService.normalize_ip_address(ip_address)
+            for ip_address in ip_addresses
+            if WHOISService.is_valid_public_ip_address(ip_address)
+        }
+        if not ip_addresses:
+            return
+        active_ips = set(
+            Device.objects.filter(
+                _is_deactivated=False, last_ip__in=ip_addresses
+            ).values_list("last_ip", flat=True)
+        )
+        if active_ips:
+            cls.objects.filter(ip_address__in=active_ips).update(
+                unreferenced_since=None
+            )
+        orphaned_ips = ip_addresses - active_ips
+        if orphaned_ips:
+            cls.objects.filter(
+                ip_address__in=orphaned_ips, unreferenced_since__isnull=True
+            ).update(unreferenced_since=timezone.now())
+
     @staticmethod
     def device_whois_info_delete_handler(instance, **kwargs):
         """
@@ -108,7 +134,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
         last_ip = instance.last_ip
         if last_ip:
             transaction.on_commit(
-                lambda: WHOISService.reconcile_whois_references([last_ip])
+                lambda: instance._meta.model.update_reference_state([last_ip])
             )
 
     # this method is kept here instead of in OrganizationConfigSettings because

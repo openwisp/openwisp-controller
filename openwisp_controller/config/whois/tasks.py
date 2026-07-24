@@ -69,12 +69,12 @@ def fetch_whois_details(self, device_pk, ip_address):
     """
     Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
-    normalize_ip = WHOISService.normalize_ip_address
     device = Device.objects.filter(pk=device_pk).first()
     if not device:
         logger.warning(f"Device {device_pk} not found, skipping WHOIS lookup")
         return
     whois_service = device.whois_service
+    normalize_ip = whois_service.normalize_ip_address
     ip_address = normalize_ip(ip_address)
     if (
         device.is_deactivated()
@@ -143,15 +143,13 @@ def cleanup_unreferenced_whois_records():
 @shared_task
 def delete_whois_record(ip_address, force=False):
     """
-    Deletes the WHOIS record for the device's last IP address.
-    This is used when the device is deleted or its last IP address is changed.
-    'force' parameter is used to delete the record without checking for linked devices.
+    Delete the WHOIS record only when force is True.
+
+    Otherwise, update its reference state after a device is deleted or changes IP.
     """
     WHOISInfo = load_model("config", "WHOISInfo")
     queryset = WHOISInfo.objects.filter(ip_address=ip_address)
     if force:
         queryset.delete()
     else:
-        from .service import WHOISService
-
-        WHOISService.reconcile_whois_references([ip_address])
+        WHOISInfo.update_reference_state([ip_address])

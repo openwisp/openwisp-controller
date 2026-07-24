@@ -4,7 +4,7 @@ from datetime import timedelta
 from unittest import mock
 from uuid import uuid4
 
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.query import QuerySet
@@ -781,6 +781,28 @@ class TestEstimatedLocationTransaction(
         self.assertEqual(Location.objects.count(), location_count)
         self.assertTrue(Location.objects.filter(pk=original_location.pk).exists())
         self.assertEqual(_notification_qs().count(), notification_count)
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
+    def test_flapping_locations_are_notified_once_per_provider_and_area(
+        self, mock_notify
+    ):
+        cache.clear()
+        whois_a = self._create_whois_info(ip_address="20.49.19.19")
+        whois_b = self._create_whois_info(
+            ip_address="20.49.19.20",
+            isp="Example ISP",
+            address={"city": "New York", "country": "United States"},
+            coordinates=Point(-74, 40, srid=4326),
+        )
+        device = self._create_device(last_ip=whois_a.ip_address)
+        manage_estimated_locations(device.pk, whois_a.ip_address)
+        mock_notify.reset_mock()
+        for whois in (whois_b, whois_a, whois_b):
+            device.last_ip = whois.ip_address
+            device.save()
+            manage_estimated_locations(device.pk, whois.ip_address)
+        self.assertEqual(mock_notify.call_count, 1)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(

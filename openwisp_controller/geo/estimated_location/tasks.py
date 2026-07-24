@@ -124,10 +124,7 @@ def manage_estimated_locations(device_pk, ip_address):
                 .select_related("devicelocation__location")
                 .get(pk=device_pk)
             )
-            if (
-                device.is_deactivated()
-                or normalize_ip(device.last_ip) != ip_address
-            ):
+            if device.is_deactivated() or normalize_ip(device.last_ip) != ip_address:
                 logger.info(
                     f"Device {device_pk} no longer needs estimated location "
                     f"for {ip_address}"

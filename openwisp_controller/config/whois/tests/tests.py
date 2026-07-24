@@ -1107,7 +1107,7 @@ class TestWHOISTransaction(
         mock_client.return_value.city.assert_called_once_with(ip_address=canonical_ip)
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    def test_reconcile_whois_references_normalizes_ipv6(self):
+    def test_update_reference_state_normalizes_ipv6(self):
         raw_ip = "2606:4700:4700:0:0:0:0:1111"
         canonical_ip = "2606:4700:4700::1111"
         whois = self._create_whois_info(ip_address=canonical_ip)
@@ -1115,7 +1115,7 @@ class TestWHOISTransaction(
         org.config_settings.whois_enabled = False
         org.config_settings.save()
         self._create_device(last_ip=raw_ip)
-        WHOISService.reconcile_whois_references([raw_ip])
+        WHOISInfo.update_reference_state([raw_ip])
         whois.refresh_from_db()
         self.assertIsNone(whois.unreferenced_since)
 

@@ -93,18 +93,13 @@ def send_estimated_location_notification(
         if not cache.add(cache_key, True, timeout=timeout):
             return
     notify_details = MESSAGE_MAP[notify_type]
-    try:
-        notify.send(
-            sender=actor or device,
-            target=device,
-            action_object=device,
-            ip_address=ip_address or device.last_ip,
-            **notify_details,
-        )
-    except Exception:
-        if cache_key:
-            cache.delete(cache_key)
-        raise
+    notify.send(
+        sender=actor or device,
+        target=device,
+        action_object=device,
+        ip_address=ip_address or device.last_ip,
+        **notify_details,
+    )
 
 
 def get_device_location_notification_target_url(obj, field, absolute_url=True):

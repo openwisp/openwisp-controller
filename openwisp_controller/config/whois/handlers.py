@@ -3,11 +3,10 @@ from swapper import load_model
 
 from .. import settings as app_settings
 from ..signals import device_activated, device_deactivated
-from .service import WHOISService
 
 
 def reconcile_device_whois_references(sender, instance, **kwargs):
-    WHOISService.reconcile_whois_references([instance.last_ip])
+    instance._meta.model.update_reference_state([instance.last_ip])
 
 
 def connect_whois_handlers():
