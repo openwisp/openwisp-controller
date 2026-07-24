@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import reversion
@@ -18,7 +17,7 @@ from openwisp_utils.admin import ReadOnlyAdmin, TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
-from .filters import GroupFilter, LocationFilter
+from .filters import GroupFilter, LocationFilter, TypeFilter
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
 
@@ -235,7 +234,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     list_filter = [
         MultitenantOrgFilter,
         "status",
-        "type",
+        TypeFilter,
         GroupFilter,
         LocationFilter,
     ]
@@ -350,7 +349,15 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     display_skipped_devices.short_description = _("Skipped devices")
 
-    def _build_filter_specs(self, request, obj, current_status):
+    def _build_filter_specs(
+        self,
+        request,
+        obj,
+        current_status,
+        current_location=None,
+        current_group=None,
+        current_org=None,
+    ):
         filter_specs = []
         params = request.GET.copy()
 
@@ -380,6 +387,103 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             choices = status_choices
 
         filter_specs.append(StatusFilter())
+
+        # Location filter
+        Device = swapper.load_model("config", "Device")
+        location_qs = (
+            Device.objects.filter(command__batch_command=obj)
+            .exclude(devicelocation__location__isnull=True)
+            .values_list(
+                "devicelocation__location__id",
+                "devicelocation__location__name",
+            )
+            .distinct()
+        )
+        location_choices = []
+        location_choices.append(
+            _make_choice(current_location or "", _("All"), "location_id", "")
+        )
+        for loc_id, loc_name in location_qs:
+            if loc_id:
+                location_choices.append(
+                    _make_choice(
+                        current_location or "",
+                        loc_name,
+                        "location_id",
+                        str(loc_id),
+                    )
+                )
+
+        if len(location_choices) > 1:
+
+            class LocationFilterCls:
+                title = _("location")
+                choices = location_choices
+
+            filter_specs.append(LocationFilterCls())
+
+        # Group filter
+        group_qs = (
+            Device.objects.filter(
+                command__batch_command=obj,
+                group__isnull=False,
+            )
+            .values_list("group__id", "group__name")
+            .distinct()
+        )
+        group_choices = []
+        group_choices.append(
+            _make_choice(current_group or "", _("All"), "group_id", "")
+        )
+        for grp_id, grp_name in group_qs:
+            if grp_id:
+                group_choices.append(
+                    _make_choice(
+                        current_group or "",
+                        grp_name,
+                        "group_id",
+                        str(grp_id),
+                    )
+                )
+
+        if len(group_choices) > 1:
+
+            class GroupFilterCls:
+                title = _("device group")
+                choices = group_choices
+
+            filter_specs.append(GroupFilterCls())
+
+        # Organization filter (superusers only)
+        if request.user.is_superuser:
+            org_qs = (
+                Device.objects.filter(command__batch_command=obj)
+                .values_list("organization__id", "organization__name")
+                .distinct()
+            )
+            org_choices = []
+            org_choices.append(
+                _make_choice(current_org or "", _("All"), "organization_id", "")
+            )
+            for org_id, org_name in org_qs:
+                if org_id:
+                    org_choices.append(
+                        _make_choice(
+                            current_org or "",
+                            org_name,
+                            "organization_id",
+                            str(org_id),
+                        )
+                    )
+
+            if len(org_choices) > 1:
+
+                class OrganizationFilterCls:
+                    title = _("organization")
+                    choices = org_choices
+
+                filter_specs.append(OrganizationFilterCls())
+
         return filter_specs
 
     def _paginate_commands(self, items, page_param, per_page=None):
@@ -402,8 +506,19 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             if search_query:
                 commands_qs = commands_qs.filter(device__name__icontains=search_query)
             current_status = request.GET.get("status", "")
+            current_location = request.GET.get("location_id", "")
+            current_group = request.GET.get("group_id", "")
+            current_org = request.GET.get("organization_id", "")
             if current_status and current_status != "skipped":
                 commands_qs = commands_qs.filter(status=current_status)
+            if current_location:
+                commands_qs = commands_qs.filter(
+                    device__devicelocation__location_id=current_location
+                )
+            if current_group:
+                commands_qs = commands_qs.filter(device__group_id=current_group)
+            if current_org:
+                commands_qs = commands_qs.filter(device__organization_id=current_org)
             rows = []
             for cmd in commands_qs:
                 rows.append(
@@ -419,10 +534,29 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 )
             if obj.skipped_devices and current_status in ("", "skipped"):
                 pks = list(obj.skipped_devices.keys())
-                devices = {str(d.pk): d for d in Device.objects.filter(pk__in=pks)}
+                device_qs = Device.objects.filter(pk__in=pks)
+                if current_location:
+                    DeviceLocation = swapper.load_model("geo", "DeviceLocation")
+                    device_locations = set(
+                        DeviceLocation.objects.filter(
+                            device_id__in=pks,
+                            location_id=current_location,
+                        ).values_list("device_id", flat=True)
+                    )
+                else:
+                    device_locations = None
+                devices = {str(d.pk): d for d in device_qs}
                 for pk_str, errors in obj.skipped_devices.items():
                     device = devices.get(pk_str)
-                    name = device.name if device else _("Deleted ({})").format(pk_str)
+                    if not device:
+                        continue
+                    if current_org and str(device.organization_id) != current_org:
+                        continue
+                    if current_group and str(device.group_id) != current_group:
+                        continue
+                    if current_location and pk_str not in device_locations:
+                        continue
+                    name = device.name
                     if search_query and search_query.lower() not in name.lower():
                         continue
                     rows.append(
@@ -442,7 +576,14 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 return (priority.get(row["status"], 99), row["device_name"].lower())
 
             rows.sort(key=_sort_key)
-            filter_specs = self._build_filter_specs(request, obj, current_status)
+            filter_specs = self._build_filter_specs(
+                request,
+                obj,
+                current_status,
+                current_location=current_location,
+                current_group=current_group,
+                current_org=current_org,
+            )
             page_obj, paginator, commands = self._paginate_commands(
                 rows, request.GET.get("page", 1)
             )
