@@ -298,6 +298,24 @@ class TestEstimatedLocation(
         service.trigger_estimated_location_task(device.last_ip)
         mock_send_task.assert_not_called()
 
+    @mock.patch("openwisp_controller.geo.estimated_location.service.logger.error")
+    @mock.patch(
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
+        side_effect=ConnectionError("Broker unavailable"),
+    )
+    def test_trigger_task_logs_broker_failure(self, mock_send_task, mock_error):
+        device = self._create_device(last_ip="172.217.22.14")
+        service = EstimatedLocationService(device)
+        with self.captureOnCommitCallbacks(execute=True):
+            service.trigger_estimated_location_task(device.last_ip)
+        mock_send_task.assert_called_once()
+        mock_error.assert_called_once_with(
+            "Failed to enqueue estimated location task for device %s ip %s: %s",
+            device.pk,
+            device.last_ip,
+            mock.ANY,
+        )
+
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_update_from_whois_passes_resolved_device_location(self):
         whois = self._create_whois_info()

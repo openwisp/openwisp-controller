@@ -71,10 +71,18 @@ class EstimatedLocationService:
             return
 
         def _send():
-            current_app.send_task(
-                "whois_estimated_location_task",
-                kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
-            )
+            try:
+                current_app.send_task(
+                    "whois_estimated_location_task",
+                    kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to enqueue estimated location task for device %s ip %s: %s",
+                    self.device.pk,
+                    ip_address,
+                    e
+                )
 
         transaction.on_commit(_send)
 
