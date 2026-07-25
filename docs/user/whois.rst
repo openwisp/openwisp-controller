@@ -71,21 +71,21 @@ Setup Instructions
    all organizations (which will trigger the WHOIS lookup at the next
    config checksum check).
 
-       - If using :doc:`ansible-openwisp2 </ansible/index>` (the default
-         directory is ``/opt/openwisp2``, unless changed in the Ansible
-         playbook configuration):
+   - If using :doc:`ansible-openwisp2 </ansible/index>` (the default
+     directory is ``/opt/openwisp2``, unless changed in the Ansible
+     playbook configuration):
 
-             .. code-block:: bash
+     .. code-block:: bash
 
-                 source /opt/openwisp2/env/bin/activate
-                 python /opt/openwisp2/manage.py clear_last_ip
+         source /opt/openwisp2/env/bin/activate
+         python /opt/openwisp2/manage.py clear_last_ip
 
-       - If using :doc:`docker-openwisp </docker/index>`:
+   - If using :doc:`docker-openwisp </docker/index>`:
 
-             .. code-block:: bash
+     .. code-block:: bash
 
-                 docker exec -it <openwisp_container_name> sh
-                 python manage.py clear_last_ip
+         docker exec -it <openwisp_container_name> sh
+         python manage.py clear_last_ip
 
 Viewing WHOIS Lookup Data
 -------------------------

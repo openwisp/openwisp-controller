@@ -70,21 +70,13 @@ class EstimatedLocationService:
         if self.device.is_deactivated():
             return
 
-        def enqueue():
-            try:
-                current_app.send_task(
-                    "whois_estimated_location_task",
-                    kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
-                )
-            except Exception as exc:  # pragma: no cover - defensive logging
-                logger.error(
-                    "Failed to enqueue estimated location task for device %s ip %s: %s",
-                    getattr(self.device, "pk", None),
-                    ip_address,
-                    exc,
-                )
+        def _send():
+            current_app.send_task(
+                "whois_estimated_location_task",
+                kwargs={"device_pk": self.device.pk, "ip_address": ip_address},
+            )
 
-        transaction.on_commit(enqueue)
+        transaction.on_commit(_send)
 
     def update_from_whois(self, ip_address, whois):
         """Create, update, or share an estimated location from WHOIS data."""
@@ -196,7 +188,7 @@ class EstimatedLocationService:
             )
             return
         self._create_or_update_estimated_location(
-            location_defaults, attached_devices_exists, whois
+            device_location, location_defaults, attached_devices_exists, whois
         )
         logger.info(
             f"Estimated location saved successfully for {self.device.pk}"
@@ -204,18 +196,13 @@ class EstimatedLocationService:
         )
 
     def _create_or_update_estimated_location(
-        self, location_defaults, attached_devices_exists, whois
+        self, device_location, location_defaults, attached_devices_exists, whois
     ):
         """
         Create or update estimated location for the device based on the
         given location defaults.
         """
         Location = load_model("geo", "Location")
-        DeviceLocation = load_model("geo", "DeviceLocation")
-
-        if not (device_location := getattr(self.device, "devicelocation", None)):
-            device_location = DeviceLocation(content_object=self.device)
-
         current_location = device_location.location
         # Re-check whether estimated locations are enabled for the device's
         # organization. The check is needed here so the celery worker

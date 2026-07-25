@@ -457,9 +457,7 @@ class TestWHOISTransaction(
         WHOISInfo.objects.filter(ip_address=referenced.ip_address).update(
             unreferenced_since=stale_time
         )
-
         cleanup_unreferenced_whois_records()
-
         self.assertFalse(
             WHOISInfo.objects.filter(ip_address=orphan.ip_address).exists()
         )
@@ -470,9 +468,7 @@ class TestWHOISTransaction(
     def test_cleanup_unreferenced_whois_records_starts_grace_period(self):
         orphan = self._create_whois_info(ip_address="172.217.22.50")
         modified = orphan.modified
-
         cleanup_unreferenced_whois_records()
-
         orphan.refresh_from_db()
         self.assertIsNotNone(orphan.unreferenced_since)
         self.assertEqual(orphan.modified, modified)
@@ -1082,9 +1078,7 @@ class TestWHOISTransaction(
         device.last_ip = new_ip
         device.save()
         mock_client.reset_mock()
-
         fetch_whois_details(device_pk=device.pk, initial_ip_address=old_ip)
-
         mock_client.assert_not_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
@@ -1231,7 +1225,7 @@ class TestWHOISTransaction(
         # device.save() set it to device.last_ip after the first save.
         mock_task.assert_called_once_with(
             device_pk=device.pk,
-            ip_address="8.8.8.8",
+            initial_ip_address="8.8.8.8",
         )
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)

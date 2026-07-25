@@ -153,7 +153,6 @@ class TestEstimatedLocation(
         )
         device = self._create_device(last_ip=ip_a)
         mock_notify.reset_mock()
-
         with self.captureOnCommitCallbacks(execute=True):
             send_estimated_location_notification(
                 device, "estimated_location_created", whois=whois_a, ip_address=ip_a
@@ -164,7 +163,6 @@ class TestEstimatedLocation(
             send_estimated_location_notification(
                 device, "estimated_location_updated", whois=whois_c, ip_address=ip_c
             )
-
         self.assertEqual(mock_notify.call_count, 2)
 
     @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
@@ -269,6 +267,18 @@ class TestEstimatedLocation(
         service = EstimatedLocationService(device)
         service.trigger_estimated_location_task(device.last_ip)
         mock_send_task.assert_not_called()
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_update_from_whois_passes_resolved_device_location(self):
+        whois = self._create_whois_info()
+        device = self._create_device(last_ip=whois.ip_address)
+        service = EstimatedLocationService(device)
+        with mock.patch.object(
+            service, "_create_or_update_estimated_location"
+        ) as mock_create_or_update:
+            service.update_from_whois(whois.ip_address, whois)
+        device_location = mock_create_or_update.call_args.args[0]
+        self.assertEqual(device_location.content_object, device)
 
 
 class TestEstimatedLocationTransaction(
@@ -763,10 +773,13 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(
-        "openwisp_controller.geo.estimated_location.service.current_app.send_task"
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task",
+        side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_unchanged_whois_data_no_location_recreation(self, mock_client, _):
+    def test_unchanged_whois_data_no_location_recreation(
+        self, mock_client, _
+    ):
         """Ensure identical WHOIS results do not recreate a shared Location when
         devices reuse the same IP."""
         connect_whois_handlers()
