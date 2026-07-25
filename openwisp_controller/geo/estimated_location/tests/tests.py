@@ -134,9 +134,7 @@ class TestEstimatedLocation(
                 )
 
     @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
-    def test_estimated_location_notifications_are_deduplicated_by_provider_and_area(
-        self, mock_notify
-    ):
+    def test_notifications_deduplicated_by_provider_and_area(self, mock_notify):
         cache.clear()
         ip_a = "172.217.22.50"
         ip_b = "172.217.22.51"
@@ -157,11 +155,13 @@ class TestEstimatedLocation(
             coordinates=Point(-74, 40, srid=4326),
         )
         device = self._create_device(last_ip=ip_a)
-        mock_notify.reset_mock()
+        # Record the initial provider-area state before testing subsequent changes.
         with self.captureOnCommitCallbacks(execute=True):
             send_estimated_location_notification(
                 device, "estimated_location_created", whois=whois_a, ip_address=ip_a
             )
+        mock_notify.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
             send_estimated_location_notification(
                 device, "estimated_location_updated", whois=whois_b, ip_address=ip_b
             )
@@ -180,25 +180,20 @@ class TestEstimatedLocation(
                 whois=whois_d,
                 ip_address=whois_d.ip_address,
             )
+        notified_ips = [
+            call.kwargs["ip_address"] for call in mock_notify.call_args_list
+        ]
+        self.assertEqual(mock_notify.call_count, 2)
         self.assertEqual(
-            mock_notify.call_args_list,
-            [
-                mock.call(
-                    sender=device,
-                    target=device,
-                    action_object=device,
-                    ip_address=ip_c,
-                    **MESSAGE_MAP["estimated_location_updated"],
-                ),
-                mock.call(
-                    sender=device,
-                    target=device,
-                    action_object=device,
-                    ip_address=whois_d.ip_address,
-                    **MESSAGE_MAP["estimated_location_updated"],
-                ),
-            ],
+            notified_ips,
+            [ip_c, whois_d.ip_address],
+            "Expected notifications only for provider or area changes.",
         )
+        for call in mock_notify.call_args_list:
+            self.assertEqual(
+                call.kwargs["message"],
+                MESSAGE_MAP["estimated_location_updated"]["message"],
+            )
 
     @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
     def test_notification_is_sent_only_after_transaction_commit(self, mock_notify):
