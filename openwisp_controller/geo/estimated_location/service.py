@@ -81,7 +81,7 @@ class EstimatedLocationService:
                     "Failed to enqueue estimated location task for device %s ip %s: %s",
                     self.device.pk,
                     ip_address,
-                    e
+                    e,
                 )
 
         transaction.on_commit(_send)
@@ -90,18 +90,20 @@ class EstimatedLocationService:
         """Create, update, or share an estimated location from WHOIS data."""
         Device = load_model("config", "Device")
         DeviceLocation = load_model("geo", "DeviceLocation")
-        devices_with_location = Device.objects.filter(
-            organization_id=self.device.organization_id,
-            _is_deactivated=False,
-            last_ip=ip_address,
-            devicelocation__location__isnull=False,
-        ).exclude(pk=self.device.pk)
-        # Two IDs are enough to detect whether devices behind a proxy disagree.
-        location_ids = list(
-            devices_with_location.values_list(
-                "devicelocation__location_id", flat=True
-            ).distinct()[:2]
+        devices_with_location = list(
+            Device.objects.only("id", "devicelocation", "devicelocation__location")
+            .select_related("devicelocation__location")
+            .filter(
+                organization_id=self.device.organization_id,
+                _is_deactivated=False,
+                last_ip=ip_address,
+                devicelocation__location__isnull=False,
+            )
+            .exclude(pk=self.device.pk)[:2]
         )
+        location_ids = {
+            device.devicelocation.location_id for device in devices_with_location
+        }
         if len(location_ids) > 1:
             send_estimated_location_notification(
                 device=self.device, notify_type="estimated_location_error"
@@ -116,16 +118,8 @@ class EstimatedLocationService:
         current_location = device_location.location
         if not current_location or current_location.is_estimated:
             existing_device_location = None
-            if location_ids:
-                # Ambiguity has been ruled out, so retrieve only the shared location.
-                existing_device_location = (
-                    DeviceLocation.objects.select_related("location")
-                    .filter(
-                        content_object__in=devices_with_location,
-                        location_id=location_ids[0],
-                    )
-                    .first()
-                )
+            if devices_with_location:
+                existing_device_location = devices_with_location[0].devicelocation
             self._handle_attach_existing_location(
                 device_location, ip_address, existing_device_location, whois
             )

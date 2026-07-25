@@ -673,7 +673,7 @@ class TestEstimatedLocationTransaction(
                 mac_address="11:22:33:44:55:66",
                 last_ip="172.217.22.10",
             )
-            with self.assertNumQueries(11):
+            with self.assertNumQueries(10):
                 manage_estimated_locations(device2.pk, device2.last_ip)
 
             self.assertEqual(
@@ -703,7 +703,7 @@ class TestEstimatedLocationTransaction(
             device2.save()
             # 3 queries related to notifications cleanup
             device2.refresh_from_db()
-            with self.assertNumQueries(17):
+            with self.assertNumQueries(16):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
