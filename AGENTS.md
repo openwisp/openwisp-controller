@@ -17,7 +17,7 @@ Core code lives in `openwisp_controller/`:
 - Use `.github/workflows/ci.yml` for CI-tested dependencies, QA/test commands, env vars, and supported Python/Django versions.
 - Use GitHub issue/PR templates when asked to open issues or PRs.
 
-If instructions conflict, repository config and CI workflows win first, official docs next, and this file is supplemental.
+If instructions conflict (please let us know!), repository config and CI workflows win first, official docs next, and this file is supplemental.
 
 ## Development Notes
 
@@ -30,23 +30,26 @@ If instructions conflict, repository config and CI workflows win first, official
 ## Testing and QA
 
 - Add or update tests for every behavior change.
+- Keep test names concise and rely on the test class for shared context.
+- For complex or long tests, add a docstring when a longer test name would improve readability or maintainability.
+- If testing multiple cases in one test, prefer subTest constructs.
 - For bug fixes, write the regression test first, run it against the unfixed code, confirm it fails for the expected reason, then implement the fix.
 - Use targeted tests while iterating, then run the documented full test command before considering the change complete.
 - Run `openwisp-qa-format` after editing when available.
 - Run `./run-qa-checks` when present. Treat failures as blocking unless confirmed unrelated and reported.
 - Prefer in-process tests so coverage tools can measure changed code.
+- Write comments and docstrings only when they explain why code is shaped a certain way. Put comments before the relevant code block instead of scattering them inside it.
 
 ## Django Notes
 
-- Preserve tenant isolation and object-level permissions for organizations, devices, templates, VPNs, credentials, commands, maps, and IP/subnet data.
+- Preserve multi-tenant isolation and object-level permissions for organizations, devices, templates, VPNs, credentials, commands, maps, and IP/subnet data.
 - Be careful with authentication, authorization, queryset filtering, serializers, admin behavior, cache invalidation, signals, Celery tasks, and websocket updates.
-- When changing APIs, include tests for permissions, validation, filtering, pagination, and tenant boundaries.
+- When changing APIs, include tests for permissions, validation, filtering, pagination, and organization boundaries.
 
 ## Security Notes
 
-- Watch for cross-tenant data leaks, command execution issues, unsafe file paths, unsafe redirects, insecure credentials, and secrets.
+- Watch for cross-organization data leaks, command execution issues, unsafe file paths, unsafe redirects, insecure credentials, and secrets.
 - Preserve validation around templates, VPN/PKI material, SSH credentials, device commands, uploaded files, URLs, and subnet/IP data.
-- Write comments and docstrings only when they explain why code is shaped a certain way. Put comments before the relevant code block instead of scattering them inside it.
 
 ## Troubleshooting
 
