@@ -777,9 +777,7 @@ class TestEstimatedLocationTransaction(
         side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_unchanged_whois_data_no_location_recreation(
-        self, mock_client, _
-    ):
+    def test_unchanged_whois_data_no_location_recreation(self, mock_client, _):
         """Ensure identical WHOIS results do not recreate a shared Location when
         devices reuse the same IP."""
         connect_whois_handlers()
