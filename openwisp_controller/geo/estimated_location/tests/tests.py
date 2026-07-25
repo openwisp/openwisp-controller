@@ -48,7 +48,7 @@ class TestEstimatedLocation(
         OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT="test_account",
         OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY="test_key",
     )
-    def test_estimated_location_configuration_setting(self):
+    def test_configuration_setting(self):
         # reload app_settings to apply the overridden settings
         self.addCleanup(importlib.reload, config_app_settings)
         importlib.reload(config_app_settings)
@@ -219,7 +219,7 @@ class TestEstimatedLocation(
 
     location_model = Location
 
-    def test_estimated_location_field(self):
+    def test_field(self):
         org = self._get_org()
         # Disable estimated_location_enabled via OrganizationGeoSettings
         org.geo_settings.estimated_location_enabled = False
@@ -232,7 +232,7 @@ class TestEstimatedLocation(
         )
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    def test_estimated_location_admin(self):
+    def test_admin(self):
         connect_whois_handlers()
         admin = self._get_admin()
         self.client.force_login(admin)
@@ -275,7 +275,7 @@ class TestEstimatedLocation(
             self.assertNotContains(response, "field-is_estimated")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
-    def test_estimated_location_admin_add_whois_disabled(self):
+    def test_admin_add_when_whois_disabled(self):
         admin = self._get_admin()
         self.client.force_login(admin)
         path = reverse("admin:geo_location_add")
@@ -286,9 +286,7 @@ class TestEstimatedLocation(
     @mock.patch(
         "openwisp_controller.geo.estimated_location.service.current_app.send_task"
     )
-    def test_trigger_estimated_location_task_skips_when_deactivated(
-        self, mock_send_task
-    ):
+    def test_trigger_task_skips_when_deactivated(self, mock_send_task):
         org = self._get_org()
         org.geo_settings.estimated_location_enabled = True
         org.geo_settings.save()
@@ -374,7 +372,7 @@ class TestEstimatedLocationTransaction(
         )
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    def test_manage_estimated_locations_locks_only_device(self):
+    def test_manage_locations_locks_only_device(self):
         whois = self._create_whois_info()
         device = self._create_device(last_ip=whois.ip_address)
         select_for_update = QuerySet.select_for_update
@@ -388,9 +386,7 @@ class TestEstimatedLocationTransaction(
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_task_called(
-        self, mocked_client, mocked_estimated_location_task
-    ):
+    def test_task_called(self, mocked_client, mocked_estimated_location_task):
         connect_whois_handlers()
         mocked_response = self._mocked_client_response()
         mocked_client.return_value.city.return_value = mocked_response
@@ -540,9 +536,7 @@ class TestEstimatedLocationTransaction(
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
     @mock.patch(_ESTIMATED_LOCATION_SERVICE_INFO_LOGGER)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_creation_and_update(
-        self, mock_client, mock_info, *args
-    ):
+    def test_creation_and_update(self, mock_client, mock_info, *args):
         connect_whois_handlers()
 
         def _verify_location_details(device, mocked_response):
@@ -782,7 +776,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_ESTIMATED_LOCATION_WARNING_LOGGER)
-    def test_manage_estimated_location_device_not_found(self, mock_warn):
+    def test_manage_locations_device_not_found(self, mock_warn):
         invalid_pk = uuid4()
         manage_estimated_locations(device_pk=invalid_pk, ip_address="10.0.0.1")
         mock_warn.assert_called_once_with(
@@ -795,9 +789,7 @@ class TestEstimatedLocationTransaction(
     )
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimated_location_handling_on_whois_update(
-        self, mock_client, mock_send_task
-    ):
+    def test_handling_on_whois_update(self, mock_client, mock_send_task):
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
         threshold = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
@@ -897,9 +889,7 @@ class TestEstimatedLocationTransaction(
     @mock.patch("openwisp_controller.geo.estimated_location.service.logger.error")
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
-    def test_estimated_location_notification(
-        self, mock_notify, mock_client, mock_error, mock_info, _
-    ):
+    def test_notification(self, mock_notify, mock_client, mock_error, mock_info, _):
         cache.clear()
 
         def _verify_notification(device, messages, notify_level="info"):
@@ -966,7 +956,7 @@ class TestEstimatedLocationTransaction(
         "trigger_estimated_location_task",
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_manage_estimated_locations_no_coordinates_warning(
+    def test_manage_locations_no_coordinates_warning(
         self, mock_client, _mocked_task, _mocked_notify
     ):
         with mock.patch.object(
@@ -992,7 +982,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
-    def test_manage_estimated_locations_skips_when_deactivated(self, mock_info):
+    def test_manage_locations_skips_when_deactivated(self, mock_info):
         # Create WHOIS info first to prevent eager task from attempting
         # a real WHOIS lookup during device creation.
         whois_obj = self._create_whois_info(ip_address="172.217.22.14")
@@ -1010,7 +1000,7 @@ class TestEstimatedLocationTransaction(
         side_effect=TestEstimatedLocationMixin.run_task,
     )
     @mock.patch(_WHOIS_GEOIP_CLIENT)
-    def test_estimate_location_status_remove(self, mock_client, _):
+    def test_status_removed(self, mock_client, _):
         mocked_response = self._mocked_client_response()
         mock_client.return_value.city.return_value = mocked_response
         device = self._create_device(last_ip="172.217.22.10")
@@ -1070,7 +1060,7 @@ class TestEstimatedLocationFieldFilters(
         self.client.force_login(admin)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    def test_estimated_location_api_status_configured(self):
+    def test_api_status_when_configured(self):
         org1 = self._get_org()
         org2 = self._create_org(name="org2")
         OrganizationConfigSettings.objects.create(
@@ -1124,7 +1114,7 @@ class TestEstimatedLocationFieldFilters(
             self.assertNotIn("is_estimated", location2_result["properties"])
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", False)
-    def test_estimated_location_api_status_not_configured(self):
+    def test_api_status_when_not_configured(self):
         org = self._get_org()
         location = self._create_location(name="org1-location", organization=org)
         device = self._create_device(organization=org)
@@ -1157,7 +1147,7 @@ class TestEstimatedLocationFieldFilters(
             self.assertNotIn("is_estimated", location_features["properties"])
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    def test_estimated_location_filter_list_api(self):
+    def test_filter_list_api(self):
         org = self._get_org()
         location1 = self._create_location(
             name="location1", is_estimated=True, organization=org
@@ -1259,7 +1249,7 @@ class TestEstimatedLocationFieldFilters(
                 self.assertNotContains(response, "sortable column-is_estimated")
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
-    def test_estimated_location_filter_admin(self):
+    def test_filter_admin(self):
         org = self._get_org()
         estimated_location = self._create_location(
             name="location1", is_estimated=True, organization=org
