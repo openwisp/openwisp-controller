@@ -24,23 +24,29 @@ MESSAGE_MAP = {
         "type": "estimated_location_info",
         "level": "info",
         "message": _(
-            "Estimated location [{notification.actor}]({notification.actor_link})"
+            "Estimated location [{location_name}]({notification.actor_link})"
             " for device"
             " [{notification.target}]({notification.target_link})"
             " {notification.verb} successfully."
         ),
-        "description": _("Geographic coordinates inferred from IP: {ip_address}"),
+        "description": _(
+            "Geographic coordinates inferred from IP: {ip_address}. Edit the "
+            "coordinates or address to increase accuracy and clear the estimated flag."
+        ),
     },
     "estimated_location_updated": {
         "type": "estimated_location_info",
         "level": "info",
         "message": _(
-            "Estimated location [{notification.actor}]({notification.actor_link})"
+            "Estimated location [{location_name}]({notification.actor_link})"
             " for device"
             " [{notification.target}]({notification.target_link})"
             " updated successfully."
         ),
-        "description": _("Geographic coordinates updated for IP: {ip_address}"),
+        "description": _(
+            "Geographic coordinates updated for IP: {ip_address}. Edit the "
+            "coordinates or address to increase accuracy and clear the estimated flag."
+        ),
     },
 }
 
@@ -95,11 +101,15 @@ def send_estimated_location_notification(
             timeout = config_app_settings.WHOIS_REFRESH_THRESHOLD_DAYS * 24 * 3600
             if not cache.add(cache_key, True, timeout=timeout):
                 return
+        notification_data = {}
+        if notify_type in {"estimated_location_created", "estimated_location_updated"}:
+            notification_data["location_name"] = str(actor or device)
         notify.send(
             sender=actor or device,
             target=device,
             action_object=device,
             ip_address=ip_address or device.last_ip,
+            **notification_data,
             **notify_details,
         )
 

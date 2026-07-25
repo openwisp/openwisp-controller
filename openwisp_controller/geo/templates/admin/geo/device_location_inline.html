@@ -3,7 +3,7 @@
     {% if inline_admin_formset.formset.estimated_location_enabled and inline_admin_form.original.location.is_estimated %}
     <ul class="messagelist">
         <li class="warning device-location-estimated">
-            {% trans "This location is estimated based on the device's last IP address. Please refine it for greater accuracy." %}
+            {% trans "This location is estimated based on the device's last IP address. Edit the coordinates or address to increase accuracy and clear the estimated flag." %}
         </li>
     </ul>
     {% endif %}

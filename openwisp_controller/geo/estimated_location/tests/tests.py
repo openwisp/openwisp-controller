@@ -217,6 +217,38 @@ class TestEstimatedLocation(
                 )
         mock_notify.assert_called_once()
 
+    @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
+    def test_notification_uses_current_location_name(self, mock_notify):
+        whois = self._create_whois_info()
+        device = self._create_device(last_ip=whois.ip_address)
+        location = self._create_location(
+            name="Asuncion, Paraguay: 181.126.36.10",
+            organization=device.organization,
+        )
+        location.name = "Mountain View, United States: 172.217.22.13"
+        location.save()
+        guidance = (
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag."
+        )
+        for notify_type in (
+            "estimated_location_created",
+            "estimated_location_updated",
+        ):
+            with self.subTest(notify_type=notify_type):
+                cache.clear()
+                with self.captureOnCommitCallbacks(execute=True):
+                    send_estimated_location_notification(
+                        device,
+                        notify_type,
+                        actor=location,
+                        whois=whois,
+                    )
+                notification = mock_notify.call_args.kwargs
+                self.assertEqual(notification["location_name"], location.name)
+                self.assertNotIn(guidance, notification["message"])
+                self.assertIn(guidance, notification["description"])
+
     location_model = Location
 
     def test_field(self):

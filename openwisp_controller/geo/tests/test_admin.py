@@ -197,20 +197,44 @@ class TestDeviceAdmin(
         self._create_object_location(location=location, content_object=device)
         path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
         response = self.client.get(path)
-        self.assertContains(response, "device-location-estimated-warning")
+        self.assertContains(response, "device-location-estimated")
         self.assertContains(
             response,
             "This location is estimated based on the device's last IP address. "
-            "Please refine it for greater accuracy.",
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag.",
         )
         org.geo_settings.estimated_location_enabled = False
         org.geo_settings.save()
         response = self.client.get(path)
-        self.assertNotContains(response, "device-location-estimated-warning")
+        self.assertNotContains(response, "device-location-estimated")
         self.assertNotContains(
             response,
             "This location is estimated based on the device's last IP address. "
-            "Please refine it for greater accuracy.",
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag.",
+        )
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_non_estimated_location_warning(self):
+        org = self._get_org()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
+        location = self._create_location(organization=org)
+        device = self._create_object(
+            name="test",
+            organization=org,
+            mac_address="00:11:22:33:44:66",
+        )
+        self._create_object_location(location=location, content_object=device)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        response = self.client.get(path)
+        self.assertNotContains(response, "device-location-estimated")
+        self.assertNotContains(
+            response,
+            "This location is estimated based on the device's last IP address. "
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag.",
         )
 
     def test_device_export_geo(self):

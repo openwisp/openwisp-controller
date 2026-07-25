@@ -5,7 +5,7 @@
     {{ block.super }}
     {% if original and estimated_enabled and original.is_estimated %}
     <ul class="messagelist">
-        <li class="warning">{% trans "This location is estimated based on the device's last IP address. Please refine it for greater accuracy." %}</li>
+        <li class="warning">{% trans "This location is estimated based on the device's last IP address. Edit the coordinates or address to increase accuracy and clear the estimated flag." %}</li>
     </ul>
     {% endif %}
 {% endblock messages %}
