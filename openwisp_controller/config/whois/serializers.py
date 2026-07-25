@@ -13,4 +13,5 @@ class WHOISSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WHOISInfo
-        fields = "__all__"
+        # for internal usage only
+        exclude = ["unreferenced_since"]

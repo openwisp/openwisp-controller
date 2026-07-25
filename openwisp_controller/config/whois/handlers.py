@@ -2,6 +2,12 @@ from django.db.models.signals import post_delete, post_save
 from swapper import load_model
 
 from .. import settings as app_settings
+from ..signals import device_activated, device_deactivated
+
+
+def reconcile_device_whois_references(sender, instance, **kwargs):
+    WHOISInfo = load_model("config", "WHOISInfo")
+    WHOISInfo.update_reference_state([instance.last_ip])
 
 
 def connect_whois_handlers():
@@ -16,6 +22,16 @@ def connect_whois_handlers():
         WHOISInfo.device_whois_info_delete_handler,
         sender=Device,
         dispatch_uid="device.delete_whois_info",
+    )
+    device_activated.connect(
+        reconcile_device_whois_references,
+        sender=Device,
+        dispatch_uid="device.activate_whois_info",
+    )
+    device_deactivated.connect(
+        reconcile_device_whois_references,
+        sender=Device,
+        dispatch_uid="device.deactivate_whois_info",
     )
     post_save.connect(
         WHOISInfo.invalidate_org_settings_cache,

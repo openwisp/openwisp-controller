@@ -58,6 +58,13 @@ class WHOISService:
             return False
 
     @staticmethod
+    def normalize_ip_address(ip):
+        try:
+            return str(ip_addr(ip)) if ip else ip
+        except ValueError:
+            return ip
+
+    @staticmethod
     def _get_whois_info_from_db(ip_address):
         """
         For getting existing WHOISInfo for given IP from db if present.
@@ -216,13 +223,17 @@ class WHOISService:
         # below, so estimated location is not triggered for a deactivated device.
         if self.device.is_deactivated():
             return
-        new_ip = self.device.last_ip
-        initial_ip = self.device._initial_last_ip
+        new_ip = self.normalize_ip_address(self.device.last_ip)
+        initial_ip = self.normalize_ip_address(self.device._initial_last_ip)
+        WHOISInfo = load_model("config", "WHOISInfo")
+        transaction.on_commit(
+            lambda: WHOISInfo.update_reference_state([initial_ip, new_ip])
+        )
         if force_lookup or self._need_whois_lookup(new_ip):
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    initial_ip_address=initial_ip,
+                    initial_ip_address=new_ip,
                 )
             )
         elif self.is_whois_enabled and self.is_valid_public_ip_address(new_ip):
@@ -239,7 +250,7 @@ class WHOISService:
         # Do not refresh WHOIS data for deactivated devices.
         if self.device.is_deactivated():
             return
-        ip_address = self.device.last_ip
+        ip_address = self.normalize_ip_address(self.device.last_ip)
         if not self.is_valid_public_ip_address(ip_address):
             return
         if not self.is_whois_enabled:
@@ -249,7 +260,7 @@ class WHOISService:
             transaction.on_commit(
                 lambda: fetch_whois_details.delay(
                     device_pk=self.device.pk,
-                    initial_ip_address=None,
+                    initial_ip_address=ip_address,
                 )
             )
 

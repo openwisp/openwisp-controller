@@ -78,11 +78,12 @@ Create database:
     ./manage.py migrate
     ./manage.py createsuperuser
 
-Launch celery worker (for background jobs):
+Launch celery worker (for background jobs amd periodic jobs respectively):
 
 .. code-block:: shell
 
     celery -A openwisp2 worker -l info
+    celery -A openwisp2 beat -l info
 
 Launch development server:
 

@@ -1,6 +1,8 @@
 import os
 import sys
 
+from celery.schedules import crontab
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
 TESTING = os.environ.get("TESTING", False) or sys.argv[1:2] == ["test"]
@@ -224,6 +226,15 @@ OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT = os.getenv(
 OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY = os.getenv(
     "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY", ""
 )
+# Periodic cleanup task for WHOIS records
+# Shown here for example purposes
+# (this feature is disabled by default in the dev env)
+CELERY_BEAT_SCHEDULE = {
+    "cleanup-unreferenced-whois-records": {
+        "task": "openwisp_controller.config.whois.tasks.cleanup_unreferenced_whois_records",
+        "schedule": crontab(hour=2, minute=0),
+    }
+}
 
 TEST_RUNNER = "openwisp_utils.tests.TimeLoggingTestRunner"
 
