@@ -24,7 +24,7 @@ from ...tests.utils import TestGeoMixin
 from ..handlers import register_estimated_location_notification_types
 from ..service import EstimatedLocationService, config_app_settings
 from ..tasks import manage_estimated_locations
-from ..utils import send_estimated_location_notification
+from ..utils import MESSAGE_MAP, send_estimated_location_notification
 from .utils import TestEstimatedLocationMixin
 
 Config = load_model("config", "Config")
@@ -145,11 +145,16 @@ class TestEstimatedLocation(
         whois_b = self._create_whois_info(ip_address=ip_b)
         whois_c = self._create_whois_info(
             ip_address=ip_c,
+            isp="Example ISP",
+        )
+        whois_d = self._create_whois_info(
+            ip_address="172.217.22.53",
             address={
                 "city": "New York",
                 "country": "United States",
                 "postal": "10001",
             },
+            coordinates=Point(-74, 40, srid=4326),
         )
         device = self._create_device(last_ip=ip_a)
         mock_notify.reset_mock()
@@ -163,7 +168,37 @@ class TestEstimatedLocation(
             send_estimated_location_notification(
                 device, "estimated_location_updated", whois=whois_c, ip_address=ip_c
             )
-        self.assertEqual(mock_notify.call_count, 2)
+            send_estimated_location_notification(
+                device,
+                "estimated_location_updated",
+                whois=whois_d,
+                ip_address=whois_d.ip_address,
+            )
+            send_estimated_location_notification(
+                device,
+                "estimated_location_updated",
+                whois=whois_d,
+                ip_address=whois_d.ip_address,
+            )
+        self.assertEqual(
+            mock_notify.call_args_list,
+            [
+                mock.call(
+                    sender=device,
+                    target=device,
+                    action_object=device,
+                    ip_address=ip_c,
+                    **MESSAGE_MAP["estimated_location_updated"],
+                ),
+                mock.call(
+                    sender=device,
+                    target=device,
+                    action_object=device,
+                    ip_address=whois_d.ip_address,
+                    **MESSAGE_MAP["estimated_location_updated"],
+                ),
+            ],
+        )
 
     @mock.patch("openwisp_controller.geo.estimated_location.utils.notify.send")
     def test_notification_is_sent_only_after_transaction_commit(self, mock_notify):
@@ -334,7 +369,8 @@ class TestEstimatedLocationTransaction(
             QuerySet, "select_for_update", autospec=True, side_effect=select_for_update
         ) as mocked_select_for_update:
             manage_estimated_locations(device.pk, device.last_ip)
-        mocked_select_for_update.assert_any_call(mock.ANY, of=("self",))
+        mocked_select_for_update.assert_called_once_with(mock.ANY, of=("self",))
+        self.assertEqual(mocked_select_for_update.call_args.args[0].model, Device)
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch.object(EstimatedLocationService, "trigger_estimated_location_task")
