@@ -163,6 +163,17 @@ class DeviceLocationInline(
     form = ObjectLocationForm
     verbose_name = _("Map")
     verbose_name_plural = verbose_name
+    template = "admin/geo/device_location_inline.html"
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        formset.estimated_location_enabled = (
+            obj
+            and EstimatedLocationService.check_estimated_location_enabled(
+                obj.organization_id
+            )
+        )
+        return formset
 
 
 admin.site.register(FloorPlan, FloorPlanAdmin)

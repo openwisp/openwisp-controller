@@ -230,7 +230,7 @@ OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY = os.getenv(
 # Shown here for example purposes
 # (this feature is disabled by default in the dev env)
 CELERY_BEAT_SCHEDULE = {
-    "cleanup-unreferenced-whois-records": {
+    "cleanup_unreferenced_whois_records": {
         "task": "openwisp_controller.config.whois.tasks.cleanup_unreferenced_whois_records",
         "schedule": crontab(hour=2, minute=0),
     }

@@ -358,6 +358,11 @@ button.show-sc {
 #main .form-row.field-location .item-label {
   bottom: -7px;
 }
+#main .device-location-estimated.warning {
+  padding: 15px 15px 15px 35px;
+  background-position: 17px 17px;
+  margin-bottom: 0;
+}
 #main .field-management_ip .readonly {
   padding: 7px 0px;
   display: inline-block;
