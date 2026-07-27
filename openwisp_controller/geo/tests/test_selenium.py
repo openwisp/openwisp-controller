@@ -1,3 +1,5 @@
+from unittest import mock
+
 from channels.testing import ChannelsLiveServerTestCase
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -11,6 +13,7 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import SeleniumTestMixin
 
+from ...config import settings as config_app_settings
 from .utils import TestGeoMixin
 
 Device = load_model("config", "Device")
@@ -39,6 +42,19 @@ class TestDeviceAdminGeoSelenium(
     def _get_prefix(cls):
         return cls.inline_field_prefix
 
+    @classmethod
+    def setUpClass(cls):
+        cls.whois_configured = mock.patch.object(
+            config_app_settings, "WHOIS_CONFIGURED", True
+        )
+        cls.whois_configured.start()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.whois_configured.stop()
+        super().tearDownClass()
+
     # set timeout to 5 seconds to allow enough time for presence of elements
     def wait_for_presence(self, by, value, timeout=5, driver=None):
         return super().wait_for_presence(by, value, timeout, driver)
@@ -62,6 +78,33 @@ class TestDeviceAdminGeoSelenium(
         )
         self.find_element(by=By.CLASS_NAME, value="select2-results__option").click()
         super()._fill_device_form()
+
+    def test_estimated_location_warning(self):
+        org = self._get_org()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
+        location = self._create_location(organization=org, is_estimated=True)
+        device = self._create_object(
+            name="test",
+            organization=org,
+            mac_address="00:11:22:33:44:66",
+        )
+        self._create_object_location(location=location, content_object=device)
+        self.login()
+        self.open(reverse("admin:config_device_change", args=[device.pk]))
+        self.hide_loading_overlay()
+        warning_selector = ".messagelist.map"
+        self.wait_for_presence(By.CSS_SELECTOR, warning_selector)
+        self.assertFalse(
+            self.web_driver.find_element(
+                By.CSS_SELECTOR, warning_selector
+            ).is_displayed(),
+            "The estimated location warning must be hidden outside the Map tab.",
+        )
+        self.find_element(By.CSS_SELECTOR, 'a[href="#devicelocation-group"]').click()
+        self.wait_for_visibility(By.CSS_SELECTOR, warning_selector)
+        self.find_element(By.CSS_SELECTOR, 'a[href="#overview-group"]').click()
+        self.wait_for_invisibility(By.CSS_SELECTOR, warning_selector)
 
 
 @tag("selenium_tests")

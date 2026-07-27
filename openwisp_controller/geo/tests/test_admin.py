@@ -204,6 +204,7 @@ class TestDeviceAdmin(
             "Edit the coordinates or address to increase accuracy and clear the "
             "estimated flag.",
         )
+        self.assertContains(response, 'class="messagelist map"', html=False)
         org.geo_settings.estimated_location_enabled = False
         org.geo_settings.save()
         response = self.client.get(path)
