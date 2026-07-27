@@ -792,7 +792,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         blank=True,
         null=True,
         default=dict,
-        verbose_name=_("Skipped devices"),
+        verbose_name=_("skipped devices"),
         help_text=_(
             "Maps device UUIDs to validation error messages for devices "
             "that were skipped during command creation."
