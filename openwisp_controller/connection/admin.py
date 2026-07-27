@@ -1,11 +1,14 @@
 from datetime import timedelta
+from types import SimpleNamespace
 
 import reversion
 import swapper
 from django import forms
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.http import HttpResponseForbidden, JsonResponse
+from django.template.response import TemplateResponse
 from django.urls import path, resolve
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
@@ -37,6 +40,43 @@ class CommandForm(forms.ModelForm):
     class Meta:
         exclude = []
         widgets = {"input": CommandSchemaWidget}
+
+
+class BatchCommandExecutionForm(forms.ModelForm):
+    """Form layout for the mass command execution workflow.
+
+    The execution and confirmation behavior is intentionally added separately.
+    Keeping the form here lets the custom admin view use the same model fields
+    and tenant-scoped choices as the eventual workflow.
+    """
+
+    class Meta:
+        model = BatchCommand
+        fields = [
+            "organization",
+            "label",
+            "notes",
+            "type",
+            "input",
+            "group",
+            "location",
+            "devices",
+        ]
+        widgets = {
+            "notes": forms.Textarea(attrs={"rows": 3}),
+            "input": forms.Textarea(attrs={"rows": 5}),
+            "devices": forms.SelectMultiple(attrs={"size": 8}),
+        }
+
+    def __init__(self, *args, request=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if request is None or request.user.is_superuser:
+            return
+        organization_ids = request.user.organizations_managed
+        for field_name in ("organization", "group", "location", "devices"):
+            self.fields[field_name].queryset = self.fields[field_name].queryset.filter(
+                organization_id__in=organization_ids
+            )
 
 
 @admin.register(Credentials)
@@ -222,6 +262,8 @@ DeviceAdmin.add_reversion_following(follow=["deviceconnection_set"])
 
 
 class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
+    execute_command_template = "admin/connection/batch_command/execute_command.html"
+    confirm_command_template = "admin/connection/batch_command/confirm_command.html"
     list_display = [
         "label",
         "organization_display",
@@ -288,6 +330,108 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             ]
         }
 
+    def get_urls(self):
+        options = self.model._meta
+        return [
+            path(
+                "execute/",
+                self.admin_site.admin_view(self.execute_command_view),
+                name=f"{options.app_label}_{options.model_name}_execute",
+            ),
+            path(
+                "confirm/",
+                self.admin_site.admin_view(self.confirm_command_view),
+                name=f"{options.app_label}_{options.model_name}_confirm",
+            ),
+        ] + super().get_urls()
+
+    def execute_command_view(self, request):
+        """Render the first step of the mass command workflow.
+
+        This page only collects command details for now. The preview and
+        confirmation POST flow will be added in a later change.
+        """
+        permission = f"{self.opts.app_label}.add_{self.opts.model_name}"
+        if not request.user.has_perm(permission):
+            raise PermissionDenied
+        form = BatchCommandExecutionForm(request=request)
+        context = {
+            **self.admin_site.each_context(request),
+            "title": _("Execute mass command"),
+            "opts": self.model._meta,
+            "form": form,
+            "media": self.media + form.media,
+            "has_view_permission": self.has_view_permission(request),
+        }
+        return TemplateResponse(request, self.execute_command_template, context)
+
+    def confirm_command_view(self, request):
+        """Render the second step of the mass command workflow.
+
+        Displays a summary of the command to be executed and provides
+        an Execute button to create the BatchCommand.
+        """
+        permission = f"{self.opts.app_label}.add_{self.opts.model_name}"
+        if not request.user.has_perm(permission):
+            raise PermissionDenied
+        command_type = request.GET.get("type", "")
+        label = request.GET.get("label", "")
+        notes = request.GET.get("notes", "")
+        organization_id = request.GET.get("organization", "")
+        group_id = request.GET.get("group", "")
+        location_id = request.GET.get("location", "")
+        device_ids = request.GET.getlist("devices")
+
+        command_type_display = command_type
+        command_description = ""
+        for choice_value, choice_label in BatchCommand._meta.get_field("type").choices:
+            if choice_value == command_type:
+                command_type_display = choice_label
+                break
+
+        targets_parts = []
+        if organization_id:
+            Organization = swapper.load_model("openwisp_users", "Organization")
+            try:
+                org = Organization.objects.get(pk=organization_id)
+                targets_parts.append(str(org))
+            except Organization.DoesNotExist:
+                pass
+        if group_id:
+            DeviceGroup = swapper.load_model("config", "DeviceGroup")
+            try:
+                group = DeviceGroup.objects.get(pk=group_id)
+                targets_parts.append(str(group))
+            except DeviceGroup.DoesNotExist:
+                pass
+        if location_id:
+            Location = swapper.load_model("geo", "Location")
+            try:
+                location = Location.objects.get(pk=location_id)
+                targets_parts.append(str(location))
+            except Location.DoesNotExist:
+                pass
+        targets_display = (
+            ", ".join(targets_parts) if targets_parts else _("All devices")
+        )
+
+        device_count = len(device_ids) if device_ids else 0
+        skipped_devices_count = 0
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": _("Review mass command"),
+            "opts": self.model._meta,
+            "command_type_display": command_type_display,
+            "command_description": command_description,
+            "targets_display": targets_display,
+            "device_count": device_count,
+            "skipped_devices_count": skipped_devices_count,
+            "media": self.media,
+            "has_view_permission": self.has_view_permission(request),
+        }
+        return TemplateResponse(request, self.confirm_command_template, context)
+
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
         return fields + list(self.__class__.readonly_fields)
@@ -303,6 +447,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     def organization_display(self, obj):
         if obj.organization:
             return obj.organization.name
+        # Will return Shared systemwide (no organization) after
+        # https://github.com/openwisp/openwisp-users/issues/238
         return _("All")
 
     organization_display.short_description = _("organization")
@@ -347,7 +493,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines)),
         )
 
-    display_skipped_devices.short_description = _("Skipped devices")
+    display_skipped_devices.short_description = _("skipped devices")
 
     def _build_filter_specs(
         self,
@@ -376,7 +522,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
         status_choices = []
         for status_value, display_name in (
-            (("", _("All")),) + Command.STATUS_CHOICES + (("skipped", _("Skipped")),)
+            (("", _("All")),) + Command.STATUS_CHOICES + (("skipped", _("skipped")),)
         ):
             status_choices.append(
                 _make_choice(current_status, display_name, "status", status_value)
@@ -388,103 +534,67 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
         filter_specs.append(StatusFilter())
 
-        # Location filter
         Device = swapper.load_model("config", "Device")
-        location_qs = (
+
+        # Location filter
+        location_spec = self._build_related_filter(
+            _("location"),
+            "location_id",
+            current_location or "",
             Device.objects.filter(command__batch_command=obj)
             .exclude(devicelocation__location__isnull=True)
             .values_list(
                 "devicelocation__location__id",
                 "devicelocation__location__name",
             )
-            .distinct()
+            .distinct(),
+            _make_choice,
         )
-        location_choices = []
-        location_choices.append(
-            _make_choice(current_location or "", _("All"), "location_id", "")
-        )
-        for loc_id, loc_name in location_qs:
-            if loc_id:
-                location_choices.append(
-                    _make_choice(
-                        current_location or "",
-                        loc_name,
-                        "location_id",
-                        str(loc_id),
-                    )
-                )
-
-        if len(location_choices) > 1:
-
-            class LocationFilterCls:
-                title = _("location")
-                choices = location_choices
-
-            filter_specs.append(LocationFilterCls())
+        if location_spec:
+            filter_specs.append(location_spec)
 
         # Group filter
-        group_qs = (
+        group_spec = self._build_related_filter(
+            _("device group"),
+            "group_id",
+            current_group or "",
             Device.objects.filter(
                 command__batch_command=obj,
                 group__isnull=False,
             )
             .values_list("group__id", "group__name")
-            .distinct()
+            .distinct(),
+            _make_choice,
         )
-        group_choices = []
-        group_choices.append(
-            _make_choice(current_group or "", _("All"), "group_id", "")
-        )
-        for grp_id, grp_name in group_qs:
-            if grp_id:
-                group_choices.append(
-                    _make_choice(
-                        current_group or "",
-                        grp_name,
-                        "group_id",
-                        str(grp_id),
-                    )
-                )
-
-        if len(group_choices) > 1:
-
-            class GroupFilterCls:
-                title = _("device group")
-                choices = group_choices
-
-            filter_specs.append(GroupFilterCls())
+        if group_spec:
+            filter_specs.append(group_spec)
 
         # Organization filter (superusers only)
         if request.user.is_superuser:
-            org_qs = (
+            org_spec = self._build_related_filter(
+                _("organization"),
+                "organization_id",
+                current_org or "",
                 Device.objects.filter(command__batch_command=obj)
                 .values_list("organization__id", "organization__name")
-                .distinct()
+                .distinct(),
+                _make_choice,
             )
-            org_choices = []
-            org_choices.append(
-                _make_choice(current_org or "", _("All"), "organization_id", "")
-            )
-            for org_id, org_name in org_qs:
-                if org_id:
-                    org_choices.append(
-                        _make_choice(
-                            current_org or "",
-                            org_name,
-                            "organization_id",
-                            str(org_id),
-                        )
-                    )
-
-            if len(org_choices) > 1:
-
-                class OrganizationFilterCls:
-                    title = _("organization")
-                    choices = org_choices
-
-                filter_specs.append(OrganizationFilterCls())
+            if org_spec:
+                filter_specs.append(org_spec)
 
         return filter_specs
+
+    def _build_related_filter(self, title, param_name, current_value, qs, make_choice):
+        choices = [make_choice(current_value, _("All"), param_name, "")]
+        for obj_id, obj_name in qs:
+            if obj_id:
+                choices.append(
+                    make_choice(current_value, obj_name, param_name, str(obj_id))
+                )
+        if len(choices) <= 1:
+            return None
+        return SimpleNamespace(title=title, choices=choices)
 
     def _paginate_commands(self, items, page_param, per_page=None):
         per_page = per_page or self.device_commands_per_page
@@ -496,93 +606,109 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             page_obj = paginator.page(1)
         return page_obj, paginator, page_obj.object_list
 
+    def _get_active_filters(self, request):
+        return {
+            "q": request.GET.get("q", ""),
+            "status": request.GET.get("status", ""),
+            "location_id": request.GET.get("location_id", ""),
+            "group_id": request.GET.get("group_id", ""),
+            "organization_id": request.GET.get("organization_id", ""),
+        }
+
+    def _apply_command_filters(self, qs, filters):
+        if filters["q"]:
+            qs = qs.filter(device__name__icontains=filters["q"])
+        status = filters["status"]
+        if status and status != "skipped":
+            qs = qs.filter(status=status)
+        if filters["location_id"]:
+            qs = qs.filter(device__devicelocation__location_id=filters["location_id"])
+        if filters["group_id"]:
+            qs = qs.filter(device__group_id=filters["group_id"])
+        if filters["organization_id"]:
+            qs = qs.filter(device__organization_id=filters["organization_id"])
+        return qs
+
+    def _get_matching_skipped_devices(self, obj, filters):
+        Device = swapper.load_model("config", "Device")
+        pks = list(obj.skipped_devices.keys())
+        device_qs = Device.objects.filter(pk__in=pks)
+        location_id = filters["location_id"]
+        if location_id:
+            DeviceLocation = swapper.load_model("geo", "DeviceLocation")
+            device_locations = set(
+                DeviceLocation.objects.filter(
+                    device_id__in=pks,
+                    location_id=location_id,
+                ).values_list("device_id", flat=True)
+            )
+        else:
+            device_locations = None
+        devices = {str(d.pk): d for d in device_qs}
+        rows = []
+        for pk_str, errors in obj.skipped_devices.items():
+            device = devices.get(pk_str)
+            if not device:
+                continue
+            if (
+                filters["organization_id"]
+                and str(device.organization_id) != filters["organization_id"]
+            ):
+                continue
+            if filters["group_id"] and str(device.group_id) != filters["group_id"]:
+                continue
+            if device_locations is not None and pk_str not in device_locations:
+                continue
+            if filters["q"] and filters["q"].lower() not in device.name.lower():
+                continue
+            rows.append(
+                {
+                    "device_name": device.name,
+                    "device_pk": pk_str,
+                    "status": "skipped",
+                    "status_display": _("skipped"),
+                    "output": ", ".join(errors),
+                    "created": None,
+                    "is_skipped": True,
+                }
+            )
+        return rows
+
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:
-            Device = swapper.load_model("config", "Device")
             commands_qs = self._get_commands(request, obj)
-            search_query = request.GET.get("q", "")
-            if search_query:
-                commands_qs = commands_qs.filter(device__name__icontains=search_query)
-            current_status = request.GET.get("status", "")
-            current_location = request.GET.get("location_id", "")
-            current_group = request.GET.get("group_id", "")
-            current_org = request.GET.get("organization_id", "")
-            if current_status and current_status != "skipped":
-                commands_qs = commands_qs.filter(status=current_status)
-            if current_location:
-                commands_qs = commands_qs.filter(
-                    device__devicelocation__location_id=current_location
+            filters = self._get_active_filters(request)
+            commands_qs = self._apply_command_filters(commands_qs, filters)
+            rows = [
+                {
+                    "device_name": cmd.device.name,
+                    "device_pk": cmd.device.pk,
+                    "status": cmd.status,
+                    "status_display": cmd.get_status_display(),
+                    "output": (cmd.output or "").lstrip(),
+                    "created": cmd.created,
+                    "is_skipped": False,
+                }
+                for cmd in commands_qs
+            ]
+            if obj.skipped_devices and filters["status"] in ("", "skipped"):
+                rows.extend(self._get_matching_skipped_devices(obj, filters))
+            # Sort by status priority: success(0) > failed(1) > skipped(2), then alphabetically
+            rows.sort(
+                key=lambda r: (
+                    {"success": 0, "failed": 1, "skipped": 2}.get(r["status"], 99),
+                    r["device_name"].lower(),
                 )
-            if current_group:
-                commands_qs = commands_qs.filter(device__group_id=current_group)
-            if current_org:
-                commands_qs = commands_qs.filter(device__organization_id=current_org)
-            rows = []
-            for cmd in commands_qs:
-                rows.append(
-                    {
-                        "device_name": cmd.device.name,
-                        "device_pk": cmd.device.pk,
-                        "status": cmd.status,
-                        "status_display": cmd.get_status_display(),
-                        "output": (cmd.output or "").lstrip(),
-                        "created": cmd.created,
-                        "is_skipped": False,
-                    }
-                )
-            if obj.skipped_devices and current_status in ("", "skipped"):
-                pks = list(obj.skipped_devices.keys())
-                device_qs = Device.objects.filter(pk__in=pks)
-                if current_location:
-                    DeviceLocation = swapper.load_model("geo", "DeviceLocation")
-                    device_locations = set(
-                        DeviceLocation.objects.filter(
-                            device_id__in=pks,
-                            location_id=current_location,
-                        ).values_list("device_id", flat=True)
-                    )
-                else:
-                    device_locations = None
-                devices = {str(d.pk): d for d in device_qs}
-                for pk_str, errors in obj.skipped_devices.items():
-                    device = devices.get(pk_str)
-                    if not device:
-                        continue
-                    if current_org and str(device.organization_id) != current_org:
-                        continue
-                    if current_group and str(device.group_id) != current_group:
-                        continue
-                    if current_location and pk_str not in device_locations:
-                        continue
-                    name = device.name
-                    if search_query and search_query.lower() not in name.lower():
-                        continue
-                    rows.append(
-                        {
-                            "device_name": name,
-                            "device_pk": pk_str,
-                            "status": "skipped",
-                            "status_display": _("Skipped"),
-                            "output": ", ".join(errors),
-                            "created": None,
-                            "is_skipped": True,
-                        }
-                    )
-
-            def _sort_key(row):
-                priority = {"success": 0, "failed": 1, "skipped": 2}
-                return (priority.get(row["status"], 99), row["device_name"].lower())
-
-            rows.sort(key=_sort_key)
+            )
             filter_specs = self._build_filter_specs(
                 request,
                 obj,
-                current_status,
-                current_location=current_location,
-                current_group=current_group,
-                current_org=current_org,
+                filters["status"],
+                current_location=filters["location_id"],
+                current_group=filters["group_id"],
+                current_org=filters["organization_id"],
             )
             page_obj, paginator, commands = self._paginate_commands(
                 rows, request.GET.get("page", 1)
