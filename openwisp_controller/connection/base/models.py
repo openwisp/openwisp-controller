@@ -792,7 +792,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         blank=True,
         null=True,
         default=dict,
-        verbose_name=_("Skipped devices"),
+        verbose_name=_("skipped devices"),
         help_text=_(
             "Maps device UUIDs to validation error messages for devices "
             "that were skipped during command creation."
@@ -809,6 +809,10 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
 
     @cached_property
     def total_devices(self):
+        return self.batch_commands.count() + len(self.skipped_devices or {})
+
+    @cached_property
+    def affected_devices(self):
         return self.batch_commands.count()
 
     @property
