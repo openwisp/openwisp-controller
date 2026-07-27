@@ -1,0 +1,159 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ media }}
+<link rel="stylesheet" type="text/css" href="{% static 'connection/css/batch-command.css' %}">
+<script src="{% static 'connection/js/execute-command.js' %}"></script>
+{% endblock %}
+
+{% block bodyclass %}app-{{ opts.app_label }} model-{{ opts.model_name }} execute-batch-command{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {% trans 'Execute mass command' %}
+</div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="content-main" class="batch-command-execution">
+  <div class="batch-command-execution__heading">
+    <h1>{% trans 'Execute mass command' %}</h1>
+    <p>{% trans 'Run a shell command across many devices at once' %}</p>
+  </div>
+
+  <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
+    <div class="stepper__step stepper__step--active" aria-current="step">
+      <span class="stepper__badge">1</span>
+      <span class="stepper__label">
+        <span class="stepper__label-text">{% trans 'Configure' %}</span>
+        <span class="stepper__label-underline" aria-hidden="true"></span>
+      </span>
+    </div>
+    <div class="stepper__divider" aria-hidden="true">
+      <svg class="stepper__arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="stepper__step stepper__step--inactive">
+      <span class="stepper__badge">2</span>
+      <span class="stepper__label">
+        <span class="stepper__label-text">{% trans 'Review' %}</span>
+        <span class="stepper__label-underline" aria-hidden="true"></span>
+      </span>
+    </div>
+  </nav>
+
+  <form class="batch-command-execution__form" novalidate>
+
+    {# ── Command card ─────────────────────────────────── #}
+    <div class="bce-card">
+      <div class="bce-card__header">
+        <div class="bce-card__header-row">
+          <div>
+            <h2 class="bce-card__title">{% trans 'Command' %}</h2>
+            <p class="bce-card__subtitle">{% trans 'What to run on the selected devices' %}</p>
+          </div>
+        </div>
+      </div>
+      <div class="bce-card__body">
+        {% with field=form.type %}
+        <div class="bce-field{% if field.errors %} errors{% endif %}">
+          {{ field.errors }}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+        </div>
+        {% endwith %}
+
+        <div id="command-input-container"></div>
+
+        <div class="bce-field-grid">
+          {% with field=form.label %}
+          <div class="bce-field{% if field.errors %} errors{% endif %}">
+            {{ field.errors }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          </div>
+          {% endwith %}
+
+          {% with field=form.notes %}
+          <div class="bce-field{% if field.errors %} errors{% endif %}">
+            {{ field.errors }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          </div>
+          {% endwith %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Targets card ──────────────────────────────────── #}
+    <div class="bce-card">
+      <div class="bce-card__header">
+        <div class="bce-card__header-row">
+          <div>
+            <h2 class="bce-card__title">{% trans 'Targets' %}</h2>
+            <p class="bce-card__subtitle">{% trans 'Which devices receive this command' %}</p>
+          </div>
+          <span class="bce-card__muted">{% trans 'Filters combine with AND' %}</span>
+        </div>
+      </div>
+      <div class="bce-card__body">
+        <div class="bce-field-grid">
+          {% with field=form.organization %}
+          <div class="bce-field{% if field.errors %} errors{% endif %}">
+            {{ field.errors }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          </div>
+          {% endwith %}
+
+          {% with field=form.location %}
+          <div class="bce-field{% if field.errors %} errors{% endif %}">
+            {{ field.errors }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          </div>
+          {% endwith %}
+
+          {% with field=form.group %}
+          <div class="bce-field{% if field.errors %} errors{% endif %}">
+            {{ field.errors }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          </div>
+          {% endwith %}
+        </div>
+
+        <div class="bce-device-summary">
+          <span>{% trans '12 devices match these filters' %}</span>
+          <span class="bce-device-summary__live">
+            <span class="bce-device-summary__dot"></span>
+            {% trans 'Updated live' %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    {# ── Hidden submit (kept for form validation) ──────── #}
+    <div class="submit-row batch-command-execution__actions">
+      <a class="button cancel-link" href="{% url opts|admin_urlname:'changelist' %}">{% trans 'Cancel' %}</a>
+      <button type="button" class="default" id="review-command-btn">
+        {% trans 'Review command' %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
