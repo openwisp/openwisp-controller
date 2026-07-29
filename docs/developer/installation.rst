@@ -78,7 +78,7 @@ Create database:
     ./manage.py migrate
     ./manage.py createsuperuser
 
-Launch celery worker (for background jobs amd periodic jobs respectively):
+Launch celery worker (for background jobs and periodic jobs respectively):
 
 .. code-block:: shell
 
