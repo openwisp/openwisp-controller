@@ -4,7 +4,6 @@ these mixins are reused also in openwisp2
 change with care.
 """
 
-import json
 from copy import deepcopy
 from unittest import mock
 from uuid import uuid4

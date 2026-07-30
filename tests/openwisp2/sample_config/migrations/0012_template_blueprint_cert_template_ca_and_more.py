@@ -13,7 +13,7 @@ import openwisp_controller.config.base.template
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("sample_config", "0010_template_notes"),
+        ("sample_config", "0011_whoisinfo_unreferenced_since"),
         ("sample_pki", "0004_alter_ca_extensions_alter_ca_key_length_and_more"),
     ]
 

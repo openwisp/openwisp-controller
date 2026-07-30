@@ -14,7 +14,7 @@ import openwisp_controller.config.base.template
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("config", "0064_template_notes"),
+        ("config", "0065_whoisinfo_unreferenced_since"),
         migrations.swappable_dependency(settings.DJANGO_X509_CA_MODEL),
         migrations.swappable_dependency(settings.DJANGO_X509_CERT_MODEL),
     ]
