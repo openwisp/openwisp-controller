@@ -977,7 +977,6 @@ class TestDeviceCertificateRegenerationTask(
         expected_cert_ids = list(
             DeviceCertificate.objects.filter(
                 config__device=device,
-                auto_cert=True,
                 cert__revoked=False,
                 template__type="cert",
             ).values_list("id", "cert_id")
@@ -1088,10 +1087,10 @@ class TestDeviceCertificateModel(
             type="cert", ca=ca, organization=org, config={}
         )
         config = self._create_config(device=device)
-        dc = DeviceCertificate.objects.create(
-            config=config, template=template, cert=None, auto_cert=False
-        )
-        self.assertIn("Pending Generation", str(dc))
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        self.assertIsNotNone(dc.cert)
+        self.assertNotIn("Pending Generation", str(dc))
 
     def test_cert_used_as_blueprint_blocked(self):
         org = self._get_org()
@@ -1119,7 +1118,9 @@ class TestDeviceCertificateModel(
         )
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
-        dc = DeviceCertificate(config=config, template=template, cert=blueprint)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = blueprint
         with self.assertRaises(ValidationError) as ctx:
             dc.full_clean()
         self.assertIn("cert", ctx.exception.message_dict)
@@ -1142,9 +1143,10 @@ class TestDeviceCertificateModel(
         )
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
-        dc = DeviceCertificate.objects.create(
-            config=config, template=template, cert=cert, auto_cert=True
-        )
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = cert
+        dc.save()
         dc.refresh_from_db()
         self.assertEqual(dc.cert_id, cert.id)
         self.assertFalse(dc.cert.revoked)
@@ -1168,9 +1170,144 @@ class TestDeviceCertificateModel(
         self.assertFalse(cn.startswith(f"{mac}-{mac}"))
         self.assertTrue(cn.startswith(mac))
 
+    def test_template_type_must_be_cert(self):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        template = self._create_template(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate(config=config, template=template)
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("template", ctx.exception.message_dict)
+
+    def test_template_must_have_ca(self):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        Template = load_model("config", "Template")
+        template = Template(
+            name="no-ca-template",
+            type="cert",
+            backend="netjsonconfig.OpenWrt",
+            organization=org,
+            config={},
+        )
+        template.save()
+        config = self._create_config(device=device)
+        dc = DeviceCertificate(config=config, template=template)
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("template", ctx.exception.message_dict)
+
+    def test_template_org_must_match_device_org(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        ca = self._create_ca(name="ca", common_name="ca", organization=org1)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org1, config={}
+        )
+        device = self._create_device(organization=org2)
+        config = self._create_config(device=device)
+        dc = DeviceCertificate(config=config, template=template)
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("template", ctx.exception.message_dict)
+
+    def test_template_must_be_assigned_to_config(self):
+        org = self._create_org()
+        ca = self._create_ca(name="ca", organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        dc = DeviceCertificate(config=config, template=template)
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("template", ctx.exception.message_dict)
+
+    def test_revoked_cert_blocked(self):
+        org = self._get_org()
+        ca = self._create_ca(name="ca", organization=org)
+        revoked = Cert(
+            name="revoked",
+            ca=ca,
+            organization=org,
+            common_name="revoked",
+            key_length="2048",
+            digest="sha256",
+        )
+        revoked.full_clean()
+        revoked.save()
+        revoked.revoke()
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = revoked
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("cert", ctx.exception.message_dict)
+
+    def test_cert_ca_must_match_template_ca(self):
+        org = self._get_org()
+        ca1 = self._create_ca(name="ca1", common_name="ca1", organization=org)
+        ca2 = self._create_ca(name="ca2", common_name="ca2", organization=org)
+        cert = Cert(
+            name="wrong-ca",
+            ca=ca2,
+            organization=org,
+            common_name="wrong-ca",
+            key_length="2048",
+            digest="sha256",
+        )
+        cert.full_clean()
+        cert.save()
+        template = self._create_template(
+            type="cert", ca=ca1, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = cert
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("cert", ctx.exception.message_dict)
+
+    def test_cert_org_must_match_device_org(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        ca = self._create_ca(
+            name="shared-ca", common_name="shared-ca", organization=None
+        )
+        cert = Cert(
+            name="wrong-org",
+            ca=ca,
+            organization=org2,
+            common_name="wrong-org",
+            key_length="2048",
+            digest="sha256",
+        )
+        cert.full_clean()
+        cert.save()
+        template = self._create_template(
+            type="cert", ca=ca, organization=org1, config={}
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = cert
+        with self.assertRaises(ValidationError) as ctx:
+            dc.full_clean()
+        self.assertIn("cert", ctx.exception.message_dict)
+
     def test_post_delete_object_does_not_exist(self):
         dc = mock.MagicMock(spec=DeviceCertificate)
         dc.cert = mock.MagicMock()
         dc.cert.revoke.side_effect = ObjectDoesNotExist
-        dc.auto_cert = True
         DeviceCertificate.post_delete(sender=DeviceCertificate, instance=dc)

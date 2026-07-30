@@ -30,11 +30,10 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
     )
     cert = models.OneToOneField(
         get_model_name("django_x509", "Cert"),
-        on_delete=models.CASCADE,
+        on_delete=models.RESTRICT,
         blank=True,
         null=True,
     )
-    auto_cert = models.BooleanField(default=False)
 
     class Meta:
         abstract = True
@@ -60,12 +59,82 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                     )
                 }
             )
+        if self.template_id:
+            if self.template.type != "cert":
+                raise ValidationError(
+                    {
+                        "template": _(
+                            "The template must be a certificate generator "
+                            'template (type "cert").'
+                        )
+                    }
+                )
+            if not self.template.ca_id:
+                raise ValidationError(
+                    {
+                        "template": _(
+                            "The certificate template must have a "
+                            "certificate authority defined."
+                        )
+                    }
+                )
+            if (
+                self.template.organization_id
+                and self.config.device.organization_id != self.template.organization_id
+            ):
+                raise ValidationError(
+                    {
+                        "template": _(
+                            "The organization of the template must match "
+                            "the organization of the device."
+                        )
+                    }
+                )
+        if self.config_id and self.template_id:
+            if not self.config.templates.filter(id=self.template_id).exists():
+                raise ValidationError(
+                    {
+                        "template": _(
+                            "The selected template is not assigned "
+                            "to this configuration."
+                        )
+                    }
+                )
+        if self.cert_id:
+            if self.cert.revoked:
+                raise ValidationError(
+                    {
+                        "cert": _(
+                            "A revoked certificate cannot be assigned " "to a device."
+                        )
+                    }
+                )
+            if self.template_id and self.cert.ca_id != self.template.ca_id:
+                raise ValidationError(
+                    {
+                        "cert": _(
+                            "The certificate must be signed by the "
+                            "certificate authority of the template."
+                        )
+                    }
+                )
+            if (
+                self.cert.organization_id
+                and self.config.device.organization_id != self.cert.organization_id
+            ):
+                raise ValidationError(
+                    {
+                        "cert": _(
+                            "The organization of the certificate must match "
+                            "the organization of the device."
+                        )
+                    }
+                )
         super().clean()
 
     def save(self, *args, **kwargs):
-        """Performs automatic provisioning if ``auto_cert`` is True."""
         with transaction.atomic():
-            if self.auto_cert and not self.cert:
+            if not self.cert:
                 self._auto_x509()
             self.full_clean(validate_unique=False)
             super().save(*args, **kwargs)
@@ -140,7 +209,6 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
     def active_auto_certs_for(cls, device):
         return cls.objects.filter(
             config__device=device,
-            auto_cert=True,
             cert__revoked=False,
             template__type="cert",
         )
@@ -162,15 +230,16 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         if not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
             return
         Device = load_model("config", "Device")
-        try:
-            device = Device.objects.get(id=device_id)
-        except Device.DoesNotExist:
-            return
 
         configs_to_update = set()
         certs_regenerated = 0
 
         with transaction.atomic():
+            try:
+                device = Device.objects.select_for_update().get(id=device_id)
+            except Device.DoesNotExist:
+                return
+
             qs = cls.active_auto_certs_for(device).select_for_update()
             if expected_cert_ids:
                 valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
@@ -194,9 +263,9 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                 dc.save()
                 configs_to_update.add(dc.config)
                 certs_regenerated += 1
-        for config in configs_to_update:
-            config.refresh_from_db()
-            config.update_status_if_checksum_changed()
+            for config in configs_to_update:
+                config.refresh_from_db()
+                config.update_status_if_checksum_changed()
         if certs_regenerated > 0:
             try:
                 message = _(

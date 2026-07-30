@@ -6,6 +6,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models.deletion import RestrictedError
 from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
@@ -1006,6 +1007,60 @@ class TestTemplateTransaction(
             dc.cert.renew()
             mocked_update.assert_called_once()
 
+    def test_get_cert_context_excludes_unassigned_templates(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+
+        template_keep = self._create_template(
+            name="cert-keep",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+            config={},
+        )
+        template_remove = self._create_template(
+            name="cert-remove",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template_keep, template_remove)
+
+        keep_prefix = f"cert_{template_keep.pk.hex}"
+        remove_prefix = f"cert_{template_remove.pk.hex}"
+
+        context = config.get_context()
+        self.assertIn(f"{keep_prefix}_path", context)
+        self.assertIn(f"{remove_prefix}_path", context)
+
+        Through = Config.templates.through
+        with transaction.atomic():
+            Through.objects.filter(config=config, template=template_remove).delete()
+            config.refresh_from_db()
+
+            self.assertEqual(
+                config.devicecertificate_set.count(),
+                2,
+                "Stale DeviceCertificate row should still exist",
+            )
+
+            context = config.get_context()
+            self.assertIn(f"{keep_prefix}_path", context)
+            self.assertNotIn(
+                f"{remove_prefix}_path",
+                context,
+                "Cert context for removed template should be excluded",
+            )
+
+        context = config.get_context()
+        self.assertIn(f"{keep_prefix}_path", context)
+        self.assertNotIn(f"{remove_prefix}_path", context)
+
 
 class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
     """
@@ -1061,12 +1116,10 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             organization=org,
             config={},
         )
-        DeviceCertificate.objects.create(
-            config=config,
-            template=template,
-            cert=blueprint,
-            auto_cert=True,
-        )
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = blueprint
+        dc.save()
         try:
             self._create_template(
                 type="cert",
@@ -1369,19 +1422,17 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         )
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
-        DeviceCertificate.objects.create(
-            config=config,
-            template=template,
-            cert=self._create_cert(ca=ca, organization=org),
-            auto_cert=False,
-        )
+        config.templates.add(template)
+        existing_cert = self._create_cert(ca=ca, organization=org)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = existing_cert
+        dc.save()
         cert_count = Cert.objects.count()
 
         with self.assertRaises(IntegrityError):
             DeviceCertificate.objects.create(
                 config=config,
                 template=template,
-                auto_cert=True,
             )
 
         self.assertEqual(Cert.objects.count(), cert_count)
@@ -1486,10 +1537,9 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         template = self._create_template(
             name="Test-Template", type="cert", ca=ca, organization=org, config={}
         )
-        device_cert = DeviceCertificate.objects.create(
-            config=config, template=template, cert=None, auto_cert=False
-        )
-        self.assertIsNone(device_cert.cert_id)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        self.assertIsNotNone(device_cert.cert_id)
         choices = get_unassigned_certs()
         queryset = choices.get("pk__in")
         self.assertIsNotNone(queryset)
@@ -1551,6 +1601,26 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             template.clean()
         self.assertIn("type", ctx.exception.error_dict)
 
+    def test_validate_cert_template_changes_same_instance_after_save(self):
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert",
+            ca=ca1,
+            organization=org,
+            config={},
+        )
+        template.ca = ca2
+        template.save()
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.ca = ca1
+        with self.assertRaises(ValidationError) as ctx:
+            template.clean()
+        self.assertIn("ca", ctx.exception.error_dict)
+
     def test_certificate_template_context_injection(self):
         """
         Verify that Certificate Templates automatically inject their
@@ -1587,3 +1657,34 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         self.assertIn(f"{prefix}_key", context)
         self.assertEqual(context[f"{prefix}_pem"], cert.certificate)
         self.assertEqual(context[f"{prefix}_key"], cert.private_key)
+
+    def test_device_certificate_blocks_cert_deletion(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-test", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        cert = dev_cert.cert
+        with self.assertRaises(RestrictedError):
+            cert.delete()
+
+    def test_device_certificate_allows_cert_deletion_after_removal(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-test", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        cert = dev_cert.cert
+        cert_pk = cert.pk
+        config.templates.remove(template)
+        cert = Cert.objects.get(pk=cert_pk)
+        cert.delete()
+        self.assertFalse(Cert.objects.filter(pk=cert_pk).exists())

@@ -345,11 +345,6 @@ revokes the existing X.509 client certificates and provisions new ones
 with the updated identity attributes. Set this to ``False`` to disable
 this automatic regeneration.
 
-.. note::
-
-    The regeneration only applies to certificates created via Certificate
-    Templates with ``auto_cert`` enabled.
-
 ``OPENWISP_CONTROLLER_CERT_PATH``
 ---------------------------------
 

@@ -242,9 +242,6 @@ class DeviceConfigSerializer(BaseSerializer):
                     vpn_list = config.templates.filter(type="vpn").values_list("vpn")
                     if vpn_list:
                         config.vpnclient_set.exclude(vpn__in=vpn_list).delete()
-                    DeviceCertificate.objects.filter(config=config).exclude(
-                        template_id__in=config_templates
-                    ).delete()
                     config.templates.set(config_templates, clear=True)
             config.save()
         except ValidationError as error:
@@ -343,22 +340,24 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
         ]
 
     def update(self, instance, validated_data):
-        config_data = validated_data.pop("config", {})
-        raw_data_for_signal_handlers = {
-            "organization": validated_data.get("organization", instance.organization)
-        }
-        if (
-            validated_data.get("organization")
-            and instance.organization != validated_data.get("organization")
-            and instance._has_config()
-        ):
-            # config.device.organization is used for validating
-            # the organization of templates. It is also used for adding
-            # default and required templates configured for an organization.
-            # The value of the organization field is set here to
-            # prevent access of the old value stored in the database
-            # while performing above operations.
-            with transaction.atomic():
+        with transaction.atomic():
+            config_data = validated_data.pop("config", {})
+            raw_data_for_signal_handlers = {
+                "organization": validated_data.get(
+                    "organization", instance.organization
+                )
+            }
+            if (
+                validated_data.get("organization")
+                and instance.organization != validated_data.get("organization")
+                and instance._has_config()
+            ):
+                # config.device.organization is used for validating
+                # the organization of templates. It is also used for adding
+                # default and required templates configured for an organization.
+                # The value of the organization field is set here to
+                # prevent access of the old value stored in the database
+                # while performing above operations.
                 instance.config.device.organization = validated_data.get("organization")
                 DeviceCertificate.objects.filter(config=instance.config).delete()
                 instance.config.templates.clear()
@@ -370,10 +369,10 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
                     raw_data=raw_data_for_signal_handlers,
                 )
 
-        if config_data:
-            self._update_config(instance, config_data)
+            if config_data:
+                self._update_config(instance, config_data)
 
-        return super().update(instance, validated_data)
+            return super().update(instance, validated_data)
 
 
 class FilterGroupTemplates(FilterTemplatesByOrganization):

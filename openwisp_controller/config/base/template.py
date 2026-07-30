@@ -84,7 +84,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     )
     blueprint_cert = models.ForeignKey(
         get_model_name("django_x509", "Cert"),
-        on_delete=models.SET_NULL,
+        on_delete=models.RESTRICT,
         verbose_name=_("Blueprint Certificate"),
         blank=True,
         null=True,
@@ -164,6 +164,14 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 setattr(self, f"_initial_{field}", models.DEFERRED)
             else:
                 setattr(self, f"_initial_{field}", getattr(self, field))
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self._set_initial_values_for_changed_checked_fields()
+
+    def refresh_from_db(self, *args, **kwargs):
+        super().refresh_from_db(*args, **kwargs)
+        self._set_initial_values_for_changed_checked_fields()
 
     def _get_initial_value_or_fallback(self, field):
         initial = getattr(self, f"_initial_{field}", None)
@@ -283,7 +291,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 configs = configs.filter(device__organization_id=self.organization_id)
             for config in configs.iterator():
                 try:
-                    config.templates.add(self)
+                    with transaction.atomic():
+                        config.templates.add(self)
                 except Exception as e:
                     # Log error but continue with other configs
                     logger.exception(
@@ -423,6 +432,15 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             self.vpn = None
             if self.type != "cert":
                 self.auto_cert = False
+        if self.type == "cert" and not self.auto_cert:
+            raise ValidationError(
+                {
+                    "auto_cert": _(
+                        "Certificate templates must have automatic "
+                        "certificate provisioning enabled."
+                    )
+                }
+            )
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class

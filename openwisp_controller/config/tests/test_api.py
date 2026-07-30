@@ -1429,9 +1429,10 @@ class TestConfigApi(
         dummy_template = self._create_template(
             type="cert", ca=ca, organization=org, config={}
         )
-        DeviceCertificate.objects.create(
-            config=config, template=dummy_template, cert=blueprint
-        )
+        config.templates.add(dummy_template)
+        dc = DeviceCertificate.objects.get(config=config, template=dummy_template)
+        dc.cert = blueprint
+        dc.save()
         path = reverse("config_api:template_list")
         data = self._template_data
         data.update(
@@ -1538,12 +1539,88 @@ class TestConfigApi(
             "Removing template via API deletes/revokes DeviceCertificate"
         ):
             data["config"]["templates"] = []
-            response = self.client.put(path, data, content_type="application/json")
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.put(path, data, content_type="application/json")
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(config.templates.count(), 0)
             self.assertEqual(config.devicecertificate_set.count(), 0)
             generated_cert.refresh_from_db()
             self.assertTrue(generated_cert.revoked)
+
+    def test_device_api_required_cert_template_preserved(self):
+        """
+        When a required certificate template is omitted from the submitted
+        templates list, the DeviceCertificate and its underlying certificate
+        must not be deleted and recreated.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        required_cert_template = self._create_template(
+            name="Required Cert Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            required=True,
+            config={},
+        )
+        regular_template = self._create_template(
+            name="Regular Template",
+            organization=org,
+            config={"system": {"hostname": "test_router"}},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(required_cert_template)
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert)
+        original_dev_cert_id = dev_cert.pk
+        original_cert_id = dev_cert.cert.pk
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = self._device_data
+        data.update(
+            {
+                "name": device.name,
+                "organization": str(org.pk),
+                "mac_address": device.mac_address,
+                "config": {
+                    "backend": "netjsonconfig.OpenWrt",
+                    "status": "modified",
+                    "templates": [str(regular_template.pk)],
+                    "context": {},
+                    "config": {},
+                },
+            }
+        )
+        response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 200, response.data)
+        config.refresh_from_db()
+        self.assertIn(
+            required_cert_template,
+            config.templates.all(),
+        )
+        self.assertIn(
+            regular_template,
+            config.templates.all(),
+        )
+        self.assertEqual(config.devicecertificate_set.count(), 1)
+        surviving_dev_cert = config.devicecertificate_set.first()
+        self.assertEqual(
+            surviving_dev_cert.pk,
+            original_dev_cert_id,
+            "DeviceCertificate was deleted and recreated "
+            "when a required cert template was omitted from the submitted list!",
+        )
+        self.assertEqual(
+            surviving_dev_cert.cert.pk,
+            original_cert_id,
+            "Underlying X.509 Cert was replaced "
+            "when a required cert template was omitted from the submitted list!",
+        )
+        self.assertFalse(
+            surviving_dev_cert.cert.revoked,
+            "Certificate was erroneously revoked "
+            "when a required cert template was omitted from the submitted list!",
+        )
 
 
 class TestConfigApiTransaction(

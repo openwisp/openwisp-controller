@@ -150,7 +150,7 @@ def revoke_device_cert(instance):
     instance if it exists and was auto-provisioned.
     """
     try:
-        if instance.cert and instance.auto_cert:
+        if instance.cert and getattr(instance, "auto_cert", True):
             instance.cert.revoke()
     except ObjectDoesNotExist:
         pass

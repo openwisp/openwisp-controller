@@ -670,9 +670,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         # for newly added certificate templates
         if action == "post_add":
             for template in templates.filter(type="cert"):
-                instance.devicecertificate_set.get_or_create(
-                    template=template, defaults={"auto_cert": template.auto_cert}
-                )
+                instance.devicecertificate_set.get_or_create(template=template)
 
     def get_default_templates(self):
         """
@@ -1109,12 +1107,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         and exposes them as UUID-namespaced variables for the configuration engine.
         """
         cert_context = collections.OrderedDict()
-        if not any(t.type == "cert" for t in self.templates.all()):
+        cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
+        if not cert_template_ids:
             return cert_context
         for dc in self.devicecertificate_set.select_related(
             "template", "cert"
         ).order_by("created"):
-            if dc.cert:
+            if dc.cert and dc.template_id in cert_template_ids:
                 template_hex = dc.template_id.hex
                 prefix = f"cert_{template_hex}"
                 cert_filename = "cert-{0}.pem".format(template_hex)

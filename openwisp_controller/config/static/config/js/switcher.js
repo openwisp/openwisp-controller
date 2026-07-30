@@ -44,16 +44,14 @@ django.jQuery(function ($) {
       } else {
         cert_specific.hide();
       }
-      if (val === "vpn" || val === "cert") {
+      if (val === "vpn") {
         auto_cert_field.show();
-
-        if (val === "vpn") {
-          auto_cert_label.text(gettext("Automatic tunnel provisioning"));
-        } else if (val === "cert") {
-          auto_cert_label.text(gettext("Automatic certificate provisioning"));
-        }
+        auto_cert_label.text(gettext("Automatic tunnel provisioning"));
       } else {
         auto_cert_field.hide();
+        if (val === "cert") {
+          $("#id_auto_cert").prop("checked", true);
+        }
       }
     };
   type_select.on("change", function () {

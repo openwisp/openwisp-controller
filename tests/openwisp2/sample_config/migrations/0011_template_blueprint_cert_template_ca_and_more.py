@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 "to copy extensions and properties from.",
                 limit_choices_to=openwisp_controller.config.base.template.get_unassigned_certs,  # noqa
                 null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
+                on_delete=django.db.models.deletion.RESTRICT,
                 to="sample_pki.cert",
                 verbose_name="Blueprint Certificate",
             ),
@@ -103,14 +103,13 @@ class Migration(migrations.Migration):
                         verbose_name="modified",
                     ),
                 ),
-                ("auto_cert", models.BooleanField(default=False)),
                 ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
                     "cert",
                     models.OneToOneField(
                         blank=True,
                         null=True,
-                        on_delete=django.db.models.deletion.CASCADE,
+                        on_delete=django.db.models.deletion.RESTRICT,
                         to="sample_pki.cert",
                     ),
                 ),

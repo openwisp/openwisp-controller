@@ -115,7 +115,7 @@ signal handler (registered in ``config/apps.py``) detects the
 configuration, ensuring the device pulls the renewed certificate on its
 next check-in.
 
-**On device property changes :** When a device's **hostname** or **MAC
+**On device property changes:** When a device's **hostname** or **MAC
 address** is modified, OpenWISP automatically detects the change and
 triggers an asynchronous task. The task revokes the existing certificate
 and generates a new one with the updated Common Name and custom OID
@@ -278,14 +278,6 @@ The following features are **not** managed by certificate templates:
   automatically injected. If a SAN is required, it must be included in the
   blueprint certificate's extensions and will be copied to generated
   certificates.
-- **OCSP / CRL distribution points:** These must be configured at the CA
-  level in ``django-x509`` and are not managed per-template.
 - **Let's Encrypt / ACME integration:** Automated ACME or public CA
   enrollment is not supported. Certificate Templates are designed for
   private CAs managed within OpenWISP's PKI module.
-- **Certificate expiration management:** Auto-renewal upon expiry is not
-  built in; renewal must be triggered manually through the admin or API
-  endpoint.
-- **Non-``auto_cert`` certificates:** If ``auto_cert`` is disabled, no
-  certificate is automatically generated on template assignment. The
-  administrator is responsible for manual provisioning.
