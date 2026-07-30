@@ -56,7 +56,9 @@ def whois_fetched_handler(sender, whois, updated_fields, device=None, **kwargs):
         device_location
         and device_location.location
         and updated_fields
-        and not any(i in updated_fields for i in ["address", "coordinates"])
+        and not any(
+            i in updated_fields for i in ["isp", "asn", "address", "coordinates"]
+        )
     ):
         return
     estimated_location_service = EstimatedLocationService(device)

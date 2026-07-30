@@ -108,6 +108,7 @@ class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
 
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
+    @pytest.mark.timeout(10)
     async def test_common_location_org_isolation(self):
         administrator = await Group.objects.acreate(name="Administrator")
         perm = await Permission.objects.filter(

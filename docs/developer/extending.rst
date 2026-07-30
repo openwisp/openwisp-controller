@@ -70,7 +70,7 @@ you can then import the result into your project.
 
 For more information about how to work with django projects and django
 apps, please refer to the `django documentation
-<https://docs.djangoproject.com/en/4.2/intro/tutorial01/>`_.
+<https://docs.djangoproject.com/en/5.2/intro/tutorial01/>`_.
 
 2. Install ``openwisp-controller``
 ----------------------------------
@@ -211,7 +211,7 @@ Ensure you are using one of the available geodjango backends, e.g.:
     }
 
 For more information about GeoDjango, please refer to the `geodjango
-documentation <https://docs.djangoproject.com/en/4.2/ref/contrib/gis/>`_.
+documentation <https://docs.djangoproject.com/en/5.2/ref/contrib/gis/>`_.
 
 8. Django Channels Setup
 ------------------------
@@ -255,7 +255,7 @@ Add the following settings to ``settings.py``:
 
 For more information about FORM_RENDERER setting, please refer to the
 `FORM_RENDERER documentation
-<https://docs.djangoproject.com/en/4.2/ref/settings/#form-renderer>`_. For
+<https://docs.djangoproject.com/en/5.2/ref/settings/#form-renderer>`_. For
 more information about ASGI_APPLICATION setting, please refer to the
 `ASGI_APPLICATION documentation
 <https://channels.readthedocs.io/en/latest/deploying.html#configuring-the-asgi-application>`_.
@@ -298,7 +298,7 @@ You have to replicate and adapt that code in your project.
 
 For more information regarding the concept of ``AppConfig`` please refer
 to the `"Applications" section in the django documentation
-<https://docs.djangoproject.com/en/4.2/ref/applications/>`_.
+<https://docs.djangoproject.com/en/5.2/ref/applications/>`_.
 
 11. Create Your Custom Models
 -----------------------------
@@ -323,7 +323,7 @@ You can add fields in a similar way in your ``models.py`` file.
 
     If you have any doubt regarding how to use, extend or develop models
     please refer to the `"Models" section in the django documentation
-    <https://docs.djangoproject.com/en/4.2/topics/db/models/>`_.
+    <https://docs.djangoproject.com/en/5.2/topics/db/models/>`_.
 
 12. Add Swapper Configurations
 ------------------------------
@@ -394,7 +394,7 @@ Create database migrations:
 
 For more information, refer to the `"Migrations" section in the django
 documentation
-<https://docs.djangoproject.com/en/4.2/topics/migrations/>`_.
+<https://docs.djangoproject.com/en/5.2/topics/migrations/>`_.
 
 14. Create the Admin
 --------------------
@@ -420,7 +420,7 @@ are described below.
     For more information regarding how the django admin works, or how it
     can be customized, please refer to `"The django admin site" section in
     the django documentation
-    <https://docs.djangoproject.com/en/4.2/ref/contrib/admin/>`_.
+    <https://docs.djangoproject.com/en/5.2/ref/contrib/admin/>`_.
 
 14.1. Monkey Patching
 ~~~~~~~~~~~~~~~~~~~~~
@@ -692,7 +692,7 @@ resort to monkey patching, you can proceed as follows:
 
 For more information about URL configuration in django, please refer to
 the `"URL dispatcher" section in the django documentation
-<https://docs.djangoproject.com/en/4.2/topics/http/urls/>`_.
+<https://docs.djangoproject.com/en/5.2/topics/http/urls/>`_.
 
 16. Import the Automated Tests
 ------------------------------
@@ -740,7 +740,7 @@ Substitute ``mycontroller`` with the name you chose in step 1.
 
 For more information about automated tests in django, please refer to
 `"Testing in Django"
-<https://docs.djangoproject.com/en/4.2/topics/testing/>`_.
+<https://docs.djangoproject.com/en/5.2/topics/testing/>`_.
 
 Other Base Classes that Can Be Inherited and Extended
 -----------------------------------------------------
@@ -759,7 +759,7 @@ for extending views.
 
 For more information about django views, please refer to the `views
 section in the django documentation
-<https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
+<https://docs.djangoproject.com/en/5.2/topics/http/views/>`_.
 
 2. Extending the Geo API Views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -772,7 +772,7 @@ views.
 
 For more information about django views, please refer to the `views
 section in the django documentation
-<https://docs.djangoproject.com/en/4.2/topics/http/views/>`_.
+<https://docs.djangoproject.com/en/5.2/topics/http/views/>`_.
 
 .. _custom_subnet_division_rule_types:
 

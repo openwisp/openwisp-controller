@@ -1,0 +1,11 @@
+{% load i18n %}
+{% for inline_admin_form in inline_admin_formset %}
+    {% if inline_admin_formset.formset.estimated_location_enabled and inline_admin_form.original.location.is_estimated %}
+    <ul class="messagelist map">
+        <li class="warning device-location-estimated">
+            {% trans "This location is estimated based on the device's last IP address. Edit the coordinates or address to increase accuracy and clear the estimated flag." %}
+        </li>
+    </ul>
+    {% endif %}
+{% endfor %}
+{% include "admin/django_loci/location_inline.html" %}

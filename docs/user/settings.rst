@@ -840,8 +840,14 @@ MaxMind License Key required for the :doc:`WHOIS Lookup feature <whois>`.
 **default**: ``90``
 ============ =======
 
-Specifies the number of days after which the WHOIS information for a
-device is considered stale and eligible for refresh.
+Specifies the number of days after which WHOIS information is refreshed.
+It also determines how long a WHOIS record is kept after no active device
+uses its IP address.
+
+OpenWISP keeps unreferenced WHOIS records for some time to avoid frequent
+lookups and unnecessary notifications about :doc:`estimated locations
+<estimated-location>` when devices frequently change IP addresses, as can
+happen with connections provided by mobile ISPs.
 
 .. _openwisp_controller_estimated_location_enabled:
 

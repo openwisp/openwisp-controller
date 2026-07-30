@@ -433,7 +433,7 @@ class TestDeviceAdminMixin:
         "config-0-device": "",
         "config-0-backend": "netjsonconfig.OpenWrt",
         "config-0-templates": "",
-        "config-0-config": json.dumps({}),
+        "config-0-config": "{}",
         "config-0-context": "",
         "config-TOTAL_FORMS": 1,
         "config-INITIAL_FORMS": 0,

@@ -10,6 +10,7 @@ from swapper import load_model
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .utils import handle_error_notification, handle_recovery_notification
+from .whois.tasks import cleanup_unreferenced_whois_records  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

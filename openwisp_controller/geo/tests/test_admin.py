@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase
@@ -7,6 +9,7 @@ from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
+from ...config import settings as config_app_settings
 from ...config.tests.test_admin import TestImportExportMixin
 from ...tests.utils import TestAdminMixin
 from .utils import TestGeoMixin
@@ -179,6 +182,61 @@ class TestDeviceAdmin(
 
     def setUp(self):
         self.client.force_login(self._get_admin())
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_estimated_location_warning(self):
+        org = self._get_org()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
+        location = self._create_location(organization=org, is_estimated=True)
+        device = self._create_object(
+            name="test",
+            organization=org,
+            mac_address="00:11:22:33:44:66",
+        )
+        self._create_object_location(location=location, content_object=device)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        response = self.client.get(path)
+        self.assertContains(response, "device-location-estimated")
+        self.assertContains(
+            response,
+            "This location is estimated based on the device's last IP address. "
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag.",
+        )
+        self.assertContains(response, 'class="messagelist map"', html=False)
+        org.geo_settings.estimated_location_enabled = False
+        org.geo_settings.save()
+        response = self.client.get(path)
+        self.assertNotContains(response, "device-location-estimated")
+        self.assertNotContains(
+            response,
+            "This location is estimated based on the device's last IP address. "
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag.",
+        )
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    def test_non_estimated_location_warning(self):
+        org = self._get_org()
+        org.geo_settings.estimated_location_enabled = True
+        org.geo_settings.save()
+        location = self._create_location(organization=org)
+        device = self._create_object(
+            name="test",
+            organization=org,
+            mac_address="00:11:22:33:44:66",
+        )
+        self._create_object_location(location=location, content_object=device)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        response = self.client.get(path)
+        self.assertNotContains(response, "device-location-estimated")
+        self.assertNotContains(
+            response,
+            "This location is estimated based on the device's last IP address. "
+            "Edit the coordinates or address to increase accuracy and clear the "
+            "estimated flag.",
+        )
 
     def test_device_export_geo(self):
         org = self._get_org(org_name="default")
