@@ -214,6 +214,8 @@ configuration.
 
 Finally you can add the new template to your devices.
 
+.. include:: ../partials/vpn-client-immutability.rst
+
 .. tip::
 
     If you need to troubleshoot any issue, increase the verbosity of the

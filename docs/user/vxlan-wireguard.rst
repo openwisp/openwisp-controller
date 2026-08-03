@@ -100,6 +100,8 @@ should be the same as the VPN server configuration in OpenWISP.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-vxlan-tutorial/template.png
     :alt: WireGuard VXLAN VPN client template example
 
+.. include:: ../partials/vpn-client-immutability.rst
+
 4. Apply Wireguard VXLAN VPN Template to Devices
 ------------------------------------------------
 

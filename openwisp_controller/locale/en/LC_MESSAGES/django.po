@@ -1,0 +1,21 @@
+# OpenWISP
+# Copyright (C) 2026
+# This file is distributed under the same license as the
+# openwisp-controller package.
+#
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-08-03 00:00+0000\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: config/base/vpn.py:903
+msgid ""
+"VPN clients cannot be modified after creation. To change this VPN client, "
+"remove the VPN template and add it again."
+msgstr ""
+"VPN clients cannot be modified after creation. To change this VPN client, "
+"remove the VPN template and add it again."

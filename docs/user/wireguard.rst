@@ -99,6 +99,8 @@ server configuration in OpenWISP.
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/wireguard-tutorial/template.png
     :alt: WireGuard VPN client template example
 
+.. include:: ../partials/vpn-client-immutability.rst
+
 4. Apply WireGuard VPN Template to Devices
 ------------------------------------------
 

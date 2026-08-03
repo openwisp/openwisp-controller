@@ -120,6 +120,8 @@ installing ZeroTier on your server from the `official website
     :target: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/zerotier-tutorial/template.png
     :alt: ZeroTier VPN client template example
 
+.. include:: ../partials/vpn-client-immutability.rst
+
 4. Apply ZeroTier VPN Template to Devices
 -----------------------------------------
 
