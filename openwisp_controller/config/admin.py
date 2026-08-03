@@ -38,6 +38,7 @@ from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
     AlwaysHasChangedMixin,
+    BlockDeleteAllowCascadeMixin,
     CopyableFieldsAdmin,
     TimeReadonlyAdminMixin,
 )
@@ -609,7 +610,65 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         perm = super().has_delete_permission(request)
         if not obj:
             return perm
+        if BlockDeleteAllowCascadeMixin.is_admin_cascade_delete_request(self, request):
+            self._add_active_device_delete_warning(request, obj)
+            return perm
         return perm and obj.is_deactivated()
+
+    def _add_active_device_delete_warning(self, request, obj):
+        if getattr(request, "_active_device_delete_warning", False):
+            return
+        resolver_match = getattr(request, "resolver_match", None)
+        url_name = getattr(resolver_match, "url_name", None)
+        opts = Organization._meta
+        organization_delete_url_name = f"{opts.app_label}_{opts.model_name}_delete"
+        organization_changelist_url_name = (
+            f"{opts.app_label}_{opts.model_name}_changelist"
+        )
+        active_organizations = 0
+        if request.method == "GET" and url_name == organization_delete_url_name:
+            active_organizations = (
+                Device.objects.filter(
+                    organization_id=obj.organization_id,
+                    _is_deactivated=False,
+                )
+                .values("organization_id")
+                .distinct()
+                .count()
+            )
+        elif (
+            url_name == organization_changelist_url_name
+            and request.POST.get("action") == "delete_selected"
+            and not request.POST.get("post")
+        ):
+            active_organizations = (
+                Device.objects.filter(
+                    organization_id__in=request.POST.getlist(
+                        helpers.ACTION_CHECKBOX_NAME
+                    ),
+                    _is_deactivated=False,
+                )
+                .values("organization_id")
+                .distinct()
+                .count()
+            )
+        if not active_organizations:
+            return
+        self.message_user(
+            request,
+            ngettext_lazy(
+                "This organization contains active devices. It is highly "
+                "recommended to deactivate them before deleting the organization "
+                "to ensure sensitive configuration data is disposed of safely.",
+                "%(count)d organizations contain active devices. It is highly "
+                "recommended to deactivate them before deleting the organizations "
+                "to ensure sensitive configuration data is disposed of safely.",
+                active_organizations,
+            )
+            % {"count": active_organizations},
+            messages.WARNING,
+        )
+        request._active_device_delete_warning = True
 
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding

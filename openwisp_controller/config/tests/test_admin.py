@@ -2814,6 +2814,82 @@ class TestTransactionAdmin(
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
 
+    def test_delete_organization_with_active_device(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        first_device = self._create_device(organization=org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=org,
+            mac_address="00:11:22:33:44:56",
+        )
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        warning = (
+            "This organization contains active devices. It is highly recommended "
+            "to deactivate them before deleting the organization to ensure "
+            "sensitive configuration data is disposed of safely."
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response, "your account doesn't have permission to delete"
+        )
+        self.assertContains(response, warning, count=1)
+        response = self.client.post(url, {"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(org.__class__.objects.filter(pk=org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
+    def test_delete_organization_with_deactivated_device(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        device = self._create_device(organization=org)
+        device.deactivate()
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "This organization contains active devices.")
+        response = self.client.post(url, {"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(org.__class__.objects.filter(pk=org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=device.pk).exists())
+
+    def test_delete_organizations_with_multiple_active_devices(self):
+        first_org = self._create_org(name="first-organization", slug="first-org")
+        second_org = self._create_org(name="second-organization", slug="second-org")
+        first_device = self._create_device(organization=first_org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=second_org,
+            mac_address="00:11:22:33:44:56",
+        )
+        url = reverse(
+            f"admin:{first_org._meta.app_label}_{first_org._meta.model_name}_changelist"
+        )
+        data = {
+            "action": "delete_selected",
+            "_selected_action": [first_org.pk, second_org.pk],
+        }
+        warning = (
+            "2 organizations contain active devices. It is highly recommended to "
+            "deactivate them before deleting the organizations to ensure sensitive "
+            "configuration data is disposed of safely."
+        )
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, warning, count=1)
+        response = self.client.post(url, {**data, "post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(first_org.__class__.objects.filter(pk=first_org.pk).exists())
+        self.assertFalse(second_org.__class__.objects.filter(pk=second_org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
 
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
