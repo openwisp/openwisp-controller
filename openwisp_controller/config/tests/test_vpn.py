@@ -558,6 +558,29 @@ class TestVpn(BaseTestVpn, TestCase):
         client.refresh_from_db()
         self.assertTrue(client.auto_cert)
 
+    def test_vpn_client_pk_reuse_update_rejected(self):
+        # a freshly constructed instance carrying the pk of an existing
+        # row has _state.adding=True but updates that row on save():
+        # immutability must be enforced in this case too
+        client = self._create_vpn_client_via_template()
+        rogue = VpnClient(
+            pk=client.pk,
+            config=client.config,
+            template=client.template,
+            vpn=client.vpn,
+            cert=client.cert,
+            ip=client.ip,
+            public_key=client.public_key,
+            private_key=client.private_key,
+            secret=client.secret,
+            vni=client.vni,
+            auto_cert=False,
+        )
+        with self.assertRaises(ValidationError):
+            rogue.save()
+        client.refresh_from_db()
+        self.assertTrue(client.auto_cert)
+
     def test_vpn_client_ip_update_allowed(self):
         # internal machinery (subnet_division) must be able to
         # reassign the provisioned IP after creation

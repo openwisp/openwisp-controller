@@ -883,12 +883,18 @@ class AbstractVpnClient(models.Model):
         is applied to a configuration and deleted when it is removed;
         allowing updates would desynchronize the provisioned artifacts
         (certificate, IP, keys) from the VPN server.
+
+        Returns the persisted instance, or ``None`` when no row with
+        this pk exists in the database (i.e. the save is a creation).
+        ``_state.adding`` alone is not reliable here: a freshly
+        constructed instance carrying the pk of an existing row still
+        has ``_state.adding=True`` but updates that row when saved.
         """
-        if self._state.adding:
-            return
+        if self.pk is None:
+            return None
         current = self._meta.model.objects.filter(pk=self.pk).first()
         if current is None:
-            return
+            return None
         changed_fields = [
             field.name
             for field in self._meta.concrete_fields
@@ -907,20 +913,20 @@ class AbstractVpnClient(models.Model):
                     for field in changed_fields
                 }
             )
+        return current
 
     def save(self, *args, **kwargs):
         """Performs automatic provisioning if ``auto_cert`` is True."""
-        if self._state.adding:
+        # the immutability check is not called automatically by save():
+        # it must run here too so direct ORM saves which skip
+        # full_clean() cannot modify a persisted row
+        if self._check_immutable_fields() is None:
             if self.auto_cert:
                 self._auto_x509()
                 self._auto_ip()
                 self._auto_wireguard()
                 self._auto_vxlan()
                 self._auto_secret()
-        else:
-            # not called automatically by save(): enforce immutability
-            # also for direct ORM saves which skip full_clean()
-            self._check_immutable_fields()
         super().save(*args, **kwargs)
 
     def _auto_x509(self):
