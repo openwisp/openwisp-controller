@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import django
+from django.contrib import admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -13,8 +14,8 @@ from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.db.models.signals import post_save
-from django.test import TestCase, TransactionTestCase
-from django.urls import reverse
+from django.test import RequestFactory, TestCase, TransactionTestCase
+from django.urls import resolve, reverse
 from reversion.models import Version
 from swapper import load_model
 
@@ -2889,6 +2890,59 @@ class TestTransactionAdmin(
         self.assertFalse(second_org.__class__.objects.filter(pk=second_org.pk).exists())
         self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
         self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
+    def test_organization_delete_warning_uses_authorized_organizations(self):
+        first_org = self._create_org(name="first-organization", slug="first-org")
+        second_org = self._create_org(name="second-organization", slug="second-org")
+        first_device = self._create_device(organization=first_org)
+        self._create_device(
+            name="second-device",
+            organization=second_org,
+            mac_address="00:11:22:33:44:56",
+        )
+        user = self._create_operator(organizations=[first_org])
+        url = reverse(
+            f"admin:{first_org._meta.app_label}_{first_org._meta.model_name}_changelist"
+        )
+        request = RequestFactory().post(
+            url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [first_org.pk, second_org.pk],
+            },
+        )
+        request.resolver_match = resolve(url)
+        request.user = user
+        device_admin = admin.site.get_model_admin(Device)
+        with patch.object(device_admin, "message_user") as message_user:
+            device_admin._add_active_device_delete_warning(request, first_device)
+        message = str(message_user.call_args.args[1])
+        self.assertIn("This organization contains active devices.", message)
+        self.assertNotIn("organizations contain active devices.", message)
+
+    def test_organization_delete_warning_is_checked_once(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        first_device = self._create_device(organization=org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=org,
+            mac_address="00:11:22:33:44:56",
+        )
+        first_device.deactivate()
+        second_device.deactivate()
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        request = RequestFactory().get(url)
+        request.resolver_match = resolve(url)
+        device_admin = admin.site.get_model_admin(Device)
+        with patch.object(
+            Device.objects, "filter", wraps=Device.objects.filter
+        ) as filter_:
+            device_admin._add_active_device_delete_warning(request, first_device)
+            device_admin._add_active_device_delete_warning(request, second_device)
+        self.assertEqual(filter_.call_count, 1)
 
 
 class TestDeviceGroupAdmin(

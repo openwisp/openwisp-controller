@@ -616,7 +616,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         return perm and obj.is_deactivated()
 
     def _add_active_device_delete_warning(self, request, obj):
-        if getattr(request, "_active_device_delete_warning", False):
+        if getattr(request, "_active_device_delete_warning_checked", False):
             return
         resolver_match = getattr(request, "resolver_match", None)
         url_name = getattr(resolver_match, "url_name", None)
@@ -627,6 +627,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         )
         active_organizations = 0
         if request.method == "GET" and url_name == organization_delete_url_name:
+            request._active_device_delete_warning_checked = True
             active_organizations = (
                 Device.objects.filter(
                     organization_id=obj.organization_id,
@@ -641,10 +642,14 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
             and request.POST.get("action") == "delete_selected"
             and not request.POST.get("post")
         ):
+            request._active_device_delete_warning_checked = True
+            organizations = self.admin_site.get_model_admin(Organization).get_queryset(
+                request
+            )
             active_organizations = (
                 Device.objects.filter(
-                    organization_id__in=request.POST.getlist(
-                        helpers.ACTION_CHECKBOX_NAME
+                    organization_id__in=organizations.filter(
+                        pk__in=request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
                     ),
                     _is_deactivated=False,
                 )
@@ -668,7 +673,6 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
             % {"count": active_organizations},
             messages.WARNING,
         )
-        request._active_device_delete_warning = True
 
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding
