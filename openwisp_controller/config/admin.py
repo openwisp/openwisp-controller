@@ -643,7 +643,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
             and not request.POST.get("post")
         ):
             request._active_device_delete_warning_checked = True
-            organizations = self.admin_site.get_model_admin(Organization).get_queryset(
+            # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
+            organizations = self.admin_site._registry[Organization].get_queryset(
                 request
             )
             active_organizations = (
