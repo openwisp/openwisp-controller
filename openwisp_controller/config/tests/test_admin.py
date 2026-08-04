@@ -316,13 +316,11 @@ class TestAdmin(
         data = self._get_device_params(org=org1)
         data.update({"group": str(self._create_device_group().pk)})
         self._login()
-        with catch_signal(
-            device_group_changed
-        ) as mocked_device_group_changed, catch_signal(
-            device_name_changed
-        ) as mocked_device_name_changed, catch_signal(
-            management_ip_changed
-        ) as mocked_management_ip_changed:
+        with (
+            catch_signal(device_group_changed) as mocked_device_group_changed,
+            catch_signal(device_name_changed) as mocked_device_name_changed,
+            catch_signal(management_ip_changed) as mocked_management_ip_changed,
+        ):
             self.client.post(path, data)
 
         mocked_device_group_changed.assert_not_called()
@@ -758,9 +756,10 @@ class TestAdmin(
         dg2.templates.add(t2)
         data = self._get_device_params(org=org)
         data.update(group=str(dg1.pk))
-        with catch_signal(post_save) as mock_post_save, catch_signal(
-            device_group_changed
-        ) as device_group_changed_mock:
+        with (
+            catch_signal(post_save) as mock_post_save,
+            catch_signal(device_group_changed) as device_group_changed_mock,
+        ):
             self.client.post(
                 reverse(f"admin:{self.app_label}_device_add"), data, follow=True
             )
@@ -1609,11 +1608,14 @@ class TestAdmin(
         v = self._create_vpn()
         path = reverse(f"admin:{self.app_label}_vpn_download", args=[v.pk])
         # First request warms up the cache
-        with patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate, patch.object(
-            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
-        ) as mocked_get_cached_configuration:
+        with (
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+            patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=v.get_cached_configuration(),
+            ) as mocked_get_cached_configuration,
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1621,11 +1623,14 @@ class TestAdmin(
             mocked_get_cached_configuration.assert_called_once()
 
         # Second request uses the cached config
-        with patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate, patch.object(
-            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
-        ) as mocked_get_cached_configuration:
+        with (
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+            patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=v.get_cached_configuration(),
+            ) as mocked_get_cached_configuration,
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get("content-type"), "application/octet-stream")
